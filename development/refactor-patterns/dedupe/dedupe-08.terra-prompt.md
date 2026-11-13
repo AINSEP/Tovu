@@ -75,11 +75,31 @@ entries/repo.memory.ts: `export function toEntryOutbox(deps: KernelOutboxAdapter
 In core/commands/repo.memory.ts `save`, media/repo.memory.ts rendition `save(record: AssetRenditionRecord)` and blob-gc `save(entry: BlobGcJournalEntry)`: replace the findIndex/push/assign body with `upsertRecord({ records: this.rows, record, identity: { id: record.id } });` (the blob-gc one uses `record: entry, identity: { id: entry.id }`). Import `upsertRecord` beside the existing `matchesRecordFields` import from "@jini-ai/core/records". Do NOT touch the media primary `save` (it calls preserveMediaCreator).
 
 ## J40 embed-service (EXTRACT, local)
-Add file-private `editEmbedHostBody` (signature in TSV). Body: `requireWidgetPermission({ authorize: deps.authorize, actor: input.actor, workspaceId: input.workspaceId, permission: "widgets.place" })`, then `withEntryLock({ key: \`${input.workspaceId}::${input.hostEntryId}\`, fn: async () => { const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId); const { nextBodyJson, result } = await edit({ host }); assertGuardrails(deps, hostBodyType(host), nextBodyJson); const entry = await writeEmbedHost({ deps, input, host, nextBodyJson }); return { ...result, entry }; } }, deps.entryLocks ? { locks: deps.entryLocks } : {})`. Use `EmbedHost` (the return type of loadEmbedHost). Each public function calls it with its edit callback:
+Add file-private `editEmbedHostBody` with exactly this signature (field names verified against Jini 48e6159a4 `packages/cms/src/widgets/embed-service.ts`: the three public inputs share `workspaceId`, `actor: { principalId; kind }`, `hostEntryId`, `baseVersion`, and `writeEmbedHost` reads `baseVersion`, so it is part of the shared input):
+```ts
+/** The fields every embed mutation input shares (insert/remove/reorder inputs all extend this shape). */
+type EmbedHostEditInput = {
+  readonly workspaceId: UUID;
+  readonly actor: { readonly principalId: UUID; readonly kind: string };
+  readonly hostEntryId: UUID;
+  readonly baseVersion: number;
+};
+
+/** Authorize `widgets.place`, then under the host's entry lock: load the host, run `edit`, check guardrails, write. */
+async function editEmbedHostBody<R extends object>(
+  required: {
+    deps: EmbedServiceDeps;
+    input: EmbedHostEditInput;
+    edit: (required: { host: EmbedHost }) => Promise<{ nextBodyJson: unknown; result: R }>;
+  },
+  _optional: Record<string, never> = {},
+): Promise<R & { entry: EntryRecord | PostRecord }>
+```
+Body: `requireWidgetPermission({ authorize: deps.authorize, actor: input.actor, workspaceId: input.workspaceId, permission: "widgets.place" })`, then `withEntryLock({ key: \`${input.workspaceId}::${input.hostEntryId}\`, fn: async () => { const host = await loadEmbedHost(deps, input.workspaceId, input.hostEntryId); const { nextBodyJson, result } = await edit({ host }); assertGuardrails(deps, hostBodyType(host), nextBodyJson); const entry = await writeEmbedHost({ deps, input, host, nextBodyJson }); return { ...result, entry }; } }, deps.entryLocks ? { locks: deps.entryLocks } : {})`. Use `EmbedHost` (the return type of loadEmbedHost). Each public function calls it with its edit callback:
 - insert: `assertEmbedTargetIsLiveWidget…; const placementId = deps.ids.newId(); return { nextBodyJson: appendEmbed(host.record.bodyJson, placementId, input.widgetEntryId), result: { placementId } };`
 - remove: the containsEmbedWithPlacementId check (KEEP the "C4d fix" comment) and then `return { nextBodyJson: removeEmbedByPlacementId(...), result: {} };`
 - reorder: the count check, the target validation loop (KEEP the "Round-2 external-audit fix" comment), then `reorderEmbedSlots(...)` with `result: {}`.
-The return types stay as now.
+The edit callbacks are `async` (insert awaits `assertEmbedTargetIsLiveWidget`). The public return types stay as now: insert `Promise<{ entry: EntryRecord | PostRecord; placementId: UUID }>`, remove and reorder `Promise<{ entry: EntryRecord | PostRecord }>`. The helper is under 50 lines and complexity 2.
 
 ## J41 widgets write-service (EXTRACT, local)
 ```ts

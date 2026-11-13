@@ -72,8 +72,8 @@ Run this; both counts for your part's files must be 0 (report any remaining site
 ```bash
 cd apps/website/src && python3 - <<'PY'
 import re,glob
-ws=re.compile(r'''if \(String\(req\.params\.workspaceId( \?\? (""|''))?\) !== (\w+)\.workspaceId\) \{\s*res\.status\(404\)\.json\(\{ error: ["']workspace was not found["'] \}\);\s*return;\s*\}''')
-au=re.compile(r'''const (\w+) = await (\w+)\.authorize\(\{\s*principalId: (\w+)\.id,\s*permission: ([^,\n]+),\s*workspaceId: [\w.]+,?\s*(?:entityType: [^,\n]+,?\s*)?(?:entityId: [^,\n]+,?\s*)?\}\);\s*if \(!\1\.allowed\) \{\s*res\.status\(403\)\.json\(\{\s*error: `principal '\$\{\3\.id\}' is not authorized for [^`]*`,\s*code: "FORBIDDEN",\s*details: \{ permission: [^}]*\},?\s*\}\);\s*return;\s*\}''')
+ws=re.compile(r'''if \(String\(req\.params\.workspaceId( \?\? (""|''))?\) !== (\w+)\.workspaceId\) \{\s*res\.status\(404\)\.json\(\{ error: ["']workspace was not found["'] \}\);\s*return(?: true| null)?;\s*\}''')
+au=re.compile(r'''const (\w+) = await (\w+)\.authorize\(\{\s*principalId: (\w+)\.id,\s*permission: ([^,\n]+),\s*workspaceId: [\w.]+,?\s*(?:entityType: [^,\n]+,?\s*)?(?:entityId: [^,\n]+,?\s*)?\}\);\s*if \(!\1\.allowed\) \{\s*res\.status\(403\)\.json\(\{\s*error: `principal '\$\{\3\.id\}' is not authorized for [^`]*`,\s*code: "FORBIDDEN",\s*details: \{ permission: [^}]*\},?\s*\}\);\s*return(?: true| null)?;\s*\}''')
 for f in sorted(glob.glob('**/*.ts',recursive=True)):
     if '__tests__' in f or '.test.' in f: continue
     s=open(f).read(); a=len(ws.findall(s)); b=len(au.findall(s))

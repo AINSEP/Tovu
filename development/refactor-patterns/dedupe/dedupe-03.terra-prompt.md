@@ -29,7 +29,7 @@ Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export 
 - **X27** REPOINT-NOW — risk -; est. −10 lines; divergence: Tovu adds failure?: UserFacingError | null; rest identical
 - **X30** REPOINT-NOW — risk -; est. −34 lines; divergence: none (Jini adds unused _optional param)
 - **X31** REPOINT-NOW — risk -; est. −22 lines; divergence: Jini optionals are "| undefined" (exactOptionalPropertyTypes) - wider, assignable both ways for readers; PageHeadContext/EntryRef NOT swapped (Jini themeTier is string, ancestors.title string|undefined)
-- **T30** MERGE INTO EXISTING — risk L; est. −~190 lines; divergence: shared type adds optional metadata + authorization.orPermission (widening only); 4 files require inputSchema and publish-content narrows actorClassRule - kept via the intersection
+- **T30** MERGE INTO EXISTING — risk L; est. −~260 lines (31 copies, not 20); divergence: shared type adds optional metadata + authorization.orPermission (widening only); 5 files require inputSchema (view-image, seo, web-screenshot, webhooks, plugin-runtime) and publish-content narrows actorClassRuleRule - kept via the intersection
   - tests: npx tsc --noEmit -p apps/website (type-only) + npx tsx --test --test-concurrency=1 apps/website/src/features/<each touched feature>/__tests__/**/agent-tools*.test.ts
 - **T32** MERGE INTO EXISTING — risk L; est. −15 lines; divergence: none
   - tests: npx tsx --test --test-concurrency=1 apps/website/src/server/inbound/admin-http/routes/members/__tests__ (members route tests) + apps/website/src/features/members/__tests__
@@ -166,16 +166,23 @@ It must import from the framework-neutral `@jini-ai/cms/forms` (Jini job 08, X15
 ---
 
 ### T30: `AgentToolDefinition` from `@jini-ai/core`
-In each of the 20 files listed in the TSV:
-1. Add `import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";`.
-2. Keep the file's local `AgentToolSideEffect` union. It is domain tightening, which is allowed by `packages/core/src/agent-tools.ts:12-13`.
-3. Replace `AgentToolActorClassRule = …` with `export type { AgentToolActorClassRule } from "@jini-ai/core";`. Skip this where nothing imports it from that file.
-4. Replace the local `export interface AgentToolDefinition {…}` with one of these:
-   - Default: `export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };`.
-   - Files whose copy has a required `inputSchema` (web-screenshot, seo, webhooks, plugin-runtime): `SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; inputSchema: Readonly<Record<string, unknown>> }`.
-   - publish-content: `SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; actorClassRule?: "confirmer-must-equal-own-delegatedBy" }`.
-5. Move the `inputSchema` JSDoc ("JSON Schema for this tool's `input`… refuses to wire any tool lacking one", plus any file-specific line such as recovery's "Optional, matching…") onto the alias. This follows the comments/forms precedent.
-6. Run `npx tsc --noEmit -p apps/website` once at the end to type-check.
+31 local copies (as of tovu-terra-d3 3a791f5ce; every local `AgentToolActorClassRule` union equals Jini's). Paths are under `apps/website/src/`. Do exactly the form named for each file's group; no discovery command is needed.
+
+**G0, 11 non-exported copies whose `sideEffects` already uses core's `AgentToolSideEffect`** (imported from `@jini-ai/core` in the same file): delete the local `interface AgentToolDefinition {…}` and add `type AgentToolDefinition` to that file's existing `@jini-ai/core` type import. Exception: `features/media/view-image-tool.ts` has a REQUIRED `inputSchema`, so it gets `type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<Record<string, unknown>> };` (import `AgentToolDefinition as SharedAgentToolDefinition`).
+- `assistant/admin-screen-link-tool.ts`, `assistant/ask-choice-tool.ts`, `assistant/component-catalog-tool.ts`, `assistant/demo-a2ui-tool.ts`, `assistant/demo-choices-tool.ts`, `assistant/demo-image-tool.ts`, `assistant/external-mcp-reauth-tool.ts`, `assistant/render-ui-tool.ts`
+- `features/site-backup/tool-registrations.ts`, `features/source-control/tool-registrations.ts`
+- `features/media/view-image-tool.ts` (required `inputSchema`, see above)
+
+**The 20 exported copies** (`features/<x>/agent-tools.ts`). In each: add `import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";`; keep the file's local `AgentToolSideEffect` union (domain tightening, allowed by `packages/core/src/agent-tools.ts:12-13` in Jini); replace `export interface AgentToolDefinition {…}` with the form for its group:
+- **G1 default** (`export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };`), 11 files: `media-generation`, `media-import`, `pages`, `post`, `redirects`, `site-evidence`, `site-inspection`, `sites`, `theme`, `trash`, `web`.
+- **G2 required inputSchema** (`… & { sideEffects: AgentToolSideEffect; inputSchema: Readonly<Record<string, unknown>> }`), 3 files: `seo`, `web-screenshot`, `webhooks`.
+- **G3 default + actor-class rule re-export**, 4 files: `members`, `newsletter`, `recovery`, `widgets`. G1 form, and replace the local `AgentToolActorClassRule = …` with `export type { AgentToolActorClassRule } from "@jini-ai/core";` (keep the export: other files import it from here).
+- **G4 required inputSchema + rule re-export**, 1 file: `plugin-runtime`. G2 form plus the G3 re-export.
+- **G5 narrowed rule**, 1 file: `publish-content`: `export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; actorClassRule?: "confirmer-must-equal-own-delegatedBy" };`.
+
+Count check: G0 11 + G1 11 + G2 3 + G3 4 + G4 1 + G5 1 = 31.
+Move the `inputSchema` JSDoc ("JSON Schema for this tool's `input`… refuses to wire any tool lacking one", plus any file-specific line such as recovery's "Optional, matching…") onto the alias or the import line's neighbour comment; this follows the comments/forms precedent. Do not edit `features/sites/index.ts` (it re-exports the alias by name and keeps working).
+Run `npx tsc --noEmit -p apps/website` once at the end to type-check (this job's only full tsc).
 
 ### T32, T33, T34: feature-owned builders and mappers (run after dedupe-01/02 have landed; in `server/inbound/*` change only the lines named here)
 - T32:

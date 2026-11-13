@@ -62,8 +62,8 @@ Run this; both counts for your part's files must be 0 (report any remaining site
 ```bash
 cd apps/website/src && python3 - <<'PY'
 import re,glob
-ws=re.compile(r'''if \(String\(req\.params\.workspaceId( \?\? (""|''))?\) !== (\w+)\.workspaceId\) \{\s*res\.status\(404\)\.json\(\{ error: ["']workspace was not found["'] \}\);\s*return;\s*\}''')
-au=re.compile(r'''const (\w+) = await (\w+)\.authorize\(\{\s*principalId: (\w+)\.id,\s*permission: ([^,\n]+),\s*workspaceId: [\w.]+,?\s*(?:entityType: [^,\n]+,?\s*)?(?:entityId: [^,\n]+,?\s*)?\}\);\s*if \(!\1\.allowed\) \{\s*res\.status\(403\)\.json\(\{\s*error: `principal '\$\{\3\.id\}' is not authorized for [^`]*`,\s*code: "FORBIDDEN",\s*details: \{ permission: [^}]*\},?\s*\}\);\s*return;\s*\}''')
+ws=re.compile(r'''if \(String\(req\.params\.workspaceId( \?\? (""|''))?\) !== (\w+)\.workspaceId\) \{\s*res\.status\(404\)\.json\(\{ error: ["']workspace was not found["'] \}\);\s*return(?: true| null)?;\s*\}''')
+au=re.compile(r'''const (\w+) = await (\w+)\.authorize\(\{\s*principalId: (\w+)\.id,\s*permission: ([^,\n]+),\s*workspaceId: [\w.]+,?\s*(?:entityType: [^,\n]+,?\s*)?(?:entityId: [^,\n]+,?\s*)?\}\);\s*if \(!\1\.allowed\) \{\s*res\.status\(403\)\.json\(\{\s*error: `principal '\$\{\3\.id\}' is not authorized for [^`]*`,\s*code: "FORBIDDEN",\s*details: \{ permission: [^}]*\},?\s*\}\);\s*return(?: true| null)?;\s*\}''')
 for f in sorted(glob.glob('**/*.ts',recursive=True)):
     if '__tests__' in f or '.test.' in f: continue
     s=open(f).read(); a=len(ws.findall(s)); b=len(au.findall(s))
@@ -152,6 +152,7 @@ Then `npx eslint <changed files>` (no new errors). Commit message: "refactor(web
 | 63 | `server/inbound/admin-http/routes/skills/list.ts` | 1 | 0 |
 | 64 | `server/inbound/admin-http/routes/skills/manage.ts` | 1 | 0 |
 | 65 | `server/inbound/admin-http/routes/system/assistant-daemon.ts` | 1 | 1 |
+| 65a | `server/inbound/admin-http/routes/system/custom-credentials.ts` (RG4: both blocks sit inside `rejectUnlessAuthorized`, which returns `true` after each response; keep `return true`) | 1 | 1 |
 | 66 | `server/inbound/admin-http/routes/system/deployment-overview.ts` | 1 | 1 |
 | 67 | `server/inbound/admin-http/routes/system/dockerfile-source.ts` | 2 | 2 |
 | 68 | `server/inbound/admin-http/routes/system/export-site.ts` | 2 | 2 |
@@ -159,6 +160,7 @@ Then `npx eslint <changed files>` (no new errors). Commit message: "refactor(web
 | 70 | `server/inbound/admin-http/routes/system/module-status.ts` | 1 | 1 |
 | 71 | `server/inbound/admin-http/routes/system/observability-status.ts` | 2 | 1 |
 | 72 | `server/inbound/admin-http/routes/system/server-logs.ts` | 1 | 1 |
+| 72a | `server/inbound/admin-http/routes/system/source-control-credentials.ts` (RG4: same `rejectUnlessAuthorized` twin, keep `return true`) | 1 | 1 |
 | 73 | `server/inbound/admin-http/routes/system/sites.ts` | 4 | 0 |
 | 74 | `server/inbound/admin-http/routes/system/tool-gaps.ts` | 1 | 0 |
 | 75 | `server/inbound/admin-http/routes/taxonomy/list.ts` | 0 | 1 |
