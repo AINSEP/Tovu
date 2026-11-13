@@ -1,22 +1,44 @@
 # Terra prompt: Jini error handling (swallowed errors + generic catch messages)
 
-STATUS: READY (2026-11-13). Self-contained. Repo: the Jini monorepo, branch `design-d5` at commit
-4717ae478; every `path:line` below was read there. If a line moved, find the quoted text in the same
-file. This repo has no `AI-Dev-Shop/`; that is expected, proceed. Do not follow CLAUDE.md/AGENTS.md
+STATUS: NOT READY — rev 2 in progress (sections 8 site edits, 9 missing sites, 10 Part B Tovu still to write; see ADS-memory/.local-artifacts/handoffs/2026-11-13-design-jinierr2.md). Self-contained. Two parts:
+**Part A** = Jini monorepo (sections 0-9). **Part B** = Tovu (section 10), run only after Part A
+is reviewed, released and Tovu's `@jini-ai/*` versions are bumped. Every `path:line` below was
+read on Jini branch `design-d5` (head c55eec038); if a line moved, find the quoted text in the same
+file. Neither repo needs `AI-Dev-Shop/`; that is expected, proceed. Do not follow CLAUDE.md/AGENTS.md
 bootstrap steps.
 
-## 0. Ground rules
-- Smallest change per site. No refactors, renames, reformatting or moves. Keep every comment.
-- Args stay `(required, optional = {})`. No `eslint-disable`, `as any`, non-null `!` in added code.
-- Add no new helper. Only these exist and are allowed: `formatErrorForLog`, `describeErrorForLog`
-  (both `import { ... } from '@jini-ai/core'`), `describeApiError` (admin `src/core/transport/errors.ts`,
-  relative import), `reportRouteInternalError` (`packages/daemon/src/http/internal-error.ts`).
-  `formatErrorForLog({ error }): string` = redacted message + stack, never throws.
-  `describeErrorForLog({ err }): string` = class + code only (e.g. `Error(ENOENT)`).
-- Never attach a parse error of untrusted input as a cause. Never log request bodies, tokens,
-  cookies, or the raw error object (`console.warn(text, error)`).
-- Agent-plugin `.mjs` files and `cookie-consent/src/client`, `commerce/src/browser` are self-contained
+## 0. Preconditions (check first; if one fails, STOP and report which)
+- **P1 hardened describeErrorForLog.** `grep -n "diagnostic unavailable" packages/core/src/model-facing-tool-errors.ts`
+  must match. It is Jini commit ad856dba3 ("describeErrorForLog never throws"), already on the
+  integration branch `refactor/terra`. Without it a throwing `code`/`constructor`/`cause` getter makes
+  the RS/LS/U/Q log calls replace the original failure. Run Part A on a branch made from
+  `refactor/terra` with `design-d5` merged in.
+- **P2 shared route owner.** `packages/http-kit/src/internal-error.ts` exports `reportRouteInternalError`
+  and `packages/http-kit/src/index.ts` re-exports it (design-d5 c88af7d03, 76447baa5).
+- **P3 approved-copy-only describeApiError.** `packages/admin/src/core/transport/errors.ts`
+  `describeApiError` returns `fallback` for anything that is not an `AdminApiError` (design-d5 c55eec038).
+
+## 1. Ground rules
+- Smallest change per site. No refactors beyond what a row says, no renames, reformatting or moves.
+  Keep every comment; a "why" comment on code you replace moves with the code, never deleted.
+- API args are `(requiredObj, optionalObj = {})`. Every constructor/helper this prompt creates or
+  changes is object-first (section 3 R, section 6 R-API). No `eslint-disable`, `as any`, non-null `!` in
+  added code, except the `// eslint-disable-next-line no-console` lines that already sit on the
+  default sinks you consolidate (they move with the line).
+- Helpers allowed, no others: `formatErrorForLog({ error })` and `describeErrorForLog({ err })`
+  (`@jini-ai/core`; `describeErrorForLog` also from `@jini-ai/core/model-facing-tool-errors` in browser
+  code), `reportRouteInternalError` (`@jini-ai/http-kit`), `describeApiError` (admin
+  `src/core/transport/errors.ts`, relative import), `decodeApiError` (`@jini-ai/protocol`).
+  `formatErrorForLog` = redacted message + stack, never throws. `describeErrorForLog` = class + code
+  only (e.g. `Error(ENOENT)`), never the message, never throws (P1).
+- **Dependencies.** A package that imports a Jini package it does not declare gets the declaration
+  in this change, per section 7 (package.json + `pnpm-lock.yaml` importer entry). Never a dynamic
+  `import()` or optional peer to dodge it.
+- Never attach a parse error of untrusted input as a cause, never log it with its message (it quotes
+  the input). Never log request bodies, tokens, cookies, or the raw error object (`console.warn(text, error)`).
+- Agent-plugin `.mjs` files, `cookie-consent/src/client`, `commerce/src/browser` are self-contained
   bundles: import nothing new there.
+- Complexity: every changed function stays at or under 10 cyclomatic AND 10 cognitive.
 - Tests: ONE file at a time, never a suite, never a full tsc; leave nothing running.
   vitest: `npx vitest run --maxWorkers=2 --minWorkers=1 <file>` from the package dir; node:test
   files (`import { test } from 'node:test'`): `node --import tsx --test --test-concurrency=1 <file>`.
@@ -24,32 +46,51 @@ bootstrap steps.
   to `packages/core/src` with an UNTRACKED per-package config (vitest `resolveId` plugin, or a tsconfig
   `paths` file passed as `TSX_TSCONFIG_PATH`); never commit it.
 - Per changed source file, one test in the nearest existing test file: write it, SEE RED, fix, GREEN,
-  mutate (drop the cause / the redaction) and SEE RED, restore. Assert the visible/result text, that
-  the log has the cause message and a stack frame (the test file name), and that a secret is redacted:
-  throw `new Error("boom api_key=SECRETSECRETSECRETSECRET")`, assert `SECRETSECRET` is absent.
-  (Jini's default redaction does not know host token shapes like `tovu_ak_…`; use `api_key=`.)
-  Comment-only (C) sites need no test.
+  mutate (undo the fix's key line) and SEE RED, restore. Assert what the variant promises (table below);
+  secret input is `new Error("boom api_key=SECRETSECRETSECRETSECRET")`; assert `SECRETSECRET` absent.
+  Host-specific token shapes are the host's job (Part B), not Jini's default policy.
+
+  | Variant | The test asserts |
+  |---|---|
+  | R | the thrown error's `.cause` IS the original (`toBe`), its message is unchanged |
+  | RS, LS | the cause/log text contains the class (+ code), e.g. `Error` or `Error(ENOENT)`; `boom` and `SECRETSECRET` are absent |
+  | RES | the returned result equals the old one exactly; the log has `boom`, a stack frame (the test file name), no `SECRETSECRET` |
+  | L | the log line keeps its old text and gains `boom`, a stack frame, no `SECRETSECRET` |
+  | U | an `AdminApiError` shows its own message; a plain `Error("credential: PRIVATEVALUE")` shows the row's fallback and `PRIVATEVALUE` is nowhere in the state |
+  | DR, CN | status + the row's exact message; response `requestId` === the sink's `correlationId`; sink gets the route's own fields + the original error; with no sink the default log has `internal error (<logSource>, correlationId=<id>)`, `boom`, no `SECRETSECRET` |
+  | Q | first failure reported once; a second failure in the same streak not reported; a success re-arms it; the queue/subscription still runs the next write/read |
+  | S1-S3, P | as written in section 5 |
+  | C, V, VH | no test |
 - Do not commit, push, stash, `git add -A` or `git checkout`. Leave changes in the tree.
 
-## 1. Rule
+## 2. Rule
 Plain words (what failed + what to do) + Copy details; the incident is logged redacted under the same
-ID; never a catch-all that drops the cause. Not an incident: invalid input / untrusted payload parse,
-expected refusals. Jini is a library: the HOST owns the screen and the incident store, so Jini hands
-the error over (typed throw with cause, injected sink/port) or logs it redacted when nobody gets it.
+ID; never a catch-all that drops the cause, never a generic "an internal error occurred". Not an
+incident: invalid input / untrusted payload parse, expected refusals. Jini is a library: the HOST owns
+the screen, the incident store and its own token shapes, so Jini hands the error over (typed throw
+with cause, injected sink/port) or logs it redacted when nobody gets it. Hosts redact their own token
+shapes in the sinks they inject and at their process log boundary (Part B).
 
-## 2. Variants (before -> after)
+## 3. Variants (before -> after)
 - **R**: `catch { throw new X("t") }` -> `catch (error) { throw new X("t", { cause: error }) }`. If X
-  cannot take a cause, widen its optional arg to `{ cause?: unknown } = {}` and pass `super(message, { cause })`.
+  cannot take a cause, give it an object-first optional arg `{ cause?: unknown } = {}` and pass
+  `super(message, { cause })` (section 6 R-API lists the classes and their caller migrations).
 - **RS** (secret path): same, but `{ cause: new Error(describeErrorForLog({ err: error })) }`. Keep the why-comment.
 - **RES**: keep the returned result EXACTLY; before the return add one line
-  `console.warn("<given text>", formatErrorForLog({ error }))` (LS note -> `describeErrorForLog({ err: error })`).
-  Use the module's existing `warn`/`log` port instead of console when one is in scope.
+  `console.warn("<given text>", formatErrorForLog({ error }))`. Use the module's existing `warn`/`log`
+  port instead of console when one is in scope. **RES-LS**: same with `describeErrorForLog({ err: error })`.
 - **L**: the existing log line gets the cause: two-arg logger -> 2nd arg `formatErrorForLog({ error })`;
-  one-string port -> append `` ` Cause: ${formatErrorForLog({ error })}` ``. A catch with no log gets
+  one-string port -> append `` ` Cause: ${formatErrorForLog({ error })}` ``; an optional port
+  (`options.warn?.(...)`) becomes `(options.warn ?? console.warn)(...)`. A catch with no log gets
   `console.warn("<given text>", formatErrorForLog({ error }))`. Keep existing text and codes.
 - **LS**: as L with `describeErrorForLog({ err: error })`.
 - **U** (Jini admin controller, host API call): `catch { set({ error: "t" }) }` ->
-  `catch (error) { set({ error: describeApiError({ e: error, fallback: "t" }) }) }`. Never publish an incident.
+  `catch (error) { set({ error: describeApiError({ e: error, fallback: "t" }) }) }`. Never publish an
+  incident: an `AdminApiError` was already reported by the host API port; anything else shows `t` and
+  `describeApiError` logs its class/code (P3).
+- **Q** (queued/polled work whose rejection nobody receives): report through the module's injected
+  channel, once per failure streak, without stopping the queue/poll. Section 5 Q gives the exact code.
+- **CN** (consolidate a route pack's incident path onto `reportRouteInternalError`): section 6.
 - **C-<kind>** (intentional drop; NO behaviour change): put a why-comment INSIDE the handler.
   `() => {}` -> `() => { /* why */ }`; `() => undefined` -> `() => { /* why */ return undefined; }`;
   `() => null` -> `() => { /* why */ return null; }`; `catch {}` -> `catch { /* why */ }`. If a why-comment
@@ -63,31 +104,125 @@ the error over (typed throw with cause, injected sink/port) or logs it redacted 
   report `Reporting this failure has no further channel.`
 - **V / VH / DONE**: no change (V = input/payload validation or expected refusal; VH = host API port
   owns the incident; DONE = worked example).
-- Also, in a file you touch: a method-form handler that drops the error behind a fixed message
-  (`.catch(() => { warn("fixed") })`) gets the same variant; list it in the report.
+- Method-form handlers that drop the error behind a fixed message (`.catch(() => { warn("fixed") })`)
+  are not found by the audit. In every file you touch, search for `.catch(() =>` and `catch {` and
+  give each one a variant; list every extra site in the report with its variant.
 
-## 3. Worked examples (read the matching one first)
-- DR: `packages/daemon/src/http/tool-execution-routes.ts` catalog catch + `internal-error.ts`, test
-  `src/http/__tests__/tool-execution-rpc.test.ts` "remote tool catalog" (commit 1d14bb8a2).
+## 4. Worked examples (read the matching one first)
+- DR/CN: `packages/http-kit/src/internal-error.ts` + test `packages/http-kit/src/__tests__/internal-error.test.ts`;
+  caller `packages/daemon/src/http/tool-execution-routes.ts` catalog catch, test
+  `src/http/__tests__/tool-execution-rpc.test.ts` "remote tool catalog" (commits 1d14bb8a2, 76447baa5).
 - L (one-string port): `packages/commerce/src/payments/ingest/settlement-worker.ts`, test
   `__tests__/settlement-worker.unit.test.ts` (c9a3383a7).
-- U: `packages/admin/src/media/controllers/providers.controller.ts`, test `src/media/__tests__/controllers.test.ts` (4717ae478).
+- U: `packages/admin/src/media/controllers/providers.controller.ts`, test `src/media/__tests__/controllers.test.ts`
+  (4717ae478, bf4043fce, c55eec038).
 
-## 4. Special sites
+## 5. Special sites
 - **S1** `packages/daemon/src/http/frontend-request-route.ts:54`: a THROWN `resolveOwner` is a fault,
-  not a refusal. Add `onInternalError?: RouteInternalErrorSink` to the route's optional deps; in the catch:
-  `sendApiError({ res, status: 500, error: reportRouteInternalError({ source: 'frontend-request-owner', error, message: 'The page action could not be checked. Reload the page and try again; if it keeps failing, copy the request ID and report this problem.' }, { onInternalError }) })` (match the file's response style: it uses `res.status(..).json({ error })`; send `{ error: <ApiError> }`). The `null` owner -> 403 line stays.
+  not a refusal. Add `onInternalError?: RouteInternalErrorSink` to the route's optional deps
+  (`{ newRequestId, onInternalError }`). In the catch: `const apiError = reportRouteInternalError({ report: { source: 'frontend-request-owner', error }, logSource: 'frontend-request-owner', message: 'The page action could not be checked. Reload the page and try again; if it keeps failing, copy the request ID and report this problem.' }, { onInternalError });`
+  then `res.status(500).json({ error: apiError.message, requestId: apiError.requestId });` — the route's
+  existing flat `{ error: string }` shape plus `requestId`, so every reader of `body.error` keeps a string.
+  The `null` owner -> 403 line stays.
+  **Consumer (same change):** `packages/chat/src/react/features/chat-pane/create-frontend-request-caller.ts:35`:
+  `const body: unknown = await response.json().catch(() => null);` (`/* Optional input: a non-JSON refusal body is treated as absent. */` inside the handler), then
+  `const { message, requestId } = decodeApiError({ body }, { fallbackMessage: \`The page request was refused (HTTP ${response.status}).\` });`
+  `throw new Error(requestId === undefined ? message : \`${message} (request ID ${requestId})\`);`.
+  It reads the flat string, a nested `ApiError` and the new `requestId`; never `[object Object]`.
+  Needs section 7 DEP-chat. Test (chat caller test file): string body -> its text; flat body with
+  `requestId` -> text + `(request ID <id>)`; nested `{ error: { message, requestId } }` -> same; non-JSON
+  body -> the HTTP-status fallback.
 - **S2** `packages/daemon/src/http/remote-run-events.ts:225`: a failed `lifecycle.get` is reported as
-  NOT_FOUND. Change to `.catch(() => LOOKUP_FAILED)` with a local `const LOOKUP_FAILED = Symbol('lookup failed')`;
-  `if (status === LOOKUP_FAILED)` skip the NOT_FOUND/CONFLICT branches and fall through to the existing
-  sink + INTERNAL_ERROR path below. `undefined` keeps NOT_FOUND.
+  NOT_FOUND. Change to `.catch(() => LOOKUP_FAILED)` with a local `const LOOKUP_FAILED = Symbol('lookup failed')`
+  and a why-comment inside the handler (`/* The lookup failure is reported with the original error below. */`);
+  `if (status === LOOKUP_FAILED)` skip the NOT_FOUND/CONFLICT branches and fall through to the CN
+  report below (section 6 gives its words). `undefined` keeps NOT_FOUND.
 - **S3** `packages/platform/src/mail/sender-domain-verification.ts:43`: `.catch(() => null)` makes a
   failed key read say "the provider's key is not saved". Split: on rejection return
   `{ state: "unknown", domain, providerId, reason: "the provider's key could not be read" }` after
   `console.warn("[mail] provider key could not be read", describeErrorForLog({ err: error }))`; `null` keeps the old reason.
 - **P** `packages/agent-plugins/cloudflare/worker/forms-receiver.mjs:105`: `catch (error) { const reference = crypto.randomUUID(); console.error(\`FORMS_STORE_FAILED reference=${reference} ${error?.name ?? typeof error}\`); return errorPage({ status: 503, message: \`Your submission could not be saved. Try again in a few minutes. Reference: ${reference}\`, back }); }` (never the D1 message: it can carry SQL with form answers).
+- **Q1** `packages/chat/src/react/hooks/useComposerHistory.hooks.ts:112` (write queue launched by an
+  effect; nobody receives its rejection). Add `onWriteError?: (error: unknown) => void` to the hook's
+  optional arg, default `reportComposerHistoryWriteFailure` (module-level:
+  `console.warn("[composer-history] recent prompts could not be saved in this browser", describeErrorForLog({ err: error }))`,
+  import from `@jini-ai/core/model-facing-tool-errors`). Add `const writeFailingRef = useRef(false);`. The chain becomes
+  `.then(() => storage.write(...), ...)` ->
+  `writeQueueRef.current.then(() => storage.write(...)).then(() => { writeFailingRef.current = false; }, (error: unknown) => { if (!writeFailingRef.current) onWriteError(error); writeFailingRef.current = true; }).catch(() => { /* Reporting this failure has no further channel; the queue must keep running. */ })`.
+  Keep the "Serialize writes" comment.
+- **Q2** `packages/chat/src/core/assistant-client/durable-run-subscription.ts:77,88,140` (checkpoint
+  reads; `read()` has `finally` recovery but nothing reports a failed read). Widen the optional logger to
+  `logger?: Pick<Console, "info"> & Partial<Pick<Console, "warn">>` (default `console`). Add
+  `let readFailing = false;` and one local function
+  `function reportReadFailure(error: unknown) { if (readFailing) return; readFailing = true; (logger.warn ?? console.warn)("[durable-subscription] " + JSON.stringify({ runId, reason: "checkpoint-read-failed" }), describeErrorForLog({ err: error })); }`
+  (metadata only, like the existing info line: a JSON parse error quotes the saved message). Replace the
+  three `read().catch(() => undefined)` with `read().catch(reportReadFailure)`; in `read()` set
+  `readFailing = false;` right after `ports.read` resolves. Recovery/scheduling is unchanged.
 
-## 5. Sites (293 audit sites; 287 to do or confirm, 6 DONE)
+## 6. Consolidation (CN): one incident owner for every route pack
+Every route pack below has its own copy of `defaultInternalErrorSink` + `reportInternalError` and most
+answer `"an internal error occurred"`. Route each through `reportRouteInternalError({ report, logSource, message }, { onInternalError: deps.onInternalError })`
+from `@jini-ai/http-kit`:
+- KEEP each pack's exported `XInternalErrorContext` type, its `onInternalError?: (context: XInternalErrorContext) => void`
+  dep and all its doc/"why" comments (move a sink's why-comment onto the call). `report` = the
+  context's own fields minus `correlationId` (e.g. `{ source, runId, error }`); if TS cannot infer,
+  pass the type argument `reportRouteInternalError<Omit<XInternalErrorContext, 'correlationId'>>(...)`.
+- DELETE the local `defaultInternalErrorSink`/`default*InternalErrorSink` and the local
+  `randomUUID()` + sink call; keep a local `reportInternalError` wrapper only when it picks the message.
+  Remove imports (`inspect`, `redactSecrets`, `randomUUID`) only when nothing else in the file uses them.
+- `logSource` = the label the old default line printed (it keeps `[@jini-ai/http-kit] internal error (<logSource>, correlationId=<id>)`).
+- `message` = the row's words. Never `"an internal error occurred"`.
+
+| File | Sources -> message (all end with " Try again; if it keeps failing, copy the request ID and report this problem." unless written out) | logSource |
+|---|---|---|
+| `daemon/src/http/runs.ts:43,88` | keep its two existing messages | `source` |
+| `daemon/src/http/attachments.ts:1422,1430` | `attachment-upload` "The file could not be attached."; `attachment-cleanup` "The attachment could not be removed." | `source` |
+| `daemon/src/http/attachment-lookup-routes.ts:64` | add `onInternalError?: RouteInternalErrorSink` to the route's optional deps; unexpected lookup failure (not `AttachmentRejectedError`): source `attachment-lookup` "The attachment could not be looked up." | `attachment-lookup` |
+| `daemon/src/http/media.ts:170,175` | `media-generate-dispatch` "The media could not be generated."; `media-task-store` "The media task could not be read or saved. Reload to check the task; if it keeps failing, copy the request ID and report this problem." | `source` |
+| `daemon/src/http/terminals.ts:58,92` | `terminal-create` "The terminal could not be opened." | `source` |
+| `daemon/src/http/db-ops.ts:197,239` | `db-inspect` "The database could not be inspected."; `db-verify` "The database check could not finish."; `db-vacuum` "The database could not be compacted." | `source` |
+| `daemon/src/http/connectors.ts:139,164` | `auth`/`storage`/`db`/`realtime` -> "The sign-in / file storage / database / realtime provider could not finish this request." | `` `connectors/${source}.${operation}` `` |
+| `daemon/src/http/remote-run-events.ts:59,235` | `tool-use` "The tool call could not be recorded for this run. Check the run status; copy the request ID and report this problem."; `tool-result` same with "tool result" (also reached by S2) | `` `remote-run-events/${source}` `` |
+| `daemon/src/http/research.ts:153,236` | "The web research request could not be completed." (context has no `source`; report `{ error }`) | `research/search` |
+| `daemon/src/http/xai.ts:217` + every `resolved.onInternalError({...})` (340, 358, 460, 520, 571, 590, 785, 801) | `oauth-start` "xAI sign-in could not start."; `oauth-complete` "xAI sign-in could not be completed."; `oauth-disconnect` "xAI could not be disconnected."; `auth-status` "The xAI connection status could not be read."; `search` "The X search could not be completed." Keep every `redactError(error)` wrapper (secret path). Calls with no HTTP answer (340, 358) ignore the return value. Delete `INTERNAL_ERROR_MESSAGE`. | `` `xai/${source}` `` |
+| `daemon/src/http/delegated-tools.ts:157,182` | the model reads this: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem." Keep `describeSafely` precedence: `const apiError = reportRouteInternalError({ report, logSource: report.source, message }, { onInternalError: deps.onInternalError }); const described = describeSafely(deps, { ...report, correlationId: String(apiError.requestId) }); return described === undefined ? apiError : createApiError({ code: 'INTERNAL_ERROR', message: described }, { requestId: apiError.requestId });` (`onInternalError` still runs first, as its doc says). `describeSafely`'s own console line uses `formatErrorForLog({ error })`. | `source` |
+| `daemon/src/http/model-proxy.ts:156,452,579,645` | "The model request failed on the server." Context field is `provider`, not `source`: report `{ provider, error }`. Registration passes `deps.onInternalError` through (no `?? defaultInternalErrorSink`). The unrecognized-provider branch of `reportCatchAllError` calls the owner WITHOUT a sink (keep its why-comment). Use the returned `requestId` where `correlationId` was used. | `` `model-proxy/${provider \|\| 'unknown'}` `` |
+| `daemon/src/http/frontend-sessions.ts:132,336-340` | stream: "The page connection could not be opened. Reload the page; if it keeps failing, copy the request ID and report this problem." Pre-header answer becomes `res.status(500).json({ error: apiError })` (now WITH the request ID). The `reportInternalError` wrapper and its own sink-failure catch go (the owner logs a failing sink). Context gains `correlationId` (additive). Also `:328` responses-route `catch { res.sendStatus(403); }`: a THROWN `resolveOwner` is a fault -> source `responses-owner`, "The page could not confirm this browser session. Reload the page; ..." with `res.status(500).json({ error: apiError })`; a null/unowned session keeps 403. | `` `frontend-sessions:${source}` `` |
+| `http-kit/src/adapter.ts:38,205` | keep its existing message ("The server could not finish this request. Check whether your change was saved, then copy the request ID and report this problem."); report `{ method: spec.method, path: spec.path, error: e }` | `` `${spec.method.toUpperCase()} ${spec.path}` `` |
+
+Not consolidated (say so in the report): `daemon/src/run-lifecycle.ts` `reportInternalError` (not a
+route: no caller answer; it already contains a throwing sink). Wording-only rows, same rule:
+`admin/src/redirects/adapters/memory.ts:83` fallback -> "The redirects could not be saved. Try again."
+`cms/src/redirects/redirects.ts:859` fallback -> "The redirects could not be imported. Check the file and try again."
+Tests: one CN case per file (variant table), in that file's existing test file; update existing
+assertions that pinned `'an internal error occurred'` to the new words.
+
+### R-API: constructors and helpers that take the cause (object-first)
+- `plugins/src/host/plugin-tool-errors.ts:3` `PluginInstallError` -> `constructor({ code, message }: { readonly code: string; readonly message: string }, { cause }: { readonly cause?: unknown } = {})`,
+  `super(message, cause === undefined ? undefined : { cause })`, keep `readonly code`. Migrate every Jini
+  caller: `plugins/src/host/node/install.ts:71` local helper becomes `fail({ code, message }: {...}, { cause }: {...} = {}): never` and all
+  its in-file calls `fail("X", "msg")` -> `fail({ code: "X", message: "msg" })`;
+  `plugins/src/host/node/archive-policy.ts`; tests `plugins/src/host/tools/__tests__/public-entry.test.ts`,
+  `plugins/src/host/__tests__/unit/loader.unit.test.ts`. Tovu callers move in Part B (T6). `PluginSourceError` is untouched.
+- `mcp/src/federation/hosted/unconfigured-error.ts:5` `ExternalMcpSecretStoreUnconfiguredError` ->
+  `constructor({ message }: { readonly message: string }, { cause }: { readonly cause?: unknown } = {})`; its 3 callers
+  `mcp/src/federation/hosted/store.ts:1199,1363,1388` pass `{ message: "..." }`. Tovu test caller in T6.
+- `desktop-host/src/render-service.ts:70` `RenderServiceError` (already object-first) gains `{ cause }: { readonly cause?: unknown } = {}`.
+- `OAuthError` (`oauth/src/errors.ts`) ALREADY takes `{ cause }` in its options: pass it, change nothing there.
+- `AgentPluginInstallError` ALREADY takes `{ cause }`.
+
+## 7. Dependencies (DEP): declare what the new imports need, per package convention
+Edit package.json AND the matching `pnpm-lock.yaml` importer block (copy the shape of a sibling entry:
+`'@jini-ai/core':` / `specifier: workspace:^` / `version: link:../core`, keys sorted). Do not run an install.
+- **DEP-cookie-consent**: `dependencies: { "@jini-ai/core": "workspace:^" }` (runtime; only `src/server` imports it). Lockfile `packages/cookie-consent` gains a `dependencies:` block.
+- **DEP-provider-plugins**: `devDependencies` `"@jini-ai/core": "workspace:^"` — this package BUNDLES its Jini deps (scripts/build.ts fails on an unbundled runtime dep), so build deps go in devDependencies like its other `@jini-ai/*`. Lockfile devDependencies.
+- **DEP-memory**: `dependencies` `"@jini-ai/core": "workspace:^"` (llm-provider RS). Lockfile.
+- **DEP-chat**: `@jini-ai/protocol` moves to `dependencies` (`workspace:^`); remove it from
+  `peerDependencies`, `peerDependenciesMeta` and the `optionalPeers` message map (S1 consumer imports it from `chat/react`). Lockfile `packages/chat`: move the entry from devDependencies to dependencies.
+- admin already done (P3: `@jini-ai/core` is a required peer).
+- Check: every other package you add a core import to already lists `@jini-ai/core` in dependencies or as a required peer (admin, agent-plugins, agent-runtime, analytics, chat, cms, commerce, daemon, db, desktop-host, devops, integrations, mcp, oauth, platform, plugins, search, ui all do). If you find one that does not, declare it the same way and report it.
+
+## 8. Sites (293 audit sites; 287 to do or confirm, 6 DONE) — REV-2 EDITS PENDING, see handoff
 Format: `path:line` - flagged text - note. Variant = the section heading.
 
 ### U (8)
@@ -419,6 +554,6 @@ Format: `path:line` - flagged text - note. Variant = the section heading.
 - `packages/commerce/src/payments/ingest/settlement-worker.ts:62` - `"Payment settlement ownership retry is delayed; recorded work remains queued."` - example L
 - `packages/daemon/src/http/tool-execution-routes.ts:207` - `"an internal error occurred"` - example DR
 
-## 6. Report (final message)
+## 11. Report (final message)
 Per site: done / skipped (why) / variant changed (why). Per test file: red, green, mutation-red
 evidence (assertion message). Files changed. Extra method-form sites fixed. Nothing else.
