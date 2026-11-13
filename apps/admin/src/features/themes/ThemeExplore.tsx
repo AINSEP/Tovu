@@ -1152,7 +1152,7 @@ export function ThemeExplore(props: ThemeExploreProps) {
   if (!resolved.themeId) return (
     <div className={`notice${resolved.error ? " error" : ""}`}>
       <p>{resolved.error ?? resolved.t("No theme is active. Your site renders unstyled so you can supply your own CSS; posts, pages and products still publish normally. Activate a theme below to switch back at any time — nothing was deleted.")}</p>
-      <a href={siteUrl("/admin/themes")}>{resolved.t("Themes")}</a>
+      <a href={siteUrl({ path: "/admin/themes" })}>{resolved.t("Themes")}</a>
     </div>
   );
   return <ThemeExploreContent {...props} themeId={resolved.themeId} />;
@@ -1292,7 +1292,7 @@ function ThemeExploreContent({
           aria-label={t("All themes")}
           title={t("All themes")}
           onClick={() => {
-            if (confirmLeave()) navigate("/themes");
+            if (confirmLeave()) navigate({ routePath: "/themes" });
           }}
         >
           <Icon name="arrow-left" size={22} aria-hidden="true" />

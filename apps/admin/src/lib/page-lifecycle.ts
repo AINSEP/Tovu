@@ -24,7 +24,7 @@ export interface PageLifecycleEvents {
  *
  * @complexity O(1) per event and per read.
  */
-export function createPageLifecycle(target: PageLifecycleEvents | undefined): { isPageUnloading: () => boolean } {
+export function createPageLifecycle({ target }: { target: PageLifecycleEvents | undefined }, _options = {}): { isPageUnloading: () => boolean } {
   let unloading = false;
   target?.addEventListener("pagehide", () => {
     unloading = true;
@@ -37,7 +37,7 @@ export function createPageLifecycle(target: PageLifecycleEvents | undefined): { 
 
 // `globalThis.window` (not a bare `window`) so a non-browser import reads `undefined` instead of
 // throwing a ReferenceError.
-const pageLifecycle = createPageLifecycle(globalThis.window);
+const pageLifecycle = createPageLifecycle({ target: globalThis.window });
 
 /**
  * True between `pagehide` and the next `pageshow` — i.e. while the document is being unloaded or sits

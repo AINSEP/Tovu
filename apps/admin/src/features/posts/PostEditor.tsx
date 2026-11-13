@@ -747,7 +747,7 @@ function PostEditorHeader({
           />
         </label>
         {post.id && post.slug ? <a
-          href={siteUrl(`/${post.slug}`)}
+          href={siteUrl({ path: `/${post.slug}` })}
           target="_blank"
           rel="noreferrer"
           {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}

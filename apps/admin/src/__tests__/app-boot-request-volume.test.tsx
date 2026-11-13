@@ -103,7 +103,7 @@ it("shares boot reads, retains per-pane health probes, and honors post-save sett
   expect(sidebar).not.toBeNull();
   expect(dock).not.toBeNull();
   for (const destination of ["/assistant?tab=admin", "/", "/assistant?tab=admin", "/"]) {
-    act(() => navigate(destination));
+    act(() => navigate({ routePath: destination }));
     await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(window.location.pathname).toBe(destination === "/" ? "/admin/" : "/admin/ai-assistant");
     expect(document.querySelector("#main-content")).toBe(main);

@@ -69,16 +69,16 @@ export function MediaImageNodeView(props: NodeViewProps) {
       {previewSrc ? (
         <img className="media-image-node__preview" src={previewSrc} alt={alt} />
       ) : (
-        <span className="media-image-node__broken-label" role="img" aria-label={t("Broken image reference")}>
-          {t("⚠ Image unavailable")}
+        <span className="media-image-node__broken-label" role="img" aria-label={t({ key: "Broken image reference" })}>
+          {t({ key: "⚠ Image unavailable" })}
         </span>
       )}
       <span className="media-image-node__actions">
         <button type="button" onClick={() => setPicking(true)}>
-          {t("Replace")}
+          {t({ key: "Replace" })}
         </button>
         <button type="button" onClick={() => props.deleteNode()}>
-          {t("Remove")}
+          {t({ key: "Remove" })}
         </button>
       </span>
       {picking ? <MediaPickerDialog onSelect={replaceWith} onCancel={() => setPicking(false)} /> : null}

@@ -152,7 +152,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel({ t: t, columnName: t("Slug"), direction: direction }) },
             cell: (post) => (
               <a
-                href={siteUrl(`/${post.slug}`)}
+                href={siteUrl({ path: `/${post.slug}` })}
                 target="_blank"
                 rel="noreferrer"
                 {...agentHandle({ handle: `${rowMenuHandleById.get(post.id)}-view-live` }, { role: "link", label: "Open this post on the live public site" })}
@@ -185,7 +185,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
                 items={postRowMenuItems(
                   { post: post,
                   handlers: {
-                    onEdit: ({ post }, _optional = {}) => navigate(`/posts/${post.slug}`),
+                    onEdit: ({ post }, _optional = {}) => navigate({ routePath: `/posts/${post.slug}` }),
                     onTogglePublish: togglePostPublish,
                     onDelete: setPendingDelete,
                   },

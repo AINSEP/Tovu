@@ -153,7 +153,7 @@ it("existing SSE connection receives theme refreshes without opening a second co
     readyState: 1,
   };
   let connections = 0;
-  const dispose = subscribeToSettingsChanges("ws", {
+  const dispose = subscribeToSettingsChanges({ workspaceId: "ws" }, {
     open: () => {
       connections++;
       return source as never;

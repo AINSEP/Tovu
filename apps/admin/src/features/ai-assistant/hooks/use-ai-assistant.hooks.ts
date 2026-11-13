@@ -125,5 +125,5 @@ export function resolveAiAssistantTabSubtitle({ tabs, activeTabId }: {
  * "fires even before any `?tab=` is present" behaviour as `SettingsUi.tsx`'s own `handleTabChange`.
  */
 export function navigateToAiAssistantTab({ nextTabId }: { nextTabId: string }, _options: Record<string, never> = {}): void {
-  navigate(`/ai-assistant?tab=${nextTabId}`, { replace: true });
+  navigate({ routePath: `/ai-assistant?tab=${nextTabId}` }, { replace: true });
 }

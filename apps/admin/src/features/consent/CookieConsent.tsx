@@ -189,7 +189,7 @@ export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTr
         {page.value && <PublishBar page={page} t={t} />}
       </div>
       <Notices page={page} t={t} />
-      <TabBar ariaLabel={t("Cookie Consent")} tabs={tabsFor(t)} activeId={activeTab} onChange={(next) => navigate(`/consent?tab=${next}`, { replace: true })} containerHandle="consent-tab-bar" />
+      <TabBar ariaLabel={t("Cookie Consent")} tabs={tabsFor(t)} activeId={activeTab} onChange={(next) => navigate({ routePath: `/consent?tab=${next}` }, { replace: true })} containerHandle="consent-tab-bar" />
       <ConsentTabContent activeTab={activeTab} page={page} port={port} translation={translation} delays={delays} readiness={readiness} />
     </div>
   );

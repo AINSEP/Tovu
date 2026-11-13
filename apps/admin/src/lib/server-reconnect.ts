@@ -24,7 +24,7 @@ export type ServerConnectionStatus = "online" | "reconnecting" | "unreachable";
 export interface ServerReconnectDeps {
   /** `true` once the real server answers `/readyz` (either its 200 or its 503 JSON). */
   probe: () => Promise<boolean>;
-  sleep: (ms: number) => Promise<void>;
+  sleep: (required: { ms: number }, optional?: Record<string, never>) => Promise<void>;
   now: () => number;
 }
 
@@ -74,7 +74,7 @@ export function createServerReconnect(deps: ServerReconnectDeps, optional: Serve
         setStatus("unreachable");
         return false;
       }
-      await deps.sleep(pollMs);
+      await deps.sleep({ ms: pollMs });
     }
     setStatus("online");
     return true;
@@ -138,7 +138,7 @@ export async function probeReadyz(_required = {}, { request = fetch }: { request
 export function browserServerReconnectDeps(_required = {}, _optional = {}): ServerReconnectDeps {
   return {
     probe: () => probeReadyz(),
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    sleep: ({ ms }, _optional = {}) => new Promise((resolve) => setTimeout(resolve, ms)),
     now: () => Date.now(),
   };
 }

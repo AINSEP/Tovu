@@ -32,14 +32,13 @@ interface SettingsChangedFrame {
   namespaces?: readonly string[];
 }
 
-function eventsUrl(workspaceId: string): string {
+function eventsUrl({ workspaceId }: { workspaceId: string }, _options = {}): string {
   return `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/settings/events?themePreview=1`;
 }
 
 /**
  * Shares the change feed for this workspace/principal across tabs and returns a disposer.
- * The positional workspace argument is retained for existing hook consumers.
- *
+ * Existing hook consumers share this workspace-scoped subscription.
  * Never throws and never rejects. A workspace whose server predates this endpoint, a proxy that
  * refuses `text/event-stream`, a revoked `settings.read` grant — every one surfaces as
  * `EventSource`'s opaque `error`, and none of them should break the admin. The tab simply keeps the
@@ -49,7 +48,7 @@ function eventsUrl(workspaceId: string): string {
  * `EventSource` retries forever otherwise, including after the component that opened it is gone.
  * @complexity O(1).
  */
-export function subscribeToSettingsChanges(workspaceId: string, {
+export function subscribeToSettingsChanges({ workspaceId }: { workspaceId: string }, {
   open = (url: string) => new EventSource(url, { withCredentials: true }),
   principalId = "session", ports, activity = adminStreamActivity,
   publishSettings = publishSettingsRefresh, publishPreview = publishThemePreviewRefresh,
@@ -70,7 +69,7 @@ export function subscribeToSettingsChanges(workspaceId: string, {
       const afterRevision = cursor ? "&afterRevision=" + encodeURIComponent(cursor) : "";
       const themeRevisionParam = themeRevision ? "&themeRevision=" + encodeURIComponent(themeRevision) : "";
       const resume = afterRevision + themeRevisionParam;
-      try { source = open(eventsUrl(workspaceId) + resume); }
+      try { source = open(eventsUrl({ workspaceId }) + resume); }
       catch (error) {
         console.warn("[admin] settings change feed unavailable", error);
         return () => {};

@@ -44,7 +44,7 @@ describe('CookieConsent: tabs', () => {
   it('switches tabs through the URL', async () => {
     renderPage(fakeConsentPort(), null);
     fireEvent.click(await screen.findByRole('tab', { name: 'Rules' }));
-    expect(navigate).toHaveBeenCalledWith('/consent?tab=rules', { replace: true });
+    expect(navigate).toHaveBeenCalledWith({ routePath: '/consent?tab=rules' }, { replace: true });
   });
 });
 

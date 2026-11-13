@@ -198,7 +198,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    */
   useEffect(() => {
     if (!user) return undefined;
-    return subscribeSettingsChanges(WORKSPACE_ID, { principalId: user.id });
+    return subscribeSettingsChanges({ workspaceId: WORKSPACE_ID }, { principalId: user.id });
   }, [user]);
 
   /**
@@ -562,7 +562,7 @@ export function resolveSiteSectionRouteGate(
  */
 export function useDefaultSectionRedirect(): void {
   useEffect(() => {
-    navigate("/", { replace: true });
+    navigate({ routePath: "/" }, { replace: true });
   }, []);
 }
 

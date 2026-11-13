@@ -28,11 +28,11 @@ function fakeTimers() {
   const live = new Map<number, () => void>();
   let next = 0;
   const timers: IntervalTimers & { fire(): void; liveCount(): number } = {
-    setInterval: (callback) => {
+    setInterval: ({ callback }) => {
       live.set(++next, callback);
       return next;
     },
-    clearInterval: (handle) => void live.delete(handle as number),
+    clearInterval: ({ handle }) => void live.delete(handle as number),
     fire: () => [...live.values()].forEach((callback) => callback()),
     liveCount: () => live.size,
   };
@@ -44,7 +44,7 @@ describe("startVisibleInterval (admin)", () => {
     const doc = fakeDocument("visible");
     const timers = fakeTimers();
     let ticks = 0;
-    const stop = startVisibleInterval(() => void ticks++, 10_000, doc, timers);
+    const stop = startVisibleInterval({ tick: () => void ticks++, periodMs: 10_000 }, { doc, timers });
 
     expect(ticks).toBe(0);
     timers.fire();
@@ -68,7 +68,7 @@ describe("startVisibleInterval (admin)", () => {
     const doc = fakeDocument("hidden");
     const timers = fakeTimers();
     let ticks = 0;
-    startVisibleInterval(() => void ticks++, 10_000, doc, timers);
+    startVisibleInterval({ tick: () => void ticks++, periodMs: 10_000 }, { doc, timers });
     expect(timers.liveCount()).toBe(0);
     expect(ticks).toBe(0);
   });
@@ -77,7 +77,7 @@ describe("startVisibleInterval (admin)", () => {
     const doc = fakeDocument("visible");
     const timers = fakeTimers();
     let ticks = 0;
-    const stop = startVisibleInterval(() => { ticks++; }, 1_000, doc, timers);
+    const stop = startVisibleInterval({ tick: () => { ticks++; }, periodMs: 1_000 }, { doc, timers });
     doc.set("visible");
     expect([ticks, timers.liveCount()]).toEqual([0, 1]);
     doc.set("hidden");
@@ -91,7 +91,7 @@ describe("startVisibleInterval (admin)", () => {
     vi.useFakeTimers();
     try {
       let ticks = 0;
-      const stop = startVisibleInterval(() => { ticks++; }, 1_000);
+      const stop = startVisibleInterval({ tick: () => { ticks++; }, periodMs: 1_000 });
       vi.advanceTimersByTime(2_500);
       expect(ticks).toBe(2);
       stop();

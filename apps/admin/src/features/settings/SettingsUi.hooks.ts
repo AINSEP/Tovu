@@ -60,7 +60,7 @@ export function createSettingsTabChange(_required: Record<string, never>, _optio
    * here to make that happen.
    */
   return (nextTabId: string) => {
-    navigate(`/settings?tab=${nextTabId}`, { replace: true });
+    navigate({ routePath: `/settings?tab=${nextTabId}` }, { replace: true });
   };
 
 }

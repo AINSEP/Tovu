@@ -173,7 +173,7 @@ function DefaultPasswordBanner({ onDismiss, t }: { onDismiss: () => void; t: Tra
       <p>{t("It is recommended to change your password before deploying")}</p>
       <a
         className="dash-password-banner-action"
-        href={adminHref("/users/change-password")}
+        href={adminHref({ routePath: "/users/change-password" })}
         {...agentHandle({ handle: "dashboard-password-banner-change" }, { role: "link", label: "Go change your own password" })}
       >
         {t("Change password")}
@@ -261,7 +261,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
           ) : null}
           <a
             className="btn-secondary"
-            href={siteUrl("/")}
+            href={siteUrl({ path: "/" })}
             target="_blank"
             rel="noreferrer"
             {...agentHandle({ handle: "dashboard-view-site" }, { role: "link", label: "Open the public site in a new tab" })}

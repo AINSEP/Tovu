@@ -1867,7 +1867,7 @@ describe("useComposerDiscoverySelect", () => {
 
     const outcome = await result.current({ item: { id: "mcp:settings", label: "mcp" }, source: "slash" });
 
-    expect(mockNavigate).toHaveBeenCalledWith("/settings?tab=external-mcp");
+    expect(mockNavigate).toHaveBeenCalledWith({ routePath: "/settings?tab=external-mcp" });
     expect(outcome).toBeUndefined();
   });
 

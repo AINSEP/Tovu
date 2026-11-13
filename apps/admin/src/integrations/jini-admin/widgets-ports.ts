@@ -21,7 +21,7 @@ export const widgetsEvents: WidgetsEventsPort = {
   },
 };
 export const widgetsNavigation: WidgetsNavigationPort = {
-  navigate({ routePath }, options = {}) { navigate(routePath, options); },
+  navigate({ routePath }, options = {}) { navigate({ routePath }, options); },
 };
 
 /** Bind the existing authenticated transport; basePath is the workspace root because Trash

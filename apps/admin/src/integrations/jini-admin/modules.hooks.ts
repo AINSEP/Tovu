@@ -69,7 +69,7 @@ export function useModulePanel(props: ModulePanelProps, { loadingContent }: { lo
   const { binding, view, description } = resolveModulePage({ runtime, moduleId: props.moduleId, pageId: props.pageId });
   const onTabChange = ({ tab }: { tab: string }) => {
     const query = new URLSearchParams(props.route.query); query.set('tab', tab);
-    navigate(`${MODULE_PAGE_PATHS[description.id] ?? description.path}?${query}`, { replace: true });
+    navigate({ routePath: `${MODULE_PAGE_PATHS[description.id] ?? description.path}?${query}` }, { replace: true });
   };
   return { content: createElement(binding.Provider, { admin: runtime.admin, children:
     createElement(Suspense, { fallback: loadingContent ?? createElement('p', { role: 'status' }, 'Loading media…') },

@@ -40,7 +40,8 @@ export function useEmailTemplates(
   optional: { open?: (path: string) => void; newName?: string } = {},
 ): EmailTemplatesController {
   const { api } = required;
-  const open = optional.open ?? navigate;
+  const openDefault = useCallback((routePath: string) => navigate({ routePath }), []);
+  const open = optional.open ?? openDefault;
   const newName = optional.newName ?? "Untitled email";
   const { view, reload, setData } = useLoad({ load: useCallback(() => api.listTemplates(), [api]) });
   const [error, setError] = useState<string | null>(null);

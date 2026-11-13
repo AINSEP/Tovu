@@ -128,7 +128,7 @@ export function useSettingsUi(): SettingsUiController {
   });
   const instructions = useSettingsSlice<string>({
     load: loadInstructions,
-    save: saveInstructions,
+    save: (next, previous) => saveInstructions({ next, previous }),
     defaultValue: DEFAULT_INSTRUCTIONS,
     namespaces: [INSTRUCTIONS_NAMESPACE],
   });
@@ -146,7 +146,7 @@ export function useSettingsUi(): SettingsUiController {
   });
   const language = useSettingsSlice<string>({
     load: loadLanguage,
-    save: saveLanguage,
+    save: (next, previous) => saveLanguage({ next, previous }),
     defaultValue: DEFAULT_LOCALE,
     namespaces: [LANGUAGE_NAMESPACE],
   });

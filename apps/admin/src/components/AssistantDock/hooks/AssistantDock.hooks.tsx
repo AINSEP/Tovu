@@ -303,7 +303,7 @@ export function useExecutionConfig(
       void refreshExecutionConfig().catch((error: unknown) => {
         // The dock is present on every route. Keep defaults/current state on a background failure,
         // but a pre-send refresh rejection is propagated so it cannot silently send a stale pick.
-        if (!isAbortError(error)) console.error("[AssistantDock] failed to load execution config", error);
+        if (!isAbortError({ error })) console.error("[AssistantDock] failed to load execution config", error);
       });
     };
     const revalidate = () => { invalidate({ key: configKey }); refresh(); };
@@ -350,7 +350,7 @@ export function useExecutionConfig(
           if (!controller.signal.aborted) setHasStoredAdminKey(view.isSet);
         })
         .catch((error: unknown) => {
-          if (isAbortError(error)) return;
+          if (isAbortError({ error })) return;
           console.error("[AssistantDock] failed to load stored BYOK credential state", error);
           if (!controller.signal.aborted) setHasStoredAdminKey(false);
         });
@@ -745,7 +745,7 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     const syncPolling = (_required = {}, _options = {}) => {
       stopPolling();
       if (getAssistantDockOpen() && document.visibilityState !== "hidden") {
-        stopPolling = startVisibleInterval(() => { void reload(); }, 60_000);
+        stopPolling = startVisibleInterval({ tick: () => { void reload(); }, periodMs: 60_000 });
       }
     };
     const visibilityChanged = () => { syncPolling(); refreshVisible(); };
@@ -1499,7 +1499,7 @@ export function useComposerDiscoverySelect(
     (selection: ComposerDiscoverySelection) =>
       resolveComposerDiscoveryOutcome(selection, {
         capabilities: composerCapabilities,
-        navigate,
+        navigate: (routePath) => navigate({ routePath }),
         callAllowlistedTool,
         addPluginRef,
         skillsAvailable,

@@ -52,7 +52,7 @@ export function useMediaItemLink(input: MediaItemLinkInput): { notFound: boolean
     lastEditingId.current = editingId;
     // Unconditional (an idempotent `replace`), not "only when it differs from `urlId`": a URL-driven
     // open writes back the same id, and comparing against a possibly stale prop could skip a close.
-    navigate(mediaItemPath(activeTab, editingId), { replace: true });
+    navigate({ routePath: mediaItemPath(activeTab, editingId) }, { replace: true });
   }, [editingId, activeTab]);
 
   return { notFound: urlId !== null && media !== null && !media.some((item) => item.id === urlId) };

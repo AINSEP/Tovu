@@ -17,8 +17,8 @@ it("scopes shared settings to the current principal and disposes on logout", asy
     },
     location: { hostname: "example.com", hash: "", pathname: "/admin/", search: "" },
     history: { replaceState() {} }, subscribeUnauthenticated: () => () => {},
-    subscribeSettingsChanges: (workspace, options) => {
-      const entry = { workspace, principal: options?.principalId, closed: false };
+    subscribeSettingsChanges: ({ workspaceId }, options) => {
+      const entry = { workspace: workspaceId, principal: options?.principalId, closed: false };
       subscriptions.push(entry);
       return () => { entry.closed = true; };
     },
@@ -104,8 +104,8 @@ it("invalidates pending page clicks on navigation away and back without replacin
   act(() => result.current.setContentEl(document.createElement('main')));
   const readAction = { invocationId: 'read', capabilityId: 'page.find_elements', input: {} };
   const before = callbacks!.onBeforeResponse!({ action: readAction, output: { elements: [] } }) as { navigationRevision: number };
-  act(() => navigate('/confirmation-navigation-away'));
-  act(() => navigate('/confirmation-navigation-back'));
+  act(() => navigate({ routePath: '/confirmation-navigation-away' }));
+  act(() => navigate({ routePath: '/confirmation-navigation-back' }));
   expect(result.current.agentBridge).toBe(bridge);
   const action = { invocationId: 'click', capabilityId: 'page.click', input: { handle: 'same-control', __frontendNavigationRevision: before.navigationRevision } };
   expect(() => callbacks!.preparePageInput!({ action })).toThrow(/page changed/i);

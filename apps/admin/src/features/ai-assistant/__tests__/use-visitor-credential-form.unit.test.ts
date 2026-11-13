@@ -766,17 +766,17 @@ describe("useVisitorCredentialForm — switching provider while a key is stored 
 
   it("storedKeyIsForOtherEndpoint matches the server's endpoint comparison", () => {
     const storedAt = (baseUrl: string | null) => credential({ isSet: true, baseUrl });
-    expect(storedKeyIsForOtherEndpoint(storedAt(GOOGLE), ANTHROPIC)).toBe(true);
-    expect(storedKeyIsForOtherEndpoint(storedAt(GOOGLE), GOOGLE)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: storedAt(GOOGLE), baseUrl: ANTHROPIC })).toBe(true);
+    expect(storedKeyIsForOtherEndpoint({ stored: storedAt(GOOGLE), baseUrl: GOOGLE })).toBe(false);
     // Same normalization as the server: trim, then strip trailing slashes.
-    expect(storedKeyIsForOtherEndpoint(storedAt(`${GOOGLE}//`), ` ${GOOGLE} `)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: storedAt(`${GOOGLE}//`), baseUrl: ` ${GOOGLE} ` })).toBe(false);
     // Path case is significant on the server, so it is here.
-    expect(storedKeyIsForOtherEndpoint(storedAt("https://x.example.com/V1"), "https://x.example.com/v1")).toBe(true);
+    expect(storedKeyIsForOtherEndpoint({ stored: storedAt("https://x.example.com/V1"), baseUrl: "https://x.example.com/v1" })).toBe(true);
     // Unknown stored endpoint: not provably another one, so the server answers.
-    expect(storedKeyIsForOtherEndpoint(storedAt(null), ANTHROPIC)).toBe(false);
-    expect(storedKeyIsForOtherEndpoint(storedAt("   "), ANTHROPIC)).toBe(false);
-    expect(storedKeyIsForOtherEndpoint(credential({ isSet: false, baseUrl: GOOGLE }), ANTHROPIC)).toBe(false);
-    expect(storedKeyIsForOtherEndpoint(null, ANTHROPIC)).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: storedAt(null), baseUrl: ANTHROPIC })).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: storedAt("   "), baseUrl: ANTHROPIC })).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: credential({ isSet: false, baseUrl: GOOGLE }), baseUrl: ANTHROPIC })).toBe(false);
+    expect(storedKeyIsForOtherEndpoint({ stored: null, baseUrl: ANTHROPIC })).toBe(false);
   });
 });
 

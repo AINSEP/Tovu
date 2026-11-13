@@ -693,7 +693,7 @@ const MATCH_TYPE_TRANSLATIONS: Record<string, Record<string, string>> = {
   "zh-TW": { exact: "精確", prefix: "前綴", wildcard: "萬用字元" },
 };
 
-const REDIRECTS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(REDIRECTS_TRANSLATIONS, MATCH_TYPE_TRANSLATIONS);
+const REDIRECTS_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: REDIRECTS_TRANSLATIONS }, { overlays: [MATCH_TYPE_TRANSLATIONS] });
 
 /** Same two-step fallback every other `t()` in this app uses: translated value, else the English
  *  source string itself — never a raw dictionary-miss placeholder. */

@@ -524,7 +524,7 @@ function GettingItOnlineCard({
   if (publishController.targets?.length === 0 && !publishController.targetsError) {
     return <div className="empty-state">
       <p>{translate("Enable a hosting plugin to publish this site.")}</p>
-      <a href={adminHref("/addons/agent-plugins")}>{translate("Plugins")}</a>
+      <a href={adminHref({ routePath: "/addons/agent-plugins" })}>{translate("Plugins")}</a>
     </div>;
   }
   const selectedTargetId = publishController.target;
@@ -621,7 +621,7 @@ function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
       <button
         type="button"
         className="link-button"
-        onClick={() => navigate("/access-tokens?tab=access-tokens")}
+        onClick={() => navigate({ routePath: "/access-tokens?tab=access-tokens" })}
         {...agentHandle({ handle: "deployment-static-site-manage-tokens-link" }, {
           role: "button",
           label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",

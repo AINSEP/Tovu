@@ -4,8 +4,8 @@ import { API_UNREACHABLE_CODE, ApiError } from "./api";
 
 export { UNREACHABLE_RETRY_DELAYS_MS } from "@jini-ai/ui/panel-kit";
 
-/** Preserve the host's positional abort classifier. */
-export function isAbortError(error: unknown): boolean {
+/** Preserve the host's abort classifier. */
+export function isAbortError({ error }: { error: unknown }, _options = {}): boolean {
   return isPackageAbortError({ error });
 }
 

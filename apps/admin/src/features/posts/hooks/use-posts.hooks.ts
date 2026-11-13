@@ -244,5 +244,6 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
  */
 export function useWiredPosts(): PostsController {
   const locale = useWiredAdminLocale();
-  return usePosts({ port: defaultPostsListPort, navigate: defaultNavigate }, { locale });
+  const navigate = useCallback((routePath: string) => defaultNavigate({ routePath }), []);
+  return usePosts({ port: defaultPostsListPort, navigate }, { locale });
 }

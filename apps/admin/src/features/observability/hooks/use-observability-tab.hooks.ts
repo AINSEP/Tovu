@@ -22,7 +22,7 @@ export function useObservabilityTab({ tabs, tabId }: {
     subtitle: findActiveTab(tabs, activeTabId)?.subtitle,
     onTabChange: ({ nextTabId }: { nextTabId: string }, _optional = {}) => {
       controller.setActiveTabId(nextTabId);
-      navigate(`/observability?tab=${encodeURIComponent(nextTabId)}`, { replace: true });
+      navigate({ routePath: `/observability?tab=${encodeURIComponent(nextTabId)}` }, { replace: true });
     },
   };
 }

@@ -29,7 +29,7 @@ function ports(lint: LintRun, files: Record<string, string> = {}) {
   const fixture: ComplexityGatePorts = {
     lint: () => lint,
     exists: (target) => target in files,
-    readFile: (target) => files[target] ?? assert.fail(`unexpected read of ${target}`),
+    readFile: ({ target }) => files[target] ?? assert.fail(`unexpected read of ${target}`),
     writeFile: (target, text) => { written[target] = text; },
     out: (text) => out.push(text),
     err: (text) => err.push(text),
@@ -42,7 +42,7 @@ const grandfathered = { rule: "complexity", file: "apps/desktop/src/f0.ts", reas
 
 test("a full-size scan whose only violations are grandfathered passes and says how many", () => {
   const fixture = ports({ status: 1, stdout: eslintReport(MIN_FILES_LINTED, ["old debt"]), stderr: "" }, debtFile([grandfathered]));
-  assert.equal(runComplexityGate({ argv: [] }, fixture.ports, { debtPath: DEBT }), 0);
+  assert.equal(runComplexityGate({ argv: [], ports: fixture.ports }, { debtPath: DEBT }), 0);
   assert.equal(fixture.out[0], `check-complexity — ${MIN_FILES_LINTED} files linted at 9/9\n`);
   assert.equal(fixture.out.at(-1), "check-complexity: OK — 1 grandfathered, 0 new\n");
   assert.deepEqual(fixture.err, []);
@@ -50,7 +50,7 @@ test("a full-size scan whose only violations are grandfathered passes and says h
 
 test("a new violation fails, a fixed one is reported for removal, and paths are made repo-relative", () => {
   const fixture = ports({ status: 1, stdout: eslintReport(MIN_FILES_LINTED, ["fresh"]), stderr: "" }, debtFile([grandfathered]));
-  assert.equal(runComplexityGate({ argv: [] }, fixture.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: fixture.ports }, { debtPath: DEBT }), 1);
   assert.ok(fixture.out.includes("  FIXED (remove from complexity-debt.json): [complexity] apps/desktop/src/f0.ts: old debt\n"));
   assert.ok(fixture.err.includes("  NEW: [complexity] apps/desktop/src/f0.ts: fresh\n"));
   assert.match(fixture.err.join(""), /1 NEW complexity violation\(s\)[\s\S]*check-complexity: FAILED\./);
@@ -58,30 +58,30 @@ test("a new violation fails, a fixed one is reported for removal, and paths are 
 
 test("a shrunken scan is not a clean scan", () => {
   const fixture = ports({ status: 0, stdout: eslintReport(MIN_FILES_LINTED - 1), stderr: "" }, debtFile([]));
-  assert.equal(runComplexityGate({ argv: [] }, fixture.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: fixture.ports }, { debtPath: DEBT }), 1);
   assert.match(fixture.err.join(""), new RegExp(`only ${MIN_FILES_LINTED - 1} file\\(s\\) were linted`));
 });
 
 test("an unusable ESLint run fails before any judgement, echoing its redacted stderr only when there is some", () => {
   const crashed = ports({ status: 2, stdout: "", stderr: "Oops! Could not find plugin \"sonarjs\"" });
-  assert.equal(runComplexityGate({ argv: [] }, crashed.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: crashed.ports }, { debtPath: DEBT }), 1);
   assert.match(crashed.err[0]!, /^check-complexity: FAIL — eslint exited 2 — that is a CRASH/);
   assert.match(crashed.err[1]!, /Could not find plugin/);
 
   const silent = ports({ status: null, stdout: "", stderr: "   " });
-  assert.equal(runComplexityGate({ argv: [] }, silent.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: silent.ports }, { debtPath: DEBT }), 1);
   assert.equal(silent.err.length, 1);
 });
 
 test("a missing debt file fails loudly rather than passing by default", () => {
   const fixture = ports({ status: 0, stdout: eslintReport(MIN_FILES_LINTED), stderr: "" });
-  assert.equal(runComplexityGate({ argv: [] }, fixture.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: fixture.ports }, { debtPath: DEBT }), 1);
   assert.match(fixture.err.join(""), /no complexity-debt\.json\. Seed it with `node scripts\/check-complexity\.ts --update`/);
 });
 
 test("--update reseeds the debt file from this run's violations instead of judging it", () => {
   const fixture = ports({ status: 1, stdout: eslintReport(MIN_FILES_LINTED, ["a", "b"]), stderr: "" });
-  assert.equal(runComplexityGate({ argv: ["--update"] }, fixture.ports, { debtPath: DEBT }), 0);
+  assert.equal(runComplexityGate({ argv: ["--update"], ports: fixture.ports }, { debtPath: DEBT }), 0);
   const written = JSON.parse(fixture.written[DEBT]!) as { _comment: string; violations: unknown[] };
   assert.deepEqual(written.violations, [
     { rule: "complexity", file: "apps/desktop/src/f0.ts", reason: "a" },
@@ -93,12 +93,12 @@ test("--update reseeds the debt file from this run's violations instead of judgi
 
 test("a corrupt debt file, or a non-Error failure, fails the gate with a readable line", () => {
   const corrupt = ports({ status: 0, stdout: eslintReport(MIN_FILES_LINTED), stderr: "" }, { [DEBT]: "{not json" });
-  assert.equal(runComplexityGate({ argv: [] }, corrupt.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: corrupt.ports }, { debtPath: DEBT }), 1);
   assert.match(corrupt.err.join(""), /JSON/);
 
   const odd = ports({ status: 0, stdout: "[]", stderr: "" });
   odd.ports.lint = () => { throw "lint port exploded"; };
-  assert.equal(runComplexityGate({ argv: [] }, odd.ports, { debtPath: DEBT }), 1);
+  assert.equal(runComplexityGate({ argv: [], ports: odd.ports }, { debtPath: DEBT }), 1);
   assert.deepEqual(odd.err, ["lint port exploded\n"]);
 });
 

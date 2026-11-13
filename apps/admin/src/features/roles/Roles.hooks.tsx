@@ -124,5 +124,5 @@ export function resolveRolesTabs(t: Translate): TabBarTab[] {
  *  — the same call `Deployment.tsx`/`Sites.tsx`/`Themes.tsx` make for their own `?tab=`. A
  *  module-level function, not an inline arrow, so `TabBar`'s `onChange` takes it directly. */
 export function goToRolesTab({ tabId }: { tabId: string }, _options: Record<string, never> = {}) {
-  navigate(`/roles?tab=${tabId}`, { replace: true });
+  navigate({ routePath: `/roles?tab=${tabId}` }, { replace: true });
 }

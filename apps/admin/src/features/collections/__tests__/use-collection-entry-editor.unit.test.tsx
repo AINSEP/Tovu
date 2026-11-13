@@ -225,7 +225,7 @@ describe("save — new entry", () => {
     expect(view.result.current.entry).toEqual({ ...ENTRY, id: "e9", version: 1 });
     expect(view.result.current.message).toBe("Created · version 1");
     // readable-slugs S6b: address bar after "Create" reads the slug, not the raw id.
-    expect(navigate).toHaveBeenCalledWith("/collections/recipe/my-recipe");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/collections/recipe/my-recipe" });
   });
 
   it("sets saving=true during the request, false after", async () => {

@@ -273,7 +273,7 @@ export function useMenuEditor({ menuId, dependencies: { port, navigate, t, clipb
         setOriginal({ title: menu.title, slug: menu.slug, items: menu.items, mode: menu.mode ?? "items", html: menu.html ?? "" });
         // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets already apply.
-        const redirectPath = slugRedirectPath("/menus", menuId as string, menu);
+        const redirectPath = slugRedirectPath({ base: "/menus", requestedId: menuId as string, item: menu });
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => {
@@ -454,5 +454,6 @@ export function useMenuEditor({ menuId, dependencies: { port, navigate, t, clipb
 export function useWiredMenuEditor({ menuId }: { menuId: string | null }, _optional = {}): MenuEditorController {
   const locale = useAdminLocale();
   const t = (key: string): string => translate({ locale: locale, key: key });
-  return useMenuEditor({ menuId, dependencies: { port: defaultMenusPort, navigate: realNavigate, t } });
+  const navigate = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? realNavigate({ routePath }) : realNavigate({ routePath }, options), []);
+  return useMenuEditor({ menuId, dependencies: { port: defaultMenusPort, navigate, t } });
 }

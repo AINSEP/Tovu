@@ -318,7 +318,7 @@ async function runVisitorKeyTest(deps: {
         : { ...current, model: models.find((m) => m === "gemini-flash-latest") ?? (models[0] as string) },
     );
   } catch (e) {
-    setDiscovery({ status: "error", message: describeProbeError(e, "Could not reach the provider with that key") });
+    setDiscovery({ status: "error", message: describeProbeError({ e, fallback: "Could not reach the provider with that key" }) });
   }
 }
 
@@ -344,7 +344,7 @@ async function refreshVisitorDiscoveryAfterTest(deps: {
   } catch (error) {
     // The connection result is the answer the operator asked for, so keep it. The separate
     // discovery state must still explain why the model list could not be refreshed.
-    setDiscovery({ status: "error", message: describeProbeError(error, "Model discovery failed") });
+    setDiscovery({ status: "error", message: describeProbeError({ e: error, fallback: "Model discovery failed" }) });
   }
 }
 
@@ -374,7 +374,7 @@ async function runVisitorTestConnection(deps: {
     setConnectionTest(connectionTestStateFromResult({ result }));
     if (result?.ok) await refreshVisitorDiscoveryAfterTest({ port, config, setDiscovery });
   } catch (e) {
-    setConnectionTest({ status: "error", message: describeProbeError(e, "Connection test failed") });
+    setConnectionTest({ status: "error", message: describeProbeError({ e, fallback: "Connection test failed" }) });
   }
 }
 
@@ -490,8 +490,8 @@ export function useVisitorCredentialForm({
   }, []);
 
   const { apiKey, baseUrl, protocol } = config;
-  const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule(stored, baseUrl);
-  const usableKey = hasUsableKey(apiKey, stored, baseUrl);
+  const storedKeyIsForOtherEndpoint = storedKeyIsForOtherEndpointRule({ stored, baseUrl });
+  const usableKey = hasUsableKey({ apiKey, stored, baseUrl });
   const discoveryConfig = useRef(config);
   discoveryConfig.current = config;
   const storedEndpointMismatch = useRef(storedKeyIsForOtherEndpoint);
@@ -528,7 +528,7 @@ export function useVisitorCredentialForm({
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setDiscovery({ status: "error", message: describeProbeError(e, "Model discovery failed") });
+        setDiscovery({ status: "error", message: describeProbeError({ e, fallback: "Model discovery failed" }) });
       });
     return () => {
       cancelled = true;
@@ -625,12 +625,12 @@ export function useVisitorCredentialForm({
   // the server would refuse, and the key line already asks for this provider's key. The buttons are
   // disabled in that state too; this keeps the hook honest for any other caller.
   function runKeyTest() {
-    if (storedKeyBlocksProbe(apiKey, stored, baseUrl)) return Promise.resolve();
+    if (storedKeyBlocksProbe({ apiKey, stored, baseUrl })) return Promise.resolve();
     return runVisitorKeyTest({ port: port.current, config, setDiscovery, setConfig });
   }
 
   function runTestConnection() {
-    if (storedKeyBlocksProbe(apiKey, stored, baseUrl)) return Promise.resolve();
+    if (storedKeyBlocksProbe({ apiKey, stored, baseUrl })) return Promise.resolve();
     return runVisitorTestConnection({ port: port.current, config, setConnectionTest, setDiscovery });
   }
 

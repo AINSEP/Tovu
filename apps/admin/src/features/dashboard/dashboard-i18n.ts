@@ -429,7 +429,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} 篇草稿",
     "nothing to review": "没有需要审核的内容",
     "awaiting moderation": "等待审核",
-    ...translationEntry("It is recommended to change your password before deploying", "建议在部署之前更改您的密码"),
+    ...translationEntry({ source: "It is recommended to change your password before deploying", translated: "建议在部署之前更改您的密码" }),
     "Change password": "更改密码",
     Dismiss: "关闭",
     "This site has saved credentials, but no site key was found to open them.":
@@ -533,7 +533,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} 篇草稿",
     "nothing to review": "沒有需要審核的內容",
     "awaiting moderation": "等待審核",
-    ...translationEntry("It is recommended to change your password before deploying", "建議在部署之前變更您的密碼"),
+    ...translationEntry({ source: "It is recommended to change your password before deploying", translated: "建議在部署之前變更您的密碼" }),
     "Change password": "變更密碼",
     Dismiss: "關閉",
     "This site has saved credentials, but no site key was found to open them.":
@@ -1053,7 +1053,7 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} 件の下書き",
     "nothing to review": "確認が必要な項目はありません",
     "awaiting moderation": "承認待ち",
-    ...translationEntry("It is recommended to change your password before deploying", "デプロイする前にパスワードを変更することをお勧めします"),
+    ...translationEntry({ source: "It is recommended to change your password before deploying", translated: "デプロイする前にパスワードを変更することをお勧めします" }),
     "Change password": "パスワードを変更",
     Dismiss: "閉じる",
     "This site has saved credentials, but no site key was found to open them.":
@@ -1781,8 +1781,8 @@ export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
     "{count} drafts": "{count} ฉบับร่าง",
     "nothing to review": "ไม่มีสิ่งที่ต้องตรวจสอบ",
     "awaiting moderation": "รอการตรวจสอบ",
-    ...translationEntry("It is recommended to change your password before deploying", "ขอแนะนำให้เปลี่ยนรหัสผ่านของคุณก่อนดีพลอย"),
-    ...translationEntry("Change password", "เปลี่ยนรหัสผ่าน"),
+    ...translationEntry({ source: "It is recommended to change your password before deploying", translated: "ขอแนะนำให้เปลี่ยนรหัสผ่านของคุณก่อนดีพลอย" }),
+    ...translationEntry({ source: "Change password", translated: "เปลี่ยนรหัสผ่าน" }),
     Dismiss: "ปิด",
     "This site has saved credentials, but no site key was found to open them.":
       "เว็บไซต์นี้มีข้อมูลรับรองที่บันทึกไว้ แต่ไม่พบคีย์เว็บไซต์สำหรับเปิดข้อมูลเหล่านั้น",

@@ -1281,7 +1281,7 @@ const ROLES_AUDIT_STRINGS: Record<string, Record<string, string>> = {
   bn: { Custom: "কাস্টম", Permission: "অনুমতি", Add: "যোগ করুন" },
 };
 
-const ROLES_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays(ROLES_TRANSLATIONS, ROLES_AUDIT_STRINGS);
+const ROLES_DICT: Record<string, Record<string, string>> = mergeLocaleOverlays({ base: ROLES_TRANSLATIONS }, { overlays: [ROLES_AUDIT_STRINGS] });
 
 export const t = createDictionaryTranslator({ featureDictionary: ROLES_DICT }, { commonDictionary: COMMON_I18N });
 

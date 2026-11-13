@@ -43,7 +43,7 @@ function BlockersCard({ readiness, readinessError, t }: Pick<ConsentOverviewTabP
             return (
               <li key={`${problem.code ?? ""}:${problem.message}`}>
                 <span>{problem.message}</span>
-                {tab && <a className="consent-fix-link" href={adminHref(`/consent?tab=${tab}`)}>{t("Fix")}</a>}
+                {tab && <a className="consent-fix-link" href={adminHref({ routePath: `/consent?tab=${tab}` })}>{t("Fix")}</a>}
               </li>
             );
           })}

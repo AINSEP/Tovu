@@ -214,7 +214,7 @@ export function Pages(props: PagesProps) {
                 // one. `adminHref` (`lib/router.ts`) turns the bare route path into a real `<a href>`.
                 cell: (page) => (
                   <a
-                    href={adminHref(pageAdminPath(page))}
+                    href={adminHref({ routePath: pageAdminPath(page) })}
                     {...agentHandle({ handle: `${rowMenuHandleById.get(page.id)}-edit` }, { role: "link", label: "Open this page's editor" })}
                   >
                     {page.title}
@@ -230,7 +230,7 @@ export function Pages(props: PagesProps) {
                 // link nowhere real for that one page.
                 cell: (page) => (
                   <a
-                    href={siteUrl(pagePublicPath({ slug: page.slug }))}
+                    href={siteUrl({ path: pagePublicPath({ slug: page.slug }) })}
                     target="_blank"
                     rel="noreferrer"
                     {...agentHandle({ handle: `${rowMenuHandleById.get(page.id)}-view-live` }, { role: "link", label: "Open this page on the live public site" })}
@@ -265,7 +265,7 @@ export function Pages(props: PagesProps) {
                       handlers: {
                         // Same `pageAdminPath` slug-vs-id reasoning as the Title column's own edit
                         // link above; `navigate` takes the bare route path directly.
-                        onEdit: ({ page }, _options = {}) => navigate(pageAdminPath(page)),
+                        onEdit: ({ page }, _options = {}) => navigate({ routePath: pageAdminPath(page) }),
                         onTogglePublish: togglePagePublish,
                         onDelete: setPendingDelete,
                       },

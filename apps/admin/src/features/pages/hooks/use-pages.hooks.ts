@@ -263,5 +263,6 @@ export function usePages(deps: PagesDependencies): PagesController {
 export function useWiredPages(): PagesController {
   const locale = useAdminLocale();
   const t = useCallback((key: string): string => translate({ locale, key }), [locale]);
-  return usePages({ port: defaultPagesPort, navigate: defaultNavigate, t, locale });
+  const navigate = useCallback((routePath: string) => defaultNavigate({ routePath }), []);
+  return usePages({ port: defaultPagesPort, navigate, t, locale });
 }

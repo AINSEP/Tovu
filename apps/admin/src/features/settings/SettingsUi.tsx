@@ -296,8 +296,8 @@ export function SettingsUi(props: SettingsUiProps) {
   const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
   const tabId = resolveTabId({ override: props.tabId });
   useEffect(() => {
-    if (props.tabId === "skills") navigate("/addons/skills", { replace: true });
-    if (props.tabId === "appearance") navigate("/admin-ui?tab=appearance", { replace: true });
+    if (props.tabId === "skills") navigate({ routePath: "/addons/skills" }, { replace: true });
+    if (props.tabId === "appearance") navigate({ routePath: "/admin-ui?tab=appearance" }, { replace: true });
   }, [props.tabId]);
   const s: SettingsUiController = useSettingsUiHook();
   const settingsRootRef = useSettingsActiveTabScroll({ ready: !s.loading, tabId });

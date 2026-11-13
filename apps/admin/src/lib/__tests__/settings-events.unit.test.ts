@@ -62,7 +62,7 @@ afterEach(() => {
 describe("subscribeToSettingsChanges", () => {
   it("does not announce the first open as a change, but refreshes on reconnect", () => {
     const publishSettings = vi.fn();
-    const dispose = subscribeToSettingsChanges("boot", { publishSettings });
+    const dispose = subscribeToSettingsChanges({ workspaceId: "boot" }, { publishSettings });
     const source = FakeEventSource.instances[0]!;
     source.emit("open");
     expect(publishSettings).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe("subscribeToSettingsChanges", () => {
   });
 
   it("opens the workspace's events URL, encoded, with credentials", () => {
-    subscribeToSettingsChanges("ws with spaces");
+    subscribeToSettingsChanges({ workspaceId: "ws with spaces" });
 
     expect(FakeEventSource.instances).toHaveLength(1);
     const source = FakeEventSource.instances[0]!;
@@ -84,7 +84,7 @@ describe("subscribeToSettingsChanges", () => {
 
   it("a 'settings-changed' frame with a namespace list republishes exactly that scope", () => {
     const publishSpy = vi.spyOn(settingsRefreshBus, "publishSettingsRefresh");
-    subscribeToSettingsChanges("ws1");
+    subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
 
     source.emit("settings-changed", JSON.stringify({ namespaces: ["appearance", "seo"] }));
@@ -94,7 +94,7 @@ describe("subscribeToSettingsChanges", () => {
 
   it("a 'settings-changed' frame with no namespaces field still refreshes everything (undefined scope)", () => {
     const publishSpy = vi.spyOn(settingsRefreshBus, "publishSettingsRefresh");
-    subscribeToSettingsChanges("ws1");
+    subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
 
     source.emit("settings-changed", JSON.stringify({}));
@@ -104,7 +104,7 @@ describe("subscribeToSettingsChanges", () => {
 
   it("a 'settings-changed' frame whose namespaces field is not an array is treated as absent, not thrown on", () => {
     const publishSpy = vi.spyOn(settingsRefreshBus, "publishSettingsRefresh");
-    subscribeToSettingsChanges("ws1");
+    subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
 
     source.emit("settings-changed", JSON.stringify({ namespaces: "not-an-array" }));
@@ -114,7 +114,7 @@ describe("subscribeToSettingsChanges", () => {
 
   it("malformed JSON in a 'settings-changed' frame still refreshes everything rather than throwing", () => {
     const publishSpy = vi.spyOn(settingsRefreshBus, "publishSettingsRefresh");
-    subscribeToSettingsChanges("ws1");
+    subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
 
     expect(() => source.emit("settings-changed", "{not valid json")).not.toThrow();
@@ -127,7 +127,7 @@ describe("subscribeToSettingsChanges", () => {
 
     let dispose: () => void;
     expect(() => {
-      dispose = subscribeToSettingsChanges("ws1");
+      dispose = subscribeToSettingsChanges({ workspaceId: "ws1" });
     }).not.toThrow();
     expect(() => dispose()).not.toThrow();
     expect(warnSpy).toHaveBeenCalledWith("[admin] settings change feed unavailable", expect.any(DOMException));
@@ -135,7 +135,7 @@ describe("subscribeToSettingsChanges", () => {
 
   it("an 'error' event while the connection is CLOSED logs a warning (no further auto-reconnect from here)", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    subscribeToSettingsChanges("ws1");
+    subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
     source.readyState = FakeEventSource.CLOSED;
 
@@ -150,7 +150,7 @@ describe("subscribeToSettingsChanges", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const refreshed = vi.fn();
     const unsubscribe = settingsRefreshBus.subscribeToSettingsRefresh(refreshed);
-    const dispose = subscribeToSettingsChanges("ws1");
+    const dispose = subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
     source.readyState = readyState;
     try {
@@ -167,7 +167,7 @@ describe("subscribeToSettingsChanges", () => {
   });
 
   it("the returned disposer closes the connection", () => {
-    const dispose = subscribeToSettingsChanges("ws1");
+    const dispose = subscribeToSettingsChanges({ workspaceId: "ws1" });
     const source = FakeEventSource.instances[0]!;
 
     dispose();

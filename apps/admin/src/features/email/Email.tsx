@@ -198,7 +198,7 @@ export function Email(props: { tabId?: string | null; part?: string | null; useE
   }));
   const partProps: PartProps = {
     hooks, locale, part: props.part,
-    onPart: ({ next }, _options = {}) => navigate(`/email?tab=${activeId}&p=${encodeURIComponent(next)}`, { replace: true }),
+    onPart: ({ next }, _options = {}) => navigate({ routePath: `/email?tab=${activeId}&p=${encodeURIComponent(next)}` }, { replace: true }),
   };
   const tabLabel = createEmailTabLabel({ locale, labels: TAB_LABELS });
   return (
@@ -216,7 +216,7 @@ export function Email(props: { tabId?: string | null; part?: string | null; useE
         ariaLabel={translateAdminNavLabel({ locale, key: "Email" })}
         tabs={tabs}
         activeId={activeId}
-        onChange={(next) => navigate(`/email?tab=${next}`, { replace: true })}
+        onChange={(next) => navigate({ routePath: `/email?tab=${next}` }, { replace: true })}
         containerHandle="email-tab-bar"
       />
       {/* Same wrapper classes as Authentication: `settings-ui-section` + the theme boundary is what

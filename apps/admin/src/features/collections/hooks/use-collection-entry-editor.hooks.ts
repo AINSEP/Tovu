@@ -207,7 +207,7 @@ export function useCollectionEntryEditor(
       // No separate `if (props.entryId)` guard: `found` is only non-null when `list`'s fetch looked
       // an entry up by a truthy `props.entryId`, and even a missing id stringifies to a non-UUID
       // (`"undefined"`), which `slugRedirectPath` already answers with `null` — so no redirect.
-      const redirectPath = slugRedirectPath(`/collections/${props.contentTypeKey}`, String(props.entryId), found);
+      const redirectPath = slugRedirectPath({ base: `/collections/${props.contentTypeKey}`, requestedId: String(props.entryId), item: found });
       if (redirectPath) navigate(redirectPath, { replace: true });
     } else {
       setTitle("");
@@ -394,5 +394,6 @@ export function useWiredCollectionEntryEditor(props: {
 }): CollectionEntryEditorController {
   const locale = useAdminLocale();
   const t = ({ key }: { key: string }, _optional = {}): string => translate({ locale: locale, key: key });
-  return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate: defaultNavigate, locale, t });
+  const navigate = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? defaultNavigate({ routePath }) : defaultNavigate({ routePath }, options), []);
+  return useCollectionEntryEditor(props, { port: defaultCollectionEntryEditorPort, navigate, locale, t });
 }

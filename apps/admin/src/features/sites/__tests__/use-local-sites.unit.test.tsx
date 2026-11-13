@@ -27,8 +27,8 @@ function pollingFakes() {
     removeEventListener: (_type, listener) => { listeners.delete(listener); },
   };
   const timers: IntervalTimers = {
-    setInterval: (callback, ms) => { active.set(callback, ms); return callback; },
-    clearInterval: (handle) => { active.delete(handle as () => void); },
+    setInterval: ({ callback, ms }) => { active.set(callback, ms); return callback; },
+    clearInterval: ({ handle }) => { active.delete(handle as () => void); },
   };
   return { active, listeners, visibility, timers,
     tick: (ms: number) => { for (const [callback, period] of [...active]) if (period === ms) callback(); },
@@ -149,8 +149,8 @@ describe("local site card controller", () => {
       removeEventListener: (_type, listener) => { listeners.delete(listener); },
     };
     const timers: IntervalTimers = {
-      setInterval: (callback, ms) => { periods.push(ms); active.add(callback); return callback; },
-      clearInterval: (handle) => { active.delete(handle); },
+      setInterval: ({ callback, ms }) => { periods.push(ms); active.add(callback); return callback; },
+      clearInterval: ({ handle }) => { active.delete(handle); },
     };
     const port = createFakeSitesPort(snapshot);
     const { rerender, unmount } = renderHook(() => useLocalSites({ port, snapshot, t }, { visibility, timers }), { wrapper });

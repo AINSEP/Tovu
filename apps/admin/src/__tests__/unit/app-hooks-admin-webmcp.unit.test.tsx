@@ -298,7 +298,7 @@ it.each(['disabled', 'navigation'])("aborts a protected WebMCP request on %s whi
   expect(requestSignal!.aborted).toBe(false);
   act(() => {
     if (state === 'disabled') setBrowserAgentEnabled({ enabled: false });
-    else navigate('/webmcp-abort-navigation');
+    else navigate({ routePath: '/webmcp-abort-navigation' });
   });
   await rejected;
   expect(requestSignal!.aborted).toBe(true);

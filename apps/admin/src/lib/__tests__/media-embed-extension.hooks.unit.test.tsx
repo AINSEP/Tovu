@@ -25,11 +25,11 @@ function deps(locale: string, contentTypeOf: (assetId: string) => Promise<string
 
 describe("mediaPreviewKind", () => {
   it("video/* is a video; images, octet-stream and a failed lookup ('') are images", () => {
-    expect(mediaPreviewKind("video/mp4")).toBe("video");
-    expect(mediaPreviewKind("Video/WebM; codecs=vp9")).toBe("video");
-    expect(mediaPreviewKind("image/png")).toBe("image");
-    expect(mediaPreviewKind("application/octet-stream")).toBe("image");
-    expect(mediaPreviewKind("")).toBe("image");
+    expect(mediaPreviewKind({ contentType: "video/mp4" })).toBe("video");
+    expect(mediaPreviewKind({ contentType: "Video/WebM; codecs=vp9" })).toBe("video");
+    expect(mediaPreviewKind({ contentType: "image/png" })).toBe("image");
+    expect(mediaPreviewKind({ contentType: "application/octet-stream" })).toBe("image");
+    expect(mediaPreviewKind({ contentType: "" })).toBe("image");
   });
 });
 
@@ -136,10 +136,10 @@ describe("useMediaEmbedNodeView", () => {
 
   it("t translates the node view's copy for deps.locale", () => {
     const { result } = renderHook(() => useMediaEmbedNodeView(fakeProps({}).props, deps("es")));
-    expect(result.current.t("Edit")).toBe("Editar");
-    expect(result.current.t("Replace")).toBe("Reemplazar");
-    expect(result.current.t("Remove")).toBe("Quitar");
-    expect(result.current.t("Media unavailable")).toBe("Contenido multimedia no disponible");
-    expect(result.current.t("Broken media reference")).toBe("Referencia multimedia rota");
+    expect(result.current.t({ key: "Edit" })).toBe("Editar");
+    expect(result.current.t({ key: "Replace" })).toBe("Reemplazar");
+    expect(result.current.t({ key: "Remove" })).toBe("Quitar");
+    expect(result.current.t({ key: "Media unavailable" })).toBe("Contenido multimedia no disponible");
+    expect(result.current.t({ key: "Broken media reference" })).toBe("Referencia multimedia rota");
   });
 });

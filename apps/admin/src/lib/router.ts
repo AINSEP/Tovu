@@ -39,7 +39,7 @@ import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigat
 export const ADMIN_BASE = DEFAULT_ADMIN_BASE;
 
 /** `/settings` → `/admin/settings`; `/` → `/admin/`. */
-export function adminHref(routePath: string): string {
+export function adminHref({ routePath }: { routePath: string }, _options = {}): string {
   return adminHrefCore({ routePath }, { base: ADMIN_BASE });
 }
 
@@ -50,12 +50,12 @@ export function adminHref(routePath: string): string {
  * deliberately requires the argument — that default is what made the original untestable without
  * a DOM — so the default is reapplied here, at the edge that already assumes a browser.
  */
-export function currentRoutePath(pathname: string = window.location.pathname): string {
+export function currentRoutePath(_required: Record<string, never>, { pathname = window.location.pathname }: { pathname?: string } = {}): string {
   return currentRoutePathCore({ pathname }, { base: ADMIN_BASE });
 }
 
 /** Bind the shared browser ports to this SPA's window and fixed admin base. */
-export function navigate(routePath: string, options: { replace?: boolean } = {}): void {
+export function navigate({ routePath }: { routePath: string }, options: { replace?: boolean } = {}): void {
   createAdminShellNavigation({ location: window.location, window, document }).navigate({ routePath, base: ADMIN_BASE }, options);
 }
 
@@ -93,7 +93,7 @@ export function redirectLegacyHashUrl(): boolean {
    * fragment that merely looks route-shaped, and rewriting on it throws the real route away —
    * `/admin/posts/abc#/section/seo` reloaded as `/admin/seo`, losing `/posts/abc` entirely.
    */
-  if (currentRoutePath() !== "/") return false;
+  if (currentRoutePath({}) !== "/") return false;
   const [rawPath, rawQuery] = hash.replace(/^#\/?/, "").split("?");
   /*
    * `section/` was an artifact of the hash router's own dispatch, never meaningful in a URL — but it
@@ -117,7 +117,7 @@ export function redirectLegacyHashUrl(): boolean {
   const stripped = path.replace(/^section\//, "");
   const canStrip = stripped.split("/").filter(Boolean).length === 1;
   const query = rawQuery ? `?${rawQuery}` : "";
-  window.history.replaceState(null, "", adminHref("/" + (canStrip ? stripped : path)) + query);
+  window.history.replaceState(null, "", adminHref({ routePath: "/" + (canStrip ? stripped : path) }) + query);
   return true;
 }
 
@@ -148,7 +148,7 @@ export function getServerRouteSnapshot(): string {
 export function useRouteLocation(): string {
   return useSyncExternalStore(
     subscribeToRoute,
-    () => `${currentRoutePath()}${window.location.search}`,
+    () => `${currentRoutePath({})}${window.location.search}`,
     getServerRouteSnapshot,
   );
 }

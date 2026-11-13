@@ -64,7 +64,7 @@ describe('SEO host ports', () => {
     vi.stubGlobal('fetch', fetch);
     const signal = new AbortController().signal;
     await seoSitemapTransport.get({ path: '/sitemap.xml', credentials: 'same-origin' }, { signal });
-    expect(fetch).toHaveBeenCalledWith(siteUrl('/sitemap.xml'), { credentials: 'same-origin', signal });
+    expect(fetch).toHaveBeenCalledWith(siteUrl({ path: '/sitemap.xml' }), { credentials: 'same-origin', signal });
   });
 
   it('retains host error identity and the original empty-message fallback', async () => {

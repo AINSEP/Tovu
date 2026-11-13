@@ -12,10 +12,10 @@ let fallbackSequence = 0;
 export function uniqueId(): string {
   const webCrypto: Partial<Crypto> | undefined = globalThis.crypto;
   if (typeof webCrypto?.randomUUID === "function") return webCrypto.randomUUID();
-  return `${Date.now()}-${fallbackSuffix(webCrypto)}`;
+  return `${Date.now()}-${fallbackSuffix({ webCrypto })}`;
 }
 
-function fallbackSuffix(webCrypto: Partial<Crypto> | undefined): string {
+function fallbackSuffix({ webCrypto }: { webCrypto: Partial<Crypto> | undefined }, _options = {}): string {
   if (typeof webCrypto?.getRandomValues === "function") {
     const words = webCrypto.getRandomValues(new Uint32Array(2));
     const [first, second] = words;

@@ -453,7 +453,7 @@ function ThemeGrid({
                   <button
                     type="button"
                     className="theme-card-icon-btn"
-                    onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+                    onClick={() => navigate({ routePath: `/themes/explore?theme=${encodeURIComponent(themeId)}` })}
                     aria-label={`${t("Explore")} ${name}`}
                     title={t("Explore")}
                     {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
@@ -513,7 +513,7 @@ function ThemesToolbar({
   return (
     <div className="themes-header-side">
       <a
-        href={siteUrl("/")}
+        href={siteUrl({ path: "/" })}
         target="_blank"
         rel="noreferrer"
         {...agentHandle({ handle: "themes-view-site" }, { role: "link", label: "Open the public site in a new tab" })}
@@ -660,7 +660,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           // Real `navigate()`, not local state (ADR-063) — same idiom Deployment/Database's tab
           // strips use: `replace: true` so switching tabs updates the deep link without growing
           // back-button history one entry per click.
-          navigate(`${basePath}?tab=${id}`, { replace: true });
+          navigate({ routePath: `${basePath}?tab=${id}` }, { replace: true });
         }}
       />
       <ThemeGrid themePreviewImages={themePreviewImages} themeBuiltIn={themeBuiltIn} visibleThemes={visibleThemes} themeNames={themeNames} settings={settings} busyTheme={busyTheme} activate={activate} duplicatingTheme={duplicatingTheme} duplicate={duplicate} trash={trash} t={t} />

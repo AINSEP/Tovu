@@ -244,7 +244,7 @@ describe("row menu — Publish/Unpublish visibility mirrors postRowMenuItems", (
     renderWith({ posts: [POST] });
     await user.click(screen.getByRole("button", { name: 'Actions for "Hello World"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/posts/hello-world");
+    expect(navigate).toHaveBeenCalledWith({ routePath: "/posts/hello-world" });
   });
 
   it("Unpublish calls togglePostPublish with the row", async () => {
@@ -346,8 +346,8 @@ describe("postsListNotice", () => {
 
 it("New Post opens the unsaved editor without persisting an Untitled post", async () => {
   const port = createFakePostsListPort({ posts: [] });
-  render(<Posts usePostsHook={() => usePosts({ port, navigate })} />);
+  render(<Posts usePostsHook={() => usePosts({ port, navigate: (routePath) => navigate({ routePath }) })} />);
   await userEvent.click(await screen.findByRole("button", { name: "New Post" }));
-  expect(navigate).toHaveBeenCalledWith("/posts?create=1");
+  expect(navigate).toHaveBeenCalledWith({ routePath: "/posts?create=1" });
   expect(port.posts).toEqual([]);
 });

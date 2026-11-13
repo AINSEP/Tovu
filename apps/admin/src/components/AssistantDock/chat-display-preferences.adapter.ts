@@ -5,8 +5,8 @@ import { CHAT_DISPLAY_NAMESPACE, loadChatDisplayPreferences, saveChatDisplayPref
 import { useChatDisplayPreferences as usePreferences, type ChatDisplayPreferencesController, type ChatDisplayPreferencesPort } from "./hooks/use-chat-display-preferences.hooks";
 
 const ledger: ChatDisplayLedgerPort = {
-  load: ({ namespace }) => loadNamespaceValues(namespace),
-  save: async ({ namespace, scope, candidates }) => { await saveChangedEntries(namespace, scope, candidates); },
+  load: ({ namespace }) => loadNamespaceValues({ namespace }),
+  save: async ({ namespace, scope, candidates }) => { await saveChangedEntries({ namespace, scope, candidates }); },
 };
 
 export const defaultChatDisplayPreferencesPort: ChatDisplayPreferencesPort = {

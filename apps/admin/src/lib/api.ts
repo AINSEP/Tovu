@@ -2920,9 +2920,9 @@ export const api = {
   // public site are already the same origin.
   templatePreviewUrl: (id: string, templateChoice: string | null) =>
     siteUrl(
-      `${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${
+      { path: `${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${
         templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}`
-      }`
+      }` }
     ),
   // `expectedVersion` (2026-09-06) is the optimistic-concurrency basis, not a writable field —
   // the `AdminPost.version` the caller loaded, which the server compares and rejects with
@@ -3064,7 +3064,7 @@ export const api = {
        *  list using the theme's optional `templateFor`; other callers retain the full catalog. */
       activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/presentation${querySuffix(required.kind ? "kind=" + required.kind : "")}`),
+    }>(`/workspaces/${WORKSPACE_ID}/presentation${querySuffix({ query: required.kind ? "kind=" + required.kind : "" })}`),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
@@ -3260,7 +3260,7 @@ export const api = {
     }),
   listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
     request<{ hits: AdminAnalyticsHit[] }>(
-      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix(options.limit ? "limit=" + options.limit : "")}`
+      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix({ query: options.limit ? "limit=" + options.limit : "" })}`
     ),
   listMenus: () =>
     request<{ menus: AdminMenu[] }>(`/workspaces/${WORKSPACE_ID}/menus`),
@@ -3420,7 +3420,7 @@ export const api = {
    *  whole image). A browser that opened the post already has it cached. `v1` because that bootstrap
    *  is find-or-create and never mints a second version; callers still fall back to
    *  {@link mediaOriginalUrl} when this fails to load (no `sharp`, a gated asset, a newer version). */
-  mediaPreviewRenditionUrl: (id: string) => siteUrl(`/m/${encodeURIComponent(id)}/public.v1/image.jpg`),
+  mediaPreviewRenditionUrl: (id: string) => siteUrl({ path: `/m/${encodeURIComponent(id)}/public.v1/image.jpg` }),
   /** The asset's real, server-sniffed `Content-Type`, read from a `HEAD` of {@link mediaOriginalUrl}
    *  (no body transferred) — the same value the public renderer dispatches `<img>` vs `<video>` on.
    *  Resolves `""` when the route answers non-2xx or sends no header. */
@@ -3484,7 +3484,7 @@ export const api = {
   /** A Markdown/text/CSV/JSON document's UTF-8 source, 64 KiB per page (`nextOffset` continues it). */
   readDocumentText: ({ id }: { id: string }, options: { offset?: number } = {}) =>
     request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix(options.offset ? "offset=" + options.offset : "")}`,
+      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix({ query: options.offset ? "offset=" + options.offset : "" })}`,
     ),
   listUsers: () => request<{ users: AdminIdentityUser[] }>(`/workspaces/${WORKSPACE_ID}/users`),
   createUser: (
@@ -3759,7 +3759,7 @@ export const api = {
       body: JSON.stringify({ op, expectedVersion }),
     }),
   listEntries: (options: { type?: string } = {}) =>
-    request<{ items: AdminEntry[] }>(`/entries${querySuffix(options.type ? "type=" + encodeURIComponent(options.type) : "")}`),
+    request<{ items: AdminEntry[] }>(`/entries${querySuffix({ query: options.type ? "type=" + encodeURIComponent(options.type) : "" })}`),
   createEntry: (
     input: { type: string; slug: string; title: string },
     options: { fieldsJson?: unknown; bodyJson?: unknown } = {}
@@ -3865,7 +3865,7 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
-      `/database/timeline${querySuffix(qs)}`
+      `/database/timeline${querySuffix({ query: qs })}`
     );
   },
   /** ADR-041 §3 — this site's drift classification. Read-only: there is deliberately no matching
@@ -3948,7 +3948,7 @@ export const api = {
     if (options.cursor) params.set("cursor", options.cursor);
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${querySuffix(qs)}` });
+    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${querySuffix({ query: qs })}` });
   },
 
   // -------------------------------------------------------------------------
@@ -3965,7 +3965,7 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix(qs)}` });
+    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix({ query: qs })}` });
   },
   restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
     authenticatedAdminRequest<AdminTrashRestoreReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
@@ -3987,7 +3987,7 @@ export const api = {
     const qs = params.toString();
     // `skippedCount`/`skippedIds` (dossier C5 follow-up, 2026-08-03) are additive and optional —
     // present only when the server dropped one or more malformed records. Absent in the common case.
-    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${querySuffix(qs)}` });
+    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${querySuffix({ query: qs })}` });
   },
   getWidget: (id: string) =>
     authenticatedAdminRequest<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}` }),
@@ -4074,7 +4074,7 @@ export const api = {
   getServerLogs: (query: AdminServerLogsQuery = {}) => {
     const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
     const qs = params.toString();
-    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix(qs)}`);
+    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix({ query: qs })}`);
   },
   /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
   getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),

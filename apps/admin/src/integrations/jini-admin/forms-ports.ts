@@ -25,7 +25,7 @@ export function createFormsHostPorts({ transport }: { transport: FormsTransportP
     formsApi: createHttpFormsApi({ transport, basePath: `/workspaces/${workspaceId}/forms` }, { mediaBasePath: `/workspaces/${workspaceId}/media` }),
     formsTrash: createHttpFormsTrash({ transport, basePath: `/workspaces/${workspaceId}/trash/items` }),
     formsEvents,
-    formsNavigation: { navigate({ routePath }, options = {}) { navigate(routePath, options); } },
+    formsNavigation: { navigate({ routePath }, options = {}) { navigate({ routePath }, options); } },
   };
 }
 export const formsHostPorts = createFormsHostPorts({ transport: mediaTransport });

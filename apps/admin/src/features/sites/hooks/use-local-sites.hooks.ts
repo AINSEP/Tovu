@@ -97,10 +97,10 @@ export function useLocalSites(
     }
     if (!starting && !switchTarget) return undefined;
     // Replace the slow poll while a restart is pending; a saved default alone is not completion.
-    return startVisibleInterval(() => {
+    return startVisibleInterval({ tick: () => {
       if (switchTarget && Date.now() >= switchTarget.deadline) setSwitchTarget(null);
       refresh();
-    }, switchTarget ? 300 : 3000, visibility, timers);
+    }, periodMs: switchTarget ? 300 : 3000 }, { doc: visibility, timers });
   }, [starting, switchTarget, activeSiteName, refresh, visibility, timers]);
   function handleSwitchResult(name: string, result: unknown) {
     const url = (result as { url?: unknown } | undefined)?.url;

@@ -22,7 +22,7 @@ import { isAdminDevServerOrigin } from "./admin-dev-origin";
  * listening on. `isAdminDevServerOrigin` (`lib/admin-dev-origin.ts`) is the
  * runtime check that tells the two apart.
  */
-export function siteUrl(path: string): string {
+export function siteUrl({ path }: { path: string }, _options = {}): string {
   if (import.meta.env.DEV && isAdminDevServerOrigin({ locationPort: window.location.port })) {
     // The dev API server terminates TLS too as of 51c59f5c ("feat(dev): terminate TLS on the API
     // dev server too") — both dev servers now agree on https, so this fallback must too.

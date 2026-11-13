@@ -33,7 +33,7 @@ function requestDurableProjection({ request, runId, messageId, recover, etag }: 
     method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messageId }),
   });
   const query = messageId ? 'messageId=' + encodeURIComponent(messageId) : '';
-  return request(`${path}/checkpoint${querySuffix(query)}`, {
+  return request(`${path}/checkpoint${querySuffix({ query })}`, {
     method: 'GET', credentials: 'same-origin', ...(etag ? { headers: { 'If-None-Match': etag } } : {}),
   });
 }
@@ -74,7 +74,7 @@ export function browserDurableSubscriptionPorts(_required = {}, {
       return payload.message;
     },
     stream({ runId, cursor, frame, dropped }, _options) {
-      const source = open(`/api/runs/${encodeURIComponent(runId)}/events${querySuffix(cursor ? "afterCursor=" + encodeURIComponent(cursor) : "")}`);
+      const source = open(`/api/runs/${encodeURIComponent(runId)}/events${querySuffix({ query: cursor ? "afterCursor=" + encodeURIComponent(cursor) : "" })}`);
       for (const kind of ["agent", "stdout", "stderr", "end", "error"]) {
         source.addEventListener(kind, (event) => {
           const message = event as MessageEvent<string>;

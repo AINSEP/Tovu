@@ -25,7 +25,7 @@ export function MailStatusBanner(props: {
     <div className="mail-status-banner" role="alert">
       <span className="mail-status-banner-text">
         {props.labels.text}{" "}
-        <a className="mail-status-banner-link" href={adminHref("/email?tab=provider")}>{props.labels.setUp}</a>
+        <a className="mail-status-banner-link" href={adminHref({ routePath: "/email?tab=provider" })}>{props.labels.setUp}</a>
       </span>
       <button
         type="button"

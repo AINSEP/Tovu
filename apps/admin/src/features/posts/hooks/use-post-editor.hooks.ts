@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -501,7 +501,7 @@ function formatSaveErrorMessage({ error, statusOverride, t }: { error: unknown; 
 ): string {
   // A server or network failure already raised the shared failure notice with plain words and
   // copyable details; repeating its raw message here would show the same string twice.
-  if (isUnexpectedServerFailure(error)) return t(statusOverride === "published" ? "Not published. Your edits are still here." : "Not saved. Your edits are still here.");
+  if (isUnexpectedServerFailure({ error })) return t(statusOverride === "published" ? "Not published. Your edits are still here." : "Not saved. Your edits are still here.");
   if (error instanceof Error) return error.message;
   return t(statusOverride === "published" ? "publish failed" : "save failed");
 }
@@ -913,7 +913,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts`
         // and `use-page-editor.hooks.ts` already apply. No root-slug exception here — unlike Pages,
         // every post's slug is always a real path segment.
-        const redirectPath = post.id ? slugRedirectPath("/posts", postId, post) : null;
+        const redirectPath = post.id ? slugRedirectPath({ base: "/posts", requestedId: postId, item: post }) : null;
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("failed to load post")));
@@ -1302,7 +1302,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
    */
   function setTitleAndSyncEditor({ next }: { next: string }, _options: Record<string, never> = {}): void {
     setTitle(next);
-    editor.commands.setPostTitleText(next);
+    editor.commands.setPostTitleText({ text: next });
   }
 
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads
@@ -1388,10 +1388,11 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
  */
 export function useWiredPostEditor({ postId }: { postId: string }, _options: Record<string, never> = {}): PostEditorController {
   const locale = useAdminLocale();
+  const navigate = useCallback((routePath: string, options?: { replace?: boolean }) => options === undefined ? realNavigate({ routePath }) : realNavigate({ routePath }, options), []);
   // The reused Pages notice and its load-error copy keep their existing translation owner.
   const t = (key: string): string => {
     const text = translate({ locale, key });
     return text === key ? translatePageEditor({ locale, key }) : text;
   };
-  return usePostEditor({ postId: postId, deps: { port: defaultPostEditorPort, navigate: realNavigate, t } });
+  return usePostEditor({ postId: postId, deps: { port: defaultPostEditorPort, navigate, t } });
 }

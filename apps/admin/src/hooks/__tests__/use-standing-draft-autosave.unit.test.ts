@@ -91,7 +91,7 @@ describe("useStandingDraftAutosave", () => {
     expect(recovered.result.current.recoverableDraft?.title).toBe("Typed before expiry");
     expect(afterLogin.putAutosave).not.toHaveBeenCalled();
     await act(async () => recovered.result.current.clearStandingDraft());
-    expect(readStandingDraftLocalBackup("expired-post")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "expired-post" })).toBeNull();
   });
 
   it("scopes failed saves to the captured operator and entry, and clears only that draft", async () => {
@@ -109,7 +109,7 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(recovered.result.current.recoverableDraft).toMatchObject({ title: "Alice text", savedByPrincipalId: "alice", serverUpdatedAt: "2099-01-01T00:00:00.000Z" });
     await act(async () => recovered.result.current.clearStandingDraft());
-    expect(readStandingDraftLocalBackup("same-entry", { principalId: "alice" })).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "same-entry" }, { principalId: "alice" })).toBeNull();
   });
 
   it("a 403 never parks a draft as a session expiry", async () => {
@@ -117,7 +117,7 @@ describe("useStandingDraftAutosave", () => {
     const { result } = renderHook(() => useStandingDraftAutosave({ port, entryId: "forbidden", enabled: true }));
     await act(async () => vi.advanceTimersByTimeAsync(0));
     act(() => result.current.preserveFailedSave({ error: { status: 403 }, draft: DOC_DRAFT }));
-    expect(readStandingDraftLocalBackup("forbidden")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "forbidden" })).toBeNull();
   });
 
   it("a late 401 cannot recreate a backup after Save or Discard clears it", async () => {
@@ -130,7 +130,7 @@ describe("useStandingDraftAutosave", () => {
     let clearing!: Promise<void>;
     act(() => { clearing = result.current.clearStandingDraft(); });
     await act(async () => { rejectWrite({ status: 401 }); await clearing; });
-    expect(readStandingDraftLocalBackup("late-401")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "late-401" })).toBeNull();
   });
 
   it("a late failure stays scoped to the original operator after the host switches identities", async () => {
@@ -140,8 +140,8 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     operator = "bob";
     act(() => result.current.preserveFailedSave({ error: { status: 401 }, draft: DOC_DRAFT }));
-    expect(readStandingDraftLocalBackup("late-operator", { principalId: "alice" })?.title).toBe("Hello");
-    expect(readStandingDraftLocalBackup("late-operator", { principalId: "bob" })).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "late-operator" }, { principalId: "alice" })?.title).toBe("Hello");
+    expect(readStandingDraftLocalBackup({ entryId: "late-operator" }, { principalId: "bob" })).toBeNull();
   });
 
   it("checks for a recoverable draft exactly once on mount, and never auto-applies it", async () => {
@@ -552,7 +552,7 @@ describe("useStandingDraftAutosave", () => {
     // would silently repopulate.
     act(() => result.current.scheduleAutosave({ ...DOC_DRAFT, baseVersion: 2, title: "After the reload" }));
 
-    expect(readStandingDraftLocalBackup("post-1")).toMatchObject({ title: "An hour of work", baseVersion: 1 });
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toMatchObject({ title: "An hour of work", baseVersion: 1 });
     unmount();
   });
 
@@ -597,7 +597,7 @@ describe("useStandingDraftAutosave", () => {
 
     expect(port.putAutosave).not.toHaveBeenCalled();
     expect(result.current.staleBasis).toBeNull();
-    expect(readStandingDraftLocalBackup("post-1")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toBeNull();
   });
 
   it("supersedeBasis drops an older-basis schedule that arrives AFTER it, and still sends one on the new basis", async () => {
@@ -639,7 +639,7 @@ describe("useStandingDraftAutosave", () => {
     });
 
     expect(result.current.staleBasis).toBeNull();
-    expect(readStandingDraftLocalBackup("post-1")).toBeNull();
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toBeNull();
   });
 
   it("supersedeBasis lifts a gate recorded on an older basis, but keeps that refusal's mirror", async () => {
@@ -654,7 +654,7 @@ describe("useStandingDraftAutosave", () => {
 
     expect(result.current.staleBasis).toBeNull();
     // Nothing has accepted that text anywhere, so the mirror is still its only durable copy.
-    expect(readStandingDraftLocalBackup("post-1")).toMatchObject({ title: "Refused before the replacement" });
+    expect(readStandingDraftLocalBackup({ entryId: "post-1" })).toMatchObject({ title: "Refused before the replacement" });
   });
 
   it("supersedeBasis does not carry across an entryId change — another entry's version 1 is not 'older'", async () => {

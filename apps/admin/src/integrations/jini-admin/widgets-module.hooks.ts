@@ -37,7 +37,8 @@ export function createHostWidgetsModule(_required: Record<string, never>, { useA
     const locale = useAdminLocaleHook();
     const options = useMemo<WidgetsReactOptions>(() => ({ ...widgetsHostDefaults, locale,
       t: createWidgetsTranslator({ locale }), statusLabel: value => serverLabel({ value, locale }),
-      slugRedirectPath, headerActions: createElement(PublishSectionButton, { section: 'widgets' }),
+      slugRedirectPath: (base, requestedId, item) => slugRedirectPath({ base, requestedId, item }),
+      headerActions: createElement(PublishSectionButton, { section: 'widgets' }),
     }), [locale]);
     return createElement(ScopeProvider, { admin, options, children });
   }

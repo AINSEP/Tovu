@@ -43,7 +43,7 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
         </div>
         {/* Which visitors may be tracked is set in Cookie Consent, so link it from here. */}
         <div className="page-actions">
-          <a className="btn-secondary" href={adminHref("/consent")}>{t({ key: "Cookie Consent" })}</a>
+          <a className="btn-secondary" href={adminHref({ routePath: "/consent" })}>{t({ key: "Cookie Consent" })}</a>
         </div>
       </div>
       <div className="notice">

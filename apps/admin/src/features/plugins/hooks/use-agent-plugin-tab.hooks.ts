@@ -14,7 +14,7 @@ export function useAgentPluginTab({ tabId }: { tabId?: string | null }, _optiona
     onActiveTabIdChange: (next: string) => {
       const guarded = resolveActiveTabId({ tabId: next, validIds: TAB_IDS, defaultId: "installed" });
       setActiveTabId(guarded);
-      navigate(`/addons/agent-plugins?tab=${guarded}`, { replace: true });
+      navigate({ routePath: `/addons/agent-plugins?tab=${guarded}` }, { replace: true });
     },
   };
 }

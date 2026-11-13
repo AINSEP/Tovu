@@ -52,19 +52,19 @@ beforeEach(() => {
 describe("loadNamespaceValues", () => {
   it("returns an empty Map on a cold-start 404, not an error", async () => {
     getSettingsEffective.mockRejectedValue(new FakeApiError("not found", 404));
-    const values = await loadNamespaceValues("core.privacy");
+    const values = await loadNamespaceValues({ namespace: "core.privacy" });
     expect(values).toBeInstanceOf(Map);
     expect(values.size).toBe(0);
   });
 
   it("re-throws a non-404 ApiError rather than defaulting", async () => {
     getSettingsEffective.mockRejectedValue(new FakeApiError("server exploded", 500));
-    await expect(loadNamespaceValues("core.privacy")).rejects.toThrow("server exploded");
+    await expect(loadNamespaceValues({ namespace: "core.privacy" })).rejects.toThrow("server exploded");
   });
 
   it("re-throws an error that is not an ApiError at all (e.g. a network failure)", async () => {
     getSettingsEffective.mockRejectedValue(new TypeError("fetch failed"));
-    await expect(loadNamespaceValues("core.privacy")).rejects.toThrow("fetch failed");
+    await expect(loadNamespaceValues({ namespace: "core.privacy" })).rejects.toThrow("fetch failed");
   });
 
   it("builds the map keyed by row.key with row.value, preserving multiple entries", async () => {
@@ -75,7 +75,7 @@ describe("loadNamespaceValues", () => {
         { key: "decisionAt", value: 0, sourceLayer: "workspace", defVersion: 1 },
       ],
     });
-    const values = await loadNamespaceValues("core.notifications");
+    const values = await loadNamespaceValues({ namespace: "core.notifications" });
     expect(values.size).toBe(3);
     expect(values.get("soundEnabled")).toBe(true);
     expect(values.get("successSoundId")).toBe("chime");
@@ -84,7 +84,7 @@ describe("loadNamespaceValues", () => {
 
   it("passes the namespace through to api.getSettingsEffective", async () => {
     getSettingsEffective.mockResolvedValue({ data: [] });
-    await loadNamespaceValues("core.instructions");
+    await loadNamespaceValues({ namespace: "core.instructions" });
     expect(getSettingsEffective).toHaveBeenCalledWith({ namespace: "core.instructions" });
   });
 });
@@ -95,7 +95,7 @@ describe("saveChangedEntries", () => {
       { key: "a", valueJson: 1, changed: false },
       { key: "b", valueJson: 2, changed: false },
     ];
-    const written = await saveChangedEntries("core.privacy", "workspace", candidates);
+    const written = await saveChangedEntries({ namespace: "core.privacy", scope: "workspace", candidates });
     expect(setSetting).not.toHaveBeenCalled();
     expect(written).toEqual([]);
   });
@@ -106,14 +106,14 @@ describe("saveChangedEntries", () => {
       { key: "b", valueJson: 2, changed: true },
       { key: "c", valueJson: 3, changed: true },
     ];
-    const written = await saveChangedEntries("core.privacy", "workspace", candidates);
+    const written = await saveChangedEntries({ namespace: "core.privacy", scope: "workspace", candidates });
     expect(setSetting).toHaveBeenCalledTimes(2);
     expect(written).toEqual(["b", "c"]);
   });
 
   it("passes namespace, scope, key, and valueJson through to api.setSetting for each write", async () => {
     const candidates: LedgerCandidate[] = [{ key: "installationId", valueJson: "abc-123", changed: true }];
-    await saveChangedEntries("core.privacy", "user", candidates);
+    await saveChangedEntries({ namespace: "core.privacy", scope: "user", candidates });
     expect(setSetting).toHaveBeenCalledWith({
       namespace: "core.privacy",
       key: "installationId",
@@ -133,7 +133,7 @@ describe("saveChangedEntries", () => {
       { key: "second", valueJson: 2, changed: true },
       { key: "third", valueJson: 3, changed: true },
     ];
-    await saveChangedEntries("core.privacy", "workspace", candidates);
+    await saveChangedEntries({ namespace: "core.privacy", scope: "workspace", candidates });
     expect(order).toEqual(["first", "second", "third"]);
   });
 
@@ -152,7 +152,7 @@ describe("saveChangedEntries", () => {
       { key: "a", valueJson: 1, changed: true },
       { key: "b", valueJson: 2, changed: true },
     ];
-    const promise = saveChangedEntries("core.privacy", "workspace", candidates);
+    const promise = saveChangedEntries({ namespace: "core.privacy", scope: "workspace", candidates });
 
     // Give the microtask queue every chance to start "b" early if the
     // implementation were parallel (e.g. Promise.all) — it must not have.
@@ -169,58 +169,58 @@ describe("saveChangedEntries", () => {
 
 describe("readString", () => {
   it("returns the value when present and a string", () => {
-    expect(readString(new Map([["k", "hello"]]), "k", "fallback")).toBe("hello");
+    expect(readString({ values: new Map([["k", "hello"]]), key: "k", fallback: "fallback" })).toBe("hello");
   });
 
   it("returns the fallback when the key is absent", () => {
-    expect(readString(new Map(), "k", "fallback")).toBe("fallback");
+    expect(readString({ values: new Map(), key: "k", fallback: "fallback" })).toBe("fallback");
   });
 
   it("returns the fallback when the stored value is a different type", () => {
-    expect(readString(new Map([["k", 42]]), "k", "fallback")).toBe("fallback");
+    expect(readString({ values: new Map([["k", 42]]), key: "k", fallback: "fallback" })).toBe("fallback");
   });
 
   it("returns an empty string verbatim rather than treating it as absent", () => {
-    expect(readString(new Map([["k", ""]]), "k", "fallback")).toBe("");
+    expect(readString({ values: new Map([["k", ""]]), key: "k", fallback: "fallback" })).toBe("");
   });
 });
 
 describe("readBoolean", () => {
   it("returns the value when present and a boolean, including false", () => {
-    expect(readBoolean(new Map([["k", true]]), "k", false)).toBe(true);
-    expect(readBoolean(new Map([["k", false]]), "k", true)).toBe(false);
+    expect(readBoolean({ values: new Map([["k", true]]), key: "k", fallback: false })).toBe(true);
+    expect(readBoolean({ values: new Map([["k", false]]), key: "k", fallback: true })).toBe(false);
   });
 
   it("returns the fallback when the key is absent", () => {
-    expect(readBoolean(new Map(), "k", true)).toBe(true);
+    expect(readBoolean({ values: new Map(), key: "k", fallback: true })).toBe(true);
   });
 
   it("returns the fallback when the stored value is a different type (e.g. the string \"true\")", () => {
-    expect(readBoolean(new Map([["k", "true"]]), "k", false)).toBe(false);
+    expect(readBoolean({ values: new Map([["k", "true"]]), key: "k", fallback: false })).toBe(false);
   });
 });
 
 describe("readNumber", () => {
   it("returns the value when present and a finite number, including 0", () => {
-    expect(readNumber(new Map([["k", 1_700_000_000_000]]), "k", -1)).toBe(1_700_000_000_000);
-    expect(readNumber(new Map([["k", 0]]), "k", -1)).toBe(0);
-    expect(readNumber(new Map([["k", -5]]), "k", 0)).toBe(-5);
+    expect(readNumber({ values: new Map([["k", 1_700_000_000_000]]), key: "k", fallback: -1 })).toBe(1_700_000_000_000);
+    expect(readNumber({ values: new Map([["k", 0]]), key: "k", fallback: -1 })).toBe(0);
+    expect(readNumber({ values: new Map([["k", -5]]), key: "k", fallback: 0 })).toBe(-5);
   });
 
   it("returns the fallback when the key is absent", () => {
-    expect(readNumber(new Map(), "k", 7)).toBe(7);
+    expect(readNumber({ values: new Map(), key: "k", fallback: 7 })).toBe(7);
   });
 
   it("returns the fallback when the stored value is a different type", () => {
-    expect(readNumber(new Map([["k", "42"]]), "k", 7)).toBe(7);
+    expect(readNumber({ values: new Map([["k", "42"]]), key: "k", fallback: 7 })).toBe(7);
   });
 
   it("rejects NaN despite typeof === \"number\", falling back instead", () => {
-    expect(readNumber(new Map([["k", NaN]]), "k", 7)).toBe(7);
+    expect(readNumber({ values: new Map([["k", NaN]]), key: "k", fallback: 7 })).toBe(7);
   });
 
   it("rejects +Infinity and -Infinity, falling back instead", () => {
-    expect(readNumber(new Map([["k", Infinity]]), "k", 7)).toBe(7);
-    expect(readNumber(new Map([["k", -Infinity]]), "k", 7)).toBe(7);
+    expect(readNumber({ values: new Map([["k", Infinity]]), key: "k", fallback: 7 })).toBe(7);
+    expect(readNumber({ values: new Map([["k", -Infinity]]), key: "k", fallback: 7 })).toBe(7);
   });
 });

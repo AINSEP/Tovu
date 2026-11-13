@@ -31,7 +31,7 @@ test("an already-aborted signal stops before the first wait, leaving no timer be
 
   const error = await retryWhileUnreachable({ load, signal: controller.signal }).catch((e: unknown) => e);
 
-  expect(isAbortError(error)).toBe(true);
+  expect(isAbortError({ error })).toBe(true);
   expect((error as Error).message).toBe("retry cancelled");
   expect(load).toHaveBeenCalledTimes(1);
   expect(vi.getTimerCount()).toBe(0);
@@ -63,12 +63,12 @@ test("a success after a retry resolves with that result", async () => {
 });
 
 test("isAbortError matches by name only", () => {
-  expect(isAbortError(new DOMException("x", "AbortError"))).toBe(true);
-  expect(isAbortError({ name: "AbortError" })).toBe(true);
-  expect(isAbortError(new Error("AbortError"))).toBe(false);
-  expect(isAbortError(unreachable())).toBe(false);
-  expect(isAbortError(null)).toBe(false);
-  expect(isAbortError("AbortError")).toBe(false);
+  expect(isAbortError({ error: new DOMException("x", "AbortError") })).toBe(true);
+  expect(isAbortError({ error: { name: "AbortError" } })).toBe(true);
+  expect(isAbortError({ error: new Error("AbortError") })).toBe(false);
+  expect(isAbortError({ error: unreachable() })).toBe(false);
+  expect(isAbortError({ error: null })).toBe(false);
+  expect(isAbortError({ error: "AbortError" })).toBe(false);
 });
 
 // L13 Stryker: `error instanceof ApiError && error.code === API_UNREACHABLE_CODE` — each clause alone.

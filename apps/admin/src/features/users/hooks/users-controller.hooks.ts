@@ -52,5 +52,6 @@ export function useUsers({ port, openOwnPasswordReset, navigate }: UsersDependen
  */
 /** Bind the real API and route callback for the product panel. */
 export function useWiredUsers(options: { openOwnPasswordReset?: boolean } = {}): UsersController {
-  return useUsers({ port: defaultUsersPort, navigate: realNavigate, ...options });
+  const navigate = useCallback((routePath: string, navOptions?: { replace?: boolean }) => navOptions === undefined ? realNavigate({ routePath }) : realNavigate({ routePath }, navOptions), []);
+  return useUsers({ port: defaultUsersPort, navigate, ...options });
 }
