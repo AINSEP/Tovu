@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 
+import { unwrapRouteHandle } from "./unwrap-route-handle.js";
+
 /** The slice of Express 4's private router this helper reads. */
 interface RouterStackApp {
   _router: {
@@ -28,5 +30,5 @@ export function lastRouteHandler(
 ): (req: unknown, res: unknown) => Promise<unknown> {
   const layer = (app as RouterStackApp)._router.stack.find((l) => l.route?.path === path && l.route.methods[method]);
   assert.ok(layer?.route, `no ${method.toUpperCase()} route registered for path "${path}"`);
-  return layer.route.stack[layer.route.stack.length - 1].handle;
+  return unwrapRouteHandle(layer.route.stack[layer.route.stack.length - 1].handle);
 }
