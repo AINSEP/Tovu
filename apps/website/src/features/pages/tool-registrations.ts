@@ -468,16 +468,21 @@ async function readDocPageFallback(
     version: row.version,
     hasDocContent,
     theme: await readPageTheme({ deps }),
-    ...(hasDocContent
-      ? {
-          note: html
-            ? "This rich-text (doc) page is shown here as HTML. Keep what is there, make the change, and send the whole " +
-              "page to pages_write_html. That makes it an HTML page; the previous body stays in its revision history."
-            : "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
-              "replaces that rich-text body; the previous body is kept in the page's revision history.",
-        }
-      : {}),
+    ...docPageNote({ hasDocContent, html }),
   };
+}
+
+/** The `note` telling the model a doc page already has content, and what writing HTML does to it. */
+function docPageNote({ hasDocContent, html }: { hasDocContent: boolean; html: string }, _options: Record<string, never> = {}) {
+  return hasDocContent
+    ? {
+        note: html
+          ? "This rich-text (doc) page is shown here as HTML. Keep what is there, make the change, and send the whole " +
+            "page to pages_write_html. That makes it an HTML page; the previous body stays in its revision history."
+          : "This page is a rich-text (doc) page with content. pages_write_html converts it to HTML and " +
+            "replaces that rich-text body; the previous body is kept in the page's revision history.",
+      }
+    : {};
 }
 
 /**

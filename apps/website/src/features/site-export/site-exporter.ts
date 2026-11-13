@@ -559,7 +559,7 @@ async function resolveExportIdentity({ routeDeps, publicUrl }: Pick<ExportSiteOp
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
 export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews, themeId, publicUrl }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
-  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps: themeId === undefined ? routeDeps : { ...routeDeps, resolveActiveThemeId: async () => themeId } }, { includeThemePreviews: themeId === undefined ? includeThemePreviews : false });
+  const { manifest, themeCount } = await exportManifestForTheme({ routeDeps }, { themeId, includeThemePreviews });
   const { publicOrigin, publicBaseUrl, sourceOrigin } = await resolveExportIdentity({ routeDeps, publicUrl });
   // The resolved destination owns its prefix: custom domains and user Pages sites can be at root.
   const outputBasePath = publicBaseUrl ? new URL(publicBaseUrl).pathname : basePath;
@@ -604,6 +604,14 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
   return finishExportReport({ report, outputDir, publicOrigin, publicUrl, basePath, themeCount, consentWarning });
+}
+
+/** The site's manifest for its active theme, or for one chosen theme rendered as if active (then without previews). */
+function exportManifestForTheme(
+  { routeDeps }: Pick<ExportSiteOptions, "routeDeps">,
+  { themeId, includeThemePreviews }: Pick<ExportSiteOptions, "themeId" | "includeThemePreviews"> = {},
+) {
+  return buildPreviewExportManifest({ routeDeps: themeId === undefined ? routeDeps : { ...routeDeps, resolveActiveThemeId: async () => themeId } }, { includeThemePreviews: themeId === undefined ? includeThemePreviews : false });
 }
 
 /** Return publication diagnostics after the exporter has closed its fresh app session. */
