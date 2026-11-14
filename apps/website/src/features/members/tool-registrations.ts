@@ -87,15 +87,14 @@ export interface MembersToolDeps {
   magicLinkPerEmailLimiter: MagicLinkRateLimiter;
 }
 
-/**
- * Assembles `write-service.ts`'s `MembersWriteServiceDeps` bundle from {@link MembersToolDeps} —
- * a local duplicate of `apps/website/src/server/inbound/admin-http/routes/members/deps.ts`'s `toMembersWriteServiceDeps` rather
- * than an import of it, for the identical reason `features/settings/tool-registrations.ts`'s header
- * gives for duplicating `toWriteServiceDeps`: importing from the HTTP admin layer would invert this
- * codebase's ports/adapters direction. It is a field mapping, not logic, so the two copies carry no
- * behavioral drift risk.
- */
-function toMembersWriteServiceDeps(deps: MembersToolDeps): MembersWriteServiceDeps {
+export type MembersWriteServiceSourceDeps = Pick<MembersToolDeps, "clock" | "idGen" | "memberRepo" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "mailStatus" | "originRegistry" | "principalRepo" | "mailSenderIdentity">;
+
+/** Assembles the write-service bundle in the feature: importing from the HTTP admin layer would
+ * invert the codebase's ports/adapters direction. @complexity O(1), object construction only. */
+export function buildMembersWriteServiceDeps(
+  { deps }: { deps: MembersWriteServiceSourceDeps },
+  _optional: Record<string, never> = {},
+): MembersWriteServiceDeps {
   return {
     clock: deps.clock,
     ids: deps.idGen,
@@ -200,7 +199,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const input = requireInputRecord({ input: ctx.input });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
       ctx.signal.throwIfAborted();
-      const { member } = await createMember({ deps: { ...toMembersWriteServiceDeps(deps), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
+      const { member } = await createMember({ deps: { ...buildMembersWriteServiceDeps({ deps }), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
         void deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
         } });
@@ -213,7 +212,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const memberId = requireString({ input, key: "memberId" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
       ctx.signal.throwIfAborted();
-      const { member } = await updateProfile({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
+      const { member } = await updateProfile({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },
     members_list: async (ctx) => {
@@ -263,7 +262,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
       ctx.signal.throwIfAborted();
-      const { member } = await disableMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId } });
+      const { member } = await disableMember({ deps: buildMembersWriteServiceDeps({ deps }), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
     },
 
@@ -294,7 +293,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
       await deps.settleMailer?.();
       const result = await requestSignInLink({
-        deps: toMembersWriteServiceDeps(deps),
+        deps: buildMembersWriteServiceDeps({ deps }),
         input: {
           workspaceId: deps.workspaceId,
           email,

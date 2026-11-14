@@ -6,7 +6,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { buildDomainRegistrations, indexCatalogById, optionalBoolean, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalBoolean, requireInputRecord, requireNoInput, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
@@ -63,14 +63,6 @@ import type { ObservabilityPort } from "../../platform/observability/index.js";
  *   credential, target and branch checks still apply; existing Git history preserves overwritten
  *   files. Credentials remain server-side and are never included in the model's call or result.
  */
-
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 /** No arguments — matches `publish-agent-tools.ts`'s own `NO_INPUT_SCHEMA`, declared separately here
  *  per this file's own "no dependency on `features/deployments/**`" rule. */

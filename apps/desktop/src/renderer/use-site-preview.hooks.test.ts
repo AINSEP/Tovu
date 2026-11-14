@@ -2,8 +2,7 @@
  * @file Coverage for `use-site-preview.hooks.ts`'s pure decision logic. Every decision the
  * `useSitePreview` effect makes is a plain function it calls — `previewFetchPlan` (whether to
  * clear, skip, or fetch) and `nextPreviewUrl` (what a settled fetch should write, respecting
- * cancellation) — pulled out for exactly the reason `folder-drop.ts` was pulled out of
- * `App.hooks.ts` (see that file's own header). Both are tested here directly, with real inputs and
+ * cancellation) — pulled out so their decisions can be tested without a renderer. Both are tested here directly, with real inputs and
  * exact expected outputs. The effect itself — refetching per id and version, and a superseded
  * request's late reply or failure never clobbering a newer one — is rendered from the real module
  * in `use-site-preview.hooks.render.test.ts`.

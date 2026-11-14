@@ -14,6 +14,7 @@
  * that widened annotation becomes provably redundant and can be deleted with no behavior change.
  */
 import { setTimeout as delay } from "node:timers/promises";
+import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "#src/features/newsletter/deps-builders";
 import type {
   MembersConsentCapability,
   NewsletterCampaignRepoPort,
@@ -86,28 +87,12 @@ export function toListsDeps(deps: NewsletterRouteDeps): ListsDeps {
 
 /** Assemble `confirmation.ts`'s deps bundle. */
 export function toConfirmationDeps(deps: NewsletterRouteDeps): ConfirmationDeps {
-  return {
-    tokenRepo: deps.newsletterConfirmationTokenRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    mailer: deps.mailer,
-    consentCapability: deps.membersConsentCapability,
-    originRegistry: deps.originRegistry,
-    clock: deps.clock,
-    ids: deps.idGen,
-    senderIdentity: deps.mailSenderIdentity,
-  };
+  return buildConfirmationDeps({ deps });
 }
 
 /** Assemble `subscriptions.ts`'s deps bundle (nests `toConfirmationDeps` — `saveSubscription` triggers `issueConfirmationToken`). */
 export function toSubscriptionsDeps(deps: NewsletterRouteDeps): SubscriptionsDeps {
-  return {
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    listRepo: deps.newsletterListRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    confirmationDeps: toConfirmationDeps(deps),
-    clock: deps.clock,
-    ids: deps.idGen,
-  };
+  return buildSubscriptionsDeps({ deps });
 }
 
 /** Assemble `subscriptions.ts`'s `unsubscribeSubscription` deps bundle (REMOVE_SUBSCRIPTION). */
@@ -141,27 +126,5 @@ export function toUnsubscribeDeps(deps: NewsletterRouteDeps): UnsubscribeDeps {
  * exists for both drivers.
  */
 export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps {
-  return {
-    campaignRepo: deps.newsletterCampaignRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    audienceSnapshotRepo: deps.newsletterAudienceSnapshotRepo,
-    sendRepo: deps.newsletterSendRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    hooks: deps.newsletterHooks,
-    mailer: deps.mailer,
-    launchGateDeps: {
-      isSendingEnabled: async () => false,
-      consentCapability: deps.membersConsentCapability,
-      originRegistry: deps.originRegistry,
-      mailer: deps.mailer,
-    },
-    // Campaign mail is bulk: each recipient gets signed RFC 8058 one-click unsubscribe headers.
-    unsubscribe: toUnsubscribeDeps(deps),
-    outbox: deps.outbox,
-    bus: deps.bus,
-    clock: deps.clock,
-    ids: deps.idGen,
-    // Short provider quota hints are waited out inside the batch (send-pipeline.ts, quota waits).
-    sleep: (ms) => delay(ms),
-  };
+  return buildSendPipelineDeps({ deps, isSendingEnabled: async () => false }, { unsubscribe: toUnsubscribeDeps(deps), sleep: (ms) => delay(ms) });
 }

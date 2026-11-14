@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { FS_FOLDER_READ_RECOVERY } from "../fs-files/site-file-request.js";
@@ -35,15 +36,8 @@ import { FS_FOLDER_READ_RECOVERY } from "../fs-files/site-file-request.js";
  * imports cannot invent a wider root vocabulary.
  */
 
-/** Local declaration, not shared — same "duplicate the tiny type, never share across
- *  features/files" convention `media-generation`/`custom-credentials`' own catalogs follow. */
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/** Shared catalog contract with this domain's side-effect vocabulary. */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** Owner-controlled recovery for a path outside the file browser's roots; never set roots from a tool. */
 export const LOCAL_FILE_IMPORT_RECOVERY = FS_FOLDER_READ_RECOVERY;

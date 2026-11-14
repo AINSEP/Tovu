@@ -1,5 +1,5 @@
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
-import { createAnnotatedActionsScript } from './generated/annotated-actions-script.js';
+import { createAnnotatedActionsScript } from '@jini-ai/agentic/core';
 import { PUBLISHED_WEBMCP_CONFIRMATION } from './webmcp-i18n.js';
 
 type Node = DefaultTreeAdapterMap['childNode'];

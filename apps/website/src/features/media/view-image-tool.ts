@@ -1,7 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition as SharedAgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import type { ImageCodecPort } from "@jini-ai/cms/media";
 
@@ -61,14 +61,8 @@ export interface MediaViewImageToolDeps {
   imageCodec: ImageCodecPort;
 }
 
-/** Mirrors each domain's own local catalog interface (see `assistant/demo-image-tool.ts`). */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+/** This wired tool requires the input schema that the shared catalog contract allows to be absent. */
+type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<Record<string, unknown>> };
 
 export const mediaViewImageAgentToolCatalog: AgentToolDefinition[] = [
   {

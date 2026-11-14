@@ -16,6 +16,7 @@ import type { KeyringPort } from "#src/features/webhooks/index";
 import type { MailerPort, MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
+import { buildConfirmationDeps } from "#src/features/newsletter/deps-builders";
 import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
@@ -40,16 +41,7 @@ export interface NewsletterPublicRouteDeps extends VisitorAnalyticsDeps {
 
 /** Assemble `confirmation.ts`'s deps bundle from the narrower public deps shape. */
 export function toPublicConfirmationDeps(deps: NewsletterPublicRouteDeps): ConfirmationDeps {
-  return {
-    tokenRepo: deps.newsletterConfirmationTokenRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    mailer: deps.mailer,
-    consentCapability: deps.membersConsentCapability,
-    originRegistry: deps.originRegistry,
-    clock: deps.clock,
-    ids: deps.idGen,
-    senderIdentity: deps.mailSenderIdentity,
-  };
+  return buildConfirmationDeps({ deps });
 }
 
 /** Assemble `unsubscribe.ts`'s deps bundle from the narrower public deps shape. */

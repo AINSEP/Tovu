@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
 import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, MAX_PATH_LENGTH } from "./published-page.js";
@@ -50,13 +51,7 @@ import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** Visibility floor for `site_get_profile` and `fetch_published_page` — see this file's header for
  *  why this is not the gate for `site_get_profile`. Reused rather than invented: `content.read` is

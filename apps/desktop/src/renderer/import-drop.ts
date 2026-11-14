@@ -1,8 +1,8 @@
 /**
  * @file What was dropped on the Import page. Reads the drop synchronously, because a drop's
- * `DataTransfer` is empty once the event returns. Folders come from `folder-drop.ts`.
+ * `DataTransfer` is empty once the event returns. Folder paths come from `@jini-ai/ui/core`.
  */
-import { folderPathsFromDataTransfer } from './folder-drop.js';
+import { folderPathsFromDataTransfer } from '@jini-ai/ui/core';
 
 export type ImportDrop =
   | { kind: 'folder'; path: string }
@@ -24,7 +24,7 @@ export function classifyImportDrop(
 ): ImportDrop {
   const files = Array.from(dataTransfer.files ?? []);
   if (files.length > 1) return { kind: 'refused', message: ONE_AT_A_TIME };
-  const [folder] = folderPathsFromDataTransfer({ dataTransfer, getPathForFile });
+  const [folder] = folderPathsFromDataTransfer(dataTransfer, { getPathForFile });
   if (folder !== undefined) return { kind: 'folder', path: folder };
   return classifyImportFiles({ files, getPathForFile });
 }

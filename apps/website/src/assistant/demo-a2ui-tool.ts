@@ -6,7 +6,8 @@ import {
   type AgentToRendererMessage,
 } from "@jini-ai/agentic/a2ui";
 
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
@@ -59,15 +60,6 @@ export const DEMO_A2UI_TOOL_ID = "assistant_demo_a2ui";
  * constants, so there is nothing per-call to gain by rebuilding it on every invocation.
  */
 const CATALOG = createLabCatalog({});
-
-/** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts:82`. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 export const demoA2uiAgentToolCatalog: AgentToolDefinition[] = [
   {

@@ -1,7 +1,8 @@
 import { validatePageLink } from "@jini-ai/agentic";
 import { ADMIN_SCREENS } from "../features/site-inspection/admin-screens.generated.js";
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -63,10 +64,7 @@ import { ToolInputError } from "@jini-ai/core";
  * env var `resolvePublicOrigin` itself prefers before ever touching `req` — reading it here is not a
  * fabrication, it is the deployment's own declared origin. {@link resolveConfiguredPublicOrigin} below
  * is a small, deliberately local re-implementation of only that one branch (no `req` fallback exists
- * to reuse), matching this codebase's own "duplicate the tiny type/helper, never share it across
- * features/files" convention (see e.g. `features/custom-credentials/agent-tools.ts`'s own header,
- * citing `features/deployments/publish-agent-tools.ts`'s identical `AgentToolDefinition` duplication)
- * rather than reaching into `public-origin.ts` and reshaping a shared, security-sensitive OAuth
+ * to reuse), rather than reaching into `public-origin.ts` and reshaping a shared, security-sensitive OAuth
  * callback helper for an unrelated caller.
  *
  * ## A known, disclosed limitation of the relative-path fallback
@@ -84,16 +82,6 @@ import { ToolInputError } from "@jini-ai/core";
  */
 
 export const ADMIN_SCREEN_LINK_TOOL_ID = "assistant_admin_screen_link";
-
-/** Local declaration, not shared — see this file's header for why (the "duplicate the tiny type"
- *  convention `features/custom-credentials/agent-tools.ts`'s own header cites). */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 /** Fixed at `/admin` — same constant `apps/admin/src/lib/router.ts`'s `DEFAULT_ADMIN_BASE` names as
  *  hard-coded across the stack (`vite.config.ts`'s `base`, the server's own route patterns) and

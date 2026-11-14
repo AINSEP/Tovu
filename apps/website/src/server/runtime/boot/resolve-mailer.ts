@@ -1,19 +1,16 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
   createResolvedMailer as createJiniResolvedMailer,
   type MailCredentialFact,
   type MailDeliveryLane,
   type MailProviderCallContext,
-  type MailProviderCheck,
   type MailProviderModule,
   type MailProviderSetting,
+  type ResolvedMailer as JiniResolvedMailer,
 } from "@jini-ai/platform/mail";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { MailProviderConfigurationReport, MailStatusReport } from "#src/platform/mail/index";
-import type { SenderDomainVerificationPort } from "#src/platform/mail/index";
 import { toJiniMailer, toTovuMailer } from "#src/platform/mail/index";
 import { describeMailProviders } from "./mail-provider-configuration.js";
 import {
@@ -114,31 +111,10 @@ export interface ResolveMailerDeps extends MailProviderCatalogDeps {
 }
 
 
-export interface ResolvedMailer {
-  /** Safe to use immediately; each send awaits its lane's resolution. */
+/** The domain requirements port reads DNS needs for the active transactional provider. */
+export interface ResolvedMailer extends Omit<JiniResolvedMailer, "mailer"> {
+  /** Tovu's purpose-scoped MailerPort (`toTovuMailer`), not Jini's. */
   mailer: MailerPort;
-  /** Resolves once the initial setting + transactional resolution settle (a test seam). */
-  ready: Promise<void>;
-  /** Refreshes unresolved configuration and awaits the current driver without sending. */
-  settle: () => Promise<void>;
-  /** Status for the admin route, the banner and `system_get_mail_status`; cached briefly, `refresh` rebuilds. */
-  status: (optional?: { refresh?: boolean }) => Promise<MailStatusReport>;
-  /** The safe per-provider configuration DTO (`mail-provider-configuration.ts`). Never a secret. */
-  describeProviders: () => Promise<MailProviderConfigurationReport>;
-  /** Drops cached provider mailers and the cached status; the next send and read resolve fresh. */
-  invalidate: () => void;
-  laneReady: (required: { lane: MailDeliveryLane }) => Promise<boolean>;
-  senderDomainVerification: SenderDomainVerificationPort;
-  /** Whether `id` may be selected: a registered hosted provider whose saved key resolves. Sends nothing. */
-  checkProvider: (required: { id: string }) => Promise<MailProviderCheck>;
-  /**
-   * The DNS records the active transactional provider needs before it sends as the configured
-   * sender's domain — the port the DNS tools read (requirements reach DNS only through ports).
-   * `null` when no transactional provider is selected, it cannot verify domains, no sender is
-   * configured, its key is missing, or `workspaceId` is not this mailer's workspace.
-   * @throws Error when the provider answered with a failure (caller-safe message).
-   */
-  domainRequirements: (required: { workspaceId: string }) => Promise<DomainRequirement | null>;
 }
 
 export type { MailProviderCheck } from "@jini-ai/platform/mail";

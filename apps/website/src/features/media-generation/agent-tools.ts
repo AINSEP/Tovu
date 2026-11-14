@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
 import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-providers/catalog";
 
@@ -24,16 +25,8 @@ import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-provider
  * (`tool-registrations.ts`'s heavier import) would.
  */
 
-/** Local declaration, not shared — same "duplicate the tiny type, never share across
- *  features/files" convention `custom-credentials/agent-tools.ts`'s own `AgentToolDefinition` doc
- *  establishes. */
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/** Shared catalog contract with this domain's side-effect vocabulary. */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /**
  * Every catalogued image model whose vendor the catalogue itself marks `integrated` (a real vendor,

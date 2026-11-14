@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { OG_TYPE_VALUES, STRING_FIELD_MAX_LENGTH, TWITTER_CARD_VALUES, URL_FIELD_MAX_LENGTH } from "@jini-ai/cms/seo";
 import {
   DEFAULT_DESCRIPTION_MAX_LENGTH,
@@ -63,19 +64,13 @@ const MANAGE_SEO_PERMISSION = "admin.seo.manage";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
-   * tool lacking one). Every entry in this catalog is wired, so this is required, not optional —
-   * mirrors `Jini packages/user-management/src/server/agent-tools.ts`'s identical reasoning.
-   */
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+ * tool lacking one). Every entry in this catalog is wired, so this is required, not optional —
+ * mirrors `Jini packages/user-management/src/server/agent-tools.ts`'s identical reasoning.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; inputSchema: Readonly<Record<string, unknown>> };
 
 /** No arguments. */
 const NO_INPUT_SCHEMA = {

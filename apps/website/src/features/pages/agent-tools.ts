@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "../../contracts/core/assistant-content-guidance.js";
 
@@ -21,13 +22,7 @@ export type AgentToolSideEffect =
   | "deletes-durable-state"
   | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 const PAGE_ID_SCHEMA = {
   type: "string",

@@ -84,14 +84,12 @@ export const changeSetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
 ]);
 
 /**
- * Model-facing change-set view — the same six response fields
- * `server/inbound/admin-http/http/change-sets.ts`'s `toChangeSetHeaderResponse` publishes over
- * HTTP, reproduced here rather than imported so this domain's tool layer carries no dependency on
- * the admin HTTP response-serializer module (that module is inbound-HTTP-specific; this is not).
+ * Model-facing change-set view, shared with `admin-http/http/change-sets.ts#toChangeSetHeaderResponse`,
+ * which delegates here.
  * `inversePayload` is never exposed here either, for the identical reason that file's own header
  * gives — it may hold full content snapshots.
  */
-function toChangeSetToolView(changeSet: ChangeSetRecord) {
+export function toChangeSetView({ changeSet }: { changeSet: ChangeSetRecord }, _optional: Record<string, never> = {}) {
   return {
     id: changeSet.id,
     workspaceId: changeSet.workspaceId,
@@ -123,7 +121,7 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
         return a.createdAt > b.createdAt ? -1 : 0;
       });
 
-      return { changeSets: newestFirst.slice(0, limit).map(toChangeSetToolView) };
+      return { changeSets: newestFirst.slice(0, limit).map((changeSet) => toChangeSetView({ changeSet })) };
     },
 
     change_sets_revert: async (ctx) => {
@@ -150,7 +148,7 @@ export function buildChangeSetsRegistrations(routeDeps: ChangeSetToolDeps): Tool
             principalKind: "agent",
           },
         });
-        return { reverted: true, changeSet: toChangeSetToolView(reverted) };
+        return { reverted: true, changeSet: toChangeSetView({ changeSet: reverted }) };
       } catch (err) {
         if (err instanceof RevertConflictError) {
           return {

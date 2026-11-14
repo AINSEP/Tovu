@@ -1,7 +1,8 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/external-mcp.js';
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { UUID } from "@jini-ai/core/primitives";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
@@ -76,18 +77,6 @@ import { type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "..
  */
 
 export const EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID = "external_mcp_reauth_prompt";
-
-/** Mirrors the shared low-level shapes every domain re-imports the same way — see `ask-choice-tool.ts`'s
- *  identical import for the precedent this file follows (as opposed to `features/external-mcp/
- *  agent-tools.ts`'s own LOCAL redeclaration, which exists for a domain-isolation reason specific to
- *  that file and does not apply here). */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 /**
  * The same permission `features/external-mcp/agent-tools.ts`'s `EXTERNAL_MCP_MANAGE_PERMISSION`

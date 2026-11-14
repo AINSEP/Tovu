@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file Publishing readiness, connection, and human-confirmed pulls from the live site.
  *
@@ -29,14 +30,7 @@
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: "confirmer-must-equal-own-delegatedBy";
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; actorClassRule?: "confirmer-must-equal-own-delegatedBy" };
 
 export const PUBLISH_CONTENT_PUBLISH_TOOL_ID = "publish_content_publish";
 export const PUBLISH_CONTENT_STATUS_TOOL_ID = "publish_content_status";

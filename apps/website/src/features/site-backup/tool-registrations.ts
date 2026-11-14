@@ -3,7 +3,7 @@ import { SiteShareRefusal } from "./share-policy.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/site-backup.js';
 import { parseSiteImportInput } from "./import-backend.js";
 
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a
 // rejection as the caller's to fix instead of redacting it into a message-stripped 500.
@@ -38,14 +38,6 @@ export { PUSH_WAIT_MS, SITE_BACKUP_PUSH_TOOL_ID, type PushResult, type SiteBacku
  * shares (`site_share_*`) and imports (`site_import_*`). This module is the catalog, the risk map and
  * the thin handlers.
  */
-
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 const INCLUDE_SCHEMA = {
   type: "object",

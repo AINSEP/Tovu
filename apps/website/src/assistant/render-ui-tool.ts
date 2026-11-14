@@ -1,7 +1,7 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage, type AgentToRendererMessage } from "@jini-ai/agentic/a2ui";
 
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "@jini-ai/daemon/surface-exchanges";
 
@@ -21,14 +21,6 @@ import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "@jin
  */
 
 export const RENDER_UI_TOOL_ID = "assistant_render_ui";
-
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 export const renderUiAgentToolCatalog: AgentToolDefinition[] = [
   {

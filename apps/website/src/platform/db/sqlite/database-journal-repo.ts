@@ -2,6 +2,7 @@ import type { Updateable } from "kysely";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { pruneDatabaseCopies } from "@jini-ai/db/sqlite";
+import type { LedgerAppendPort } from "@jini-ai/db/recovery";
 import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
@@ -111,24 +112,7 @@ export class SqliteDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPort 
 
   /** Appends one `database_ledger` row (ADR-041 §4). Never mutates or deletes an existing row —
    * the ledger is append-only by construction. */
-  async append(row: {
-    id: string;
-    kind: string;
-    correlationId?: string | null;
-    restorePointId?: string | null;
-    schemaBeforeVersion?: number | null;
-    schemaBeforeTag?: string | null;
-    schemaAfterVersion?: number | null;
-    schemaAfterTag?: string | null;
-    driftStatus?: string | null;
-    outcome: string;
-    detailJson?: string | null;
-    actorWorkspaceId?: string | null;
-    actorId?: string | null;
-    delegatedByWorkspaceId?: string | null;
-    delegatedById?: string | null;
-    createdAt: string;
-  }): Promise<void> {
+  async append(row: Parameters<LedgerAppendPort["append"]>[0]): Promise<void> {
     await this.deps.db.run((db) =>
       db
         .insertInto("database_ledger")

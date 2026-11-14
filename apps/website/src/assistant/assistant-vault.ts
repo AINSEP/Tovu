@@ -3,6 +3,7 @@ import { buildVaultAad, type SecretsVaultService, VaultError, type VaultContext,
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
 import { createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
+import { credentialWriteFields } from "./credential-store-fields.js";
 
 const INVALID_RECORD = "invalid-record";
 
@@ -59,6 +60,33 @@ export async function readAssistantVault({ repo, context, sealer }: {
   if (buildVaultAad({ ...context, id: raw.id }) !== buildVaultAad(raw)) throw new VaultError({ code: "context" });
   const record = { ...raw, meta: parseTovuStoreMeta({ kind: context.kind as "site-assistant" | "personal-execution", meta: raw.meta }) };
   return { record, tokenHint: record.sealed && sealer ? await openTokenHint({ repo, context, sealer, record }) : null };
+}
+
+/** Prepares and CAS-writes one assistant credential singleton. Omitted keys preserve the envelope.
+ * Crypto failures alone become the feature's own "unconfigured" error; persistence/CAS errors keep
+ * their contract. The hint comes from the new key, or from one open of the saved snapshot.
+ * @complexity One singleton read, one CAS write, O(payload size) sealing. */
+export async function writeAssistantVault(
+  { deps, context, apiKey, unconfigured, settings }: {
+    deps: { repo: object; sealer: SecretSealerPort; keyring: KeyringPort; clock: Clock };
+    context: VaultContext;
+    apiKey: string | undefined;
+    unconfigured: (required: { detail: string }) => Error;
+    settings: (required: { existing: VaultRecord | null }) => Pick<Parameters<SecretsVaultService["prepare"]>[0], "provider" | "meta">;
+  },
+  _optional: Record<string, never> = {},
+): Promise<{ record: VaultRecord; tokenHint: CredentialTokenHint | null }> {
+  const repo = assistantVaultRepo({ repo: deps.repo });
+  const existing = await repo.findOne(context);
+  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
+    throw unconfigured({ detail: error instanceof Error ? error.message : String(error) });
+  } });
+  const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey }), ...settings({ existing }) });
+  const record = await repo.put({ record: prepared, expectedRevision: existing?.revision ?? null });
+  const tokenHint = apiKey !== undefined
+    ? credentialTokenHint({ token: apiKey })
+    : (await readAssistantVault({ repo, context, sealer: deps.sealer }, { record })).tokenHint;
+  return { record, tokenHint };
 }
 
 /** Open exactly the supplied snapshot through Jini and derive its token hint.

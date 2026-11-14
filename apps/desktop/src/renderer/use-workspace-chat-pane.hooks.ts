@@ -30,7 +30,7 @@ import {
   type ConversationDeleteConfirmationState,
   type UseRunnerConversations,
 } from './App.hooks.js';
-import { folderPathsFromDataTransfer } from './folder-drop.js';
+import { folderPathsFromDataTransfer } from '@jini-ai/ui/core';
 
 /**
  * The picker's model/reasoning choice reaches the transport through `runContext`, not through
@@ -86,7 +86,8 @@ export function captureFolderDrop(
   composerHandle: RefObject<Pick<ChatPaneComposerHandle, 'insertText'> | null>,
 ): void {
   if (getPathForFile === undefined) return;
-  const folders = folderPathsFromDataTransfer({ dataTransfer: event.dataTransfer, getPathForFile });
+  // Electron's webUtils.getPathForFile returns '' for synthesized Files, so read the raw drop first.
+  const folders = folderPathsFromDataTransfer(event.dataTransfer, { getPathForFile });
   if (folders.length === 0) return;
   event.preventDefault();
   event.stopPropagation();

@@ -7,8 +7,8 @@
  *
  * **How this file runs.** `apps/desktop`'s `test` script is two commands: a bare
  * `node --test "src/*.test.ts" "src/!(renderer|contracts)/**\/*.test.ts"` first, which has no
- * runner for TypeScript imported across a `.js`-specifier boundary (see `folder-drop.ts`'s own
- * header for why); that is why every renderer test before this one was a source-text assertion (see
+ * runner for TypeScript imported across a `.js`-specifier boundary; that is why every renderer
+ * test before this one was a source-text assertion (see
  * `rescan-wiring.test.ts`'s own header). This file, living under `src/renderer/`, is executed by the
  * second command instead, `node --import tsx --test "src/renderer/**\/*.test.ts" "src/contracts/**\/*.test.ts"`.
  *
