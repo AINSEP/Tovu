@@ -30,7 +30,7 @@ import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
  * live (never cached). `gateway.execute()` (CIC U-001-B3) already re-runs `hooks.computePlan()` and
  * hash-compares it against the confirmed token before ever reaching `executeMutation()` — so a
  * destination row that changes between `plan()` and `execute()` changes that row's outcome (e.g.
- * `unchanged` -> `conflict`), which changes `planHashOf(report)`, which `execute()` rejects as
+ * `unchanged` -> `conflict`), which changes `planHashOf({ details: report })`, which `execute()` rejects as
  * `PLAN_STALE` with ZERO code in this file dedicated to detecting it. This is exactly the property
  * plan §0 #7 and §5 risk #2 call out: the built gated-mutation gateway gives this for free where a
  * bespoke `?mode=dry-run` flow would not.
@@ -193,7 +193,7 @@ export interface BuildPublishContentImportHooksInput {
    * file's existing plan-staleness property (see this file's header) also police an operator's ticks
    * changing between plan/confirm and execute for free: `buildReport()` re-derives from whatever set
    * THIS call passed, so a different set at execute changes which rows are `forced`, which changes
-   * `planHashOf(report)`, which `gateway.execute()` step 4 rejects as `PLAN_STALE` before ever
+   * `planHashOf({ details: report })`, which `gateway.execute()` step 4 rejects as `PLAN_STALE` before ever
    * reaching {@link PublishContentApplyPort.applyReport}. No code here is dedicated to detecting a
    * changed selection.
    */
@@ -280,7 +280,7 @@ export function buildPublishContentImportHooks(
     scopeId: input.workspaceId,
     computePlan: async () => {
       const report = await buildReport();
-      return { planHash: planHashOf(report), details: report };
+      return { planHash: planHashOf({ details: report }), details: report };
     },
     executeMutation: async (verified) => {
       // Restore point captured BEFORE any write this run might make (plan §4 task 7's own

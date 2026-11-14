@@ -29,7 +29,7 @@ test("settings writes and reads rank in the real catalog for owner questions", a
   await deps.identityReady;
   const registry = createToolRegistry({});
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   for (const [toolId, queries] of [
     ["settings_set_value", ["Change the site's timezone to Pacific.", "change the site timezone", "Turn off comments on new posts.", "Set the date format to day-month-year.", "Change a site setting", "Update configuration option"]],

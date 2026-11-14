@@ -15,11 +15,11 @@ export interface RunThemeSyncOriginalsCommandInput {
 }
 
 /** Default output port, wired at this composition edge; tests inject their own. */
-const writeStdout = (message: string): void => {
+const writeStdout = ({ message }: { message: string }, _optional = {}): void => {
   process.stdout.write(message);
 };
 
-function formatSummary(themesRoot: string, result: SyncThemeOriginalsResult): string {
+function formatSummary({ themesRoot, result }: { themesRoot: string; result: SyncThemeOriginalsResult }, _options = {}): string {
   if (result.themes.length === 0) {
     return `no shipped themes found under ${themesRoot}\n`;
   }
@@ -34,15 +34,15 @@ function formatSummary(themesRoot: string, result: SyncThemeOriginalsResult): st
  */
 export async function runThemeSyncOriginalsCommand(
   input: RunThemeSyncOriginalsCommandInput,
-  optional: { output?: (message: string) => void } = {}
+  optional: { output?: (required: { message: string }, optional?: Record<string, never>) => void } = {}
 ): Promise<void> {
   const output = optional.output ?? writeStdout;
   const themesRoot = path.resolve(input.themesRoot);
   const result = syncThemeOriginals({ themesRoot });
 
   if (input.json) {
-    output(`${JSON.stringify(result, null, 2)}\n`);
+    output({ message: `${JSON.stringify(result, null, 2)}\n` });
   } else {
-    output(formatSummary(themesRoot, result));
+    output({ message: formatSummary({ themesRoot: themesRoot, result: result }) });
   }
 }

@@ -127,8 +127,7 @@ function searchEnricher(_required: Record<string, never>, _optional: Record<stri
  * the model actually reasons about in order to fix the thing it searches with.
  */
 export function indexedDescriptionFor(
-  toolId: string,
-  description: string,
+  { toolId, description }: { toolId: string; description: string },
   /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`. `false` folds the
    *  operator nouns but NOT the doc2query questions, which is the only way to still measure the
    *  pre-adoption baseline now that production includes both — without it, the adoption eval's
@@ -154,6 +153,6 @@ export function indexedDescriptionFor(
  * Tolerates text with no marker unchanged because every hit passes here, including tools with
  * no search vocabulary. Demo-only tools are excluded from operator-language enrichment.
  */
-export function stripSearchKeywords(indexed: string): string {
+export function stripSearchKeywords({ indexed }: { indexed: string }, _options = {}): string {
   return searchEnricher({}).authoredDescription({ description: indexed });
 }

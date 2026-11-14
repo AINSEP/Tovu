@@ -16,7 +16,7 @@ export async function resolvePublicAssistantAvailability(required: {
 }, options: { onCredentialFailure?: (error: unknown) => void } = {}): Promise<PublicAssistantAvailability> {
   // The public readiness outcome stays key-free; the visitor route separately correlates the
   // credential owner's real failure with its safe response id in the redacted operator log.
-  const credential = await resolveSiteAssistantApiKey(required, { workspaceId: required.workspaceId }, options.onCredentialFailure);
+  const credential = await resolveSiteAssistantApiKey({ deps: required, input: { workspaceId: required.workspaceId } }, { onDecryptFailure: options.onCredentialFailure });
   if (!credential?.apiKey.trim()) {
     return { ready: false, code: "NOT_CONFIGURED", error: "site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant." };
   }

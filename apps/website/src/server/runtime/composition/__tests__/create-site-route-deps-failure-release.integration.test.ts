@@ -39,7 +39,7 @@ async function composeMissingWorkspace(siteDir: string): Promise<SiteStore | und
     createSiteRouteDeps(path.join(siteDir, "content.db"), {
       requestedWorkspaceId: "no-such-workspace",
       themesDir: path.join(siteDir, "themes"),
-      onStoreOpened: (store) => (opened = store),
+      onStoreOpened: ({ store }, _optional = {}) => (opened = store),
     })
   );
   return opened;

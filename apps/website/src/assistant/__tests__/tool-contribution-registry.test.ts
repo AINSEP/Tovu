@@ -366,7 +366,7 @@ test("two registry contributors claiming the same tool id fail buildAssistantToo
   contributions.contributors.register({ contribution: fakeContributor("dup-b", ["shared_tool_id"]) });
 
   assert.throws(
-    () => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }),
+    () => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }),
     /'shared_tool_id' is registered by both the dup-a and dup-b domains/,
   );
 });
@@ -392,7 +392,7 @@ test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the 
   // ceases to exist — at which point DELETE this test rather than contriving a fixture for it. A
   // test that proves a seam still behaves correctly is worthless once there is no seam.
   contributions.contributors.register({ contribution: fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]) });
-  assert.throws(() => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
+  assert.throws(() => buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------
@@ -406,16 +406,16 @@ test("a real catalog entry from a NOT-installed contributor fails assertRiskMeta
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment");
   assert.ok(entry, "sanity: the catalog entry itself still exists independent of wiring");
 
-  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry!, contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: entry! }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("installing the contributor afterward makes the same id wirable — proving the failure above was about installation state, not something else", async () => {
   const { contributeCommentsTools } = await import("../../features/comments/tool-registrations.js");
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment")!;
 
-  assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry, contributions));
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: entry }, { contributions: contributions }));
   contributions.contributors.register({ contribution: contributeCommentsTools() });
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("comments_approve_comment", entry, contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "comments_approve_comment", catalogEntry: entry }, { contributions: contributions }));
 });
 
 // ---------------------------------------------------------------------------
@@ -436,7 +436,7 @@ test("core registers no Supabase-specific connect tool — the generic agent_plu
   installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps();
   await deps.identityReady;
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
 
   assert.ok(ids.includes("agent_plugin_connect"), "the generic Agent Plugin Connect tool must stay registered");
   assert.ok(!ids.includes("supabase_get_database"), "supabase_get_database must not be registered");

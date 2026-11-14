@@ -33,7 +33,7 @@ test("adding newsletter delivery does not worsen supported operator requests", a
   const fullRegistry = createToolRegistry({});
   const baselineRegistry = createToolRegistry({});
   const newIds = new Set(["newsletter_send_test", "newsletter_send_campaign", "newsletter_schedule_campaign", "newsletter_resume_campaign"]);
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, undefined, { contributions })) {
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, { surfaces: undefined, options: { contributions } })) {
     fullRegistry.register(registration);
     if (!newIds.has(registration.descriptor.id)) baselineRegistry.register(registration);
   }
@@ -60,7 +60,7 @@ test("newsletter delivery requests rank the action in the top three of the real 
   const deps = createRouteDeps();
   await deps.identityReady;
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const misses: string[] = [];
   for (const [id, queries] of Object.entries(requests)) for (const query of queries) {

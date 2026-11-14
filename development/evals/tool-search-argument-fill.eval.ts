@@ -316,7 +316,7 @@ function main(): void {
     list: () =>
       [...membersOf.entries()].map(([key, ids]) => ({
         id: key,
-        description: ids.map((id) => indexedDescriptionFor(id, descById.get(id) ?? "")).join(" "),
+        description: ids.map((id) => indexedDescriptionFor({ toolId: id, description: descById.get(id) ?? "" })).join(" "),
         inputSchema: { type: "object" },
       })) as never,
   });

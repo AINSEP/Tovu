@@ -174,7 +174,7 @@ function run(): void {
   const contributions = createEvalToolContributions();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }), undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeEvalRouteDeps() }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const baseline = buildToolCatalogQuery(registry, { includeSearchKeywords: false });
   const catalogSize = registry.list({}).length;

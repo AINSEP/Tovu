@@ -34,13 +34,13 @@ export function assistantVaultId({ context }: { context: VaultContext }, _option
  * their own contract. Read-only calls cannot accidentally derive a key or seal a payload. */
 export function createAssistantVault({ repo, context, sealer, keyring, clock }: {
   repo: VaultRepoPort; context: VaultContext; sealer?: SecretSealerPort; keyring?: KeyringPort; clock?: Clock;
-}, { onSealFailure }: { onSealFailure?: (error: unknown) => never } = {}): SecretsVaultService {
+}, { onSealFailure }: { onSealFailure?: (required: { error: unknown }, optional?: Record<string, never>) => never } = {}): SecretsVaultService {
   const unavailable = (): Promise<never> => Promise.reject(new VaultError({ code: INVALID_RECORD }));
   if (context.kind !== "site-assistant" && context.kind !== "personal-execution") throw new VaultError({ code: "context" });
   return createTovuStoreVault({ repo: { vault: repo }, kind: context.kind, context, keyring, clock,
     sealer: sealer ?? { seal: unavailable, open: unavailable },
     storageError: (_required, { error } = {}) => {
-      if (onSealFailure) onSealFailure(error);
+      if (onSealFailure) onSealFailure({ error });
       return error instanceof Error ? error : new VaultError({ code: INVALID_RECORD });
     },
     newId: () => assistantVaultId({ context }),

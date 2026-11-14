@@ -21,7 +21,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { contributeMediaTools } from "../tool-registrations.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/contracts/core/upload-limits";
 
-const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
@@ -79,7 +79,7 @@ function fakeRouteDeps() {
 }
 
 function mediaRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => r.descriptor.id.startsWith("media_")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {

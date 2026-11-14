@@ -304,7 +304,7 @@ test("createSiteRouteDeps emits the orphan warning with this isolated site's cou
     const deps = await createSiteRouteDeps(contentDbPath, {
       db, workspaceId: "ws-1", themesDir: path.join(tmpDir, "themes"), uploadsDir: path.join(tmpDir, "uploads"),
       siteBinding: { dir: tmpDir, name: "Orphan Test", dirOverridden: true, switcherCompatible: false },
-      storeRole: "client", onStoreOpened: (opened) => { store = opened; },
+      storeRole: "client", onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
     });
     await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
     // Finish the remaining SQLite boot writes chained from those readiness promises before close.

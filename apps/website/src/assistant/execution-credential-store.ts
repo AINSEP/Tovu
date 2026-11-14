@@ -152,7 +152,7 @@ export async function setExecutionCredential(deps: ExecutionCredentialWriteDeps,
   const repo = assistantVaultRepo({ repo: deps.repo });
   const context = assistantVaultContext({ ...input, kind: "personal-execution" });
   const existing = await repo.findOne!(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
+  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: ({ error }, _optional = {}) => {
     throw new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
   } });
   const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),

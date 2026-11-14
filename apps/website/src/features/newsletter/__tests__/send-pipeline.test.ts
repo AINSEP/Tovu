@@ -1437,7 +1437,7 @@ test("handleSendBatchClaimed: a row whose lease expired is claimed, sent, and re
 
 // 2026-09-16 review: a run that leases a row and then throws keeps that lease. The outbox seals the
 // batch event on its MAX_OUTBOX_ATTEMPTS-th failure, and the retry before that last attempt can come
-// as soon as computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, random 0) = 240s later. If the lease is
+// as soon as computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 }) = 240s later. If the lease is
 // still live then, the last attempt fails "leased by another run", the event is sealed "failed", and
 // the row stays "pending" forever with the campaign stuck in "sending". A 5-minute lease did exactly that.
 test("handleSendBatchClaimed: a row leased by a run that threw is claimable again by the batch event's earliest last retry", async (t) => {
@@ -1461,7 +1461,7 @@ test("handleSendBatchClaimed: a row leased by a run that threw is claimable agai
   await assert.rejects(handleSendBatchClaimed({ deps, job: makeJob() }), { message: "database is locked" });
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "pending");
 
-  nowIso = new Date(Date.parse(clock.nowIso()) + computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, { random: () => 0 })).toISOString();
+  nowIso = new Date(Date.parse(clock.nowIso()) + computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 })).toISOString();
   await handleSendBatchClaimed({ deps, job: makeJob() });
 
   assert.deepEqual(mailer.sentTo, ["a@test.com"]);
@@ -1473,7 +1473,7 @@ test("NEWSLETTER_SEND_ROW_LEASE_MS outlasts one dispatch but expires before the 
   assert.equal(NEWSLETTER_SEND_ROW_LEASE_MS, 2 * 60_000);
   // The shortest gap before the last attempt is the single step after attempt MAX_OUTBOX_ATTEMPTS - 1,
   // not the sum of every step: a lease can be taken on any attempt, including the second-to-last.
-  const lastRetryStep = computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, { random: () => 0 });
+  const lastRetryStep = computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 });
   assert.equal(lastRetryStep, 240_000);
   assert.ok(NEWSLETTER_SEND_ROW_LEASE_MS < lastRetryStep, "the lease must expire before the batch event's last attempt");
 });

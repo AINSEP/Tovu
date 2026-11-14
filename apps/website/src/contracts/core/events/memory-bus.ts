@@ -73,7 +73,7 @@ export class InMemoryEventBus implements EventBusPort {
 }
 
 /** A row is claimable when it is due and was either never claimed or is held by an expired claim lease. */
-function isClaimable(row: OutboxRecord, nowIso: string): boolean {
+function isClaimable({ row, nowIso }: { row: OutboxRecord; nowIso: string }, _options = {}): boolean {
   return (row.status === "pending" || row.status === "processing") && row.nextAttemptAt <= nowIso;
 }
 
@@ -118,7 +118,7 @@ export class InMemoryOutbox implements OutboxPort {
    */
   async claimPending({ batchSize, nowIso }: { batchSize: number; nowIso: string }): Promise<OutboxRecord[]> {
     const leaseExpiresAt = new Date(Date.parse(nowIso) + this.claimLeaseMs).toISOString();
-    const due = this.records.filter((row) => isClaimable(row, nowIso)).slice(0, batchSize);
+    const due = this.records.filter((row) => isClaimable({ row: row, nowIso: nowIso })).slice(0, batchSize);
 
     return due.map((row) => {
       const claimed: OutboxRecord = { ...row, status: "processing", attempts: row.attempts + 1 };

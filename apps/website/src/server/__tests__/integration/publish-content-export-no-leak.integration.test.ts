@@ -293,7 +293,7 @@ test("GET .../publish-content/export never leaks a row from any sensitive table,
   const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
     db, workspaceId: WORKSPACE,
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (store) => { closeStore = () => store.close(); },
+    onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
   });
   await deps.identityReady;
 

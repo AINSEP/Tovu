@@ -62,11 +62,11 @@ export async function runImportLocalCommand(
   });
   if (request.tidy) { await backend.tidy({}); return null; }
   const signal = optional.signal ?? terminationSignal({ stop });
-  const done = await inPlainWords(async () => {
+  const done = await inPlainWords({ run: async () => {
     const source = await resolveSource({ request, backend });
     const staged = await backend.importBackup({ principalId: LOCAL_PRINCIPAL, source }, { signal });
     return backend.completeOwner({ principalId: LOCAL_PRINCIPAL, importId: staged.importId, adminPassword: (optional.mintOwnerPassword ?? mintOwnerPassword)() }, { signal });
-  });
+  } });
   const result = localResult({ view: done, home: workspace.home({}) });
   (optional.writeStdout ?? ((line: string) => process.stdout.write(line)))(`${JSON.stringify(result)}\n`);
   return result;
@@ -169,7 +169,7 @@ async function readBoundedArchive({ file }: { file: string }): Promise<Buffer> {
 }
 
 /** The importer's refusals are already written for a person; anything else keeps its raw text for details. */
-async function inPlainWords<T>(run: () => Promise<T>): Promise<T> {
+async function inPlainWords<T>({ run }: { run: () => Promise<T> }, _options = {}): Promise<T> {
   try { return await run(); }
   catch (error) {
     if (error instanceof SiteShareRefusal) throw new ValidationError({ message: error.message });

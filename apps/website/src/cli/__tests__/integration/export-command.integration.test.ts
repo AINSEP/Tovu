@@ -73,7 +73,7 @@ async function enableSiteConsent({ dir }: { dir: string }): Promise<void> {
       db: boot.db, store: boot.store, workspaceId: boot.workspaceId,
       uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
       siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { composed = store; },
+      onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     });
     await drainBootReadiness(deps);
     await deps.siteConsentReady;

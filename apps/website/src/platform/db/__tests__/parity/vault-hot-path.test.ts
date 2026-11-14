@@ -42,7 +42,7 @@ for (const dialect of PARITY_DIALECTS) {
     const measure = async (call: () => Promise<unknown>) => { counting.statements.length = 0; await call(); return [...counting.statements]; };
 
     test("site-assistant key on the public render path: one indexed read", async () => {
-      const statements = await measure(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId: "ws" }));
+      const statements = await measure(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws" } }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       await assertIndexed(fixture.kernel, statements);
       assert.ok((await measure(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws" }))).length <= 1);

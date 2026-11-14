@@ -48,7 +48,7 @@ export interface ExtractEntryRefsInput {
  * @complexity O(1).
  * @overallScore 100
  */
-function classifyRefFieldKey(key: string): EntryRefTargetKind | null {
+function classifyRefFieldKey({ key }: { key: string }, _options = {}): EntryRefTargetKind | null {
   if (key.endsWith("TermId")) return "term";
   if (key.endsWith("RefId") || key.endsWith("Ref") || key.endsWith("Id")) return "entry";
   return null;
@@ -62,7 +62,7 @@ function classifyRefFieldKey(key: string): EntryRefTargetKind | null {
  * @complexity O(n) over the document's total node count.
  * @overallScore 100
  */
-function collectWidgetEmbedRefs(root: unknown, rootPath: string, input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+function collectWidgetEmbedRefs({ root, rootPath, input, refs }: { root: unknown; rootPath: string; input: ExtractEntryRefsInput; refs: EntryRefRow[] }, _options = {}): void {
   // An explicit stack, not recursion: a saved document's nesting depth is caller/import-controlled
   // and a 5000-deep body overflowed the call stack here on save (same class as f646ba397's GET-path
   // walkers). Children are pushed in reverse so the walk stays pre-order — the same ref order and
@@ -111,7 +111,7 @@ function collectWidgetEmbedNode(
  * @complexity O(n) over the placement list's length.
  * @overallScore 100
  */
-function collectPlacementRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+function collectPlacementRefs({ input, refs }: { input: ExtractEntryRefsInput; refs: EntryRefRow[] }, _options = {}): void {
   const body = { value: input.bodyJson };
   if (!isNonArrayRecord(body) || !Array.isArray(body.value.placements)) return;
 
@@ -139,14 +139,12 @@ function collectPlacementRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[])
  * @overallScore 100
  */
 function collectNamespaceConfigRefs(
-  namespace: string,
-  config: Record<string, unknown>,
-  input: ExtractEntryRefsInput,
-  refs: EntryRefRow[]
+  { namespace, config, input, refs }: { namespace: string; config: Record<string, unknown>; input: ExtractEntryRefsInput; refs: EntryRefRow[] },
+  _options = {},
 ): void {
   for (const [key, value] of Object.entries(config)) {
     if (typeof value !== "string" || value.length === 0) continue;
-    const targetKind = classifyRefFieldKey(key);
+    const targetKind = classifyRefFieldKey({ key: key });
     if (targetKind) refs.push({
       workspaceId: input.workspaceId,
       sourceEntryId: input.sourceEntryId,
@@ -175,7 +173,7 @@ function addMediaConfigRefs({ config, path, input, refs }: { config: unknown; pa
  *   {@link collectNamespaceConfigRefs}).
  * @overallScore 100
  */
-function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+function collectConfigFieldRefs({ input, refs }: { input: ExtractEntryRefsInput; refs: EntryRefRow[] }, _options = {}): void {
   // `fieldsExt` is a required bag: every caller (the widget/region/embed write services and
   // content-references) passes an object, `{}` when the entry has no ext fields.
   for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt)) {
@@ -184,7 +182,7 @@ function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[
       const config = { value: namespaceRecord.value.config };
       if (!isNonArrayRecord(config)) continue;
 
-      collectNamespaceConfigRefs(namespace, config.value, input, refs);
+      collectNamespaceConfigRefs({ namespace: namespace, config: config.value, input: input, refs: refs });
       collectWidgetConfigMedia({ namespace, widgetType: namespaceRecord.value.widgetType, config: config.value, input, refs });
     }
   }
@@ -221,10 +219,10 @@ function collectWidgetConfigMedia(
 export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRefRow[] {
   const refs: EntryRefRow[] = [];
 
-  collectPlacementRefs(input, refs);
+  collectPlacementRefs({ input: input, refs: refs });
   // REQ-30 (b): widgetEmbed nodes anywhere inside bodyJson.
-  collectWidgetEmbedRefs(input.bodyJson, "bodyJson", input, refs);
-  collectConfigFieldRefs(input, refs);
+  collectWidgetEmbedRefs({ root: input.bodyJson, rootPath: "bodyJson", input: input, refs: refs });
+  collectConfigFieldRefs({ input: input, refs: refs });
 
   return refs;
 }

@@ -24,7 +24,7 @@ export interface VisitorConfirmations {
  * @complexity O(1) routing; at most 20 held site prompts, two per IP and one per turn.
  */
 export function createVisitorConfirmations({ exchanges, nowMs }: { exchanges: SurfaceExchangeStore; nowMs: () => number }, _options = {}): VisitorConfirmations {
-  const pending = new Map<string, { owner?: FrontendSessionOwner; validate: VisitorConfirmationRequest["validate"]; expiresAtMs: number; deliver: (allow: boolean) => boolean }>();
+  const pending = new Map<string, { owner?: FrontendSessionOwner; validate: VisitorConfirmationRequest["validate"]; expiresAtMs: number; deliver: (required: { allow: boolean }, optional?: Record<string, never>) => boolean }>();
   const turns = new Set<string>();
   const ipCounts = new Map<string, number>();
 
@@ -45,7 +45,7 @@ export function createVisitorConfirmations({ exchanges, nowMs }: { exchanges: Su
       turns.add(binding.runId);
       ipCounts.set(binding.ip, ipCount + 1);
       pending.set(exchange.id, { owner: binding.owner, validate: required.validate, expiresAtMs: exchange.expiresAtMs(),
-        deliver: allow => exchanges.deliver({ exchangeId: exchange.id, principalId: "anonymous-visitor", params: { allow } },
+        deliver: ({ allow }, _optional = {}) => exchanges.deliver({ exchangeId: exchange.id, principalId: "anonymous-visitor", params: { allow } },
           { toolId: binding.executionId, channel: "visitor-tool-confirmation" }).ok });
       const abandon = () => exchange.close({});
       signal?.addEventListener("abort", abandon, { once: true });
@@ -76,7 +76,7 @@ export function createVisitorConfirmations({ exchanges, nowMs }: { exchanges: Su
       try { valid = nowMs() < held.expiresAtMs && await held.validate(); }
       finally {
         valid = valid && nowMs() < held.expiresAtMs;
-        delivered = held.deliver(valid && allow);
+        delivered = held.deliver({ allow: valid && allow });
       }
       return valid && delivered;
     },

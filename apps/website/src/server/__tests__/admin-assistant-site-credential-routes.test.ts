@@ -108,7 +108,7 @@ test("PUT with an apiKey sets it and the response never contains the plaintext k
   const body = (await res.json()) as { data: { isSet: boolean; masked: string | null } };
   assert.equal(body.data.isSet, true);
   assert.equal(body.data.masked, "••••7777");
-  const resolve = () => resolveSiteAssistantApiKey({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId });
+  const resolve = () => resolveSiteAssistantApiKey({ deps: { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, input: { workspaceId: deps.workspaceId } });
   assert.equal((await resolve())?.apiKey, "AIzaSyLIVE-EXAMPLE-KEY-7777");
   assert.equal((await put(baseUrl, CREDENTIAL_PATH, cookie, { model: "gemini-flash-latest" })).status, 200);
   assert.equal((await resolve())?.apiKey, "AIzaSyLIVE-EXAMPLE-KEY-7777");
@@ -129,7 +129,7 @@ test("GET, PUT and DELETE deny a signed-in caller with no assistant grant and pr
     assert.equal(body.code, "FORBIDDEN");
     assert.equal(body.details.permission, "admin.assistant.manage");
   }
-  const resolved = await resolveSiteAssistantApiKey({ repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, { workspaceId: deps.workspaceId });
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer }, input: { workspaceId: deps.workspaceId } });
   assert.equal(resolved?.apiKey, "preserved-key-1234");
 });
 

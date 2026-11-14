@@ -48,7 +48,7 @@ test("L005: composition discovers the bound site's key and passes its directory 
     const deps = await createSiteRouteDeps(path.join(root, "relocated", "content.db"), {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { close = () => store.close(); },
+      onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     });
     await deps.identityReady;
     assert.equal(bootSiteDir, siteDir, "vault contributions load from the served site's directory");

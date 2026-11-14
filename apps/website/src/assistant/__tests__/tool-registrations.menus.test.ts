@@ -81,7 +81,7 @@ function catalogEntry(toolId: string): NavigationAgentToolDefinition {
 
 function menusRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("menus_") || r.descriptor.id === "content_read.menu")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -251,13 +251,13 @@ test("the real Menus catalog and tool-registrations' independent classification 
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.menu") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Menus catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("menus_create_menu", { ...catalogEntry("menus_create_menu"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "menus_create_menu", catalogEntry: { ...catalogEntry("menus_create_menu"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

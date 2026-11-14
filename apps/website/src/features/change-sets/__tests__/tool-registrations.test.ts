@@ -113,7 +113,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function registrationsFor(deps: RegistryDepsWithoutLimiter, surfaces?: AssistantSurfaceDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), surfaces, { contributions }).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: surfaces, options: { contributions } }).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {

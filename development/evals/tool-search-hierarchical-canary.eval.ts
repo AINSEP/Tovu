@@ -69,7 +69,7 @@ function run(): void {
   const byDomain = new Map<string, string[]>();
   for (const d of descriptors) {
     const domain = domainOf(d.id);
-    const text = indexedDescriptionFor(d.id, d.description ?? "");
+    const text = indexedDescriptionFor({ toolId: d.id, description: d.description ?? "" });
     if (!byDomain.has(domain)) byDomain.set(domain, []);
     byDomain.get(domain)!.push(text);
   }

@@ -58,7 +58,7 @@ type ProjectTarget = Parameters<typeof importLegacyKeys>[0]["target"];
 type OwnerTarget = ProjectTarget & {
   attachments: KeyAttachments;
   sharedOAuth: SharedOAuthOwnerStorage;
-  find: (id: string) => Promise<import("@jini-ai/platform/secrets/credential-sets").VaultRecord | null>;
+  find: (required: { id: string }, optional?: Record<string, never>) => Promise<import("@jini-ai/platform/secrets/credential-sets").VaultRecord | null>;
 };
 
 class OwnerStoreInputError extends Error {
@@ -92,11 +92,11 @@ export async function runOwnerStoreCommand(required: { action: OwnerStoreAction 
     assertTestHomeIsolation({ homeDir: optional.home ?? homedir() }, { paths: [userDataDir] });
     const handlers: Record<OwnerStoreAction, () => Promise<Record<string, unknown>>> = {
       status: () => legacyStatus({ userDataDir }, optional),
-      list: () => withProjectVault({ userDataDir, loadInventory: true, work: async target => ({ entries: await Promise.all(target.rows.map(row => projectEntryView({ target, row }))) }) }, optional),
-      put: () => withProjectVault({ userDataDir, work: async target => ({ entry: entryView({ row: await putProjectKey({ target, request }) }) }) }, optional),
-      delete: () => withProjectVault({ userDataDir, work: target => deleteProjectKey({ target, request }) }, optional),
+      list: () => withProjectVault({ userDataDir, loadInventory: true, work: async ({ target }, _optional = {}) => ({ entries: await Promise.all(target.rows.map(row => projectEntryView({ target, row }))) }) }, optional),
+      put: () => withProjectVault({ userDataDir, work: async ({ target }, _optional = {}) => ({ entry: entryView({ row: await putProjectKey({ target, request }) }) }) }, optional),
+      delete: () => withProjectVault({ userDataDir, work: ({ target }, _optional = {}) => deleteProjectKey({ target, request }) }, optional),
       import: () => importRequest({ request, userDataDir }, optional),
-      disconnect: () => withProjectVault({ userDataDir, work: target => disconnectProjectOAuth({ target, request }) }, optional),
+      disconnect: () => withProjectVault({ userDataDir, work: ({ target }, _optional = {}) => disconnectProjectOAuth({ target, request }) }, optional),
     };
     reply = { version: 1, ok: true, action: required.action, data: await handlers[required.action]() };
   } catch (error) {
@@ -113,7 +113,7 @@ export async function runOwnerStoreCommand(required: { action: OwnerStoreAction 
  * Saving never attaches a row or creates a site copy. Inventory runs only for list/import;
  * replacement opens one selected row to preserve its settings and companion fields.
  */
-async function withProjectVault<T>({ userDataDir, work, loadInventory = false }: { userDataDir: string; loadInventory?: boolean; work: (target: OwnerTarget) => Promise<T> }, optional: Optional = {}): Promise<T> {
+async function withProjectVault<T>({ userDataDir, work, loadInventory = false }: { userDataDir: string; loadInventory?: boolean; work: (required: { target: OwnerTarget }, optional?: Record<string, never>) => Promise<T> }, optional: Optional = {}): Promise<T> {
   const home = optional.home ?? homedir();
   const workspace = optional.workspace ?? createSitesWorkspace({}, { homeDir: home, appDataDir: userDataDir });
   const store = await openProjectStore({ sitesHome: workspace.home({}), home, appDataDir: workspace.config({}).appData });
@@ -128,7 +128,7 @@ async function withProjectVault<T>({ userDataDir, work, loadInventory = false }:
     const kinds: VaultKind[] = [...VAULT_KINDS.filter(kind => isCopyableKind[kind]), "custom", "api-connection"];
     const rows = loadInventory ? (await Promise.all(kinds.map(kind => vault.list({ workspaceId: scope.workspaceId, kind, ownerKey: 'tovu', principalId: null })))).flat().filter(row => ownerKind(row)) : [];
     const sharedOAuth = createSharedOAuthOwnerStorage({ scope, clock: { nowMs: () => Date.now() } });
-    return await work({ vault, workspaceId: scope.workspaceId, transaction: store.transaction, rows, attachments: store.attachments, sharedOAuth, find: id => scope.repo.find({ workspaceId: scope.workspaceId, id }) });
+    return await work({ target: { vault, workspaceId: scope.workspaceId, transaction: store.transaction, rows, attachments: store.attachments, sharedOAuth, find: ({ id }, _optional = {}) => scope.repo.find({ workspaceId: scope.workspaceId, id }) } });
   } finally { store.close({}); }
 }
 
@@ -191,7 +191,7 @@ async function deleteProjectKey({ target, request }: { target: OwnerTarget; requ
   const id = stringValue({ value: request.id }), expectedRevision = revision({ value: request.expectedRevision });
   return target.transaction({ run: async () => {
     if ((await target.attachments.usersOf({ keyId: id })).length) throw new SharedKeyInUseError();
-    const row = await target.find(id);
+    const row = await target.find({ id });
     if (!row) return { removed: false };
     if (isSharedOAuthKey({ row })) throw new SharedOAuthDeleteError();
     if (!ownerKind(row)) throw new OwnerStoreInputError();
@@ -236,7 +236,7 @@ async function importRequest({ request, userDataDir }: { request: Record<string,
   if (request.apply && request.expectedDigest !== sourceDigest) throw new ImportSourceChangedError();
   const entries = await Promise.all(snapshot.entries.map(async entry => entry.ownerKey === 'tovu'
     ? { ...entry, ...await mapOwnerApiKey({ row: entry, payload: entry.payload }) } : entry));
-  const report = await withProjectVault({ userDataDir, loadInventory: true, work: target => importLegacyKeys({ snapshot: { ...snapshot, entries }, target }, { apply: request.apply as boolean }) }, optional);
+  const report = await withProjectVault({ userDataDir, loadInventory: true, work: ({ target }, _optional = {}) => importLegacyKeys({ snapshot: { ...snapshot, entries }, target }, { apply: request.apply as boolean }) }, optional);
   return { ...report, sourceDigest };
 }
 
@@ -354,7 +354,7 @@ function entryView({ row }: { row: VaultSummary }, _options = {}): OwnerStoreEnt
 }
 
 /** Never forward Error.message/cause/stack: JSON, crypto and SQLite can embed secret input. */
-function sharedOAuthActionError(error: unknown): { code: string; message: string } | undefined {
+function sharedOAuthActionError({ error }: { error: unknown }, _options = {}): { code: string; message: string } | undefined {
   if (error instanceof SharedOAuthChangedError || error instanceof ApiConnectionError && error.code === 'storage-conflict') return { code: 'source-changed', message: 'This shared connection or its site grants changed. Review the disconnect confirmation again.' };
   if (error instanceof SharedOAuthDeleteError) return { code: 'connection-action-required', message: 'Disconnect this shared connection from every site on this Mac before removing its saved sign-in.' };
   return undefined;
@@ -362,7 +362,7 @@ function sharedOAuthActionError(error: unknown): { code: string; message: string
 
 /** Never forward Error.message/cause/stack: JSON, crypto and SQLite can embed secret input. */
 function safeError({ error }: { error: unknown }, _options = {}): { code: string; message: string } {
-  const connectionError = sharedOAuthActionError(error);
+  const connectionError = sharedOAuthActionError({ error: error });
   if (connectionError) return connectionError;
   if (error instanceof SharedKeyInUseError) return { code: "key-in-use", message: "This key is still granted to a site. Revoke its site grants before deleting it. Details: P25_KEY_IN_USE; secret values omitted." };
   if (error instanceof OwnerStoreInputError) return { code: "invalid-input", message: error.message };

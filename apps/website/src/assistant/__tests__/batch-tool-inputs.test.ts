@@ -176,9 +176,9 @@ test("a pure read with only optional selectors batches by default; native items 
 
 test("guard: every production pure read batches; other tools retain explicit write opt-outs", () => {
   // Raw, pre-batch registrations with every permanent delete granted, so the guard sees them all.
-  const raw = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, {
+  const raw = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: {
     contributions: productionContributions(), includeContentReadCollapse: false, batchableTools: [], permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS,
-  });
+  } });
   const optOut = new Set(BATCH_OPT_OUT.map(entry => entry.toolId));
   const ids = new Set(raw.map(registration => registration.descriptor.id));
   const selected = new Set(resolveBatchableTools({ registrations: raw }).map(tool => tool.toolId));
@@ -209,8 +209,8 @@ test("guard: every production pure read batches; other tools retain explicit wri
 test("the real composition: every default batchable tool publishes items with its cap", () => {
   const contributions = productionContributions();
   const deps = toAssistantRegistryDeps({ routeDeps: createRouteDeps() });
-  const raw = buildAssistantToolRegistrations(deps, undefined, { contributions, includeContentReadCollapse: false, batchableTools: [] });
-  const byId = new Map(buildAssistantToolRegistrations(deps, undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const raw = buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions, includeContentReadCollapse: false, batchableTools: [] } });
+  const byId = new Map(buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
   const tools = resolveBatchableTools({ registrations: raw });
   assert.ok(tools.length > 150, `expected default-on batching, got ${tools.length} tools`);
   for (const { toolId, maxItems = DEFAULT_MAX_BATCH_ITEMS } of tools) {
@@ -244,7 +244,7 @@ test("a theme batch validates every destination before writing, then reads the c
       themes: discoverAllBuiltInThemes({ dir: root, source: "built-in" }),
       authorize: async () => ({ allowed: true, reason: "matched" }),
     } as unknown as RegistryDepsWithoutLimiter;
-    const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+    const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
 
     await assert.rejects(() => invokeRegistration(byId.get("theme_write_file")!, executionContext({
       themeId: "plain",
@@ -280,7 +280,7 @@ test("approval runs per item, inside the batch: an item whose class asks is refu
     descriptor: { id: "tool_batch_probe", description: "Probe.", inputSchema: { type: "object", properties: { method: { type: "string" } } }, metadata: { approval: { class: "edit", confirmation: "direct", rule: "http-method" } } },
   };
   contributions.contributors.register({ contribution: { domain: "probe", build: () => [probe], risk: new Map([["tool_batch_probe", "mutates-durable-state"]]) } });
-  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions, batchableTools: [{ toolId: "tool_batch_probe" }] })
+  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions, batchableTools: [{ toolId: "tool_batch_probe" }] } })
     .find((r) => r.descriptor.id === "tool_batch_probe");
   assert.ok(registration);
 

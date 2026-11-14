@@ -164,8 +164,8 @@ export async function resolveProbeCredential(
 
   return resolveStoredCredentialAgainstItsOwnEndpoint(
     await resolveSiteAssistantApiKey(
-      { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-      { workspaceId: deps.workspaceId }
+      { deps: { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+      input: { workspaceId: deps.workspaceId } }
     ),
     input.requestedBaseUrl,
     "stored site assistant credential"

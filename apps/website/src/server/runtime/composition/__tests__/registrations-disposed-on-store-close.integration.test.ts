@@ -31,7 +31,7 @@ async function openSite(t: TestContext) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   let store: SiteStore | undefined;
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
-    onStoreOpened: (opened) => (store = opened),
+    onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
   });
   await bootSettled(deps);
   assert.ok(store);

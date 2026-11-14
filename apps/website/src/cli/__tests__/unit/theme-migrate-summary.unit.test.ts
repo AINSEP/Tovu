@@ -19,7 +19,7 @@ async function run(result: MigrateThemeResult, input: { dryRun?: boolean; json?:
   const calls: unknown[] = [];
   await runThemeMigrateCommand({ dir, ...input }, {
     migrate: (required, optional) => { calls.push({ required, optional }); return result; },
-    output: (message) => out.push(message), setExitCode: (code) => codes.push(code),
+    output: ({ message }, _optional = {}) => out.push(message), setExitCode: ({ code }, _optional = {}) => codes.push(code),
   });
   return { out: out.join(""), codes, calls };
 }

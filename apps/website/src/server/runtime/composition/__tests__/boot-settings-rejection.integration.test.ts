@@ -36,7 +36,7 @@ test("a settings registration failing while provider boot is still pending is ne
   const pending = createSiteRouteDeps(path.join(dir, "content.db"), {
     themesDir: path.join(siteDir, "themes"), uploadsDir: path.join(siteDir, "uploads"),
     siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: store => { close = () => store.close(); },
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     bootProviderPlugins: async (...args) => {
       // Several macrotask turns with the settings chain already rejected: Node reports an unobserved
       // rejection at the end of the turn it happened in.

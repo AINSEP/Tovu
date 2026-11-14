@@ -130,7 +130,7 @@ function main(): void {
   if (!dup) throw new Error("content_duplicate is not in the shipped catalog — refusing to measure a reconstruction");
 
   // The model-facing text: exactly what search_tools/describe_tool return.
-  const description = stripSearchKeywords(dup.description ?? "");
+  const description = stripSearchKeywords({ indexed: dup.description ?? "" });
   const schema = dup.inputSchema ?? {};
   const props = (schema.properties as Record<string, Record<string, unknown>> | undefined) ?? {};
   const resourceProp = props.resource;

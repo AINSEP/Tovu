@@ -22,7 +22,7 @@ test("deskfx2 NIT: existing site boots with a themes override whose parent is ab
     const themesDir = path.join(dir, "custom", "nested", "themes");
     deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       db: boot.db, store: boot.store, workspaceId: boot.workspaceId,
-      onStoreOpened: (store) => { composed = store; }, uploadsDir: path.join(dir, "uploads"), themesDir,
+      onStoreOpened: ({ store }, _optional = {}) => { composed = store; }, uploadsDir: path.join(dir, "uploads"), themesDir,
       siteBinding: { dir, name: "site", dirOverridden: true, switcherCompatible: false },
     });
     await drainBootReadiness(deps);

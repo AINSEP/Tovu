@@ -166,13 +166,13 @@ test("the independent risk classification agrees with the catalog for all 5 wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.collection_entry") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring collections_entry_create sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_entry_create", { ...catalogEntry("collections_entry_create"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_entry_create", catalogEntry: { ...catalogEntry("collections_entry_create"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

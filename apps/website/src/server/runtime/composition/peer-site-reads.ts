@@ -396,7 +396,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
       if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
       journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
       const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owner.principal_id, workspaceId });
-      const registrations = new Map(request.buildRegistrations(deps).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
+      const registrations = new Map(request.buildRegistrations({ deps }).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
       const peerChat = chat, peerJournal = journal;
       const entry: PeerBag = { deps, registrations, usedAt: now(), busy: 0, principal: constrainPrincipalToReadOnlyTools({ principal: { id: owner.principal_id } }),
         close: async () => { try { peerChat.close(); } finally { try { await peerJournal?.close(); } finally { await kernel.close(); } } } };

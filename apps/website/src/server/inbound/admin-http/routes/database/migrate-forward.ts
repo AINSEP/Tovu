@@ -118,15 +118,15 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       // caller pass this gate, briefly hold the lock, and only then be rejected deeper inside
       // `execute()` -- reopening the very race AUD-001 closed, one layer up.
       const authResult = await authorizeForHooks(
-        deps.gatedMutations.gatewayDeps,
-        buildConfirmOnlyHooks({
+        { deps: deps.gatedMutations.gatewayDeps,
+        hooks: buildConfirmOnlyHooks({
           domain: MIGRATE_PERMISSION,
           readPermission: "database.read",
           mutatePermission: MIGRATE_PERMISSION,
           scopeId: deps.workspaceId,
           scopeKind: "instance",
         }),
-        { principalId: principal.id, permission: MIGRATE_PERMISSION }
+        required: { principalId: principal.id, permission: MIGRATE_PERMISSION } }
       );
       if (!authResult.allowed) {
         res.status(403).json({

@@ -139,7 +139,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function seoRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => r.descriptor.id.startsWith("seo_") || r.descriptor.id === "content_read.seo_entry_meta").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -204,13 +204,13 @@ test("the independent risk classification agrees with the catalog for every wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.seo_entry_meta") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a SEO catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for seo_set_settings fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("seo_set_settings", { ...catalogEntry("seo_set_settings"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "seo_set_settings", catalogEntry: { ...catalogEntry("seo_set_settings"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

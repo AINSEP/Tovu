@@ -622,7 +622,7 @@ export interface CreateSiteRouteDepsOverrides {
    * to the agent daemon. When the composition fails after this, it has already closed what it opened
    * (and stopped the sweep on a supplied store).
    */
-  onStoreOpened: (store: SiteStore) => void;
+  onStoreOpened: (required: { store: SiteStore }, optional?: Record<string, never>) => void;
   /**
    * HARNESS ONLY: exact loopback origins (`http://127.0.0.1:<port>`) the assistant's URL tools may
    * reach — a site-import journey's offline fixture site. Supplied only by
@@ -847,7 +847,7 @@ async function openCompositionStore(
       await opened.close();
     },
   };
-  overrides.onStoreOpened?.(store);
+  overrides.onStoreOpened?.({ store: store });
   return {
     store,
     release: supplied === undefined ? store.close : stopStoreUsers,
@@ -1899,7 +1899,7 @@ async function composeSiteRouteDeps(
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer,
     loadContributions: agentPluginLifecycle.loadPluginContributions,
   });
-  const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo(kernel);
+  const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo({ store: kernel });
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
@@ -3106,7 +3106,7 @@ function configureVisitorConsentAnalytics({ routeDeps, workspaceId }: { routeDep
 export async function createSiteRouteDepsForWorkspace(
   { workspaceIdOverride }: { workspaceIdOverride: string | undefined },
   { dbPath = defaultContentDbPath(), storeRole = "owner", onStoreOpened }: {
-    dbPath?: string; storeRole?: SiteStoreRole; onStoreOpened?: (store: SiteStore) => void;
+    dbPath?: string; storeRole?: SiteStoreRole; onStoreOpened?: (required: { store: SiteStore }, optional?: Record<string, never>) => void;
   } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   // Before the workspace check below opens, migrates and seeds the file.
@@ -3122,13 +3122,13 @@ export async function createSiteRouteDepsForWorkspace(
   try {
     const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: workspaceIdOverride });
     return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole,
-      onStoreOpened: (store) => onStoreOpened?.({
+      onStoreOpened: ({ store }, _optional = {}) => onStoreOpened?.({ store: {
         ...store,
         close: async () => {
           try { await store.close(); }
           finally { closeSqliteConnection(db); }
         },
-      }),
+      } }),
     });
   } catch (error) {
     // Validation/composition failure still belongs to this opener, not the borrowed store.

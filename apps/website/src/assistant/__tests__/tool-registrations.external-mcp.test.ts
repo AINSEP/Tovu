@@ -105,7 +105,7 @@ function externalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRe
  *  directly — proving the wiring end to end, not just that the builder itself works. */
 function assembledExternalMcpRegistrations(deps: ExternalMcpToolDeps): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(deps as never, undefined, { contributions })
+    buildAssistantToolRegistrations(deps as never, { surfaces: undefined, options: { contributions } })
       // `content_read.external_mcp` (2026-09-08, assistant/content-read-tool.ts) is what
       // `external_mcp_list` becomes on the way through the REAL assembly path — the collapse
       // rewrites the final wired list only, which is exactly the difference this function exists to
@@ -218,7 +218,7 @@ test("every wired external-mcp registration publishes its catalog entry's inputS
 test("the independent risk classification agrees with the catalog for all five tools", () => {
   const { deps } = fakeDeps();
   for (const id of externalMcpRegistrations(deps).keys()) {
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 

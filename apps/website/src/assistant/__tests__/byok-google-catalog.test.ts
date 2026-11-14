@@ -146,7 +146,7 @@ function assertGeminiValid(descriptor: ToolDescriptor): number {
 }
 
 test("EVERY wired tool's outbound Gemini schema is structurally valid — the whole catalog, not a sample", () => {
-  const descriptors = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((registration) => registration.descriptor);
+  const descriptors = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).map((registration) => registration.descriptor);
 
   // A guard on the guard: if the registry ever comes back empty (a deps-shape change silently
   // breaking the build above, say), every assertion below would vacuously pass and this file would
@@ -195,7 +195,7 @@ test("the meta-tool set is the payload reduction it claims to be, measured again
       "utf8",
     );
 
-  const full = wire(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS }).map((r) => r.descriptor));
+  const full = wire(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } }).map((r) => r.descriptor));
   const meta = wire(META_TOOL_DESCRIPTORS);
 
   // The claim this change was approved on was a ~134x reduction. Asserted as a floor with real

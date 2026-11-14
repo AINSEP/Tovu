@@ -51,7 +51,7 @@ export interface SiteAssistantHistoryTurn {
 /** Any role value other than the two this type recognizes (a forged `"system"`, a typo, a
  *  non-string) makes the caller skip that one turn — see the module doc for why a bad entry costs
  *  only itself, not the whole history. */
-function toHistoryRole(role: unknown): SiteAssistantHistoryTurn["role"] | null {
+function toHistoryRole({ role }: { role: unknown }, _options = {}): SiteAssistantHistoryTurn["role"] | null {
   if (role === "user") return "user";
   if (role === "assistant") return "assistant";
   return null;
@@ -74,9 +74,9 @@ function toHistoryRole(role: unknown): SiteAssistantHistoryTurn["role"] | null {
  *  this function does not recognize — see this file's module doc for why a bad entry costs only itself.
  *  Split out of {@link resolveBoundedHistory} purely to keep that function's complexity under the
  *  shop ceiling; behavior is unchanged. */
-function toBoundedHistoryTurn(entry: unknown, maxMessageChars: number): SiteAssistantHistoryTurn | null {
+function toBoundedHistoryTurn({ entry, maxMessageChars }: { entry: unknown; maxMessageChars: number }, _options = {}): SiteAssistantHistoryTurn | null {
   if (!isPlainRecord(entry)) return null;
-  const role = toHistoryRole(entry.role);
+  const role = toHistoryRole({ role: entry.role });
   if (role === null) return null;
   if (typeof entry.content !== "string") return null;
   const trimmed = entry.content.trim();
@@ -85,7 +85,7 @@ function toBoundedHistoryTurn(entry: unknown, maxMessageChars: number): SiteAssi
   return { role, content: bounded };
 }
 
-export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBoundedHistoryOptions = {}): SiteAssistantHistoryTurn[] {
+export function resolveBoundedHistory({ rawHistory }: { rawHistory: unknown }, options: ResolveBoundedHistoryOptions = {}): SiteAssistantHistoryTurn[] {
   const maxMessages = options.maxMessages ?? DEFAULT_MAX_HISTORY_MESSAGES;
   const maxMessageChars = options.maxMessageChars ?? DEFAULT_MAX_HISTORY_MESSAGE_CHARS;
 
@@ -95,7 +95,7 @@ export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBound
 
   const turns: SiteAssistantHistoryTurn[] = [];
   for (const entry of recent) {
-    const turn = toBoundedHistoryTurn(entry, maxMessageChars);
+    const turn = toBoundedHistoryTurn({ entry: entry, maxMessageChars: maxMessageChars });
     if (turn) turns.push(turn);
   }
   return turns;

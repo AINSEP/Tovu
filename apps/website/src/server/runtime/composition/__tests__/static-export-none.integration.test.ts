@@ -16,7 +16,7 @@ test('production composition preserves the none sentinel and legacy unstyled sta
   const deps = await createSiteRouteDeps(path.join(siteDir, 'data.nosync', 'content.db'), {
     themesDir, uploadsDir,
     siteBinding: { dir: siteDir, name: 'site', dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: store => { close = () => store.close(); },
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
   });
   t.after(() => close?.());
   await deps.identityReady;

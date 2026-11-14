@@ -13,7 +13,7 @@ export interface CommerceToolHost {
 
 /** Registered local source identity, shared with the host's discovery adapter. */
 export type RegisteredSiteSource = { siteId: string; name: string; dir: string };
-type BuildRegistrations<TDeps> = (deps: TDeps) => ToolRegistration[];
+type BuildRegistrations<TDeps> = (required: { deps: TDeps }, optional?: Record<string, never>) => ToolRegistration[];
 type PeerResolution = { handler: ToolRegistration['handler']; principal: Principal; site: RegisteredSiteSource };
 
 export interface PeerSiteReads<TDeps> {

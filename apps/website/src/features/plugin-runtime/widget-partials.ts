@@ -15,5 +15,5 @@ export async function renderPluginWidgetPartials(required: {
     validateHtml: validateServerWidgetFragment,
   });
   const slots = Object.fromEntries(Object.keys(partials).map(name => [name, { source: `${name}.html` }]));
-  return expandPartials(required.html, { partials: { ...partials }, manifest: { slots } });
+  return expandPartials({ html: required.html, theme: { partials: { ...partials }, manifest: { slots } } });
 }

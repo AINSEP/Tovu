@@ -4,5 +4,5 @@ import type { ChatOwnerScope, ChatStore } from "@jini-ai/chat/store";
 import type { ChatKernel } from "#src/platform/db/chat-kernel";
 /** Borrow the host kernel; transcript adapters and legacy order repair belong to Jini. */
 export function createChatHistoryStore(kernel: ChatKernel, scope: ChatOwnerScope, now: () => number = Date.now): ChatStore {
-  return createHistory({ kernel, scope, isDaemonRunId: ({ runId }) => isDaemonRunId(runId) }, { now });
+  return createHistory({ kernel, scope, isDaemonRunId: ({ runId }) => isDaemonRunId({ runId: runId }) }, { now });
 }

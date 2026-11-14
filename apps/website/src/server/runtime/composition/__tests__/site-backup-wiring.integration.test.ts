@@ -55,7 +55,7 @@ function registrationsOver(routeDeps: Omit<RegistryDeps, "magicLinkPerEmailLimit
   installFirstPartyToolContributors({ contributions });
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const allowAll: RegistryDeps["authorize"] = async () => ({ allowed: true, reason: "test" });
-  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, { surfaces: undefined, options: { contributions } });
   return new Map(registrations.map((r) => [r.descriptor.id, r]));
 }
 

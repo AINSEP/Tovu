@@ -89,7 +89,7 @@ test("--storage-env moves the site and leaves the connection string in that vari
     to: "postgres",
     storageEnv: "TOVU_MOVE_URL",
     env: { TOVU_MOVE_URL: url },
-    write: (line) => lines.push(line),
+    write: ({ line }, _optional = {}) => lines.push(line),
   });
   const meta = JSON.parse(fs.readFileSync(path.join(site.dir, SITE_META_FILENAME), "utf8"));
   assert.deepEqual(meta.storage, { kind: "postgres", secretRef: { env: "TOVU_MOVE_URL" } });

@@ -42,7 +42,7 @@ test.beforeEach(() => {
 test("fs_list_files and fs_read_file are registered by installFirstPartyToolContributors and reach buildAssistantToolRegistrations's real catalog", () => {
   installFirstPartyToolContributors({ contributions });
 
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const ids = registrations.map((r) => r.descriptor.id);
 
   assert.ok(ids.includes(FS_LIST_FILES_TOOL_ID), `expected '${FS_LIST_FILES_TOOL_ID}' in the built catalog`);
@@ -52,7 +52,7 @@ test("fs_list_files and fs_read_file are registered by installFirstPartyToolCont
 test("both tools are marked readOnly in their descriptor, matching their 'none' sideEffects declaration", () => {
   installFirstPartyToolContributors({ contributions });
 
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const byId = new Map(registrations.map((r) => [r.descriptor.id, r]));
 
   assert.equal(byId.get(FS_LIST_FILES_TOOL_ID)?.descriptor.readOnly, true);
@@ -62,7 +62,7 @@ test("both tools are marked readOnly in their descriptor, matching their 'none' 
 test("without installFirstPartyToolContributors, neither tool is present — proving the assertion above is about real installation, not an always-present default", () => {
   // Deliberately no installFirstPartyToolContributors() call — resetToolContributorsForTests() in
   // beforeEach already left the registry empty.
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const ids = registrations.map((r) => r.descriptor.id);
 
   assert.equal(ids.includes(FS_LIST_FILES_TOOL_ID), false);
@@ -90,7 +90,7 @@ test("catalog filesystem handlers use the current workspace's persisted custom r
   setCustomFsRoot("other-workspace", otherRoot, { siteDir: base });
   deps.authorize = async () => ({ allowed: true }) as never;
   installFirstPartyToolContributors({ contributions });
-  const catalog = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  const catalog = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });
   const read = catalog.find((r) => r.descriptor.id === FS_READ_FILE_TOOL_ID);
   const list = catalog.find((r) => r.descriptor.id === FS_LIST_FILES_TOOL_ID);
   assert.ok(read);

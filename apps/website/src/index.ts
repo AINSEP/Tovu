@@ -252,7 +252,7 @@ async function main(): Promise<void> {
   const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
   const deps = useMemory
     ? createRouteDeps(memoryOptions)
-    : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: (store) => (siteStore = store) });
+    : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) });
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
   if (!useMemory) await completeDevSiteMetaOrWarn(siteDir());
@@ -269,7 +269,7 @@ async function main(): Promise<void> {
   const storeOwnsShutdown =
     closeStoreOnShutdown(
       { store: siteStore, onShutdown: shutdownAssistantDaemon },
-      { bootWork: () => bootWork, registerStop: stop => { requestStop = stop; }, stopServing: () => stopServing() }
+      { bootWork: () => bootWork, registerStop: ({ stop }, _optional = {}) => { requestStop = stop; }, stopServing: () => stopServing() }
     );
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in

@@ -50,7 +50,7 @@ test('complete production catalog classifies every reader and exercises every sc
   for (const slice of [...f.contributions.contributors.list({}), ...f.contributions.derivedContributors.list({})]) {
     for (const id of slice.risk.keys()) byTool.set(id, slice.domain);
   }
-  const raw = buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions, targetScope: 'off', includeContentReadCollapse: false });
+  const raw = buildAssistantToolRegistrations(f.deps, { surfaces: undefined, options: { contributions: f.contributions, targetScope: 'off', includeContentReadCollapse: false } });
   const scoped = f.build(), scopedById = new Map(scoped.map(tool => [tool.descriptor.id, tool]));
   const reads = raw.filter(tool => isReadOnlyTool({ descriptor: tool.descriptor }));
   const toolExcluded = (tool: ToolRegistration) => Object.hasOwn(CROSS_SITE_EXCLUDED_TOOLS, tool.descriptor.id);
@@ -144,8 +144,8 @@ test('reviewed baseline pins registry guidance and scoped schema; hermetic roots
   const f = await peerFixture(t);
   const scoped = f.build().find(tool => tool.descriptor.id === 'content_post_list')!;
   assert.deepEqual(properties(scoped).site, baseline.siteInput);
-  const hermetic = buildAssistantToolRegistrations({ ...f.deps, peerSiteReads: undefined }, undefined, { contributions: f.contributions, includeContentReadCollapse: false });
-  const originalById = new Map(buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions, targetScope: 'off', includeContentReadCollapse: false }).map(tool => [tool.descriptor.id, tool]));
+  const hermetic = buildAssistantToolRegistrations({ ...f.deps, peerSiteReads: undefined }, { surfaces: undefined, options: { contributions: f.contributions, includeContentReadCollapse: false } });
+  const originalById = new Map(buildAssistantToolRegistrations(f.deps, { surfaces: undefined, options: { contributions: f.contributions, targetScope: 'off', includeContentReadCollapse: false } }).map(tool => [tool.descriptor.id, tool]));
   for (const tool of hermetic) {
     const original = originalById.get(tool.descriptor.id)!;
     assert.deepEqual(tool.descriptor.inputSchema, original.descriptor.inputSchema, tool.descriptor.id);

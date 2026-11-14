@@ -78,7 +78,7 @@ async function serve(siteDir: string): Promise<Running> {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,
-      onStoreOpened: (store) => (composed = store),
+      onStoreOpened: ({ store }, _optional = {}) => (composed = store),
       uploadsDir: path.join(siteDir, "uploads"),
       themesDir: path.join(siteDir, "themes"),
       siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },

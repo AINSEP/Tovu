@@ -22,7 +22,7 @@ test("plugin group declares install folder, site, yes, replace and integrity wri
   assert.ok(install);
   for (const flag of ["--site", "--yes", "--replace"]) assert.ok(install.options.some((o) => o.long === flag));
   assert.ok(group.commands.find((c) => c.name() === "integrity")?.options.some((o) => o.long === "--write"));
-  assert.match(mapErrorToCliOutcome(new PluginInstallError("PLUGIN_CONSENT_REQUIRED", "review required")).stderrLine!, /PLUGIN_CONSENT_REQUIRED/);
+  assert.match(mapErrorToCliOutcome({ err: new PluginInstallError("PLUGIN_CONSENT_REQUIRED", "review required") }).stderrLine!, /PLUGIN_CONSENT_REQUIRED/);
 });
 
 for (const kind of ["cancel", "yes", "changed"] as const) {

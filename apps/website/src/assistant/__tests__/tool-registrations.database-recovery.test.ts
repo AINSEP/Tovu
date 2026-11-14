@@ -190,7 +190,7 @@ const DATABASE_TOOL_IDS: ReadonlySet<string> = new Set([...getDatabaseAgentToolC
 const RECOVERY_TOOL_IDS: ReadonlySet<string> = new Set([...recoveryAgentToolCatalog.map((tool) => tool.name), ...RECOVERY_READ_CARD_IDS]);
 
 function allRegistrations(deps: RegistryDepsWithoutLimiter): ToolRegistration[] {
-  return buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  return buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });
 }
 
 function databaseRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
@@ -310,7 +310,7 @@ test("database_execute_migrate_forward is registered and classified mutates-dura
   assert.equal(databaseRegistrations(deps).has("database_execute_migrate_forward"), true);
   // The handler-less check stands for "a plain handler": still refused at build time.
   assert.throws(
-    () => assertRiskMetadataIsWirable("database_execute_migrate_forward", databaseCatalogEntry("database_execute_migrate_forward"), contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "database_execute_migrate_forward", catalogEntry: databaseCatalogEntry("database_execute_migrate_forward") }, { contributions: contributions }),
     { message: HUMAN_CONFIRMER_REFUSAL("database_execute_migrate_forward") },
   );
 });
@@ -319,7 +319,7 @@ test("backup_execute_restore is registered and classified mutates-durable-state,
   const { deps } = fakeRouteDeps();
   assert.equal(recoveryRegistrations(deps).has("backup_execute_restore"), true);
   assert.throws(
-    () => assertRiskMetadataIsWirable("backup_execute_restore", recoveryCatalogEntry("backup_execute_restore"), contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "backup_execute_restore", catalogEntry: recoveryCatalogEntry("backup_execute_restore") }, { contributions: contributions }),
     { message: HUMAN_CONFIRMER_REFUSAL("backup_execute_restore") },
   );
 });
@@ -416,13 +416,13 @@ test("the independent risk classification agrees with the catalog for every wire
     if (id.startsWith("content_read.")) continue;
     // Their actor-class rule needs the handler too — checked in section 1 above.
     if (EXECUTE_TOOL_INPUTS[id]) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: DATABASE_TOOL_IDS.has(id) ? databaseCatalogEntry(id) : recoveryCatalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for the mutating tool fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("backup_create_restore_point", { ...databaseCatalogEntry("backup_create_restore_point"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "backup_create_restore_point", catalogEntry: { ...databaseCatalogEntry("backup_create_restore_point"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -695,7 +695,7 @@ test("workflow (Database create -> Recovery list -> Recovery plan): a restore po
  */
 async function startExecute(deps: RegistryDepsWithoutLimiter, toolId: string, input: Record<string, unknown>) {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === toolId);
   assert.ok(tool, `expected '${toolId}' to be wired`);
   const emitted: unknown[] = [];
   const pending = tool.handler(executionContext(input), { emitSurface: async (s) => void emitted.push(s) });
@@ -803,7 +803,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps();
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     for (const key of ["confirm", "confirmationToken"]) {
@@ -839,7 +839,7 @@ for (const { toolId, flag, errorCode, dialogText } of EXECUTE_CASES) {
     const { deps, repos } = fakeRouteDeps({ allow: false });
     const seededId = await seedRestorePoint(repos);
     const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions }).find((r) => r.descriptor.id === toolId);
+    const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } }).find((r) => r.descriptor.id === toolId);
     assert.ok(tool);
 
     await assert.rejects(

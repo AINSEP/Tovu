@@ -234,7 +234,7 @@ function run(): void {
   const contributions = createEvalToolContributions();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false, contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { includeContentReadCollapse: false, contributions } })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
@@ -385,7 +385,7 @@ function runAddendum(): void {
   const contributions = createEvalToolContributions();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { includeContentReadCollapse: false, contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { includeContentReadCollapse: false, contributions } })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const n = HELD_OUT_V2.length;
 
@@ -404,7 +404,7 @@ function runAddendum(): void {
   const memberSetOf = new Map(cardList.map(([key, ids]) => [key, new Set(ids)]));
 
   function cardDescription(ids: readonly string[]): string {
-    return ids.map((id) => indexedDescriptionFor(id, byId.get(id)?.description ?? "")).join(" ");
+    return ids.map((id) => indexedDescriptionFor({ toolId: id, description: byId.get(id)?.description ?? "" })).join(" ");
   }
 
   /** Hit iff a ranked card's member tools intersect this case's acceptable ids. Ranking a card for
@@ -537,7 +537,7 @@ function runRealCatalog(): void {
   resetDuplicateResourceHandlersForTests();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { contributions } });
   for (const r of registrations) registry.register(r);
   const n = HELD_OUT_V2.length;
 

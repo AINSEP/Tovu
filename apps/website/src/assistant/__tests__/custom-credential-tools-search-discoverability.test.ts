@@ -64,7 +64,7 @@ function top3Ids(catalog: ReturnType<typeof buildToolCatalogQuery>, query: strin
 
 test('credential queries discover executable ids in the full production catalog after the read collapse', () => {
   installFirstPartyToolContributors({ contributions });
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const byId = new Map(registrations.map((registration) => [registration.descriptor.id, registration]));
   assert.equal(byId.has('custom_credential_list'), false, 'the retired list id must not be published');
   const catalog = buildToolCatalogQuery({ list: () => registrations.map((registration) => registration.descriptor) });

@@ -18,7 +18,7 @@ export interface RunThemeMigrateCommandInput {
 /** `formatSummary`'s `"failed"` case, split out to keep the switch below a flat dispatch (each
  * remaining case is a single-line template) — this is the one case with its own internal branching
  * (two error lists plus an optional trailing line). */
-function formatFailedSummary(id: string, result: MigrateThemeResult): string {
+function formatFailedSummary({ id, result }: { id: string; result: MigrateThemeResult }, _options = {}): string {
   const lines = [`theme '${id}': migration FAILED — ${result.reason ?? "see validation/load errors below"}`];
   for (const error of result.validation?.errors ?? []) lines.push(`  [validator:${error.ruleId}] ${error.message}`);
   for (const error of result.loadErrors ?? []) lines.push(`  [loadTheme] ${error}`);
@@ -29,19 +29,19 @@ function formatFailedSummary(id: string, result: MigrateThemeResult): string {
 /** Injectable effects of {@link runThemeMigrateCommand}. */
 export interface RunThemeMigrateCommandPorts {
   migrate?: typeof migrateThemeToV2;
-  output?: (message: string) => void;
-  setExitCode?: (code: number) => void;
+  output?: (required: { message: string }, optional?: Record<string, never>) => void;
+  setExitCode?: (required: { code: number }, optional?: Record<string, never>) => void;
 }
 
-function writeStdout(message: string): void {
+function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
 }
 
-function setProcessExitCode(code: number): void {
+function setProcessExitCode({ code }: { code: number }, _optional = {}): void {
   process.exitCode = code;
 }
 
-function formatSummary(id: string, result: MigrateThemeResult): string {
+function formatSummary({ id, result }: { id: string; result: MigrateThemeResult }, _options = {}): string {
   switch (result.status) {
     case "already-migrated":
       return `theme '${id}': already schema v2, nothing to do\n`;
@@ -50,7 +50,7 @@ function formatSummary(id: string, result: MigrateThemeResult): string {
     case "migrated":
       return `theme '${id}': migrated to schema v2 in place — v1 backup kept at ${result.backupDir}\n`;
     case "failed":
-      return formatFailedSummary(id, result);
+      return formatFailedSummary({ id: id, result: result });
     default: {
       const unexpected: never = result.status;
       throw new Error(`Unexpected theme migration status: ${unexpected}`);
@@ -73,9 +73,9 @@ export async function runThemeMigrateCommand(
   const id = path.basename(dir);
   const result = migrate({ themeDir: dir, id }, { dryRun: input.dryRun });
 
-  output(input.json ? `${JSON.stringify(result, null, 2)}\n` : formatSummary(id, result));
+  output({ message: input.json ? `${JSON.stringify(result, null, 2)}\n` : formatSummary({ id: id, result: result }) });
 
   if (result.status === "failed") {
-    setExitCode(1);
+    setExitCode({ code: 1 });
   }
 }

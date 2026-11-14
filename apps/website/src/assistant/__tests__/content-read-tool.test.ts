@@ -124,11 +124,11 @@ const EXPECTED_CARD_IDS: readonly string[] = [
 ];
 
 function idsOf(options?: { readonly includeContentReadCollapse?: boolean }): Set<string> {
-  return new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions, ...options }).map((r) => r.descriptor.id));
+  return new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions, ...options } }).map((r) => r.descriptor.id));
 }
 
 test("the real composition publishes exactly the 32 content_read cards", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const cards = registrations.filter(tool => tool.descriptor.id.startsWith("content_read."));
   assert.deepEqual(cards.map(tool => tool.descriptor.id).sort(), [...EXPECTED_CARD_IDS].sort());
   assert.ok(!registrations.some(tool => tool.descriptor.id === "content_read"));
@@ -139,7 +139,7 @@ test("the real composition publishes exactly the 32 content_read cards", () => {
 });
 
 test("content_read.menu publishes optional canonical id and documents its legacy selector", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
   const schema = menu.descriptor.inputSchema as { required?: string[]; properties: Record<string, { description?: string }> };
@@ -151,7 +151,7 @@ test("content_read.menu publishes optional canonical id and documents its legacy
 });
 
 test("the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading", async () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   const menu = registrations.find((registration) => registration.descriptor.id === "content_read.menu");
   assert.ok(menu);
   const inputs: unknown[] = [];
@@ -177,7 +177,7 @@ test("the execution gate accepts canonical and legacy menu selectors and rejects
 });
 
 test("canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards", () => {
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   for (const [resource, idProperty] of [["comment", "commentId"], ["theme", "themeId"]]) {
     const registration = registrations.find((entry) => entry.descriptor.id === `content_read.${resource}`);
     assert.ok(registration);
@@ -237,7 +237,7 @@ test("every retired member's SEARCH VOCABULARY survives into its card's indexed 
   // own vocabulary into the card's indexed text through that key. Those keys look like stranded
   // references to a retired id — they are the opposite, and re-keying them onto the card ids would
   // silently drop every one of these words from the FTS index with no error anywhere.
-  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } }).map((r) => [r.descriptor.id, r]));
 
   const checked: string[] = [];
   for (const [memberId, cardId] of RETIRED_READ_TOOL_TO_CARD) {

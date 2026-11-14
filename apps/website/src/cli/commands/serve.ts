@@ -94,7 +94,7 @@ export interface RunServeCommandInput {
 const DEFAULT_PORT = 3000;
 
 /** behavior.spec.md §4: `--port` must be an integer in 1..65535 — out-of-range/non-integer is VALIDATION, not a fall-through. */
-function parsePort(raw: string | number): number {
+function parsePort({ raw }: { raw: string | number }, _options = {}): number {
   const str = String(raw).trim();
   if (!/^\d+$/.test(str)) {
     throw new ValidationError({ message: `--port must be an integer between 1 and 65535 (got "${raw}")` });
@@ -108,9 +108,9 @@ function parsePort(raw: string | number): number {
 
 /** BR-02: `--port` flag, then `config.json.port`, then `PORT` env, then 3000 — first PRESENT value wins; a present-but-invalid value at any tier is VALIDATION, never a fall-through to the next tier. */
 function resolveServePort(input: RunServeCommandInput, config: ConfigJson): number {
-  if (input.port !== undefined) return parsePort(input.port);
-  if (config.port !== null && config.port !== undefined) return parsePort(config.port);
-  if (process.env.PORT !== undefined) return parsePort(process.env.PORT);
+  if (input.port !== undefined) return parsePort({ raw: input.port });
+  if (config.port !== null && config.port !== undefined) return parsePort({ raw: config.port });
+  if (process.env.PORT !== undefined) return parsePort({ raw: process.env.PORT });
   return DEFAULT_PORT;
 }
 
@@ -150,11 +150,11 @@ export function pinPlainHttpIntoEnv(env: NodeJS.ProcessEnv = process.env): void 
  * Setting the parent env also propagates the same binding to its daemon child.
  * Legacy DB overrides are cleared here so the daemon inherits the same database layout.
  *
- * @param target - Already-resolved absolute install-dir target.
- * @param env - Defaults to `process.env`; injectable to avoid mutating the test runner.
+ * @param required.target - Already-resolved absolute install-dir target.
+ * @param optional.env - Defaults to `process.env`; injectable to avoid mutating the test runner.
  * @complexity O(1).
  */
-export function pinServedSiteDirIntoEnv(target: string, env: NodeJS.ProcessEnv = process.env): void {
+export function pinServedSiteDirIntoEnv({ target }: { target: string }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): void {
   env.TOVU_SITE_DIR = target;
   // The API passes explicit site paths; the daemon resolves defaults from this inherited env.
   delete env.TOVU_CHAT_DB;
@@ -214,7 +214,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   const target = resolveInstallDirTarget({ dirArg: input.dir });
   // Must precede EVERY `siteDir()`-derived read below (and the daemon spawn much further down) —
   // see {@link pinServedSiteDirIntoEnv} for the divergence this closes.
-  pinServedSiteDirIntoEnv(target);
+  pinServedSiteDirIntoEnv({ target: target });
   // Persist captured log lines to `<site>/ops/logs/server.log` (L2), including those buffered since
   // `installServerLogCapture()` above, so errors survive a restart; reads merge the daemon's log too.
   const logFiles = serverLogFilePaths({ siteDir: target });
@@ -231,7 +231,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
   // refused boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
   const owned: ServeOwnership = { bootResult, composedStore: undefined, workers: [], bootWork: [], runningLease };
   try {
-    await serveBootedSite(input, target, owned, optional);
+    await serveBootedSite({ input: input, target: target, owned: owned, optional: optional });
   } catch (err) {
     await releaseServeOwnership(owned);
     runningLease.release();
@@ -269,7 +269,7 @@ async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
  * {@link runServeCommand} after `bootSiteDir`: compose, run the boot lifecycle, bind the listener and
  * install the BR-07 shutdown. Records what it starts in `owned`, so a rejection can be cleaned up.
  */
-async function serveBootedSite(input: RunServeCommandInput, target: string, owned: ServeOwnership, optional: RunServeCommandOptional): Promise<void> {
+async function serveBootedSite({ input, target, owned, optional }: { input: RunServeCommandInput; target: string; owned: ServeOwnership; optional: RunServeCommandOptional }, _options = {}): Promise<void> {
   const { bootResult } = owned;
   const port = resolveServePort(input, bootResult.config);
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
@@ -301,7 +301,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
     chatDbPath: paths.chatDbPath,
     store: bootResult.store,
     workspaceId: bootResult.workspaceId,
-    onStoreOpened: (store) => (owned.composedStore = store),
+    onStoreOpened: ({ store }, _optional = {}) => (owned.composedStore = store),
     uploadsDir: path.join(target, "uploads"),
     // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
     // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
@@ -405,7 +405,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
 
     server.once("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE") {
-        reject(new PortInUseError(`Port ${port} is already in use.`, port));
+        reject(new PortInUseError({ message: `Port ${port} is already in use.`, port: port }));
       } else {
         reject(err);
       }
@@ -481,7 +481,7 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
         store: { storage: bootResult.storage, close: () => closeSiteDirBoot(bootResult, owned.composedStore) },
         onShutdown: shutdownAssistantDaemon,
       }, {
-        registerStop: stop => { requestStop = stop; },
+        registerStop: ({ stop }, _optional = {}) => { requestStop = stop; },
         bootWork: () => owned.bootWork,
         stopServing: () => stopServingWithinGrace({ server, workers: [
           { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,

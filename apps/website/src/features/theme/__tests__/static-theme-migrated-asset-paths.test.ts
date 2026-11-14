@@ -63,7 +63,7 @@ for (const themeId of MIGRATED_STATIC_THEME_IDS) {
         const rendered = html as string;
 
         // Scripts a shared partial carries (the stock footer's one kUInetic tag) are part of the page too.
-        const sourceAssets = assetReferences(expandPartials(theme.pages[pageId], theme));
+        const sourceAssets = assetReferences(expandPartials({ html: theme.pages[pageId], theme: theme }));
         const renderedAssets = assetReferences(rendered);
         const expectedUrl = (url: string) => url.replace(/^\.\.\/(css|scripts)\//, `/theme-assets/${themeId}/$1/`);
         assert.deepEqual(renderedAssets.stylesheets, sourceAssets.stylesheets.map(expectedUrl), `${themeId}/${pageId}: preserve every stylesheet with its exact URL`);

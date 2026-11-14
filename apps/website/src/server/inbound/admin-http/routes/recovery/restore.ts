@@ -179,15 +179,15 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       // briefly hold the lock, and only then be rejected deeper inside `execute()` -- reopening the
       // very race AUD-001 closed, one layer up.
       const authResult = await authorizeForHooks(
-        deps.gatedMutations.gatewayDeps,
-        buildConfirmOnlyHooks({
+        { deps: deps.gatedMutations.gatewayDeps,
+        hooks: buildConfirmOnlyHooks({
           domain: RESTORE_PERMISSION,
           readPermission: "backup.read",
           mutatePermission: RESTORE_PERMISSION,
           scopeId: deps.workspaceId,
           scopeKind: "instance",
         }),
-        { principalId: principal.id, permission: RESTORE_PERMISSION }
+        required: { principalId: principal.id, permission: RESTORE_PERMISSION } }
       );
       if (!authResult.allowed) {
         res.status(403).json({

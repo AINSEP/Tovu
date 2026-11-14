@@ -266,7 +266,7 @@ test("a site composition client started before the owner serves waits for the so
   // A server composition client retains its existing readiness wait. The lean daemon starts only
   // after the site listens and uses the leaf client exercised above; it never boots site services.
   const opened: { client?: SiteStore } = {};
-  const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: (store) => (opened.client = store) });
+  const clientDeps = createSiteRouteDeps(dbPath, { storeRole: "client", onStoreOpened: ({ store }, _optional = {}) => (opened.client = store) });
   const openedClient = (): SiteStore | undefined => opened.client;
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(openedClient(), undefined, "the client is still waiting: nobody serves the socket yet");

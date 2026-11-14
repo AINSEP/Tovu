@@ -83,7 +83,7 @@ export function closeStoreOnShutdown(
   required: { store: Pick<SiteStore, "storage" | "close"> | undefined; onShutdown: () => unknown },
   optional: {
     /** Publish the same daemon-first stop for a private idle operation; signals still exit zero. */
-    registerStop?: (stop: (input: { exitCode: number }) => void) => void;
+    registerStop?: (required: { stop: (input: { exitCode: number }) => void }, optional?: Record<string, never>) => void;
     proc?: ShutdownProcess;
     timeoutMs?: number;
     log?: (message: string) => void;
@@ -130,7 +130,7 @@ export function closeStoreOnShutdown(
     daemonStopped = onShutdown();
     void closeBounded().then(() => proc.exit(finalExitCode));
   };
-  optional.registerStop?.(stop);
+  optional.registerStop?.({ stop });
   const stopNormally = () => stop({ exitCode: 0 });
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) proc.once(signal, stopNormally);
   registerStopOnEnd({ stream: optional.stopOnEnd, stop: stopNormally });

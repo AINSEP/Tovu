@@ -27,7 +27,7 @@ async function realCatalog() {
   await routeDeps.identityReady;
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   for (const definition of domainDnsAgentToolCatalog) assert.equal(catalog.describe({ id: definition.name })?.id, definition.name);
   return catalog;

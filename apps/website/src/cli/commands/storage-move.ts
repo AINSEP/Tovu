@@ -18,13 +18,13 @@ export interface RunStorageMoveCommandInput {
   env?: NodeJS.ProcessEnv;
   /** Without `--storage-env`: where the connection string comes from (default: prompt, else stdin). */
   readConnectionString?: () => Promise<string>;
-  write?: (line: string) => void;
+  write?: (required: { line: string }, optional?: Record<string, never>) => void;
   /** Injected for tests; defaults to the real PGlite → Postgres mover. */
   moveStorage?: typeof moveSiteStorage;
 }
 
 /** Default line writer: one stdout line per call. */
-function writeLine(line: string): void {
+function writeLine({ line }: { line: string }, _optional = {}): void {
   process.stdout.write(`${line}\n`);
 }
 
@@ -56,7 +56,7 @@ export async function runStorageMoveCommand(input: RunStorageMoveCommandInput): 
   const { connectionString, secretRef } = await resolveMoveConnection(input);
   const result = await moveStorage({ siteDir, connectionString, secretRef });
   const rows = result.tables.reduce((sum, t) => sum + t.rows, 0);
-  write(`moved site at ${siteDir} to postgres: ${result.tables.length} tables, ${rows} rows`);
-  write(`the PGlite data dir is kept at ${result.keptPgliteDir}; remove it yourself once the site checks out`);
+  write({ line: `moved site at ${siteDir} to postgres: ${result.tables.length} tables, ${rows} rows` });
+  write({ line: `the PGlite data dir is kept at ${result.keptPgliteDir}; remove it yourself once the site checks out` });
   return result;
 }

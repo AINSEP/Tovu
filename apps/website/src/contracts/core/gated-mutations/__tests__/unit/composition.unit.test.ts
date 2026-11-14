@@ -111,7 +111,7 @@ test("buildGatewayDeps builds an independent token store per call", async () => 
 test("planHashOf is a deterministic sha256 hex digest of the JSON-stable details object", () => {
   const details = { entityType: "post", entityId: "post-1", fields: ["title", "slug"] };
 
-  const hash = planHashOf(details);
+  const hash = planHashOf({ details: details });
 
   assert.equal(hash, "082b7f7757490eadda6039582c61ce457c9439967c69a448ce17c7b078a0e1c8");
   assert.equal(hash.length, 64, "sha256 hex digest is always 64 characters");
@@ -120,11 +120,11 @@ test("planHashOf is a deterministic sha256 hex digest of the JSON-stable details
 test("planHashOf produces the same hash for the same details object called twice (re-derivation for PLAN_STALE checks)", () => {
   const details = { a: 1, b: 2 };
 
-  assert.equal(planHashOf(details), planHashOf({ a: 1, b: 2 }));
+  assert.equal(planHashOf({ details: details }), planHashOf({ details: { a: 1, b: 2 } }));
 });
 
 test("planHashOf produces a different hash when the details object differs", () => {
-  assert.notEqual(planHashOf({ a: 1 }), planHashOf({ a: 2 }));
+  assert.notEqual(planHashOf({ details: { a: 1 } }), planHashOf({ details: { a: 2 } }));
 });
 
 test("resolveActorClassIdentity returns principalId unconditionally, regardless of principalKind", async () => {

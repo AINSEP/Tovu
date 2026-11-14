@@ -34,7 +34,7 @@ async function siteDeps(t: TestContext, overrides: Partial<CreateSiteRouteDepsOv
     }
   });
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
-    ...overrides, siteBinding, onStoreOpened: store => { close = () => store.close(); },
+    ...overrides, siteBinding, onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
   });
   ready = deps.pluginRuntimeReady;
   assert.equal(deps.siteBinding.dir, dir, "all boot writes stay inside the disposable site");

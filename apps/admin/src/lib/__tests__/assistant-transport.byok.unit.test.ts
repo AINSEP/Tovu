@@ -63,23 +63,23 @@ function frame(event: string, data: unknown): string {
 
 describe("parseFrame", () => {
   test("extracts event and data from a well-formed frame", () => {
-    expect(parseFrame('event: agent\ndata: {"a":1}')).toEqual({ event: "agent", data: '{"a":1}' });
+    expect(parseFrame({ rawFrame: 'event: agent\ndata: {"a":1}' })).toEqual({ event: "agent", data: '{"a":1}' });
   });
 
   test("defaults event to 'message' when no event: line is present", () => {
-    expect(parseFrame('data: {"noop":true}')).toEqual({ event: "message", data: '{"noop":true}' });
+    expect(parseFrame({ rawFrame: 'data: {"noop":true}' })).toEqual({ event: "message", data: '{"noop":true}' });
   });
 
   test("joins multiple data: lines with a newline, per the SSE spec", () => {
-    expect(parseFrame("data: line one\ndata: line two")).toEqual({ event: "message", data: "line one\nline two" });
+    expect(parseFrame({ rawFrame: "data: line one\ndata: line two" })).toEqual({ event: "message", data: "line one\nline two" });
   });
 
   test("returns null for a frame with no data: lines at all — e.g. a bare keepalive", () => {
-    expect(parseFrame("event: ping")).toBeNull();
+    expect(parseFrame({ rawFrame: "event: ping" })).toBeNull();
   });
 
   test("ignores a line matching neither event: nor data: (e.g. an id: field)", () => {
-    expect(parseFrame("id: 42\ndata: kept")).toEqual({ event: "message", data: "kept" });
+    expect(parseFrame({ rawFrame: "id: 42\ndata: kept" })).toEqual({ event: "message", data: "kept" });
   });
 });
 

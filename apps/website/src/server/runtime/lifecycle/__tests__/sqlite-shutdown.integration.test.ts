@@ -28,7 +28,7 @@ for (const role of ["owner", "workspace-client"] as const) {
         import { closeStoreOnShutdown, stopServingWithinGrace } from ${JSON.stringify(shutdownUrl)};
         let store;
         let deps = await createSiteRouteDeps(${JSON.stringify(contentPath)}, {
-          onStoreOpened: opened => { store = opened; },
+          onStoreOpened: ({ store: opened }) => { store = opened; },
         });
         const bootWork = deps => Object.entries(deps).filter(([key]) => key.endsWith('Ready')).map(([, work]) => work);
         await Promise.all(bootWork(deps));

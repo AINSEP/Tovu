@@ -114,7 +114,7 @@ function executionContext(input: Record<string, unknown> | undefined, principalI
 }
 
 function settingsRegistrations(deps: RegistryDepsWithoutLimiter, includeContentReadCollapse = true): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, includeContentReadCollapse }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions, includeContentReadCollapse } }).filter((r) => r.descriptor.id.startsWith("settings_") || r.descriptor.id === "content_read.setting_definition").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -146,13 +146,13 @@ for (const excludedId of ["settings_reset", "settings_register_definitions"]) {
   test(`${excludedId} is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification`, () => {
     const { deps } = fakeRouteDeps();
     assert.equal(settingsRegistrations(deps).has(excludedId), false);
-    assert.throws(() => assertRiskMetadataIsWirable(excludedId, catalogEntry(excludedId), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+    assert.throws(() => assertRiskMetadataIsWirable({ toolId: excludedId, catalogEntry: catalogEntry(excludedId) }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
   });
 }
 
 test("bulk and schema writes stay unreachable; old generic names are replaced", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("settings_set_value"), true);
   assert.equal(ids.includes("settings_clear_value"), true);
   assert.equal(ids.includes("settings_set"), false);
@@ -201,7 +201,7 @@ test("the independent risk classification agrees with the catalog for all 3 wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.setting_definition") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 

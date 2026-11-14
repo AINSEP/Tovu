@@ -41,14 +41,14 @@ test('registered metadata retains its authority and enrichment strips back to au
   const metadata = structuredClone(nativeToolMetadata.byId.credential_save!);
   const before = structuredClone(metadata);
   const description = 'Save a credential securely.';
-  const indexed = indexedDescriptionFor('credential_save', description, { metadata, includeDoc2query: false });
-  assert.equal(stripSearchKeywords(indexed), description);
+  const indexed = indexedDescriptionFor({ toolId: 'credential_save', description: description }, { metadata, includeDoc2query: false });
+  assert.equal(stripSearchKeywords({ indexed: indexed }), description);
   assert.deepEqual(metadata, before, 'enrichment cannot mutate registration or approval policy');
-  assert.equal(stripSearchKeywords(indexedDescriptionFor('unknown', description, { metadata: {} })), description);
-  assert.equal(indexedDescriptionFor('unknown', description, { metadata: {} }), description);
-  const custom = indexedDescriptionFor('credential_save', description, { metadata: { search: { keywords: 'custom-word' } } });
+  assert.equal(stripSearchKeywords({ indexed: indexedDescriptionFor({ toolId: 'unknown', description: description }, { metadata: {} }) }), description);
+  assert.equal(indexedDescriptionFor({ toolId: 'unknown', description: description }, { metadata: {} }), description);
+  const custom = indexedDescriptionFor({ toolId: 'credential_save', description: description }, { metadata: { search: { keywords: 'custom-word' } } });
   assert.ok(custom.includes('custom-word'));
-  const noSearch = indexedDescriptionFor('credential_save', description, { metadata: {} });
+  const noSearch = indexedDescriptionFor({ toolId: 'credential_save', description: description }, { metadata: {} });
   assert.ok(noSearch.includes('credential'));
 });
 
@@ -65,9 +65,9 @@ test('shipped tool words enrich both legacy and registered search without plugin
       assert.ok(Object.hasOwn(nativeToolMetadata.byId, id), `${source.pluginId}: ${id}`);
       const description = 'Authored tool description.';
       for (const options of [{ includeDoc2query: false }, { metadata: nativeToolMetadata.byId[id], includeDoc2query: false }]) {
-        const indexed = indexedDescriptionFor(id, description, options);
+        const indexed = indexedDescriptionFor({ toolId: id, description: description }, options);
         for (const word of (words as string).split(' ')) assert.ok(indexed.includes(word), `${source.pluginId}: ${id}: ${word}`);
-        assert.equal(stripSearchKeywords(indexed), description);
+        assert.equal(stripSearchKeywords({ indexed: indexed }), description);
       }
     }
   }

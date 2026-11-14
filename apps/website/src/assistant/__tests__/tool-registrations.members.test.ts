@@ -129,7 +129,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 
 function membersRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("members_") || r.descriptor.id === "content_read.member")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -202,13 +202,13 @@ test("the real Members catalog and tool-registrations' independent risk classifi
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.member") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Members catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("members_disable", { ...catalogEntry("members_disable"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "members_disable", catalogEntry: { ...catalogEntry("members_disable"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

@@ -259,7 +259,7 @@ test("plugins_set_enabled is present in the BUILT registration list, reached thr
   contributions.contributors.clear({});
   contributions.contributors.register({ contribution: contributePluginsTools() });
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
   assert.ok(ids.includes(SET_ENABLED), `built catalog is missing '${SET_ENABLED}' — it would be silently uncallable`);
 });
 
@@ -701,7 +701,7 @@ test("server-composed approval memory cannot replace the owner card when enablin
   const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: {
     ...composed, ...deps, nativeApprovalMemory, conversationToolApprovals: store,
     clock: { ...deps.clock, nowIso: () => NOW },
-  } as RegistryDepsWithoutLimiter }), { surfaceExchanges: surfaces }, { contributions: daemonContributions });
+  } as RegistryDepsWithoutLimiter }), { surfaces: { surfaceExchanges: surfaces }, options: { contributions: daemonContributions } });
   const tool = registrations.find((registration) => registration.descriptor.id === SET_ENABLED);
   assert.ok(tool);
   const enable = { family: "site-runtime", pluginId: SITE_PLUGIN.id, enabled: true };

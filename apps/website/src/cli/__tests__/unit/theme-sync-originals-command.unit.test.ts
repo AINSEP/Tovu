@@ -31,7 +31,7 @@ function themesRoot(withTheme: boolean): string {
 test("prints a per-theme summary and writes each theme's original", async () => {
   const root = themesRoot(true);
   const out: string[] = [];
-  await runThemeSyncOriginalsCommand({ themesRoot: root }, { output: (message) => out.push(message) });
+  await runThemeSyncOriginalsCommand({ themesRoot: root }, { output: ({ message }, _optional = {}) => out.push(message) });
   assert.deepEqual(out, [`(re)generated 1 theme original(s) under ${root}:\n  static/plain\n`]);
   assert.ok(existsSync(join(root, THEME_CATALOG_DIR, "static", "plain", "theme.css")));
 });
@@ -39,7 +39,7 @@ test("prints a per-theme summary and writes each theme's original", async () => 
 test("--json prints the generator result", async () => {
   const root = themesRoot(true);
   const out: string[] = [];
-  await runThemeSyncOriginalsCommand({ themesRoot: root, json: true }, { output: (message) => out.push(message) });
+  await runThemeSyncOriginalsCommand({ themesRoot: root, json: true }, { output: ({ message }, _optional = {}) => out.push(message) });
   assert.deepEqual(JSON.parse(out.join("")), { themes: [{ tier: "static", id: "plain" }] });
 });
 

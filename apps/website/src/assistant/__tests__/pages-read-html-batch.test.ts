@@ -37,7 +37,7 @@ async function harness({ resolveTargets = false } = {}) {
     checks.push(input);
     return { allowed: !denyAll && checks.length !== deniedCheck, reason: "batch fixture" };
   } } as unknown as RegistryDepsWithoutLimiter;
-  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+  const registration = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
     .find(tool => tool.descriptor.id === "pages_read_html");
   assert.ok(registration);
   const call = (input: unknown) => invokeRegisteredTool(registration, {

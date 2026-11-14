@@ -195,7 +195,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
  * are the newsletter owner's responsibility, independent of approval transport. */
 async function resendDirectly(deps: RegistryDepsWithoutLimiter, subscriptionId: string): Promise<unknown> {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges: store }, { contributions })
+  const tool = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges: store }, options: { contributions } })
     .find(r => r.descriptor.id === "newsletter_resend_confirmation");
   assert.ok(tool, "expected 'newsletter_resend_confirmation' to be wired");
   const result = await tool.handler(executionContext({ subscriptionId }), { emitSurface: async () => assert.fail("ordinary resend asked") });
@@ -225,7 +225,7 @@ function newsletterWiredId(toolId: string): string {
 
 function newsletterRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("newsletter_") || Object.values(NEWSLETTER_COLLAPSED_ID).includes(r.descriptor.id))
       .map((r) => [r.descriptor.id, r]),
   );
@@ -322,13 +322,13 @@ test("the real Newsletter catalog and tool-registrations' independent risk class
   const { deps } = fakeRouteDeps();
   for (const id of newsletterRegistrations(deps).keys()) {
     if (id.startsWith("content_read.")) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Newsletter catalog entry cannot downgrade its own risk", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("newsletter_create_campaign", { ...catalogEntry("newsletter_create_campaign"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "newsletter_create_campaign", catalogEntry: { ...catalogEntry("newsletter_create_campaign"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

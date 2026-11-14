@@ -58,15 +58,15 @@ function bundledDeploySourceRoot(env: NodeJS.ProcessEnv): string {
 /** Injectable effects of the deploy-config command; defaults are the process env and stdio. */
 export interface DeployConfigCommandPorts {
   env?: NodeJS.ProcessEnv;
-  stdout?: (message: string) => void;
-  stderr?: (message: string) => void;
+  stdout?: (required: { message: string }, optional?: Record<string, never>) => void;
+  stderr?: (required: { message: string }, optional?: Record<string, never>) => void;
 }
 
-function writeStdout(message: string): void {
+function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
 }
 
-function writeStderr(message: string): void {
+function writeStderr({ message }: { message: string }, _optional = {}): void {
   process.stderr.write(message);
 }
 
@@ -92,14 +92,14 @@ export function formatTargetOptionHelp(ids: readonly string[]): string {
 
 /** Loads the generators, printing any refused one to stderr so a missing `--target` is explainable.
  *  @complexity O(g) generators, one import each. */
-async function loadGenerators(env: NodeJS.ProcessEnv, stderr: (message: string) => void): Promise<DeployConfigGeneratorRegistry> {
+async function loadGenerators({ env, stderr }: { env: NodeJS.ProcessEnv; stderr: (required: { message: string }, optional?: Record<string, never>) => void }, _options = {}): Promise<DeployConfigGeneratorRegistry> {
   const registry = await loadBundledDeployConfigGenerators({ sourceRoot: bundledDeploySourceRoot(env) });
-  for (const refusal of registry.refusals) stderr(`tovu deploy config: ${refusal}\n`);
+  for (const refusal of registry.refusals) stderr({ message: `tovu deploy config: ${refusal}\n` });
   return registry;
 }
 
 /** The env `resolveSiteRoot` reads, with `--site <name>` taking the place of TOVU_SITE_DIR / TOVU_SITE. */
-function siteSelectionEnv(env: NodeJS.ProcessEnv, site: string | undefined): NodeJS.ProcessEnv {
+function siteSelectionEnv({ env, site }: { env: NodeJS.ProcessEnv; site: string | undefined }, _options = {}): NodeJS.ProcessEnv {
   if (site === undefined) return env;
   const { TOVU_SITE_DIR: _ignored, ...rest } = env;
   return { ...rest, TOVU_SITE: site };
@@ -116,21 +116,21 @@ function siteSelectionEnv(env: NodeJS.ProcessEnv, site: string | undefined): Nod
  * or when the site cannot be resolved (told on stderr): the config still renders.
  * @complexity O(n) registered sites (`resolveSiteRoot`) plus one small file read.
  */
-function siteIdentityEnv(env: NodeJS.ProcessEnv, stderr: (message: string) => void, site?: string): Record<string, string> {
+function siteIdentityEnv({ env, stderr }: { env: NodeJS.ProcessEnv; stderr: (required: { message: string }, optional?: Record<string, never>) => void }, { site }: { site?: string } = {}): Record<string, string> {
   let siteRoot: string;
   try {
-    siteRoot = resolveSiteRoot({ env: siteSelectionEnv(env, site) });
+    siteRoot = resolveSiteRoot({ env: siteSelectionEnv({ env: env, site: site }) });
   } catch (error) {
-    stderr(`tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: ${error instanceof Error ? error.message : String(error)}\n`);
+    stderr({ message: `tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: ${error instanceof Error ? error.message : String(error)}\n` });
     return {};
   }
   const siteId = readSiteMetaId(siteRoot);
   if (siteId === undefined) return {};
   if (!isSiteIdToken(siteId)) {
-    stderr(`tovu deploy config: ${path.join(siteRoot, ".site-meta.json")} holds ${JSON.stringify(siteId.slice(0, 80))}, which is not a valid site id, so TOVU_SITE_ID is not set\n`);
+    stderr({ message: `tovu deploy config: ${path.join(siteRoot, ".site-meta.json")} holds ${JSON.stringify(siteId.slice(0, 80))}, which is not a valid site id, so TOVU_SITE_ID is not set\n` });
     return {};
   }
-  stderr(`tovu deploy config: stamped TOVU_SITE_ID=${siteId} (site '${path.basename(siteRoot)}' at ${siteRoot})\n`);
+  stderr({ message: `tovu deploy config: stamped TOVU_SITE_ID=${siteId} (site '${path.basename(siteRoot)}' at ${siteRoot})\n` });
   return { TOVU_SITE_ID: siteId };
 }
 
@@ -148,7 +148,7 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   // Default ports are wired here, at the command edge; tests inject their own.
   const { env = process.env, stdout = writeStdout, stderr = writeStderr } = optional;
   const targetRaw = input.target ?? "";
-  const generators = await loadGenerators(env, stderr);
+  const generators = await loadGenerators({ env: env, stderr: stderr });
   const generator = generators.get(targetRaw);
   if (generator === undefined) {
     const ids = generators.list().map((loaded) => loaded.descriptor.id);
@@ -157,7 +157,7 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
 
   const descriptor = buildDeploymentDescriptor();
   // The generators are host-neutral Jini plugin modules: Tovu supplies its production switch and notes.
-  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: { ...HOST_DEPLOY_ENV, ...siteIdentityEnv(env, stderr, input.site) } };
+  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: { ...HOST_DEPLOY_ENV, ...siteIdentityEnv({ env, stderr }, { site: input.site }) } };
   const rendered = appendHostDeployNotes(
     { pluginId: generator.pluginId, targetId: targetRaw, rendered: generator.module.render(descriptor, options, createDeployConfigKit()) },
     // Host overlays ship with the product; the caller's deployment directory need not contain them.
@@ -167,12 +167,12 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   if (input.out !== undefined) {
     const outPath = path.resolve(input.out);
     writeFileSync(outPath, rendered.contents, "utf8");
-    stdout(`tovu deploy config: wrote ${rendered.filename} (${targetRaw}) to ${outPath}\n`);
+    stdout({ message: `tovu deploy config: wrote ${rendered.filename} (${targetRaw}) to ${outPath}\n` });
   } else {
-    stdout(rendered.contents);
+    stdout({ message: rendered.contents });
   }
 
   for (const note of rendered.notes) {
-    stderr(`tovu deploy config: ${note}\n`);
+    stderr({ message: `tovu deploy config: ${note}\n` });
   }
 }

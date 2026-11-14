@@ -16,7 +16,7 @@ function fixture() {
 }
 test('every approval-gated native tool declares a friendly title and summary on its actual registration', () => {
   const f = fixture();
-  const registrations = buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions, includeContentReadCollapse: false });
+  const registrations = buildAssistantToolRegistrations(f.deps, { surfaces: undefined, options: { contributions: f.contributions, includeContentReadCollapse: false } });
   const gatedIds = Object.entries(nativeToolMetadata.byId).filter(([, metadata]) => {
     const policy = metadata.approval;
     return policy && (policy.confirmation === 'plan' || policy.rule || !['read', 'edit', 'trash'].includes(policy.class));
@@ -39,19 +39,19 @@ test('every approval-gated native tool declares a friendly title and summary on 
 });
 test('every first-party registration has a reviewed action classification before read collapse',()=>{
   const f=fixture();
-  const registrations=buildAssistantToolRegistrations(f.deps,undefined,{contributions:f.contributions,includeContentReadCollapse:false});
+  const registrations=buildAssistantToolRegistrations(f.deps,{ surfaces: undefined,options: {contributions:f.contributions,includeContentReadCollapse:false} });
   assert.ok(registrations.length>200);
   for(const registration of registrations)assert.ok(Object.hasOwn(TOOL_APPROVAL_POLICY,registration.descriptor.id),registration.descriptor.id);
 });
 test('registering a new tool without classification fails construction',()=>{
   const f=fixture();
   f.contributions.contributors.register({contribution:{domain:'unclassified-test',risk:new Map([['unclassified_new_tool','none']]),build:()=>[{descriptor:{id:'unclassified_new_tool',readOnly:true,inputSchema:{type:'object'}},policy:{authorize:()=> 'allow'},handler:async()=>({})}]}});
-  assert.throws(()=>buildAssistantToolRegistrations(f.deps,undefined,{contributions:f.contributions}),/unclassified_new_tool has no approval classification/);
+  assert.throws(()=>buildAssistantToolRegistrations(f.deps,{ surfaces: undefined,options: {contributions:f.contributions} }),/unclassified_new_tool has no approval classification/);
 });
 
 test('the final registered read cards and every frontend capability have classifications',async()=>{
   const f=fixture();
-  const registrations=buildAssistantToolRegistrations(f.deps,undefined,{contributions:f.contributions});
+  const registrations=buildAssistantToolRegistrations(f.deps,{ surfaces: undefined,options: {contributions:f.contributions} });
   for(const registration of registrations)assert.ok(Object.hasOwn(TOOL_APPROVAL_POLICY,registration.descriptor.id),registration.descriptor.id);
   const {FRONTEND_CONTROL_CAPABILITIES}=await import('../frontend-control-capabilities.js');
   for(const capability of FRONTEND_CONTROL_CAPABILITIES)assert.ok(Object.hasOwn(TOOL_APPROVAL_POLICY,capability.id),capability.id);

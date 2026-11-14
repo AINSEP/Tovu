@@ -5,6 +5,6 @@ export type BuildMigrateForwardHooksInput = Omit<JiniHooksInput, "planHashOf" | 
 
 /** Bind the shared hash/actor policy without taking ownership of the mutation ceremony. */
 export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput, optional: Record<string, never> = {}): ReturnType<typeof buildHooks> {
-  return buildHooks({ ...input, planHashOf: ({ details }) => planHashOf(details), resolveActorClassIdentity }, optional);
+  return buildHooks({ ...input, planHashOf: ({ details }) => planHashOf({ details: details }), resolveActorClassIdentity }, optional);
 }
 export type { LedgerAppendPort, MigrateForwardDbOpsPort } from "@jini-ai/db/recovery/migrate-forward-hooks";

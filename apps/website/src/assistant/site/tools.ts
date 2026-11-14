@@ -128,7 +128,7 @@ function toSummary(post: PostRecord): PublicEntrySummary {
 /** True once there is no more `extractText` budget, or `node` is not a walkable object at all
  *  (`null`, a primitive). Split out purely to keep that function's complexity under the shop
  *  ceiling. */
-function isExtractTextBudgetExhausted(node: unknown, budget: { left: number }): boolean {
+function isExtractTextBudgetExhausted({ node, budget }: { node: unknown; budget: { left: number } }, _options = {}): boolean {
   return budget.left <= 0 || node === null || typeof node !== "object";
 }
 
@@ -136,24 +136,24 @@ function isExtractTextBudgetExhausted(node: unknown, budget: { left: number }): 
  *  node with no usable `text`. Split out of {@link extractText} purely to keep that function's
  *  complexity under the shop ceiling; behavior (including the in-place `budget.left` decrement) is
  *  unchanged. */
-function pushExtractedText(record: Record<string, unknown>, out: string[], budget: { left: number }): void {
+function pushExtractedText({ record, out, budget }: { record: Record<string, unknown>; out: string[]; budget: { left: number } }, _options = {}): void {
   if (typeof record.text !== "string" || record.text.length === 0) return;
   const slice = record.text.slice(0, budget.left);
   budget.left -= slice.length;
   out.push(slice);
 }
 
-function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEXT_CHARS }): string[] {
-  if (isExtractTextBudgetExhausted(node, budget)) return out;
+function extractText({ node }: { node: unknown }, { out = [], budget = { left: MAX_TEXT_CHARS } }: { out?: string[]; budget?: { left: number } } = {}): string[] {
+  if (isExtractTextBudgetExhausted({ node: node, budget: budget })) return out;
 
   if (Array.isArray(node)) {
-    for (const child of node) extractText(child, out, budget);
+    for (const child of node) extractText({ node: child }, { out: out, budget: budget });
     return out;
   }
 
   const record = node as Record<string, unknown>;
-  pushExtractedText(record, out, budget);
-  if (Array.isArray(record.content)) extractText(record.content, out, budget);
+  pushExtractedText({ record: record, out: out, budget: budget });
+  if (Array.isArray(record.content)) extractText({ node: record.content }, { out: out, budget: budget });
   return out;
 }
 
@@ -165,7 +165,7 @@ function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEX
  *  @complexity O(n) in the body's node count or HTML length. */
 function entryText(post: PostRecord): string {
   if (post.bodyFormat === "html") return htmlToText({ html: post.bodyHtml ?? "" }).replace(/\s+/g, " ").trim().slice(0, MAX_TEXT_CHARS);
-  return extractText(post.bodyJson).join(" ").trim();
+  return extractText({ node: post.bodyJson }).join(" ").trim();
 }
 
 export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options = {}) {

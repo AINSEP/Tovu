@@ -51,7 +51,7 @@ test("--storage-env moves with the trimmed env value and keeps the env reference
   const url = ["postgres://", "owner", "@db.example:5432/site"].join("");
   const result = await runStorageMoveCommand({
     dir, to: "postgres", storageEnv: "TOVU_PG", env: { TOVU_PG: ` ${url}\n` },
-    moveStorage: fakeMover(calls), write: (line) => lines.push(line),
+    moveStorage: fakeMover(calls), write: ({ line }, _optional = {}) => lines.push(line),
     readConnectionString: async () => assert.fail("an env-sourced move must not prompt"),
   });
   assert.deepEqual(calls, [{ siteDir: dir, connectionString: url, secretRef: { env: "TOVU_PG" } }]);

@@ -168,7 +168,7 @@ function run(): void {
   }
 
   /** The exact per-tool indexed text the shipped catalog holds today — keywords and doc2query folded. */
-  const foldedTextOf = (id: string) => indexedDescriptionFor(id, byId.get(id)?.description ?? "");
+  const foldedTextOf = (id: string) => indexedDescriptionFor({ toolId: id, description: byId.get(id)?.description ?? "" });
 
   // ---- D1: 28 resource cards, each the concatenation of its own members' folded text.
   const cards = new Map<string, string[]>();

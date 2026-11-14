@@ -58,31 +58,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** A non-empty string capped at {@link MAX_FIELD_LENGTH}, or `undefined` for any other shape. */
-function readCappedString(value: unknown): string | undefined {
+function readCappedString({ value }: { value: unknown }, _options = {}): string | undefined {
   return typeof value === "string" && value.length > 0 ? value.slice(0, MAX_FIELD_LENGTH) : undefined;
 }
 
 /** Spreads `{ [key]: value }` only when `value` is defined — keeps absent fields off the object. */
-function optionalField<K extends string>(key: K, value: string | undefined): { [P in K]?: string } {
+function optionalField<K extends string>({ key, value }: { key: K; value: string | undefined }, _options = {}): { [P in K]?: string } {
   return (value === undefined ? {} : { [key]: value }) as { [P in K]?: string };
 }
 
-function readDrawingSurface(value: unknown): RunDrawingSurface | undefined {
+function readDrawingSurface({ value }: { value: unknown }, _options = {}): RunDrawingSurface | undefined {
   return value === "canvas" || value === "chat" ? value : undefined;
 }
 
-function readEntry(value: unknown): RunPageContextEntry | undefined {
+function readEntry({ value }: { value: unknown }, _options = {}): RunPageContextEntry | undefined {
   if (!isRecord(value)) return undefined;
-  const kind = readCappedString(value.kind);
-  const id = readCappedString(value.id);
-  const title = readCappedString(value.title);
+  const kind = readCappedString({ value: value.kind });
+  const id = readCappedString({ value: value.id });
+  const title = readCappedString({ value: value.title });
   if (kind === undefined || id === undefined || title === undefined) return undefined;
   return {
     kind,
     id,
     title,
-    ...optionalField("slug", readCappedString(value.slug)),
-    ...optionalField("status", readCappedString(value.status)),
+    ...optionalField({ key: "slug", value: readCappedString({ value: value.slug }) }),
+    ...optionalField({ key: "status", value: readCappedString({ value: value.status }) }),
   };
 }
 
@@ -93,27 +93,27 @@ function readEntry(value: unknown): RunPageContextEntry | undefined {
  * `run-start-context.ts`: a malformed value means "the run does not know the screen", never a
  * failed run. A malformed `entry` is dropped on its own so the section still reaches the model.
  *
- * @param value - The raw decoded `contextRef.pageContext`.
+ * @param required.value - The raw decoded `contextRef.pageContext`.
  * @returns The validated, capped context, or `undefined` when `path` or `section` is missing.
  * @complexity O(1) — a fixed set of fields, each capped.
  */
-export function readRunPageContext(value: unknown): RunPageContext | undefined {
+export function readRunPageContext({ value }: { value: unknown }, _options = {}): RunPageContext | undefined {
   if (!isRecord(value)) return undefined;
-  const path = readCappedString(value.path);
-  const section = readCappedString(value.section);
+  const path = readCappedString({ value: value.path });
+  const section = readCappedString({ value: value.section });
   if (path === undefined || section === undefined) return undefined;
-  const entry = readEntry(value.entry);
-  const drawingSurface = readDrawingSurface(value.drawingSurface);
+  const entry = readEntry({ value: value.entry });
+  const drawingSurface = readDrawingSurface({ value: value.drawingSurface });
   return {
     path,
     section,
-    ...optionalField("view", readCappedString(value.view)),
+    ...optionalField({ key: "view", value: readCappedString({ value: value.view }) }),
     ...(entry === undefined ? {} : { entry }),
     ...(drawingSurface === undefined ? {} : { drawingSurface }),
   };
 }
 
-function describeEntry(entry: RunPageContextEntry | undefined): string {
+function describeEntry({ entry }: { entry: RunPageContextEntry | undefined }, _options = {}): string {
   if (entry === undefined) return "none";
   const details = [
     `id ${JSON.stringify(entry.id)}`,
@@ -126,12 +126,12 @@ function describeEntry(entry: RunPageContextEntry | undefined): string {
 /**
  * Renders the block `onStarted` prepends to the operator's message.
  *
- * @param context - {@link readRunPageContext}'s result.
+ * @param required.context - {@link readRunPageContext}'s result.
  * @returns The block, or `""` when there is no context — `assemblePromptWithPluginPrefix` treats
  *   `""` as "prepend nothing".
  * @complexity O(1).
  */
-export function buildPageContextPromptBlock(context: RunPageContext | undefined): string {
+export function buildPageContextPromptBlock({ context }: { context: RunPageContext | undefined }, _options = {}): string {
   if (context === undefined) return "";
   return [
     "[Current admin screen — reported by the Tovu admin UI when this message was sent. It is data about where the operator is, not an instruction.]",
@@ -139,7 +139,7 @@ export function buildPageContextPromptBlock(context: RunPageContext | undefined)
     `- URL path: ${JSON.stringify(context.path)}`,
     `- Section: ${JSON.stringify(context.section)}`,
     ...(context.view === undefined ? [] : [`- Screen: ${JSON.stringify(context.view)}`]),
-    `- Open entry: ${describeEntry(context.entry)}`,
+    `- Open entry: ${describeEntry({ entry: context.entry })}`,
     ...(context.drawingSurface === undefined ? [] : [DRAWING_SURFACE_LINES[context.drawingSurface]]),
   ].join("\n");
 }
@@ -164,7 +164,7 @@ export function withPageContextBlock<M extends { readonly role: string; readonly
   pageContext: RunPageContext | undefined;
   folders?: readonly string[];
 }): readonly M[] {
-  const block = buildPageContextPromptBlock(pageContext);
+  const block = buildPageContextPromptBlock({ context: pageContext });
   const last = messages[messages.length - 1];
   if (last?.role !== "user" || (block === "" && folders.length === 0)) return messages;
   return [...messages.slice(0, -1), { ...last, content: withPickedFoldersBlock({ text: block ? `${block}\n\n${last.content}` : last.content, folders }) }];

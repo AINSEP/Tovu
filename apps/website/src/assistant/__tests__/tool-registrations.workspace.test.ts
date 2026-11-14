@@ -62,7 +62,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 }
 
 function workspaceRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => r.descriptor.id.startsWith("workspace_") || r.descriptor.id === "content_read.workspace").map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistration {
@@ -90,18 +90,18 @@ test("workspace get and list share a card alongside update", () => {
 test("workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
   const { deps } = fakeRouteDeps();
   assert.equal(workspaceRegistrations(deps).has("workspace_create"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("workspace_create", catalogEntry("workspace_create"), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "workspace_create", catalogEntry: catalogEntry("workspace_create") }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("workspace_delete is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification", () => {
   const { deps } = fakeRouteDeps();
   assert.equal(workspaceRegistrations(deps).has("workspace_delete"), false);
-  assert.throws(() => assertRiskMetadataIsWirable("workspace_delete", catalogEntry("workspace_delete"), contributions), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
+  assert.throws(() => assertRiskMetadataIsWirable({ toolId: "workspace_delete", catalogEntry: catalogEntry("workspace_delete") }, { contributions: contributions }), /has no entry in DERIVED_RISK_BY_TOOL_ID/);
 });
 
 test("no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent", () => {
   const { deps } = fakeRouteDeps();
-  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).map((r) => r.descriptor.id);
+  const ids = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id);
   assert.equal(ids.includes("workspace_create"), false);
   assert.equal(ids.includes("workspace_delete"), false);
 });
@@ -144,13 +144,13 @@ test("the independent risk classification agrees with the catalog for both wired
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.workspace") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a workspace catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for update fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("workspace_update", { ...catalogEntry("workspace_update"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "workspace_update", catalogEntry: { ...catalogEntry("workspace_update"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

@@ -52,9 +52,9 @@ function restoreStdout(): string {
 }
 
 test("stdin that is not a JSON object of plugin ids to strings is refused", async () => {
-  await assert.rejects(readNewSiteAgentPluginTokensFromStdin(async () => "sbp_plain"), (err: unknown) => err instanceof ValidationError && /expects a JSON object/.test(err.message));
-  await assert.rejects(readNewSiteAgentPluginTokensFromStdin(async () => "[1]"), (err: unknown) => err instanceof ValidationError && /must map plugin ids/.test(err.message));
-  assert.deepEqual(await readNewSiteAgentPluginTokensFromStdin(async () => '{"supabase":"  "}'), {});
+  await assert.rejects(readNewSiteAgentPluginTokensFromStdin({}, { read: async () => "sbp_plain" }), (err: unknown) => err instanceof ValidationError && /expects a JSON object/.test(err.message));
+  await assert.rejects(readNewSiteAgentPluginTokensFromStdin({}, { read: async () => "[1]" }), (err: unknown) => err instanceof ValidationError && /must map plugin ids/.test(err.message));
+  assert.deepEqual(await readNewSiteAgentPluginTokensFromStdin({}, { read: async () => '{"supabase":"  "}' }), {});
 });
 
 test("a rejected token creates no site and seals nothing", async () => {

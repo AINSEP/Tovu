@@ -36,10 +36,10 @@ test("permanent deletes rank in the top three for owner vocabulary", async () =>
   const deps = createRouteDeps();
   await deps.identityReady;
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } })) registry.register(r);
   const catalog = buildToolCatalogQuery(registry);
   const offRegistry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })) offRegistry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })) offRegistry.register(registration);
   const offCatalog = buildToolCatalogQuery(offRegistry);
   for (const id of ALL_CHAT_DELETE_TOOLS.allowedToolIds) assert.equal(offCatalog.describe({ id }), null, `${id} must be hidden by default`);
 
