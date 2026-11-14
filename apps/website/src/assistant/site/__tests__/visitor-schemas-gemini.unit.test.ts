@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import { VISITOR_PAGE_CAPABILITIES } from "../visitor-page-tools.js";
 import { SITE_ASSISTANT_TOOL_SCHEMAS } from "../tools.js";
 import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
 import { buildSiteGuideRegistrations, VISITOR_SITE_GUIDE_SCHEMA } from "#src/server/runtime/composition/site-guide-tools";
@@ -28,7 +28,7 @@ function problems(schema: unknown, path: string): string[] {
 test("every schema offered to site visitors fits Gemini's function-declaration subset", () => {
   const offered = [
     ...SITE_ASSISTANT_TOOL_SCHEMAS.map(schema => ({ name: schema.name, parameters: schema.parameters })),
-    ...PAGE_CAPABILITIES.map(capability => ({ name: capability.id, parameters: capability.inputSchema })),
+    ...VISITOR_PAGE_CAPABILITIES.map(capability => ({ name: capability.id, parameters: capability.inputSchema })),
     { name: "site_guide", parameters: VISITOR_SITE_GUIDE_SCHEMA },
   ];
   assert.deepEqual(offered.flatMap(schema => problems(schema.parameters, schema.name)), []);

@@ -1,5 +1,4 @@
-import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
-import { createVisitorPageCapabilities, type VisitorPageTools } from './visitor-page-tools.js';
+import { createVisitorPageCapabilities, VISITOR_PAGE_CAPABILITIES, type VisitorPageTools } from './visitor-page-tools.js';
 /**
  * @file SPEC-046 REQ-0 — the site assistant's capability registry.
  *
@@ -159,7 +158,7 @@ export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, option
   let schemas: SiteCapabilityRegistry['schemas'] = SITE_ASSISTANT_TOOL_SCHEMAS;
   if (options.page && options.visitorExecution) {
     for (const capability of createVisitorPageCapabilities({ deps, page: options.page })) capabilities.set(capability.name, capability);
-    schemas = [...schemas, ...PAGE_CAPABILITIES.map(capability => ({ name: capability.id, description: capability.description, parameters: { ...capability.inputSchema } }))];
+    schemas = [...schemas, ...VISITOR_PAGE_CAPABILITIES.map(capability => ({ name: capability.id, description: capability.description, parameters: { ...capability.inputSchema } }))];
   }
   if (options.siteGuide) {
     const guide = options.siteGuide;
