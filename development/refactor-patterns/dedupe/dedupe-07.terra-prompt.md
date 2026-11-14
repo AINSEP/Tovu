@@ -61,7 +61,10 @@ function forwardAdapterEvents({ input, projection }: { input: InternalTurnInput;
     }
     projection.onEvent(event as ProviderTurnEvent);
   };
-  return { onEvent, endReason: () => endReason };
+  return {
+    onEvent,
+    endReason: (_required: Record<string, never> = {}, _optional: Record<string, never> = {}) => endReason,
+  };
 }
 ```
 In runAnthropicTurn/runGoogleTurn: `const forward = forwardAdapterEvents({ input, projection });`, pass `onEvent: forward.onEvent`, return `normalizeTurnResult(result, forward.endReason())`, delete `capturedEndReason`. runOpenAiCompatibleTurn: same with `{ errorFromContentPrefix: true }`. Keep the existing `event as ProviderTurnEvent` cast only if it already compiles there (it does today).
