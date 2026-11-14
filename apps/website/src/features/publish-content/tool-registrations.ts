@@ -224,7 +224,7 @@ export function buildPublishContentRegistrations(
     }),
     [PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "executed",
-      prepare: ctx => pullToolBoundary(async () => {
+      prepare: ({ ctx }) => pullToolBoundary(async () => {
         const input = requireInputRecord({ input: ctx.input });
         refuseUnexpectedKeys(input, ["bundleId", "overwriteEntityKeys"]);
         const bundleId = requiredPullBundleId(input.bundleId);
@@ -254,7 +254,7 @@ export function buildPublishContentRegistrations(
         warning: "The listed local items will be overwritten. A restore point is captured before applying changes.",
         danger: true, confirmLabel: "Apply pull",
       }),
-      run: (ctx, { hooks, planned }, confirmer) => pullToolBoundary(async () => {
+      run: ({ ctx, prepared: { hooks, planned }, confirmer }) => pullToolBoundary(async () => {
         const token = await gatewayConfirm({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: confirmer.id, principalKind: confirmer.kind, hooks, planId: planned.planId, planHash: planned.planHash });
         // As on /import/execute, check restore capability outside the shared gateway; it still
         // re-authorizes, checks the human-bound token and re-derives the plan before any write.

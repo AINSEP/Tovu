@@ -132,10 +132,10 @@ function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = 
   return {
     entityType: "item",
     permission: "admin.items.manage",
-    ports: (deps) => (deps as TestDeps).itemPorts,
+    ports: ({ deps }) => (deps as TestDeps).itemPorts,
     list: ({ ports, workspaceId }) => ports.repo.list(workspaceId),
     find: ({ ports, workspaceId, id }) => ports.repo.find(workspaceId, id),
-    isTrashed: (row) => row.status === "trashed",
+    isTrashed: ({ row }) => row.status === "trashed",
     include: (row) => row.status !== "hidden",
     fields: { id: "local", workspaceId: "local", slug: "transferred", title: "transferred", note: "provenance", status: "transferred", version: "local" },
     address: { field: "slug", holder: ({ ports, workspaceId, value: slug }) => ports.repo.findBySlug(workspaceId, slug) },

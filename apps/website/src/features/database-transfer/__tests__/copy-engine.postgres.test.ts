@@ -84,7 +84,7 @@ function fixtureSnapshot(extra?: (c: Database.Database) => void): Buffer {
 }
 
 const SITE = "fixture";
-const TARGET = () => createPsqlPostgresTarget(CONNECTION);
+const TARGET = () => createPsqlPostgresTarget({ connectionString: CONNECTION });
 
 async function count(table: string, schema: string): Promise<number> {
   return Number(await sql(FIXTURE_DB, `SELECT count(*) FROM "${schema}"."${table}"`));

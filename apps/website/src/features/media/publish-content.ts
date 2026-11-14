@@ -192,7 +192,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     coversTables: ["media", "asset_blobs", "asset_renditions", "media_slug_history"],
     // The same permission `post`/`page` declare; media has no write permission of its own.
     permission: "content.write",
-    ports: (deps, _optional = {}) => deps.ports.media,
+    ports: ({ deps }, _optional = {}) => deps.ports.media,
     // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
     include: (row, _optional = {}) => row.kind !== "document",
     list: ({ ports: p, workspaceId }, _optional = {}) => p.repo.list({ workspaceId }),
@@ -207,7 +207,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     requiredBlobs: (row, _optional = {}) => [row.source.sha256],
     // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
     // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
-    references: (entity, _optional = {}) =>
+    references: ({ entity }, _optional = {}) =>
       typeof entity.state.htmlAttributes === "string"
         ? [...collectMediaUrlKeys(entity.state.htmlAttributes)].map((key) => ({ entityType: "media", key }))
         : [],

@@ -65,7 +65,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
 
   /** `undefined` = not wired on this instance: pack yields nothing, inspect is `null`, precheck
    *  refuses, apply throws. */
-  readonly ports: (deps: PublishContentDeps, optional?: Record<string, never>) => Ports | undefined;
+  readonly ports: (required: { deps: PublishContentDeps }, optional?: Record<string, never>) => Ports | undefined;
   /** The `PublishContentDeps.ports` key the not-wired messages name. Defaults to `entityType`. */
   readonly portsKey?: string;
   readonly list: (required: { ports: Ports; workspaceId: string }, optional?: Record<string, never>) => Promise<readonly Row[]>;
@@ -78,7 +78,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** Pack filter beyond trash (kind, active status, excluded keys). */
   readonly include?: (row: Row, optional?: Record<string, never>) => boolean;
   /** Pack skips a trashed row; precheck refuses a trashed destination row. */
-  readonly isTrashed?: (row: Row) => boolean;
+  readonly isTrashed?: (required: { row: Row }) => boolean;
   /** e.g. parent-first for a tree-shaped type. */
   readonly packOrder?: (rows: readonly Row[]) => readonly Row[];
 
@@ -104,7 +104,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
     readonly holder: (required: { ports: Ports; workspaceId: string; value: string; state: Record<string, unknown> }, optional?: Record<string, never>) => Promise<Row | null>;
   };
   /** What a packed entity uses, carried along by a scoped publish ({@link PublishContentHandler.references}). */
-  readonly references?: (entity: PackedEntity, optional?: Record<string, never>) => readonly PublishContentReference[];
+  readonly references?: (required: { entity: PackedEntity }, optional?: Record<string, never>) => readonly PublishContentReference[];
   /** Type-specific refusals, after the generic ones. Returns a reason or `null`. */
   readonly validate?: (input: { ports: Ports; workspaceId: string; entity: PackedEntity; existing: Row | null }) => ReturnType<PublishContentHandler["precheck"]>;
 
@@ -190,13 +190,13 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
   }
 
   function build(deps: PublishContentDeps): PublishContentHandler {
-    const ports = () => config.ports(deps);
+    const ports = () => config.ports({ deps });
     const { workspaceId } = deps;
 
     async function* pack(): AsyncIterable<PackedEntity> {
       const p = ports();
       if (!p) return;
-      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.(row) && (config.include?.(row) ?? true));
+      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.(row) ?? true));
       for (const row of config.packOrder ? config.packOrder(rows) : rows) {
         const displayLabel = config.displayLabel?.(row);
         yield {
@@ -227,7 +227,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       if (address && typeof value === "string" && value) {
         const holder = await address.holder({ ports: p, workspaceId, value, state: entity.state });
         if (holder && idOf(holder) !== entity.id) {
-          const held = config.isTrashed?.(holder) ? addressHeldInTrash : addressHeldByOther;
+          const held = config.isTrashed?.({ row: holder }) ? addressHeldInTrash : addressHeldByOther;
           return held(entityType, address.field, value, idOf(holder));
         }
       }
@@ -241,7 +241,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       const addressReason = await precheckAddress({ entity, p });
       if (addressReason !== null) return addressReason;
       const existing = await config.find({ ports: p, workspaceId, id: entity.id });
-      if (existing && config.isTrashed?.(existing)) return trashedAtDestination(entityType, entity.id);
+      if (existing && config.isTrashed?.({ row: existing })) return trashedAtDestination(entityType, entity.id);
       return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;
     }
 
@@ -329,6 +329,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       return { ...result, changeSetId };
     }
 
+    const references = config.references;
     return {
       entityType,
       schemaVersion,
@@ -339,7 +340,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       inspect,
       precheck,
       apply,
-      ...(config.references ? { references: config.references } : {}),
+      ...(references ? { references: (entity: PackedEntity) => references({ entity }) } : {}),
       ...config.extend?.({ deps, ports }),
     };
   }

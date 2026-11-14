@@ -44,7 +44,7 @@ function fixedContentTypeLookup(workspaceId: string, key: string, fields: Conten
 test("create -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqliteEntryRepo(db);
+    const repo = new SqliteEntryRepo({ store: db });
     const clock = { nowMs: () => Date.parse("2026-07-15T00:00:00.000Z") };
     let idCounter = 0;
 
@@ -62,7 +62,7 @@ test("create -> restart-simulated (fresh repo instance against the same file) ->
     assert.equal(created.ok, true);
 
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = new SqliteEntryRepo(dbAfterRestart);
+    const repoAfterRestart = new SqliteEntryRepo({ store: dbAfterRestart });
     const found = await repoAfterRestart.findBySlug({ workspaceId: "ws-1", type: "recipe", slug: "banana-bread" });
     assert.ok(found);
     assert.equal(found?.title, "Banana Bread");

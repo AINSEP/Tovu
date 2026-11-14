@@ -57,7 +57,7 @@ export interface DatabaseTransferToolDeps extends OperatorLocaleDeps {
   /** The sealed, persistent store (`server/runtime/composition/deps.ts`); absent -> the in-memory fallback. */
   readonly databaseTransferDestinationStore?: DatabaseDestinationStorePort;
   /** Test-only; defaults to the `psql` adapter. */
-  readonly databaseTransferTarget?: (connectionString: string) => PostgresTargetPort;
+  readonly databaseTransferTarget?: (required: { connectionString: string }) => PostgresTargetPort;
   /** Test-only; defaults to `console.warn`. Never receives a connection string or row data. */
   readonly databaseTransferFailureLog?: (line: string) => void;
 }
@@ -93,7 +93,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     target: connectionString => {
       try { assertCredentialToken({ value: connectionString, field: 'address', hosted: false }); }
       catch (err) { if (err instanceof CredentialInputError) { throw new InvalidConnectionStringError(err.message); } throw err; }
-      return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)(connectionString);
+      return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)({ connectionString });
     },
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
     openSource: deps.databaseTransferAdapters.openSource,
@@ -111,7 +111,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
       },
       askThenReport: reportDestination,
       confirmApproval: ({ ctx, plan }, options) => requireHumanConfirm({ ctx, surfaces, spec: describeTransferApproval({ plan }) }, options),
-      destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm(exchangeId) } }),
+      destinationForm: exchangeId => ({ channel: "mcp-ui", payload: { resource: buildDestinationForm({ exchangeId }) } }),
       destinationOutcome: input => ({ channel: "mcp-ui", payload: { resource: buildDestinationOutcome(input) } }),
       dismissedParam: SURFACE_DISMISSED_PARAM, addressField: DESTINATION_ADDRESS_FIELD,
     },

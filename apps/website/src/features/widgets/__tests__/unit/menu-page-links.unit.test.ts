@@ -1,5 +1,4 @@
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "../../../entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -19,7 +18,7 @@ test("public dynamic menu widgets resolve renamed pages and omit unpublished pag
     doc: { type: "menu", version: 1, items: [{ id: "about", label: "About", target: { kind: "entryRef", entryId: "about" } }] },
   });
   // Only the menu resolver executes; other domain ports are explicit unused dependencies.
-  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
+  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: new InMemoryNavLocationBindingRepo({}) }),
     resolveMenuTargetHref: createMenuPageTargetResolver({ postRepo: posts }),
     entryList: {} as CoreResolverDeps["entryList"], formDefinitionRepo: {} as CoreResolverDeps["formDefinitionRepo"], contentTypes: {} as CoreResolverDeps["contentTypes"],

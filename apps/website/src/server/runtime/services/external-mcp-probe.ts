@@ -101,7 +101,7 @@ function respondToResolutionFailure(serverId: string, reason: string): Extract<P
     return {
       ok: false,
       status: 409,
-      body: { error: reason, code: "EXTERNAL_MCP_REAUTH_REQUIRED", details: { retryable: false, settingsLink: externalMcpSettingsDeepLink(serverId) } },
+      body: { error: reason, code: "EXTERNAL_MCP_REAUTH_REQUIRED", details: { retryable: false, settingsLink: externalMcpSettingsDeepLink({ serverId }) } },
     };
   }
   return { ok: false, status: 502, body: { error: reason, code: "MCP_SERVER_UNREACHABLE" } };

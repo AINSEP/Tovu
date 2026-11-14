@@ -158,9 +158,9 @@ test('the compatibility handler prepares, asks and runs with the authenticated h
   const h = harness(t);
   const handler = humanConfirmedToolHandler({ surfaceExchanges: h.store }, {
     flag: 'removed',
-    prepare: async (ctx) => ({ file: requireInputRecord({ input: ctx.input }).file }),
+    prepare: async ({ ctx }) => ({ file: requireInputRecord({ input: ctx.input }).file }),
     dialog: (prepared) => ({ ...h.spec, details: [{ label: 'File', value: String(prepared.file) }] }),
-    run: async (_ctx, prepared, confirmer) => ({ removed: prepared.file, confirmer }),
+    run: async ({ prepared, confirmer }) => ({ removed: prepared.file, confirmer }),
   });
   const pending = handler({ ...h.ctx, input: { file: 'notes.txt' } }, { emitSurface: h.emitSurface });
   await turn();

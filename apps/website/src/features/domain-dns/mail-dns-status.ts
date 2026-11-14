@@ -124,7 +124,7 @@ function overallOf(records: readonly MailDnsRecordView[]): MailDnsRecordStatus {
   return OVERALL_ORDER.find(status => records.some(record => record.status === status)) ?? "Matches";
 }
 
-function relativeHost(name: string, zone: string): string {
+function relativeHost({ name, zone }: { name: string; zone: string }, _options = {}): string {
   if (name === zone) return "@";
   return name.endsWith(`.${zone}`) ? name.slice(0, -(zone.length + 1)) : name;
 }
@@ -141,7 +141,7 @@ function recordView(verified: RecordVerification, context: { zone: string; mailK
   const name = normalizeDnsName({ name: record.name });
   const isMail = context.mailKeys.has(recordKey(record)) || (record.type === "TXT" && name.startsWith("_dmarc.") && record.value === DMARC_HINT_VALUE);
   return {
-    type: record.type, host: relativeHost(name, context.zone), name, expected: record.value,
+    type: record.type, host: relativeHost({ name, zone: context.zone }), name, expected: record.value,
     observed: [...new Set(verified.byNameserver.flatMap(observation => observation.answers))],
     status: mailDnsRecordStatus({ record: verified, timedOut: context.timedOut }), purpose: isMail ? "mail" : "other",
     ...(record.priority === undefined ? {} : { priority: record.priority }), ...(record.ttl === undefined ? {} : { ttl: record.ttl }), ...(record.note === undefined ? {} : { note: record.note }),
@@ -149,7 +149,7 @@ function recordView(verified: RecordVerification, context: { zone: string; mailK
   };
 }
 
-function trackingOf(binding: DomainBinding | null): MailDnsTracking | null {
+function trackingOf({ binding }: { binding: DomainBinding | null }, _options = {}): MailDnsTracking | null {
   if (binding === null) return null;
   return { status: binding.status, attempt: binding.attempt, startedAt: binding.startedAt, nextCheckAt: binding.nextCheckAt, lastCheckedAt: binding.lastCheckedAt };
 }
@@ -173,7 +173,7 @@ function checkView(input: CheckInput): MailDnsCheck {
   return {
     hostname: input.hostname, zone: input.zone, delegation: input.delegation, nameservers: [...input.verification.nameservers],
     overall: overallOf(records), records, ...(input.verification.reason === undefined ? {} : { reason: input.verification.reason }),
-    checkedAt: input.checkedAt, persisted: input.persisted, tracking: trackingOf(input.binding),
+    checkedAt: input.checkedAt, persisted: input.persisted, tracking: trackingOf({ binding: input.binding }),
   };
 }
 
@@ -195,13 +195,13 @@ const NO_RECORDS: Readonly<Record<string, { state: MailDnsState; message: string
 };
 const UNSUPPORTED = { state: "verification_unavailable" as const, message: "DNS verification is unavailable for this provider: it publishes no domain records to check." };
 
-function base(verdict: SenderDomainVerification | null): Pick<MailDnsStatus, "senderDomain" | "providerId" | "providerVerification" | "untrusted"> {
+function base({ verdict }: { verdict: SenderDomainVerification | null }, _options = {}): Pick<MailDnsStatus, "senderDomain" | "providerId" | "providerVerification" | "untrusted"> {
   const senderDomain = verdict !== null && "domain" in verdict ? verdict.domain ?? null : null;
   return { senderDomain, providerId: verdict?.providerId ?? null, providerVerification: verdict, untrusted: true };
 }
 
 /** Preserve a caller-safe provider refusal instead of masking it with the generic unknown state. */
-function noRecordsReason(verdict: SenderDomainVerification | null): { state: MailDnsState; message: string } {
+function noRecordsReason({ verdict }: { verdict: SenderDomainVerification | null }, _options = {}): { state: MailDnsState; message: string } {
   const fallback = NO_RECORDS[verdict?.state ?? ""] ?? UNSUPPORTED;
   return verdict?.state === "unknown" ? { ...fallback, message: verdict.reason } : fallback;
 }
@@ -210,39 +210,39 @@ function noRecordsReason(verdict: SenderDomainVerification | null): { state: Mai
  * provider's own error, which must not be replaced by the domain check's generic unknown state. */
 function verdictReason(status: Pick<MailDnsStatus, "state">, verdict: SenderDomainVerification): Partial<{ state: MailDnsState; message: string }> {
   if (!NO_RECORDS[verdict.state]) return {};
-  return verdict.state === "unknown" && status.state === "requirements_failed" ? {} : noRecordsReason(verdict);
+  return verdict.state === "unknown" && status.state === "requirements_failed" ? {} : noRecordsReason({ verdict });
 }
 
 /** The provider's records once (the plan step asks the port again through a cached copy). */
-async function resolveRequirement(ports: MailDnsStatusPorts, verdict: SenderDomainVerification | null): Promise<Resolved> {
-  if (ports.mailRequirements === undefined) return { kind: "none", status: { ...base(verdict), state: "requirements_unavailable", message: "This server cannot report its mail provider's DNS records." } };
+async function resolveRequirement({ ports, verdict }: { ports: MailDnsStatusPorts; verdict: SenderDomainVerification | null }, _options = {}): Promise<Resolved> {
+  if (ports.mailRequirements === undefined) return { kind: "none", status: { ...base({ verdict }), state: "requirements_unavailable", message: "This server cannot report its mail provider's DNS records." } };
   try {
     const requirement = await ports.mailRequirements({ workspaceId: ports.context.workspaceId });
     if (requirement !== null) return { kind: "records", requirement };
-    const why = noRecordsReason(verdict);
-    return { kind: "none", status: { ...base(verdict), ...why } };
+    const why = noRecordsReason({ verdict });
+    return { kind: "none", status: { ...base({ verdict }), ...why } };
   } catch (err) {
-    return { kind: "none", status: { ...base(verdict), state: "requirements_failed", message: err instanceof ToolInputError ? err.message : "The mail provider could not list its required DNS records." } };
+    return { kind: "none", status: { ...base({ verdict }), state: "requirements_failed", message: err instanceof ToolInputError ? err.message : "The mail provider could not list its required DNS records." } };
   }
 }
 
 /** Shared head of both operations: the provider's verdict, then its records, each read once. */
 async function prepare(ports: MailDnsStatusPorts): Promise<{ verdict: SenderDomainVerification | null; resolved: Resolved; cached: MailDnsStatusPorts }> {
   // Requirements start independently: a slow provider verdict cannot hold their lookup hostage.
-  const requirementRead = resolveRequirement(ports, null);
+  const requirementRead = resolveRequirement({ ports, verdict: null });
   const verdict = ports.senderDomainVerification ? await ports.senderDomainVerification() : null;
   let resolved = await requirementRead;
-  if (resolved.kind === "none" && verdict) resolved = { kind: "none", status: { ...resolved.status, ...base(verdict), ...verdictReason(resolved.status, verdict) } };
+  if (resolved.kind === "none" && verdict) resolved = { kind: "none", status: { ...resolved.status, ...base({ verdict }), ...verdictReason(resolved.status, verdict) } };
   const requirement = resolved.kind === "records" ? resolved.requirement : null;
   return { verdict, resolved, cached: { ...ports, mailRequirements: async () => requirement } };
 }
 
-function headOf(verdict: SenderDomainVerification | null, requirement: DomainRequirement): Pick<MailDnsStatus, "senderDomain" | "providerId" | "providerVerification" | "untrusted"> {
-  return { ...base(verdict), senderDomain: normalizeDnsName({ name: requirement.domain }), providerId: requirement.providerId };
+function headOf({ verdict, requirement }: { verdict: SenderDomainVerification | null; requirement: DomainRequirement }, _options = {}): Pick<MailDnsStatus, "senderDomain" | "providerId" | "providerVerification" | "untrusted"> {
+  return { ...base({ verdict }), senderDomain: normalizeDnsName({ name: requirement.domain }), providerId: requirement.providerId };
 }
 
 /** A caller-level refusal from the DNS layer (zone layout, missing store) becomes a state, not a 500. */
-async function guarded(head: ReturnType<typeof headOf>, run: () => Promise<MailDnsCheck>): Promise<MailDnsStatus> {
+async function guarded({ head, run }: { head: ReturnType<typeof headOf>; run: () => Promise<MailDnsCheck> }, _options = {}): Promise<MailDnsStatus> {
   try {
     return { ...head, state: "checked", dns: await run() };
   } catch (err) {
@@ -261,14 +261,14 @@ export async function readMailDnsStatus(_required: Record<string, never>, ports:
   if (resolved.kind === "none") return resolved.status;
   const { requirement } = resolved;
   const hostname = normalizeDnsName({ name: requirement.domain });
-  return guarded(headOf(verdict, requirement), async () => {
+  return guarded({ head: headOf({ verdict, requirement }), run: async () => {
     const inspected = await inspectDomainDns({ hostname, include: ["mail"] }, cached);
     const { planned, instructions } = inspected;
     const delegation = planned.delegation === null ? null : { state: planned.delegation.state, reason: planned.delegation.reason };
     const verification = inspected.verification ?? unreadVerification(planned, requirement.records);
     const check = checkView({ hostname, zone: planned.zone, delegation, verification, binding: inspected.binding, requirement, checkedAt: new Date(ports.now()).toISOString(), persisted: false });
     return { ...check, rows: instructions.rows, notes: instructions.notes, blockers: planned.blockers };
-  });
+  } });
 }
 
 /**
@@ -281,12 +281,12 @@ export async function verifyMailDnsStatus(_required: Record<string, never>, port
   if (resolved.kind === "none") return resolved.status;
   const { requirement } = resolved;
   const hostname = normalizeDnsName({ name: requirement.domain });
-  return guarded(headOf(verdict, requirement), async () => {
+  return guarded({ head: headOf({ verdict, requirement }), run: async () => {
     const bindings = ports.bindings;
     if (bindings === undefined) throw new ToolInputError({ message: "this site has no content database to keep the domain's tracking state in." });
     const { binding, delegation, verification } = await verifyDomainDns({ hostname, include: ["mail"] }, { ...cached, bindings });
     // `verifyDomainDns` stamps `lastCheckedAt` on every binding it saves (`nextBinding`), so the saved check's time is never null here.
     if (binding.lastCheckedAt == null) throw new Error("Verified mail domain binding has no check time");
     return checkView({ hostname, zone: binding.zone, delegation: { state: delegation.state, reason: delegation.reason }, verification, binding, requirement, checkedAt: binding.lastCheckedAt, persisted: true });
-  });
+  } });
 }

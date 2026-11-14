@@ -32,7 +32,7 @@ type EntriesSelect = SelectQueryBuilder<ContentDatabase, "entries", EntryRow>;
 
 /** A write refused by the slug index: the reads hide a trashed holder, so that is the one the
  *  chokepoint's own slug check could not have seen. */
-function trashedSlugConflict(slug: string): EntrySlugConflictError {
+function trashedSlugConflict({ slug }: { slug: string }, _options = {}): EntrySlugConflictError {
   return new EntrySlugConflictError({ message: `an entry with slug '${slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
 }
 
@@ -45,7 +45,7 @@ function trashedSlugConflict(slug: string): EntrySlugConflictError {
 const SITE_FIELD_KEY = /^\w+$/;
 
 /** The path of a custom field's value inside `entries.fields_json`. */
-const siteFieldPath = (field: string): string[] => ["ext", "site", field];
+const siteFieldPath = ({ field }: { field: string }, _options = {}): string[] => ["ext", "site", field];
 
 export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayListPort, EntryListExcludingTypesPort, EntryPublishReadPort {
   protected readonly kernel: ContentKernel;
@@ -54,33 +54,36 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
   }
 
   /** `entries` in the workspace, the Trash hidden unless `includeTrashed`. */
-  private scoped(db: Kysely<ContentDatabase>, workspaceId: string, includeTrashed = false): EntriesSelect {
+  private scoped(
+    { db, workspaceId }: { db: Kysely<ContentDatabase>; workspaceId: string },
+    { includeTrashed = false }: { includeTrashed?: boolean } = {},
+  ): EntriesSelect {
     const query = db.selectFrom("entries").selectAll().where("workspace_id", "=", workspaceId);
     return includeTrashed ? query : query.where("deleted_at", "is", null);
   }
 
   async findBySlug(params: { workspaceId: string; type: string; slug: string }): Promise<EntryRecord | null> {
     const row = await this.kernel.run((db) =>
-      this.scoped(db, params.workspaceId).where("type", "=", params.type).where("slug", "=", params.slug).limit(1).executeTakeFirst()
+      this.scoped({ db, workspaceId: params.workspaceId }).where("type", "=", params.type).where("slug", "=", params.slug).limit(1).executeTakeFirst()
     );
     return row ? toRecord(row) : null;
   }
 
   async findById(params: { workspaceId: string; id: string }): Promise<EntryRecord | null> {
-    const row = await this.kernel.run((db) => this.scoped(db, params.workspaceId).where("id", "=", params.id).limit(1).executeTakeFirst());
+    const row = await this.kernel.run((db) => this.scoped({ db, workspaceId: params.workspaceId }).where("id", "=", params.id).limit(1).executeTakeFirst());
     return row ? toRecord(row) : null;
   }
 
   /** Trash-blind: see {@link EntryPublishReadPort}. @complexity O(1). */
   async findAnyById(params: { workspaceId: string; id: string }): Promise<TrashableEntryRecord | null> {
-    const row = await this.kernel.run((db) => this.scoped(db, params.workspaceId, true).where("id", "=", params.id).limit(1).executeTakeFirst());
+    const row = await this.kernel.run((db) => this.scoped({ db, workspaceId: params.workspaceId }, { includeTrashed: true }).where("id", "=", params.id).limit(1).executeTakeFirst());
     return row ? { ...toRecord(row), deletedAt: row.deleted_at } : null;
   }
 
   /** Trash-blind: see {@link EntryPublishReadPort}. @complexity O(1). */
   async findAnyBySlug(params: { workspaceId: string; type: string; slug: string }): Promise<TrashableEntryRecord | null> {
     const row = await this.kernel.run((db) =>
-      this.scoped(db, params.workspaceId, true).where("type", "=", params.type).where("slug", "=", params.slug).limit(1).executeTakeFirst()
+      this.scoped({ db, workspaceId: params.workspaceId }, { includeTrashed: true }).where("type", "=", params.type).where("slug", "=", params.slug).limit(1).executeTakeFirst()
     );
     return row ? { ...toRecord(row), deletedAt: row.deleted_at } : null;
   }
@@ -109,7 +112,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
         return;
       }
       if (options.expectedVersion !== undefined) {
-        await this.compareAndSet(record, values, options.expectedVersion);
+        await this.compareAndSet({ record, values, expectedVersion: options.expectedVersion });
         return;
       }
       await this.kernel.run((db) =>
@@ -120,7 +123,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
           .execute()
       );
     } catch (error) {
-      if (isUniqueViolation(error)) throw trashedSlugConflict(record.slug);
+      if (isUniqueViolation(error)) throw trashedSlugConflict({ slug: record.slug });
       throw error;
     } finally {
       invalidateMediaAccessEvidence({ owner: this });
@@ -141,12 +144,12 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
     // find this very row and turn a create that succeeded into a false version conflict.
     if (Number(inserted.numInsertedOrUpdatedRows) !== 0) return;
     const holder = await this.kernel.run((db) => db.selectFrom("entries").select("version").where("id", "=", record.id).executeTakeFirst());
-    if (!holder) throw trashedSlugConflict(record.slug);
+    if (!holder) throw trashedSlugConflict({ slug: record.slug });
     throw new VersionConflictError({ message: `expected no entry '${record.id}', found ${holder.version}` });
   }
 
   /** The conditional UPDATE behind `save`'s `expectedVersion`; on a miss, re-reads the live version for the message. */
-  private async compareAndSet(record: EntryRecord, values: ReturnType<typeof toRow>, expectedVersion: number): Promise<void> {
+  private async compareAndSet({ record, values, expectedVersion }: { record: EntryRecord; values: ReturnType<typeof toRow>; expectedVersion: number }, _options = {}): Promise<void> {
     const result = await this.kernel.run((db) =>
       db
         .updateTable("entries")
@@ -171,7 +174,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
     optional: NonNullable<Parameters<EntryListPort["listByWorkspace"]>[1]> = {}
   ): Promise<EntryRecord[]> {
     const { type } = optional;
-    return this.listLive({ ...required, ...optional }, type ? (query) => query.where("type", "=", type) : undefined);
+    return this.listLive({ params: { ...required, ...optional } }, { narrow: type ? (query) => query.where("type", "=", type) : undefined });
   }
 
   /**
@@ -191,18 +194,18 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
     limit?: number;
   }): Promise<EntryRecord[]> {
     return this.listLive(
-      params,
-      params.excludeTypes.length > 0 ? (query) => query.where("type", "not in", [...params.excludeTypes]) : undefined
+      { params },
+      { narrow: params.excludeTypes.length > 0 ? (query) => query.where("type", "not in", [...params.excludeTypes]) : undefined }
     );
   }
 
   /** The shared body of the two workspace lists: live rows, an optional type filter, status, order, limit. */
   private async listLive(
-    params: Parameters<EntryListPort["listByWorkspace"]>[0] & NonNullable<Parameters<EntryListPort["listByWorkspace"]>[1]>,
-    narrow?: (query: EntriesSelect) => EntriesSelect
+    { params }: { params: Parameters<EntryListPort["listByWorkspace"]>[0] & NonNullable<Parameters<EntryListPort["listByWorkspace"]>[1]> },
+    { narrow }: { narrow?: ((query: EntriesSelect) => EntriesSelect) | undefined } = {},
   ): Promise<EntryRecord[]> {
     const rows = await this.kernel.run((db) => {
-      let query = this.scoped(db, params.workspaceId);
+      let query = this.scoped({ db, workspaceId: params.workspaceId });
       if (narrow) query = narrow(query);
       if (params.status) query = query.where("status", "=", params.status);
       if (params.orderBy === "updatedAt") query = query.orderBy("updated_at", params.orderDirection === "asc" ? "asc" : "desc");
@@ -235,11 +238,11 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
   async listPublishedForDisplay(params: { workspaceId: string; query: CollectionListQuery }): Promise<EntryRecord[]> {
     const { workspaceId, query } = params;
     const rows = await this.kernel.run((db) => {
-      let select = this.scoped(db, workspaceId).where("type", "=", query.type).where("status", "=", "published");
+      let select = this.scoped({ db, workspaceId }).where("type", "=", query.type).where("status", "=", "published");
       for (const clause of query.where) {
         select = select.where(
           SITE_FIELD_KEY.test(clause.field)
-            ? jsonScalarEquals(this.kernel.dialect, sql.ref("fields_json"), siteFieldPath(clause.field), clause.value)
+            ? jsonScalarEquals(this.kernel.dialect, sql.ref("fields_json"), siteFieldPath({ field: clause.field }), clause.value)
             : sql<boolean>`(1 = 0)`
         );
       }
@@ -258,7 +261,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
     if (by === "updated") return sql.ref("updated_at");
     if (by === "title") return sql.ref("title");
     if (!SITE_FIELD_KEY.test(by.field)) return null;
-    return jsonSortKey(this.kernel.dialect, sql.ref("fields_json"), siteFieldPath(by.field));
+    return jsonSortKey(this.kernel.dialect, sql.ref("fields_json"), siteFieldPath({ field: by.field }));
   }
 }
 

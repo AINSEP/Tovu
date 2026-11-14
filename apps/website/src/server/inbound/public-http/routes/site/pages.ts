@@ -953,13 +953,13 @@ function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTyp
   const dateIso = row.publishedAt ?? row.updatedAt;
   return {
     title: row.title,
-    href: entryPublicHref(row.type, row.slug),
+    href: entryPublicHref({ _typeKey: row.type, _slug: row.slug }),
     dateIso,
     dateLabel: formatPostPreviewDate(dateIso, timeZone),
     fields: fields.map(
       (field): EntryListFieldValue => ({
         name: field.name,
-        label: humanizeFieldName(field.name),
+        label: humanizeFieldName({ name: field.name }),
         kind: field.kind,
         value: collectionEntryFieldValue(row, field.name),
       })
@@ -1002,7 +1002,7 @@ async function resolveCollectionMarkerConfig(
     return undefined;
   }
 
-  const parsed = parseCollectionListConfig(marker.config, contentType);
+  const parsed = parseCollectionListConfig({ config: marker.config, contentType });
   if (!parsed.ok) {
     console.warn(`[collection] rejected marker config for typeKey "${typeKey}": ${parsed.reason}; leaving its authored fallback content`);
     return undefined;

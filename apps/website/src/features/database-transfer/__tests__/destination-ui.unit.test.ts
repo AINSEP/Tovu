@@ -5,7 +5,7 @@ import { buildDestinationForm, buildDestinationOutcome } from "../destination-ui
 
 test("the private destination form masks its required address and correlates both save and cancel", () => {
   // F2.5/F4.1: removing the exchange parameter or changing the cancel tool must fail.
-  const resource = buildDestinationForm("exchange-private");
+  const resource = buildDestinationForm({ exchangeId: "exchange-private" });
   assert.equal(resource.resource.uri, "ui://tovu/database-transfer-destination/exchange-private");
   const html = resource.resource.text;
   assert.match(html, /<input class="mcpui-input" type="password" id="mcpui-field-address" name="address"/);

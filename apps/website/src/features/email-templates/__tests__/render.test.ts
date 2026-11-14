@@ -32,12 +32,12 @@ test("escapeHtml escapes text and quoted-attribute metacharacters", () => {
 });
 
 test("fillPlaceholders escapes given values, renders unknown fields empty and reports them once", () => {
-  const filled = fillPlaceholders({ text: "{{a}}|{{b}}|{{b}}", values: { a: "<x>" }, escape: (value) => escapeHtml({ value }) });
+  const filled = fillPlaceholders({ text: "{{a}}|{{b}}|{{b}}", values: { a: "<x>" }, escape: escapeHtml });
   assert.deepEqual(filled, { text: "&lt;x&gt;||", missingFields: ["b"] });
 });
 
 test("fillPlaceholders does not treat inherited object keys as values", () => {
-  assert.deepEqual(fillPlaceholders({ text: "{{toString}}", values: {}, escape: (v) => v }), { text: "", missingFields: ["toString"] });
+  assert.deepEqual(fillPlaceholders({ text: "{{toString}}", values: {}, escape: ({ value: v }) => v }), { text: "", missingFields: ["toString"] });
 });
 
 test("field declarations parse names and samples, drop malformed names, first declaration wins", () => {

@@ -344,7 +344,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     // Carried `termIds` sync through the taxonomy chokepoint.
     alsoAuthorizes: [TERM_SYNC_PERMISSION],
     dependsOn: POST_AND_PAGE_DEPENDS_ON,
-    ports: (deps) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
+    ports: ({ deps }) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
     portsKey: "post",
     list: async ({ ports: p, workspaceId }, _optional = {}) => {
       const rows = (await p.repo.list({ workspaceId })).filter((row) => row.kind === kind && !isTrashed(row));
@@ -361,7 +361,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
     // Hash the established transport projection while find() retains the full compensation row.
     legacyHashState: ({ row }) => withTermIds({ state: toPublishableState(row), termIds: row.termIds }),
-    references: (entity) => postReferences(entity.state),
+    references: ({ entity }) => postReferences(entity.state),
     // Not the factory's `address`: a slug held by a trashed row keeps this sentence, and the slug
     // checks run before the kind check on an unfiltered read, as before the migration.
     validate: async ({ ports, workspaceId, entity }) => {

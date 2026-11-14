@@ -34,7 +34,7 @@ function instance(name: string) {
   const repos = {
     forms: new SqliteFormDefinitionRepo(db),
     contentTypes: new SqliteContentTypeRepo(db),
-    entries: new SqliteEntryRepo(db),
+    entries: new SqliteEntryRepo({ store: db }),
     entryRefs: new SqliteEntryRefsRepo({ store: db }),
     bindings: new SqliteWidgetRegionBindingRepo(db),
   };

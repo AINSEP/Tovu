@@ -126,7 +126,7 @@ export function buildDatabaseRegistrations(
   routeDeps: DatabaseToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const migrateHooks = (actorId: string) =>
+  const migrateHooks = ({ actorId }: { actorId: string }, _options = {}) =>
     buildMigrateForwardHooks({
       workspaceId: routeDeps.workspaceId,
       actorId,
@@ -180,10 +180,10 @@ export function buildDatabaseRegistrations(
     // inside the same operation lock and cost-class refusal the admin execute route uses.
     [MIGRATE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "migrated",
-      prepare: async (ctx) => {
+      prepare: async ({ ctx }) => {
         refuseUnexpectedKeys(ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input }), []);
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "database.migrate" }, { entityType: "database" });
-        const hooks = migrateHooks(ctx.principal.id);
+        const hooks = migrateHooks({ actorId: ctx.principal.id });
         const plan = await gatewayPlan({
           deps: routeDeps.gatedMutations.gatewayDeps,
           principalId: ctx.principal.id,
@@ -206,7 +206,7 @@ export function buildDatabaseRegistrations(
         danger: true,
         confirmLabel: "Update database",
       }),
-      run: async (ctx, { hooks, plan, costClass }, confirmer) => {
+      run: async ({ ctx, prepared: { hooks, plan, costClass }, confirmer }) => {
         const record = await gatewayConfirm({
           deps: routeDeps.gatedMutations.gatewayDeps,
           principalId: confirmer.id,

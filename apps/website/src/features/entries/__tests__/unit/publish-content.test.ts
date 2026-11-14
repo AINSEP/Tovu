@@ -36,7 +36,7 @@ function entry(overrides: Partial<EntryRecord> & { id: string; slug: string }): 
 
 async function instance() {
   const db = openContentDb(":memory:");
-  const entries = new SqliteEntryRepo(db);
+  const entries = new SqliteEntryRepo({ store: db });
   const contentTypes = new InMemoryContentTypeRepo();
   await contentTypes.save({
     workspaceId: WORKSPACE_ID,

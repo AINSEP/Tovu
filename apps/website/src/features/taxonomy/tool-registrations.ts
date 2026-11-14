@@ -362,7 +362,7 @@ export function buildTaxonomyRegistrations(
     // the gateway's own check sequence (authorize, token, actor-class, plan hash) runs unchanged.
     [MERGE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "merged",
-      prepare: async (ctx) => {
+      prepare: async ({ ctx }) => {
         const input = requireInputRecord({ input: ctx.input });
         refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
         const fromTermId = requireString({ input: input, key: "fromTermId" });
@@ -394,7 +394,7 @@ export function buildTaxonomyRegistrations(
         danger: true,
         confirmLabel: "Merge terms",
       }),
-      run: async (ctx, { hooks, plan }, confirmer) => {
+      run: async ({ ctx, prepared: { hooks, plan }, confirmer }) => {
         const { token } = await confirmMergeTerm({
           principalId: confirmer.id,
           principalKind: confirmer.kind,

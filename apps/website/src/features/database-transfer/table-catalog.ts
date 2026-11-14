@@ -23,7 +23,7 @@ export type { TransferColumn, TransferIndex, TransferForeignKey, TransferCheck, 
 import { planSnapshotTables as planGenericSnapshot, introspectedTable, type TransferColumn, type TransferIndex, type TransferTable, type SnapshotTablePlan } from "@jini-ai/db/transfer";
 const dialect = new PgDialect();
 
-function quoteLiteral(value: string): string {
+function quoteLiteral({ value }: { value: string }, _options = {}): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
@@ -31,7 +31,7 @@ function coreDefault(column: PgColumn): string | undefined {
   if (!column.hasDefault || column.default === undefined) return undefined;
   const value: unknown = column.default;
   if (is(value, SQL)) return dialect.sqlToQuery(value).sql;
-  if (typeof value === "string") return quoteLiteral(value);
+  if (typeof value === "string") return quoteLiteral({ value });
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   throw new Error(`schema.postgres.ts: '${column.name}' has a default this copier cannot write`);
 }
@@ -179,7 +179,7 @@ export function planChatSnapshotTables(source: TransferSource): SnapshotTablePla
     secretColumnPattern: /(?!)/,
   } });
   return { ...plan, tables: [...plan.tables].sort((a, b) => {
-    const rank = (name: string) => CHAT_TABLES.includes(name) ? CHAT_TABLES.indexOf(name) : CHAT_TABLES.length;
-    return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+    const rank = ({ name }: { name: string }, _options = {}) => CHAT_TABLES.includes(name) ? CHAT_TABLES.indexOf(name) : CHAT_TABLES.length;
+    return rank({ name: a.name }) - rank({ name: b.name }) || a.name.localeCompare(b.name);
   }) };
 }

@@ -194,15 +194,15 @@ export function humanConfirmedToolHandler<TPrepared>(
   surfaces: ChatDeleteSurfaceDeps,
   spec: {
     flag: string;
-    prepare: (ctx: ToolExecutionContext) => Promise<TPrepared>;
+    prepare: (required: { ctx: ToolExecutionContext }) => Promise<TPrepared>;
     dialog: (prepared: TPrepared) => HumanConfirmSpec;
-    run: (ctx: ToolExecutionContext, prepared: TPrepared, confirmer: HumanConfirmer) => Promise<unknown>;
+    run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer }) => Promise<unknown>;
   },
 ): ToolHandler {
   return approvalToolHandler({ surfaces,
-    prepare: ({ ctx }) => spec.prepare(ctx),
+    prepare: ({ ctx }) => spec.prepare({ ctx }),
     describe: ({ prepared }) => spec.dialog(prepared),
-    run: ({ ctx, prepared, confirmer }) => spec.run(ctx, prepared, confirmer),
+    run: ({ ctx, prepared, confirmer }) => spec.run({ ctx, prepared, confirmer }),
   }, { flag: spec.flag });
 }
 

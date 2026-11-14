@@ -354,7 +354,7 @@ export function buildExternalMcpReauthRegistrations(
       const closeOnAbort = () => exchange.close({});
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const ui = buildReauthSurface({ exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs(), label, settingsLink: externalMcpSettingsDeepLink(serverId) });
+        const ui = buildReauthSurface({ exchangeId: exchange.id, expiresAtMs: exchange.expiresAtMs(), label, settingsLink: externalMcpSettingsDeepLink({ serverId }) });
         const answer = await resolveReauthAcknowledgement(exchange, ui);
 
         // Best-effort re-read: the administrator may answer well after the row's own status changed

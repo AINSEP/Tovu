@@ -36,7 +36,7 @@ const WIDGET_TYPES = ["widget", "widget_area"];
 /** Why a `collection-entry` entity naming a widget type is refused, or `null`. `list` never packs
  *  those types; this refuses them inbound too, since `widget`/`widget-area` write them under their
  *  own permissions and a grant limited to `collection-entry` must not reach them. */
-function widgetTypeRefusal(id: string, state: Record<string, unknown>): string | null {
+function widgetTypeRefusal({ id, state }: { id: string; state: Record<string, unknown> }, _options = {}): string | null {
   return WIDGET_TYPES.includes(state.type as string)
     ? `collection-entry '${id}' has type '${String(state.type)}', which is a widget type and publishes on its own, not as a collection entry`
     : null;
@@ -61,7 +61,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     alsoAuthorizes: [TERM_SYNC_PERMISSION],
     // The owning type and assigned terms are checked at write time; media and relation ids resolve at render.
     dependsOn: ["content-type", "term"],
-    ports: (deps) => deps.ports["collection-entry"],
+    ports: ({ deps }) => deps.ports["collection-entry"],
     list: async ({ ports: p, workspaceId }) => {
       const rows = await p.entries.listByWorkspaceExcludingTypes({ workspaceId, excludeTypes: WIDGET_TYPES });
       return Promise.all(rows.map((row) => withTerms(p, { ...row, deletedAt: null })));
@@ -70,7 +70,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
       const row = await p.entries.findAnyById({ workspaceId, id });
       return row ? withTerms(p, row) : null;
     },
-    isTrashed: (row) => row.deletedAt !== null,
+    isTrashed: ({ row }) => row.deletedAt !== null,
     fields: {
       type: "transferred",
       slug: "transferred",
@@ -96,15 +96,15 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // A tombstone is terminal, so nothing in the bundle can fix it. A missing type is left to apply:
     // the same bundle may carry it.
     // Its collection, plus whatever its body embeds and its categories/tags.
-    references: (entity) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences(entity.state)],
+    references: ({ entity }) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences(entity.state)],
     validate: async ({ ports, workspaceId, entity }) => {
-      const widgetType = widgetTypeRefusal(entity.id, entity.state);
+      const widgetType = widgetTypeRefusal({ id: entity.id, state: entity.state });
       if (widgetType) return widgetType;
       const owner = await ports.contentTypes.findByKey({ workspaceId, key: entity.state.type as string });
       return owner?.status === "tombstone" ? tombstonedAtDestination("content-type", owner.key) : null;
     },
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
-      const widgetType = widgetTypeRefusal(id, state);
+      const widgetType = widgetTypeRefusal({ id, state });
       if (widgetType) throw new PublishContentApplyRowError("blocked", widgetType);
       const gateway = gatewayDeps(deps, "collection-entry");
       // Checked before the entry is written, so a missing term or permission blocks the row whole.
