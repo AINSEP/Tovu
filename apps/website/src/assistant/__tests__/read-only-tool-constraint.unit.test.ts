@@ -10,5 +10,5 @@ test("Tovu directs unknown read-only tool ids to discovery with candidates and p
   assert.equal(checkReadOnlyTool({ toolId: "missing", registry, messages: tovuReadOnlyToolMessages }, {}),
     'no tool "missing" is registered; use search_tools');
   assert.equal(checkReadOnlyTool({ toolId: "media_import_from_url", registry, messages: tovuReadOnlyToolMessages }, {}),
-    readOnlyToolRefusalMessage("media_import_from_url"));
+    readOnlyToolRefusalMessage({ toolId: "media_import_from_url" }));
 });

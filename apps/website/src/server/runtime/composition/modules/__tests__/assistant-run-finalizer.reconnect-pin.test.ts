@@ -11,7 +11,7 @@ function ledgerFixture() {
   const settled: RunSettlement[] = [];
   const ledger: ChatRunLedger = {
     hasActiveRuns: async () => false,
-    unlessSettled: async (_run, write) => ({ written: true, value: await write() }),
+    unlessSettled: async ({ write }) => ({ written: true, value: await write() }),
     checkpoint: async () => true,
     settle: async value => { settled.push(value); return true; },
     reconcileInterrupted: async () => 0,

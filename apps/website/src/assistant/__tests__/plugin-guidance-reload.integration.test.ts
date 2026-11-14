@@ -21,13 +21,13 @@ test(`enabling a plugin mid-session makes its guidance discoverable through relo
   await agentPluginActivations.setAgentPluginActivation({ ...activation, enabled: false });
   const registry = createToolRegistry({});
   let catalog = buildToolCatalogQuery(registry);
-  const extensions = attachAssistantToolExtensions(registry, {
+  const extensions = attachAssistantToolExtensions({ registry: registry, deps: {
     ...site.deps, workspaceId, agentPluginLayout, postRepo: new InMemoryPostRepo({}), pluginActivationRepo: new InMemoryPluginActivationRepo(),
     authorize: async () => ({ allowed: true, reason: 'matched' }), discoverPlugins: async () => [],
     registerInstalled: registerInstalledExtensionTools,
     federation: { deps: { workspaceId, authorize: async () => ({ allowed: true, reason: 'matched' }) },
       resolveConnections: async () => [], onAdmitted: () => { catalog = buildToolCatalogQuery(registry); } },
-  }, '[guidance-test]');
+  }, log: '[guidance-test]' });
   await extensions.installed;
   if (startFederation) await extensions.federation.start();
   assert.equal(registry.has({ toolId: 'agent_plugin_ui_ux_design' }), false);

@@ -235,7 +235,7 @@ test("every core, public and bundled guide tool pointer resolves to a currently 
     for (const [topics, registeredIds] of [[cards, ids], [[publicCapabilityCard], publicIds]] as const) {
       for (const card of topics) for (const pointer of card.pointers) {
         if (!("tool" in pointer) || !pointer.tool) continue;
-        const currentId = currentToolIdFor(pointer.tool);
+        const currentId = currentToolIdFor({ toolId: pointer.tool });
         assert.equal(pointer.tool, currentId, `${card.id}: author the current tool id`);
         assert.ok(registeredIds.has(currentId), `${card.id}: ${pointer.tool} must resolve to a registered tool`);
         checked++;

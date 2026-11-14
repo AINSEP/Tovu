@@ -23,7 +23,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** A model-readable refusal: `content` is the message, flagged `isError` so the provider shows it as a failed call. */
-export function err(content: string): ByokMetaToolResult {
+export function err({ content }: { content: string }, _optional = {}): ByokMetaToolResult {
   return { content, isError: true };
 }
 
@@ -48,7 +48,7 @@ function toResultBlock(required: { readonly block: unknown }): ByokToolResultBlo
  *
  * @complexity O(blocks).
  */
-function imageContentBlocksOf(output: unknown): ByokToolResultBlock[] | null {
+function imageContentBlocksOf({ output }: { output: unknown }, _optional = {}): ByokToolResultBlock[] | null {
   if (!isRecord(output) || !Array.isArray(output.content)) return null;
   const blocks: ByokToolResultBlock[] = [];
   for (const raw of output.content as unknown[]) {
@@ -61,8 +61,8 @@ function imageContentBlocksOf(output: unknown): ByokToolResultBlock[] | null {
 
 /** A successful tool output as the model sees it: image content blocks when {@link imageContentBlocksOf}
  *  admits them, the bare string for a string output, and JSON text (`null` for nothing) otherwise. */
-export function ok(output: unknown): ByokMetaToolResult {
-  const blocks = imageContentBlocksOf(output);
+export function ok({ output }: { output: unknown }, _optional = {}): ByokMetaToolResult {
+  const blocks = imageContentBlocksOf({ output: output });
   if (blocks) return { content: blocks };
   return { content: typeof output === "string" ? output : JSON.stringify(output ?? null) };
 }
@@ -84,7 +84,7 @@ export type DelegatedInputResolution =
 /** The string-input branch of {@link resolveDelegatedInput}, split out purely to keep that function's
  *  cognitive complexity under the shop ceiling — see {@link DelegatedInputResolution}'s doc for why a
  *  JSON-encoded string has to be accepted here at all. */
-function resolveDelegatedInputFromString(trimmed: string): DelegatedInputResolution {
+function resolveDelegatedInputFromString({ trimmed }: { trimmed: string }, _optional = {}): DelegatedInputResolution {
   if (trimmed.length === 0) return { ok: true, input: undefined };
   try {
     const parsed: unknown = JSON.parse(trimmed);
@@ -96,30 +96,30 @@ function resolveDelegatedInputFromString(trimmed: string): DelegatedInputResolut
 }
 
 /** See {@link DelegatedInputResolution} for the three accepted shapes and why. */
-export function resolveDelegatedInput(raw: unknown): DelegatedInputResolution {
+export function resolveDelegatedInput({ raw }: { raw: unknown }, _optional = {}): DelegatedInputResolution {
   if (raw === undefined || raw === null) return { ok: true, input: undefined };
   if (isRecord(raw)) return { ok: true, input: raw };
-  if (typeof raw === "string") return resolveDelegatedInputFromString(raw.trim());
+  if (typeof raw === "string") return resolveDelegatedInputFromString({ trimmed: raw.trim() });
   return { ok: false, message: `'input' must be a JSON object of the tool's input fields, not ${Array.isArray(raw) ? "an array" : typeof raw}.` };
 }
 
 /** Maps one `ToolExecutor.execute` outcome onto the meta-tool result shape — split out of
  *  `runExecuteDelegatedTool` so its per-case branching does not also count against that
  *  function's own complexity. */
-export function mapToolExecutionResult(result: Awaited<ReturnType<ToolExecutor["execute"]>>, toolId: string): ByokMetaToolResult {
+export function mapToolExecutionResult({ result, toolId }: { result: Awaited<ReturnType<ToolExecutor["execute"]>>; toolId: string }, _optional = {}): ByokMetaToolResult {
   switch (result.status) {
     case "completed":
-      return ok(result.output);
+      return ok({ output: result.output });
     case "denied":
-      return err(`tool "${toolId}" was denied for this caller`);
+      return err({ content: `tool "${toolId}" was denied for this caller` });
     case "confirmation-denied":
-      return err(`tool "${toolId}" requires human confirmation, which BYOK mode cannot supply yet`);
+      return err({ content: `tool "${toolId}" requires human confirmation, which BYOK mode cannot supply yet` });
     case "timed-out":
-      return err(`tool "${toolId}" timed out`);
+      return err({ content: `tool "${toolId}" timed out` });
     case "cancelled":
-      return err(`tool "${toolId}" was cancelled`);
+      return err({ content: `tool "${toolId}" was cancelled` });
     case "failed":
-      return err(result.error ?? `tool "${toolId}" failed`);
+      return err({ content: result.error ?? `tool "${toolId}" failed` });
     default: {
       const unexpected: never = result.status;
       throw new Error(`Unexpected tool execution result: ${unexpected}`);

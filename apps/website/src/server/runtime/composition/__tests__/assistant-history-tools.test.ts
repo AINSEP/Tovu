@@ -20,7 +20,7 @@ function call(deps: AssistantHistoryHostDeps, id: string, userId: string, input:
 test('binds the current user and site to real persistence, including owner; refuses cross-user IDs', async t => {
   const db = openChatDb(':memory:');
   t.after(() => db.close());
-  const chatHistory = createChatStoreFactory(db);
+  const chatHistory = createChatStoreFactory({ store: db });
   const grants: unknown[] = [];
   const deps: AssistantHistoryHostDeps = { workspaceId: 'site-a', chatHistory, authorize: async input => { grants.push(input); return { allowed: true, reason: 'matched' }; } };
   for (const [id, workspaceId, userId] of [['owner-chat', 'site-a', 'owner'], ['other-chat', 'site-a', 'other'], ['other-site', 'site-b', 'owner']]) {

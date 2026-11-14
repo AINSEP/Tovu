@@ -230,15 +230,15 @@ async function awaitDemoChoicesSubmission(input: {
 /**
  * Builds this tool's registration unconditionally; see the module header.
  *
- * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
+ * @param required._routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
- * @param surfaces - Supplies the exchange store. Must be the same instance
+ * @param required.surfaces - Supplies the exchange store. Must be the same instance
  * `registerMcpUiToolCallsRoute` was mounted with, or a submitted form reaches nothing.
  * @returns A single registration.
  */
 export function buildDemoChoicesRegistrations(
-  _routeDeps: unknown,
-  surfaces: AssistantSurfaceDeps,
+  { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
+  _optional = {},
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [DEMO_CHOICES_TOOL_ID]: async (ctx, { emitSurface } = {}) => {

@@ -30,7 +30,7 @@ export function createNativeApprovalMemory(
       if (confirmer.id !== ctx.principal.id) throw new ToolInputError({ message: "NATIVE_APPROVAL_ACTOR_MISMATCH: The approval actor does not match this call. Nothing was changed." });
       const conversationId = conversationIdForRun({ runId: ctx.run.id, principalId: confirmer.id });
       if (!conversationId) throw new ToolInputError({ message: 'NATIVE_APPROVAL_CONVERSATION_REQUIRED: The human approval could not be saved to this conversation. Nothing was changed.' });
-      await store.grant({ ...coordinates(key, confirmer.id), conversationId }, new Date(clock.nowMs()).toISOString());
+      await store.grant({ key: { ...coordinates(key, confirmer.id), conversationId }, grantedAt: new Date(clock.nowMs()).toISOString() });
     },
   };
 }

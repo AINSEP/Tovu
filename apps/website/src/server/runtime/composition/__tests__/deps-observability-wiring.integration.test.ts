@@ -76,7 +76,7 @@ test("a configured provider selection: content and chat kernels are decorated wi
   instrumentStorageKernel({ kernel, observability: probe.port });
   await kernel.run((db) => db.selectFrom("posts").select("id").limit(1).execute());
   assert.equal(probe.queries(), 0, "the content kernel was already decorated by the composition root");
-  await deps.chatRunLedger.unlessSettled({ conversationId: "conv-otel", messageId: "msg-otel", runId: "run-otel" }, async () => undefined);
+  await deps.chatRunLedger.unlessSettled({ run: { conversationId: "conv-otel", messageId: "msg-otel", runId: "run-otel" }, write: async () => undefined });
   assert.ok(tables.has("posts"), `content kernel query tracked: ${[...tables].join(", ")}`);
   assert.ok(tables.has("ai_chat_messages"), `chat kernel query tracked: ${[...tables].join(", ")}`);
   assert.equal(disposed, 0);

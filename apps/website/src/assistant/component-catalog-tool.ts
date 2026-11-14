@@ -122,15 +122,14 @@ const CATALOG_BY_ID = new Map(componentCatalogAgentToolCatalog.map((entry) => [e
  *
  * `_routeDeps`/`_surfaces` are unused: the interactive-component catalog is static
  * (`@jini-ai/ui`'s `ALL_MANIFESTS`), so this domain needs neither a workspace-scoped dependency bag
- * nor a live surface channel — both parameters exist only to satisfy `ToolContributor.build`'s
- * shared signature (`tool-registrations.ts`), mirroring `render-ui-tool.ts`'s identical `_routeDeps`
- * placeholder.
+ * nor a live surface channel. `tool-registrations.ts` adapts the shared
+ * `ToolContributor.build` signature to this argument object.
  *
  * @complexity O(1) to build (a handful of static manifests); see {@link buildComponentCatalogQuery}
  * for its own per-call search/describe cost.
  * @overallScore 100
  */
-export function buildComponentCatalogRegistrations(_routeDeps: unknown, _surfaces: unknown): ToolRegistration[] {
+export function buildComponentCatalogRegistrations({ _routeDeps, _surfaces }: { _routeDeps: unknown; _surfaces: unknown }, _optional = {}): ToolRegistration[] {
   const componentCatalog = buildComponentCatalogQuery();
 
   const handlers: Record<string, ToolHandler> = {

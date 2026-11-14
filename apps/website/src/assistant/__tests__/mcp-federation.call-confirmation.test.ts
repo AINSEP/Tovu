@@ -396,12 +396,12 @@ test("G3 card: a composition root that wires no confirmer refuses every confirm-
 // ---------------------------------------------------------------------------
 
 test("G3 route rule: a federated id is permitted only as an answer to an open card", () => {
-  assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", true), true);
-  assert.equal(isMcpUiToolCallPermitted("mcp__supabase__execute_sql", false), false);
-  assert.equal(isMcpUiToolCallPermitted("identity_user_delete_everything", true), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "mcp__supabase__execute_sql", answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "mcp__supabase__execute_sql", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "identity_user_delete_everything", answersAnExchange: true }), false);
   // Native policy callbacks also require a parked exchange; ordinary edits use the executor.
-  assert.equal(isMcpUiToolCallPermitted("settings_set_value", false), false);
-  assert.equal(isMcpUiToolCallPermitted("settings_set_value", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "settings_set_value", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "settings_set_value", answersAnExchange: true }), true);
 });
 
 function refusingExecutor(): { executor: ToolExecutor; executed: string[] } {

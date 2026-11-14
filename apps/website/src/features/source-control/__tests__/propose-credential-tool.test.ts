@@ -33,10 +33,10 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 const ID = 'credential_save';
 const SECRET = 't10-source-secret-unique-982';
 test('t10 source credential form submit and cancel pass both MCP-UI callback gates', () => {
-  assert.equal(isMcpUiToolCallAllowed(ID), true);
-  assert.equal(isMcpUiToolCallPermitted(ID, true), true);
-  assert.equal(isMcpUiToolCallPermitted(ID, false), false, 'secrets must only answer a parked exchange, never enter a fresh audited tool call');
-  assert.equal(isMcpUiToolCallAllowed('source_control_get_capabilities'), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: ID }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: ID, answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: ID, answersAnExchange: false }), false, 'secrets must only answer a parked exchange, never enter a fresh audited tool call');
+  assert.equal(isMcpUiToolCallAllowed({ toolName: 'source_control_get_capabilities' }), false);
 });
 
 test('t10 source callback delivers a human token only to its parked call, rejects wrong principals and replay', async () => {

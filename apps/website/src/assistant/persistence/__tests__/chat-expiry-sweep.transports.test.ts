@@ -25,12 +25,12 @@ for (const transport of ["pglite-socket", "node-postgres"] as const) {
   test(`a ${transport} kernel sweeps expired chats with Postgres-dialect maintenance`, async () => {
     const kernel = emptiedPgChatKernel();
     shared = kernel;
-    const guest = createChatHistoryStore(kernel, GUEST, () => T0);
+    const guest = createChatHistoryStore({ kernel: kernel, scope: GUEST }, { now: () => T0 });
     await guest.create({ id: `expired-${transport}`, expiresAt: T0 - 1 });
     await guest.create({ id: `kept-${transport}` });
     const relabelled = { ...kernel, transport } as ChatKernel;
     assert.equal(relabelled.transport, transport);
-    assert.equal(await sweepExpiredChats(relabelled, T0), 1);
+    assert.equal(await sweepExpiredChats({ store: relabelled }, { now: T0 }), 1);
     assert.deepEqual((await guest.list()).map((chat) => chat.id), [`kept-${transport}`]);
   });
 }

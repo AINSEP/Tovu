@@ -23,8 +23,8 @@ for (const transport of ["pglite-socket", "node-postgres"] as const) {
   test(`a ${transport} kernel stores and reads back an agent session id`, async () => {
     const kernel = emptiedPgChatKernel();
     shared = kernel;
-    await createChatHistoryStore(kernel, ADMIN, () => 1_790_000_000_000).create({ id: `chat-${transport}` });
-    const sessions = createSqliteAgentSessionStore({ ...kernel, transport } as ChatKernel);
+    await createChatHistoryStore({ kernel: kernel, scope: ADMIN }, { now: () => 1_790_000_000_000 }).create({ id: `chat-${transport}` });
+    const sessions = createSqliteAgentSessionStore({ store: { ...kernel, transport } as ChatKernel });
     await sessions.setSessionId({ conversationId: `chat-${transport}`, agentId: "claude", sessionId: "sess-1" });
     assert.equal(await sessions.getSessionId({ conversationId: `chat-${transport}`, agentId: "claude" }), "sess-1");
   });

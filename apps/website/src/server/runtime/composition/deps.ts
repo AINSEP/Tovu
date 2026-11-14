@@ -862,7 +862,7 @@ function startOwnerChatExpirySweep(
   chat: SiteStore["chat"],
   timing: CreateSiteRouteDepsOverrides["chatExpirySweep"] = {}
 ): () => Promise<void> {
-  return role === "owner" ? startChatExpirySweep(chat, timing) : async () => {};
+  return role === "owner" ? startChatExpirySweep({ store: chat }, timing) : async () => {};
 }
 
 /**
@@ -2299,13 +2299,13 @@ async function composeSiteRouteDeps(
     // `chat` is the store's chat kernel (on SQLite, the sidecar `chat.db`, NOT `content.db` —
     // ADS-memory/reports/2026-09-05-db-split-scoping.md §6). None of these stores opens a database
     // itself.
-    chatHistory: createChatStoreFactory(chat),
+    chatHistory: createChatStoreFactory({ store: chat }),
     chatRunLedger: createChatRunLedger({ store: chat }, { tracker }),
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
-    agentSessions: createSqliteAgentSessionStore(chat),
+    agentSessions: createSqliteAgentSessionStore({ store: chat }),
     // G3 "Allow for this chat": with the conversation, over the same sidecar handle.
-    conversationToolApprovals: createSqliteConversationToolApprovalStore(chat),
+    conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: chat }),
     ...compositionApprovalOverrides({ overrides }),
     presentationRepo,
     settingsRepo,
@@ -2347,7 +2347,7 @@ async function composeSiteRouteDeps(
     // The ADMIN's own BYOK credential store — reuses the SAME sealer/keyring instances just above
     // (see `routes/types.ts`'s `adminExecutionCredentialRepo` doc for why one shared sealing
     // capability is correct here rather than a third `EnvOrFileKeyring` instance).
-    adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(kernel),
+    adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo({ store: kernel }),
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,

@@ -10,7 +10,7 @@ import { EXHAUSTED_NOTICE } from "@jini-ai/chat/server/durable-runs";
 test("serving recovery absorbs a daemon lost during restart and finalizes one continued incident message without a browser", async () => {
   const db = openChatDb(":memory:");
   const ledger = createChatRunLedger({ store: db });
-  const history = createChatStoreFactory(db)({ kind: "user", workspaceId: "ws", userId: "admin" });
+  const history = createChatStoreFactory({ store: db })({ kind: "user", workspaceId: "ws", userId: "admin" });
   const time = 1_790_000_000_000;
   await history.create({ id: "chat" });
   const accepted = (await ledger.durable!.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId: "answer", runId: "old", now: time,
@@ -52,7 +52,7 @@ for (const status of ["failed", "succeeded", "canceled"] as const) {
     const db = openChatDb(":memory:");
     try {
       const ledger = createChatRunLedger({ store: db });
-      const history = createChatStoreFactory(db)({ kind: "user", workspaceId: "ws", userId: "admin" });
+      const history = createChatStoreFactory({ store: db })({ kind: "user", workspaceId: "ws", userId: "admin" });
       const time = 1_790_000_000_000;
       await history.create({ id: "chat" });
       const accepted = (await ledger.durable!.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat",

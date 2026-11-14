@@ -22,7 +22,7 @@ export function bindContentTargetInputs(
 ) {
   const permissions = new Map([...postAgentToolCatalog, ...postPreviewAgentToolCatalog, ...pagesAgentToolCatalog,
     ...mediaAgentToolCatalog, ...mediaViewImageAgentToolCatalog, ...videoCatalog, ...mediaImportAgentToolCatalog, ...permanentDeleteAgentToolCatalog, ...getSeoAgentToolCatalog()]
-    .flatMap(tool => [[tool.name, tool.authorization.permission] as const, [currentToolIdFor(tool.name), tool.authorization.permission] as const]));
+    .flatMap(tool => [[tool.name, tool.authorization.permission] as const, [currentToolIdFor({ toolId: tool.name }), tool.authorization.permission] as const]));
   return applyContentTargetInputs({ registrations, deps: {
     workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize, mediaRepo: routeDeps.mediaRepo, beforeLookup,
     permissionFor: ({ toolId }) => {

@@ -87,7 +87,7 @@ async function attachAndReport(launch: McpStdioLaunchSpec, env: NodeJS.ProcessEn
     registry: fakeRegistry(),
     deps: { authorize: async () => ({ allowed: true, reason: "matched" }), workspaceId: "ws-toolchain" },
     connections: [{ config: CONFIG, launch }],
-    logger: { info: () => undefined, warn: (message: string) => warnings.push(message) },
+    logger: { info: () => undefined, warn: ({ message }: { message: string }) => warnings.push(message) },
     env,
   });
   await Promise.all(result.sessions.map((session) => session.close({})));

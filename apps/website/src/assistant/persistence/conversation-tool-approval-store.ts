@@ -16,12 +16,12 @@ import type { ConversationToolApprovalStore } from "../external-mcp-tool-approva
  * `grant` throws when the conversation is not in `ai_chats` (the foreign key); the confirmer catches
  * that and lets only the one call it was asked about run.
  *
- * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
+ * @param required.store the chat kernel, or the open `chat.db` handle (`openChatDb`) whose kernel to use.
  * @complexity Exact chat lookups/writes use the primary key; identity lookups scan the existing
  * grant rows without adding a schema/index migration.
  */
 export function createSqliteConversationToolApprovalStore(
-  store: ChatKernel | SqliteConnectionSource
+  { store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}
 ): ConversationToolApprovalStore {
   const kernel = chatKernel(store);
   return {
@@ -47,7 +47,7 @@ export function createSqliteConversationToolApprovalStore(
         .where("fingerprint", "=", key.fingerprint).limit(1).executeTakeFirst());
       return row !== undefined;
     },
-    async grant(key, grantedAt) {
+    async grant({ key, grantedAt }) {
       await kernel.run((db) =>
         db
           .insertInto("assistant_conversation_tool_approvals")

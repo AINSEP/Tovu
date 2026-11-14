@@ -338,7 +338,7 @@ async function resolveByokSystemPrompt(
     },
     { workspaceId: routeDeps.workspaceId },
   );
-  const customOverlay = formatCustomInstructionsOverlay(customInstructions);
+  const customOverlay = formatCustomInstructionsOverlay({ customInstructions: customInstructions });
   const parts = [SYSTEM_PREAMBLE];
   if (federation.refusalPrefix.length > 0) parts.push(federation.refusalPrefix);
   if (federation.stillConnecting) parts.push(FEDERATION_STILL_CONNECTING_NOTE);
@@ -715,7 +715,7 @@ export function createAssistantByokModule(
     // once. `federation?.refusalPrefix()` reads whatever drift THIS surface has accumulated so far,
     // live — empty before federation has admitted anything, and always when this surface was built
     // with `installExtensions: false` (`federation` is `undefined` there).
-    const federationOutcome = await resolvedToolSurface.awaitFederation(FEDERATION_TURN_WAIT_MS);
+    const federationOutcome = await resolvedToolSurface.awaitFederation({ timeoutMs: FEDERATION_TURN_WAIT_MS });
     let system = await resolveByokSystemPrompt(routeDeps, {
       refusalPrefix: resolvedToolSurface.federation?.refusalPrefix() ?? "",
       stillConnecting: !federationOutcome.settled,
@@ -760,7 +760,7 @@ export function createAssistantByokModule(
           sse(res, "agent", toWireSurfacePayload(emission, call.id));
         };
         if (toolRun) return toolRun.executeTool(call, { signal: abort.signal, emitSurface });
-        return resolvedToolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
+        return resolvedToolSurface.executeMetaTool({ principal: principal, run: run, call: call }, { signal: abort.signal, emitSurface: emitSurface });
       };
 
       // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'

@@ -85,8 +85,8 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principals.get(runId) });
   const bridgeInjection = evaluateDaemonExpression<McpJsonInjectionOptions>(daemonInitializer("bridgeInjection"), {
     registry, visibleRegistry, runCredentials, daemonUrl: "http://127.0.0.1:4419",
-    resolveMcpJsonInjection: (url: string, mint: (runId: string) => string) => resolveMcpJsonInjection(url, mint,
-      { execPath: process.execPath, electronVersion: undefined, env: {} }),
+    resolveMcpJsonInjection: (url: string, mint: (runId: string) => string) => resolveMcpJsonInjection({ daemonUrl: url, mintRunCredential: mint },
+      { runtime: { execPath: process.execPath, electronVersion: undefined, env: {} } }),
   });
   // Also execute the host's handoff to createAgentExecutor, so a disconnected bridge object
   // cannot satisfy this fixture merely because its initializer still exists in the source.

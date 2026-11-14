@@ -19,7 +19,7 @@ import { CHAT_MIGRATIONS } from "../index.js";
 
 const T0 = 1_790_000_000_000;
 const USER = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
-const GUEST = { scopeId: "ws", ownerKind: "guest", ownerId: hashSessionKey("disposable-guest-cookie") } as const;
+const GUEST = { scopeId: "ws", ownerKind: "guest", ownerId: hashSessionKey({ sessionKey: "disposable-guest-cookie" }) } as const;
 const LEDGER = [
   { id: "0000_chat_baseline", checksum: "d7673b2b2ac8af992a396b375fa38da8ffbf852285c772016dc47c82d66d17a9", applied_at: "2026-09-05T01:02:03.000Z" },
   { id: "0001_sqlite_chat_tables", checksum: "6ab892750dcd9201f17bd05df3f3f69f84a6342d54647984d6c834dd7d5d164f", applied_at: "2026-09-05T01:02:04.000Z" },
@@ -83,7 +83,7 @@ async function readBoth(db: Database.Database) {
   assert.equal(kernel, sqliteKernel<ChatDatabase>(db), "host and package must resolve the exact same memoized kernel");
   for (const [scope, id] of [[USER, "user-chat"], [GUEST, "guest-chat"]] as const) {
     const original = beforeAdoption(kernel, scope);
-    const adopted = createChatHistoryStore(kernel, scope);
+    const adopted = createChatHistoryStore({ kernel: kernel, scope: scope });
     assert.deepEqual(await adopted.list(), await original.list());
     assert.deepEqual(await adopted.get({ id }), await original.get(id));
     assert.deepEqual(await adopted.messages({ conversationId: id }), await original.messages(id));

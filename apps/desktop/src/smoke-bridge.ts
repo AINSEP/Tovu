@@ -75,9 +75,9 @@ export function buildJiniEntryScript(
   const fromTovu = createRequire(join(tovu, "package.json"));
   const { resolveMcpJsonInjection } = await import(pathToFileURL(join(tovu, "dist/src/assistant/mcp-injection.js")).href);
   const { buildMcpJsonServerEntry } = await import(pathToFileURL(fromTovu.resolve("@jini-ai/daemon")).href);
-  const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke", {
+  const injection = resolveMcpJsonInjection({ daemonUrl: "http://127.0.0.1:9", mintRunCredential: () => "smoke" }, { runtime: {
     execPath: ${JSON.stringify(executablePath)}, electronVersion: "smoke", env: {},
-  });
+  } });
   const desktopScript = join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js");
   const entries = [injection, { ...injection, args: [desktopScript] }].map(options =>
     buildMcpJsonServerEntry({ runId: "release-smoke", options }, { credential: "smoke" }));

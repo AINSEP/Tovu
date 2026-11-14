@@ -18,7 +18,7 @@ export interface DaemonCallContext {
 
 const storage = new AsyncLocalStorage<DaemonCallContext>();
 
-function stringList(value: unknown): readonly string[] | undefined {
+function stringList({ value }: { value: unknown }, _optional = {}): readonly string[] | undefined {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : undefined;
 }
 
@@ -26,8 +26,8 @@ function stringList(value: unknown): readonly string[] | undefined {
 export function parseDaemonCallContext({ value }: { value: unknown }, _optional = {}): DaemonCallContext {
   if (typeof value !== "object" || value === null) return {};
   const raw = value as Record<string, unknown>;
-  const attachmentRefs = stringList(raw.attachmentRefs);
-  const localToolIds = stringList(raw.localToolIds);
+  const attachmentRefs = stringList({ value: raw.attachmentRefs });
+  const localToolIds = stringList({ value: raw.localToolIds });
   return {
     ...(typeof raw.conversationId === "string" ? { conversationId: raw.conversationId } : {}),
     ...(attachmentRefs ? { attachmentRefs } : {}),

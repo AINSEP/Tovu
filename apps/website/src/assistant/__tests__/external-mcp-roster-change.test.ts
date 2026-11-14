@@ -21,12 +21,12 @@ test.beforeEach(() => {
 test("registering the same key twice keeps only the last listener, so one call", async () => {
   let firstCalls = 0;
   let secondCalls = 0;
-  onExternalMcpRosterChanged("agent-daemon", () => {
+  onExternalMcpRosterChanged({ key: "agent-daemon", listener: () => {
     firstCalls += 1;
-  });
-  onExternalMcpRosterChanged("agent-daemon", () => {
+  } });
+  onExternalMcpRosterChanged({ key: "agent-daemon", listener: () => {
     secondCalls += 1;
-  });
+  } });
 
   await notifyExternalMcpRosterChanged();
 
@@ -38,8 +38,8 @@ test("a listener that never resolves makes notify({waitMs: 20}) resolve within 2
   let stuckCalls = 0;
   let healthyCalls = 0;
   let release!: () => void;
-  onExternalMcpRosterChanged("stuck", () => { stuckCalls++; return new Promise<void>(resolve => { release = resolve; }); });
-  onExternalMcpRosterChanged("healthy", () => { healthyCalls++; });
+  onExternalMcpRosterChanged({ key: "stuck", listener: () => { stuckCalls++; return new Promise<void>(resolve => { release = resolve; }); } });
+  onExternalMcpRosterChanged({ key: "healthy", listener: () => { healthyCalls++; } });
 
   const startedAt = Date.now();
   await notifyExternalMcpRosterChanged({ waitMs: 20 });
@@ -52,15 +52,15 @@ test("a listener that never resolves makes notify({waitMs: 20}) resolve within 2
 });
 
 test("a throwing listener does not reject notify", async () => {
-  onExternalMcpRosterChanged("throws-sync", () => {
+  onExternalMcpRosterChanged({ key: "throws-sync", listener: () => {
     throw new Error("boom");
-  });
-  onExternalMcpRosterChanged("rejects-async", async () => {
+  } });
+  onExternalMcpRosterChanged({ key: "rejects-async", listener: async () => {
     throw new Error("also boom");
-  });
+  } });
 
   let healthyCalls = 0;
-  onExternalMcpRosterChanged("healthy", () => { healthyCalls++; });
+  onExternalMcpRosterChanged({ key: "healthy", listener: () => { healthyCalls++; } });
   await assert.doesNotReject(() => notifyExternalMcpRosterChanged());
   assert.equal(healthyCalls, 1, "throwing listeners must not stop the fan-out");
 });
@@ -69,19 +69,19 @@ test('lowering carries source IDs, waits for cleanup, and reports a failed stop'
   let release!: () => void;
   const cleanup = new Promise<void>(resolve => { release = resolve; });
   let seen: unknown;
-  onExternalMcpRosterChanged('serving-app', async change => { seen = change; await cleanup; });
+  onExternalMcpRosterChanged({ key: 'serving-app', listener: async change => { seen = change; await cleanup; } });
   let settled = false;
   const pending = notifyExternalMcpRosterChanged({ lowered: { serverIds: ['source'] } }).then(() => { settled = true; });
   await Promise.resolve(); assert.equal(settled, false);
   assert.deepEqual(seen, { serverIds: ['source'] });
   release(); await pending;
-  onExternalMcpRosterChanged('serving-app', async () => { throw new Error('cleanup failed'); });
+  onExternalMcpRosterChanged({ key: 'serving-app', listener: async () => { throw new Error('cleanup failed'); } });
   await assert.rejects(notifyExternalMcpRosterChanged({ lowered: { pluginIds: ['mail'] } }), error => error instanceof ToolAccessLoweringError && !error.message.includes('cleanup failed'));
 });
 
 test('a stuck lowering rejects instead of claiming the answer stopped', async () => {
   let release!: () => void;
-  onExternalMcpRosterChanged('serving-app', () => new Promise<void>(resolve => { release = resolve; }));
+  onExternalMcpRosterChanged({ key: 'serving-app', listener: () => new Promise<void>(resolve => { release = resolve; }) });
   await assert.rejects(notifyExternalMcpRosterChanged({ lowered: { agentIds: ['claude'] }, waitMs: 10 }), /could not be confirmed stopped/);
   release();
 });

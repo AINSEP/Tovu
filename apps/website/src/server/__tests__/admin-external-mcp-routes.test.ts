@@ -491,11 +491,11 @@ test("saving and toggling notify a roster consumer with the updated running conf
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const snapshots: ReturnType<typeof readEnabledExternalMcpConfigs>[] = [];
-  onExternalMcpRosterChanged("route-test-observer", () => {
+  onExternalMcpRosterChanged({ key: "route-test-observer", listener: () => {
     const snapshot = readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
     snapshots.push(snapshot);
     return snapshot;
-  });
+  } });
   t.after(() => resetExternalMcpRosterChangeListenersForTests());
   assert.equal((await req(baseUrl, `${BASE}/github`, cookie, { method: "PUT", body: JSON.stringify(validBody) })).status, 200);
   assert.equal(snapshots.length, 1, "a successful save must notify the runtime");

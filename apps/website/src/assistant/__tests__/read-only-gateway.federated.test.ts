@@ -24,6 +24,6 @@ test("read-only gateway executes operator-listed federation reads and refuses un
   assert.deepEqual(session.calls, [{ name: "models_explore", arguments: {} }]);
   const refused = await executor.execute({ principal: principal, run: { id: "run" }, toolId: "mcp__higgsfield__generate", input: {} });
   assert.equal(refused.status, "denied");
-  assert.equal(refused.error, readOnlyToolRefusalMessage("mcp__higgsfield__generate"));
+  assert.equal(refused.error, readOnlyToolRefusalMessage({ toolId: "mcp__higgsfield__generate" }));
   assert.deepEqual(session.calls, [{ name: "models_explore", arguments: {} }], "the refused tool must never reach the remote");
 });

@@ -97,7 +97,7 @@ export interface SetExecutionCredentialInput {
   maxTokens?: number;
 }
 
-function assertValidExecutionCredentialApiKey(apiKey: string | undefined): void {
+function assertValidExecutionCredentialApiKey({ apiKey }: { apiKey: string | undefined }, _optional = {}): void {
   if (apiKey !== undefined && apiKey.trim().length === 0) {
     throw new ExecutionCredentialValidationError("apiKey must not be empty — use DELETE to clear it");
   }
@@ -119,7 +119,7 @@ function assertValidExecutionCredentialStringFields(input: Pick<SetExecutionCred
 
 /** {@link setExecutionCredential}'s `providerId` check, split out purely to keep that function's
  *  validation under the shop complexity ceiling. */
-function assertValidExecutionCredentialProviderId(providerId: string | null | undefined): void {
+function assertValidExecutionCredentialProviderId({ providerId }: { providerId: string | null | undefined }, _optional = {}): void {
   if (providerId !== undefined && providerId !== null && typeof providerId !== "string") {
     throw new ExecutionCredentialValidationError("providerId must be a string or null");
   }
@@ -127,7 +127,7 @@ function assertValidExecutionCredentialProviderId(providerId: string | null | un
 
 /** {@link setExecutionCredential}'s `maxTokens` check, split out purely to keep that function's
  *  validation under the shop complexity ceiling. */
-function assertValidExecutionCredentialMaxTokens(maxTokens: number | undefined): void {
+function assertValidExecutionCredentialMaxTokens({ maxTokens }: { maxTokens: number | undefined }, _optional = {}): void {
   if (maxTokens !== undefined && !(typeof maxTokens === "number" && maxTokens > 0)) {
     throw new ExecutionCredentialValidationError("maxTokens must be a positive number");
   }
@@ -138,10 +138,10 @@ function assertValidExecutionCredentialMaxTokens(maxTokens: number | undefined):
  *  that function's complexity under the shop ceiling — behavior (including message text and
  *  ordering) is unchanged. */
 function assertValidSetExecutionCredentialInput(input: SetExecutionCredentialInput): void {
-  assertValidExecutionCredentialApiKey(input.apiKey);
+  assertValidExecutionCredentialApiKey({ apiKey: input.apiKey });
   assertValidExecutionCredentialStringFields(input);
-  assertValidExecutionCredentialProviderId(input.providerId);
-  assertValidExecutionCredentialMaxTokens(input.maxTokens);
+  assertValidExecutionCredentialProviderId({ providerId: input.providerId });
+  assertValidExecutionCredentialMaxTokens({ maxTokens: input.maxTokens });
 }
 
 /** Validate in the feature, then delegate sealing and CAS to Jini. A settings-only provider move
@@ -152,7 +152,7 @@ export async function setExecutionCredential(deps: ExecutionCredentialWriteDeps,
   const repo = assistantVaultRepo({ repo: deps.repo });
   const context = assistantVaultContext({ ...input, kind: "personal-execution" });
   const existing = await repo.findOne!(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
+  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: ({ error }) => {
     throw new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
   } });
   const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),
@@ -183,8 +183,7 @@ export interface ResolvedAdminExecutionCredential {
 
 /** Runtime fail-closed read: one indexed singleton lookup and at most one Jini open. Metadata and
  * payload come from one snapshot, so rotation cannot return a half-replaced credential. */
-export async function resolveExecutionCredential(deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID; principalId: UUID },
-  onDecryptFailure: (error: unknown) => void = () => {},
+export async function resolveExecutionCredential({ deps, input }: { deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID; principalId: UUID } }, { onDecryptFailure = () => {} }: { onDecryptFailure?: (error: unknown) => void } = {},
 ): Promise<ResolvedAdminExecutionCredential | null> {
   try {
     const context = assistantVaultContext({ ...input, kind: "personal-execution" });

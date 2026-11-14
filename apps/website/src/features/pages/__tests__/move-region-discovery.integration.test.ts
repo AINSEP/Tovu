@@ -30,7 +30,7 @@ function surface() {
 }
 
 async function rankedIds(query: string): Promise<string[]> {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, { name: "search_tools", input: { query, limit: 5 } });
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "search_tools", input: { query, limit: 5 } } });
   const payload = result as { content: string; isError?: boolean };
   assert.ok(!payload.isError, `search_tools returned an error for "${query}": ${payload.content}`);
   return (JSON.parse(payload.content) as { hits: { id: string }[] }).hits.map((hit) => hit.id);

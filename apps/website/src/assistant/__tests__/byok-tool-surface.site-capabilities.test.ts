@@ -65,10 +65,10 @@ interface ToolsSection {
 }
 
 async function describeCapabilitiesTools(surface: ReturnType<typeof createByokToolSurface>): Promise<ToolsSection> {
-  const result = await surface.executeMetaTool(PRINCIPAL, RUN, {
+  const result = await surface.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: {
     name: "execute_delegated_tool",
     input: { toolId: "site_describe_capabilities", input: { sections: ["tools"] } },
-  });
+  } });
   if (typeof result.content !== "string") assert.fail("expected a text tool result, got content blocks");
   assert.notEqual(result.isError, true, result.content);
   const parsed = JSON.parse(result.content) as { sections: { tools: ToolsSection } };
@@ -88,7 +88,7 @@ test("BYOK: site_describe_capabilities lists every tool this surface's describe_
   assert.deepEqual([...ids].sort(), surface.registry.list({}).map((descriptor) => descriptor.id).sort());
 
   for (const id of ids) {
-    const described = await surface.executeMetaTool(PRINCIPAL, RUN, { name: "describe_tool", input: { id } });
+    const described = await surface.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "describe_tool", input: { id } } });
     assert.notEqual(described.isError, true, `site_describe_capabilities listed '${id}' but describe_tool cannot resolve it`);
   }
 });

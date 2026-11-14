@@ -49,7 +49,7 @@ const PAGE_NAVIGATE_NOT_FOUND_PATTERN = /^"(.*)" is not a published page\. Avail
  * @complexity O(n) in the message length (one regex match) — negligible, and run at most once per
  * rejected `page.navigate` call.
  */
-export function rewrapPageNavigateError(err: unknown): unknown {
+export function rewrapPageNavigateError({ err }: { err: unknown }, _optional = {}): unknown {
   if (!(err instanceof Error)) return err;
   const match = PAGE_NAVIGATE_NOT_FOUND_PATTERN.exec(err.message);
   if (!match) return err;
@@ -88,7 +88,7 @@ export function withPageNavigateErrorRewrap(registrations: readonly ToolRegistra
         try {
           return await registration.handler(ctx, options);
         } catch (err) {
-          throw rewrapPageNavigateError(err);
+          throw rewrapPageNavigateError({ err: err });
         }
       },
     };

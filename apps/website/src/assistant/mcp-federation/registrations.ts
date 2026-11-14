@@ -122,7 +122,7 @@ export interface FederationDeps {
    * the network again — and to throw the same terminal, non-retryable error that path already uses.
    * Always throws; this module does not decide what replaces the original error.
    */
-  readonly onAuthFailed?: (connectionId: string, error: McpAuthFailedError) => Promise<never>;
+  readonly onAuthFailed?: (required: { connectionId: string; error: McpAuthFailedError }, optional?: Record<string, never>) => Promise<never>;
   /**
    * G3 (`trust.ts` R3): asks a human to Confirm or Cancel ONE protected action (permanent
    * deletion, delivery to real people, or assistant privacy/instructions/access changes), before
@@ -155,7 +155,7 @@ export function toJiniFederationDeps({ deps }: { deps: FederationDeps }): JiniFe
     ...(deps.assertConnectionUsable ? { assertConnectionUsable: ({ connectionId, call }: { connectionId: string; call: FederatedCallTarget }) => deps.assertConnectionUsable!(connectionId, call) } : {}),
     onAuthFailed: async ({ connectionId, error }) => {
       // Both transports use the package's auth error identity; the terminal host hook receives it unchanged.
-      if (deps.onAuthFailed) return deps.onAuthFailed(connectionId, error);
+      if (deps.onAuthFailed) return deps.onAuthFailed({ connectionId, error });
       throw error;
     },
     ...(deps.confirmCall ? { confirmCall: ({ context, request }: Parameters<NonNullable<JiniFederationDeps["confirmCall"]>>[0]) => deps.confirmCall!(context, request) } : {}),

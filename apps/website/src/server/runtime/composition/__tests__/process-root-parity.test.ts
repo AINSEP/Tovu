@@ -308,9 +308,9 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
       await byok.toolSurface.ready;
 
       const result = await byok.toolSurface.executeMetaTool(
-        { id: "principal-process-root-parity" },
-        { id: "run-process-root-parity" },
-        { name: "search_tools", input: { query: "incident response runbook severity escalation" } },
+        { principal: { id: "principal-process-root-parity" },
+        run: { id: "run-process-root-parity" },
+        call: { name: "search_tools", input: { query: "incident response runbook severity escalation" } } },
       );
 
       assert.notEqual(result.isError, true, `search_tools itself failed: ${result.content}`);

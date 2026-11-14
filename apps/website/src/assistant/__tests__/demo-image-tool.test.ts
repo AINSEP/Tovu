@@ -13,7 +13,7 @@ import { DEMO_IMAGE_TOOL_ID, buildDemoImageRegistrations, demoImageAgentToolCata
  */
 
 function buildHandler(): ToolHandlerUnderTest {
-  const registrations: ToolRegistration[] = buildDemoImageRegistrations();
+  const registrations: ToolRegistration[] = buildDemoImageRegistrations({});
   const registration = registrations.find((r) => r.descriptor.id === DEMO_IMAGE_TOOL_ID);
   assert.ok(registration, "the tool must be wired");
   return registration.handler as ToolHandlerUnderTest;
@@ -43,7 +43,7 @@ test("registers unconditionally — no environment can switch this tool off", ()
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
     assert.ok(
-      buildDemoImageRegistrations().some((r) => r.descriptor.id === DEMO_IMAGE_TOOL_ID),
+      buildDemoImageRegistrations({}).some((r) => r.descriptor.id === DEMO_IMAGE_TOOL_ID),
       "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
     );
   } finally {

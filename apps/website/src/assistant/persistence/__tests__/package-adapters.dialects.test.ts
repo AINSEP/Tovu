@@ -12,14 +12,14 @@ const SCOPE = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
 const RUN = { conversationId: "c", messageId: "m", runId: "r" };
 
 describeEachChatDialect("package adapter composition", kernel => ({
-  kernel, history: createChatHistoryStore(kernel, SCOPE, () => 1_790_000_000_000),
-  sessions: createSqliteAgentSessionStore(kernel), ledger: createChatRunLedger({ store: kernel }),
+  kernel, history: createChatHistoryStore({ kernel: kernel, scope: SCOPE }, { now: () => 1_790_000_000_000 }),
+  sessions: createSqliteAgentSessionStore({ store: kernel }), ledger: createChatRunLedger({ store: kernel }),
 }), make => {
   test("bounded reads use the adopted history adapter and retain owner isolation", async () => {
     const { kernel, history } = make();
     await history.create({ id: "c" });
     await history.appendMessage({ conversationId: "c", message: { id: "m", role: "user", content: "Hello 中 😀" } });
-    const foreign = createChatHistoryStore(kernel, { ...SCOPE, ownerId: "bob" });
+    const foreign = createChatHistoryStore({ kernel: kernel, scope: { ...SCOPE, ownerId: "bob" } });
     assert.deepEqual((await history.pageMessages({ conversationId: "c" }, { limit: 1 })).items.map(m => m.content), ["Hello 中 😀"]);
     assert.deepEqual((await history.pageConversations({}, { limit: 1 })).items.map(c => c.id), ["c"]);
     assert.deepEqual(await foreign.pageMessages({ conversationId: "c" }), { items: [] });
@@ -29,18 +29,18 @@ describeEachChatDialect("package adapter composition", kernel => ({
   test("a throwing ledger write rolls back package history AND session writes", async () => {
     const { history, sessions, ledger } = make();
     await history.create({ id: "c" });
-    await assert.rejects(ledger.unlessSettled(RUN, async () => {
+    await assert.rejects(ledger.unlessSettled({ run: RUN, write: async () => {
       await history.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "must roll back", runId: "r", runStatus: "running" } });
       await sessions.setSessionId({ conversationId: "c", agentId: "a", sessionId: "must roll back" });
       throw new Error("abort shared transaction");
-    }), /abort shared transaction/);
+    } }), /abort shared transaction/);
     assert.deepEqual(await history.messages({ conversationId: "c" }), []);
     assert.equal(await sessions.getSessionId({ conversationId: "c", agentId: "a" }), null);
   });
 
   test("a late browser save cannot erase the first terminal answer; a request-bound run can retry", async () => {
     const { kernel, history, ledger } = make();
-    const guarded = createTenantScopedChatStore(kernel, { kind: "user", workspaceId: "ws", userId: "alice" }, ledger);
+    const guarded = createTenantScopedChatStore({ db: kernel, principal: { kind: "user", workspaceId: "ws", userId: "alice" } }, { ledger: ledger });
     await history.create({ id: "c" });
     await guarded.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "draft", runId: "r", runStatus: "running" } });
     assert.equal(await ledger.settle({ ...RUN, content: "Final answer", events: [], status: "succeeded", endedAt: 1_790_000_000_005 }), true);
@@ -68,13 +68,13 @@ test("negative control: independent kernels do not participate in the ledger rol
   const ledgerKernel = freshSqliteChatKernel();
   const independentKernel = freshSqliteChatKernel();
   try {
-    const history = createChatHistoryStore(independentKernel, SCOPE);
+    const history = createChatHistoryStore({ kernel: independentKernel, scope: SCOPE });
     await history.create({ id: "c" });
     const ledger = createChatRunLedger({ store: ledgerKernel });
-    await assert.rejects(ledger.unlessSettled(RUN, async () => {
+    await assert.rejects(ledger.unlessSettled({ run: RUN, write: async () => {
       await history.appendMessage({ conversationId: "c", message: { id: "m", role: "assistant", content: "escaped rollback" } });
       throw new Error("independent write");
-    }), /independent write/);
+    } }), /independent write/);
     assert.equal((await history.messages({ conversationId: "c" }))[0]?.content, "escaped rollback", "the positive rollback test must distinguish this broken composition");
   } finally {
     closeSqliteConnection(sqliteConnectionOf(ledgerKernel)!);

@@ -159,7 +159,7 @@ export interface ExternalMcpReauthToolDeps {
   readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
 }
 
-function reauthSurfaceUri(exchangeId: string): UIResourceUri {
+function reauthSurfaceUri({ exchangeId }: { exchangeId: string }, _optional = {}): UIResourceUri {
   return `ui://tovu/external-mcp-reauth/${exchangeId}` as UIResourceUri;
 }
 
@@ -171,7 +171,7 @@ function reauthSurfaceUri(exchangeId: string): UIResourceUri {
 function buildReauthSurface(input: { exchangeId: string; expiresAtMs: number; label: string; settingsLink: string }): UIResource {
   const { exchangeId, expiresAtMs, label, settingsLink } = input;
   return buildConfirmationSurface({
-    uri: reauthSurfaceUri(exchangeId),
+    uri: reauthSurfaceUri({ exchangeId: exchangeId }),
     title: `Reconnect ${label}`,
     description:
       `"${label}"'s sign-in has expired. The assistant cannot renew it from chat — open Settings → ` +
@@ -228,8 +228,7 @@ function parseReauthServerId(ctx: Parameters<ToolHandler>[0]): string {
  *   was never going to have one.
  */
 async function requireReauthableExternalMcpServer(
-  routeDeps: ExternalMcpReauthToolDeps,
-  serverId: string,
+  { routeDeps, serverId }: { routeDeps: ExternalMcpReauthToolDeps; serverId: string }, _optional = {},
 ): Promise<ExternalMcpServerRecord> {
   const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
   if (!record) throw new ExternalMcpReauthRequiredError({ serverId, label: null });
@@ -331,7 +330,7 @@ export function buildExternalMcpReauthRegistrations(
   const handlers: Record<string, ToolHandler> = {
     [EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0], optional = {}) => {
       const serverId = parseReauthServerId(ctx);
-      const record = await requireReauthableExternalMcpServer(routeDeps, serverId);
+      const record = await requireReauthableExternalMcpServer({ routeDeps: routeDeps, serverId: serverId });
       const label = record.label ?? record.serverId;
 
       // No interactive channel on this execution — degrade to a plain, honest instruction rather than

@@ -168,7 +168,7 @@ test("omitting apiKey leaves the previously-stored key untouched — only model 
   assert.equal(afterSecond.model, "claude-opus-4-8");
 
   // The runtime path still resolves the ORIGINAL key — proves the sealed blob itself was untouched.
-  const resolved = await resolveExecutionCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const resolved = await resolveExecutionCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
   assert.equal(resolved?.apiKey, "first-key-0000");
 });
 
@@ -177,7 +177,7 @@ test("a rotation (second apiKey) fully replaces the first — the old key no lon
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "old-key-1111" });
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "new-key-2222" });
 
-  const resolved = await resolveExecutionCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const resolved = await resolveExecutionCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
   assert.equal(resolved?.apiKey, "new-key-2222");
 });
 
@@ -275,14 +275,14 @@ test("resolveExecutionCredential's onDecryptFailure defaults to a silent no-op �
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
 
   const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
-  const resolved = await resolveExecutionCredential({ repo, sealer: otherSealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const resolved = await resolveExecutionCredential({ deps: { repo, sealer: otherSealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
 
   assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");
 });
 
 test("resolveExecutionCredential returns null when no row exists", async () => {
   const { repo, sealer } = makeDeps();
-  const resolved = await resolveExecutionCredential({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const resolved = await resolveExecutionCredential({ deps: { repo, sealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
   assert.equal(resolved, null);
 });
 
@@ -297,7 +297,7 @@ test("resolveExecutionCredential refuses a decrypted payload with a non-string a
   });
   await repo.vault.put({ record: { ...record, sealed, revision: record.revision + 1 }, expectedRevision: record.revision });
 
-  assert.equal(await resolveExecutionCredential(deps, scope), null);
+  assert.equal(await resolveExecutionCredential({ deps: deps, input: scope }), null);
 });
 
 test("resolveExecutionCredential returns null (not a throw) when the sealed row cannot be opened", async () => {
@@ -308,11 +308,11 @@ test("resolveExecutionCredential returns null (not a throw) when the sealed row 
   const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
   let warned = 0;
   const resolved = await resolveExecutionCredential(
-    { repo, sealer: otherSealer },
-    { workspaceId: WORKSPACE, principalId: ADMIN_A },
-    () => {
+    { deps: { repo, sealer: otherSealer },
+    input: { workspaceId: WORKSPACE, principalId: ADMIN_A } },
+    { onDecryptFailure: () => {
       warned += 1;
-    }
+    } }
   );
 
   assert.equal(resolved, null);
@@ -332,7 +332,7 @@ test("resolveExecutionCredential returns the key and config together on success"
     maxTokens: 8192,
   });
 
-  const resolved = await resolveExecutionCredential({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const resolved = await resolveExecutionCredential({ deps: { repo, sealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
   assert.deepEqual(resolved, {
     apiKey: "resolvable-key",
     protocol: "anthropic",
@@ -374,7 +374,7 @@ test("AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in t
   // AES key is shared app-wide.
   await repo.upsert({ ...rowA!, sealed: rowB!.sealed, masked: rowB!.masked });
 
-  const resolved = await resolveExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const resolved = await resolveExecutionCredential({ deps: deps, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
   assert.equal(resolved, null, "resolveExecutionCredential never throws — a transplanted ciphertext must resolve to null, not the wrong plaintext");
 });
 
@@ -387,8 +387,8 @@ test("AAD binding rejects a ciphertext transplanted across workspaces for the sa
   const source = await repo.findByWorkspaceAndPrincipal({ workspaceId: otherWorkspace, principalId: ADMIN_A });
   assert.ok(destination && source);
   await repo.upsert({ ...destination, sealed: source.sealed, masked: source.masked });
-  assert.equal(await resolveExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A }), null);
-  assert.equal((await resolveExecutionCredential(deps, { workspaceId: otherWorkspace, principalId: ADMIN_A }))?.apiKey, "workspace-two");
+  assert.equal(await resolveExecutionCredential({ deps: deps, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } }), null);
+  assert.equal((await resolveExecutionCredential({ deps: deps, input: { workspaceId: otherWorkspace, principalId: ADMIN_A } }))?.apiKey, "workspace-two");
 });
 
 
@@ -432,7 +432,7 @@ test("providerId moves and explicit null preserve the personal envelope and iden
   assert.equal(after?.last4, before?.last4);
   assert.equal(after?.tokenLength, before?.tokenLength);
   assert.equal(after?.provider, null);
-  assert.deepEqual(await resolveExecutionCredential(deps, scope), { apiKey: "personal-provider-key", protocol: "openai", providerId: null, model: "next-model", baseUrl: null, maxTokens: 4096 });
+  assert.deepEqual(await resolveExecutionCredential({ deps: deps, input: scope }), { apiKey: "personal-provider-key", protocol: "openai", providerId: null, model: "next-model", baseUrl: null, maxTokens: 4096 });
 });
 
 test("gated personal rotation never exposes mixed settings/key and never changes a sibling", async () => {
@@ -450,13 +450,13 @@ test("gated personal rotation never exposes mixed settings/key and never changes
   } }, { ...scope, apiKey: "new-personal-key", model: "new-model", protocol: "openai" });
   try {
     await sealing;
-    assert.equal((await resolveExecutionCredential(deps, scope))?.apiKey, "old-personal-key");
+    assert.equal((await resolveExecutionCredential({ deps: deps, input: scope }))?.apiKey, "old-personal-key");
     assert.equal((await getExecutionCredential(deps, scope)).model, "old-model");
-    assert.equal((await resolveExecutionCredential(deps, sibling))?.apiKey, "sibling-personal-key");
+    assert.equal((await resolveExecutionCredential({ deps: deps, input: sibling }))?.apiKey, "sibling-personal-key");
   } finally { release(); await pending; }
-  assert.equal((await resolveExecutionCredential(deps, scope))?.apiKey, "new-personal-key");
-  assert.equal((await resolveExecutionCredential(deps, scope))?.model, "new-model");
-  assert.equal((await resolveExecutionCredential(deps, sibling))?.model, "sibling-model");
+  assert.equal((await resolveExecutionCredential({ deps: deps, input: scope }))?.apiKey, "new-personal-key");
+  assert.equal((await resolveExecutionCredential({ deps: deps, input: scope }))?.model, "new-model");
+  assert.equal((await resolveExecutionCredential({ deps: deps, input: sibling }))?.model, "sibling-model");
 });
 
 test("a stale prepared personal rotation loses CAS without overwriting a committed settings edit", async () => {
@@ -475,8 +475,8 @@ test("a stale prepared personal rotation loses CAS without overwriting a committ
     await sealing;
     await setExecutionCredential(deps, { ...scope, model: "committed-model" });
   } finally { release(); await rejected; }
-  assert.equal((await resolveExecutionCredential(deps, scope))?.apiKey, "original-personal-key");
-  assert.equal((await resolveExecutionCredential(deps, scope))?.model, "committed-model");
+  assert.equal((await resolveExecutionCredential({ deps: deps, input: scope }))?.apiKey, "original-personal-key");
+  assert.equal((await resolveExecutionCredential({ deps: deps, input: scope }))?.model, "committed-model");
 });
 
 test("personal runtime rejects a row from another principal before opening it", async t => {
@@ -486,7 +486,7 @@ test("personal runtime rejects a row from another principal before opening it", 
   const row = await repo.vault.findOne!(assistantVaultContext({ ...scope, kind: "personal-execution" }));
   t.mock.method(repo.vault, "findOne", async () => row);
   const opens = t.mock.method(deps.sealer, "open");
-  assert.equal(await resolveExecutionCredential(deps, { ...scope, principalId: ADMIN_B }), null);
+  assert.equal(await resolveExecutionCredential({ deps: deps, input: { ...scope, principalId: ADMIN_B } }), null);
   assert.equal(opens.mock.callCount(), 0);
 });
 

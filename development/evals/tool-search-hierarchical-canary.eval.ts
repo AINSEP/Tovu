@@ -93,8 +93,8 @@ function run(): void {
     // old domain. Resolve through `currentToolIdFor` first so `wantedDomains` names a bucket that
     // still exists. See `ADS-memory/reports/2026-09-08-parent-tool-read-eval.md` §8.
     const wantedDomains = new Set<string>([
-      domainOf(currentToolIdFor(c.expect)),
-      ...(c.alsoAcceptable ?? []).map((id) => domainOf(currentToolIdFor(id))),
+      domainOf(currentToolIdFor({ toolId: c.expect })),
+      ...(c.alsoAcceptable ?? []).map((id) => domainOf(currentToolIdFor({ toolId: id }))),
     ]);
     const hits = searchToolCatalog({ db, query: c.query }, { limit: byDomain.size });
     const index = hits.findIndex((h) => wantedDomains.has(h.id));

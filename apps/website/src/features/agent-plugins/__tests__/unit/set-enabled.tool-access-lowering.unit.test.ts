@@ -10,7 +10,7 @@ test('plugin OFF commits first, then awaits the affected answer cleanup', async 
   resetExternalMcpRosterChangeListenersForTests(); t.after(resetExternalMcpRosterChangeListenersForTests);
   let saved = false; let release!: () => void; let change: unknown;
   const held = new Promise<void>(resolve => { release = resolve; });
-  onExternalMcpRosterChanged('serving', async lowered => { assert.equal(saved, true); change = lowered; await held; });
+  onExternalMcpRosterChanged({ key: 'serving', listener: async lowered => { assert.equal(saved, true); change = lowered; await held; } });
   const input = { agentPluginLayout: layout, workspaceId: 'ws', pluginId: 'mail', enabled: false, actor: 'owner' };
   let completed = false;
   const work = setAgentPluginEnabled(input, { notifyRosterChanged: notifyExternalMcpRosterChanged, links: { links: async () => new Map() }, lifecycle: { setAgentPluginEnabled: async () => { saved = true; return { pluginId: 'mail', enabled: false }; } } }).then(result => { completed = true; return result; });
@@ -22,7 +22,7 @@ test('plugin OFF commits first, then awaits the affected answer cleanup', async 
 test('plugin OFF reports cleanup failure after retaining the saved decision', async t => {
   resetExternalMcpRosterChangeListenersForTests(); t.after(resetExternalMcpRosterChangeListenersForTests);
   let enabled = true;
-  onExternalMcpRosterChanged('serving', () => { throw new Error('private-path-sentinel'); });
+  onExternalMcpRosterChanged({ key: 'serving', listener: () => { throw new Error('private-path-sentinel'); } });
   await assert.rejects(setAgentPluginEnabled({ agentPluginLayout: layout, workspaceId: 'ws', pluginId: 'mail', enabled: false, actor: 'owner' }, {
     notifyRosterChanged: notifyExternalMcpRosterChanged, links: { links: async () => new Map() }, lifecycle: { setAgentPluginEnabled: async () => { enabled = false; return { pluginId: 'mail', enabled }; } },
   }), error => error instanceof ToolAccessLoweringError && !error.message.includes('sentinel'));

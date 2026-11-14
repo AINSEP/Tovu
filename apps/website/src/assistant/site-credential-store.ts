@@ -123,7 +123,7 @@ export async function setSiteAssistantCredential(deps: SiteAssistantCredentialWr
   const repo = assistantVaultRepo({ repo: deps.repo });
   const context = assistantVaultContext({ workspaceId: input.workspaceId, kind: "site-assistant" });
   const existing = await repo.findOne!(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
+  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: ({ error }) => {
     throw new SiteAssistantSecretStoreUnconfiguredError(`site assistant secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
   } });
   const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),

@@ -407,7 +407,7 @@ for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapab
   // Every frontend registration needs a classification, including local chat operations.
   // The server's human chat-card exchange owns page approval for every transport. The browser
   // bridge has no second dialog gate, so an opaque click asks exactly once, including on AG-UI.
-  const bound = lostFrontendBindings.wrap(registration);
+  const bound = lostFrontendBindings.wrap({ registration });
   registry.register(applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } },
     pageApprovalOptions({ toolId: registration.descriptor.id, execute: (...args) => toolExecutor.execute(...args) })));
 }
@@ -498,9 +498,9 @@ const assistantPromptAugmenter: PromptAugmenter = {
 // `Jini packages/daemon/src/run-credentials.ts`. A closure because `runCredentials` is declared further down.
 const bridgeInjection = {
   toolApprovalOwner: "host" as const,
-  ...resolveMcpJsonInjection(daemonUrl, (runId) => runCredentials.mint({ runId: runId }, {}), {
+  ...resolveMcpJsonInjection({ daemonUrl: daemonUrl, mintRunCredential: (runId) => runCredentials.mint({ runId: runId }, {}) }, { runtime: {
     execPath: process.execPath, electronVersion: process.versions.electron, env,
-  }),
+  } }),
   diagnosticToolIds: () => registry.list({}).map(tool => tool.id),
   // Resolve at launch inside the live site scope: concurrent runs must not share a delete grant,
   // and diagnostic IDs must never publish schemas for tools this run cannot discover.

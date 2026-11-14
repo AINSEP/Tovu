@@ -63,7 +63,7 @@ function surface() {
 }
 
 async function rankedIds(query: string): Promise<SearchHit[]> {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, { name: "search_tools", input: { query, limit: 5 } });
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "search_tools", input: { query, limit: 5 } } });
   const payload = result as { content: string; isError?: boolean };
   assert.ok(!payload.isError, `search_tools returned an error for "${query}": ${payload.content}`);
   return (JSON.parse(payload.content) as { hits: SearchHit[] }).hits;
@@ -121,7 +121,7 @@ test("search_tools still ranks pages_read_html first for a read", async () => {
 });
 
 test("describe_tool returns pages_write_region's real schema — the handle, the fragment, and the version basis", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, { name: "describe_tool", input: { id: "pages_write_region" } });
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "describe_tool", input: { id: "pages_write_region" } } });
   const payload = result as { content: string; isError?: boolean };
   assert.ok(!payload.isError, `describe_tool errored: ${payload.content}`);
 
@@ -158,7 +158,7 @@ test("describe_tool returns pages_write_region's real schema — the handle, the
 test("pages_write_region still requires regionId for both single calls and batch items", async () => {
   const s = surface();
   for (const input of [{ id: "page-1", html: "<h1>x</h1>" }, { items: [{ id: "page-1", html: "<h1>x</h1>" }] }]) {
-    const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: "pages_write_region", input } });
+    const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "execute_delegated_tool", input: { toolId: "pages_write_region", input } } });
     const payload = result as { content: string; isError?: boolean };
     if ("items" in input) {
       const batch = JSON.parse(payload.content) as { succeeded: number; failed: number; results: { ok: boolean; error: string }[] };

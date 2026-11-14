@@ -159,7 +159,7 @@ export function createStoredExecutionCredentialPort(deps: StoredExecutionCredent
       const requestSupplied = parseRequestSuppliedCredential(requestBody);
       if (requestSupplied) return requestSupplied;
 
-      const stored = await resolveExecutionCredential(deps, { workspaceId, principalId });
+      const stored = await resolveExecutionCredential({ deps: deps, input: { workspaceId, principalId } });
       if (!stored) return null;
       if (!VALID_PROTOCOLS.has(stored.protocol)) return null;
       if (!stored.model || stored.model.trim().length === 0) return null;

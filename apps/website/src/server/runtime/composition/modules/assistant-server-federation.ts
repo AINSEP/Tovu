@@ -40,7 +40,7 @@ export function createAssistantServerFederation(
   return {
     admissions: () => readServerAdmissions({ awaitFederation: toolSurface.awaitFederation, readAdmissions }, {}),
     reload,
-    registerRosterListener: () => onExternalMcpRosterChanged("byok", async lowered => {
+    registerRosterListener: () => onExternalMcpRosterChanged({ key: "byok", listener: async lowered => {
       if (lowered) {
         await Promise.all([lowerAssistantToolAccess(lowered, {}), optional.lowerLocal?.(lowered)]);
         // Stop/cleanup certifies OFF; optional discovery latency must not turn that into a failure.
@@ -48,19 +48,19 @@ export function createAssistantServerFederation(
         return;
       }
       await reload({}, {});
-    }),
+    } }),
     daemonCalls: {
       executor: {
         ...toolSurface.daemonCalls.executor,
         execute: async (call, optional) => {
-          await toolSurface.awaitFederation(5_000);
+          await toolSurface.awaitFederation({ timeoutMs: 5_000 });
           return toolSurface.daemonCalls.executor.execute(call, optional);
         },
       },
       listToolsFor: async (required, optional) => {
         // Native tools remain usable while optional remote connections finish admission.
         // The next catalog read picks up late admissions from the same live surface.
-        await toolSurface.awaitFederation(5_000);
+        await toolSurface.awaitFederation({ timeoutMs: 5_000 });
         return toolSurface.daemonCalls.listToolsFor(required, optional);
       },
     },

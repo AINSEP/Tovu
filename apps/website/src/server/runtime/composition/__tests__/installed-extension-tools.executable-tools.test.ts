@@ -134,9 +134,9 @@ test("every family that fails is logged once with the registrar's prefix, a non-
 });
 
 test("AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not", () => {
-  assert.equal(isMcpUiToolCallAllowed(CREDENTIAL_SAVE_TOOL_ID), true);
-  assert.equal(isMcpUiToolCallAllowed("supabase_set_access_token"), false);
-  assert.equal(isMcpUiToolCallAllowed("supabase_set_project_scope"), false);
-  assert.equal(isMcpUiToolCallAllowed("supabase_get_database"), false);
-  assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: CREDENTIAL_SAVE_TOOL_ID }), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "supabase_set_access_token" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "supabase_set_project_scope" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "supabase_get_database" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "mcp__supabase__execute_sql" }), false);
 });

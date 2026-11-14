@@ -87,7 +87,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
       width: null, height: null, cssClass: null, htmlAttributes: null, createdBy: ownerId });
     await formDefinitionRepo.create({ id: 'form', workspaceId, name: `${name} form`, slug: 'form', fields: [],
       notify: { enabled: false, recipients: [] }, status: 'active', createdAt: at, updatedAt: at, version: 1 });
-    const chat = openChatDb(paths.chatDbPath), chatHistory = createChatStoreFactory(chat);
+    const chat = openChatDb(paths.chatDbPath), chatHistory = createChatStoreFactory({ store: chat });
     const staffId = `${name}-staff`;
     for (const [id, userId, scope] of [['owner-chat', ownerId, workspaceId], ['staff-chat', staffId, workspaceId], ['foreign-chat', ownerId, 'foreign']]) {
       const store = chatHistory({ kind: 'user', workspaceId: scope!, userId: userId! });

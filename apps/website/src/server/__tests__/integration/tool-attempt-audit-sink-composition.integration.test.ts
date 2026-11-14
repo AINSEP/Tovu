@@ -142,9 +142,9 @@ test("app.ts's hermetic root composes the in-memory audit sink — it owns no co
   const module = createAssistantByokModule(deps);
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-04T00:00:00.000Z") });
   const result = await module.toolSurface.executeMetaTool(
-    { id: "principal-memory-audit" },
-    { id: "run-memory-audit" },
-    { name: "describe_tool", input: { id: "nonexistent-memory-audit-tool" } },
+    { principal: { id: "principal-memory-audit" },
+    run: { id: "run-memory-audit" },
+    call: { name: "describe_tool", input: { id: "nonexistent-memory-audit-tool" } } },
   );
   assert.equal(result.isError, true);
   await new Promise((resolve) => setImmediate(resolve));
@@ -189,9 +189,9 @@ test("createAssistantByokModule logs meta-tool attempts through the INJECTED sin
 
     const module = createAssistantByokModule(deps);
     const result = await module.toolSurface.executeMetaTool(
-      { id: "principal-byok-audit-1" },
-      { id: "run-byok-audit-1" },
-      { name: "search_tools", input: { query: "workspace" } },
+      { principal: { id: "principal-byok-audit-1" },
+      run: { id: "run-byok-audit-1" },
+      call: { name: "search_tools", input: { query: "workspace" } } },
     );
     assert.equal(result.isError, undefined, `search_tools must succeed; got: ${result.content}`);
 

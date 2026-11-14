@@ -188,7 +188,7 @@ test("new admissions appear in daemon-call catalogs", async t => {
   const next = await runtime.daemonCalls.listToolsFor({ principalId: "owner" });
   assert.equal(next.filter(tool => tool.id === "mcp__second__echo").length, 1);
   assert.deepEqual(connected.sort(), ["hosted", "second"]);
-  const search = await surface.executeMetaTool({ id: "owner" }, { id: "run" }, { name: "search_tools", input: { query: "Plexquorn server catalog echo" } });
+  const search = await surface.executeMetaTool({ principal: { id: "owner" }, run: { id: "run" }, call: { name: "search_tools", input: { query: "Plexquorn server catalog echo" } } });
   assert.match(JSON.stringify(search), /mcp__second__echo/);
   assert.equal(isAssistantDaemonReady(), false);
 });

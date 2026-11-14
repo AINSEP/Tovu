@@ -48,7 +48,7 @@ const tools = registry.list({}).map((d) => {
 const cases = HELD_OUT_V2.map((c) => ({
   query: c.query,
   hyde: HYDE_PROMPT_EXPANSIONS_V2[c.query] ?? null,
-  expect: currentToolIdFor(c.expect),
+  expect: currentToolIdFor({ toolId: c.expect }),
   alsoAcceptable: (c.alsoAcceptable ?? []).map(currentToolIdFor),
 }));
 

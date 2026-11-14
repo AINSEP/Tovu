@@ -133,7 +133,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * @complexity O(1).
  * @overallScore 100
  */
-function respondToExecutionResult(res: Response, toolName: string, principalId: string, result: ToolExecutionResult): void {
+function respondToExecutionResult({ res, toolName, principalId, result }: { res: Response; toolName: string; principalId: string; result: ToolExecutionResult }, _optional = {}): void {
   switch (result.status) {
     case "completed":
       res.status(200).json(result.output ?? {});
@@ -198,7 +198,7 @@ function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiTool
   // `isMcpUiToolCallPermitted` also admits a federated id, but ONLY as an answer to an open card
   // (G3) — so the answer shape is decided before the check, and Shape 2 can never run one.
   const typedAnswer = isTypedSurfaceAnswer(params);
-  if (!isMcpUiToolCallPermitted(toolName, exchangeId !== undefined || typedAnswer, { typedAnswer })) {
+  if (!isMcpUiToolCallPermitted({ toolName: toolName, answersAnExchange: exchangeId !== undefined || typedAnswer }, { typedAnswer })) {
     res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return null;
   }
@@ -222,14 +222,11 @@ function callbackExchangeId({ bodyExchangeId, params }: { bodyExchangeId: unknow
  * the shop ceiling.
  */
 async function deliverMcpUiExchange(
-  res: Response,
-  deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
-  input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string },
-  req?: Request,
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">; input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string } }, { req }: { req?: Request } = {},
 ): Promise<void> {
   await deliverSurfaceCallback({
     res, store: deps.surfaceExchanges, ...input,
-    admit: ({ toolId, answersAnExchange, typedAnswer }) => isMcpUiToolCallPermitted(toolId, answersAnExchange, { typedAnswer }),
+    admit: ({ toolId, answersAnExchange, typedAnswer }) => isMcpUiToolCallPermitted({ toolName: toolId, answersAnExchange: answersAnExchange }, { typedAnswer }),
   }, {
     restoreOnly: (req?.body as { restore?: unknown } | undefined)?.restore === true,
     restoreOnMiss: req !== undefined,
@@ -268,9 +265,7 @@ export function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
  * answer the first one. A refusal is the honest outcome: there is nothing outstanding to answer.
  */
 function deliverTypedSurfaceAnswer(
-  res: Response,
-  deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
-  input: { params: Record<string, unknown>; toolId: string; principalId: string },
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">; input: { params: Record<string, unknown>; toolId: string; principalId: string } }, _optional = {},
 ): void {
   const exchangeId = deps.surfaceExchanges.findTypedAnswerTarget({
     principalId: input.principalId,
@@ -287,7 +282,7 @@ function deliverTypedSurfaceAnswer(
     });
     return;
   }
-  void deliverMcpUiExchange(res, deps, { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId });
+  void deliverMcpUiExchange({ res: res, deps: deps, input: { exchangeId, params: input.params, toolId: input.toolId, principalId: input.principalId } });
 }
 
 /**
@@ -297,9 +292,7 @@ function deliverTypedSurfaceAnswer(
  * the shop ceiling.
  */
 async function executeMcpUiToolCall(
-  res: Response,
-  deps: Pick<McpUiToolCallsRouteDeps, "toolExecutor">,
-  input: { toolName: string; params: Record<string, unknown>; principalId: string },
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "toolExecutor">; input: { toolName: string; params: Record<string, unknown>; principalId: string } }, _optional = {},
 ): Promise<void> {
   const principal: Principal = { id: input.principalId };
   const run = { id: `mcp-ui-redemption:${randomUUID()}` };
@@ -318,7 +311,7 @@ async function executeMcpUiToolCall(
     return;
   }
 
-  respondToExecutionResult(res, input.toolName, input.principalId, result);
+  respondToExecutionResult({ res: res, toolName: input.toolName, principalId: input.principalId, result: result });
 }
 
 export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRouteDeps): void {
@@ -334,7 +327,7 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
 
     // ---- Shape 1: an open exchange is waiting for this message. ----
     if (parsed.exchangeId !== undefined) {
-      await deliverMcpUiExchange(res, deps, { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId }, req);
+      await deliverMcpUiExchange({ res: res, deps: deps, input: { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId } }, { req: req });
       return;
     }
 
@@ -342,11 +335,11 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
     // exchange. Checked before Shape 2 because Shape 2 would EXECUTE the tool afresh — putting a
     // second, unasked-for dialog on screen in reply to an answer to the first. ----
     if (isTypedSurfaceAnswer(parsed.params)) {
-      deliverTypedSurfaceAnswer(res, deps, { params: parsed.params, toolId: parsed.toolName, principalId });
+      deliverTypedSurfaceAnswer({ res: res, deps: deps, input: { params: parsed.params, toolId: parsed.toolName, principalId } });
       return;
     }
 
     // ---- Shape 2: legacy two-call redemption (ADR-053). ----
-    await executeMcpUiToolCall(res, deps, { toolName: parsed.toolName, params: parsed.params, principalId });
+    await executeMcpUiToolCall({ res: res, deps: deps, input: { toolName: parsed.toolName, params: parsed.params, principalId } });
   } }));
 }

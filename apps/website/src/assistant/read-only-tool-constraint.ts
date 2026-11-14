@@ -83,7 +83,7 @@ export function constrainPrincipalToReadOnlyTools(principal: Principal): ReturnT
  * `@jini-ai/daemon/http`'s own `readOnlyRefusalMessage` so a caller refused at either layer reads the
  * same remedy.
  */
-export function readOnlyToolRefusalMessage(toolId: string): string {
+export function readOnlyToolRefusalMessage({ toolId }: { toolId: string }, _optional = {}): string {
   return `tool "${toolId}" is not registered as read-only — this execution was started through a read-only gateway and may run only tools whose registration declares readOnly; call it through execute_delegated_tool instead`;
 }
 
@@ -95,7 +95,7 @@ export const READ_ONLY_UNCHECKABLE_MESSAGE =
 
 export const tovuReadOnlyToolMessages: ReadOnlyToolMessages = {
   unverifiableMessage: READ_ONLY_UNCHECKABLE_MESSAGE,
-  toolRefusalMessage: ({ toolId }) => readOnlyToolRefusalMessage(toolId),
+  toolRefusalMessage: ({ toolId }) => readOnlyToolRefusalMessage({ toolId: toolId }),
   unknownToolMessage: defaultDaemonMessages.readOnly.unknownToolMessage,
 };
 
@@ -128,10 +128,10 @@ export function refuseNonReadOnlyDispatch(required: {
  * not be left believing nothing was ever going to be attempted. "Read-only path silently swallows
  * the remedy" is a different lie from "read-only path performs a write", not an improvement on it.
  *
- * @param refusal - Whatever {@link refuseNonReadOnlyDispatch} returned, quoted verbatim so the two
+ * @param required.refusal - Whatever {@link refuseNonReadOnlyDispatch} returned, quoted verbatim so the two
  *   surfaces never describe the same refusal two different ways.
  */
-export function readOnlyRemedyRefusalMessage(refusal: string): string {
+export function readOnlyRemedyRefusalMessage({ refusal }: { refusal: string }, _optional = {}): string {
   return formatDaemonReadOnlyRemedyRefusal({
     refusal,
     formatMessage: ({ refusal }) =>

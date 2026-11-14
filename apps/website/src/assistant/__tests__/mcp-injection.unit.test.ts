@@ -16,11 +16,11 @@ const mintStub = (runId: string): string => `minted-for-${runId}`;
 // Inside the packaged app `execPath` is the Tovu Electron binary. Without
 // ELECTRON_RUN_AS_NODE it boots as a GUI app, never speaks MCP, and every run gets zero Tovu tools.
 test("under Electron, launches the bridge with the app binary and ELECTRON_RUN_AS_NODE=1", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub }, { runtime: {
     execPath: "/Applications/Tovu.app/Contents/MacOS/Tovu",
     electronVersion: "33.2.0",
     env: {},
-  });
+  } });
 
   assert.equal(injection.command, "/Applications/Tovu.app/Contents/MacOS/Tovu");
   assert.deepEqual(injection.args, [SERVE_JS]);
@@ -29,21 +29,21 @@ test("under Electron, launches the bridge with the app binary and ELECTRON_RUN_A
 });
 
 test("treats an inherited ELECTRON_RUN_AS_NODE as Electron even without process.versions.electron", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub }, { runtime: {
     execPath: "/Applications/Tovu.app/Contents/MacOS/Tovu",
     electronVersion: undefined,
     env: { ELECTRON_RUN_AS_NODE: "1" },
-  });
+  } });
 
   assert.deepEqual(injection.env, { ELECTRON_RUN_AS_NODE: "1" });
 });
 
 test("under plain Node, launches the bridge with node and adds no env", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub }, { runtime: {
     execPath: "/usr/local/bin/node",
     electronVersion: undefined,
     env: { PATH: "/usr/bin" },
-  });
+  } });
 
   assert.equal(injection.command, "/usr/local/bin/node");
   assert.deepEqual(injection.args, [SERVE_JS]);
@@ -52,7 +52,7 @@ test("under plain Node, launches the bridge with node and adds no env", () => {
 });
 
 test("defaults to this process's own runtime", () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub);
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub });
 
   assert.equal(injection.command, process.execPath);
   // The test runner is plain Node.
@@ -62,10 +62,10 @@ test("defaults to this process's own runtime", () => {
 // Bridge credentials must resolve to the run's principal; a boot-wide proxy token cannot bind a run.
 test("hands the bridge the per-run credential minted for that run, never the proxy's boot-wide token", async () => {
   const minted: string[] = [];
-  const injection = resolveMcpJsonInjection(DAEMON_URL, (runId) => {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: (runId) => {
     minted.push(runId);
     return `run-token-${runId}`;
-  });
+  } });
   const bootToken = "b".repeat(64);
   const saved = process.env.TOVU_AGENT_DAEMON_TOKEN;
   process.env.TOVU_AGENT_DAEMON_TOKEN = bootToken;
@@ -85,7 +85,7 @@ test("hands the bridge the per-run credential minted for that run, never the pro
 test("HTTP preparation receives only run-scoped inputs", async () => {
   const assembled: unknown[] = [];
   const hosted: unknown[] = [];
-  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub }, { runtime: {
     execPath: "/node", electronVersion: undefined, env: { TOVU_AGENT_DAEMON_TOKEN: "boot-secret" },
     loadHttpMcp: async () => ({ MCP_HTTP_SESSION_MODE_SUPPORTED: true,
       assembleRunToolHost: async (input, options) => {
@@ -97,7 +97,7 @@ test("HTTP preparation receives only run-scoped inputs", async () => {
         return { url: "http://127.0.0.1:9000/mcp", token: "listener-only", close: async () => {} };
       },
     }),
-  });
+  } });
   const endpoint = await injection.prepareHttp!({ runId: "run-42" }, { messageRelayNonce: "a".repeat(48), startupToolIds: ['site_guide'], diagnosticToolIds: ['registered'] });
   assert.equal(endpoint.token, "listener-only");
   assert.deepEqual(assembled, [{ runId: "run-42", url: DAEMON_URL, options: {
@@ -108,10 +108,10 @@ test("HTTP preparation receives only run-scoped inputs", async () => {
 });
 
 test("unavailable HTTP support preserves stdio delivery", async () => {
-  const injection = resolveMcpJsonInjection(DAEMON_URL, mintStub, {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: mintStub }, { runtime: {
     execPath: "/node", electronVersion: undefined, env: {},
     loadHttpMcp: async () => { throw new Error("module unavailable"); },
-  });
+  } });
   await assert.rejects(injection.prepareHttp!({ runId: "run-42" }), /module unavailable/);
   assert.equal(injection.command, "/node");
   assert.deepEqual(injection.args, [SERVE_JS]);
@@ -120,13 +120,13 @@ test("unavailable HTTP support preserves stdio delivery", async () => {
 
 test("stateless HTTP support is refused before minting a callback credential", async () => {
   const minted: string[] = [];
-  const injection = resolveMcpJsonInjection(DAEMON_URL, runId => { minted.push(runId); return "callback"; }, {
+  const injection = resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: runId => { minted.push(runId); return "callback"; } }, { runtime: {
     execPath: "/node", electronVersion: undefined, env: {},
     loadHttpMcp: async () => ({
       assembleRunToolHost: async () => { throw new Error("must not assemble"); },
       startMcpHttpToolServer: async () => { throw new Error("must not host"); },
     }),
-  });
+  } });
   await assert.rejects(injection.prepareHttp!({ runId: "run-42" }), /session support unavailable/);
   assert.deepEqual(minted, []);
 });

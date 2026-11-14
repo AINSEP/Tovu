@@ -48,14 +48,12 @@ const currentRuntime = (): BridgeRuntime => ({
 });
 
 /**
- * @param mintRunCredential - Mints the bridge's per-run credential.
+ * @param required.mintRunCredential - Mints the bridge's per-run credential.
  *   Required, with no fallback to the proxy's boot-wide token: that token makes a caller's principal
  *   header trusted, which a model-driven bridge must never be.
  */
 export function resolveMcpJsonInjection(
-  daemonUrl: string,
-  mintRunCredential: (runId: string) => string,
-  runtime: BridgeRuntime = currentRuntime(),
+  { daemonUrl, mintRunCredential }: { daemonUrl: string; mintRunCredential: (runId: string) => string }, { runtime = currentRuntime() }: { runtime?: BridgeRuntime } = {},
 ): McpJsonInjectionOptions {
   const entryPoint = require.resolve("@jini-ai/mcp");
   const script = join(dirname(entryPoint), "bin", "serve.js");

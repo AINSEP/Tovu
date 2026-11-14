@@ -9,7 +9,7 @@ test("server admissions waits for admission without making a daemon HTTP request
   let calls = 0; let release!: () => void; let reads = 0;
   t.mock.method(globalThis, "fetch", async () => { calls++; throw new Error("no daemon request"); });
   const ready = new Promise<void>(resolve => { release = resolve; });
-  const pending = readServerAdmissions({ awaitFederation: async timeoutMs => {
+  const pending = readServerAdmissions({ awaitFederation: async ({ timeoutMs }) => {
     assert.equal(timeoutMs, 5000); await ready; return { settled: true };
   }, readAdmissions: async () => { reads++; return { connections: [], configFailures: [{ connectionId: "bad", reason: "cannot resolve" }] }; } });
   assert.equal(reads, 0);

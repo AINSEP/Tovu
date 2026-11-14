@@ -109,11 +109,11 @@ function writePackagedAppStandIn(dir: string): string {
 test("a packaged desktop app's bridge answers initialize", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-bridge-smoke-"));
   try {
-    const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", {
+    const injection = resolveMcpJsonInjection({ daemonUrl: "http://127.0.0.1:9", mintRunCredential: () => "smoke-token" }, { runtime: {
       execPath: writePackagedAppStandIn(dir),
       electronVersion: "43.6.0",
       env: { ELECTRON_RUN_AS_NODE: "1" },
-    });
+    } });
     const entry = buildMcpJsonServerEntry({ runId: "bridge-smoke", options: injection }, { credential: "smoke-token" });
 
     assertJiniInitializeReply(await initializeReply(entry.command, entry.args, entry.env));
@@ -130,7 +130,7 @@ test("the real Electron binary, given the entry's env, runs the bridge as Node a
     t.skip("no electron package installed under apps/desktop");
     return;
   }
-  const injection = resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke-token", { execPath: electronBinary, electronVersion: "43.6.0", env: {} });
+  const injection = resolveMcpJsonInjection({ daemonUrl: "http://127.0.0.1:9", mintRunCredential: () => "smoke-token" }, { runtime: { execPath: electronBinary, electronVersion: "43.6.0", env: {} } });
   const entry = buildMcpJsonServerEntry({ runId: "bridge-smoke", options: injection }, { credential: "smoke-token" });
 
   // Dev Electron can also answer as an app main process; require the entry's Node-mode flag too.

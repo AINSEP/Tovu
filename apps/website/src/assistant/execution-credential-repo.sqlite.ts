@@ -10,7 +10,7 @@ import type { ContentDb } from "../platform/db/sqlite/content-db.js";
  */
 export class SqliteAdminExecutionCredentialRepo extends SqlAdminExecutionCredentialRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
     super(contentKernel({ store }));
   }
 }

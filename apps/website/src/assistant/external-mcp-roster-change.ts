@@ -46,7 +46,7 @@ let listenersByKey = new Map<string, ExternalMcpRosterChangeListener>();
  * file's header for why a second listener under the same key would be a bug (the same runtime's
  * reload firing twice), not a second runtime to notify.
  */
-export function onExternalMcpRosterChanged(key: string, listener: ExternalMcpRosterChangeListener): void {
+export function onExternalMcpRosterChanged({ key, listener }: { key: string; listener: ExternalMcpRosterChangeListener }, _optional = {}): void {
   listenersByKey.set(key, listener);
 }
 

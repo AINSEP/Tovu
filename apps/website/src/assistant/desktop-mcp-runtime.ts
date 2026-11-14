@@ -12,11 +12,11 @@ export function isDesktopMcpCapability(value: unknown, _options = {}): value is 
   if (typeof value !== "object" || value === null) return false;
   if (!("url" in value) || !("token" in value)) return false;
   if (typeof value.url !== "string" || typeof value.token !== "string") return false;
-  return isDesktopMcpUrl(value.url) && /^[a-f0-9]{64}$/.test(value.token);
+  return isDesktopMcpUrl({ url: value.url }) && /^[a-f0-9]{64}$/.test(value.token);
 }
 
 /** Validate the canonical loopback spelling and TCP port range without URL normalization. O(1). */
-function isDesktopMcpUrl(url: string): boolean {
+function isDesktopMcpUrl({ url }: { url: string }, _optional = {}): boolean {
   return /^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}\/mcp$/.test(url)
     && Number(url.split(":")[2]?.split("/")[0]) <= 65535;
 }

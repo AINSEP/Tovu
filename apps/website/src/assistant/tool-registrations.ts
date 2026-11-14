@@ -205,21 +205,21 @@ const DOMAIN_SLICES: readonly ToolContributor[] = [
   { domain: "tool-gaps", build: buildToolGapsRegistrations, risk: toolGapsDerivedRisk },
   // The four in-chat UI surfaces register unconditionally. Each module explains why its
   // transport demonstration belongs in a real chat pane.
-  { domain: "demo-choices", build: buildDemoChoicesRegistrations, risk: demoChoicesDerivedRisk },
+  { domain: "demo-choices", build: (routeDeps, surfaces) => buildDemoChoicesRegistrations({ _routeDeps: routeDeps, surfaces }), risk: demoChoicesDerivedRisk },
   // A2UI's multi-turn counterpart — `demo-choices` above proves the one-shot MCP-UI return path;
   // this proves the shape A2UI exists for (`createSurface -> action -> updateComponents -> action`).
-  { domain: "demo-a2ui", build: buildDemoA2uiRegistrations, risk: demoA2uiDerivedRisk },
+  { domain: "demo-a2ui", build: (routeDeps, surfaces) => buildDemoA2uiRegistrations({ _routeDeps: routeDeps, surfaces }), risk: demoA2uiDerivedRisk },
   // Proves the typed-media transport (`tool_result.media`, a hand-rolled real PNG) end to end in a
   // real chat pane — the counterpart to `demo-choices`/`demo-a2ui` proving MCP-UI/A2UI's own
   // transports. See `demo-image-tool.ts`'s own header for why the image is generated in-process
   // rather than fetched from a real image-generation service.
-  { domain: "demo-image", build: buildDemoImageRegistrations, risk: demoImageDerivedRisk },
+  { domain: "demo-image", build: (routeDeps) => buildDemoImageRegistrations({}, { _routeDeps: routeDeps }), risk: demoImageDerivedRisk },
   // General-purpose: lets the model draw ANY component the catalog knows about (basic primitives
   // plus every shadcn/recharts registry component), not a scripted fixed shape.
-  { domain: "render-ui", build: buildRenderUiRegistrations, risk: renderUiDerivedRisk },
+  { domain: "render-ui", build: (routeDeps, surfaces) => buildRenderUiRegistrations({ _routeDeps: routeDeps, surfaces }), risk: renderUiDerivedRisk },
   // Also registers the component-catalog tools for BYOK delegated execution; MCP top-level
   // registration alone does not put them in this registry. See `component-catalog-tool.ts`.
-  { domain: "component-catalog", build: buildComponentCatalogRegistrations, risk: componentCatalogDerivedRisk },
+  { domain: "component-catalog", build: (routeDeps, surfaces) => buildComponentCatalogRegistrations({ _routeDeps: routeDeps, _surfaces: surfaces }), risk: componentCatalogDerivedRisk },
   // Production choices accept the model's title/options; demo-choices uses a fixed sample.
   // See `ask-choice-tool.ts` for the separate contracts.
   { domain: "ask-choice", build: buildAskChoiceRegistrations, risk: askChoiceDerivedRisk },
@@ -367,7 +367,7 @@ function prepareReadRegistrations({ registrations, ownerByToolId, routeDeps, opt
   beforeLookup: ChatDeleteSurfaceDeps["assertChatDeleteAllowed"];
 }, _optional = {}): ToolRegistration[] {
   const readRegistrations = options.includeContentReadCollapse === false ? [...registrations] : deriveContentReadRegistrations(registrations);
-  for (const [toolId, owner] of [...ownerByToolId]) ownerByToolId.set(currentToolIdFor(toolId), owner);
+  for (const [toolId, owner] of [...ownerByToolId]) ownerByToolId.set(currentToolIdFor({ toolId: toolId }), owner);
   return options.contributions?.contentTargetInputs?.({ registrations: readRegistrations, routeDeps, beforeLookup }) ?? readRegistrations;
 }
 

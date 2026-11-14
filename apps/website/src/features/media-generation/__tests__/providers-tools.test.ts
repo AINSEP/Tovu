@@ -30,10 +30,10 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const SECRET = 't10-media-secret-unique-731';
 test('t10 media credential form submit and cancel pass both MCP-UI callback gates', () => {
-  assert.equal(isMcpUiToolCallAllowed('credential_save'), true);
-  assert.equal(isMcpUiToolCallPermitted('credential_save', true), true);
-  assert.equal(isMcpUiToolCallPermitted('credential_save', false), false, 'secrets must only answer a parked exchange, never enter a fresh audited tool call');
-  assert.equal(isMcpUiToolCallAllowed('media_list_providers'), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: 'credential_save' }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'credential_save', answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'credential_save', answersAnExchange: false }), false, 'secrets must only answer a parked exchange, never enter a fresh audited tool call');
+  assert.equal(isMcpUiToolCallAllowed({ toolName: 'media_list_providers' }), false);
 });
 
 test('t10 media callback delivers a human key only to its parked call, rejects wrong principals and replay', async () => {

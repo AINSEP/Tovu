@@ -12,7 +12,7 @@ test("an actual executor failure remains failed through Tovu recovery, chat.db a
   const db = openChatDb(":memory:");
   const kernel = chatKernel(db);
   const ledger = createChatRunLedger({ store: kernel });
-  const history = createChatHistoryStore(kernel, { scopeId: "workspace", ownerKind: "user", ownerId: "alice" });
+  const history = createChatHistoryStore({ kernel: kernel, scope: { scopeId: "workspace", ownerKind: "user", ownerId: "alice" } });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   try {
     await history.create({ id: "chat" });

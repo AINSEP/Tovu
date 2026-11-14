@@ -4,46 +4,46 @@ import test from "node:test";
 import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "../mcp-ui-tool-calls.js";
 
 test("content_post_delete allows an answer to its parked policy card", () => {
-  assert.equal(isMcpUiToolCallAllowed("content_post_delete"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "content_post_delete" }), true);
   assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_delete"), true);
-  assert.equal(isMcpUiToolCallPermitted("content_post_delete", false), false, "an untrusted callback cannot start a fresh execution");
-  assert.equal(isMcpUiToolCallPermitted("content_post_delete", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "content_post_delete", answersAnExchange: false }), false, "an untrusted callback cannot start a fresh execution");
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "content_post_delete", answersAnExchange: true }), true);
 });
 
 test("content_post_search is on the allowlist — the real execution path behind the /search composer capability", () => {
-  assert.equal(isMcpUiToolCallAllowed("content_post_search"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "content_post_search" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_search"));
 });
 
 test("deployment_execute_static_publish allows an answer to its parked policy card", () => {
-  assert.equal(isMcpUiToolCallAllowed("deployment_execute_static_publish"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "deployment_execute_static_publish" }), true);
   assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_execute_static_publish"), true);
-  assert.equal(isMcpUiToolCallPermitted("deployment_execute_static_publish", false), false, "an untrusted callback cannot start a fresh execution");
-  assert.equal(isMcpUiToolCallPermitted("deployment_execute_static_publish", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "deployment_execute_static_publish", answersAnExchange: false }), false, "an untrusted callback cannot start a fresh execution");
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "deployment_execute_static_publish", answersAnExchange: true }), true);
 });
 
 test("the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason", () => {
-  assert.equal(isMcpUiToolCallAllowed("deployment_get_static_publish_capabilities"), false);
-  assert.equal(isMcpUiToolCallAllowed("deployment_preview_static_publish"), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "deployment_get_static_publish_capabilities" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "deployment_preview_static_publish" }), false);
 });
 
 test("credential_save redeems the publish-host card; the retired save id cannot redeem", () => {
-  assert.equal(isMcpUiToolCallAllowed("credential_save"), true);
-  assert.equal(isMcpUiToolCallPermitted("credential_save", false), false);
-  assert.equal(isMcpUiToolCallPermitted("credential_save", true), true);
-  assert.equal(isMcpUiToolCallAllowed("deployment_propose_custom_provider_credential"), false);
-  assert.equal(isMcpUiToolCallPermitted("deployment_propose_custom_provider_credential", true), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "credential_save" }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "credential_save", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "credential_save", answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "deployment_propose_custom_provider_credential" }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "deployment_propose_custom_provider_credential", answersAnExchange: true }), false);
 });
 
 test("deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a)", () => {
-  assert.equal(isMcpUiToolCallAllowed("deployment_generate_bucket_hosting_setup"), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "deployment_generate_bucket_hosting_setup" }), false);
 });
 
 test("SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate", () => {
-  assert.equal(isMcpUiToolCallAllowed("collections_execute_cleanup"), false);
-  assert.equal(isMcpUiToolCallAllowed("source_control_execute_push"), false);
-  assert.equal(isMcpUiToolCallAllowed(""), false);
-  assert.equal(isMcpUiToolCallAllowed("content_post_delete "), false, "no fuzzy/trimmed matching");
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "collections_execute_cleanup" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "source_control_execute_push" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "" }), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "content_post_delete " }), false, "no fuzzy/trimmed matching");
 });
 
 // Moved here from the former `mcp-ui-tool-calls.demo-enabled.test.ts` when the
@@ -53,12 +53,12 @@ test("SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with th
 // and the coverage belongs in the file that already owns this area. The assertion is inverted from
 // what it used to be: membership is now unconditional.
 test("assistant_demo_choices is on the allowlist unconditionally — it performs no token redemption because it has nothing to redeem", () => {
-  assert.equal(isMcpUiToolCallAllowed("assistant_demo_choices"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "assistant_demo_choices" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_demo_choices"));
 });
 
 test("assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out", () => {
-  assert.equal(isMcpUiToolCallAllowed("assistant_ask_choice"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "assistant_ask_choice" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_ask_choice"));
 });
 
@@ -66,28 +66,28 @@ test("assistant_ask_choice is on the allowlist — it holds up the same held-ope
 // separate entry for (2026-09-14) was deleted — its Agent Plugin branch now redeems through this SAME
 // `plugins_uninstall` entry, covering BOTH plugin families with the one id.
 test("plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16)", () => {
-  assert.equal(isMcpUiToolCallAllowed("plugins_uninstall"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "plugins_uninstall" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("plugins_uninstall"));
 });
 
 test("agent_plugins_update can answer its parked policy card but cannot start from a surface callback", () => {
-  assert.equal(isMcpUiToolCallAllowed("agent_plugins_update"), true);
-  assert.equal(isMcpUiToolCallPermitted("agent_plugins_update", false), false);
-  assert.equal(isMcpUiToolCallPermitted("agent_plugins_update", true), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "agent_plugins_update" }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "agent_plugins_update", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "agent_plugins_update", answersAnExchange: true }), true);
 });
 
 test("custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)", () => {
-  assert.equal(isMcpUiToolCallAllowed("custom_credential_make_request"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "custom_credential_make_request" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
 });
 
 test("custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03)", () => {
-  assert.equal(isMcpUiToolCallAllowed("credential_save"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "credential_save" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("credential_save"));
 });
 
 test("external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02)", () => {
-  assert.equal(isMcpUiToolCallAllowed("external_mcp_reauth_prompt"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "external_mcp_reauth_prompt" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_reauth_prompt"));
 });
 
@@ -100,20 +100,20 @@ test("external_mcp_reauth_prompt is on the allowlist — it holds up the same he
 // gap `media_trash_asset` shipped with for one commit, this time on the tool the report calls "the
 // one path available through the audited tools".
 test("external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test)", () => {
-  assert.equal(isMcpUiToolCallAllowed("external_mcp_save"), true);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "external_mcp_save" }), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_save"));
 });
 
 test("credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either", () => {
   for (const id of ["credential_copy_from_project", "plugin_source_delete"]) {
-    assert.equal(isMcpUiToolCallAllowed(id), true);
-    assert.equal(isMcpUiToolCallPermitted(id, false), false, `${id}: an untrusted callback cannot start a fresh execution`);
-    assert.equal(isMcpUiToolCallPermitted(id, true), true);
+    assert.equal(isMcpUiToolCallAllowed({ toolName: id }), true);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: false }), false, `${id}: an untrusted callback cannot start a fresh execution`);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), true);
   }
 });
 
 test("custom_credential_write_files runs normally and cannot be executed by a surface callback", () => {
-  assert.equal(isMcpUiToolCallAllowed("custom_credential_write_files"), false);
+  assert.equal(isMcpUiToolCallAllowed({ toolName: "custom_credential_write_files" }), false);
   assert.equal(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_write_files"), false);
 });
 
@@ -250,21 +250,21 @@ test("SECURITY-CRITICAL: the allowlist is exactly this set — widening it canno
 });
 
 test('revoking a saved-key grant opens no exchange and cannot execute from a card callback', () => {
-  assert.equal(isMcpUiToolCallPermitted('project_key_use', true), false);
-  assert.equal(isMcpUiToolCallPermitted('project_key_use', false), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'project_key_use', answersAnExchange: true }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'project_key_use', answersAnExchange: false }), false);
 });
 
 test("file-batch callbacks can only answer parked exchanges, never start fresh writes", () => {
   for (const id of ["fs_write_files", "files_copy", "image_transform", "theme_duplicate"]) {
-    assert.equal(isMcpUiToolCallAllowed(id), true);
-    assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
-    assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
+    assert.equal(isMcpUiToolCallAllowed({ toolName: id }), true);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: false }), false, id);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), true, id);
   }
 });
 
 test("a verified payment outcome can only answer its parked card, never run from a fresh callback", () => {
-  assert.equal(isMcpUiToolCallPermitted("commerce_resolve_unknown", false), false);
-  assert.equal(isMcpUiToolCallPermitted("commerce_resolve_unknown", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "commerce_resolve_unknown", answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "commerce_resolve_unknown", answersAnExchange: true }), true);
 });
 
 test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set", () => {
@@ -314,43 +314,43 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
 
   for (const probe of probes) {
     assert.equal(
-      isMcpUiToolCallAllowed(probe),
+      isMcpUiToolCallAllowed({ toolName: probe }),
       MCP_UI_REDEEMABLE_TOOL_IDS.has(probe),
       `isMcpUiToolCallAllowed disagreed with the allowlist for ${JSON.stringify(probe)}`,
     );
-    assert.equal(isMcpUiToolCallAllowed(probe), false, `${JSON.stringify(probe)} must be refused`);
+    assert.equal(isMcpUiToolCallAllowed({ toolName: probe }), false, `${JSON.stringify(probe)} must be refused`);
   }
 
   // And every id that IS on the list is still admitted — a check tightened to refuse everything
   // would break the feature just as surely as one widened to admit everything.
   for (const allowed of EXPECTED_ALLOWLIST) {
-    assert.equal(isMcpUiToolCallAllowed(allowed), true, `${allowed} must be admitted`);
+    assert.equal(isMcpUiToolCallAllowed({ toolName: allowed }), true, `${allowed} must be admitted`);
   }
 });
 
 test("security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused", () => {
-  assert.equal(isMcpUiToolCallPermitted("p_acme_office__append_rows", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "p_acme_office__append_rows", answersAnExchange: true }), true);
   for (const id of ["xp_acme__append", "p_acme__append/../x", "p_Acme__append", "p_acme__", "p_acme_append", "content_p_acme__x"]) {
-    assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), false, id);
   }
 });
 
 test("direct theme replacements cannot execute through surface callbacks", () => {
   for (const id of ["theme_write_file", "theme_reset_file", "theme_edit_file", "theme_import_file_from_url", "theme_import_local_file"]) {
-    assert.equal(isMcpUiToolCallAllowed(id), false, id);
-    assert.equal(isMcpUiToolCallPermitted(id, false), false, id);
-    assert.equal(isMcpUiToolCallPermitted(id, true), false, id);
+    assert.equal(isMcpUiToolCallAllowed({ toolName: id }), false, id);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: false }), false, id);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), false, id);
   }
 });
 
 // L11 Stryker: PLUGIN_TOOL_ID's anchors, quantifiers and character class each survived mutation.
 test("security: the plugin-tool id table pins anchors, quantifiers and the character class", () => {
   for (const id of ["p_a__b", "p_a1__b2", "p_acme_office__append_rows", "p_0__9", "p_a___b"]) {
-    assert.equal(isMcpUiToolCallPermitted(id, true), true, id);
-    assert.equal(isMcpUiToolCallPermitted(id, false), false, `${id} never starts a fresh execution`);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), true, id);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: false }), false, `${id} never starts a fresh execution`);
   }
   for (const id of ["", "p_", "p___", "p__b", "p_a__", "p_a__b\n", "p_a__b ", " p_a__b", "p_a__B", "P_a__b", "p_a-b__c", "p_a__b-c",
     "p_a.b__c", "pa__b", "p_a_b", "xp_a__b", "p_a__b/x"]) {
-    assert.equal(isMcpUiToolCallPermitted(id, true), false, JSON.stringify(id));
+    assert.equal(isMcpUiToolCallPermitted({ toolName: id, answersAnExchange: true }), false, JSON.stringify(id));
   }
 });

@@ -196,8 +196,8 @@ test('a principal without admin.assistant.use is refused before the tool runs', 
 });
 
 test('the MCP-UI callback accepts a plugin tool id only as an answer to a parked exchange', () => {
-  assert.equal(isMcpUiToolCallPermitted(WRITE, true), true);
-  assert.equal(isMcpUiToolCallPermitted(WRITE, false), false);
-  assert.equal(isMcpUiToolCallPermitted('p_acme_office', true), false);
-  assert.equal(isMcpUiToolCallPermitted('p_Acme__x', true), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: WRITE, answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: WRITE, answersAnExchange: false }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'p_acme_office', answersAnExchange: true }), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'p_Acme__x', answersAnExchange: true }), false);
 });

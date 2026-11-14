@@ -38,7 +38,7 @@ function fakeRegistration(id: string, handler: ToolRegistration["handler"]): Too
 test("rewraps the exact 'not a published page' refusal into a disambiguated message naming both the real cause and the fix", () => {
   const upstream = new Error(`"pricing" is not a published page. Available: posts, pages, settings`);
 
-  const rewrapped = rewrapPageNavigateError(upstream);
+  const rewrapped = rewrapPageNavigateError({ err: upstream });
 
   assert.ok(rewrapped instanceof Error);
   assert.notEqual((rewrapped as Error).message, upstream.message, "the message must actually change");
@@ -68,18 +68,18 @@ test("rewraps the exact 'not a published page' refusal into a disambiguated mess
 
 test("an error with unrelated text is passed through completely unchanged", () => {
   const other = new Error("some other failure entirely");
-  const result = rewrapPageNavigateError(other);
+  const result = rewrapPageNavigateError({ err: other });
   assert.equal(result, other, "must be the SAME error object, not a rebuilt copy — no rewriting of errors this function does not own");
 });
 
 test("a non-Error rejection value is passed through unchanged", () => {
   const notAnError = { weird: "rejection shape" };
-  assert.equal(rewrapPageNavigateError(notAnError), notAnError);
+  assert.equal(rewrapPageNavigateError({ err: notAnError }), notAnError);
 });
 
 test("the 'Available:' list can legitimately be empty — '(none)' is still handled", () => {
   const upstream = new Error(`"anything" is not a published page. Available: (none)`);
-  const rewrapped = rewrapPageNavigateError(upstream) as Error;
+  const rewrapped = rewrapPageNavigateError({ err: upstream }) as Error;
   assert.match(rewrapped.message, /\(none\)/);
 });
 
@@ -133,7 +133,7 @@ test("the real page.navigate refusal is rewrapped into CMS guidance", async () =
   } as unknown as PageDriver;
   await assert.rejects(executePageCapability({ driver, capabilityId: "page.navigate", input: { page: "missing-cms-page" } }), (error: unknown) => {
     assert.ok(error instanceof Error);
-    const rewrapped = rewrapPageNavigateError(error) as Error;
+    const rewrapped = rewrapPageNavigateError({ err: error }) as Error;
     assert.notEqual(rewrapped, error);
     assert.match(rewrapped.message, /admin screen/i);
     assert.match(rewrapped.message, /"missing-cms-page"/);

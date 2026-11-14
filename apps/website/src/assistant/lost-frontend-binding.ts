@@ -48,7 +48,7 @@ const DETACHED_DETAIL =
   "Ask the user to reload the admin page, check whether the action happened, and retry only if it did not.";
 
 /** The host-facing replacement for a frontend-tool failure, or `null` to rethrow it unchanged. */
-function rewrapFrontendError(err: unknown, lostBinding: boolean): Error | null {
+function rewrapFrontendError({ err, lostBinding }: { err: unknown; lostBinding: boolean }, _optional = {}): Error | null {
   if (!(err instanceof Error)) return null;
   if (NOT_BOUND.test(err.message)) {
     return lostBinding ? new Error(LOST_FRONTEND_BINDING_MESSAGE, { cause: err }) : new FrontendDisconnectedError({ detail: UNBOUND_DETAIL, cause: err });
@@ -61,7 +61,7 @@ export interface LostFrontendBindings {
   noteBindError(context: { runId: string; error: unknown }): void;
   /** Wraps one frontend tool so a lost-binding run's "no frontend is bound" gets the reload message,
    *  and any other run's lost tab gets a recoverable {@link FrontendDisconnectedError}. */
-  wrap(registration: ToolRegistration): ToolRegistration;
+  wrap(required: { registration: ToolRegistration }, optional?: Record<string, never>): ToolRegistration;
 }
 
 /**
@@ -80,14 +80,14 @@ export function createLostFrontendBindings(options: { maxRuns?: number } = {}): 
       lostRuns.add(runId);
       if (lostRuns.size > maxRuns) lostRuns.delete(lostRuns.values().next().value as string);
     },
-    wrap(registration) {
+    wrap({ registration }) {
       return {
         ...registration,
         handler: async (ctx: ToolExecutionContext, options) => {
           try {
             return await registration.handler(ctx, options);
           } catch (err) {
-            throw rewrapFrontendError(err, lostRuns.has(ctx.run.id)) ?? err;
+            throw rewrapFrontendError({ err: err, lostBinding: lostRuns.has(ctx.run.id) }) ?? err;
           }
         },
       };

@@ -130,7 +130,7 @@ test("attachFederatedMcpTools stamps preset connections with a preset origin, fo
 
 function collectingLogger() {
   const messages: string[] = [];
-  return { messages, logger: { info: (m: string) => messages.push(`info:${m}`), warn: (m: string) => messages.push(`warn:${m}`) } };
+  return { messages, logger: { info: ({ message }: { message: string }) => messages.push(`info:${message}`), warn: ({ message }: { message: string }) => messages.push(`warn:${message}`) } };
 }
 
 const UVX_UNAVAILABLE_MESSAGE =
