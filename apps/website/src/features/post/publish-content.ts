@@ -356,7 +356,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
       const row = await p.repo.findById({ workspaceId, id });
       return row && row.kind === kind ? withTerms({ termPorts: p.term, row }) : null;
     },
-    isTrashed,
+    isTrashed: ({ row }) => isTrashed(row),
     fields: { ...POST_FIELD_DISPOSITIONS, termIds: "transferred" },
     omitWhenAbsent: ["termIds", ...OMIT_WHEN_ABSENT],
     // Hash the established transport projection while find() retains the full compensation row.

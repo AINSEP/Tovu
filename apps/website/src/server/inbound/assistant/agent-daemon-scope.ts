@@ -1106,7 +1106,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
     // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
-    const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
+    const pickedFolder = getCustomFsRoot({ workspaceId: routeDeps.workspaceId, optional: { siteDir: routeDeps.siteBinding.dir } });
     const runGuidance = { ...runtimeLaunch.guidance, chatSettings, ...(pickedFolder ? { pickedFolder } : {}) };
     startupStage = 'CLI bridge preparation';
     if (!(await prepareCliLaunch({ def, allowed: nativeCapabilities.userMcp }, {}))) return;

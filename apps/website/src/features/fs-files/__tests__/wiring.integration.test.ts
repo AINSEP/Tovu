@@ -86,8 +86,8 @@ test("catalog filesystem handlers use the current workspace's persisted custom r
   fs.writeFileSync(path.join(otherRoot, "note.txt"), "other workspace");
   fs.writeFileSync(path.join(otherRoot, "other-only.txt"), "other file");
   const deps = createRouteDeps();
-  setCustomFsRoot(deps.workspaceId, ownRoot, { siteDir: base });
-  setCustomFsRoot("other-workspace", otherRoot, { siteDir: base });
+  setCustomFsRoot({ workspaceId: deps.workspaceId, path: ownRoot, optional: { siteDir: base } });
+  setCustomFsRoot({ workspaceId: "other-workspace", path: otherRoot, optional: { siteDir: base } });
   deps.authorize = async () => ({ allowed: true }) as never;
   installFirstPartyToolContributors({ contributions });
   const catalog = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });

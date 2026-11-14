@@ -33,7 +33,7 @@ export const contributeFormPublish = (): PublishContentContributor =>
       const row = await p.repo.findBySlug({ workspaceId, slug });
       return row ? publishableForm(row) : null;
     },
-    idOf: (row) => row.slug,
+    idOf: ({ row }) => row.slug,
     fields: {
       name: "transferred",
       slug: "transferred",

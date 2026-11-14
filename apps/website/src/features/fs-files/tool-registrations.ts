@@ -58,7 +58,7 @@ export interface FsFilesToolDeps {
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the schema back with — mirrors
  *  `theme/tool-registrations.ts`'s identical `isShapeRejection` predicate for this domain's own two
  *  error classes. A genuine I/O failure (a permission-denied disk) is not one of these. */
-function isShapeRejection(error: unknown): boolean {
+function isShapeRejection({ error }: { error: unknown }, _optional = {}): boolean {
   return error instanceof FsFilePathError || error instanceof FsRootNotFoundError;
 }
 
@@ -109,7 +109,7 @@ function normalizeFsReadInput({ input }: { input: Record<string, unknown> }, _op
 
 export interface PreparedWriteBatch { readonly folder: string; readonly writes: readonly PreparedFileWrite[] }
 
-const kb = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`);
+const kb = ({ bytes }: { bytes: number }, _optional = {}) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`);
 
 /** The existing approval card, one per batch: a line per file (new/overwrite, size, path) and the
  * total. No `rememberKey`, so no "always allow" — every batch gets its own card. O(n) in files.
@@ -117,9 +117,9 @@ const kb = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).t
 export function describeWriteBatch({ folder, writes }: PreparedWriteBatch, { toolId = FS_WRITE_FILES_TOOL_ID }: { toolId?: string } = {}): HumanConfirmSpec {
   const overwrites = writes.filter((write) => write.overwrite).length;
   const total = writes.reduce((sum, write) => sum + write.bytes.length, 0);
-  const lines = writes.map((write) => `${write.overwrite ? "overwrite" : "new      "}  ${kb(write.bytes.length).padStart(9)}  ${write.path}`);
+  const lines = writes.map((write) => `${write.overwrite ? "overwrite" : "new      "}  ${kb({ bytes: write.bytes.length }).padStart(9)}  ${write.path}`);
   return { toolId, errorCode: "FS_WRITE", title: `Write ${writes.length} file(s) to ${basename(folder)}?`,
-    details: [{ label: "Folder", value: folder }, { label: "Files", value: lines.join("\n"), format: "code" }, { label: "Total", value: kb(total) }],
+    details: [{ label: "Folder", value: folder }, { label: "Files", value: lines.join("\n"), format: "code" }, { label: "Total", value: kb({ bytes: total }) }],
     ...(overwrites > 0 ? { warning: `Replaces ${overwrites} existing file(s). There is no undo.`, danger: true } : {}),
     confirmLabel: "Write files" };
 }
@@ -156,7 +156,7 @@ export function buildFsFilesRegistrations(
       const relativePath = optionalString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
-      return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
         const fileRequest = resolveSiteFileRequest({ routeDeps, root, ...(relativePath === undefined ? {} : { relativePath }) }, {});
         // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
         // caller handed only a short array cannot tell a small directory from a cut-off listing —
@@ -179,7 +179,7 @@ export function buildFsFilesRegistrations(
       const relativePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
 
-      return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
         const fileRequest = resolveSiteFileRequest({ routeDeps, root, relativePath }, {});
         const { content, bytes } = readFsFile(fileRequest);
         return { root, path: relativePath, content, bytes };

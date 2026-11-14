@@ -45,14 +45,14 @@ export const externalMcpOperationsDerivedRisk: DerivedRiskByToolId = new Map<str
 ]);
 
 /** Rejects secret-bearing or unsupported arguments before any I/O, including direct delegated calls.
- * @param input - Model arguments; omitted arguments mean an empty object.
- * @param toolId - Tool name used in the recovery message.
- * @param allowedKeys - The complete non-secret field allowlist.
+ * @param required.input - Model arguments; omitted arguments mean an empty object.
+ * @param required.toolId - Tool name used in the recovery message.
+ * @param required.allowedKeys - The complete non-secret field allowlist.
  * @returns The validated argument record.
  * @throws {ToolInputError} For non-object input or fields outside the allowlist.
  * @complexity O(k) time and space for input keys (allowlists contain at most one key).
  */
-function readOperationInput(input: unknown, toolId: string, allowedKeys: readonly string[]): Record<string, unknown> {
+function readOperationInput({ input, toolId, allowedKeys }: { input: unknown; toolId: string; allowedKeys: readonly string[] }, _optional = {}): Record<string, unknown> {
   const record = requireInputRecord({ input: input ?? {} });
   if (Object.keys(record).some(key => !allowedKeys.includes(key))) throw new ToolInputError({ message: `${toolId}: unsupported input fields. Never pass credentials through tool arguments.` });
   return record;
@@ -74,7 +74,7 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
     derivedRisk: externalMcpOperationsDerivedRisk,
     handlers: {
       external_mcp_probe_connection: async ctx => {
-        const input = readOperationInput(ctx.input, "external_mcp_probe_connection", ["id"]);
+        const input = readOperationInput({ input: ctx.input, toolId: "external_mcp_probe_connection", allowedKeys: ["id"] });
         if (typeof input.id !== "string" || !input.id.trim() || input.id.length > 64) throw new ToolInputError({ message: "external_mcp_probe_connection: pass a non-empty saved server id. Use content_read.external_mcp to find it." });
         const id = input.id.trim();
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
@@ -86,7 +86,7 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
         return result.body;
       },
       external_mcp_get_admissions: async ctx => {
-        readOperationInput(ctx.input, "external_mcp_get_admissions", []);
+        readOperationInput({ input: ctx.input, toolId: "external_mcp_get_admissions", allowedKeys: [] });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }),
         workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration" });
         const result = await operations.admissions();

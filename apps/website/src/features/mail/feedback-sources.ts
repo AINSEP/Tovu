@@ -21,7 +21,7 @@ export function mailWebhookSecretLabels({ providerLabel }: { providerLabel: stri
   return [current, `${current} (previous)`];
 }
 
-function asParser(module: unknown): MailFeedbackParser | undefined {
+function asParser({ module }: { module: unknown }, _optional = {}): MailFeedbackParser | undefined {
   const feedback = (module as { feedback?: Partial<MailFeedbackParser> } | null | undefined)?.feedback;
   return typeof feedback?.verify === "function" && typeof feedback.parse === "function" ? (feedback as MailFeedbackParser) : undefined;
 }
@@ -34,7 +34,7 @@ export function createPluginMailFeedbackSources(required: { loadAdapters: () => 
   const find = async ({ providerId }: { providerId: string }) =>
     (await required.loadAdapters()).list().find((adapter) => adapter.descriptor.id === providerId);
   return {
-    parserFor: async ({ providerId }: { providerId: string }): Promise<MailFeedbackParser | undefined> => asParser((await find({ providerId }))?.module),
+    parserFor: async ({ providerId }: { providerId: string }): Promise<MailFeedbackParser | undefined> => asParser({ module: (await find({ providerId }))?.module }),
     labelFor: async ({ providerId }: { providerId: string }): Promise<string | undefined> => (await find({ providerId }))?.descriptor.label,
   };
 }

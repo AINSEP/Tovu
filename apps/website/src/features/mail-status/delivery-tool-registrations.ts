@@ -47,7 +47,7 @@ function removalCard({ prepared }: { prepared: MailSuppressionRemovalPlan }) {
     warning: prepared.warnings.join(" "), confirmLabel: "Remove from do-not-send list" };
 }
 
-function permission(deps: MailDeliveryToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
+function permission({ deps, ctx, name }: { deps: MailDeliveryToolDeps; ctx: ToolExecutionContext; name: string }, _optional = {}): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "mail" });
 }
 
@@ -64,7 +64,7 @@ export function buildMailDeliveryRegistrations(deps: MailDeliveryToolDeps, surfa
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "system-mail-delivery", catalogModule: "features/mail-status/delivery-agent-tools.ts", catalog: indexCatalogById({ catalog: mailDeliveryAgentToolCatalog }), derivedRisk: mailDeliveryDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     mail_get_readiness: async (ctx) => {
       requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, MAIL_STATUS_PERMISSION);
+      await permission({ deps, ctx, name: MAIL_STATUS_PERMISSION });
       return readMailUseReadiness(mailUseReadinessDepsFrom(deps));
     },
     mail_list_activity: async (ctx) => {
@@ -87,7 +87,7 @@ export function buildMailDeliveryRegistrations(deps: MailDeliveryToolDeps, surfa
     }, { flag: "removed" }),
     mail_get_feedback_setup: async (ctx) => {
       requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, MAIL_STATUS_PERMISSION);
+      await permission({ deps, ctx, name: MAIL_STATUS_PERMISSION });
       return readMailFeedbackSetup(deps);
     },
   }, rules: [

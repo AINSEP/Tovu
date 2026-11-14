@@ -12,7 +12,7 @@ import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 export interface WrapMailerWithPurposeGateOptions {
   inner: MailerPort;
   mode: RuntimeMode;
-  durableOutboxReady: (capabilityName: string) => boolean;
+  durableOutboxReady: (required: { capabilityName: string }) => boolean;
 }
 
 export { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
@@ -25,7 +25,7 @@ export function wrapMailerWithPurposeGate({ inner, mode, durableOutboxReady }: W
   const mailer = wrapJiniMailerWithPurposeGate({
     inner: toJiniMailer({ mailer: inner }),
     mode,
-    readiness: { isReady: ({ capabilityName }) => durableOutboxReady(capabilityName) },
+    readiness: { isReady: ({ capabilityName }) => durableOutboxReady({ capabilityName }) },
   });
   return toTovuMailer({ mailer });
 }

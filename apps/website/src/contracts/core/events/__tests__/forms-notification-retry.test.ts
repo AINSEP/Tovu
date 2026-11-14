@@ -12,8 +12,8 @@ test('notification jobs use the external delivery policy and permanent failures 
   assert.equal(policy.retryable!({ error: new FormNotificationError({ submissionId: 's', retryable: true }) }), true);
 });
 test('only the forms capability advertises the wired durable email path', () => {
-  assert.equal(formsMailOutboxReady('forms'), true);
-  assert.equal(formsMailOutboxReady('newsletter'), false);
+  assert.equal(formsMailOutboxReady({ capabilityName: 'forms' }), true);
+  assert.equal(formsMailOutboxReady({ capabilityName: 'newsletter' }), false);
 });
 
 for (const retryable of [true, false]) test(`outbox persists notification failure as ${retryable ? 'pending retry' : 'terminal failed'}`, async () => {

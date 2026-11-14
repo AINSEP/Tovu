@@ -164,12 +164,12 @@ function createReader(
 }
 
 /** Checks a filename using Jini's host-filesystem folding and Tovu's deny rules. */
-export function isDeniedFsFileName(fileName: string): boolean {
+export function isDeniedFsFileName({ fileName }: { fileName: string }, _optional = {}): boolean {
   return createReader({ rootPath: resolve(".") }).isDeniedFileName({ fileName });
 }
 
 /** Checks one segment, including Windows aliases and Unicode case folding. */
-export function isDeniedFsPathSegment(segmentName: string): boolean {
+export function isDeniedFsPathSegment({ segmentName }: { segmentName: string }, _optional = {}): boolean {
   return createReader({ rootPath: resolve(".") }).isDeniedPathSegment({ segmentName });
 }
 

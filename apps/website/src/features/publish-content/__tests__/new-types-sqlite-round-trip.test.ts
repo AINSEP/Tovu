@@ -32,7 +32,7 @@ const at = "2026-09-01T00:00:00.000Z";
 function instance(name: string) {
   const db = openContentDb(":memory:");
   const repos = {
-    forms: new SqliteFormDefinitionRepo(db),
+    forms: new SqliteFormDefinitionRepo({ store: db }),
     contentTypes: new SqliteContentTypeRepo(db),
     entries: new SqliteEntryRepo({ store: db }),
     entryRefs: new SqliteEntryRefsRepo({ store: db }),

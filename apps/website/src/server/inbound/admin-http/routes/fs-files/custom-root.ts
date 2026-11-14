@@ -76,7 +76,7 @@ async function rejectUnlessAuthorized(
 export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFsFilesCustomRootDeps): void {
   app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_READ_PERMISSION)) return;
-    const status = getCustomFsRootStatus(deps.workspaceId, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
+    const status = getCustomFsRootStatus({ workspaceId: deps.workspaceId, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });
     // `vanished`/`vanishedPath` are only present (never `false`/absent-by-omission) when a
     // previously-set folder no longer stats as a directory — additive beyond the original
     // `{ path }` shape, so an existing caller reading only `path` sees no change.
@@ -93,8 +93,8 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
     }
 
     try {
-      setCustomFsRoot(deps.workspaceId, path, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
-      res.status(200).json({ path: getCustomFsRootStatus(deps.workspaceId, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir })).path });
+      setCustomFsRoot({ workspaceId: deps.workspaceId, path, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });
+      res.status(200).json({ path: getCustomFsRootStatus({ workspaceId: deps.workspaceId, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) }).path });
     } catch (err) {
       if (err instanceof CustomFsRootError) {
         res.status(400).json({ error: err.message, code: "INVALID_PATH" });
@@ -106,7 +106,7 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
 
   app.delete(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION)) return;
-    setCustomFsRoot(deps.workspaceId, null, (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }));
+    setCustomFsRoot({ workspaceId: deps.workspaceId, path: null, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });
     res.status(200).json({ path: null });
   } }));
 }

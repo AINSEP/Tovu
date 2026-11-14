@@ -170,7 +170,7 @@ test('a card cannot keep known grants when a stdio connection changes its argume
 });
 
 test('the card shows stored stdio arguments so an unchanged save, such as a token rotation, keeps target and grants', async t => {
-  const prefilled = mergeExternalMcpSavePrefill({ id: key.serverId, transport: 'stdio' }, { args: ['-y', 'server a'], allowedToolNames: [], writeAllowedToolNames: [], oauth: { scopes: [] } } as unknown as ExternalMcpServerView);
+  const prefilled = mergeExternalMcpSavePrefill({ input: { id: key.serverId, transport: 'stdio' }, existing: { args: ['-y', 'server a'], allowedToolNames: [], writeAllowedToolNames: [], oauth: { scopes: [] } } as unknown as ExternalMcpServerView });
   assert.equal(prefilled.args, '-y "server a"');
   const f = await fixture({ configuration: true, stdio: true }); t.after(() => f.controller.abort());
   const pending = f.invoke(); await turn();

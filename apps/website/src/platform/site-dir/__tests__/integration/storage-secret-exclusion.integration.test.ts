@@ -114,9 +114,9 @@ test("agent file tools and publish trees deny the secret by name, at any depth",
   const ordinary = readFsFile({ rootPath: root, relativePath: "nested/ordinary.json" });
   assert.deepEqual(ordinary, { content: '{"message":"ordinary neighbor"}', bytes: 31 });
   assert.equal(checkTreeFiles("theme-files", [{ path: "nested/ordinary.json", mode: 0o644, size: ordinary.bytes, textSample: ordinary.content }]), null);
-  assert.equal(isDeniedFsFileName(STORAGE_SECRET_FILENAME), true);
-  assert.equal(isDeniedFsFileName(".Storage-Secret.json"), true, "case-folded like every other entry");
-  assert.equal(isDeniedFsFileName(`.${STORAGE_SECRET_FILENAME}.123.abc.tmp`), true, "a crashed write's temp file too");
+  assert.equal(isDeniedFsFileName({ fileName: STORAGE_SECRET_FILENAME }), true);
+  assert.equal(isDeniedFsFileName({ fileName: ".Storage-Secret.json" }), true, "case-folded like every other entry");
+  assert.equal(isDeniedFsFileName({ fileName: `.${STORAGE_SECRET_FILENAME}.123.abc.tmp` }), true, "a crashed write's temp file too");
   assert.match(checkTreePath(STORAGE_SECRET_FILENAME) ?? "", /sealed database connection string/);
   assert.match(checkTreePath(`nested/dir/${STORAGE_SECRET_FILENAME}`) ?? "", /sealed database connection string/);
 });

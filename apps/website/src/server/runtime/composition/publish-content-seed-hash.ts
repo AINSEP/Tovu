@@ -106,7 +106,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
       menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect("menu.bindingRepo") },
       redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
       ...buildContentPublishPorts({
-        formDefinitionRepo: new SqliteFormDefinitionRepo(seedDb),
+        formDefinitionRepo: new SqliteFormDefinitionRepo({ store: seedDb }),
         contentTypeRepo: new SqliteContentTypeRepo(seedDb),
         contentTypeIndexProvisioner: unusedBySeedInspect("contentTypeIndexProvisioner"),
         workspaceId,

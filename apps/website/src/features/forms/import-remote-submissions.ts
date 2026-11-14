@@ -163,21 +163,21 @@ function declaredAnswers({ definition, answers }: { definition: FormDefinitionRe
   const data: Record<string, FormAnswer> = {};
   for (const field of definition.fields) {
     const value = answers[field.id];
-    const kept = cappedTextAnswer(value, fieldMaxChars({ field }) ?? FORM_LONG_TEXT_MAX_CHARS);
+    const kept = cappedTextAnswer({ value, max: fieldMaxChars({ field }) ?? FORM_LONG_TEXT_MAX_CHARS });
     if (kept !== undefined) data[field.id] = kept;
   }
   return data;
 }
 
 /** A text or text-list answer cut to `max`; undefined for any other value. @complexity O(answer length). */
-function cappedTextAnswer(value: unknown, max: number): FormAnswer | undefined {
-  if (typeof value === "string") return capped(value, max);
-  if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) return value.map((entry: string) => capped(entry, max));
+function cappedTextAnswer({ value, max }: { value: unknown; max: number }, _optional = {}): FormAnswer | undefined {
+  if (typeof value === "string") return capped({ value, max });
+  if (Array.isArray(value) && value.every((entry) => typeof entry === "string")) return value.map((entry: string) => capped({ value: entry, max }));
   return undefined;
 }
 
 /** The first `max` code points, the unit the live caps count (an emoji counts once). @complexity O(n). */
-function capped(value: string, max: number): string {
+function capped({ value, max }: { value: string; max: number }, _optional = {}): string {
   // UTF-16 units never undercount code points, so a short value is already within the cap.
   return value.length <= max ? value : [...value].slice(0, max).join("");
 }

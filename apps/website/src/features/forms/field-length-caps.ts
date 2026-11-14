@@ -17,7 +17,7 @@ import { fieldMaxChars } from "./render-entry.js";
 export { FORM_TEXT_MAX_CHARS, FORM_LONG_TEXT_MAX_CHARS, fieldMaxChars } from "./render-entry.js";
 
 /** UTF-16 units beyond the code points: one per astral character (most emoji). @complexity O(n). */
-function surrogatePairs(value: string): number {
+function surrogatePairs({ value }: { value: string }, _optional = {}): number {
   let pairs = 0;
   for (const char of value) if (char.length === 2) pairs += 1;
   return pairs;
@@ -33,7 +33,7 @@ export function capSubmissionFieldLengths(
     const max = fieldMaxChars({ field });
     if (max === undefined) return field;
     const value = Object.hasOwn(body, field.id) ? body[field.id] : undefined;
-    return { ...field, maxLength: max + (typeof value === "string" ? surrogatePairs(value) : 0) };
+    return { ...field, maxLength: max + (typeof value === "string" ? surrogatePairs({ value }) : 0) };
   });
   return { ...definition, fields };
 }

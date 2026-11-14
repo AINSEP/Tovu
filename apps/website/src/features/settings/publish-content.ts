@@ -120,7 +120,7 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
       return rows.filter((row): row is SiteSettingRow => row !== null);
     },
     find: ({ ports, workspaceId, id }) => findSetting({ ports, workspaceId, id }),
-    idOf: (row) => row.key,
+    idOf: ({ row }) => row.key,
     include: (row) => !(row.key === OG_IMAGE && pointsAtThisComputer(row.value)),
     fields: { key: "local", label: "provenance", value: "transferred", cleared: "transferred", version: "local" },
     omitWhenAbsent: ["cleared"],

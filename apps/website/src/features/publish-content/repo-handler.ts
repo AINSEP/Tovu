@@ -72,7 +72,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** Must also return a trashed row, so precheck can refuse it rather than plan a create. */
   readonly find: (required: { ports: Ports; workspaceId: string; id: string }, optional?: Record<string, never>) => Promise<Row | null>;
   /** Defaults to `row.id`. */
-  readonly idOf?: (row: Row) => string;
+  readonly idOf?: (required: { row: Row }) => string;
   /** Defaults to `row.version`. */
   readonly versionOf?: (row: Row) => number;
   /** Pack filter beyond trash (kind, active status, excluded keys). */
@@ -156,7 +156,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
   const portsKey = config.portsKey ?? entityType;
   const schemaVersion = config.schemaVersion ?? 1;
   const dependsOn = config.dependsOn ?? [];
-  const idOf = config.idOf ?? ((row: Row) => (row as { id: string }).id);
+  const idOf = config.idOf ?? (({ row }: { row: Row }) => (row as { id: string }).id);
   const versionOf = config.versionOf ?? ((row: Row) => (row as { version: number }).version);
   const fieldsWhere = (keep: (d: FieldDisposition) => boolean) =>
     Object.entries<FieldDisposition>(config.fields).filter(([, d]) => keep(d)).map(([field]) => field);
@@ -201,7 +201,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         const displayLabel = config.displayLabel?.(row);
         yield {
           entityType,
-          id: idOf(row),
+          id: idOf({ row }),
           schemaVersion,
           contentHash: hashOf(row),
           hashVersion: CONTENT_HASH_VERSION,
@@ -226,9 +226,9 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       const value = address ? entity.state[address.field] : undefined;
       if (address && typeof value === "string" && value) {
         const holder = await address.holder({ ports: p, workspaceId, value, state: entity.state });
-        if (holder && idOf(holder) !== entity.id) {
+        if (holder && idOf({ row: holder }) !== entity.id) {
           const held = config.isTrashed?.({ row: holder }) ? addressHeldInTrash : addressHeldByOther;
-          return held(entityType, address.field, value, idOf(holder));
+          return held(entityType, address.field, value, idOf({ row: holder }));
         }
       }
       return null;

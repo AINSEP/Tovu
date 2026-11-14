@@ -40,7 +40,7 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
     ports: ({ deps }) => deps.ports["content-type"],
     list: ({ ports: p, workspaceId }) => p.repo.listByWorkspace({ workspaceId }),
     find: ({ ports: p, workspaceId, id: key }) => p.repo.findByKey({ workspaceId, key }),
-    idOf: (row) => row.key,
+    idOf: ({ row }) => row.key,
     include: (row) => row.status !== "tombstone" && !SEEDED_KEYS.has(row.key),
     fields: {
       key: "transferred",

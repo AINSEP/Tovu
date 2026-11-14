@@ -342,7 +342,7 @@ test("T15: re-enabling preserves an operator-edited disabled connection and its 
   assert.ok(edited);
   assert.equal(edited.provisionedByPluginId, input.pluginId);
   const payload = { tokens: { accessToken: "fixture-access-token", refreshToken: "fixture-refresh-token", tokenType: "Bearer", scopes: [], expiresAt: null } };
-  await deps.repo.upsert({ ...edited, ...await sealExternalMcpOAuthPayload(deps, edited, payload), oauthStatus: "connected" });
+  await deps.repo.upsert({ ...edited, ...await sealExternalMcpOAuthPayload({ deps, identity: edited, payload }), oauthStatus: "connected" });
   const before = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "remote" });
   assert.ok(before?.sealedOAuth);
 
@@ -414,7 +414,7 @@ test("provisionAgentPluginMcpServers: an operator's pre-existing row with a live
   };
   await deps.repo.upsert({
     ...seeded,
-    ...await sealExternalMcpOAuthPayload(deps, seeded, payload),
+    ...await sealExternalMcpOAuthPayload({ deps, identity: seeded, payload }),
     oauthStatus: "connected",
     oauthExpiresAt: payload.tokens.expiresAt,
   });

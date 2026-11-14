@@ -276,7 +276,7 @@ test("precheck compares the address holder by idOf, so a natural-key type is not
   const repo = new FakeItemRepo([{ id: "row-1", workspaceId: WORKSPACE_ID, slug: "taken", title: "Same", note: "", status: "active", version: 1 }]);
   const handler = buildHandler(
     baseConfig({
-      idOf: (row) => row.slug,
+      idOf: ({ row }) => row.slug,
       find: ({ ports, workspaceId, id: slug }) => ports.repo.findBySlug(workspaceId, slug),
       address: { field: "slug", holder: ({ ports, workspaceId, value: slug }) => ports.repo.findBySlug(workspaceId, slug) },
     }),

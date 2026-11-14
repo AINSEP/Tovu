@@ -17,9 +17,9 @@ export type MailPurposeGateProbe = (required: { capabilityName: string; lane: "i
  * @complexity O(1); no I/O.
  * @example await createMailPurposeGateProbe({ mode: "production", durableOutboxReady: () => false })({ capabilityName: "forms", lane: "notification" })
  */
-export function createMailPurposeGateProbe(required: { mode: RuntimeMode; durableOutboxReady: (capabilityName: string) => boolean }): MailPurposeGateProbe {
+export function createMailPurposeGateProbe(required: { mode: RuntimeMode; durableOutboxReady: (required: { capabilityName: string }) => boolean }): MailPurposeGateProbe {
   // Validate at composition, as the previous gate wrapper did; no readiness read in local mode.
   isPurposeGateOpen({ mode: required.mode, readiness: { isReady: () => false }, options: { lane: "interactive", sourceContext: { module: "unknown" } } });
   return async ({ capabilityName, lane }) => isPurposeGateOpen({ mode: required.mode,
-    readiness: { isReady: ({ capabilityName }) => required.durableOutboxReady(capabilityName) }, options: { lane, sourceContext: { module: capabilityName } } });
+    readiness: { isReady: ({ capabilityName }) => required.durableOutboxReady({ capabilityName }) }, options: { lane, sourceContext: { module: capabilityName } } });
 }

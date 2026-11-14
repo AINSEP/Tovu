@@ -9,7 +9,7 @@ type SubmissionIpSweep = typeof import("@jini-ai/cms/forms").sweepExpiredSubmiss
 /** Daily after the boot pass; the 90-day policy constant belongs solely to Jini. */
 export const SUBMISSION_IP_SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-function warn(error: unknown): void {
+function warn({ error }: { error: unknown }, _optional = {}): void {
   consoleLogger.warn({ message: `[submission-ip-expiry-sweep] sweep failed: ${error instanceof Error ? error.message : String(error)}` });
 }
 
@@ -20,16 +20,16 @@ function warn(error: unknown): void {
  */
 export function startSubmissionIpExpirySweep(
   { kernel, sweep: suppliedSweep }: { kernel: ContentKernel; sweep?: SubmissionIpSweep },
-  options: { intervalMs?: number; now?: () => number; onError?: (error: unknown) => void } = {},
+  options: { intervalMs?: number; now?: () => number; onError?: (required: { error: unknown }) => void } = {},
 ): () => Promise<void> {
   const { intervalMs = SUBMISSION_IP_SWEEP_INTERVAL_MS, now = Date.now, onError = warn } = options;
   if (!Number.isSafeInteger(intervalMs) || intervalMs <= 0) throw new RangeError("submission IP sweep interval must be positive");
-  const report = (error: unknown): void => {
-    try { onError(error); } catch { /* A logging failure cannot reject timer work. */ }
+  const report = ({ error }: { error: unknown }, _optional = {}): void => {
+    try { onError({ error }); } catch { /* A logging failure cannot reject timer work. */ }
   };
   const candidate: unknown = suppliedSweep ?? Reflect.get(forms, "sweepExpiredSubmissionIps");
   if (typeof candidate !== "function") {
-    report(new Error("disabled: published @jini-ai/cms-forms has no sweepExpiredSubmissionIps export; release/install Jini retention support"));
+    report({ error: new Error("disabled: published @jini-ai/cms-forms has no sweepExpiredSubmissionIps export; release/install Jini retention support") });
     return async () => {};
   }
   const sweep = candidate as SubmissionIpSweep;
@@ -37,7 +37,7 @@ export function startSubmissionIpExpirySweep(
   let active: Promise<void> | undefined;
   let stopped = false;
   const run = async (): Promise<void> => {
-    try { await sweep({ now: now(), repo }); } catch (error) { report(error); }
+    try { await sweep({ now: now(), repo }); } catch (error) { report({ error }); }
   };
   const pass = (): void => {
     if (stopped || active !== undefined) return;

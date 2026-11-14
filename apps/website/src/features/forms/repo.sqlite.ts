@@ -13,18 +13,18 @@ export const FORMS_TABLES = { definitions: "form_definitions", submissions: "for
 /**
  * @file The forms repos on a site's SQLite `content.db`: {@link SqlFormDefinitionRepo} and
  * {@link SqlFormSubmissionRepo} (the one Kysely query body in @jini-ai/cms/forms/sql). Kept as named
- * classes so existing call sites that construct them from the content db handle stay as they are.
+ * classes so callers can construct them from the content db handle or its kernel.
  */
 export class SqliteFormDefinitionRepo extends SqlFormDefinitionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
     super({ kernel: contentKernel({ store }) as unknown as StorageKernel<FormDefinitionDatabase>, tables: FORMS_TABLES }, {});
   }
 }
 
 export class SqliteFormSubmissionRepo extends SqlFormSubmissionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
     super({ kernel: contentKernel({ store }) as unknown as StorageKernel<FormSubmissionDatabase>, tables: FORMS_TABLES }, {});
   }
 }

@@ -82,7 +82,7 @@ test("sync errors, rejected sweeps and throwing reporters stay contained; later 
     return Promise.resolve(0);
   };
   const stop = startSubmissionIpExpirySweep({ kernel, sweep }, {
-    onError(error) { errors.push(error); throw new Error("logger failed"); },
+    onError({ error }) { errors.push(error); throw new Error("logger failed"); },
   });
   try {
     await turn();
@@ -103,7 +103,7 @@ test("a failed clock is warned and a later tick retries", async t => {
   let sweepCalls = 0;
   const stop = startSubmissionIpExpirySweep({ kernel, sweep: async () => { sweepCalls++; return 0; } }, {
     now: () => { if (++clockCalls === 1) throw failure; return 123; },
-    onError: error => { errors.push(error); },
+    onError: ({ error }) => { errors.push(error); },
   });
   try {
     await turn();
@@ -120,7 +120,7 @@ test("an old published package warns once and registers no timer", async t => {
   let registrations = 0;
   t.mock.method(globalThis, "setInterval", () => { registrations++; throw new Error("unexpected timer"); });
   const errors: unknown[] = [];
-  const stop = startSubmissionIpExpirySweep({ kernel }, { onError: error => { errors.push(error); } });
+  const stop = startSubmissionIpExpirySweep({ kernel }, { onError: ({ error }) => { errors.push(error); } });
   await stop();
   assert.equal(registrations, 0);
   assert.equal(errors.length, 1);

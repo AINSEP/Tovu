@@ -149,7 +149,7 @@ export function sqliteContentSite() {
     // A function port, so not `unused()`'s Proxy (calling a Proxy over `{}` is a bare TypeError).
     post: { repo: repos.posts, forgetRemoved: async () => {}, remove: async () => { throw new Error("round-trip-harness: 'post.remove' is not wired"); } },
     ...buildContentPublishPorts({
-      formDefinitionRepo: new SqliteFormDefinitionRepo(db),
+      formDefinitionRepo: new SqliteFormDefinitionRepo({ store: db }),
       contentTypeRepo: repos.contentTypes,
       contentTypeIndexProvisioner: new NoopContentTypeIndexProvisioner(),
       workspaceId,

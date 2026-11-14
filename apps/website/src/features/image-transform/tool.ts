@@ -52,7 +52,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: imageTransformAgentToolCatalog
 export const imageTransformDerivedRisk: DerivedRiskByToolId = new Map([[IMAGE_TRANSFORM_TOOL_ID, "mutates-durable-state"]]);
 
 interface Prepared { source: Awaited<ReturnType<typeof inspectImage>>; rendered: RenderedImage[]; assets?: PreparedAssets }
-const isCallerError = (error: unknown) => {
+const isCallerError = ({ error }: { error: unknown }, _optional = {}) => {
   if (error instanceof ImageTransformError || error instanceof FsFilePathError || error instanceof FsWriteInputError) return true;
   return isThemeShapeRejection(error) || isImportShapeRejection({ error });
 };
@@ -74,7 +74,7 @@ async function prepare({ routeDeps, ctx }: { routeDeps: ImageTransformToolDeps; 
 
 export function buildImageTransformRegistrations(routeDeps: ImageTransformToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handler = approvalToolHandler<Prepared>({ surfaces,
-    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: IMAGE_TRANSFORM_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isCallerError(error), fn: () => prepare({ routeDeps, ctx }) }),
+    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: IMAGE_TRANSFORM_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isCallerError({ error }), fn: () => prepare({ routeDeps, ctx }) }),
     describe: ({ prepared }) => describeWriteBatch(prepared.assets?.batch ?? { folder: "", writes: [] }, { toolId: IMAGE_TRANSFORM_TOOL_ID }),
     run: async ({ ctx, prepared }) => {
       const base = { source: prepared.source, outputs: view(prepared.rendered) };
