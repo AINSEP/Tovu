@@ -63,7 +63,7 @@ for (const linked of [false, true]) {
 test('Start of a legacy-tracked app-data copy snapshots its content before the server opens it', async (t) => {
   const f = fixture(t, false);
   trackSite(f.projectsPath, f.copy);
-  await handleStart(f.copy, {
+  await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
     serializer: createKeyedSerializer(), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
     openSiteServer: async () => {
@@ -72,7 +72,7 @@ test('Start of a legacy-tracked app-data copy snapshots its content before the s
       assert.equal(fs.existsSync(copiedPath), true, 'Start must not boot an empty copy');
       assert.notEqual(copiedPath, f.sourcePath);
     },
-  });
+  } });
 });
 
 test('an unreadable external database refuses Add without changing identity or tracking the copy', (t) => {

@@ -191,7 +191,7 @@ export function applyZoomCommand(target: ZoomTarget, bridge: ZoomBridge | undefi
     return;
   }
   if (target.kind === 'top' && bridge) {
-    bridge.setZoomLevel(nextZoomLevel(bridge.getZoomLevel(), direction));
+    bridge.setZoomLevel({ level: nextZoomLevel(bridge.getZoomLevel(), direction) });
   }
 }
 
@@ -246,10 +246,10 @@ export function useZoom(
   // still honored.
   useEffect(() => {
     if (!bridge) return undefined;
-    return bridge.onZoomCommand((direction) => {
+    return bridge.onZoomCommand({ listener: (direction) => {
       const target = resolveZoomTarget({ activeGuestId, guests, bridge });
       applyZoomCommand(target, bridge, direction, storage);
-    });
+    } });
     // `guests` is a ref (stable identity, never itself a trigger); `activeGuestId` is what actually
     // changes which entry a fired command should resolve to.
   }, [bridge, activeGuestId, guests, storage]);

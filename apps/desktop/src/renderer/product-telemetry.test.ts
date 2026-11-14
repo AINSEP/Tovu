@@ -4,7 +4,7 @@ import { reportShellTelemetry, installShellErrorReporting } from './product-tele
 
 test('shell actions send only the explicit payload and a broken bridge cannot break the action', () => {
   const sent: unknown[] = [];
-  reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }, { bridge: { report: payload => { sent.push(payload); } } });
+  reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }, { bridge: { report: ({ payload }, _options = {}) => { sent.push(payload); } } });
   assert.deepEqual(sent, [{ kind: 'action', id: 'open_admin' }]);
   assert.doesNotThrow(() => reportShellTelemetry({ payload: { kind: 'screen', id: 'projects' } }, { bridge: { report() { throw new Error('FAKE_IPC_ERROR'); } } }));
 });

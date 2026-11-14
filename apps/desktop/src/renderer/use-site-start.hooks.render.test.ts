@@ -56,7 +56,7 @@ test("useSiteStart: success hands main's record on and resolves true; a missing 
 test('useSiteStart: a retry clears the previous error, and a success without onSiteUpdated still resolves true', async (t) => {
   const outcomes = [() => Promise.reject(new Error('port 4321 is taken')), () => Promise.resolve(site('a', { status: 'running' }))];
   const ids: string[] = [];
-  const getBridge = () => ({ startSite: (id: string) => { ids.push(id); return outcomes.shift()!(); } });
+  const getBridge = () => ({ startSite: ({ id }: { id: string }, _options = {}) => { ids.push(id); return outcomes.shift()!(); } });
   const hook = renderHook(t, () => useSiteStart(site('/sites/a'), undefined, { getBridge }));
   assert.equal(await act(() => hook.current().start()), false);
   assert.equal(hook.current().error, 'port 4321 is taken');

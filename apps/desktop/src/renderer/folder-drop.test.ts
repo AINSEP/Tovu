@@ -59,13 +59,13 @@ function getPathForFileFrom(paths: ReadonlyMap<File, string>): (file: File) => s
 
 test("returns no paths for a drop with neither items nor files", () => {
   const dataTransfer = fakeDataTransfer(undefined, undefined);
-  const result = folderPathsFromDataTransfer(dataTransfer, () => "/unused");
+  const result = folderPathsFromDataTransfer({ dataTransfer, getPathForFile: () => "/unused" });
   assert.deepEqual(result, []);
 });
 
 test("skips a non-file item (e.g. the text/uri-list string item Finder adds alongside a folder)", () => {
   const dataTransfer = fakeDataTransfer([fakeStringItem()], []);
-  const result = folderPathsFromDataTransfer(dataTransfer, () => "/unused");
+  const result = folderPathsFromDataTransfer({ dataTransfer, getPathForFile: () => "/unused" });
   assert.deepEqual(result, []);
 });
 
@@ -73,8 +73,7 @@ test("skips a file item whose entry is not a directory", () => {
   const file = fakeFile("loose-file");
   const dataTransfer = fakeDataTransfer([fakeFileItem(() => fakeEntry(false))], [file]);
   const result = folderPathsFromDataTransfer(
-    dataTransfer,
-    getPathForFileFrom(new Map([[file, "/should-not-appear"]])),
+    { dataTransfer, getPathForFile: getPathForFileFrom(new Map([[file, "/should-not-appear"]])) },
   );
   assert.deepEqual(result, []);
 });
@@ -83,8 +82,7 @@ test("skips a file item whose webkitGetAsEntry() resolves to null", () => {
   const file = fakeFile("no-entry");
   const dataTransfer = fakeDataTransfer([fakeFileItem(() => null)], [file]);
   const result = folderPathsFromDataTransfer(
-    dataTransfer,
-    getPathForFileFrom(new Map([[file, "/should-not-appear"]])),
+    { dataTransfer, getPathForFile: getPathForFileFrom(new Map([[file, "/should-not-appear"]])) },
   );
   assert.deepEqual(result, []);
 });
@@ -93,8 +91,7 @@ test("skips a file item on a drag that never defines webkitGetAsEntry at all", (
   const file = fakeFile("no-method");
   const dataTransfer = fakeDataTransfer([fakeFileItem(undefined)], [file]);
   const result = folderPathsFromDataTransfer(
-    dataTransfer,
-    getPathForFileFrom(new Map([[file, "/should-not-appear"]])),
+    { dataTransfer, getPathForFile: getPathForFileFrom(new Map([[file, "/should-not-appear"]])) },
   );
   assert.deepEqual(result, []);
 });
@@ -103,8 +100,7 @@ test("recovers the OS path for a single dropped folder", () => {
   const file = fakeFile("folder-a");
   const dataTransfer = fakeDataTransfer([fakeFileItem(() => fakeEntry(true))], [file]);
   const result = folderPathsFromDataTransfer(
-    dataTransfer,
-    getPathForFileFrom(new Map([[file, "/Users/x/Desktop/Folder A"]])),
+    { dataTransfer, getPathForFile: getPathForFileFrom(new Map([[file, "/Users/x/Desktop/Folder A"]])) },
   );
   assert.deepEqual(result, ["/Users/x/Desktop/Folder A"]);
 });
@@ -114,14 +110,14 @@ test("drops a resolved folder whose path could not be recovered (getPathForFile 
   // NOT come straight off dataTransfer.files the way the page received it — resolves to ''.
   const file = fakeFile("unresolvable-folder");
   const dataTransfer = fakeDataTransfer([fakeFileItem(() => fakeEntry(true))], [file]);
-  const result = folderPathsFromDataTransfer(dataTransfer, () => "");
+  const result = folderPathsFromDataTransfer({ dataTransfer, getPathForFile: () => "" });
   assert.deepEqual(result, []);
 });
 
 test("drops a folder item when .files has no entry at its index", () => {
   // items claims one file-kind item, but .files is empty — the `file === undefined` guard.
   const dataTransfer = fakeDataTransfer([fakeFileItem(() => fakeEntry(true))], []);
-  const result = folderPathsFromDataTransfer(dataTransfer, () => "/should-not-appear");
+  const result = folderPathsFromDataTransfer({ dataTransfer, getPathForFile: () => "/should-not-appear" });
   assert.deepEqual(result, []);
 });
 
@@ -135,8 +131,7 @@ test("keeps the .files index aligned when a string item sits ahead of the folder
     [file],
   );
   const result = folderPathsFromDataTransfer(
-    dataTransfer,
-    getPathForFileFrom(new Map([[file, "/Users/x/Desktop/Aligned Folder"]])),
+    { dataTransfer, getPathForFile: getPathForFileFrom(new Map([[file, "/Users/x/Desktop/Aligned Folder"]])) },
   );
   assert.deepEqual(result, ["/Users/x/Desktop/Aligned Folder"]);
 });
@@ -155,13 +150,12 @@ test("preserves drop order across a mix of string items, loose files, and multip
     [folderOne, looseFile, folderTwo],
   );
   const result = folderPathsFromDataTransfer(
-    dataTransfer,
-    getPathForFileFrom(
+    { dataTransfer, getPathForFile: getPathForFileFrom(
       new Map([
         [folderOne, "/Users/x/Desktop/Folder One"],
         [folderTwo, "/Users/x/Desktop/Folder Two"],
       ]),
-    ),
+    ) },
   );
   assert.deepEqual(result, ["/Users/x/Desktop/Folder One", "/Users/x/Desktop/Folder Two"]);
 });

@@ -77,13 +77,13 @@ function movePromptSkipReason(env: MovePromptEnvironment): string | null {
 }
 
 /** `<userData>/move-to-applications.json`. @complexity O(1). */
-function moveDeclineFilePath(userDataDir: string): string {
+function moveDeclineFilePath({ userDataDir }: { userDataDir: string }, _options = {}): string {
   return path.join(userDataDir, "move-to-applications.json");
 }
 
 /** @returns the version "Not Now" was chosen on; `null` if never, or the file is unusable.
  *  @complexity O(n) in file size. */
-function readDeclinedVersion(filePath: string): string | null {
+function readDeclinedVersion({ filePath }: { filePath: string }, _options = {}): string | null {
   const read = readJsonFile({ filePath });
   if (read.state !== "ok") return null;
   const version = (read.value as { declinedVersion?: unknown } | null)?.declinedVersion;
@@ -91,24 +91,24 @@ function readDeclinedVersion(filePath: string): string | null {
 }
 
 /** Records "Not Now" for `version`, replacing any earlier one. @complexity O(1). */
-function recordDeclinedVersion(filePath: string, version: string): void {
+function recordDeclinedVersion({ filePath, version }: { filePath: string; version: string }, _options = {}): void {
   writeJsonFileAtomic({ filePath, value: { declinedVersion: version } });
 }
 
 /** @returns the `.app` bundle holding `execPath` (`…/X.app/Contents/MacOS/X`), or `null`.
  *  @complexity O(n) in the path length. */
-function bundlePathFromExecPath(execPath: string): string | null {
+function bundlePathFromExecPath({ execPath }: { execPath: string }, _options = {}): string | null {
   return /^(.*\.app)\/Contents\/MacOS\/[^/]+$/.exec(execPath)?.[1] ?? null;
 }
 
 /** Where `app.moveToApplicationsFolder()` puts the bundle: `/Applications/<its name>`. @complexity O(1). */
-function applicationsTargetPath(bundlePath: string): string {
+function applicationsTargetPath({ bundlePath }: { bundlePath: string }, _options = {}): string {
   return path.join("/Applications", path.basename(bundlePath));
 }
 
 /** @returns a bundle's `CFBundleShortVersionString` from its XML `Info.plist` (what electron-builder
  *  writes), or `null` when it cannot be read. @complexity O(n) in the plist's size. */
-function readBundleVersion(bundlePath: string): string | null {
+function readBundleVersion({ bundlePath }: { bundlePath: string }, _options = {}): string | null {
   try {
     const plist = fs.readFileSync(path.join(bundlePath, "Contents", "Info.plist"), "utf8");
     return /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/.exec(plist)?.[1]?.trim() ?? null;
@@ -118,7 +118,7 @@ function readBundleVersion(bundlePath: string): string | null {
 }
 
 /** The dotted numeric part of a version (`0.2.0-beta.1` → `[0, 2, 0]`), or `null`. @complexity O(n). */
-function numericParts(version: string | null): number[] | null {
+function numericParts({ version }: { version: string | null }, _options = {}): number[] | null {
   const core = /^(\d+(?:\.\d+)*)/.exec(version ?? "")?.[1];
   return core === undefined ? null : core.split(".").map(Number);
 }
@@ -128,9 +128,9 @@ function numericParts(version: string | null): number[] | null {
  * @returns 1, 0 or -1; `null` when either is not a version.
  * @complexity O(n) in the number of parts.
  */
-function compareVersions(a: string | null, b: string | null): number | null {
-  const left = numericParts(a);
-  const right = numericParts(b);
+function compareVersions({ a, b }: { a: string | null; b: string | null }, _options = {}): number | null {
+  const left = numericParts({ version: a });
+  const right = numericParts({ version: b });
   if (left === null || right === null) return null;
   for (let index = 0; index < Math.max(left.length, right.length); index++) {
     const diff = (left[index] ?? 0) - (right[index] ?? 0);
@@ -155,7 +155,7 @@ type MoveConflictType = "exists" | "existsAndRunning";
  * @complexity O(1).
  */
 function decideMoveConflict(input: { conflictType: MoveConflictType; existingVersion: string | null; currentVersion: string }): "replace" | "open-existing" | "blocked-by-running-copy" {
-  const order = compareVersions(input.existingVersion, input.currentVersion);
+  const order = compareVersions({ a: input.existingVersion, b: input.currentVersion });
   if (order === 1) return "open-existing";
   if (input.conflictType === "exists") return "replace";
   return order === 0 ? "open-existing" : "blocked-by-running-copy";
@@ -205,12 +205,12 @@ async function runMoveToApplicationsPrompt(deps: MovePromptDeps): Promise<MovePr
     deps.showError(`${MOVE_PROMPT.moveFailed} ${(error as Error).message}`);
     return "failed";
   }
-  return moved ? "moved" : afterRefusedMove(deps, decision);
+  return moved ? "moved" : afterRefusedMove({ deps, decision });
 }
 
 /** A move that did not happen: open the newer copy, explain the running older one, or report it.
  *  @complexity O(1). */
-function afterRefusedMove(deps: MovePromptDeps, decision: ReturnType<typeof decideMoveConflict> | null): MovePromptOutcome {
+function afterRefusedMove({ deps, decision }: { deps: MovePromptDeps; decision: ReturnType<typeof decideMoveConflict> | null }, _options = {}): MovePromptOutcome {
   if (decision === "open-existing") {
     deps.showInfo(MOVE_PROMPT.openingNewer);
     deps.openExisting(deps.targetPath);

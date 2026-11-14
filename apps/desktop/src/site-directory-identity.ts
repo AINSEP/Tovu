@@ -22,7 +22,7 @@ export interface SiteIdentityOptions {
  * @complexity O(r + m + database bytes) time, O(r + m) JS space for r catalog rows and m marker bytes.
  */
 export function ensureIndependentSiteIdentity({ siteDir }: { siteDir: string }, options: SiteIdentityOptions = {}): void {
-  const id = readSiteIdentity(siteDir);
+  const id = readSiteIdentity({ siteDir });
   // Legacy markerless identities belong to the existing admission/boot owner.
   if (id === null) return;
   const workspace = options.workspace ?? createSitesWorkspace({});

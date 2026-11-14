@@ -67,7 +67,7 @@ const STARTED_RECORD = { id: '/sites/a', status: 'running', port: 4321 } as unkn
 test("performSiteStart calls startSite and reports main's own record back", async () => {
   const calls: string[] = [];
   const result = await performSiteStart('/sites/a', {
-    startSite: async (id) => {
+    startSite: async ({ id }, _options = {}) => {
       calls.push(`start:${id}`);
       return STARTED_RECORD;
     },

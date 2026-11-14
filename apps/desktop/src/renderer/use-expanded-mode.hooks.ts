@@ -29,7 +29,7 @@ export function useExpandedMode(
   // expanding. Closing the tab, deleting the project, or a `desktop.navigate` call moving the nav
   // would otherwise leave the chrome hidden with nothing to be immersed in and no way back.
   useEffect(() => {
-    setExpanded((on) => expandedAfterWorkspaceChange(on, showSiteTab));
+    setExpanded((on) => expandedAfterWorkspaceChange({ expanded: on, showSiteTab }));
   }, [showSiteTab]);
 
   // Escape collapses. This listener only sees keys pressed in Tovu's own chrome — a <webview>
@@ -40,13 +40,13 @@ export function useExpandedMode(
   useEffect(() => {
     if (!expanded) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      setExpanded((on) => expandedAfterKeyDown(on, event.key));
+      setExpanded((on) => expandedAfterKeyDown({ expanded: on, key: event.key }));
     };
     target.addEventListener('keydown', onKeyDown);
     return () => target.removeEventListener('keydown', onKeyDown);
   }, [expanded, target]);
 
-  const toggleExpanded = () => setExpanded(nextExpanded);
+  const toggleExpanded = () => setExpanded((expanded) => nextExpanded({ expanded }));
 
   return { expanded, toggleExpanded };
 }

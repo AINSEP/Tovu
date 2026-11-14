@@ -124,14 +124,14 @@ function isRunnable(gate: GateEntry): gate is GateEntry & { id: string; run: str
 /** Reports every way the manifest fails to describe this harness honestly. Returns whether any did.
  *  @complexity O(n) in gates. */
 function reportManifestProblems({ manifest, gates, scriptsDir }: { manifest: GateManifest; gates: readonly GateEntry[]; scriptsDir: string }, _options = {}): boolean {
-  const driftProblems = detectGateDrift(gates, gateScriptsOnDisk({ scriptsDir })).map(
+  const driftProblems = detectGateDrift({ gates, scriptNames: gateScriptsOnDisk({ scriptsDir }) }).map(
     (name) =>
       `scripts/${name} exists but no gate in quality-gates.json runs it. A gate nobody invokes is ` +
       `how this repo ended up with 11 dead check scripts — register it or delete it.`
   );
   const unsound = reportProblems({
     heading: "quality-gates.json is not a sound description of this harness:",
-    problems: validateManifest(manifest, todayIso()),
+    problems: validateManifest({ manifest, today: todayIso() }),
   });
   return reportProblems({ heading: "gate scripts on disk that nothing runs:", problems: driftProblems }) || unsound;
 }
@@ -144,7 +144,7 @@ function main(): void {
   // `asGateEntryArray` throws a clear, index-naming error for a malformed entry (e.g. `null`) rather
   // than letting it pass a blind cast and crash later inside `gateProblems`/`detectGateDrift`; a
   // non-array `gates` is left to `validateManifest`'s own "no gates array" problem, below.
-  const gates = asGateEntryArray(manifest.gates);
+  const gates = asGateEntryArray({ value: manifest.gates });
 
   const unsound = reportManifestProblems({ manifest, gates, scriptsDir });
 
@@ -158,7 +158,7 @@ function main(): void {
 
   process.stdout.write(`${formatSummary(gates, outcomes)}\n`);
 
-  const anyGateFailed = [...outcomes.values()].some(isFailure);
+  const anyGateFailed = [...outcomes.values()].some((exitCode) => isFailure({ exitCode }));
   const missingOutcome = gates.some((gate) => isRunnable(gate) && !outcomes.has(gate.id));
   if (anyGateFailed || missingOutcome || unsound) {
     process.stderr.write("\ncheck-gates: FAILED\n");

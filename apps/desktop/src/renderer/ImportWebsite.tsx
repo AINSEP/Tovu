@@ -78,8 +78,8 @@ function ImportPage({
   const error = importPageError({ failure, addError, addDetails });
   const busy = adding || importing;
   const { dragging, dropProps, onPicked } = useImportDrop({ busy, onRefused: onRefuse,
-    onFolder: (folder) => void onDropFolder(folder),
-    onArchive: (file) => void onImportArchive({ file }),
+    onFolder: ({ path: folder }, _options = {}) => void onDropFolder(folder),
+    onArchive: ({ path: file }, _options = {}) => void onImportArchive({ file }),
   });
   return (
     <section className="onboarding" aria-label="Import a website" {...dropProps}>

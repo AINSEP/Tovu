@@ -13,19 +13,19 @@ import { handoffAddress, useImportHandoff } from './use-import-handoff.hooks.js'
 function fakeBridge() {
   const listeners = new Set<(request: ImportHandoffRequest) => void>();
   const getBridge = () => ({
-    onOpenImport: (listener: (request: ImportHandoffRequest) => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    onOpenImport: ({ listener }: { listener: (request: ImportHandoffRequest) => void }, _options = {}) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   });
   const fire = (request: unknown) => act(() => { for (const listener of listeners) listener(request as ImportHandoffRequest); });
   return { listeners, getBridge, fire };
 }
 
-function renderHandoff(t: Parameters<typeof renderHook>[0], { busy = false }: { busy?: boolean } = {}) {
+function renderHandoff(t: Parameters<typeof renderHook>[0]['t'], { busy = false }: { busy?: boolean } = {}) {
   const bridge = fakeBridge();
   const calls: string[] = [];
-  const hook = renderHook(t, () => useImportHandoff(
+  const hook = renderHook({ t, useHook: () => useImportHandoff(
     { busy, prefill: (address) => calls.push(`prefill:${address}`), open: () => calls.push('open') },
     { getBridge: bridge.getBridge },
-  ));
+  ) });
   return { ...bridge, calls, hook };
 }
 
@@ -58,7 +58,7 @@ test('useImportHandoff: subscribes once and detaches on unmount; without a bridg
   hook.unmount();
   assert.equal(listeners.size, 0);
   const calls: string[] = [];
-  renderHook(t, () => useImportHandoff({ busy: false, prefill: () => calls.push('prefill'), open: () => calls.push('open') }, { getBridge: () => undefined }));
+  renderHook({ t, useHook: () => useImportHandoff({ busy: false, prefill: () => calls.push('prefill'), open: () => calls.push('open') }, { getBridge: () => undefined }) });
   assert.deepEqual(calls, []);
 });
 

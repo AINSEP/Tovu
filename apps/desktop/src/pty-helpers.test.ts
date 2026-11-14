@@ -26,9 +26,9 @@ test("packaged spawn-helpers lacking execute bits are named with their mode; exe
     "prebuilds/win32-x64/pty.node": 0o644,
   });
   const helper = path.join(mac, "app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper");
-  assert.deepEqual(packagedPtyHelperFailures([mac]), [`${helper} (mode 644)`]);
+  assert.deepEqual(packagedPtyHelperFailures({ resourcesDirs: [mac] }), [`${helper} (mode 644)`]);
   fs.chmodSync(helper, 0o755);
-  assert.deepEqual(packagedPtyHelperFailures([mac]), []);
+  assert.deepEqual(packagedPtyHelperFailures({ resourcesDirs: [mac] }), []);
 });
 
 test("a mac bundle with no spawn-helper fails; a non-mac resources dir with none passes", t => {
@@ -36,7 +36,7 @@ test("a mac bundle with no spawn-helper fails; a non-mac resources dir with none
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const mac = path.join(scratch, "Tovu.app", "Contents", "Resources");
   const win = resourcesWith(path.join(scratch, "win-unpacked", "resources"), { "prebuilds/win32-x64/pty.node": 0o644 });
-  assert.deepEqual(packagedPtyHelperFailures([mac, win]), [`no node-pty spawn-helper under ${path.join(mac, "app.asar.unpacked", "node_modules", "node-pty")}`]);
+  assert.deepEqual(packagedPtyHelperFailures({ resourcesDirs: [mac, win] }), [`no node-pty spawn-helper under ${path.join(mac, "app.asar.unpacked", "node_modules", "node-pty")}`]);
 });
 
 test("a Windows resources dir passes even though node-pty ships macOS spawn-helpers without execute bits", t => {
@@ -49,5 +49,5 @@ test("a Windows resources dir passes even though node-pty ships macOS spawn-help
     "prebuilds/darwin-x64/spawn-helper": 0o644,
     "prebuilds/win32-x64/pty.node": 0o644,
   });
-  assert.deepEqual(packagedPtyHelperFailures([win]), []);
+  assert.deepEqual(packagedPtyHelperFailures({ resourcesDirs: [win] }), []);
 });

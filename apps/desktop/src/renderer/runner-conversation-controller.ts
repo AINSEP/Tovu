@@ -180,7 +180,7 @@ function select(core: ControllerCore, id: string): void {
   const seq = beginSwitch(core);
   const commit = (messages: ChatMessage[]) => commitSelection(core, { id, seq, messages });
   void bridge
-    .loadConversationMessages(id)
+    .loadConversationMessages({ conversationId: id })
     .then(commit)
     // A failed load still switches, to an empty pane — leaving the operator on the previous
     // conversation while the switcher already says otherwise is the worse of the two failures.
@@ -232,7 +232,7 @@ async function create(core: ControllerCore): Promise<void> {
 async function remove(core: ControllerCore, id: string): Promise<void> {
   const bridge = core.bridge;
   if (bridge === undefined) return;
-  await bridge.deleteConversation(id);
+  await bridge.deleteConversation({ id });
   core.written.delete(id);
   core.deleted.add(id);
   // The delete succeeded, so the thread leaves the switcher now — and is filtered out of what

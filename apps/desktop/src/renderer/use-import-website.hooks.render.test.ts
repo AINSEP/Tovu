@@ -21,18 +21,18 @@ function setup(t: { after: (fn: () => void) => void }, createSite: (input: { dis
 
 test('useImportWebsite: a good address makes the site named for the host, then opens it on the Import tab with the address', async (t) => {
   const made: string[] = [];
-  const { hook, opened } = setup(t, async ({ displayName }) => { made.push(displayName); return site('new'); });
+  const { hook, opened } = setup(t, async ({ displayName }) => { made.push(displayName); return site({ id: 'new' }); });
   act(() => hook.current().setAddress('www.example.com/shop'));
   await act(async () => { await hook.current().importLive(); });
   assert.deepEqual(made, ['example.com']);
-  assert.deepEqual(opened, [{ site: site('new'), adminPage: { page: 'import', liveAddress: 'https://www.example.com/shop' } }]);
+  assert.deepEqual(opened, [{ site: site({ id: 'new' }), adminPage: { page: 'import', liveAddress: 'https://www.example.com/shop' } }]);
   assert.equal(hook.current().address, '', 'the field empties once the site exists');
   assert.equal(hook.current().importing, false);
 });
 
 test('useImportWebsite: a bad address creates nothing and says how to type one', async (t) => {
   const made: string[] = [];
-  const { hook, opened } = setup(t, async ({ displayName }) => { made.push(displayName); return site('new'); });
+  const { hook, opened } = setup(t, async ({ displayName }) => { made.push(displayName); return site({ id: 'new' }); });
   act(() => hook.current().setAddress('not an address'));
   await act(async () => { await hook.current().importLive(); });
   assert.deepEqual(made, []);
@@ -63,7 +63,7 @@ function archiveSetup(t: { after: (fn: () => void) => void }) {
     cancelSiteImport: async () => { cancels.push(1); },
   };
   const hook = renderHook(t, () => useImportWebsite(
-    { createSite: async () => undefined, openSite: () => {}, onArchiveImported: (made) => { opened.push(made.id); }, onFailureWhileClosed: (toast) => { toasts.push(toast); } },
+    { createSite: async () => undefined, openSite: () => {}, onArchiveImported: ({ site: made }, _options = {}) => { opened.push(made.id); }, onFailureWhileClosed: (toast) => { toasts.push(toast); } },
     { getBridge: () => bridge as never },
   ));
   return { hook, opened, toasts, cancels, finish: (value: unknown) => finish(value), fail: (error: Error) => fail(error) };
@@ -140,7 +140,7 @@ test('useImportWebsite: a site that finished as Cancel arrived still opens: it e
   let run!: Promise<void>;
   act(() => { run = h.hook.current().importArchive({ file: '/a.zip' }); });
   await act(async () => { await h.hook.current().cancelArchive(); });
-  await act(async () => { h.finish({ ...site('made'), warnings: [] }); await run; });
+  await act(async () => { h.finish({ ...site({ id: 'made' }), warnings: [] }); await run; });
   assert.deepEqual(h.opened, ['made']);
 });
 

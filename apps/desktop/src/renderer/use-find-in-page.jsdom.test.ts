@@ -54,8 +54,8 @@ function manualClock() {
     now: () => now,
     requestFrame: (callback) => { frames.set(++nextId, callback); return nextId; },
     cancelFrame: (frame) => { frames.delete(frame); },
-    schedule: (callback, delay) => { delays.push(delay); timers.set(++nextId, callback); return nextId; },
-    cancel: (timer) => { timers.delete(timer as number); },
+    schedule: ({ callback, delay }, _options = {}) => { delays.push(delay); timers.set(++nextId, callback); return nextId; },
+    cancel: ({ timer }, _options = {}) => { timers.delete(timer as number); },
   };
   const drain = (queue: Map<number, () => void>) => act(() => {
     const pending = [...queue.values()];
@@ -76,10 +76,10 @@ function fakeBridge() {
   let toggle: (() => void) | null = null;
   let report: ((result: FindInPageResult) => void) | null = null;
   const bridge: FindBridge = {
-    onFindToggle: (listener) => { toggle = listener; return () => { toggle = null; }; },
+    onFindToggle: ({ listener }, _options = {}) => { toggle = listener; return () => { toggle = null; }; },
     findInPage: async (query) => { calls.push(['find', query]); },
     stopFindInPage: async () => { calls.push(['stop']); },
-    onFindResult: (listener) => { report = listener; return () => { report = null; }; },
+    onFindResult: ({ listener }, _options = {}) => { report = listener; return () => { report = null; }; },
   };
   return {
     bridge, calls,

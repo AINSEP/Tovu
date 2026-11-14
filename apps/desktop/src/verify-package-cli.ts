@@ -40,7 +40,7 @@ interface VerifyPackagePorts {
   isEmptyVerification(input: { checkedCount: number }, options?: Record<string, never>): boolean;
   formatMismatchReport(input: { mismatches: AsarVerification["mismatches"] }, options?: Record<string, never>): string;
   bundledNpmFailures(input: { resourcesDirs: string[] }, options?: Record<string, never>): string[];
-  ptyHelperFailures(resourcesDirs: string[]): string[];
+  ptyHelperFailures(required: { resourcesDirs: string[] }, options?: {}): string[];
   prefixes: string[];
   stdout: TextSink;
   stderr: TextSink;
@@ -141,7 +141,7 @@ function npmFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string 
 /** The node-pty half; returns the failure message, or `undefined` on a pass. electron-builder keeps
  *  the mode it finds, so a helper staging left unexecutable ships that way (see pty-helpers.ts). */
 function ptyFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string | undefined {
-  const failures = ports.ptyHelperFailures(resourcesDirs);
+  const failures = ports.ptyHelperFailures({ resourcesDirs });
   if (failures.length === 0) return undefined;
   return `verify-package: node-pty spawn-helper is missing or not executable in the packaged app:\n  ${failures.join("\n  ")}\n` +
     "Every terminal would fail with `posix_spawnp failed`. Check that `npm run stage` ran before " +

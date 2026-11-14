@@ -85,14 +85,14 @@ function MetricCells({ rssBytes, cpuPercent, memoryMetric }: { rssBytes?: number
 
 /** One `<tbody>` per group: a heading row with the subtotal (and Stop), then its processes.
  * Executable basenames only, never command arguments. O(p) for the group's p processes. */
-function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onStop: (id: string) => void }, _options = {}) {
+function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onStop: (required: { id: string }, options?: {}) => void }, _options = {}) {
   const warning = resourceWarnings({ metrics: group.metrics });
   return <tbody>
     <tr className="resources-table__group">
       <th scope="rowgroup" colSpan={2}>{group.title}{warning && <span className="resources-table__warning"> · {warning}</span>}</th>
       <MetricCells rssBytes={group.metrics?.rssBytes} memoryMetric={group.metrics?.memoryMetric} cpuPercent={group.metrics?.cpuPercent} />
       <td className="resources-table__action">{group.stop && <button type="button" disabled={group.stop.disabled}
-        onClick={() => onStop(group.id)}>{group.stop.label}</button>}</td>
+        onClick={() => onStop({ id: group.id })}>{group.stop.label}</button>}</td>
     </tr>
     {group.processes.map((row) => <tr key={row.pid}>
       <td className="resources-table__process">{row.name}{ROLE_LABELS[row.role] && <span className="resources-table__role">{ROLE_LABELS[row.role]}</span>}</td>
@@ -104,7 +104,7 @@ function ResourceGroupRows({ group, onStop }: { group: ResourceTableGroup; onSto
 }
 
 /** Process | PID | Memory | CPU, grouped by owner. O(s+p). */
-function ResourcesTable({ groups, onStop }: { groups: readonly ResourceTableGroup[]; onStop: (id: string) => void }, _options = {}) {
+function ResourcesTable({ groups, onStop }: { groups: readonly ResourceTableGroup[]; onStop: (required: { id: string }, options?: {}) => void }, _options = {}) {
   return <table className="resources-table">
     <caption className="visually-hidden">Memory and CPU by process</caption>
     <thead><tr>

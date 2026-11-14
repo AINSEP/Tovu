@@ -143,11 +143,11 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   const pendingTeardowns = createShutdownTracker({});
   const openSites = new Map([[root, { server: { port: 4321, pid: 123, stop: () => stop.promise } }]]);
   let closedRows = 0;
-  const stopping = handleStop(root, {
+  const stopping = handleStop({ id: root, deps: {
     projectsPath, registryPath: root, repoRoot: root, serializer: createKeyedSerializer(),
     openSites, pendingTeardowns, readSiteName: () => "alpha", readPreviewVersion: () => null,
     recordSiteClosed: () => { closedRows++; },
-  });
+  } });
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let finalQuits = 0;
   let prevented = 0;

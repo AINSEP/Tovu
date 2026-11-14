@@ -15,7 +15,7 @@
  * mac-on-device-transcriber.ts and therefore child_process, which must not be resolved here.
  * Both preloads now use Jini's narrow bridge with Tovu's channel namespace; the sandboxed admin
  * preload bundles it so Electron's restricted require needs only electron. The host keeps its
- * positional renderer API, and preload tests guard channel/payload parity with speech-ipc.ts.
+ * object-input renderer API, and preload tests guard channel/payload parity with speech-ipc.ts.
  * Shared keys use `tovuOwnerStore`, with fixed channels and all filesystem/CLI work kept in main.
  *
  * The `tovuRunner` channel names, by contrast, are imported from `../contracts/*.js` — this
@@ -72,7 +72,7 @@ import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from '../contra
  * handle into IPC that the page has no business holding, and returning the unsubscribe function is
  * what lets the renderer detach a pane without leaking a listener per remount.
  */
-function subscribe<Payload>(channel: string, listener: (payload: Payload) => void): () => void {
+function subscribe<Payload>({ channel, listener }: { channel: string; listener: (payload: Payload) => void }, _options = {}): () => void {
   const handler = (_event: unknown, payload: Payload): void => listener(payload);
   ipcRenderer.on(channel, handler);
   return () => {
@@ -91,7 +91,7 @@ const ownerStoreBridge: OwnerStoreBridge = {
 };
 contextBridge.exposeInMainWorld('tovuOwnerStore', Object.freeze(ownerStoreBridge));
 contextBridge.exposeInMainWorld('tovuTelemetry', Object.freeze({
-  report: (payload: ShellTelemetryPayload, _options = {}) => ipcRenderer.send(PRODUCT_TELEMETRY_CHANNEL, payload),
+  report: ({ payload }: { payload: ShellTelemetryPayload }, _options = {}) => ipcRenderer.send(PRODUCT_TELEMETRY_CHANNEL, payload),
 }));
 
 contextBridge.exposeInMainWorld(
@@ -103,8 +103,8 @@ contextBridge.exposeInMainWorld(
     keepSiteRunning: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.keepRunning, { id }),
     reportOpenSiteTabs: ({ siteIds }: { siteIds: readonly string[] }, _options = {}) => ipcRenderer.invoke(SITE_PRESENCE_CHANNEL, { siteIds }),
     getMaximumLiveSiteViews: () => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.read),
-    setMaximumLiveSiteViews: (maximum: number) => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.write, maximum),
-    onMaximumLiveSiteViewsChanged: (listener: (maximum: number) => void) => subscribe(SITE_VIEW_PREFERENCE_CHANNELS.changed, listener),
+    setMaximumLiveSiteViews: ({ maximum }: { maximum: number }, _options = {}) => ipcRenderer.invoke(SITE_VIEW_PREFERENCE_CHANNELS.write, maximum),
+    onMaximumLiveSiteViewsChanged: ({ listener }: { listener: (maximum: number) => void }, _options = {}) => subscribe({ channel: SITE_VIEW_PREFERENCE_CHANNELS.changed, listener }),
     getResources: (input: ResourcesRequest, _options = {}) => ipcRenderer.invoke(RUNNER_RESOURCES_GET_CHANNEL, input),
     checkForUpdates: () => ipcRenderer.invoke(RUNNER_APP_CHECK_FOR_UPDATES_CHANNEL),
     listAgents: () => ipcRenderer.invoke(RUNNER_AGENT_INVENTORY_CHANNELS.list),
@@ -138,42 +138,42 @@ contextBridge.exposeInMainWorld(
     renameSite: (input: RenameSiteInput) => ipcRenderer.invoke(SITE_IPC_CHANNELS.rename, input),
     /** A site's cached preview as a `data:` URL, or `null` when no capture exists yet. Fetched on
      *  demand rather than carried on `SiteRecord` — see that field's own doc. See `SITE_IPC_CHANNELS.preview`. */
-    getSitePreview: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.preview, id),
+    getSitePreview: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.preview, id),
     /** A missing card's Locate — main opens the folder picker and points the card at the pick.
      *  Rejects with an operator-facing reason; surface it verbatim. See `SITE_IPC_CHANNELS.locate`. */
-    locateSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.locate, id),
-    startSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
-    stopSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),
-    deleteSite: (id: string) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),
+    locateSite: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.locate, id),
+    startSite: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.start, id),
+    stopSite: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.stop, id),
+    deleteSite: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(SITE_IPC_CHANNELS.delete, id),
     openSiteExternal: (input: OpenSiteSurfaceInput) =>
       ipcRenderer.invoke(SITE_IPC_CHANNELS.openExternal, input),
     chatStart: (input: WorkspaceChatStartInput) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.start, input),
     chatReattach: (input: WorkspaceChatReattachInput) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.reattach, input),
-    chatDetach: (subscriptionId: string) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.detach, { subscriptionId }),
-    chatStop: (runId: string) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.stop, { runId }),
-    chatStatus: (runId: string) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.status, { runId }),
-    onChatEvent: (listener: (message: WorkspaceChatEventMessage) => void) =>
-      subscribe(WORKSPACE_CHAT_CHANNELS.event, listener),
-    onNavigate: (listener: (section: RunnerSectionId) => void) =>
-      subscribe(WORKSPACE_CHAT_CHANNELS.navigate, listener),
+    chatDetach: ({ subscriptionId }: { subscriptionId: string }, _options = {}) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.detach, { subscriptionId }),
+    chatStop: ({ runId }: { runId: string }, _options = {}) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.stop, { runId }),
+    chatStatus: ({ runId }: { runId: string }, _options = {}) => ipcRenderer.invoke(WORKSPACE_CHAT_CHANNELS.status, { runId }),
+    onChatEvent: ({ listener }: { listener: (message: WorkspaceChatEventMessage) => void }, _options = {}) =>
+      subscribe({ channel: WORKSPACE_CHAT_CHANNELS.event, listener }),
+    onNavigate: ({ listener }: { listener: (section: RunnerSectionId) => void }, _options = {}) =>
+      subscribe({ channel: WORKSPACE_CHAT_CHANNELS.navigate, listener }),
     /** The web admin's "Open Import in Tovu": open the Import tab, address untrusted. See `contracts/import-handoff.ts`. */
-    onOpenImport: (listener: (request: ImportHandoffRequest) => void) =>
-      subscribe(IMPORT_HANDOFF_CHANNELS.open, listener),
+    onOpenImport: ({ listener }: { listener: (request: ImportHandoffRequest) => void }, _options = {}) =>
+      subscribe({ channel: IMPORT_HANDOFF_CHANNELS.open, listener }),
     /** The app menu's History > Back / Forward. Only the visible project tab subscribes. */
-    watchSitePreview: createSiteThemePreviewBridge({ invoke: (channel, input) => ipcRenderer.invoke(channel, input), subscribe }),
-    onSiteHistory: (listener: (command: SiteHistoryCommand) => void) =>
-      subscribe(SITE_HISTORY_CHANNEL, listener),
+    watchSitePreview: createSiteThemePreviewBridge({ invoke: ({ channel, input }, _options = {}) => ipcRenderer.invoke(channel, input), subscribe }),
+    onSiteHistory: ({ listener }: { listener: (command: SiteHistoryCommand) => void }, _options = {}) =>
+      subscribe({ channel: SITE_HISTORY_CHANNEL, listener }),
     /** The app menu's Find (Cmd+F). Carries no payload — see `use-find-in-page.hooks.ts`. */
-    onFindToggle: (listener: () => void) => subscribe<undefined>(FIND_TOGGLE_CHANNEL, listener),
+    onFindToggle: ({ listener }: { listener: () => void }, _options = {}) => subscribe<undefined>({ channel: FIND_TOGGLE_CHANNEL, listener }),
     /** Runs a `webContents.findInPage` on the SITES HOME WINDOW'S OWN top-level page — used only
      *  when no project tab's `<webview>` is the visible surface. See `find-in-page-ipc.ts`. */
     findInPage: (query: FindInPageQuery) => ipcRenderer.invoke(FIND_IN_PAGE_CHANNELS.find, query),
     stopFindInPage: () => ipcRenderer.invoke(FIND_IN_PAGE_CHANNELS.stop),
     /** One `found-in-page` result for the top-level target above. */
-    onFindResult: (listener: (result: FindInPageResult) => void) => subscribe(FIND_RESULT_CHANNEL, listener),
+    onFindResult: ({ listener }: { listener: (result: FindInPageResult) => void }, _options = {}) => subscribe({ channel: FIND_RESULT_CHANNEL, listener }),
     /** The app menu's Zoom In / Zoom Out / Actual Size (Cmd+Plus / Cmd+- / Cmd+0). Carries the
      *  direction. See `use-zoom.hooks.ts`. */
-    onZoomCommand: (listener: (direction: ZoomDirection) => void) => subscribe(ZOOM_COMMAND_CHANNEL, listener),
+    onZoomCommand: ({ listener }: { listener: (direction: ZoomDirection) => void }, _options = {}) => subscribe({ channel: ZOOM_COMMAND_CHANNEL, listener }),
     /**
      * The SITES HOME WINDOW'S OWN top-level page's zoom — used only when no project tab's
      * `<webview>` is the visible surface, which zooms itself directly instead (`WebviewTag`'s own
@@ -183,18 +183,18 @@ contextBridge.exposeInMainWorld(
      * `webContents`, main-process-only). Zoom level 0 is 100%; see Electron's own `webFrame` doc.
      */
     getZoomLevel: () => webFrame.getZoomLevel(),
-    setZoomLevel: (level: number) => webFrame.setZoomLevel(level),
+    setZoomLevel: ({ level }: { level: number }, _options = {}) => webFrame.setZoomLevel(level),
     // Synchronous and in-process, deliberately not an `ipcRenderer.invoke` round trip: `webUtils`
     // only exists in the preload's Node-capable context, not the isolated page, so this function IS
     // the bridge rather than a proxy for one. Electron's contextBridge structured-clones `File`
     // arguments across the isolation boundary specifically to make this call possible.
     getPathForFile: (file: File) => webUtils.getPathForFile(file),
-    pickWorkingDirectory: (currentDirectory?: string) =>
+    pickWorkingDirectory: (_required: Record<string, never>, { currentDirectory }: { currentDirectory?: string } = {}) =>
       ipcRenderer.invoke(RUNNER_WORKING_DIRECTORY_CHANNELS.pick, currentDirectory),
     recentWorkingDirectories: () => ipcRenderer.invoke(RUNNER_WORKING_DIRECTORY_CHANNELS.recent),
-    workingDirectoryExists: (directory: string) =>
+    workingDirectoryExists: ({ directory }: { directory: string }, _options = {}) =>
       ipcRenderer.invoke(RUNNER_WORKING_DIRECTORY_CHANNELS.exists, directory),
-    normalizeWorkingDirectory: (directory: string) =>
+    normalizeWorkingDirectory: ({ directory }: { directory: string }, _options = {}) =>
       ipcRenderer.invoke(RUNNER_WORKING_DIRECTORY_CHANNELS.normalize, directory),
     saveChatAttachment: (input: SaveChatAttachmentInput) =>
       ipcRenderer.invoke(RUNNER_CHAT_ATTACHMENT_CHANNELS.save, input),
@@ -202,15 +202,15 @@ contextBridge.exposeInMainWorld(
     createConversation: () => ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.create),
     renameConversation: (input: RenameConversationInput) =>
       ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.rename, input),
-    deleteConversation: (id: string) => ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.delete, { id }),
-    loadConversationMessages: (conversationId: string) =>
+    deleteConversation: ({ id }: { id: string }, _options = {}) => ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.delete, { id }),
+    loadConversationMessages: ({ conversationId }: { conversationId: string }, _options = {}) =>
       ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.loadMessages, { conversationId }),
     saveConversationMessage: (input: SaveConversationMessageInput) =>
       ipcRenderer.invoke(WORKSPACE_CONVERSATION_CHANNELS.saveMessage, input),
   }),
 );
 
-/** Translate the existing positional renderer call into Jini's object input. */
+/** Bind Jini's speech bridge to the desktop's native IPC namespace. */
 const speech = createSpeechBridge({
   channelNamespace: 'tovu:speech',
   ipcRenderer: { invoke: ({ channel }, { args = [] } = {}) => ipcRenderer.invoke(channel, ...args) },
@@ -219,7 +219,7 @@ contextBridge.exposeInMainWorld(
   'tovuVoice',
   Object.freeze({
     isAvailable: () => speech.isAvailable(),
-    transcribe: (samples: Float32Array | readonly number[], sampleRate: number) =>
+    transcribe: ({ samples, sampleRate }: { samples: Float32Array | readonly number[]; sampleRate: number }, _options = {}) =>
       speech.transcribe({ samples, sampleRate }),
   }),
 );

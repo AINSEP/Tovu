@@ -66,58 +66,58 @@ test("Not Now for an older version does not silence the prompt after an update",
 
 test("Not Now is remembered per version in userData, and read back", () => {
   const userDataDir = tempDir();
-  const file = moveDeclineFilePath(userDataDir);
+  const file = moveDeclineFilePath({ userDataDir });
   assert.equal(file, path.join(userDataDir, "move-to-applications.json"));
-  assert.equal(readDeclinedVersion(file), null);
-  recordDeclinedVersion(file, "0.1.8");
-  assert.equal(readDeclinedVersion(file), "0.1.8");
-  recordDeclinedVersion(file, "0.1.9");
-  assert.equal(readDeclinedVersion(file), "0.1.9");
+  assert.equal(readDeclinedVersion({ filePath: file }), null);
+  recordDeclinedVersion({ filePath: file, version: "0.1.8" });
+  assert.equal(readDeclinedVersion({ filePath: file }), "0.1.8");
+  recordDeclinedVersion({ filePath: file, version: "0.1.9" });
+  assert.equal(readDeclinedVersion({ filePath: file }), "0.1.9");
 });
 
 test("a corrupt or wrong-shaped decline file reads as never declined", () => {
-  const file = moveDeclineFilePath(tempDir());
+  const file = moveDeclineFilePath({ userDataDir: tempDir() });
   fs.writeFileSync(file, "{not json");
-  assert.equal(readDeclinedVersion(file), null);
+  assert.equal(readDeclinedVersion({ filePath: file }), null);
   fs.writeFileSync(file, JSON.stringify({ declinedVersion: 7 }));
-  assert.equal(readDeclinedVersion(file), null);
+  assert.equal(readDeclinedVersion({ filePath: file }), null);
 });
 
 // --- Paths and versions --------------------------------------------------------------------------
 
 test("bundlePathFromExecPath finds the .app from its executable, null outside a bundle", () => {
-  assert.equal(bundlePathFromExecPath("/Volumes/Tovu 0.1.8/Tovu.app/Contents/MacOS/Tovu"), "/Volumes/Tovu 0.1.8/Tovu.app");
-  assert.equal(bundlePathFromExecPath("/usr/local/bin/electron"), null);
+  assert.equal(bundlePathFromExecPath({ execPath: "/Volumes/Tovu 0.1.8/Tovu.app/Contents/MacOS/Tovu" }), "/Volumes/Tovu 0.1.8/Tovu.app");
+  assert.equal(bundlePathFromExecPath({ execPath: "/usr/local/bin/electron" }), null);
 });
 
 test("applicationsTargetPath is /Applications/<bundle name>, where Electron moves it", () => {
-  assert.equal(applicationsTargetPath("/Users/me/Downloads/Tovu.app"), "/Applications/Tovu.app");
+  assert.equal(applicationsTargetPath({ bundlePath: "/Users/me/Downloads/Tovu.app" }), "/Applications/Tovu.app");
 });
 
 test("compareVersions orders numeric dotted versions and returns null for anything else", () => {
-  assert.equal(compareVersions("0.1.8", "0.1.7"), 1);
-  assert.equal(compareVersions("0.1.7", "0.1.8"), -1);
-  assert.equal(compareVersions("0.1.10", "0.1.9"), 1);
-  assert.equal(compareVersions("1.0", "1.0.0"), 0);
-  assert.equal(compareVersions("1.0.0", "1.0"), 0, "the missing part reads as 0 on either side");
-  assert.equal(compareVersions("1.0.1", "1.0"), 1);
-  assert.equal(compareVersions("0.2.0-beta.1", "0.1.9"), 1);
-  assert.equal(compareVersions("garbage", "0.1.9"), null);
-  assert.equal(compareVersions(null, "0.1.9"), null);
+  assert.equal(compareVersions({ a: "0.1.8", b: "0.1.7" }), 1);
+  assert.equal(compareVersions({ a: "0.1.7", b: "0.1.8" }), -1);
+  assert.equal(compareVersions({ a: "0.1.10", b: "0.1.9" }), 1);
+  assert.equal(compareVersions({ a: "1.0", b: "1.0.0" }), 0);
+  assert.equal(compareVersions({ a: "1.0.0", b: "1.0" }), 0, "the missing part reads as 0 on either side");
+  assert.equal(compareVersions({ a: "1.0.1", b: "1.0" }), 1);
+  assert.equal(compareVersions({ a: "0.2.0-beta.1", b: "0.1.9" }), 1);
+  assert.equal(compareVersions({ a: "garbage", b: "0.1.9" }), null);
+  assert.equal(compareVersions({ a: null, b: "0.1.9" }), null);
 });
 
 test("readBundleVersion reads CFBundleShortVersionString from an XML Info.plist, null when it cannot", () => {
   const bundle = path.join(tempDir(), "Tovu.app");
-  assert.equal(readBundleVersion(bundle), null);
+  assert.equal(readBundleVersion({ bundlePath: bundle }), null);
   fs.mkdirSync(path.join(bundle, "Contents"), { recursive: true });
   fs.writeFileSync(
     path.join(bundle, "Contents", "Info.plist"),
     '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n<key>CFBundleShortVersionString</key>\n\t<string>0.1.7</string>\n</dict></plist>',
   );
-  assert.equal(readBundleVersion(bundle), "0.1.7");
+  assert.equal(readBundleVersion({ bundlePath: bundle }), "0.1.7");
   // A readable plist that simply has no version key (a hand-built or foreign bundle) is unknown too.
   fs.writeFileSync(path.join(bundle, "Contents", "Info.plist"), '<?xml version="1.0"?><plist><dict>\n<key>CFBundleName</key>\n<string>Tovu</string>\n</dict></plist>');
-  assert.equal(readBundleVersion(bundle), null);
+  assert.equal(readBundleVersion({ bundlePath: bundle }), null);
 });
 
 // --- A Tovu already in /Applications -------------------------------------------------------------

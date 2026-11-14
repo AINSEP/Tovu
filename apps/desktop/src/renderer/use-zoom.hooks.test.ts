@@ -63,7 +63,7 @@ function fakeBridge(startLevel = 0): ZoomBridge & { calls: unknown[][]; readCoun
     readCount: () => reads,
     onZoomCommand: () => () => {},
     getZoomLevel: () => { reads += 1; return level; },
-    setZoomLevel: (next: number) => {
+    setZoomLevel: ({ level: next }: { level: number }, _options = {}) => {
       calls.push(['setZoomLevel', next]);
       level = next;
     },

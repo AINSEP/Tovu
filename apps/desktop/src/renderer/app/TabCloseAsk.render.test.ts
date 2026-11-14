@@ -14,7 +14,7 @@ after(closeHost);
 function render(t: TestContext, over: { project?: ReturnType<typeof site> | null; stopping?: boolean; error?: string | null } = {}) {
   const calls: string[] = [];
   const view = mount({ t, element: createElement(TabCloseAsk, {
-    project: site('a', { displayName: 'Shop' }), stopping: false, error: null,
+    project: site({ id: 'a' }, { fields: { displayName: 'Shop' } }), stopping: false, error: null,
     onStop: () => { calls.push('stop'); }, onKeepRunning: () => { calls.push('keep'); }, onCancel: () => { calls.push('cancel'); },
     ...over,
   }) });

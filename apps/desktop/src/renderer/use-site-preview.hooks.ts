@@ -96,7 +96,7 @@ export function useSitePreview(
 
     let cancelled = false;
     plan.bridge
-      .getSitePreview(plan.id)
+      .getSitePreview({ id: plan.id })
       .then((result) => {
         const next = nextPreviewUrl(cancelled, { ok: true, url: result });
         if (next !== undefined) setUrl(next);

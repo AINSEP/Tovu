@@ -314,10 +314,10 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
  */
 function wireCancelSignal(bridge: RunnerInventoryBridge, cancelSignal: AbortSignal | undefined, runId: string): void {
   if (cancelSignal?.aborted === true) {
-    void bridge.chatStop(runId).catch((error: unknown) => console.error("[workspace-chat] Could not stop the run", describeErrorForLog({ err: error })));
+    void bridge.chatStop({ runId }).catch((error: unknown) => console.error("[workspace-chat] Could not stop the run", describeErrorForLog({ err: error })));
     return;
   }
-  cancelSignal?.addEventListener('abort', () => void bridge.chatStop(runId).catch((error: unknown) => console.error('[workspace-chat] Could not stop the run', describeErrorForLog({ err: error }))), { once: true });
+  cancelSignal?.addEventListener('abort', () => void bridge.chatStop({ runId }).catch((error: unknown) => console.error('[workspace-chat] Could not stop the run', describeErrorForLog({ err: error }))), { once: true });
 }
 
 export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): WorkspaceChatTransport {
@@ -325,7 +325,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
 
   // One listener per transport instance, installed at construction. `WorkspaceChatPane` memoizes the
   // transport, so this is one registration per pane lifetime, not per turn.
-  const offChatEvent = bridge.onChatEvent((message: WorkspaceChatEventMessage) => {
+  const offChatEvent = bridge.onChatEvent({ listener: (message: WorkspaceChatEventMessage) => {
     const record = records.get(message.subscriptionId);
     if (record === undefined) return;
     if (message.kind === 'event') {
@@ -346,7 +346,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
       settle(record);
       records.delete(message.subscriptionId);
     }
-  });
+  } });
 
   function open(handlers: RunHandlers): { subscriptionId: string; record: SubscriptionRecord } {
     const subscriptionId = mintSubscriptionId();
@@ -367,7 +367,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
   /** Detaches the browser side. The run keeps going in main — that is exactly `StartRunInput.signal`'s contract. */
   function detach(subscriptionId: string): void {
     if (!records.delete(subscriptionId)) return;
-    void bridge.chatDetach(subscriptionId).catch(() => {
+    void bridge.chatDetach({ subscriptionId }).catch(() => {
       // The renderer is already done with this subscription; a failed teardown invoke (window
       // closing, main already torn down) has no remedy and nothing left to report to.
     });
@@ -393,7 +393,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
         record.runId = runId;
         // Main now owns the subscription; a pane that was already gone must detach it too.
         // The pane is gone, so a late teardown failure has no remaining listener to notify.
-        if (alreadyDetached) void bridge.chatDetach(subscriptionId).catch(() => {});
+        if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});
         wireCancelSignal(bridge, input.cancelSignal, runId);
         return { runId };
       } catch (error) {
@@ -432,12 +432,12 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
     },
 
     async fetchRunStatus(runId: string): Promise<ChatRunStatus | null> {
-      const snapshot = await bridge.chatStatus(runId);
+      const snapshot = await bridge.chatStatus({ runId });
       return snapshot === null ? null : toChatRunStatus(snapshot.state);
     },
 
     async stopRun(runId: string): Promise<void> {
-      await bridge.chatStop(runId);
+      await bridge.chatStop({ runId });
     },
 
     dispose(): void {

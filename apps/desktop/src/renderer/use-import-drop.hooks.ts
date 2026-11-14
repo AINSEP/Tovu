@@ -14,16 +14,16 @@ import { runnerInventoryBridge } from './runner-api.js';
 export function useImportDrop(
   { busy, onFolder, onArchive, onRefused }: {
     busy: boolean;
-    onFolder: (path: string) => void;
-    onArchive: (path: string) => void;
+    onFolder: (required: { path: string }, options?: {}) => void;
+    onArchive: (required: { path: string }, options?: {}) => void;
     onRefused: (message: string) => void;
   },
   { getPathForFile = (file: File) => runnerInventoryBridge()?.getPathForFile?.(file) ?? '' }: { getPathForFile?: (file: File) => string } = {},
 ) {
   const [dragging, setDragging] = useState(false);
   const route = (drop: ImportDrop) => {
-    if (drop.kind === 'folder') onFolder(drop.path);
-    else if (drop.kind === 'archive') onArchive(drop.path);
+    if (drop.kind === 'folder') onFolder({ path: drop.path });
+    else if (drop.kind === 'archive') onArchive({ path: drop.path });
     else onRefused(drop.message);
   };
   const onDragOver = (event: DragEvent<HTMLElement>) => {

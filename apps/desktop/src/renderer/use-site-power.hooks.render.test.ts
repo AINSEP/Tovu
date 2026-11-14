@@ -11,7 +11,7 @@ import type { SiteRecord } from '../contracts/project.js';
 import { renderHook, settle } from './dom-hook-harness.js';
 import { useSitePower } from './use-site-power.hooks.js';
 
-type Bridge = { startSite: (id: string) => Promise<SiteRecord>; stopSite: (id: string) => Promise<SiteRecord> };
+type Bridge = { startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord>; stopSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> };
 
 const SITE = { id: '/sites/a', displayName: 'Alpha', status: 'stopped', port: 4321 } as unknown as SiteRecord;
 const at = (status: SiteRecord['status'], extra: Partial<SiteRecord> = {}): SiteRecord => ({ ...SITE, status, ...extra });
@@ -20,7 +20,7 @@ const at = (status: SiteRecord['status'], extra: Partial<SiteRecord> = {}): Site
 function deferredBridge() {
   const calls: string[] = [];
   const pending: { resolve: (record: SiteRecord) => void; reject: (error: unknown) => void }[] = [];
-  const call = (name: string) => (id: string) => {
+  const call = (name: string) => ({ id }: { id: string }, _options = {}) => {
     calls.push(`${name}:${id}`);
     return new Promise<SiteRecord>((resolve, reject) => { pending.push({ resolve, reject }); });
   };
@@ -31,10 +31,10 @@ function deferredBridge() {
 test('a Start reads as starting until main answers, then applies main\'s record and opens the site', async (t) => {
   const fake = deferredBridge();
   const events: string[] = [];
-  const hook = renderHook(t, () => useSitePower(
+  const hook = renderHook({ t, useHook: () => useSitePower(
     (record) => events.push(`updated:${record.status}`),
     { onStarted: (id) => events.push(`open:${id}`), getBridge: () => fake.bridge },
-  ));
+  ) });
   assert.equal(hook.current().statusOf(SITE), 'stopped', 'no press yet: the polled status');
   const press = hook.current().toggle(SITE);
   await settle();
@@ -51,7 +51,7 @@ test('a Start reads as starting until main answers, then applies main\'s record 
 
 test('two presses from one render — a double click before React re-renders — start the site once', async (t) => {
   const fake = deferredBridge();
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower(undefined, { getBridge: () => fake.bridge }) });
   // Both presses use the SAME render's closure, so no re-render has marked the card starting yet:
   // only the synchronous in-flight lock stands between a double click and a second start.
   const firstRender = hook.current();
@@ -66,7 +66,7 @@ test('two presses from one render — a double click before React re-renders —
 
 test('a failed Stop shows main\'s sentence, clears the pending mark, and the next press clears the error', async (t) => {
   const fake = deferredBridge();
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower(undefined, { getBridge: () => fake.bridge }) });
   const running = at('running');
   const press = hook.current().toggle(running);
   await settle();
@@ -85,7 +85,7 @@ test('a failed Stop shows main\'s sentence, clears the pending mark, and the nex
 
 test('statuses with no honest button make a press a no-op that never reaches the bridge', async (t) => {
   const fake = deferredBridge();
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower(undefined, { getBridge: () => fake.bridge }) });
   await hook.current().toggle(at('provisioning'));
   await hook.current().toggle(at('running', { externalUrl: 'http://localhost:3000/' }));
   assert.deepEqual(fake.calls, []);
@@ -94,7 +94,7 @@ test('statuses with no honest button make a press a no-op that never reaches the
 
 test('Stop on a site another process serves asks first; Cancel drops it and Confirm stops it', async (t) => {
   const fake = deferredBridge();
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower(undefined, { getBridge: () => fake.bridge }) });
   const dev = at('running', { externalUrl: 'http://localhost:3000/', externalLauncher: 'npm-run-dev' });
   await hook.current().toggle(dev);
   await settle();
@@ -116,7 +116,7 @@ test('Stop on a site another process serves asks first; Cancel drops it and Conf
 test('Restart stops, reports the stopped record, starts, and reads as restarting meanwhile', async (t) => {
   const fake = deferredBridge();
   const updates: string[] = [];
-  const hook = renderHook(t, () => useSitePower((record) => updates.push(record.status), { getBridge: () => fake.bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower((record) => updates.push(record.status), { getBridge: () => fake.bridge }) });
   const running = at('running');
   assert.equal(hook.current().restartControlOf(running).label, 'Restart');
   const restarting = hook.current().restart(running);
@@ -136,7 +136,7 @@ test('Restart stops, reports the stopped record, starts, and reads as restarting
 
 test('a Restart whose start fails shows the failure; a disabled Restart never reaches the bridge', async (t) => {
   const fake = deferredBridge();
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
+  const hook = renderHook({ t, useHook: () => useSitePower(undefined, { getBridge: () => fake.bridge }) });
   const running = at('running');
   const restarting = hook.current().restart(running);
   fake.next().resolve(at('stopped'));
@@ -153,7 +153,7 @@ test('a Restart whose start fails shows the failure; a disabled Restart never re
 });
 
 test('with no bridge wired, a press reports the unavailable bridge on the card', async (t) => {
-  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => undefined }));
+  const hook = renderHook({ t, useHook: () => useSitePower(undefined, { getBridge: () => undefined }) });
   await hook.current().toggle(SITE);
   await settle();
   assert.equal(hook.current().errorOf(SITE.id), 'The desktop bridge is unavailable.');

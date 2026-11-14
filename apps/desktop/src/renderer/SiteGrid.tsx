@@ -144,7 +144,7 @@ export function SiteGrid({
           project={project}
           list={list}
           showParent={duplicateNames.has(project.displayName)}
-          overlay={cardOverlay(project.id, pendingId, rename.renamingId, power.confirmingStopId ?? null)}
+          overlay={cardOverlay({ id: project.id, pendingDeleteId: pendingId, renamingId: rename.renamingId }, { confirmingStopId: power.confirmingStopId ?? null })}
           deleting={deletingId === project.id}
           deleteError={deleteError}
           rename={rename}
@@ -215,9 +215,9 @@ function SiteCard({
   // ANY overlay makes the card inert, which is why the two are one value rather than two booleans:
   // the click that commits or dismisses an overlay must not also open the site underneath it, and
   // that is true of the rename form for exactly the reason it is true of the delete confirmation.
-  const openable = isCardOpenable(project, overlay !== null);
+  const openable = isCardOpenable({ project, confirming: overlay !== null });
   // All five open-affordance attributes from one decision — see `cardOpenProps`.
-  const openProps = cardOpenProps(openable, () => onOpen(project.id));
+  const openProps = cardOpenProps({ openable, onOpen: () => onOpen(project.id) });
   // What this card's destructive control means for THIS project — a delete that erases the folder,
   // or a removal that only drops the card. See `deleteActionCopy`'s own doc on why one word for
   // both would be a lie in whichever direction the operator happened to read it.
@@ -619,7 +619,7 @@ function SiteCardMenu({
   const running = status === 'running';
 
   // Every entry closes the menu first, then acts. See `closeMenuThen`.
-  const choose = closeMenuThen(setOpen);
+  const choose = closeMenuThen({ setOpen });
 
   return (
     <div

@@ -40,7 +40,7 @@ test('AppearancePage: Appearance replaces the sites home, and Back closes it', a
   assert.equal(view.container.querySelector('.empty__title')?.textContent, 'Appearance');
   assert.match(view.text(), /Nothing here yet beyond the theme toggle already in the Settings dropdown\./);
   assert.equal(view.title(), undefined, 'no sites header under Appearance');
-  await view.click(view.byText('← Back'));
+  await view.click({ el: view.byText({ text: '← Back' }) });
   assert.equal(view.closed(), 1);
 });
 
@@ -52,7 +52,7 @@ test('MainArea: off the sites home (a site tab in view) it renders nothing', asy
 test('MainArea: the sites home is the section header over its content', async (t) => {
   const view = await renderArea(t);
   assert.equal(view.title(), 'Websites');
-  assert.ok(view.byLabel('Rescan'), 'the Websites tools are in the header');
+  assert.ok(view.byLabel({ label: 'Rescan' }), 'the Websites tools are in the header');
   assert.match(view.text(), /No websites yet\./);
 });
 

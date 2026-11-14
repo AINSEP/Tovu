@@ -355,10 +355,10 @@ export function subscribeToFindResults(
   bridge: FindBridge | undefined,
   handlers: { onResult: (result: FindInPageResult) => void; onReported: () => void },
 ): () => void {
-  const unsubscribeWindow = bridge?.onFindResult((result) => {
+  const unsubscribeWindow = bridge?.onFindResult({ listener: (result) => {
     handlers.onReported();
     handlers.onResult(result);
-  });
+  } });
   if (target.kind !== 'guest') return () => unsubscribeWindow?.();
   const onFound = (event: WebviewFoundInPageEvent) => {
     handlers.onReported();
@@ -404,8 +404,8 @@ export const liveFindClock: FindFocusClock = {
   now: () => performance.now(),
   requestFrame: (callback) => requestAnimationFrame(callback),
   cancelFrame: (frame) => cancelAnimationFrame(frame),
-  schedule: (callback, delay) => setTimeout(callback, delay),
-  cancel: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+  schedule: ({ callback, delay }, _options = {}) => setTimeout(callback, delay),
+  cancel: ({ timer }, _options = {}) => clearTimeout(timer as ReturnType<typeof setTimeout>),
 };
 
 /** Optional ports for {@link useFindInPage}; production passes none. */
@@ -511,7 +511,7 @@ export function useFindInPage(
 
   const clearReclaimTimer = useCallback(() => {
     if (reclaimTimer.current !== null) {
-      clock.cancel(reclaimTimer.current);
+      clock.cancel({ timer: reclaimTimer.current });
       reclaimTimer.current = null;
     }
   }, [clock]);
@@ -520,7 +520,7 @@ export function useFindInPage(
   // refocuses even though `open` itself does not change).
   useEffect(() => {
     if (!bridge) return undefined;
-    return bridge.onFindToggle(() => dispatch({ type: 'toggle' }));
+    return bridge.onFindToggle({ listener: () => dispatch({ type: 'toggle' }) });
   }, [bridge]);
 
   // Focuses and selects the input every time the bar opens OR is re-summoned while already open —
@@ -608,14 +608,14 @@ export function useFindInPage(
       const onBlur = () => {
         if (restoringFocus.current) return;
         clearReclaimTimer();
-        reclaimTimer.current = clock.schedule(() => {
+        reclaimTimer.current = clock.schedule({ callback: () => {
           reclaimTimer.current = null;
           // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
           // (and unmounted the input) by the time this deferred callback runs.
           if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: clock.now() })) {
             restoreFindInputFocus(inputElement.current, restoringFocus);
           }
-        }, 0);
+        }, delay: 0 });
       };
       const onCompositionStart = () => {
         composing.current = true;

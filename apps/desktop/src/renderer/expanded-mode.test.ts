@@ -36,18 +36,18 @@ const BOTH = [false, true] as const;
 // ---------------------------------------------------------------------------------------------
 
 test('the toggle expands from collapsed', () => {
-  assert.equal(nextExpanded(false), true);
+  assert.equal(nextExpanded({ expanded: false }), true);
 });
 
 test('the toggle collapses from expanded', () => {
-  assert.equal(nextExpanded(true), false);
+  assert.equal(nextExpanded({ expanded: true }), false);
 });
 
 test('the toggle round-trips from either starting state', () => {
   // The button is one control with two jobs, so "expand" and "exit full window" are the same
   // click. Two of them has to land back where it started, from both directions.
   for (const start of BOTH) {
-    assert.equal(nextExpanded(nextExpanded(start)), start, `start=${start}`);
+    assert.equal(nextExpanded({ expanded: nextExpanded({ expanded: start }) }), start, `start=${start}`);
   }
 });
 
@@ -62,23 +62,23 @@ test('the collapse key is exactly the DOM key name, not a label', () => {
 });
 
 test('Escape collapses expanded mode', () => {
-  assert.equal(expandedAfterKeyDown(true, 'Escape'), false);
+  assert.equal(expandedAfterKeyDown({ expanded: true, key: 'Escape' }), false);
 });
 
 test('Escape while already collapsed is a no-op, not a toggle', () => {
   // The listener is only attached while expanded, but the rule must hold on its own: an Escape
   // that re-expanded would turn the one documented exit into a way back IN.
-  assert.equal(expandedAfterKeyDown(false, 'Escape'), false);
+  assert.equal(expandedAfterKeyDown({ expanded: false, key: 'Escape' }), false);
 });
 
 test('repeated Escape stays collapsed', () => {
-  assert.equal(expandedAfterKeyDown(expandedAfterKeyDown(true, 'Escape'), 'Escape'), false);
+  assert.equal(expandedAfterKeyDown({ expanded: expandedAfterKeyDown({ expanded: true, key: 'Escape' }), key: 'Escape' }), false);
 });
 
 test('every other key leaves the mode exactly as it was, from both states', () => {
   for (const key of ['Esc', 'escape', 'ESCAPE', 'Enter', 'Tab', ' ', 'a', 'ArrowDown', 'Backspace']) {
     for (const expanded of BOTH) {
-      assert.equal(expandedAfterKeyDown(expanded, key), expanded, `key=${key} expanded=${expanded}`);
+      assert.equal(expandedAfterKeyDown({ expanded, key }), expanded, `key=${key} expanded=${expanded}`);
     }
   }
 });
@@ -90,18 +90,18 @@ test('every other key leaves the mode exactly as it was, from both states', () =
 test('losing the project tab collapses expanded mode', () => {
   // Closing the tab, deleting the project, or `desktop.navigate` moving the nav elsewhere. Staying
   // expanded through any of them hides the chrome with nothing immersed in it.
-  assert.equal(expandedAfterWorkspaceChange(true, false), false);
+  assert.equal(expandedAfterWorkspaceChange({ expanded: true, showSiteTab: false }), false);
 });
 
 test('expanded mode survives as long as the project tab is still showing', () => {
-  assert.equal(expandedAfterWorkspaceChange(true, true), true);
+  assert.equal(expandedAfterWorkspaceChange({ expanded: true, showSiteTab: true }), true);
 });
 
 test('a project tab appearing does NOT expand on its own', () => {
   // The rule only ever collapses. Opening a project must not drop the operator into a window with
   // no navigation they never asked for.
-  assert.equal(expandedAfterWorkspaceChange(false, true), false);
-  assert.equal(expandedAfterWorkspaceChange(false, false), false);
+  assert.equal(expandedAfterWorkspaceChange({ expanded: false, showSiteTab: true }), false);
+  assert.equal(expandedAfterWorkspaceChange({ expanded: false, showSiteTab: false }), false);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -203,7 +203,7 @@ test('whenever expanded mode can stay on, exactly one workspace — and its bar 
           projects,
           isCreating: false,
         });
-        if (!expandedAfterWorkspaceChange(true, view.showSiteTab)) continue;
+        if (!expandedAfterWorkspaceChange({ expanded: true, showSiteTab: view.showSiteTab })) continue;
         staysExpanded += 1;
         const onScreen = view.openSites.filter((project) =>
           workspaceOnScreen({
@@ -243,7 +243,7 @@ test('opening Appearance takes the workspace away, and the top nav with it — b
   });
   assert.equal(view.showSiteTab, true, 'the tab is still the active one');
   assert.equal(view.visibleWorkspaceId, null, 'but Appearance is over its workspace');
-  assert.equal(expandedAfterWorkspaceChange(true, view.showSiteTab), true);
+  assert.equal(expandedAfterWorkspaceChange({ expanded: true, showSiteTab: view.showSiteTab }), true);
   assert.equal(
     workspaceOnScreen({ inSites: view.inSites, projectId: 'site-a', visibleWorkspaceId: view.visibleWorkspaceId }),
     false,

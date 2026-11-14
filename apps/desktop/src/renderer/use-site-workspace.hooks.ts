@@ -224,7 +224,7 @@ export function subscribeSiteHistory(input: {
   guest: WorkspaceGuest | null;
 }): (() => void) | undefined {
   if (input.hidden || input.bridge === undefined) return undefined;
-  return input.bridge.onSiteHistory((command) => void stepHistory(input.guest, command));
+  return input.bridge.onSiteHistory({ listener: (command) => void stepHistory(input.guest, command) });
 }
 
 export interface WorkspaceActions {
@@ -307,7 +307,7 @@ export async function prepareExternalWorkspace({ project, bridge }: {
 }, _options = {}): Promise<string | null> {
   if (!project.externalUrl) return null;
   if (!bridge) throw new Error('The desktop bridge is unavailable.');
-  const record = await bridge.startSite(project.id);
+  const record = await bridge.startSite({ id: project.id });
   const url = siteSurfaceUrl({ port: record.port, status: record.status, view: 'admin', externalUrl: record.externalUrl });
   if (url !== project.externalUrl) throw new Error('The running server changed. Wait for the site list to refresh.');
   return url;

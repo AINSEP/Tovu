@@ -24,7 +24,7 @@ export function classifyImportDrop(
 ): ImportDrop {
   const files = Array.from(dataTransfer.files ?? []);
   if (files.length > 1) return { kind: 'refused', message: ONE_AT_A_TIME };
-  const [folder] = folderPathsFromDataTransfer(dataTransfer, getPathForFile);
+  const [folder] = folderPathsFromDataTransfer({ dataTransfer, getPathForFile });
   if (folder !== undefined) return { kind: 'folder', path: folder };
   return classifyImportFiles({ files, getPathForFile });
 }

@@ -18,7 +18,7 @@ after(closeHost);
 /** A `startSite` the test settles by hand, so the boot wait can be looked at while it lasts. */
 function pendingStart() {
   const starts: { id: string; resolve: (record: SiteRecord) => void; reject: (error: Error) => void }[] = [];
-  const startSite = (id: string) => new Promise<SiteRecord>((resolve, reject) => { starts.push({ id, resolve, reject }); });
+  const startSite = ({ id }: { id: string }, _options = {}) => new Promise<SiteRecord>((resolve, reject) => { starts.push({ id, resolve, reject }); });
   return { starts, startSite };
 }
 
@@ -41,7 +41,7 @@ test('Spinner: one decorative ring, hidden from assistive tech', (t) => {
 });
 
 test('SiteStartPanel: a stopped site shows its name, its status sentence and an idle Start', (t) => {
-  const view = renderPanel(t, { project: site('a') });
+  const view = renderPanel(t, { project: site({ id: 'a' }) });
   assert.equal(view.container.querySelector('.empty__title')?.textContent, 'Site a');
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Stopped.');
   assert.equal(view.button()?.textContent, 'Start site');
@@ -51,46 +51,46 @@ test('SiteStartPanel: a stopped site shows its name, its status sentence and an 
 });
 
 test('SiteStartPanel: Sleeping has neutral wording and Wake uses the normal start call', async t => {
-  const view = renderPanel(t, { project: site('a', { status: 'sleeping' }) });
+  const view = renderPanel(t, { project: site({ id: 'a' }, { fields: { status: 'sleeping' } }) });
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Sleeping.');
   assert.equal(view.button()?.textContent, 'Wake site');
   assert.equal(view.container.querySelector('.workspace__error'), null);
-  await view.click(view.button());
+  await view.click({ el: view.button() });
   assert.equal(view.starts[0]?.id, 'a');
-  await act(async () => { view.starts[0]!.resolve(site('a', { status: 'running', port: 4200 })); });
+  await act(async () => { view.starts[0]!.resolve(site({ id: 'a' }, { fields: { status: 'running', port: 4200 } })); });
   assert.deepEqual(view.events, ['updated:running', 'started']);
 });
 
 test('SiteStartPanel: a caller-supplied body replaces the status sentence', (t) => {
-  const view = renderPanel(t, { project: site('a', { status: 'running', port: 4100 }), body: 'Site a is not answering.' });
+  const view = renderPanel(t, { project: site({ id: 'a' }, { fields: { status: 'running', port: 4100 } }), body: 'Site a is not answering.' });
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Site a is not answering.');
 });
 
 test('SiteStartPanel: Start shows the boot wait, then hands main\'s record on before calling onStarted', async (t) => {
-  const view = renderPanel(t, { project: site('a') });
-  await view.click(view.button());
+  const view = renderPanel(t, { project: site({ id: 'a' }) });
+  await view.click({ el: view.button() });
   assert.equal(view.starts[0]?.id, 'a');
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Starting the server. This can take up to a minute.');
   assert.ok(view.container.querySelector('.workspace__idle > .spinner'));
   assert.equal(view.button()?.textContent, 'Starting…');
   assert.equal(view.button()?.hasAttribute('disabled'), true, 'one start at a time');
-  await act(async () => { view.starts[0]!.resolve(site('a', { status: 'running', port: 4100 })); });
+  await act(async () => { view.starts[0]!.resolve(site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })); });
   await settle();
   assert.deepEqual(view.events, ['updated:running', 'started']);
   assert.equal(view.button()?.textContent, 'Start site');
 });
 
 test('SiteStartPanel: a successful start with no onStarted still applies the record', async (t) => {
-  const view = renderPanel(t, { project: site('a'), withOnStarted: false });
-  await view.click(view.button());
-  await act(async () => { view.starts[0]!.resolve(site('a', { status: 'running', port: 4100 })); });
+  const view = renderPanel(t, { project: site({ id: 'a' }), withOnStarted: false });
+  await view.click({ el: view.button() });
+  await act(async () => { view.starts[0]!.resolve(site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })); });
   await settle();
   assert.deepEqual(view.events, ['updated:running']);
 });
 
 test('SiteStartPanel: a failed start explains itself under the button and does not call onStarted', async (t) => {
-  const view = renderPanel(t, { project: site('a') });
-  await view.click(view.button());
+  const view = renderPanel(t, { project: site({ id: 'a' }) });
+  await view.click({ el: view.button() });
   await act(async () => { view.starts[0]!.reject(new Error('port 4100 is taken')); });
   await settle();
   assert.match(view.container.querySelector('.workspace__error')?.textContent ?? '', /port 4100 is taken/);
@@ -99,7 +99,7 @@ test('SiteStartPanel: a failed start explains itself under the button and does n
 });
 
 test('SiteStartPanel: a blocked site offers no Start at all', (t) => {
-  const view = renderPanel(t, { project: site('b', { status: 'blocked' }) });
+  const view = renderPanel(t, { project: site({ id: 'b' }, { fields: { status: 'blocked' } }) });
   assert.equal(view.button(), null);
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Provider support required.');
 });
@@ -107,7 +107,7 @@ test('SiteStartPanel: a blocked site offers no Start at all', (t) => {
 
 test('B2 crash cap renders selectable redacted details beside manual Start', t => {
   const detail = 'Automatic restart has stopped. Try starting it again.\n\nRedacted details:\nExit code: 9\n[REDACTED]';
-  const view = renderPanel(t, { project: site('a', { status: 'failed', statusDetail: detail }) });
+  const view = renderPanel(t, { project: site({ id: 'a' }, { fields: { status: 'failed', statusDetail: detail } }) });
   assert.equal(view.container.querySelector('pre')?.textContent, detail);
   assert.equal(view.button()?.textContent, 'Start site');
   assert.equal(view.starts.length, 0, 'a terminal error must wait for manual Start');
@@ -115,15 +115,15 @@ test('B2 crash cap renders selectable redacted details beside manual Start', t =
 
 test('SiteStartPanel: only failed sites expose crash details', t => {
   for (const status of ['stopped', 'sleeping', 'starting'] as const) {
-    const view = renderPanel(t, { project: site('a', { status, statusDetail: 'old crash details' }) });
+    const view = renderPanel(t, { project: site({ id: 'a' }, { fields: { status, statusDetail: 'old crash details' } }) });
     assert.equal(view.container.querySelector('pre'), null, status);
   }
-  const view = renderPanel(t, { project: site('a', { status: 'failed', statusDetail: null }) });
+  const view = renderPanel(t, { project: site({ id: 'a' }, { fields: { status: 'failed', statusDetail: null } }) });
   assert.equal(view.container.querySelector('pre'), null);
 });
 
 test('SiteStartPanel: a site another path is starting reads Starting, never Stopped, and cannot be started twice', (t) => {
-  const view = renderPanel(t, { project: site('a', { status: 'starting' }) });
+  const view = renderPanel(t, { project: site({ id: 'a' }, { fields: { status: 'starting' } }) });
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Starting the server. This can take up to a minute.');
   assert.equal(view.button()?.textContent, 'Starting…');
   assert.equal(view.button()?.hasAttribute('disabled'), true);

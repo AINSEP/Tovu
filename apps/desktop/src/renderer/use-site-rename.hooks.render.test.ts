@@ -36,7 +36,7 @@ const pressEscape = () => act(() => {
 
 test('starting a rename seeds the current name; Escape cancels it', async (t) => {
   const fake = renameBridge();
-  const hook = renderHook(t, () => useSiteRename(undefined, { getBridge: fake.getBridge }));
+  const hook = renderHook({ t, useHook: () => useSiteRename(undefined, { getBridge: fake.getBridge }) });
   act(() => hook.current().startRename(SITE));
   assert.equal(hook.current().renamingId, SITE.id);
   assert.equal(hook.current().draft, 'Alpha');
@@ -50,7 +50,7 @@ test('starting a rename seeds the current name; Escape cancels it', async (t) =>
 test('a successful save sends the trimmed-as-typed draft, closes the overlay and hands main\'s record over', async (t) => {
   const fake = renameBridge();
   const renamed: SiteRecord[] = [];
-  const hook = renderHook(t, () => useSiteRename((record) => renamed.push(record), { getBridge: fake.getBridge }));
+  const hook = renderHook({ t, useHook: () => useSiteRename((record) => renamed.push(record), { getBridge: fake.getBridge }) });
   act(() => hook.current().startRename(SITE));
   act(() => hook.current().setDraft('Beta'));
   const saving = hook.current().submitRename(SITE.id);
@@ -71,7 +71,7 @@ test('a successful save sends the trimmed-as-typed draft, closes the overlay and
 
 test('a rejected save keeps the overlay open with main\'s sentence and stops the spinner', async (t) => {
   const fake = renameBridge();
-  const hook = renderHook(t, () => useSiteRename(undefined, { getBridge: fake.getBridge }));
+  const hook = renderHook({ t, useHook: () => useSiteRename(undefined, { getBridge: fake.getBridge }) });
   act(() => hook.current().startRename(SITE));
   const saving = hook.current().submitRename(SITE.id);
   fake.next().reject(new Error('A site named Alpha already exists.'));
@@ -87,7 +87,7 @@ test('a rejected save keeps the overlay open with main\'s sentence and stops the
 test('after a rejected save the draft is kept and Save offered again; a retry clears the old sentence at once and resends the same draft', async (t) => {
   const fake = renameBridge();
   const renamed: SiteRecord[] = [];
-  const hook = renderHook(t, () => useSiteRename((record) => renamed.push(record), { getBridge: fake.getBridge }));
+  const hook = renderHook({ t, useHook: () => useSiteRename((record) => renamed.push(record), { getBridge: fake.getBridge }) });
   act(() => hook.current().startRename(SITE));
   act(() => hook.current().setDraft('New name'));
   const first = hook.current().submitRename(SITE.id);
@@ -113,7 +113,7 @@ test('after a rejected save the draft is kept and Save offered again; a retry cl
 
 test('refusals never reach the bridge and never show a spinner', async (t) => {
   const fake = renameBridge();
-  const invalid = renderHook(t, () => useSiteRename(undefined, { getBridge: fake.getBridge }));
+  const invalid = renderHook({ t, useHook: () => useSiteRename(undefined, { getBridge: fake.getBridge }) });
   act(() => invalid.current().startRename(SITE));
   act(() => invalid.current().setDraft('   '));
   await act(() => invalid.current().submitRename(SITE.id));
@@ -121,7 +121,7 @@ test('refusals never reach the bridge and never show a spinner', async (t) => {
   assert.equal(invalid.current().saving, false);
   assert.deepEqual(fake.sent, []);
 
-  const unbridged = renderHook(t, () => useSiteRename(undefined, { getBridge: () => undefined }));
+  const unbridged = renderHook({ t, useHook: () => useSiteRename(undefined, { getBridge: () => undefined }) });
   act(() => unbridged.current().startRename(SITE));
   await act(() => unbridged.current().submitRename(SITE.id));
   assert.equal(unbridged.current().renameError, NO_BRIDGE_RENAME_MESSAGE);

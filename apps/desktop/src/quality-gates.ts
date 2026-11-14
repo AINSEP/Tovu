@@ -58,12 +58,12 @@ export type GateExitCode = number | null;
  * {@link detectGateDrift}'s `gate.run`) as an unhelpful "Cannot read properties of null". That is a
  * genuinely malformed gate entry, so it throws a clear error naming the index and value instead.
  *
- * @param value typically `manifest.gates`, fresh out of `JSON.parse` and not yet trustworthy.
+ * @param required.value typically `manifest.gates`, fresh out of `JSON.parse` and not yet trustworthy.
  * @returns `value` narrowed to `GateEntry[]`, or `[]` when `value` is not an array at all.
  * @throws {Error} naming the array index and JSON value of the first `null`/non-object element.
  * @complexity O(n) in entries.
  */
-export function asGateEntryArray(value: unknown): GateEntry[] {
+export function asGateEntryArray({ value }: { value: unknown }, _options = {}): GateEntry[] {
   if (!Array.isArray(value)) return [];
   value.forEach((entry, index) => {
     if (entry === null || typeof entry !== "object") {
@@ -83,12 +83,12 @@ const MS_PER_DAY = 86_400_000;
  * `Date.now()` deltas: a disablement recorded "today" must read as 0 days regardless of the clock
  * time either side, or a gate disabled at 23:00 would age a day at midnight.
  *
- * @param fromIso the `disabledOn` date.
- * @param toIso today, as `YYYY-MM-DD`.
+ * @param required.fromIso the `disabledOn` date.
+ * @param required.toIso today, as `YYYY-MM-DD`.
  * @returns whole days elapsed, or `null` if either date is unparseable.
  * @complexity O(1).
  */
-function daysBetween(fromIso: string, toIso: string): number | null {
+function daysBetween({ fromIso, toIso }: { fromIso: string; toIso: string }, _options = {}): number | null {
   const from = Date.parse(`${fromIso}T00:00:00Z`);
   const to = Date.parse(`${toIso}T00:00:00Z`);
   if (Number.isNaN(from) || Number.isNaN(to)) return null;
@@ -102,7 +102,7 @@ function daysBetween(fromIso: string, toIso: string): number | null {
  *
  * @complexity O(1).
  */
-function disabledGateProblems(gate: GateEntry, today: string, maxDisabledDays: number): string[] {
+function disabledGateProblems({ gate, today, maxDisabledDays }: { gate: GateEntry; today: string; maxDisabledDays: number }, _options = {}): string[] {
   const problems: string[] = [];
   const where = `gate "${gate.id}"`;
   if (!gate.disabledReason) {
@@ -112,7 +112,7 @@ function disabledGateProblems(gate: GateEntry, today: string, maxDisabledDays: n
     problems.push(`${where} is disabled with no "disabledOn" date, so nothing can tell how long it has been off.`);
     return problems;
   }
-  const age = daysBetween(gate.disabledOn, today);
+  const age = daysBetween({ fromIso: gate.disabledOn, toIso: today });
   if (age === null) {
     problems.push(`${where} has an unparseable "disabledOn" (${gate.disabledOn}); expected YYYY-MM-DD.`);
     return problems;
@@ -130,13 +130,13 @@ function disabledGateProblems(gate: GateEntry, today: string, maxDisabledDays: n
  *  {@link validateManifest} stays under the 9/9 ceiling this harness enforces on everything else —
  *  which it would be absurd to exempt itself from.
  *  @complexity O(1). */
-function gateProblems(gate: GateEntry, seen: Set<string>, today: string, maxDisabledDays: number): string[] {
+function gateProblems({ gate, seen, today, maxDisabledDays }: { gate: GateEntry; seen: Set<string>; today: string; maxDisabledDays: number }, _options = {}): string[] {
   if (!gate.id || !gate.run) {
     return [`every gate needs an "id" and a "run"; found ${JSON.stringify(gate)}.`];
   }
   const problems = seen.has(gate.id) ? [`duplicate gate id "${gate.id}".`] : [];
   seen.add(gate.id);
-  if (gate.enabled === false) problems.push(...disabledGateProblems(gate, today, maxDisabledDays));
+  if (gate.enabled === false) problems.push(...disabledGateProblems({ gate, today, maxDisabledDays }));
   return problems;
 }
 
@@ -144,12 +144,12 @@ function gateProblems(gate: GateEntry, seen: Set<string>, today: string, maxDisa
  * Every reason this manifest is not a legitimate description of the harness. An empty array means
  * the manifest itself is sound — it says nothing about whether the gates pass.
  *
- * @param manifest the parsed `quality-gates.json`.
- * @param today `YYYY-MM-DD`, injected rather than read from the clock so the ratchet is testable.
+ * @param required.manifest the parsed `quality-gates.json`.
+ * @param required.today `YYYY-MM-DD`, injected rather than read from the clock so the ratchet is testable.
  * @returns human-readable problems, one per line, ready to print.
  * @complexity O(n) in gates.
  */
-export function validateManifest(manifest: GateManifest | null | undefined, today: string): string[] {
+export function validateManifest({ manifest, today }: { manifest: GateManifest | null | undefined; today: string }, _options = {}): string[] {
   if (!manifest || !Array.isArray(manifest.gates)) return ['quality-gates.json has no "gates" array.'];
   const gates = manifest.gates;
   if (gates.length === 0) return ['quality-gates.json lists zero gates — the harness would pass by measuring nothing.'];
@@ -159,7 +159,7 @@ export function validateManifest(manifest: GateManifest | null | undefined, toda
   const problems: string[] = [];
   const seen = new Set<string>();
 
-  for (const gate of asGateEntryArray(gates)) problems.push(...gateProblems(gate, seen, today, maxDisabledDays));
+  for (const gate of asGateEntryArray({ value: gates })) problems.push(...gateProblems({ gate, seen, today, maxDisabledDays }));
   return problems;
 }
 
@@ -169,21 +169,21 @@ export function validateManifest(manifest: GateManifest | null | undefined, toda
  * rather than by exact path, because a `run` legitimately carries flags and a wrapper
  * (`node scripts/check-coverage.ts --areas ...`).
  *
- * @param gates the manifest's gate list (disabled ones count as registered — being off is a
+ * @param required.gates the manifest's gate list (disabled ones count as registered — being off is a
  *   decision, being absent is not).
- * @param scriptNames basenames of the gate scripts found on disk, e.g. `["check-coverage.ts"]`.
+ * @param required.scriptNames basenames of the gate scripts found on disk, e.g. `["check-coverage.ts"]`.
  * @returns the basenames nothing references.
  * @complexity O(gates x scripts); both are single digits here.
  */
-export function detectGateDrift(gates: readonly GateEntry[] | null | undefined, scriptNames: readonly string[]): string[] {
-  const commands = asGateEntryArray(gates).map((gate) => String(gate.run ?? ""));
+export function detectGateDrift({ gates, scriptNames }: { gates: readonly GateEntry[] | null | undefined; scriptNames: readonly string[] }, _options = {}): string[] {
+  const commands = asGateEntryArray({ value: gates }).map((gate) => String(gate.run ?? ""));
   return scriptNames.filter((name) => !commands.some((command) => command.includes(name)));
 }
 
 /** One line per gate, in manifest order. `PASS`/`FAIL` for what ran, `DISABLED` for what did not —
  *  the disabled ones carry their reason and date so the summary is self-explaining.
  *  @complexity O(1). */
-function summaryLine(gate: GateEntry, outcome: GateExitCode | undefined): string {
+function summaryLine({ gate, outcome }: { gate: GateEntry; outcome: GateExitCode | undefined }, _options = {}): string {
   if (gate.enabled === false) {
     return `  DISABLED  ${gate.id}  — ${gate.disabledReason ?? "(no reason given)"} [since ${gate.disabledOn ?? "?"}]`;
   }
@@ -215,7 +215,7 @@ export function formatSummary(gates: readonly GateEntry[], outcomes: ReadonlyMap
     } else {
       failed += 1;
     }
-    lines.push(summaryLine(gate, outcomes.get(gate.id)));
+    lines.push(summaryLine({ gate, outcome: outcomes.get(gate.id) }));
   }
 
   lines.push("-".repeat(66));
@@ -231,7 +231,7 @@ export function formatSummary(gates: readonly GateEntry[], outcomes: ReadonlyMap
  *
  * @complexity O(1).
  */
-export function isFailure(exitCode: GateExitCode | undefined): boolean {
+export function isFailure({ exitCode }: { exitCode: GateExitCode | undefined }, _options = {}): boolean {
   return exitCode !== 0;
 }
 

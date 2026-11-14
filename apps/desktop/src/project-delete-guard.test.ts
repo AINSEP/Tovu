@@ -48,13 +48,13 @@ test("resolveRealPath follows a symlink to its target", () => {
   const link = path.join(base, "link");
   fs.mkdirSync(real);
   fs.symlinkSync(real, link);
-  assert.equal(resolveRealPath(link), real);
+  assert.equal(resolveRealPath({ target: link }), real);
 });
 
 test("resolveRealPath still normalizes a path that does not exist", () => {
   const base = tempDir();
   const messy = path.join(base, "a", "..", "b") + path.sep;
-  assert.equal(resolveRealPath(messy), path.join(base, "b"));
+  assert.equal(resolveRealPath({ target: messy }), path.join(base, "b"));
 });
 
 test("resolveRealPath returns the normalized path when even the filesystem root cannot resolve", (t) => {
@@ -69,16 +69,16 @@ test("resolveRealPath returns the normalized path when even the filesystem root 
     throw new Error("realpath unavailable");
   });
 
-  assert.equal(resolveRealPath(path.join(base, "a", "..", "missing") + path.sep), path.join(base, "missing"));
+  assert.equal(resolveRealPath({ target: path.join(base, "a", "..", "missing") + path.sep }), path.join(base, "missing"));
 });
 
 test("isInsideDirectory is true for the container itself and for anything under it", () => {
   const repoRoot = tempDir();
   const nested = path.join(repoRoot, "sites", "tovu-com");
   fs.mkdirSync(nested, { recursive: true });
-  assert.equal(isInsideDirectory(repoRoot, repoRoot), true);
-  assert.equal(isInsideDirectory(nested, repoRoot), true);
-  assert.equal(isInsideDirectory(`${nested}${path.sep}`, repoRoot), true);
+  assert.equal(isInsideDirectory({ target: repoRoot, container: repoRoot }), true);
+  assert.equal(isInsideDirectory({ target: nested, container: repoRoot }), true);
+  assert.equal(isInsideDirectory({ target: `${nested}${path.sep}`, container: repoRoot }), true);
 });
 
 test("isInsideDirectory is false for a sibling whose name merely starts with the container's", () => {
@@ -89,7 +89,7 @@ test("isInsideDirectory is false for a sibling whose name merely starts with the
   const sibling = path.join(base, "Tovu-backup");
   fs.mkdirSync(repoRoot);
   fs.mkdirSync(sibling);
-  assert.equal(isInsideDirectory(sibling, repoRoot), false);
+  assert.equal(isInsideDirectory({ target: sibling, container: repoRoot }), false);
 });
 
 test("isInsideDirectory is not defeated by a `..` segment that climbs back into the container", () => {
@@ -97,7 +97,7 @@ test("isInsideDirectory is not defeated by a `..` segment that climbs back into 
   const nested = path.join(repoRoot, "sites", "tovu-com");
   fs.mkdirSync(nested, { recursive: true });
   const roundabout = path.join(repoRoot, "sites", "elsewhere", "..", "tovu-com");
-  assert.equal(isInsideDirectory(roundabout, repoRoot), true);
+  assert.equal(isInsideDirectory({ target: roundabout, container: repoRoot }), true);
 });
 
 test("isInsideDirectory is not defeated by a symlink pointing into the container", () => {
@@ -107,7 +107,7 @@ test("isInsideDirectory is not defeated by a symlink pointing into the container
   fs.mkdirSync(inside, { recursive: true });
   const decoy = path.join(base, "innocent-looking-site");
   fs.symlinkSync(inside, decoy);
-  assert.equal(isInsideDirectory(decoy, repoRoot), true);
+  assert.equal(isInsideDirectory({ target: decoy, container: repoRoot }), true);
 });
 
 test("isInsideDirectory is not defeated by a symlinked container", () => {
@@ -117,7 +117,7 @@ test("isInsideDirectory is not defeated by a symlinked container", () => {
   fs.mkdirSync(inside, { recursive: true });
   const repoLink = path.join(base, "repo-link");
   fs.symlinkSync(realRepo, repoLink);
-  assert.equal(isInsideDirectory(inside, repoLink), true);
+  assert.equal(isInsideDirectory({ target: inside, container: repoLink }), true);
 });
 
 test("mayEraseSiteDirectory allows only a created row that lives outside the repo root", () => {
@@ -126,7 +126,7 @@ test("mayEraseSiteDirectory allows only a created row that lives outside the rep
   const outside = path.join(base, "my-site");
   fs.mkdirSync(repoRoot);
   writeSiteMeta(outside, "site-a");
-  assert.equal(mayEraseSiteDirectory(createdRow(outside, "site-a"), { repoRoot }), true);
+  assert.equal(mayEraseSiteDirectory({ row: createdRow(outside, "site-a"), options: { repoRoot } }), true);
 });
 
 test("mayEraseSiteDirectory refuses a created row whose path now holds a DIFFERENT site", () => {
@@ -139,10 +139,10 @@ test("mayEraseSiteDirectory refuses a created row whose path now holds a DIFFERE
   fs.mkdirSync(repoRoot);
   writeSiteMeta(sitePath, "site-a");
   const stale = createdRow(sitePath, "site-a");
-  assert.equal(mayEraseSiteDirectory(stale, { repoRoot }), true, "baseline: the site it names is still there");
+  assert.equal(mayEraseSiteDirectory({ row: stale, options: { repoRoot } }), true, "baseline: the site it names is still there");
 
   writeSiteMeta(sitePath, "site-b-someone-elses");
-  assert.equal(mayEraseSiteDirectory(stale, { repoRoot }), false);
+  assert.equal(mayEraseSiteDirectory({ row: stale, options: { repoRoot } }), false);
 });
 
 test("mayEraseSiteDirectory refuses a created row that recorded no site identity", () => {
@@ -153,9 +153,9 @@ test("mayEraseSiteDirectory refuses a created row that recorded no site identity
   const outside = path.join(base, "legacy-created-site");
   fs.mkdirSync(repoRoot);
   writeSiteMeta(outside, "site-a");
-  assert.equal(mayEraseSiteDirectory(row(outside, SITE_ORIGIN.created), { repoRoot }), false);
+  assert.equal(mayEraseSiteDirectory({ row: row(outside, SITE_ORIGIN.created), options: { repoRoot } }), false);
   for (const siteId of ["", null, 42, {}]) {
-    assert.equal(mayEraseSiteDirectory({ ...row(outside, SITE_ORIGIN.created), siteId }, { repoRoot }), false, `siteId ${JSON.stringify(siteId)} must refuse`);
+    assert.equal(mayEraseSiteDirectory({ row: { ...row(outside, SITE_ORIGIN.created), siteId }, options: { repoRoot } }), false, `siteId ${JSON.stringify(siteId)} must refuse`);
   }
 });
 
@@ -165,16 +165,16 @@ test("mayEraseSiteDirectory refuses a created row whose directory can no longer 
   fs.mkdirSync(repoRoot);
 
   const gone = path.join(base, "deleted-by-hand");
-  assert.equal(mayEraseSiteDirectory(createdRow(gone, "site-a"), { repoRoot }), false, "absent directory");
+  assert.equal(mayEraseSiteDirectory({ row: createdRow(gone, "site-a"), options: { repoRoot } }), false, "absent directory");
 
   const markerless = path.join(base, "markers-removed");
   fs.mkdirSync(markerless);
-  assert.equal(mayEraseSiteDirectory(createdRow(markerless, "site-a"), { repoRoot }), false, "no .site-meta.json");
+  assert.equal(mayEraseSiteDirectory({ row: createdRow(markerless, "site-a"), options: { repoRoot } }), false, "no .site-meta.json");
 
   const corrupt = path.join(base, "corrupt-meta");
   fs.mkdirSync(corrupt);
   fs.writeFileSync(path.join(corrupt, ".site-meta.json"), "{ this is not json");
-  assert.equal(mayEraseSiteDirectory(createdRow(corrupt, "site-a"), { repoRoot }), false, "unparseable .site-meta.json");
+  assert.equal(mayEraseSiteDirectory({ row: createdRow(corrupt, "site-a"), options: { repoRoot } }), false, "unparseable .site-meta.json");
 });
 
 test("mayEraseSiteDirectory refuses a null recorded identity when the live metadata has no usable identity", (t) => {
@@ -184,18 +184,18 @@ test("mayEraseSiteDirectory refuses a null recorded identity when the live metad
   fs.mkdirSync(repoRoot);
   const outside = writeSiteMeta(path.join(base, "unidentified-site"), "");
 
-  assert.equal(mayEraseSiteDirectory({ ...row(outside, SITE_ORIGIN.created), siteId: null }, { repoRoot }), false);
+  assert.equal(mayEraseSiteDirectory({ row: { ...row(outside, SITE_ORIGIN.created), siteId: null }, options: { repoRoot } }), false);
 });
 
 test("readSiteIdentity returns a site's own stamped id, and null for anything it cannot read", () => {
   const base = tempDir();
-  assert.equal(readSiteIdentity(writeSiteMeta(path.join(base, "real"), "site-a")), "site-a");
-  assert.equal(readSiteIdentity(path.join(base, "absent")), null);
+  assert.equal(readSiteIdentity({ siteDir: writeSiteMeta(path.join(base, "real"), "site-a") }), "site-a");
+  assert.equal(readSiteIdentity({ siteDir: path.join(base, "absent") }), null);
 
   const noId = path.join(base, "no-id");
   fs.mkdirSync(noId);
   fs.writeFileSync(path.join(noId, ".site-meta.json"), JSON.stringify({ schemaVersion: 58 }));
-  assert.equal(readSiteIdentity(noId), null);
+  assert.equal(readSiteIdentity({ siteDir: noId }), null);
 });
 
 test("mayEraseSiteDirectory refuses an adopted row even when it lives outside the repo root", () => {
@@ -204,7 +204,7 @@ test("mayEraseSiteDirectory refuses an adopted row even when it lives outside th
   const outside = path.join(base, "someone-elses-site");
   fs.mkdirSync(repoRoot);
   fs.mkdirSync(outside);
-  assert.equal(mayEraseSiteDirectory(row(outside, SITE_ORIGIN.adopted), { repoRoot }), false);
+  assert.equal(mayEraseSiteDirectory({ row: row(outside, SITE_ORIGIN.adopted), options: { repoRoot } }), false);
 });
 
 test("mayEraseSiteDirectory refuses a repo-root directory whatever the row claims", () => {
@@ -213,8 +213,8 @@ test("mayEraseSiteDirectory refuses a repo-root directory whatever the row claim
   const repoRoot = tempDir();
   const inside = path.join(repoRoot, "sites", "tovu-com");
   fs.mkdirSync(inside, { recursive: true });
-  assert.equal(mayEraseSiteDirectory(row(inside, SITE_ORIGIN.created), { repoRoot }), false);
-  assert.equal(mayEraseSiteDirectory(row(repoRoot, SITE_ORIGIN.created), { repoRoot }), false);
+  assert.equal(mayEraseSiteDirectory({ row: row(inside, SITE_ORIGIN.created), options: { repoRoot } }), false);
+  assert.equal(mayEraseSiteDirectory({ row: row(repoRoot, SITE_ORIGIN.created), options: { repoRoot } }), false);
 });
 
 test("mayEraseSiteDirectory refuses everything when it cannot be told where the repo root is", () => {
@@ -224,9 +224,9 @@ test("mayEraseSiteDirectory refuses everything when it cannot be told where the 
   const tracked = createdRow(outside, "site-a");
   const repoRoot = path.join(base, "repo");
   fs.mkdirSync(repoRoot);
-  assert.equal(mayEraseSiteDirectory(tracked, { repoRoot }), true, "valid root is the only missing guard input");
+  assert.equal(mayEraseSiteDirectory({ row: tracked, options: { repoRoot } }), true, "valid root is the only missing guard input");
   for (const options of [undefined, {}, { repoRoot: "" }, { repoRoot: null }, { repoRoot: 42 }]) {
-    assert.equal(mayEraseSiteDirectory(tracked, options), false, `${JSON.stringify(options)} must refuse`);
+    assert.equal(mayEraseSiteDirectory({ row: tracked, options }), false, `${JSON.stringify(options)} must refuse`);
   }
 });
 
@@ -236,8 +236,8 @@ test("mayEraseSiteDirectory refuses a row with no origin at all", () => {
   const outside = path.join(base, "legacy-site");
   fs.mkdirSync(repoRoot);
   fs.mkdirSync(outside);
-  assert.equal(mayEraseSiteDirectory({ siteDir: outside, createdAt: "2026-01-01" }, { repoRoot }), false);
-  assert.equal(mayEraseSiteDirectory(undefined, { repoRoot }), false);
+  assert.equal(mayEraseSiteDirectory({ row: { siteDir: outside, createdAt: "2026-01-01" }, options: { repoRoot } }), false);
+  assert.equal(mayEraseSiteDirectory({ row: undefined, options: { repoRoot } }), false);
 });
 
 test("isInsideDirectory still catches a directory that no longer exists under a symlinked repo root", () => {
@@ -251,5 +251,5 @@ test("isInsideDirectory still catches a directory that no longer exists under a 
 
   const goneButInside = path.join(repoLink, "sites", "tovu-com");
   assert.equal(fs.existsSync(goneButInside), false);
-  assert.equal(isInsideDirectory(goneButInside, realRepo), true);
+  assert.equal(isInsideDirectory({ target: goneButInside, container: realRepo }), true);
 });

@@ -21,7 +21,7 @@ import type { SiteRecord } from '../contracts/project.js';
  *
  * @complexity O(1) time, O(1) space.
  */
-export function isCardOpenable(project: SiteRecord, confirming: boolean): boolean {
+export function isCardOpenable({ project, confirming }: { project: SiteRecord; confirming: boolean }, _options = {}): boolean {
   return project.status !== 'provisioning' && project.status !== 'blocked' && !project.folderMissing && !confirming;
 }
 
@@ -155,11 +155,7 @@ export type CardOverlayMode = 'confirm' | 'stop' | 'rename' | null;
  *
  * @complexity O(1) time, O(1) space.
  */
-export function cardOverlay(
-  id: string,
-  pendingDeleteId: string | null,
-  renamingId: string | null,
-  confirmingStopId: string | null = null,
+export function cardOverlay({ id, pendingDeleteId, renamingId }: { id: string; pendingDeleteId: string | null; renamingId: string | null }, { confirmingStopId = null }: { confirmingStopId?: string | null } = {}
 ): CardOverlayMode {
   if (pendingDeleteId === id) return 'confirm';
   if (confirmingStopId === id) return 'stop';
@@ -186,13 +182,11 @@ export interface CardOpenKeyEvent {
  * keydown that started on a DESCENDANT, which is what stops the delete button's and the ⋮ menu's
  * keyboard activation from opening the site instead. See that function's own doc.
  *
- * @param openable whether this card should respond at all.
- * @param onOpen invoked with nothing — the caller closes over which site it means.
+ * @param required.openable whether this card should respond at all.
+ * @param required.onOpen invoked with nothing — the caller closes over which site it means.
  * @complexity O(1) time, O(1) space.
  */
-export function cardOpenProps(
-  openable: boolean,
-  onOpen: () => void,
+export function cardOpenProps({ openable, onOpen }: { openable: boolean; onOpen: () => void }, _options = {}
 ): {
   role: 'button' | undefined;
   tabIndex: 0 | undefined;
@@ -219,11 +213,11 @@ export function cardOpenProps(
  * order `SettingsControl` (`App.tsx`) uses for its Appearance link. Acting first would leave an open
  * menu floating over whatever the action changed.
  *
- * @param setOpen the menu's open-state setter (`useDismissibleDropdown`'s).
+ * @param required.setOpen the menu's open-state setter (`useDismissibleDropdown`'s).
  * @returns `choose(act)`, which builds one entry's handler. Building it runs nothing.
  * @complexity O(1) time, O(1) space.
  */
-export function closeMenuThen(setOpen: (open: boolean) => void): (act: () => void) => () => void {
+export function closeMenuThen({ setOpen }: { setOpen: (open: boolean) => void }, _options = {}): (act: () => void) => () => void {
   return (act) => () => {
     setOpen(false);
     act();
@@ -266,12 +260,12 @@ export function cardOpenClass({ openable }: { openable: boolean }, _options = {}
 
 /** Parent-folder display keeps the saved path spelling, including Windows separators. O(n). */
 export function siteCardParentFolder({ installDir }: { installDir: string }, _options = {}): string {
-  const separator = (index: number) => installDir[index] === '/' || installDir[index] === "\\";
+  const separator = ({ index }: { index: number }, _options = {}) => installDir[index] === '/' || installDir[index] === "\\";
   let end = installDir.length;
-  while (separator(end - 1)) end--;
+  while (separator({ index: end - 1 })) end--;
   let start = end;
-  while (start > 0 && !separator(start - 1)) start--;
+  while (start > 0 && !separator({ index: start - 1 })) start--;
   if (start === 0) return installDir || '/';
-  while (separator(start - 1)) start--;
+  while (separator({ index: start - 1 })) start--;
   return installDir.slice(0, start) || '/';
 }

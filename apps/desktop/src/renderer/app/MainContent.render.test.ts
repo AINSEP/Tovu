@@ -42,23 +42,23 @@ async function renderContent(t: TestContext, props: Props = {}, bridge: Partial<
 }
 
 test('NotBuilt: another section says it is not built yet, with its own description', async (t) => {
-  const view = await renderContent(t, { activeId: 'marketplace', projects: [site('a')] });
+  const view = await renderContent(t, { activeId: 'marketplace', projects: [site({ id: 'a' })] });
   assert.equal(view.container.querySelector('.empty__title')?.textContent, 'Marketplace isn’t built yet');
   assert.equal(view.container.querySelector('.empty__body')?.textContent, 'Find plugins for your sites.');
   assert.equal(view.grid(), null);
 });
 
 test('MainContent: behind the create form it renders nothing, so the grid cannot show through', async (t) => {
-  const view = await renderContent(t, { isCreating: true, projects: [site('a')] });
+  const view = await renderContent(t, { isCreating: true, projects: [site({ id: 'a' })] });
   assert.equal(view.container.innerHTML, '');
 });
 
 test('MainContent: a created site is announced as ready, with its token outcome when there is one', async (t) => {
-  const plain = await renderContent(t, { lastCreated: site('n1') as CreatedSiteRecord });
+  const plain = await renderContent(t, { lastCreated: site({ id: 'n1' }) as CreatedSiteRecord });
   assert.equal(plain.container.querySelector('.creation-notice')?.getAttribute('role'), 'status');
   assert.equal(plain.container.querySelector('.creation-notice__text')?.textContent, 'Site n1 is ready — open it to start its own server.');
   const withTokens = await renderContent(t, {
-    lastCreated: { ...site('n2'), agentPluginTokens: { status: 'saved', pluginIds: ['github'] } } as CreatedSiteRecord,
+    lastCreated: { ...site({ id: 'n2' }), agentPluginTokens: { status: 'saved', pluginIds: ['github'] } } as CreatedSiteRecord,
   });
   assert.equal(withTokens.container.querySelector('.creation-notice__text')?.textContent,
     'Site n2 is ready — open it to start its own server. Github will connect when this site first starts.');
@@ -67,24 +67,24 @@ test('MainContent: a created site is announced as ready, with its token outcome 
 });
 
 test('ProjectsBody: loading, then a failed list, each replace the body with their own message', async (t) => {
-  const loading = await renderContent(t, { projectsLoading: true, loadError: 'ignored while loading', projects: [site('a')] });
+  const loading = await renderContent(t, { projectsLoading: true, loadError: 'ignored while loading', projects: [site({ id: 'a' })] });
   assert.equal(loading.container.querySelector('.empty__body')?.textContent, 'Loading projects…');
   assert.equal(loading.grid(), null);
-  const failed = await renderContent(t, { loadError: 'Couldn\'t load projects.', projects: [site('a')] });
+  const failed = await renderContent(t, { loadError: 'Couldn\'t load projects.', projects: [site({ id: 'a' })] });
   assert.equal(failed.container.querySelector('.empty__body')?.textContent, 'Couldn\'t load projects.');
   assert.equal(failed.grid(), null);
 });
 
 test('ProjectsBody: a failed rescan is reported alongside the grid, never in place of it', async (t) => {
-  const view = await renderContent(t, { rescanError: 'scan root unreadable', projects: [site('a')] });
+  const view = await renderContent(t, { rescanError: 'scan root unreadable', projects: [site({ id: 'a' })] });
   assert.equal(view.container.querySelector('p.empty__body')?.textContent, 'scan root unreadable');
   assert.ok(view.grid(), 'the websites already on screen stay');
-  await view.click(view.grid());
+  await view.click({ el: view.grid() });
   assert.deepEqual(view.opened, ['a'], 'and stay openable');
 });
 
 test('ProjectsBody: with no errors there is no error line', async (t) => {
-  const view = await renderContent(t, { projects: [site('a')] });
+  const view = await renderContent(t, { projects: [site({ id: 'a' })] });
   assert.equal(view.container.querySelector('p.empty__body'), null);
   assert.equal(view.container.querySelector('.projects-feedback'), null);
 });
@@ -101,21 +101,21 @@ test('NoWebsitesYet: no websites names the header actions instead of duplicating
 // UI test 2026-10-30: after Rename -> Save the card kept the old name for ~1.4 s, until the next
 // poll, because ProjectsBody never handed SiteGrid an `onRenamed`.
 test('ProjectsBody: a rename updates the Websites grid at once through the same setter as Start/Stop', async (t) => {
-  const renamed = site('a', { displayName: 'Harbor Florist' });
+  const renamed = site({ id: 'a' }, { fields: { displayName: 'Harbor Florist' } });
   const sent: unknown[] = [];
   const updated: SiteRecord[] = [];
-  const view = await renderContent(t, { projects: [site('a')], onSiteUpdated: (record) => { updated.push(record); } },
+  const view = await renderContent(t, { projects: [site({ id: 'a' })], onSiteUpdated: (record) => { updated.push(record); } },
     { renameSite: async (input) => { sent.push(input); return renamed; } });
-  await view.click(view.byLabel('More actions for Site a'));
-  await view.click(view.byText('Rename…'));
-  await view.type(view.container.querySelector<HTMLInputElement>('#rename-a')!, 'Harbor Florist');
-  await view.click(view.byText('Save'));
+  await view.click({ el: view.byLabel({ label: 'More actions for Site a' }) });
+  await view.click({ el: view.byText({ text: 'Rename…' }) });
+  await view.type({ input: view.container.querySelector<HTMLInputElement>('#rename-a')!, value: 'Harbor Florist' });
+  await view.click({ el: view.byText({ text: 'Save' }) });
   assert.deepEqual(sent, [{ id: 'a', name: 'Harbor Florist' }]);
   assert.deepEqual(updated, [renamed], 'main\'s record reaches the grid\'s setter without waiting for a poll');
 });
 
 test('MainContent: while the Import page is open the grid stays out of its way', async (t) => {
-  const view = await renderContent(t, { isImporting: true, projects: [site('a')] });
+  const view = await renderContent(t, { isImporting: true, projects: [site({ id: 'a' })] });
   assert.equal(view.grid(), null);
   assert.equal(view.container.textContent, '');
 });

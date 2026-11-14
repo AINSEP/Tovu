@@ -126,7 +126,7 @@ test("compiled voice bridge forwards the channels, sample object and sample rate
   const f = preloadAt("/admin");
   assert.equal(await f.exposed.tovuVoice.isAvailable(), f.availability);
   const samples = new Float32Array([0.1, -0.2]);
-  assert.equal(await f.exposed.tovuVoice.transcribe(samples, 16000), f.transcription);
+  assert.equal(await f.exposed.tovuVoice.transcribe({ samples, sampleRate: 16000 }), f.transcription);
   assert.deepEqual(f.invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 16000]]);
   const transcriptionInvoke = f.invokes[1];
   assert.ok(transcriptionInvoke);

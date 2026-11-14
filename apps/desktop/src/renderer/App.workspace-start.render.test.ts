@@ -13,11 +13,11 @@ test('App: a tab\'s own Start site mounts the guest from main\'s answer, without
   // SiteWorkspace's own prop threading can both be perfectly correct while App's own render never
   // passes the real setter (`applySiteRecord`) in, leaving every tab waiting on the 4s poll exactly
   // as before. The site list here keeps answering "stopped", so only main's start answer can mount it.
-  const app = await renderApp(t, { listSites: async () => [site('a')] });
+  const app = await renderApp(t, { listSites: async () => [site({ id: 'a' })] });
   await openFirstSite(app);
   const workspace = () => app.container.querySelector('.workspace:not(.is-hidden)');
   assert.equal(workspace()?.querySelector('webview'), null);
-  await app.click(app.byText('Start site'));
+  await app.click({ el: app.byText({ text: 'Start site' }) });
   assert.ok(app.calls.includes('start:a'));
   assert.equal(workspace()?.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4100/admin/');
 });

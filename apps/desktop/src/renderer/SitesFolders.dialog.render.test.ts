@@ -53,7 +53,7 @@ test('SitesFoldersDialog: the sync warning shows once — beside a closed trigge
   for (const [open, showTrigger, where] of [[false, true, 'outside'], [true, true, 'dialog'], [true, false, 'dialog'], [false, false, 'none']] as const) {
     const { settings, calls } = settingsFor({ open });
     const view = renderDialog(t, settings, showTrigger);
-    const warnings = view.all('.sites-settings__warning');
+    const warnings = view.all({ selector: '.sites-settings__warning' });
     if (where === 'none') {
       assert.deepEqual(warnings, [], 'the Settings menu entry supplies no outside copy');
       continue;
@@ -64,7 +64,7 @@ test('SitesFoldersDialog: the sync warning shows once — beside a closed trigge
     assert.equal(warning.getAttribute('role'), 'alert');
     assert.equal(warning.closest('form') !== null, where === 'dialog', 'inside the form exactly when the dialog is open');
     assert.deepEqual([...warning.querySelectorAll('p')].map((line) => line.textContent), ['Sync warning', 'Remedy failed']);
-    for (const fix of fixes(view)) await view.click(fix);
+    for (const fix of fixes(view)) await view.click({ el: fix });
     assert.deepEqual(calls, ['app-data', 'local']);
   }
 });
@@ -84,5 +84,5 @@ test('SitesFoldersDialog: folders are only picked through the native picker — 
   const { settings } = settingsFor({ open: true, folders: { home: '/home', roots: ['/home', '/extra'], extraRoots: ['/extra'] } });
   const view = renderDialog(t, settings);
   assert.ok(view.container.querySelector('[role="dialog"] form.sites-settings'));
-  assert.deepEqual(view.all('input, textarea'), []);
+  assert.deepEqual(view.all({ selector: 'input, textarea' }), []);
 });
