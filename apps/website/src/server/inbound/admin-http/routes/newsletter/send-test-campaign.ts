@@ -2,6 +2,7 @@ import { sendTestCampaign } from "#src/features/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * `SEND_TEST_CAMPAIGN` (api.spec.md §1/§4/§5) — `POST .../campaigns/:id/send-test`. `admin.
@@ -13,10 +14,7 @@ export const registerAdminNewsletterSendTestCampaignRoute: RouteRegistrar = (app
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send-test", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (!Array.isArray(body.testAddresses) || !body.testAddresses.every((a: unknown) => typeof a === "string")) {

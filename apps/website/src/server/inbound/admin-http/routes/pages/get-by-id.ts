@@ -6,6 +6,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
 import type { PluginExportCatalogRow, PluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Only describe exports already authored on this page; catalog discovery still belongs to
  * plugins_list. A failed catalog is unavailable, never a broken page editor or a ready button.
@@ -46,10 +47,7 @@ async function pagePluginEmbeds(required: { html: string; workspaceId: string; r
  */
 export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     // Route param kept as `pageId` (external URL shape, untouched) — the value it carries is
     // either the row's id or its slug, resolved below by `getAdminPostByIdOrSlug`.

@@ -3,14 +3,12 @@ import { updateWidgetInstance } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** PUT an existing widget instance's config (SPEC-043 REQ-05/06), `widgets.update`-gated, OCC via `baseVersion`. */
 export const registerAdminWidgetUpdateRoute: RouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/widgets/:id", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.baseVersion !== "number") {

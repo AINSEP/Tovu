@@ -6,6 +6,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -44,10 +45,7 @@ function decodeBlobBytes(rawBody: unknown): Uint8Array | null {
 
 export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const claimedSha256 = String(req.params.sha ?? "");
     if (!isValidSha256Hex(claimedSha256)) {

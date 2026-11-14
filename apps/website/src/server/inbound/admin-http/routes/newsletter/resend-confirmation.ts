@@ -3,6 +3,7 @@ import { NewsletterSubscriptionNotFoundError } from "#src/features/newsletter/in
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * `RESEND_CONFIRMATION` (api.spec.md §1/§5) — `POST .../newsletter/subscriptions/:id/
@@ -19,10 +20,7 @@ export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = (a
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/subscriptions/:id/resend-confirmation", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = await requireNewsletterPermissionOrRespond(

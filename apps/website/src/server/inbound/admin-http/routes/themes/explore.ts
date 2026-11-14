@@ -55,6 +55,7 @@ import {
 export { fileExtension, nextAvailableFileName };
 import { isTrashed, ROOT_SLUG, type PostKind, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import type { ContentRouteDeps } from "../content/deps.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
@@ -87,20 +88,8 @@ export async function authorizeThemeSetPermission(
   res: Response
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const authResult = await deps.authorize({
-    principalId: principal.id,
-    permission: "theme.set",
-    workspaceId: deps.workspaceId,
-    entityType: "presentation",
-  });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission: "theme.set", reason: authResult.reason },
-    });
-    return false;
-  }
+  const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+  if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return false;
   return true;
 }
 

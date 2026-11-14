@@ -2,6 +2,8 @@ import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/s
 import { importRedirects } from "@jini-ai/cms/redirects";
 import { toAdminRedirectImportResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 const MAX_IMPORT_BATCH_SIZE = 500;
 
@@ -15,10 +17,7 @@ const MAX_IMPORT_BATCH_SIZE = 500;
  */
 export const registerAdminRedirectImportRoute: RedirectRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/redirects/import", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const rules = req.body?.rules;
     if (!Array.isArray(rules) || rules.length < 1 || rules.length > MAX_IMPORT_BATCH_SIZE) {
@@ -31,20 +30,8 @@ export const registerAdminRedirectImportRoute: RedirectRouteRegistrar = (app, de
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.redirects.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "redirect",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.redirects.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.redirects.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.redirects.manage", workspaceId: deps.workspaceId, entityType: "redirect" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await importRedirects({
         deps: deps.redirectsWriteDeps,

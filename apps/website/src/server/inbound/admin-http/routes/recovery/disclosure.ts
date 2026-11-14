@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { computeDisclosure } from "#src/features/recovery/disclosure";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /** ADR-045 §3 Step 2 / `disclosure.ts`'s own file header — the versioned, single, auditable list
  * of write-path categories this disclosure may ever claim to cover. A category is added here only
@@ -25,20 +26,8 @@ export function registerAdminRecoveryDisclosureRoute(app: Express, deps: Databas
   app.post("/api/admin/v1/recovery/disclosure", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.read",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "backup.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "backup.read", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       if (typeof body.restorePointId !== "string") {

@@ -18,6 +18,7 @@ import {
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * The permission this route checks. Named once so the gate, the 403 body, and the agent-tool path to
@@ -158,10 +159,7 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, dep
     "/api/admin/v1/workspaces/:workspaceId/pages/:pageId/html",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
         // Authorization runs BEFORE body validation, so an unauthorized principal learns nothing

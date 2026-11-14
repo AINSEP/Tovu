@@ -2,6 +2,7 @@ import { saveSubscription } from "#src/features/newsletter/subscriptions";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 const VALID_SOURCES = new Set(["admin", "import", "api"]);
 
@@ -14,10 +15,7 @@ export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = (a
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.subscriberId !== "string") {

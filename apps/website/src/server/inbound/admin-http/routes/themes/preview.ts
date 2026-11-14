@@ -30,6 +30,7 @@ import type { DiscoveredTheme } from "#src/features/theme/index";
 import { themeContentVersion, themePreviewImage } from "#src/features/theme/theme-preview-image";
 import { servingAddressOf } from "../sites/site-previews.js";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 export interface ThemePreviewRouteDeps extends Pick<RouteDeps, "workspaceId" | "authorize" | "themes"> {
   siteBinding?: RouteDeps["siteBinding"];
@@ -102,7 +103,7 @@ export function registerAdminThemePreviewRoute(
   if (deps.themePreviews === undefined && deps.siteBinding) previews = previewServiceForHost({ binding: deps.siteBinding });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/preview", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       // Same permission as the presentation listing that hands out this URL.

@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 
 import { mailDnsPorts, readMailDnsStatus, verifyMailDnsStatus, type DnsChangeToolDeps, type MailDnsStatus } from "#src/features/domain-dns/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file The Email page's **Sender and DNS** section, over the same operations as `mail_dns_status`
@@ -32,11 +33,8 @@ function handler(deps: AdminMailDnsDeps, permission: string, operation: Operatio
     }
     try {
       const principal = getAuthedPrincipal(res);
-      const auth = await deps.dns.authorize({ principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType: "domain-dns" });
-      if (!auth.allowed) {
-        res.status(403).json({ error: `principal '${principal.id}' is not authorized for '${permission}' (${auth.reason})`, code: "FORBIDDEN", details: { permission, reason: auth.reason } });
-        return;
-      }
+      const params = { principalId: principal.id, permission, workspaceId: deps.workspaceId, entityType: "domain-dns" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.dns.authorize, params }))) return;
       res.status(200).json(await operation({}, mailDnsPorts(deps.dns)));
     } catch (err) {
       sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-dns", code: "INTERNAL_ERROR" });

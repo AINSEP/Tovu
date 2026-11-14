@@ -11,6 +11,7 @@ import {
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * DELETE page — the pages half of the delete pair, a separate file from `posts/delete.ts` for the
@@ -32,10 +33,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  */
 export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pageId = String(req.params.pageId ?? "");
     const idempotencyKey = req.get("Idempotency-Key") || undefined;

@@ -4,6 +4,7 @@ import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toD
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type ExistingCampaign = NonNullable<Awaited<ReturnType<NewsletterCampaignRepoPort["findById"]>>>;
 
@@ -119,10 +120,7 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, 
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.patch("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = (req.body ?? {}) as Record<string, unknown>;
     const validationError = validateCampaignPatchBody(body);

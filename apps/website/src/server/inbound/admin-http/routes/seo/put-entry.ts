@@ -14,6 +14,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/index";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import type { SeoRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
@@ -48,10 +49,7 @@ function seoPutEntryErrorResponse(err: unknown, options: AdminFailurePorts = {})
  */
 export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       await deps.seoReady;

@@ -6,6 +6,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 
 import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file S-F1 of `ADS-memory/.local-artifacts/publish-files-plan-2026-09-24.md` §5/§6.
@@ -33,10 +34,7 @@ import { toPublishContentDeps, type PublishContentRouteRegistrar } from "./deps.
  */
 export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/capabilities", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

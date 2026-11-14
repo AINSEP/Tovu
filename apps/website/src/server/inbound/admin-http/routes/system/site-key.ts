@@ -33,6 +33,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Admin Secrets panel → Site key tab's backend: `GET`, `POST .../generate`, and
@@ -248,10 +249,7 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   ) {
     return true;
   }
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return true;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
   const principal = getAuthedPrincipal(res);
   return !(await authorizeOrRespond(res, deps.authorize, {
     principalId: principal.id,

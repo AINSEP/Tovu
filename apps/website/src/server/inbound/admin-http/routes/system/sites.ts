@@ -42,6 +42,7 @@ import { sealPendingAgentPluginTokensForNewSite as sealPendingAgentPluginTokensR
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Admin "Sites" screen backend (2026-09-04 sites-switcher decision,
@@ -350,10 +351,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   } });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -373,10 +371,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/sites/token-sign-in-plugins", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const authorized = await authorizeOrRespond(res, deps.authorize, {
@@ -394,10 +389,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/sites", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     // The flag, then the binding — both checked before spending an authorize() call on an
     // operation this boot cannot fulfill regardless of who is asking (see `resolveSiteSwitchBase`).
     const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
@@ -434,10 +426,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/sites/:name/activate", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     // See the Create route's identical gate: the served tree's base, never `process.cwd()`.
     const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: isSiteSwitcherEnabled() });
     if (!gate.ok) {

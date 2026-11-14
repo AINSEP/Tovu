@@ -3,6 +3,7 @@ import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/serve
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError } from "./shared.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 const VALID_MATCH_TYPES = new Set(["exact", "prefix", "wildcard", "regex"]);
 const VALID_STATUS_CODES = new Set([301, 302, 307, 308]);
@@ -51,10 +52,7 @@ function parseRedirectCreateBody(rawBody: unknown):
  */
 export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/redirects", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const parsedBody = parseRedirectCreateBody(req.body);
     if (!parsedBody.ok) {

@@ -5,6 +5,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { listManagedSkills } from "#src/features/skills/install-service";
 import type { SkillsRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file C-001 `GET /api/admin/v1/workspaces/:workspaceId/skills` — implementation-outline.md
@@ -22,10 +23,7 @@ import type { SkillsRouteRegistrar } from "./deps.js";
  */
 export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

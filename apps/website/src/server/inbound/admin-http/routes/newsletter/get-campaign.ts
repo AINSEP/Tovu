@@ -2,16 +2,14 @@ import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toD
 import { NewsletterCampaignNotFoundError } from "#src/features/newsletter/index";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** `GET_CAMPAIGN` (api.spec.md §1) — fetch a single campaign. `admin.newsletter.read`-gated. */
 export const registerAdminNewsletterGetCampaignRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = await requireNewsletterPermissionOrRespond(

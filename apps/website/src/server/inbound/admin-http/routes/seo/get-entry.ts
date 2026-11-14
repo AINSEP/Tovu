@@ -3,6 +3,8 @@ import { getEntryMeta, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/index";
 import type { SeoRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * GET an entry's effective SEO meta (SPEC-008 api.spec.md `SEO_GET_ENTRY_META`, tasks.md T047).
@@ -10,29 +12,13 @@ import type { SeoRouteRegistrar } from "./deps.js";
  */
 export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       await deps.seoReady;
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.seo.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "seo-entry",
-        entityId: String(req.params.entryId ?? ""),
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.seo.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.seo.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.seo.manage", workspaceId: deps.workspaceId, entityType: "seo-entry", entityId: String(req.params.entryId ?? "") };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const entryId = String(req.params.entryId ?? "");
       const read = await withCoverReadDeps({ deps: deps.seoDeps, workspaceId: deps.workspaceId, entryId });

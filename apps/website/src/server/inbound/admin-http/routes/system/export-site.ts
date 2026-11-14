@@ -10,6 +10,8 @@ import {
 } from "#src/features/deployments/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
 
@@ -102,27 +104,12 @@ function parseTriggerRequestBody(body: unknown): { ok: true; clean: boolean; bas
 
 export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSiteDeps): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/system/export", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.export",
-        workspaceId: deps.workspaceId,
-        entityType: "site-export",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.export' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.export", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.export", workspaceId: deps.workspaceId, entityType: "site-export" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // No `await` between this check and `startExportRun` below — this whole block runs as one
       // synchronous stretch of the event loop, so two concurrent POSTs cannot both observe "idle".
@@ -154,27 +141,12 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/export", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "site-export",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "site-export" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       res.status(200).json(getExportRunSnapshot());
     } catch (err) {

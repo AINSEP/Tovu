@@ -5,6 +5,7 @@ import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError,
 import { assignRole } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendAssignRoleError(res: Response, err: unknown): void {
@@ -39,10 +40,7 @@ function sendAssignRoleError(res: Response, err: unknown): void {
  */
 export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/roles", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);

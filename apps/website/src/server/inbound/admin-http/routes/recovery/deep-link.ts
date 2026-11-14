@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "#src/features/recovery/deep-link";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file design-spec.md §4.5/§4.8 — `POST /api/admin/v1/recovery/deep-link` (re-resolves a
@@ -14,20 +15,8 @@ export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: DatabaseR
   app.post("/api/admin/v1/recovery/deep-link", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.read",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "backup.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "backup.read", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       const envelope = body.envelope as DatabaseContextEnvelope | undefined;

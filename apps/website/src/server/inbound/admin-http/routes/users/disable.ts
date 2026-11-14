@@ -7,6 +7,7 @@ import { disablePrincipal } from "@jini-ai/user-management/server";
 import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * Loads the paired `UserRecord` and role/policy links for `principal` and builds the admin
@@ -71,10 +72,7 @@ function sendUserDisableError(res: Response, err: unknown): void {
  */
 export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/disable", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);

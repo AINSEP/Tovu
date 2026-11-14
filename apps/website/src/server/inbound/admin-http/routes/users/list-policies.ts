@@ -3,6 +3,7 @@ import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET policies — list a workspace's policies (built-in + custom) for the Users admin screen's
@@ -12,10 +13,7 @@ import type { UsersRouteRegistrar } from "./deps.js";
  */
 export const registerAdminPolicyListRoute: UsersRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/policies", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

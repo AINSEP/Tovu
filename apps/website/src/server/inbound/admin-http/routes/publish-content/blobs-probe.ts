@@ -7,6 +7,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 
 import type { PublishContentRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -50,10 +51,7 @@ export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar
     "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
         const principal = getAuthedPrincipal(res);

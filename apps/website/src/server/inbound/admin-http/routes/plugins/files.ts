@@ -4,6 +4,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
 import type { PluginsRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. The path error's own message
  *  names absolute server paths, so it is replaced with fixed text rather than echoed.
@@ -38,10 +39,7 @@ function sendPluginFilesError(res: Response, err: unknown): void {
  */
 export const registerPluginFilesRoute: PluginsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/files", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pluginId = String(req.params.pluginId ?? "");
 

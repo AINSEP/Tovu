@@ -2,6 +2,8 @@ import { updateRedirect, RedirectNotFoundError } from "@jini-ai/cms/redirects";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError, type RedirectErrorMapping } from "./shared.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 const REDIRECT_UPDATE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
   { matches: (e) => e instanceof RedirectNotFoundError, status: 404, code: "REDIRECT_NOT_FOUND" },
@@ -14,31 +16,15 @@ const REDIRECT_UPDATE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
  */
 export const registerAdminRedirectUpdateRoute: RedirectRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/redirects/:id", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const id = String(req.params.id ?? "");
     const body = req.body ?? {};
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.redirects.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "redirect",
-        entityId: id,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.redirects.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.redirects.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.redirects.manage", workspaceId: deps.workspaceId, entityType: "redirect", entityId: id };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { record } = await updateRedirect({
         deps: deps.redirectsWriteDeps,

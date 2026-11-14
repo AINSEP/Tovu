@@ -4,6 +4,7 @@ import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET admin pages — same shape as `posts/list.ts`, filtered to `kind: "page"`
@@ -14,10 +15,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  */
 export const registerAdminPageListRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

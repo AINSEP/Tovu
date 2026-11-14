@@ -6,6 +6,7 @@ import { trashUser, SelfDeleteError } from "#src/features/identity/delete-user-s
 import { UserDeleteUnsupportedError } from "#src/features/identity/user-purge-types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendUserDeleteError(res: Response, err: unknown): void {
@@ -47,10 +48,7 @@ function sendUserDeleteError(res: Response, err: unknown): void {
  */
 export const registerAdminUserDeleteRoute: UsersRouteRegistrar = (app, deps: UsersRouteDeps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/users/:principalId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);

@@ -3,6 +3,7 @@ import type { Response } from "express";
 import { moveToTrash, type MoveToTrashOutcome } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TrashRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * POST move one entity of any `TRASHABLE` kind into the Trash. Design of record:
@@ -18,10 +19,7 @@ import type { TrashRouteRegistrar } from "./deps.js";
  */
 export const registerAdminTrashMoveToTrashRoute: TrashRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/trash/items", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

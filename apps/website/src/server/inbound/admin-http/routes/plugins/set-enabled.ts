@@ -11,6 +11,7 @@ import { PluginInstallError } from "@jini-ai/plugins/host/node";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** OFF commits before the existing serving runtime stops affected answers. */
 async function stopPluginAnswers(deps: PluginsRouteDeps, pluginId: string, enabled: boolean): Promise<void> {
@@ -106,10 +107,7 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
  */
 export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pluginId = String(req.params.pluginId ?? "");
     // Validated, not coerced (api.spec.md: malformed body is 400): `Boolean("false")` is `true`, so

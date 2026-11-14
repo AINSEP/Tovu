@@ -11,6 +11,8 @@ import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/read
 import { inspectSiteKeyMaterial, type SiteKeyStatus } from "#src/features/webhooks/index";
 import { resolveSiteKeySources } from "./site-key.js";
 import type { RouteDeps, SiteStoragePaths } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Admin Deployment panel → Overview tab backend.
@@ -162,27 +164,12 @@ async function isOwnerOnDefaultPassword(deps: AdminDeploymentOverviewDeps): Prom
 
 export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDeploymentOverviewDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/deployment-overview", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "deployment-status",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "deployment-status" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // Site-key plan §A3b: resolve THIS site's own source order (the same
       // `resolveSiteKeySources` seam `site-key.ts`'s GET/reveal/generate verbs use) rather than

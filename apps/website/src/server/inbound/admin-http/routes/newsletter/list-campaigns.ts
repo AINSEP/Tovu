@@ -3,6 +3,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { parseListPageRequest } from "@jini-ai/core/list-page";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { NewsletterRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * `LIST_CAMPAIGNS` (api.spec.md §1) — `GET .../newsletter/campaigns`, optionally filtered by
@@ -15,10 +16,7 @@ export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = (app, r
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = await requireNewsletterPermissionOrRespond(

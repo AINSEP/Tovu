@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { isMailDeliveryAvailable } from "#src/platform/mail/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/system/mail-status` — reports whether this site
@@ -37,20 +38,8 @@ export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatus
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.forms.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "mail",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.forms.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.forms.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.forms.manage", workspaceId: deps.workspaceId, entityType: "mail" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // `?refresh=1` rebuilds the briefly cached status (provider checks) instead of reusing it.
       const refresh = req.query.refresh === "1" || req.query.refresh === "true";

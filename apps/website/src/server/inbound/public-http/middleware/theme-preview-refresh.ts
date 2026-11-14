@@ -5,6 +5,7 @@ import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-au
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */
 export function freshThemePreviewHtml(
@@ -93,10 +94,7 @@ export function registerThemePreviewRefresh(
     "/api/admin/v1/workspaces/:workspaceId/themes/preview-reload",
     requireAdminSession(deps),
     asyncRoute({ handler: async (req, res) => {
-      if (String(req.params.workspaceId) !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       const principal = getAuthedPrincipal(res);
       const auth = await deps.authorize({
         principalId: principal.id,

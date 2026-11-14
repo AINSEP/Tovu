@@ -8,6 +8,7 @@ import type { MemberAccessResolver } from "#src/features/members/index";
 import { toContentPostResponse } from "#src/server/inbound/public-http/http/content/posts";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 
 
@@ -28,10 +29,7 @@ function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
 
 export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
   app.get("/api/content/v1/workspaces/:workspaceId/posts/:slug", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const slug = String(req.params.slug ?? "");

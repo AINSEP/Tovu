@@ -11,6 +11,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
@@ -66,10 +67,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
     "/api/admin/v1/workspaces/:workspaceId/posts",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
       const postId = deps.idGen.newId();

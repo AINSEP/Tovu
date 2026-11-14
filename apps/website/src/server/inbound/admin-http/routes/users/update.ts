@@ -7,6 +7,7 @@ import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's writable PATCH fields — `undefined` means "leave unchanged" — read off an
  *  untyped body in one place. @complexity O(1). */
@@ -77,10 +78,7 @@ function sendUserUpdateError(res: Response, err: unknown): void {
  */
 export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/users/:principalId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);

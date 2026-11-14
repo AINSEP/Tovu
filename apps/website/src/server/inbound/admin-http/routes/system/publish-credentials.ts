@@ -27,6 +27,8 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Admin Deployment panel → Static Site tab's credential CRUD backend.
@@ -243,25 +245,10 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  file has four verbs instead of that file's two. Returns `true` and has already written the
    *  response iff the caller should stop. */
   async function rejectUnlessAuthorized(req: Request, res: Response): Promise<boolean> {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return true;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
     const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.publish",
-      workspaceId: deps.workspaceId,
-      entityType: "site-publish",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.publish", reason: authResult.reason },
-      });
-      return true;
-    }
+    const params = { principalId: principal.id, permission: "system.publish", workspaceId: deps.workspaceId, entityType: "site-publish" };
+    if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
     return false;
   }
 
