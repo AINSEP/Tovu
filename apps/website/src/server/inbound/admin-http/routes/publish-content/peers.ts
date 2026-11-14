@@ -61,7 +61,7 @@ const PEER_ERRORS: readonly MappedErrorClass[] = [
  * @complexity O(bounded route tokens) for formatting; existing diagnostic sinks are unchanged.
  */
 function respondToPeerFailure({ res, error }: { res: Response; error: unknown }): void {
-  sendRefusal(res, mappedErrorResponse(error, PEER_ERRORS, {
+  sendRefusal(res, mappedErrorResponse({ err: error, table: PEER_ERRORS }, {
     tracker: res.locals?.adminFailureTracker, method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,
@@ -90,13 +90,13 @@ function presentPeerFields(body: Record<string, unknown>): Partial<Record<(typeo
   return Object.fromEntries(PEER_FIELDS.filter((field) => field in body).map((field) => [field, body[field]]));
 }
 
-export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers";
 
   app.get(base, async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      if ((await authorizedPrincipalId(res, deps, "publish_content.read")) === null) return;
+      if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.read" })) === null) return;
       const peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
       res.json({ peers });
     } catch (err) {
@@ -107,8 +107,8 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   app.post(base, async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
-      const body = bodyRecord(req.body);
+      if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" })) === null) return;
+      const body = bodyRecord({ body: req.body });
       const peer = await createPublishContentPeer(toWriteDeps(deps), {
         workspaceId: deps.workspaceId,
         label: body.label,
@@ -125,11 +125,11 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   app.patch(`${base}/:peerId`, async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
+      if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" })) === null) return;
       const peer = await updatePublishContentPeer(toWriteDeps(deps), {
         workspaceId: deps.workspaceId,
         id: readRouteParam({ req, name: "peerId" }),
-        ...presentPeerFields(bodyRecord(req.body)),
+        ...presentPeerFields(bodyRecord({ body: req.body })),
       });
       res.json({ peer });
     } catch (err) {
@@ -140,7 +140,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   app.delete(`${base}/:peerId`, async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
+      if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" })) === null) return;
       // Idempotent 204, matching this codebase's other credential DELETE routes: deleting an
       // already-absent peer is a success, not a 404.
       await deletePublishContentPeer({ repo: deps.publishContentPeerRepo }, {

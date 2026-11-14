@@ -32,7 +32,7 @@ async function boot(t: TestContext, options: { granted?: ReadonlySet<string>; ov
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminEmailTemplateRoutes(app, deps);
+  registerAdminEmailTemplateRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
   const send = async (method: string, path: string, body?: unknown) => {
     const res = await fetch(`${baseUrl}${path}`, { method, headers: { "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });

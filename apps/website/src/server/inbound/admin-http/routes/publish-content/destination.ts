@@ -71,7 +71,7 @@ export interface PublishDestinationDeps {
 
 /** The site host, as a label a person recognises. The address is the identity; this is the name.
  *  @complexity O(n) in the URL length. */
-function siteLabelFor(baseUrl: string): string {
+function siteLabelFor({ baseUrl }: { baseUrl: string }, _options: Record<string, never> = {}): string {
   try {
     return new URL(baseUrl).host;
   } catch {
@@ -107,7 +107,7 @@ async function connectedSite(deps: PublishContentRouteDeps): Promise<PublishCont
 /** Maps this file's own failures to a status and an owner-facing sentence. Every message passed
  *  through is already written for a person — see `handshake-client.ts`'s header.
  *  @complexity O(1). */
-function respondWithError(res: { status(code: number): { json(body: unknown): void } }, err: unknown): void {
+function respondWithError({ res, err }: { res: { status(code: number): { json(body: unknown): void } }; err: unknown }, _options: Record<string, never> = {}): void {
   if (err instanceof PublishTrustHandshakeError) {
     res.status(502).json({ error: err.message, code: "PUBLISH_TRUST_HANDSHAKE_FAILED" });
     return;
@@ -126,9 +126,7 @@ function respondWithError(res: { status(code: number): { json(body: unknown): vo
  * @complexity O(1) per request beyond each handler's own cost.
  */
 export function registerPublishContentDestinationRoutes(
-  app: Express,
-  deps: PublishContentRouteDeps,
-  own: PublishDestinationDeps
+  { app, deps, own }: { app: Express; deps: PublishContentRouteDeps; own: PublishDestinationDeps }, _options: Record<string, never> = {}
 ): void {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/destination";
 
@@ -174,13 +172,13 @@ export function registerPublishContentDestinationRoutes(
         // The empty state is a plain sentence, never an error code — a fresh install that has never
         // deployed is the ordinary first run, not a fault.
         message: candidateUrl
-          ? `Publish to ${siteLabelFor(candidateUrl)}?`
+          ? `Publish to ${siteLabelFor({ baseUrl: candidateUrl })}?`
           : "No live site is set up yet. Deploy this site once, then come back here.",
         nextStep: null,
       };
       res.json(view);
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
 
@@ -226,7 +224,7 @@ export function registerPublishContentDestinationRoutes(
           repo: deps.publishContentPeerRepo,
           clock: deps.clock,
           idGen: deps.idGen,
-          connectGrant: (input) => connectDestination(trustDeps, input),
+          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination(trustDeps, input),
           reverseGrant: () => disconnectDestination(trustDeps),
         },
         { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
@@ -241,7 +239,7 @@ export function registerPublishContentDestinationRoutes(
       };
       res.status(201).json(view);
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
 
@@ -277,7 +275,7 @@ export function registerPublishContentDestinationRoutes(
       };
       res.json(view);
     } catch (err) {
-      respondWithError(res, err);
+      respondWithError({ res, err });
     }
   });
 }

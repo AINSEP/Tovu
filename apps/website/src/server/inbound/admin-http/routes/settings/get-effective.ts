@@ -35,7 +35,7 @@ import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, c
  * fallback order (`settings.ts`), since `SettingsRepoPort.listActiveDefinitions`
  * only takes one exact `workspaceId` per call.
  */
-export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/effective",
     handle: async ({ request: req, principal, authorize }) => {
       await authorize({ permission: "settings.read", entityType: "setting-value" });

@@ -28,7 +28,7 @@ test("the catalog lists publish.backstop, but role.manage cannot grant it", asyn
 test("an editor gets exact 403 before any send or audit read", async (t) => {
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishBackstopRoutes(app, { workspaceId: "ws", authorize: async () => ({ allowed: false, reason: "editor" }) } as unknown as PublishContentRouteDeps);
+  registerPublishBackstopRoutes({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: false, reason: "editor" }) } as unknown as PublishContentRouteDeps });
   const server = await startTestServer(app, t);
   const response = await fetch(`${server}/api/admin/v1/workspaces/ws/publish-content/backstop`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
   assert.equal(response.status, 403);
@@ -43,9 +43,9 @@ test("machine credentials cannot send or undo even with an owner principal", asy
     res.locals.authCredentialKind = req.get("x-test-credential-kind");
     next();
   });
-  registerPublishBackstopRoutes(app, { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  registerPublishBackstopRoutes({ app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => { authorizationCalls++; return { allowed: true, reason: "owner" }; },
-  } as unknown as PublishContentRouteDeps);
+  } as unknown as PublishContentRouteDeps });
   const server = await startTestServer(app, t);
   for (const kind of ["api_key", "publish_key"]) {
     for (const suffix of ["backstop", "runs/run/undo-backstop"]) {
@@ -66,10 +66,10 @@ test("wrong typed address gets exact 400 before dialing the destination", async 
   let called = false;
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishBackstopRoutes(app, { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true, reason: "owner" }),
+  registerPublishBackstopRoutes({ app, deps: { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"), authorize: async () => ({ allowed: true, reason: "owner" }),
     publishContentPeerRepo: { findById: async () => ({ id: "peer", baseUrl: "https://live.example" }) },
     publishContentPeerHttpClient: { send: async () => { called = true; throw new Error("must not dial"); } },
-  } as unknown as PublishContentRouteDeps);
+  } as unknown as PublishContentRouteDeps });
   const server = await startTestServer(app, t);
   const response = await fetch(`${server}/api/admin/v1/workspaces/ws/publish-content/backstop`, { method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ peerId: "peer", action: "plan", reason: "Emergency footer fix", typedHost: "wrong.example", rows: [{ table: "p_widgets", pk: { id: "x" } }] }) });

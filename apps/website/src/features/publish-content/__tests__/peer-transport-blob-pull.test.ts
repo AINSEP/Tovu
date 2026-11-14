@@ -86,7 +86,7 @@ function pullDeps(httpClient: HttpClientPort, blobSink: RecordingBlobSink, overr
     credential: CREDENTIAL,
     blobSink,
     workspaceId: WORKSPACE,
-    computeStorageKey: (sha256: string) => computeBlobStorageKey({ workspaceId: WORKSPACE, sha256 }),
+    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: WORKSPACE, sha256 }),
     ...overrides,
   };
 }

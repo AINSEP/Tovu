@@ -230,7 +230,7 @@ async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: 
     httpClient: s.httpClient,
     credential,
     blobSource: s.sourceDeps.blobStore,
-    computeStorageKey: (sha256: string) => `blobs/${sha256}`,
+    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => `blobs/${sha256}`,
   };
   const pushed = await pushBundleToPeer(transport, { bundle, overwriteEntityKeys });
   const { confirmationToken } = await confirmPeerImport(transport, {
@@ -337,7 +337,7 @@ test("a fresh install connects and then publishes, with no key displayed or copi
       httpClient: s.httpClient,
       credential,
       blobSource: s.sourceDeps.blobStore,
-      computeStorageKey: (sha256: string) => `blobs/${sha256}`,
+      computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => `blobs/${sha256}`,
     };
     const pushed = await pushBundleToPeer(transport, { bundle });
     assert.equal(typeof pushed.bundleId, "string");

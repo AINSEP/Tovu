@@ -23,7 +23,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * rescan that never ran, and "I pressed it and nothing happened" is the whole failure this route is
  * meant to end.
  */
-export const registerAdminThemeRescanRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeRescanRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/rescan", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -24,7 +24,7 @@ async function fixture() {
   const cache = createTtlCache({ load: () => { loads++; return readMailProviderSetting({ settingsRepo, workspaceId: WS }); }, ttlMs: 30_000, nowMs: () => 0 });
   const deps = { workspaceId: WS, settingsRepo, clock, idGen, principalRepo: principals, settingsReady: Promise.resolve(),
     authorize: async () => ({ allowed, reason: "test" }), mailProviderControl: { invalidate: () => { invalidations++; cache.invalidate(); } } } as unknown as SettingsRouteDeps;
-  const app = express(); registerAdminSettingsSetRoute(app, deps); registerAdminSettingsClearRoute(app, deps); registerAdminSettingsResetRoute(app, deps);
+  const app = express(); registerAdminSettingsSetRoute({ app, deps }); registerAdminSettingsClearRoute({ app, deps }); registerAdminSettingsResetRoute({ app, deps });
   return { cache, get loads() { return loads; }, get invalidations() { return invalidations; }, deny: () => { allowed = false; },
     request: async (method: "put" | "delete" | "post", body: unknown) => {
       const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };

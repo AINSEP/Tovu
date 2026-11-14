@@ -108,7 +108,7 @@ function pushDeps(httpClient: HttpClientPort, blobs: Record<string, Uint8Array> 
       exists: async ({ storageKey }: { storageKey: string }) => storageKey in blobs,
       get: async ({ storageKey }: { storageKey: string }) => blobs[storageKey],
     },
-    computeStorageKey: (sha256: string) => `key/${sha256}`,
+    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => `key/${sha256}`,
   };
 }
 

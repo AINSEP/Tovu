@@ -32,7 +32,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export interface RedirectRouteDeps extends RouteDeps {}
 
-export type RedirectRouteRegistrar = (app: Express, deps: RedirectRouteDeps) => void;
+export type RedirectRouteRegistrar = (required: { app: Express; deps: RedirectRouteDeps }, optional?: Record<string, never>) => void;
 
 export interface AdminRedirectDto {
   id: string;

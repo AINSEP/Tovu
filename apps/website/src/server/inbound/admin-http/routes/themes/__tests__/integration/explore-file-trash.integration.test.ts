@@ -37,8 +37,8 @@ function fixture(t: TestContext) {
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
-  registerAdminThemeDetailRoute(app, deps as unknown as ContentRouteDeps);
-  registerAdminThemeFileDeleteRoute(app, deps as unknown as ContentRouteDeps);
+  registerAdminThemeDetailRoute({ app, deps: deps as unknown as ContentRouteDeps });
+  registerAdminThemeFileDeleteRoute({ app, deps: deps as unknown as ContentRouteDeps });
   const files = () => listThemeFiles({ themeDir, themesRoot: root });
   return { app, deps, themeDir, files };
 }

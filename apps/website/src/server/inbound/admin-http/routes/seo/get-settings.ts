@@ -6,7 +6,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /** GET workspace-level `seo.*` settings (SPEC-008 api.spec.md `SEO_GET_SETTINGS`, tasks.md T047). */
-export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/seo/settings", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

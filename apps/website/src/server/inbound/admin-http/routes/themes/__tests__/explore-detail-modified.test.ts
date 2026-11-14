@@ -90,10 +90,10 @@ async function startApp(t: test.TestContext, themesDir: string = makeThemesRoot(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileCopyRoute(app, deps);
-  registerAdminThemeFileRenameRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileRenameRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
   return startTestServer(app, t);
 }
 
@@ -178,7 +178,7 @@ test("detail listing: modified reflects the disk at request time, not a boot-tim
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   fs.writeFileSync(path.join(themesDir, "static", "moddy", "pages", "index.html"), "<html><body>y</body></html>", "utf8");

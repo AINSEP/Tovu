@@ -15,7 +15,7 @@ const MAX_IMPORT_BATCH_SIZE = 500;
  * batch shape (not an array, or outside 1-500 items) is the only case that
  * gets a top-level 400 `VALIDATION_ERROR`. Gated by `admin.redirects.manage`.
  */
-export const registerAdminRedirectImportRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectImportRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/redirects/import", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -52,7 +52,7 @@ function activeThemeResponseFields(
  * single-permission-per-domain reasoning as `member.manage`). Disclosed explicitly in the
  * Programmer handoff since this reuses a write-shaped permission name for a read route.
  */
-export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPresentationGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   // The image route behind every card URL this listing hands out, registered with it so the two
   // cannot be mounted apart.
   registerAdminThemePreviewRoute({ app, deps });

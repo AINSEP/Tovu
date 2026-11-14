@@ -13,7 +13,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *
  * Gated by the existing `changeset.read` permission, checked directly via `authorize()`.
  */
-export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

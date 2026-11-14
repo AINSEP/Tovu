@@ -9,7 +9,7 @@ const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
  * `null` means the body failed that check.
  * @complexity O(1).
  */
-function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: SettingScope; bodyWorkspaceId: unknown } | null {
+function parseResetRequestFields({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): { namespace: string; scope: SettingScope; bodyWorkspaceId: unknown } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const namespace = String(body.namespace ?? "");
   const scope = body.scope as SettingScope;
@@ -44,11 +44,11 @@ function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: 
  * platform partition (`workspaceId=null`); `scope=workspace`/`scope=user` read
  * this workspace's site-owned partition.
  */
-export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "post", path: "/api/admin/v1/workspaces/:workspaceId/settings/reset",
     errorMappings: [{ matches: (error) => error instanceof ForbiddenError, status: 403, code: "FORBIDDEN" }],
     handle: async ({ request: req, principal, authorize }) => {
-      const parsedBody = parseResetRequestFields(req.body);
+      const parsedBody = parseResetRequestFields({ rawBody: req.body });
       if (!parsedBody) {
         rejectSettingsRequest({ status: 400,
           error: "namespace and scope (global|workspace|user) are required",

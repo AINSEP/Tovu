@@ -64,7 +64,7 @@ function sendChangeSetRevertError(res: Response, err: unknown): void {
  * alongside `principal.kind` so the agent-cannot-force rule is enforced once, in `core/commands`,
  * not re-implemented at this layer.
  */
-export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

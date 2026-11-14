@@ -101,7 +101,7 @@ function buildRobotsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Expre
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerSeoRobotsRoute(app, deps);
+  registerSeoRobotsRoute({ app, deps });
   return app;
 }
 

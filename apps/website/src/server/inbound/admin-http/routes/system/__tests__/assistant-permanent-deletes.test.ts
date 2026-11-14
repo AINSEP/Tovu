@@ -26,8 +26,8 @@ async function fixture() {
   } as unknown as Parameters<typeof registerAdminAssistantPermanentDeletesRoutes>[0]["deps"];
   const app = express();
   registerAdminAssistantPermanentDeletesRoutes({ app, deps });
-  registerAdminSettingsSetRoute(app, deps); registerAdminSettingsClearRoute(app, deps);
-  registerAdminSettingsResetRoute(app, deps); registerAdminSettingsRegisterDefinitionsRoute(app, deps);
+  registerAdminSettingsSetRoute({ app, deps }); registerAdminSettingsClearRoute({ app, deps });
+  registerAdminSettingsResetRoute({ app, deps }); registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
   const definitions = (await repo.listActiveDefinitions({ workspaceId: null })).filter(def => def.namespace === namespace);
   const policyDefinition = definitions.find(def => def.key === "policy")!;
   const receiptDefinition = definitions.find(def => def.key === "riskAcknowledgment")!;

@@ -33,13 +33,13 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminRedirectListRoute(app, deps);
-  registerAdminRedirectGetRoute(app, deps);
-  registerAdminRedirectCreateRoute(app, deps);
-  registerAdminRedirectUpdateRoute(app, deps);
-  registerAdminRedirectTombstoneRoute(app, deps);
-  registerAdminRedirectImportRoute(app, deps);
-  registerAdminRedirectHitsRoute(app, deps);
+  registerAdminRedirectListRoute({ app, deps });
+  registerAdminRedirectGetRoute({ app, deps });
+  registerAdminRedirectCreateRoute({ app, deps });
+  registerAdminRedirectUpdateRoute({ app, deps });
+  registerAdminRedirectTombstoneRoute({ app, deps });
+  registerAdminRedirectImportRoute({ app, deps });
+  registerAdminRedirectHitsRoute({ app, deps });
   return { app, deps };
 }
 

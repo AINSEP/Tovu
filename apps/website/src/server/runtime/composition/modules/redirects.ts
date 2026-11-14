@@ -25,13 +25,13 @@ export function createRedirectsModule(deps: RedirectRouteDeps): ServerModuleHand
   return {
     name: "redirects",
     registerRoutes: (app) => {
-      registerAdminRedirectListRoute(app, deps);
-      registerAdminRedirectGetRoute(app, deps);
-      registerAdminRedirectCreateRoute(app, deps);
-      registerAdminRedirectUpdateRoute(app, deps);
-      registerAdminRedirectTombstoneRoute(app, deps);
-      registerAdminRedirectImportRoute(app, deps);
-      registerAdminRedirectHitsRoute(app, deps);
+      registerAdminRedirectListRoute({ app, deps });
+      registerAdminRedirectGetRoute({ app, deps });
+      registerAdminRedirectCreateRoute({ app, deps });
+      registerAdminRedirectUpdateRoute({ app, deps });
+      registerAdminRedirectTombstoneRoute({ app, deps });
+      registerAdminRedirectImportRoute({ app, deps });
+      registerAdminRedirectHitsRoute({ app, deps });
     },
   };
 }

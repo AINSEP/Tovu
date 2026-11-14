@@ -54,7 +54,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * rather than buffers"), for a principal that has already passed the route-level gate.
  * @complexity O(n) in the packed entities; memory O(1) entities plus the blob-manifest set.
  */
-async function streamExportBundle(res: Response, deps: PublishContentRouteDeps, principalId: string): Promise<void> {
+async function streamExportBundle({ res, deps, principalId }: { res: Response; deps: PublishContentRouteDeps; principalId: string }, _options: Record<string, never> = {}): Promise<void> {
   const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   const sourceLabel = workspace?.name ?? deps.workspaceId;
   const publishContentDeps = toPublishContentDeps(deps);
@@ -87,7 +87,7 @@ async function streamExportBundle(res: Response, deps: PublishContentRouteDeps, 
   res.end();
 }
 
-export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentExportRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/export", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -121,7 +121,7 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
       )
         return;
 
-      await streamExportBundle(res, deps, principal.id);
+      await streamExportBundle({ res, deps, principalId: principal.id });
     } catch (error) {
       // The envelope's opening brace may already be flushed by the time a contributor's pack()
       // throws mid-stream — a second `res.status().json()` on a headers-sent response would itself

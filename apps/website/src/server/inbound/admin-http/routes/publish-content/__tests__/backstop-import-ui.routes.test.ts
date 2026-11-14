@@ -42,7 +42,7 @@ test("real import plan returns safe before/after values for raw rows without req
   } as unknown as PublishContentRouteDeps;
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
-  registerPublishContentImportRoutes(app, deps);
+  registerPublishContentImportRoutes({ app, deps });
   const server = await startTestServer(app, t);
   const request = () => fetch(`${server}/api/admin/v1/workspaces/ws/publish-content/import/plan`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ bundleId: staged.bundleId }) });
   const response = await request(); const body = await response.json();

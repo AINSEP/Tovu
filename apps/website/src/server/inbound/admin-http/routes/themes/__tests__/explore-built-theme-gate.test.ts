@@ -108,10 +108,10 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFilePutRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
-  registerAdminThemeFileCopyRoute(app, deps);
-  registerAdminThemeFileRenameRoute(app, deps);
+  registerAdminThemeFilePutRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileRenameRoute({ app, deps });
   return app;
 }
 

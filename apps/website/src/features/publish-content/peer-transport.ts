@@ -511,7 +511,7 @@ function trimBundleToCapabilities(
  * as a batch before uploading; blob bytes are uploaded one at a time, never collected.
  */
 export async function pushBundleToPeer(
-  deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (sha256: string) => string },
+  deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string },
   required: { bundle: PublishContentExportEnvelope; overwriteEntityKeys?: readonly string[] }
 ): Promise<PushBundleResult> {
   const { credential } = deps;
@@ -812,7 +812,7 @@ export async function pullBlobsFromPeer(
   deps: PeerCallDeps & {
     blobSink: PeerBlobSink;
     workspaceId: string;
-    computeStorageKey: (sha256: string) => string;
+    computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string;
     maxBlobs?: number;
   },
   required: { blobManifest: readonly string[] }
@@ -826,7 +826,7 @@ export async function pullBlobsFromPeer(
   // Deduplicated: one manifest legitimately names the same blob for many entities (a logo on every
   // page), and fetching it once per reference would multiply the round trips by the reuse factor.
   for (const sha256 of new Set(required.blobManifest)) {
-    if (await deps.blobSink.exists({ storageKey: deps.computeStorageKey(sha256) })) {
+    if (await deps.blobSink.exists({ storageKey: deps.computeStorageKey({ sha256 }) })) {
       alreadyPresent.push(sha256);
       continue;
     }
@@ -861,7 +861,7 @@ function peerRequestPayload({ request }: { request: { body?: unknown; archive?: 
  * Refuses out-of-manifest requests before local I/O. O(m + r) validation time and O(m) space for
  * m selected hashes and r requested hashes, followed by sequential blob reads/uploads. */
 async function uploadMissingPeerBlobs(
-  deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (sha256: string) => string },
+  deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string },
   { bundle }: { bundle: PublishContentExportEnvelope },
 ): Promise<{ blobsUploaded: string[]; blobsUnavailable: string[] }> {
   const { credential } = deps;
@@ -889,7 +889,7 @@ async function uploadMissingPeerBlobs(
     }
 
     for (const sha256 of new Set(missing)) {
-      const storageKey = deps.computeStorageKey(sha256);
+      const storageKey = deps.computeStorageKey({ sha256 });
       if (!(await deps.blobSource.exists({ sha256, storageKey }))) {
         // Not an error: the bundle names a blob this instance no longer holds. Reported, and the
         // peer's own planner blocks whatever needed it rather than applying half an entity.

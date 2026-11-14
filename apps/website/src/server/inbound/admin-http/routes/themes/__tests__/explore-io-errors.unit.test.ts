@@ -61,11 +61,11 @@ for (const scenario of scenarios) {
     } as unknown as ContentRouteDeps;
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "test-principal" }; next(); });
-    registerAdminThemeDetailRoute(app, deps);
-    registerAdminThemeFileDeleteRoute(app, deps);
-    registerAdminThemeFileRenameRoute(app, deps);
-    registerAdminThemeFileGetRoute(app, deps);
-    registerAdminThemeFileResetRoute(app, deps);
+    registerAdminThemeDetailRoute({ app, deps });
+    registerAdminThemeFileDeleteRoute({ app, deps });
+    registerAdminThemeFileRenameRoute({ app, deps });
+    registerAdminThemeFileGetRoute({ app, deps });
+    registerAdminThemeFileResetRoute({ app, deps });
     const fault = Object.assign(new Error("injected I/O failure"), { code: "EIO" });
     const original = fs[operation] as (...args: unknown[]) => unknown;
     let faultReached = false;

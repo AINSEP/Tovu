@@ -68,14 +68,14 @@ export function readThemePreviewRefresh(
 
 /** A newly opened preview is already fresh; only later durable writes cause another load. */
 export function createThemePreviewFeed(
-  { read, emit }: { read: () => ThemePreviewRefresh | null; emit: (frame: ThemePreviewRefresh) => void },
+  { read, emit }: { read: () => ThemePreviewRefresh | null; emit: (required: { frame: ThemePreviewRefresh }, optional?: Record<string, never>) => void },
   { resumeRevision }: { resumeRevision?: string } = {},
 ): () => void {
   let previous = resumeRevision ?? read()?.revision;
   return () => {
     const frame = read();
     if (!frame || frame.revision === previous) return;
-    emit(frame);
+    emit({ frame });
     previous = frame.revision;
   };
 }

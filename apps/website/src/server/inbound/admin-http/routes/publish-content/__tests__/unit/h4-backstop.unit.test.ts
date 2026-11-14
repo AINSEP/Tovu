@@ -12,11 +12,11 @@ for (const [role, allowed] of [[null, false], [{ name: 'admin', isBuiltin: false
   test(`backstop non-owner admission checks live roles: ${JSON.stringify(role)}`, async () => {
     const reads: unknown[] = [];
     const app = express();
-    registerPublishBackstopRoutes(app, portFake<PublishContentRouteDeps>({ workspaceId: 'ws', ownerPrincipalId: Promise.resolve('owner'),
+    registerPublishBackstopRoutes({ app, deps: portFake<PublishContentRouteDeps>({ workspaceId: 'ws', ownerPrincipalId: Promise.resolve('owner'),
       authorize: async input => { reads.push(input); return { allowed: true, reason: 'grant' }; },
       principalRoleRepo: { listByPrincipalId: async (input: unknown) => { reads.push(input); return [{ roleId: 'deleted' }, { roleId: 'candidate' }]; } },
       roleRepo: { findById: async (input: { id: string }) => { reads.push(input); return input.id === 'candidate' ? role : null; } },
-    }));
+    }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'operator' }; res.locals.authCredentialKind = 'session';
     await extractRouteHandler(app, 'get', '/api/admin/v1/workspaces/:workspaceId/publish-content/backstop/status')({ params: { workspaceId: 'ws' } }, res);

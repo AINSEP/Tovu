@@ -45,7 +45,7 @@ function buildHandler(deps: Partial<PublishContentRouteDeps>) {
       handler = h;
     },
   };
-  registerPublishContentExportRoute(app as never, deps as PublishContentRouteDeps);
+  registerPublishContentExportRoute({ app: app as never, deps: deps as PublishContentRouteDeps });
   return (req: { params: Record<string, unknown> }, res: unknown) => handler(req, res);
 }
 

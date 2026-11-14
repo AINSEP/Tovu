@@ -49,7 +49,7 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFileGetRoute(app, deps);
+  registerAdminThemeFileGetRoute({ app, deps });
   return app;
 }
 

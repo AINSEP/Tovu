@@ -29,7 +29,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * gate — the `?.`/`??` here are two decision points genuinely independent of the handler's own
  * control flow (no nesting relationship), not a behavior change.
  */
-function readActiveThemeId(body: unknown): string {
+function readActiveThemeId({ body }: { body: unknown }, _options: Record<string, never> = {}): string {
   return String((body as { activeThemeId?: unknown } | null)?.activeThemeId ?? "");
 }
 
@@ -39,7 +39,7 @@ function readActiveThemeId(body: unknown): string {
  * points that add to cyclomatic complexity without adding nesting, so moving them here is a pure
  * complexity-gate fix — still the same 400/404/500 statuses and bodies as before.
  */
-function presentationPatchErrorResponse(err: unknown, options: AdminFailurePorts = {}): { status: number; body: { error: string } } {
+function presentationPatchErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): { status: number; body: { error: string } } {
   if (err instanceof PresentationSettingsValidationError || err instanceof ThemeStylingRequiredError) {
     return { status: 400, body: { error: err.message } };
   }
@@ -49,7 +49,7 @@ function presentationPatchErrorResponse(err: unknown, options: AdminFailurePorts
   return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/presentation/patch-active-theme" });
 }
 
-export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -63,11 +63,11 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
           repo: deps.presentationRepo,
           tracker: deps.tracker,
           clock: deps.clock,
-          availableThemeIds: writableThemeIds(deps, { requestedThemeId: readActiveThemeId(req.body) }),
+          availableThemeIds: writableThemeIds(deps, { requestedThemeId: readActiveThemeId({ body: req.body }) }),
         },
         input: {
           workspaceId: deps.workspaceId,
-          activeThemeId: readActiveThemeId(req.body),
+          activeThemeId: readActiveThemeId({ body: req.body }),
         },
       }, { actorId: principal.id, source: "admin" });
 
@@ -102,7 +102,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         })
       );
     } catch (err) {
-      const { status, body } = presentationPatchErrorResponse(err, { tracker: res.locals?.adminFailureTracker });
+      const { status, body } = presentationPatchErrorResponse({ err }, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

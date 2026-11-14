@@ -11,7 +11,7 @@ const VALID_STATUS_CODES = new Set([301, 302, 307, 308]);
 /** This route's five body fields, validated and read off an untyped body in one place, or the 400
  *  message for the first violation.
  *  @complexity O(1). */
-function parseRedirectCreateBody(rawBody: unknown):
+function parseRedirectCreateBody({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}):
   | {
       ok: true;
       matchType: RedirectMatchType;
@@ -50,11 +50,11 @@ function parseRedirectCreateBody(rawBody: unknown):
  * `REDIRECT_VALIDATION_ERROR` here, same as any other chokepoint validation
  * failure, not a route-level shape rejection.
  */
-export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/redirects", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseRedirectCreateBody(req.body);
+    const parsedBody = parseRedirectCreateBody({ rawBody: req.body });
     if (!parsedBody.ok) {
       res.status(400).json({ error: parsedBody.error, code: "VALIDATION_ERROR" });
       return;
@@ -86,7 +86,7 @@ export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = (app, de
 
       res.status(201).json(toAdminRedirectResponse(record));
     } catch (err) {
-      respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
+      respondToRedirectError({ res, err, mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
     }
   });
 };

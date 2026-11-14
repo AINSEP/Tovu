@@ -22,9 +22,9 @@ async function fixture(t: { after: (cleanup: () => Promise<void>) => void }) {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "human" }; next(); });
-  registerAdminPostCreateRoute(app, deps);
-  registerAdminPostUpdateRoute(app, deps);
-  registerAdminPostAutosaveRoute(app, deps);
+  registerAdminPostCreateRoute({ app, deps });
+  registerAdminPostUpdateRoute({ app, deps });
+  registerAdminPostAutosaveRoute({ app, deps });
   const server = createServer(app);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");

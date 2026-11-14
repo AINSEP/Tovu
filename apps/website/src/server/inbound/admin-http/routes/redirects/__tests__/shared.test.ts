@@ -29,7 +29,7 @@ function createMockResponse(): { res: Response; result: { status: number; body: 
 test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectValidationError to 400 REDIRECT_VALIDATION_ERROR", () => {
   const { res, result } = createMockResponse();
   const err = new RedirectValidationError("source cannot equal target");
-  respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
+  respondToRedirectError({ res, err, mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
   assert.equal(result.status, 400);
   assert.deepEqual(result.body, { error: "source cannot equal target", code: "REDIRECT_VALIDATION_ERROR" });
 });
@@ -37,7 +37,7 @@ test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectValidationError to 400 REDIREC
 test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectTargetNotAllowedError to 400 REDIRECT_TARGET_NOT_ALLOWED", () => {
   const { res, result } = createMockResponse();
   const err = new RedirectTargetNotAllowedError("disallowed domain");
-  respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
+  respondToRedirectError({ res, err, mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
   assert.equal(result.status, 400);
   assert.deepEqual(result.body, { error: "disallowed domain", code: "REDIRECT_TARGET_NOT_ALLOWED" });
 });
@@ -45,7 +45,7 @@ test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectTargetNotAllowedError to 400 R
 test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectConflictError to 409 REDIRECT_CONFLICT", () => {
   const { res, result } = createMockResponse();
   const err = new RedirectConflictError("duplicate rule");
-  respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
+  respondToRedirectError({ res, err, mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
   assert.equal(result.status, 409);
   assert.deepEqual(result.body, { error: "duplicate rule", code: "REDIRECT_CONFLICT" });
 });
@@ -53,7 +53,7 @@ test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectConflictError to 409 REDIRECT_
 test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectLoopError to 409 REDIRECT_LOOP_DETECTED", () => {
   const { res, result } = createMockResponse();
   const err = new RedirectLoopError("loop detected");
-  respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
+  respondToRedirectError({ res, err, mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
   assert.equal(result.status, 409);
   assert.deepEqual(result.body, { error: "loop detected", code: "REDIRECT_LOOP_DETECTED" });
 });
@@ -61,7 +61,7 @@ test("REDIRECT_WRITE_ERROR_MAPPINGS: maps RedirectLoopError to 409 REDIRECT_LOOP
 test("respondToRedirectError: falls back to 500 when error does not match any mapping", () => {
   const { res, result } = createMockResponse();
   const err = new Error("unknown database crash");
-  respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
+  respondToRedirectError({ res, err, mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
   assert.equal(result.status, 500);
   assertAdminResponse({ actual: result.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { failure: {"message":"The redirect operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"redirect operation"} });
 });
@@ -69,9 +69,9 @@ test("respondToRedirectError: falls back to 500 when error does not match any ma
 test("respondToRedirectError: handles non-Error thrown objects with custom mappings", () => {
   const { res, result } = createMockResponse();
   const customMappings: RedirectErrorMapping[] = [
-    { matches: (e) => typeof e === "string" && e.includes("custom"), status: 418, code: "TEAPOT" },
+    { matches: ({ err }, _options = {}) => typeof err === "string" && err.includes("custom"), status: 418, code: "TEAPOT" },
   ];
-  respondToRedirectError(res, "custom string failure", customMappings);
+  respondToRedirectError({ res, err: "custom string failure", mappings: customMappings });
   assert.equal(result.status, 418);
   assert.deepEqual(result.body, { error: "custom string failure", code: "TEAPOT" });
 });
@@ -79,7 +79,7 @@ test("respondToRedirectError: handles non-Error thrown objects with custom mappi
 
 test("REDIRECT_WRITE_ERROR_MAPPINGS: maps a trashed redirect to 409 ENTITY_IN_TRASH", () => {
   const { res, result } = createMockResponse();
-  respondToRedirectError(res, new EntityNotLiveError({ entityType: "redirect", entityId: "r-trash", state: "trashed" }), REDIRECT_WRITE_ERROR_MAPPINGS);
+  respondToRedirectError({ res, err: new EntityNotLiveError({ entityType: "redirect", entityId: "r-trash", state: "trashed" }), mappings: REDIRECT_WRITE_ERROR_MAPPINGS });
   assert.equal(result.status, 409);
   assert.deepEqual(result.body, { error: "ENTITY_IN_TRASH: redirect 'r-trash' is in the Trash. Restore it from the Trash before changing it.", code: "ENTITY_IN_TRASH" });
 });

@@ -77,7 +77,7 @@ function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Expres
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminPresentationPatchRoute(app, deps);
+  registerAdminPresentationPatchRoute({ app, deps });
   return app;
 }
 

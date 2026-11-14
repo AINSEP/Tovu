@@ -31,9 +31,9 @@ for (const row of cases) {
         if (authenticated) res.locals.principal = { id: "owner" };
         next();
       });
-      registerPublishContentPeerRoutes(app, { workspaceId: "ws", authorize: async () => {
+      registerPublishContentPeerRoutes({ app, deps: { workspaceId: "ws", authorize: async () => {
         throw new Error(`PRIVATE_BACKEND password=${CANARY}`);
-      } } as never);
+      } } as never });
       const baseUrl = await startTestServer(app, t);
       const body = ["POST", "PATCH"].includes(row.method) ? JSON.stringify({ label: "Live", apiKey: CANARY }) : undefined;
       const response = await fetch(`${baseUrl}${row.path}?token=${CANARY}`, {

@@ -60,9 +60,9 @@ async function startApp(t: test.TestContext): Promise<{ baseUrl: string; themesD
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
-  registerAdminThemeSaveOriginalRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeSaveOriginalRoute({ app, deps });
   return { baseUrl: await startTestServer(app, t), themesDir };
 }
 

@@ -20,7 +20,7 @@ import { createTovuSettingsService, mountSettingsJsonRoute } from "./shared.js";
  * a nested-by-namespace structure, so ordering (not nesting) is what
  * "grouped by namespace" means here.
  */
-export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsListDefinitionsRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/definitions",
     handle: async ({ authorize }) => {
       await authorize({ permission: "settings.read.definitions", entityType: "setting-definition" });

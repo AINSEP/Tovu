@@ -13,10 +13,10 @@ const VALID = { bodyFormat: 'html', title: 'Unsaved title', slug: 'draft', bodyH
 for (const byline of [{ author: 7 }, { showAuthor: 'true' }, { author: 'x'.repeat(201) }]) {
   test(`autosave refuses invalid byline ${JSON.stringify(byline)} before a write`, async () => {
     const app = express();
-    registerAdminPostAutosaveRoute(app, portFake<ContentRouteDeps>({ workspaceId: 'ws',
+    registerAdminPostAutosaveRoute({ app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
       authorize: async () => ({ allowed: true, reason: 'owner' }),
       postRepo: { writeAutosave: async () => assert.fail('invalid byline must not be parked') },
-    }));
+    }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'owner' };
     await lastRouteHandler(app, 'put', PATH)({ params: { workspaceId: 'ws', postId: 'draft' }, body: { ...VALID, ...byline } }, res);
@@ -30,13 +30,13 @@ test('autosave parks by raw id after lookup failure, retaining the normalized by
   const writes: unknown[] = [];
   const lookups: unknown[] = [];
   const app = express();
-  registerAdminPostAutosaveRoute(app, portFake<ContentRouteDeps>({ workspaceId: 'ws',
+  registerAdminPostAutosaveRoute({ app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
     postRepo: { findBySlug: async (input: unknown) => { lookups.push(input); return null; },
       findById: async (input: unknown) => { lookups.push(input); throw new Error('lookup failed'); },
       writeAutosave: async (input: unknown) => { writes.push(input); return { applied: false }; } },
-  }));
+  }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' };
   await lastRouteHandler(app, 'put', PATH)({ params: { workspaceId: 'ws', postId: 'raw-id' }, body: { ...VALID, author: ' Ada ', showAuthor: false } }, res);

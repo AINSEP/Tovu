@@ -13,7 +13,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *
  * Gated by `content.read` (2026-07-16 authz sweep — see `posts/list.ts`'s identical fix/note).
  */
-export const registerAdminPageListRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

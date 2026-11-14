@@ -38,7 +38,7 @@ const STATUS_BY_RECOVERY_ERROR_CODE: Readonly<Record<string, number>> = {
   RESTORE_OPERATION_IN_FLIGHT: 409,
 };
 
-function statusForCode(code: string): number {
+function statusForCode({ code }: { code: string }, _options: Record<string, never> = {}): number {
   return STATUS_BY_RECOVERY_ERROR_CODE[code] ?? 500;
 }
 
@@ -47,14 +47,14 @@ function statusForCode(code: string): number {
  *  orchestrator's own short-circuits) always sets one -- so the `?? error.code` fallback is only
  *  observable by handing this a contract-valid, message-less payload directly. */
 export function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
-  const status = statusForCode(error.code);
+  const status = statusForCode({ code: error.code });
   if (status === 500) { sendAdminFailure({ res, error: new Error(error.message ?? error.code) }, { operation: "routes/recovery/restore", code: error.code }); return; }
   res.status(status).json({ error: error.message ?? error.code, code: error.code });
 }
 
 /** The one 500 shape all three ceremony routes share for anything thrown outside the gateway's own
  *  `Result` wrapping (a missing session principal, a throwing `dbOps`/`authorize` port). */
-function sendInternalError(res: import("express").Response, err: unknown): void {
+function sendInternalError({ res, err }: { res: import("express").Response; err: unknown }, _options: Record<string, never> = {}): void {
   sendAdminFailure({ res, error: err }, { operation: "routes/recovery/restore", code: "INTERNAL_ERROR" });
 }
 
@@ -108,7 +108,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       }
       res.json(result.value);
     } catch (err) {
-      sendInternalError(res, err);
+      sendInternalError({ res, err });
     }
   });
 
@@ -154,7 +154,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       }
       res.json(result.value);
     } catch (err) {
-      sendInternalError(res, err);
+      sendInternalError({ res, err });
     }
   });
 
@@ -243,7 +243,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       }
       res.json(result.value);
     } catch (err) {
-      sendInternalError(res, err);
+      sendInternalError({ res, err });
     }
   });
 }

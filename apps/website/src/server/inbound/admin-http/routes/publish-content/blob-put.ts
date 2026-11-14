@@ -36,14 +36,14 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *  characters outside the alphabet instead of refusing them), so a bare try/catch around it can
  *  never fire — see that function's own header.
  *  @complexity O(n) in the encoded payload length. */
-function decodeBlobBytes(rawBody: unknown): Uint8Array | null {
+function decodeBlobBytes({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): Uint8Array | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const dataBase64 = body.dataBase64;
   if (typeof dataBase64 !== "string" || !dataBase64) return null;
   return decodeStrictBase64(dataBase64);
 }
 
-export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -64,7 +64,7 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
       )
         return;
 
-      const bytes = decodeBlobBytes(req.body);
+      const bytes = decodeBlobBytes({ rawBody: req.body });
       if (!bytes) {
         res.status(400).json({ error: "dataBase64 is required and must be valid base64" });
         return;

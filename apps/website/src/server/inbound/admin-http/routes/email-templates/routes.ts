@@ -97,7 +97,7 @@ const templateId = (req: Request) => String(req.params.templateId);
  *   generic `POST …/trash/items {type: "email-template", id}` on the scoped Trash registration)
  * - `POST   …/email-templates/:templateId/render` (`admin.forms.manage`) `{ values? }` -> `{ subject, html, text, missingFields }`
  */
-export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const limit = rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES });
   app.get(BASE, route(deps, "content.read", (req, _res, ops) => listEmailTemplates({ deps: ops, input: req.query })));
   app.post(BASE, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, res, ops) => createEmailTemplate({ deps: ops, input: body(req), actorId: actor(res) }), 201));

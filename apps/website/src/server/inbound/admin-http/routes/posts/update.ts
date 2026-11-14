@@ -34,7 +34,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *  here instead of surfacing downstream in `updatePost`.
  *  @complexity O(1). */
 function parsePostUpdateBody(
-  rawBody: unknown
+  { rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}
 ): Pick<
   UpdatePostInput,
   "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "expectedVersion" | "publishAt" | "featuredMediaId" | "author" | "showAuthor" | "hideCoverImageInBody" | "slugFromTitle"
@@ -65,7 +65,7 @@ function parsePostUpdateBody(
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendPostUpdateError(res: Response, err: unknown): void {
+function sendPostUpdateError({ res, err }: { res: Response; err: unknown }, _options: Record<string, never> = {}): void {
   if (sendPluginHookFailedError(res, err)) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
@@ -131,7 +131,7 @@ function sendPostUpdateError(res: Response, err: unknown): void {
  * cap `posts/create.ts` applies, since §4 scopes it to the update endpoints too — so an oversized
  * request 413s before `updatePost`/the command gateway ever runs.
  */
-export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put(
     "/api/admin/v1/workspaces/:workspaceId/posts/:postId",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
@@ -152,7 +152,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
         })).post.id;
       } catch (error) {
         if (!(error instanceof PostNotFoundError)) {
-          sendPostUpdateError(res, error);
+          sendPostUpdateError({ res, err: error });
           return;
         }
         // A missing post keeps the existing raw-id lookup and not-found response.
@@ -219,7 +219,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
               };
             },
             execute: async () => {
-              const body = parsePostUpdateBody(req.body);
+              const body = parsePostUpdateBody({ rawBody: req.body });
               return updatePost({
                 deps: {
                   repo: deps.postRepo,
@@ -271,7 +271,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
         // Owner-action product event on the draft → published transition only (consent-gated port).
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
-        sendPostUpdateError(res, err);
+        sendPostUpdateError({ res, err });
       }
     }
   );

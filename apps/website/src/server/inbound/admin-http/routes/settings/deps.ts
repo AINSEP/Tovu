@@ -30,4 +30,4 @@ export type SettingsRouteDeps = Pick<
 > & { themesDir?: string; set?: RouteDeps["set"]; mailProviderControl?: RouteDeps["mailProviderControl"] };
 
 /** Registrar signature for the settings route modules (mirrors `RouteRegistrar`). */
-export type SettingsRouteRegistrar = (app: Express, deps: SettingsRouteDeps) => void;
+export type SettingsRouteRegistrar = (required: { app: Express; deps: SettingsRouteDeps }, optional?: Record<string, never>) => void;

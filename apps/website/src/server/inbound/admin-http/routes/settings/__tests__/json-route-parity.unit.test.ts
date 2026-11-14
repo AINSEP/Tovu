@@ -41,7 +41,7 @@ function harness(route: typeof routes[number], options: { ready?: Promise<void>;
     authorize: async (input: unknown) => { calls.push(input); return { allowed: options.allowed ?? false, reason: "no_grant" }; },
   } as unknown as SettingsRouteDeps;
   const app = express();
-  route.registrar(app, deps);
+  route.registrar({ app, deps });
   const handler = extractRouteHandler(app, route.method, base + route.path);
   return {
     calls, deps,

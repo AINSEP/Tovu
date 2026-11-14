@@ -77,8 +77,8 @@ async function startApp(t: test.TestContext): Promise<{ baseUrl: string; live: s
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
   return { baseUrl: await startTestServer(app, t), live };
 }
 

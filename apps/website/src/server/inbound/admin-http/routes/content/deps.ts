@@ -129,4 +129,4 @@ export type ContentRouteDeps = Pick<
    *  previews (`theme-preview-host.ts`). Optional: an in-memory or test runtime has no site folder. */
   | "siteBinding">>;
 
-export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;
+export type ContentRouteRegistrar = (required: { app: Express; deps: ContentRouteDeps }, optional?: Record<string, never>) => void;

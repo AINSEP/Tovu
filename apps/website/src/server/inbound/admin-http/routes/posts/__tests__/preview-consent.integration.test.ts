@@ -42,7 +42,7 @@ test("authenticated preview leaves authored HTML intact; public flags cannot dis
   }) };
   applySiteCookieConsent({ app, deps, consent: deps.cookieConsent });
   await deps.cookieConsent.refresh?.();
-  registerAdminPostTemplatePreviewRoute(app, deps);
+  registerAdminPostTemplatePreviewRoute({ app, deps });
   registerSiteRoutes(app, deps);
   const previewPath = `/api/admin/v1/workspaces/w/posts/${post.id}/template-preview?templateChoice=`;
 

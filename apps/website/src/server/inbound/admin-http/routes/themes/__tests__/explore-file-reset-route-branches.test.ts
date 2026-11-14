@@ -86,7 +86,7 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeFileResetRoute({ app, deps });
   return app;
 }
 

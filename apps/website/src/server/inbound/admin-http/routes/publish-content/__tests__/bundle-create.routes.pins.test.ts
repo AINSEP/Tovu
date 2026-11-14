@@ -48,12 +48,12 @@ const ENVELOPE_REFUSALS: ReadonlyArray<[string, unknown, string]> = [
 
 for (const [name, body, error] of ENVELOPE_REFUSALS) {
   test(`validateBundleBody refuses ${name}: ${error}`, () => {
-    assert.deepEqual(validateBundleBody(body), { error });
+    assert.deepEqual(validateBundleBody({ rawBody: body }), { error });
   });
 }
 
 test("validateBundleBody accepts an absent sourceLabel", () => {
-  assert.deepEqual(validateBundleBody(envelope({ sourceLabel: undefined })), {
+  assert.deepEqual(validateBundleBody({ rawBody: envelope({ sourceLabel: undefined }) }), {
     artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, sourceLabel: undefined, entities: [], blobManifest: [],
   });
 });

@@ -10,7 +10,7 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * GET /feed.xml — the public RSS 2.0 feed (`Jini/packages/cms/src/seo/feed.ts`). Public and unauthenticated like
  * `sitemap.xml`, and registered with it by `modules/seo.ts`, ahead of the `/:slug` catch-all.
  */
-export const registerFeedRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerFeedRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get(FEED_PATH, async (req, res) => {
     try {
       await deps.seoReady;

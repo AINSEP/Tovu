@@ -28,7 +28,7 @@ export interface ImportErrorResponse {
  *
  * @complexity O(1).
  */
-export function importErrorResponse(err: unknown, options: AdminFailurePorts = {}): ImportErrorResponse {
+export function importErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): ImportErrorResponse {
   const error = err instanceof Error ? err.message : "internal error";
   if (err instanceof ForbiddenError) return { status: 403, body: { error, code: err.reasonCode } };
   if (err instanceof PlanStaleError) return { status: 409, body: { error, code: "PLAN_STALE" } };

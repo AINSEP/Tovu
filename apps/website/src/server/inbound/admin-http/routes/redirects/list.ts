@@ -11,7 +11,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * Trash are not listed.
  * Gated by `admin.redirects.manage` (REQ-12).
  */
-export const registerAdminRedirectListRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectListRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/redirects", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

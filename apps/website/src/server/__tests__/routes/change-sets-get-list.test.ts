@@ -30,8 +30,8 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminChangeSetListRoute(app, deps);
-  registerAdminChangeSetGetRoute(app, deps);
+  registerAdminChangeSetListRoute({ app, deps });
+  registerAdminChangeSetGetRoute({ app, deps });
   return { app, deps };
 }
 

@@ -29,7 +29,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *  a non-empty array, within the resource-bounds cap, of strings that each look like a sha256 hex
  *  digest. Returns the validated array, or a human-readable error string to send as a 400.
  *  @complexity O(n) in the array length. */
-function validateProbeShas(rawBody: unknown): { shas: string[] } | { error: string } {
+function validateProbeShas({ rawBody }: { rawBody: unknown }, _options: Record<string, never> = {}): { shas: string[] } | { error: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const shas = body.shas;
   if (!Array.isArray(shas) || shas.length === 0) {
@@ -46,7 +46,7 @@ function validateProbeShas(rawBody: unknown): { shas: string[] } | { error: stri
   return { shas: shas as string[] };
 }
 
-export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/probe",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
@@ -64,7 +64,7 @@ export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar
         )
           return;
 
-        const validated = validateProbeShas(req.body);
+        const validated = validateProbeShas({ rawBody: req.body });
         if ("error" in validated) {
           res.status(400).json({ error: validated.error });
           return;

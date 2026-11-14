@@ -46,10 +46,10 @@ async function fixture() {
   } as unknown as Deps;
   const app = express();
   registerAdminAssistantSubagentsRoutes({ app, deps });
-  registerAdminSettingsSetRoute(app, deps);
-  registerAdminSettingsClearRoute(app, deps);
-  registerAdminSettingsResetRoute(app, deps);
-  registerAdminSettingsRegisterDefinitionsRoute(app, deps);
+  registerAdminSettingsSetRoute({ app, deps });
+  registerAdminSettingsClearRoute({ app, deps });
+  registerAdminSettingsResetRoute({ app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
   const definition = (await repo.listActiveDefinitions({ workspaceId: null })).find((def) => def.namespace === namespace && def.key === "enabled")!;
   assert.ok(definition, "boot must register the subagent setting");
   const permissionDefinition = (await repo.listActiveDefinitions({ workspaceId: null })).find(def => def.namespace === namespace && def.key === ASSISTANT_CLI_PERMISSIONS_KEY)!;

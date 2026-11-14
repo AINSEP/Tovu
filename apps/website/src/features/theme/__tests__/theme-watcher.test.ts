@@ -24,7 +24,7 @@ function fixture(t: test.TestContext) {
   writeTheme("basic");
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
   const frames: ThemePreviewRefresh[] = [];
-  const feed = createThemePreviewFeed({ read: () => readThemePreviewRefresh({ themesDir }), emit: (frame) => {
+  const feed = createThemePreviewFeed({ read: () => readThemePreviewRefresh({ themesDir }), emit: ({ frame }, _options = {}) => {
     assert.deepEqual(themes.map((theme) => theme.manifest.id), discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }).map((theme) => theme.manifest.id),
       "discovery is current before an SSE consumer receives the frame");
     frames.push(frame);

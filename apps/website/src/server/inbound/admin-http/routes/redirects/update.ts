@@ -6,7 +6,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 const REDIRECT_UPDATE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
-  { matches: (e) => e instanceof RedirectNotFoundError, status: 404, code: "REDIRECT_NOT_FOUND" },
+  { matches: ({ err }, _options = {}) => err instanceof RedirectNotFoundError, status: 404, code: "REDIRECT_NOT_FOUND" },
   ...REDIRECT_WRITE_ERROR_MAPPINGS,
 ];
 
@@ -14,7 +14,7 @@ const REDIRECT_UPDATE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
  * PATCH mutable fields on an existing redirect rule (api.spec.md
  * `UPDATE_REDIRECT`). All body fields optional. Gated by `admin.redirects.manage`.
  */
-export const registerAdminRedirectUpdateRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectUpdateRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/redirects/:id", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -44,7 +44,7 @@ export const registerAdminRedirectUpdateRoute: RedirectRouteRegistrar = (app, de
 
       res.json(toAdminRedirectResponse(record));
     } catch (err) {
-      respondToRedirectError(res, err, REDIRECT_UPDATE_ERROR_MAPPINGS);
+      respondToRedirectError({ res, err, mappings: REDIRECT_UPDATE_ERROR_MAPPINGS });
     }
   });
 };

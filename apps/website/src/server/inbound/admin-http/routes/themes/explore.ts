@@ -504,7 +504,7 @@ export function bodyStringField(body: unknown, field: string): string {
 }
 
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
-export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -573,7 +573,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
 };
 
 /** GET the raw source of one file inside a theme. */
-export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -653,7 +653,7 @@ function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFi
  * and it holds here because of where the theme list comes from rather than because of a check
  * somebody has to remember to write.
  */
-export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -832,7 +832,7 @@ function buildFileResetResponse(
  * The confirmation belongs in the UI, where the operator can be told what they are about to lose in
  * words — a server-side "are you sure" flag would just be a second thing to get wrong.
  */
-export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/reset", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -891,7 +891,7 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
  * the screen offers it; one that already has an original is refused (`ORIGINAL_EXISTS`) rather than
  * replaced, since that original is what Reset should keep restoring to. See `saveThemeAsOriginal`.
  */
-export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/original", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -925,7 +925,7 @@ export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = (app, 
  * existing reference points at, so it carries none of the risk a script's content-edit block exists
  * to prevent.
  */
-export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/copy", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -1107,7 +1107,7 @@ export function renameThemeFileIfChanged(
  * {@link registerAdminThemeFileCopyRoute}'s own comment. Delete ({@link registerAdminThemeFileDeleteRoute})
  * hard-blocks the same groups for the same reason, only more so — see that route's own doc comment.
  */
-export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -1175,7 +1175,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
  * checks here to preserve their existing status/code contracts. A compiled release without a safe
  * trash destination is refused: UI deletion must never discard bytes.
  */
-export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/delete", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
@@ -1247,7 +1247,7 @@ function parseThemePagePublishBody(
  * every call in the span being synchronous), not enforced by any lock — do not add an `await` in this
  * span without re-establishing it some other way.
  */
-export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/page/publish", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;

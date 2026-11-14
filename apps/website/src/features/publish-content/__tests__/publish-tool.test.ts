@@ -83,7 +83,7 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
       } catch (error) {
         if (!(error instanceof PlanStaleError)) throw error;
         // The real peer turns a stale plan into an HTTP refusal instead of a network failure.
-        const refusal = importErrorResponse(error);
+        const refusal = importErrorResponse({ err: error });
         return { status: refusal.status, headers: {}, bodyText: JSON.stringify(refusal.body) };
       }
     } else throw new Error(`unexpected peer call: ${path}`);
