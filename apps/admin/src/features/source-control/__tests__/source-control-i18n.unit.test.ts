@@ -14,7 +14,7 @@ describe("Source Control dictionary assembly and error copy", () => {
 
   it.each(["en", "de", "xx"])("interpolates load and save failures with English fallback in %s", (locale) => {
     // Mutation: replace {error} with a constant, or use the load template for save failures.
-    expect(sourceControlCredentialsLoadErrorMessage(locale, "403: denied <Atlas>")).toBe("Could not load source control connections (403: denied <Atlas>).");
-    expect(sourceControlCredentialSaveErrorMessage(locale, "token missing for Boreal")).toBe("Could not save this connection (token missing for Boreal).");
+    expect(sourceControlCredentialsLoadErrorMessage({ locale: locale, error: "403: denied <Atlas>" })).toBe("Could not load source control connections (403: denied <Atlas>).");
+    expect(sourceControlCredentialSaveErrorMessage({ locale: locale, error: "token missing for Boreal" })).toBe("Could not save this connection (token missing for Boreal).");
   });
 });

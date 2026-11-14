@@ -145,7 +145,7 @@ describe("useThemeExploreFileGroups", () => {
 
   it("switches group on chooseGroup without changing the selection", () => {
     const { result } = renderHook(() => useThemeExploreFileGroups({ files: FILES, highlightedPath: "pages/index.html" }));
-    act(() => result.current.chooseGroup("style"));
+    act(() => result.current.chooseGroup({ group: "style" }));
     expect(result.current.activeGroup).toBe("style");
     expect(result.current.visibleFiles.map((f) => f.path)).toEqual(["css/styles.css"]);
   });
@@ -154,7 +154,7 @@ describe("useThemeExploreFileGroups", () => {
     const { result, rerender } = renderHook(({ path }) => useThemeExploreFileGroups({ files: FILES, highlightedPath: path }), {
       initialProps: { path: "pages/index.html" },
     });
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     rerender({ path: "nav.html" });
     expect(result.current.activeGroup).toBe("partial");
   });
@@ -163,7 +163,7 @@ describe("useThemeExploreFileGroups", () => {
     const { result, rerender } = renderHook(({ path }) => useThemeExploreFileGroups({ files: FILES, highlightedPath: path }), {
       initialProps: { path: "pages/index.html" },
     });
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     rerender({ path: "assets/logo.svg" });
     expect(result.current.activeGroup).toBe("asset");
   });
@@ -171,7 +171,7 @@ describe("useThemeExploreFileGroups", () => {
   it("expands and collapses a long group, and keeps that group open across a tab round trip", () => {
     const files = [...FILES, ...assets(THEME_EXPLORE_COLLAPSED_FILE_LIMIT + 2)];
     const { result } = renderHook(() => useThemeExploreFileGroups({ files, highlightedPath: "pages/index.html" }));
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     expect(result.current.collapsible).toBe(true);
     expect(result.current.expanded).toBe(false);
     expect(result.current.visibleFiles).toHaveLength(THEME_EXPLORE_COLLAPSED_FILE_LIMIT);
@@ -181,9 +181,9 @@ describe("useThemeExploreFileGroups", () => {
     expect(result.current.expanded).toBe(true);
     expect(result.current.visibleFiles).toHaveLength(THEME_EXPLORE_COLLAPSED_FILE_LIMIT + 3);
 
-    act(() => result.current.chooseGroup("page"));
+    act(() => result.current.chooseGroup({ group: "page" }));
     expect(result.current.expanded).toBe(false);
-    act(() => result.current.chooseGroup("asset"));
+    act(() => result.current.chooseGroup({ group: "asset" }));
     expect(result.current.expanded).toBe(true);
 
     act(() => result.current.toggleExpanded());

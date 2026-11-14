@@ -544,7 +544,7 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
     await act(async () => { await result.current.copyFile("render/pages/about.html"); });
 
     expect(confirmSpy).toHaveBeenCalledOnce();
-    expect(copySpy).toHaveBeenCalledExactlyOnceWith("basic", "render/pages/about.html");
+    expect(copySpy).toHaveBeenCalledExactlyOnceWith({ themeId: "basic", path: "render/pages/about.html" });
     expect(result.current.selected).toBe("render/pages/about-1.html");
   });
 
@@ -592,7 +592,7 @@ describe("useThemeExplore — setPagePublished", () => {
       await result.current.setPagePublished(false);
     });
 
-    expect(setPagePublishedSpy).toHaveBeenCalledWith("basic", "pricing", false);
+    expect(setPagePublishedSpy).toHaveBeenCalledWith({ themeId: "basic", page: "pricing", published: false });
     const pricing = result.current.files.find((f) => f.path === "render/pages/pricing.html");
     expect(pricing?.published).toBe(false);
     expect(result.current.notice).toBe("Unpublished pricing");
@@ -793,7 +793,7 @@ describe("useThemeExplore — rename race safety", () => {
       files: FILES,
       contents: { "pages/index.html": "<html></html>" },
     });
-    port.renameThemeFile = vi.fn((_themeId: string, _sourcePath: string, name: string) => {
+    port.renameThemeFile = vi.fn(({ themeId: _themeId, path: _sourcePath, name }: { themeId: string; path: string; name: string }) => {
       return new Promise<{ path: string }>((resolve) => {
         deferred[name] = { resolve };
       });
@@ -839,7 +839,7 @@ describe("useThemeExplore — rename race safety", () => {
       files: FILES,
       contents: { "pages/index.html": "<html></html>" },
     });
-    port.renameThemeFile = vi.fn((_themeId: string, _sourcePath: string, name: string) => {
+    port.renameThemeFile = vi.fn(({ themeId: _themeId, path: _sourcePath, name }: { themeId: string; path: string; name: string }) => {
       return new Promise<{ path: string }>((resolve, reject) => {
         deferred[name] = { reject, resolveOk: resolve };
       });
@@ -889,7 +889,7 @@ describe("useThemeExplore — rename race safety", () => {
       files: FILES,
       contents: { "pages/index.html": "<html></html>" },
     });
-    port.renameThemeFile = vi.fn((_themeId: string, _sourcePath: string, name: string) => {
+    port.renameThemeFile = vi.fn(({ themeId: _themeId, path: _sourcePath, name }: { themeId: string; path: string; name: string }) => {
       return new Promise<{ path: string }>((resolve) => {
         deferred[name] = { resolve };
       });
@@ -1032,7 +1032,7 @@ describe("useThemeExplore — delete", () => {
       await result.current.confirmDelete();
     });
 
-    expect(deleteSpy).toHaveBeenCalledWith("basic", "pages/about.html");
+    expect(deleteSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/about.html" });
     expect(result.current.deleteTarget).toBeNull();
     expect(result.current.deleting).toBe(false);
     expect(result.current.notice).toBe("Deleted pages/about.html");
@@ -1412,7 +1412,7 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = ({ themeId, path }) =>
+    port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) =>
       path === "pages/big.html" ? Promise.reject(new Error(bigTooLarge)) : serverRead({ themeId, path });
     const putSpy = vi.spyOn(port, "putThemeFile");
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
@@ -1439,7 +1439,7 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Home</h1>", "pages/about.html": "<h1>About</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = ({ themeId, path }) => (path === "pages/about.html" ? new Promise(() => {}) : serverRead({ themeId, path }));
+    port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) => (path === "pages/about.html" ? new Promise(() => {}) : serverRead({ themeId, path }));
     const putSpy = vi.spyOn(port, "putThemeFile");
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -1466,7 +1466,7 @@ describe("useThemeExplore — save", () => {
       contents: { "pages/index.html": "<h1>Theme A</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = ({ themeId, path }) => (themeId === "b" ? new Promise(() => {}) : serverRead({ themeId, path }));
+    port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) => (themeId === "b" ? new Promise(() => {}) : serverRead({ themeId, path }));
     const putSpy = vi.spyOn(port, "putThemeFile");
     const { result, rerender } = renderHook(
       ({ themeId }: { themeId: string }) => useThemeExplore({ themeId, dependencies: { port, t: (k) => k } }),
@@ -1511,7 +1511,7 @@ describe("useThemeExplore — save vs. a readable flip on the open file with no 
     // First call is the initial load (both files readable). Every call after that — triggered below
     // by deleting the OTHER file, which refetches the whole list — reports the OPEN file's `readable`
     // flipped to false, with `selected` never asked to change.
-    port.getThemeDetail = async ({ themeId }) => {
+    port.getThemeDetail = async ({ themeId }: { themeId: string }) => {
       detailCalls += 1;
       const r = await serverDetail({ themeId });
       if (detailCalls === 1) return r;
@@ -1586,7 +1586,7 @@ describe("useThemeExplore — reset", () => {
       await result.current.reset();
     });
 
-    expect(resetSpy).toHaveBeenCalledWith("basic", "pages/index.html");
+    expect(resetSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html" });
     expect(getThemeFileSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html" });
     expect(result.current.source).toBe("<h1>Original</h1>");
     expect(result.current.sourceLoaded).toBe(true);
@@ -1720,7 +1720,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
       files: [{ path: PATH, group: "page", readable: true, editable: true, resettable: true, modified: current !== ORIGINAL }],
     });
     port.getThemeFile = async () => ({ content: current });
-    port.putThemeFile = async (_themeId, path, content) => {
+    port.putThemeFile = async ({ themeId: _themeId, path, content }: { themeId: string; path: string; content: string }) => {
       current = content;
       return { path, bytes: content.length };
     };
@@ -1794,7 +1794,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const serverDetail = port.getThemeDetail;
     let releaseDetail: (() => void) | undefined;
-    port.getThemeDetail = ({ themeId }) =>
+    port.getThemeDetail = ({ themeId }: { themeId: string }) =>
       new Promise((resolve) => {
         releaseDetail = () => resolve(serverDetail({ themeId }));
       });
@@ -1820,8 +1820,8 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
   it("marks a file past the text-read limit unmodified after reset and leaves it unloaded on the read's refusal", async () => {
     const port = trackingPort("<h1>Changed</h1>");
     const serverReset = port.resetThemeFile;
-    port.resetThemeFile = async (themeId, path) => {
-      await serverReset(themeId, path);
+    port.resetThemeFile = async ({ themeId, path }: { themeId: string; path: string }) => {
+      await serverReset({ themeId: themeId, path: path });
       return { content: null };
     };
     const serverRead = port.getThemeFile;
@@ -1886,7 +1886,7 @@ describe("useThemeExplore — modified state after Save and Reset", () => {
   ) {
     const serverDetail = port.getThemeDetail;
     const pending: Array<{ resolve: () => void; reject: (reason: unknown) => void }> = [];
-    port.getThemeDetail = ({ themeId }) =>
+    port.getThemeDetail = ({ themeId }: { themeId: string }) =>
       new Promise((resolve, reject) => {
         const snapshot = serverDetail({ themeId });
         pending.push({ resolve: () => resolve(snapshot), reject });
@@ -1993,7 +1993,7 @@ describe("useThemeExplore — modified state after Copy and Rename", () => {
 
   function withNoOriginalAt(port: ReturnType<typeof createFakeThemeExplorePort>, newPath: string) {
     const serverDetail = port.getThemeDetail;
-    port.getThemeDetail = async ({ themeId }) => {
+    port.getThemeDetail = async ({ themeId }: { themeId: string }) => {
       const detail = await serverDetail({ themeId });
       return {
         ...detail,
@@ -2093,7 +2093,7 @@ describe("useThemeExplore — a failed re-read after a successful Delete, Copy o
     });
 
     expect(copySpy).toHaveBeenCalledTimes(1);
-    expect(copySpy).toHaveBeenCalledWith("basic", "css/a.css");
+    expect(copySpy).toHaveBeenCalledWith({ themeId: "basic", path: "css/a.css" });
     expect(result.current.notice).toBe("Copied to css/a-1.css");
     expect(result.current.error).toBe("detail read failed");
     expect(result.current.copyingPath).toBeNull();
@@ -2122,7 +2122,7 @@ describe("useThemeExplore — a failed re-read after a successful Delete, Copy o
     });
 
     await waitFor(() => expect(result.current.renaming).toBe(false));
-    expect(renameSpy).toHaveBeenCalledWith("basic", "css/a.css", "b.css");
+    expect(renameSpy).toHaveBeenCalledWith({ themeId: "basic", path: "css/a.css", name: "b.css" });
     expect(result.current.notice).toBe("Renamed to css/b.css");
     expect(result.current.error).toBe("detail read failed");
   });
@@ -2987,7 +2987,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     const gate = new Promise<void>((resolve) => {
       open = resolve;
     });
-    port.getThemeFile = async ({ themeId, path: requested }) => {
+    port.getThemeFile = async ({ themeId, path: requested }: { themeId: string; path: string }) => {
       if (requested === path) await gate;
       return serverRead({ themeId, path: requested });
     };
@@ -3052,7 +3052,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     });
 
     expect(putSpy).toHaveBeenCalledTimes(1);
-    expect(putSpy).toHaveBeenCalledWith("basic", "pages/index.html", "<h1>Home</h1><p>typed</p>");
+    expect(putSpy).toHaveBeenCalledWith({ themeId: "basic", path: "pages/index.html", content: "<h1>Home</h1><p>typed</p>" });
   });
 
   it("still lands a file whose read failed unloaded, with Save refused", async () => {
@@ -3062,7 +3062,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
     const serverRead = port.getThemeFile;
-    port.getThemeFile = ({ themeId, path }) =>
+    port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) =>
       path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead({ themeId, path });
     const putSpy = vi.spyOn(port, "putThemeFile");
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }));
@@ -3183,7 +3183,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       const detailGate = new Promise<void>((resolve) => {
         releaseDetail = resolve;
       });
-      port.getThemeDetail = async ({ themeId: id }) => {
+      port.getThemeDetail = async ({ themeId: id }: { themeId: string }) => {
         await detailGate;
         return serverDetail({ themeId: id });
       };
@@ -3231,7 +3231,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
         contents: { "pages/index.html": "<h1>Home</h1>" },
       });
       const serverRead = port.getThemeFile;
-      port.getThemeFile = ({ themeId, path }) => (path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead({ themeId, path }));
+      port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) => (path === "pages/big.html" ? Promise.reject(new Error(tooLarge)) : serverRead({ themeId, path }));
       const putSpy = vi.spyOn(port, "putThemeFile");
       const { result, rerender } = mountForNav(port);
       await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -3411,16 +3411,16 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
       await act(async () => {
         await result.current.save();
       });
-      expect(putSpy).toHaveBeenCalledWith("basic", "css/b.css", "body{color:red}");
+      expect(putSpy).toHaveBeenCalledWith({ themeId: "basic", path: "css/b.css", content: "body{color:red}" });
     });
 
     it("R3: a rename that settles after the operator opened another file does not pull the selection back", async () => {
       const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
       const serverRename = port.renameThemeFile;
       let finish: () => void = () => {};
-      port.renameThemeFile = (id, p, n) =>
+      port.renameThemeFile = ({ themeId: id, path: p, name: n }: { themeId: string; path: string; name: string }) =>
         new Promise((res) => {
-          finish = () => res(serverRename(id, p, n));
+          finish = () => res(serverRename({ themeId: id, path: p, name: n }));
         });
       const modes: string[] = [];
       const { result } = renderHook(() => {
@@ -3453,7 +3453,7 @@ describe("useThemeExplore — switching files in the HTML view never shows the e
     it("R4: renaming the open file whose read failed still lands unloaded with the read's error, and Save stays refused", async () => {
       const port = createFakeThemeExplorePort({ files: STYLE_FILES, contents: STYLE_CONTENTS });
       const serverRead = port.getThemeFile;
-      port.getThemeFile = ({ themeId, path }) =>
+      port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) =>
         path === "css/a.css" || path === "css/b.css" ? Promise.reject(new Error("too large")) : serverRead({ themeId, path });
       const putSpy = vi.spyOn(port, "putThemeFile");
       const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: (k) => k } }, { fileId: "css/a.css" }));
@@ -3668,7 +3668,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
       ],
     });
     port.getThemeFile = async () => ({ content: state.live });
-    port.putThemeFile = async (_themeId, path, content) => {
+    port.putThemeFile = async ({ themeId: _themeId, path, content }: { themeId: string; path: string; content: string }) => {
       state.live = content;
       return { path, bytes: content.length };
     };
@@ -3779,7 +3779,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const serverDetail = port.getThemeDetail;
     let releaseOld: (() => void) | undefined;
-    port.getThemeDetail = ({ themeId }) => {
+    port.getThemeDetail = ({ themeId }: { themeId: string }) => {
       if (themeId !== "basic") return serverDetail({ themeId });
       const answer = serverDetail({ themeId });
       return new Promise((resolve) => {
@@ -3887,7 +3887,7 @@ describe("useThemeExplore — content refresh bus (agent writes while Explore is
     await waitFor(() => expect(result.current.source).toBe(ORIGINAL));
     const serverDetail = port.getThemeDetail;
     let failOld: (() => void) | undefined;
-    port.getThemeDetail = ({ themeId }) => themeId !== "basic"
+    port.getThemeDetail = ({ themeId }: { themeId: string }) => themeId !== "basic"
       ? serverDetail({ themeId })
       : new Promise((_resolve, reject) => {
         failOld = () => reject(new Error("detail read failed"));
@@ -4008,7 +4008,7 @@ describe("useThemeExplore — toasts go through t()", () => {
 
   it("fills a file name containing a replacement pattern literally", async () => {
     const port = toastPort();
-    port.putThemeFile = async (_themeId, path, content) => ({ path, bytes: content.length });
+    port.putThemeFile = async ({ themeId: _themeId, path, content }: { themeId: string; path: string; content: string }) => ({ path, bytes: content.length });
     port.getThemeDetail = async () => ({
       id: "basic",
       name: "Basic",
@@ -4247,7 +4247,7 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
     });
 
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith("rose");
+    expect(spy).toHaveBeenCalledWith({ themeId: "rose" });
     expect(result.current.detail?.hasOriginal).toBe(true);
     expect(result.current.files.every((f) => f.resettable)).toBe(true);
     expect(result.current.notice).toBe("Saved as this theme's original");
@@ -4318,8 +4318,8 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     const port = fixture();
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
-    await port.copyThemeFile("basic", ABOUT);
-    await port.deleteThemeFile("basic", STYLE);
+    await port.copyThemeFile({ themeId: "basic", path: ABOUT });
+    await port.deleteThemeFile({ themeId: "basic", path: STYLE });
     act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
     await waitFor(() => expect(result.current.files.map(entry => entry.path)).toEqual([INDEX, ABOUT, "pages/about-1.html"]));
     expect(result.current.selected).toBe(INDEX);
@@ -4330,7 +4330,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     const port = fixture();
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
-    await port.copyThemeFile("basic", ABOUT);
+    await port.copyThemeFile({ themeId: "basic", path: ABOUT });
     act(() => publishThemePreviewRefresh({ revision: "external-theme-file-change" }));
     await waitFor(() => expect(result.current.files.some(entry => entry.path === "pages/about-1.html")).toBe(true));
   });
@@ -4341,7 +4341,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.source).toBe("Home"));
     act(() => result.current.select(STYLE));
     await waitFor(() => expect(result.current.source).toBe("body{}"));
-    await port.deleteThemeFile("basic", STYLE);
+    await port.deleteThemeFile({ themeId: "basic", path: STYLE });
     const reads = vi.spyOn(port, "getThemeFile");
     act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
     await waitFor(() => expect(result.current.source).toBe("Home"));
@@ -4357,7 +4357,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     act(() => result.current.select(STYLE));
     await waitFor(() => expect(result.current.source).toBe("body{}"));
     act(() => result.current.setSource("body{color:red}"));
-    await port.deleteThemeFile("basic", STYLE);
+    await port.deleteThemeFile({ themeId: "basic", path: STYLE });
     act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
     await waitFor(() => expect(result.current.files.some(entry => entry.path === STYLE)).toBe(false));
     expect(result.current.source).toBe("body{color:red}");
@@ -4375,7 +4375,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     const read = port.getThemeDetail;
     let releaseOld: (() => void) | undefined;
     let held = false;
-    port.getThemeDetail = async ({ themeId: id }) => {
+    port.getThemeDetail = async ({ themeId: id }: { themeId: string }) => {
       const snapshot = await read({ themeId: id });
       if (held) return snapshot;
       held = true;
@@ -4394,7 +4394,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     const port = fixture();
     const { result } = renderHook(() => useThemeExplore({ themeId: "basic", dependencies: { port, t: key => key } }));
     await waitFor(() => expect(result.current.source).toBe("Home"));
-    for (const path of [INDEX, ABOUT, STYLE]) await port.deleteThemeFile("basic", path);
+    for (const path of [INDEX, ABOUT, STYLE]) await port.deleteThemeFile({ themeId: "basic", path: path });
     const searchBefore = window.location.search;
 
     act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
@@ -4413,7 +4413,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.error).toBe("disk busy"));
     expect(result.current.sourceLoaded).toBe(false);
     const reads = vi.spyOn(port, "getThemeFile");
-    await port.copyThemeFile("basic", ABOUT);
+    await port.copyThemeFile({ themeId: "basic", path: ABOUT });
 
     act(() => publishContentRefresh([THEME_FILES_RESOURCE]));
 
@@ -4429,7 +4429,7 @@ describe("useThemeExplore — external file list changes (todos 323)", () => {
     await waitFor(() => expect(result.current.source).toBe("Home"));
     const serverRead = port.getThemeFile.bind(port);
     let failRead: (() => void) | undefined;
-    port.getThemeFile = ({ themeId, path }) => path === INDEX
+    port.getThemeFile = ({ themeId, path }: { themeId: string; path: string }) => path === INDEX
       ? new Promise((_resolve, reject) => { failRead = () => reject(new Error("read timed out")); })
       : serverRead({ themeId, path });
 

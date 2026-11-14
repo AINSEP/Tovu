@@ -24,7 +24,7 @@ function file(overrides: Partial<ThemeExploreFile> & Pick<ThemeExploreFile, "pat
 
 describe("themeExplorePreviewMode", () => {
   it("renders nothing-selected through the existing notice path", () => {
-    expect(themeExplorePreviewMode(undefined)).toBe("render");
+    expect(themeExplorePreviewMode({ file: undefined })).toBe("render");
   });
 
   it.each([
@@ -35,7 +35,7 @@ describe("themeExplorePreviewMode", () => {
     file({ path: "templates/home.liquid", kind: "other", editable: false }),
     file({ path: "templates/HOME.LIQUID", kind: "other", editable: false }),
   ])("renders the page-like file $path in the device frame", (entry) => {
-    expect(themeExplorePreviewMode(entry)).toBe("render");
+    expect(themeExplorePreviewMode({ file: entry })).toBe("render");
   });
 
   it.each([
@@ -44,7 +44,7 @@ describe("themeExplorePreviewMode", () => {
     // `.svg` is readable text server-side, but it is an image: it renders, not code.
     file({ path: "assets/icon.svg", kind: "asset" }),
   ])("renders the image/binary file $path as itself", (entry) => {
-    expect(themeExplorePreviewMode(entry)).toBe("render");
+    expect(themeExplorePreviewMode({ file: entry })).toBe("render");
   });
 
   it.each([
@@ -53,6 +53,6 @@ describe("themeExplorePreviewMode", () => {
     file({ path: "scripts/main.js", kind: "script" }),
     file({ path: "NOTICE.md", kind: "other", editable: false }),
   ])("shows the readable non-page file $path as code", (entry) => {
-    expect(themeExplorePreviewMode(entry)).toBe("code");
+    expect(themeExplorePreviewMode({ file: entry })).toBe("code");
   });
 });

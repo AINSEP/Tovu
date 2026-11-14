@@ -121,7 +121,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["themes"]] });
-  const activation = useFetchMutation({ run: ({ input }: { input: string }) => port.setActiveTheme(input) });
+  const activation = useFetchMutation({ run: ({ input }: { input: string }) => port.setActiveTheme({ activeThemeId: input }) });
   const invalidate = useInvalidate();
   // The server rescans before publishing this existing SSE event. Share the normal query reload
   // so externally added/removed themes reach the grid without invoking the manual Rescan mutation.
@@ -196,7 +196,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setDuplicateNotice(null);
     try {
       const sourceName = themeNames[themeId] ?? themeId;
-      const r = await write.mutate({ input: () => port.duplicateTheme(themeId, themeCopyName({ name: sourceName, t })) }) as Awaited<ReturnType<typeof port.duplicateTheme>>;
+      const r = await write.mutate({ input: () => port.duplicateTheme({ themeId: themeId, newName: themeCopyName({ name: sourceName, t }) }) }) as Awaited<ReturnType<typeof port.duplicateTheme>>;
       applyPresentation(await loader.load());
       setDuplicateNotice(interpolate({ template: t("Duplicated as \"{name}\""), vars: { name: r.theme.name } }));
     } catch (e) {

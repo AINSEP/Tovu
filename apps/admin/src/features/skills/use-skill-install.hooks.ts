@@ -3,7 +3,7 @@ import { installSkill, type SkillInstallPayload } from "./api";
 import { prepareSkillUpload } from "./skill-upload";
 
 /** Holds an upload until the user confirms. A superseded read cannot install an older drop. */
-export function useSkillInstall(onInstalled?: () => void | Promise<void>) {
+export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?: () => void | Promise<void> } = {}) {
   const [pending, setPending] = useState<SkillInstallPayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

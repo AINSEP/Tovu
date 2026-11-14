@@ -19,9 +19,9 @@ function port(open: ImportHandoffPort["open"] = vi.fn(async () => ({ opened: tru
 describe("getImportHandoffPort", () => {
   it("is the desktop's bridge when present, null in a plain browser", () => {
     const bridge = port();
-    expect(getImportHandoffPort({ tovuImport: bridge } as unknown as Window)).toBe(bridge);
-    expect(getImportHandoffPort({} as Window)).toBeNull();
-    expect(getImportHandoffPort(undefined)).toBeNull();
+    expect(getImportHandoffPort({ targetWindow: { tovuImport: bridge } as unknown as Window })).toBe(bridge);
+    expect(getImportHandoffPort({ targetWindow: {} as Window })).toBeNull();
+    expect(getImportHandoffPort({ targetWindow: undefined })).toBeNull();
   });
 });
 

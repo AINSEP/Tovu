@@ -70,8 +70,7 @@ function unlistedSourceControlProviderInfo(id: AdminSourceControlProviderId): So
  * @complexity O(p + c * p) in the host and saved-connection counts (both small).
  */
 export function sourceControlProviders(
-  descriptors: readonly AdminSourceControlProviderDescriptor[] | undefined,
-  credentials: readonly Pick<AdminSourceControlCredentialSummary, "providerId">[]
+  { descriptors, credentials }: { descriptors: readonly AdminSourceControlProviderDescriptor[] | undefined; credentials: readonly Pick<AdminSourceControlCredentialSummary, "providerId">[] }, _optional = {}
 ): SourceControlProviderInfo[] {
   const providers = (descriptors ?? []).map(sourceControlProviderInfoFromDescriptor);
   for (const credential of credentials) {
@@ -161,7 +160,7 @@ export type SourceControlCredentialSubmitFailure = { kind: "duplicate-label" } |
  * shape every other admin write route in this app uses.
  * @complexity O(1).
  */
-export function classifySourceControlCredentialSubmitError(e: unknown): SourceControlCredentialSubmitFailure {
+export function classifySourceControlCredentialSubmitError({ e }: { e: unknown }, _optional = {}): SourceControlCredentialSubmitFailure {
   if (!(e instanceof ApiError)) return { kind: "generic" };
   const marker = e.code ?? e.message;
   if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };

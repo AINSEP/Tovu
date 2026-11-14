@@ -109,7 +109,7 @@ async function selectInstalledSkill(
 ): Promise<ComposerDiscoveryOutcome> {
   if (deps.skillsAvailable === false) throw new Error("This runtime has no tools. Choose a runtime with tools to use skills.");
   const draft = draftAfterSkillSelection({ draft: deps.readDraft?.() ?? "", source: selection.source });
-  const guidance = await loadSkillDraft(toolId);
+  const guidance = await loadSkillDraft({ toolId });
   const name = label.replace(/ · Skill$/, "");
   deps.addSkill?.({ toolId, name, guidance });
   return { draft };

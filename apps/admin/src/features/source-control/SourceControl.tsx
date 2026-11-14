@@ -55,7 +55,7 @@ type SourceControlTabId = (typeof SOURCE_CONTROL_TAB_IDS)[number];
  *  Kept as a real function rather than inlined even with one tab today: `Deployment.tsx` started
  *  at five tabs where this guard mattered immediately, and a second real tab landing here later
  *  should not have to reintroduce it. */
-function resolveSourceControlTabId(tabId: string | null | undefined): SourceControlTabId {
+function resolveSourceControlTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): SourceControlTabId {
   return resolveActiveTabId({ tabId: tabId, validIds: SOURCE_CONTROL_TAB_IDS, defaultId: "providers" });
 }
 
@@ -72,7 +72,7 @@ export interface SourceControlProps {
 
 export function SourceControl(props: SourceControlProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveSourceControlTabId(props.tabId);
+  const activeTabId = resolveSourceControlTabId({ tabId: props.tabId });
 
   const tabs: TabBarTab[] = [
     {

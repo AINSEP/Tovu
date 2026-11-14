@@ -26,11 +26,11 @@ export interface SourceControlCredentialsPort {
    *  stored secret untouched — see `use-source-control-credentials.hooks.ts`'s header for why the
    *  form can never send a half-blank one. */
   updateCredential(
-    id: string,
-    input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean }
+    required: { id: string; input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean } },
+    optional?: Record<string, never>
   ): Promise<AdminSourceControlCredentialSummary>;
   /** Idempotent — deleting an id that is already gone still resolves. Not called anywhere on this
    *  page today (there is no delete affordance in the UI — replacing a token PUTs over the existing
    *  row), kept on the port only for parity with `PublishCredentialsPort`'s own shape. */
-  deleteCredential(id: string): Promise<void>;
+  deleteCredential(required: { id: string }, optional?: Record<string, never>): Promise<void>;
 }

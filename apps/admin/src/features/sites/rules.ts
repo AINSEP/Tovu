@@ -31,7 +31,7 @@ export function tokensForCreate(tokens: Readonly<Record<string, string>>): Recor
 
 /** The line under "was created." for tokens given with the create, or `null` when none were.
  *  @complexity O(1). */
-export function createdTokensNoteKey(status: "none" | "saved" | "failed" | undefined): string | null {
+export function createdTokensNoteKey({ status }: { status: "none" | "saved" | "failed" | undefined }, _optional = {}): string | null {
   if (status === "saved") return "will connect when this site first starts.";
   if (status === "failed") return "couldn't be saved. Open the site and ask the assistant to connect it.";
   return null;
@@ -166,7 +166,7 @@ export function activationOutlook(snapshot: AdminSitesSnapshot): ActivationOutlo
  *
  * @complexity Time/space: O(n) in the name's own length, bounded by what a human types.
  */
-export function siteNameErrorKey(raw: string): string | null {
+export function siteNameErrorKey({ raw }: { raw: string }, _optional = {}): string | null {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return "Enter a folder name.";
   if (trimmed.length > MAX_SITE_NAME_LENGTH) return "That name is too long (100 characters maximum).";
@@ -203,7 +203,7 @@ const SITE_WRITE_ERROR_KEYS: ReadonlyMap<string | undefined, string> = new Map([
  *
  * @complexity Time/space: O(1) — one `instanceof` and one map lookup.
  */
-export function siteWriteErrorKey(e: unknown): string | null {
+export function siteWriteErrorKey({ e }: { e: unknown }, _optional = {}): string | null {
   if (!(e instanceof ApiError)) return null;
   return SITE_WRITE_ERROR_KEYS.get(e.code) ?? null;
 }
@@ -252,7 +252,7 @@ export interface SnapshotView {
  *
  * @complexity Dominated by `sitesInDisplayOrder`'s O(n log n); O(1) otherwise.
  */
-export function readSnapshot(snapshot: AdminSitesSnapshot | undefined): SnapshotView {
+export function readSnapshot({ snapshot }: { snapshot: AdminSitesSnapshot | undefined }, _optional = {}): SnapshotView {
   if (snapshot === undefined) return { sites: [], switchingEnabled: false, outlook: { kind: "none" } };
   return {
     sites: sitesInDisplayOrder(snapshot),

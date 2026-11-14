@@ -65,7 +65,7 @@ export interface SiteExportController extends StaticExportSelection {
   revoke: (share: SiteShare) => Promise<void>;
   copiedId: string | null;
   copyLink: (share: SiteShare) => Promise<void>;
-  downloadHref: (share: SiteShare) => string;
+  downloadHref: (required: { share: SiteShare }, optional?: Record<string, never>) => string;
   /** The credential warning a row shows while Download zip and Copy link wait, else null. */
   credentialGate: (share: SiteShare) => CredentialGate | null;
   /** "I understand this export may contain credentials": records consent, then enables the row. */
@@ -174,7 +174,7 @@ export function useSiteExport(
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const refreshShares = () => invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
-  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: error => { setExportFailure(null); setExportError(error); } });
+  const credentials = useShareCredentialGate({ port, t, refresh: refreshShares, onDownloadError: ({ message }, _optional = {}) => { setExportFailure(null); setExportError(message); } });
   const alive = useRef(true);
   useEffect(() => {
     // StrictMode replays setup after cleanup; each setup must mark this mount alive again.
@@ -254,7 +254,7 @@ export function useSiteExport(
     revoke,
     copiedId,
     copyLink,
-    downloadHref: (share) => port.shareDownloadHref({ share }),
+    downloadHref: ({ share }, _optional = {}) => port.shareDownloadHref({ share }),
     credentialGate: credentials.credentialGate,
     acknowledge: credentials.acknowledge,
     download: credentials.download,
@@ -263,7 +263,7 @@ export function useSiteExport(
 }
 
 /** A share link the import route will take: HTTPS, no credentials or fragment. */
-export function validShareLink(link: string): boolean {
+export function validShareLink({ link }: { link: string }, _optional = {}): boolean {
   try {
     const url = new URL(link.trim());
     return url.protocol === "https:" && !url.username && !url.password && !url.hash;
@@ -273,7 +273,7 @@ export function validShareLink(link: string): boolean {
 }
 
 /** A live website address: http(s) only, so the drafted request never carries a script or file URL. */
-export function validWebsiteAddress(address: string): boolean {
+export function validWebsiteAddress({ address }: { address: string }, _optional = {}): boolean {
   try {
     return ["http:", "https:"].includes(new URL(address.trim()).protocol);
   } catch {
@@ -287,11 +287,11 @@ export function validWebsiteAddress(address: string): boolean {
 function prefilledLiveAddress(): string {
   if (typeof window === "undefined") return "";
   const address = new URLSearchParams(window.location.search).get("liveImport") ?? "";
-  return validWebsiteAddress(address) ? address : "";
+  return validWebsiteAddress({ address: address }) ? address : "";
 }
 
 /** The drafted request the "From a live website" option hands to the assistant. */
-export function liveImportPrompt(address: string): string {
+export function liveImportPrompt({ address }: { address: string }, _optional = {}): string {
   return `Import the live website at ${address.trim()} into this site with the site-import agent plugin.`;
 }
 
@@ -301,9 +301,9 @@ export interface SiteImportController {
   imports: SiteImport[] | undefined;
   listError: string | null;
   link: string;
-  setLink: (link: string) => void;
+  setLink: (required: { next: string }, optional?: Record<string, never>) => void;
   file: File | null;
-  chooseFiles: (files: File[]) => void;
+  chooseFiles: (required: { files: File[] }, optional?: Record<string, never>) => void;
   clearFile: () => void;
   canImport: boolean;
   importing: boolean;
@@ -311,7 +311,7 @@ export interface SiteImportController {
   startImport: () => Promise<void>;
   /** The import waiting on the new owner's password, or the one just finished. */
   current: SiteImport | null;
-  resume: (item: SiteImport) => void;
+  resume: (required: { item: SiteImport }, optional?: Record<string, never>) => void;
   password: string;
   setPassword: (password: string) => void;
   confirm: string;
@@ -340,7 +340,7 @@ function passwordProblemFor({ password, confirm, t }: { password: string; confir
 const MAX_IMPORT_ZIP_BYTES = SHARE_LIMITS.maxArchiveBytes;
 
 /** The server's own reason when it answered that import is unavailable here (503), else null. */
-function unavailableReason(error: unknown): string | null {
+function unavailableReason({ error }: { error: unknown }, _optional = {}): string | null {
   return error instanceof ApiError && error.status === 503 && error.message ? error.message : null;
 }
 
@@ -383,15 +383,15 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   const [liveAddress, setLiveAddress] = useState(prefilledLiveAddress);
   const [arrivedForImport] = useState(() => prefilledLiveAddress() !== "");
   // A 503 on the list means import is off on this host: say why once, above the form, not as a list error.
-  const unavailable = unavailableReason(list.error);
+  const unavailable = unavailableReason({ error: list.error });
 
   // A link and a file are two ways to give ONE source; choosing one clears the other.
-  const setLink = (next: string) => {
+  const setLink = ({ next }: { next: string }, _optional = {}) => {
     setLinkState(next);
     if (next) setFile(null);
     setImportError(null);
   };
-  const chooseFiles = (files: File[]) => {
+  const chooseFiles = ({ files }: { files: File[] }, _optional = {}) => {
     const picked = files[0];
     if (!picked) return;
     if (!/\.zip$/i.test(picked.name)) {
@@ -406,7 +406,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
   async function startImport() {
     if (importing) return;
     if (unavailable) return;
-    if (!file && !validShareLink(link)) {
+    if (!file && !validShareLink({ link: link })) {
       setImportError(t("Paste an https:// share link."));
       return;
     }
@@ -467,7 +467,7 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
     importError: importError ?? unavailable,
     startImport,
     current,
-    resume: (item) => {
+    resume: ({ item }, _optional = {}) => {
       setSavedKeysPassword("");
       setPassword("");
       setConfirm("");
@@ -484,9 +484,9 @@ export function useSiteImport({ port, t }: { port: SiteTransferPort; t: Translat
     completeOwner,
     liveAddress,
     setLiveAddress,
-    liveAddressValid: validWebsiteAddress(liveAddress),
+    liveAddressValid: validWebsiteAddress({ address: liveAddress }),
     startLiveImport: () => {
-      if (validWebsiteAddress(liveAddress)) requestAssistantPrompt({ text: liveImportPrompt(liveAddress) });
+      if (validWebsiteAddress({ address: liveAddress })) requestAssistantPrompt({ text: liveImportPrompt({ address: liveAddress }) });
     },
     arrivedForImport,
   };

@@ -107,7 +107,7 @@ export function themeExploreVisibleGroupFiles(
 export interface ThemeExploreFileGroupsController {
   tabs: ThemeExploreFileGroupTab[];
   activeGroup: ThemeFileGroup | null;
-  chooseGroup: (group: ThemeFileGroup) => void;
+  chooseGroup: (required: { group: ThemeFileGroup }, optional?: Record<string, never>) => void;
   /** The active group's chips, already collapsed or not. */
   visibleFiles: ThemeExploreFile[];
   /** The active group's full size, for the "Show all ({count})" label. */
@@ -147,7 +147,7 @@ export function useThemeExploreFileGroups({
   return {
     tabs,
     activeGroup,
-    chooseGroup: (group) => setChoice({ group, forPath: highlightedPath }),
+    chooseGroup: ({ group }, _optional = {}) => setChoice({ group, forPath: highlightedPath }),
     visibleFiles: visible,
     groupCount: groupFiles.length,
     collapsible,

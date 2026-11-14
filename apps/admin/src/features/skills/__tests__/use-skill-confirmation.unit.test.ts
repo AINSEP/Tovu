@@ -13,7 +13,7 @@ it("focuses Cancel, traps Tab, cancels on Escape and returns focus to the opener
   document.body.append(opener, dialog);
   opener.focus();
   const onCancel = vi.fn();
-  const { result, rerender, unmount } = renderHook(({ active }) => useSkillConfirmation(active, onCancel), { initialProps: { active: false } });
+  const { result, rerender, unmount } = renderHook(({ active }) => useSkillConfirmation({ active: active, onCancel: onCancel }), { initialProps: { active: false } });
   result.current.dialogRef.current = dialog;
   rerender({ active: true });
   expect(document.activeElement).toBe(cancel);
@@ -41,7 +41,7 @@ it("keeps focus inside the dialog when the busy cancellation callback changes", 
   document.body.append(dialog);
   const firstCancel = vi.fn();
   const busyCancel = vi.fn();
-  const { result, rerender } = renderHook(({ active, onCancel }) => useSkillConfirmation(active, onCancel), { initialProps: { active: false, onCancel: firstCancel } });
+  const { result, rerender } = renderHook(({ active, onCancel }) => useSkillConfirmation({ active: active, onCancel: onCancel }), { initialProps: { active: false, onCancel: firstCancel } });
   result.current.dialogRef.current = dialog;
   rerender({ active: true, onCancel: firstCancel });
   confirm.focus();

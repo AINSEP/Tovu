@@ -22,11 +22,11 @@ declare global {
 
 /**
  * The hand-off port for the current runtime.
- * @param targetWindow - Injected by tests; a real caller passes `undefined` (same convention as `getFolderDropPort`).
+ * @param required.targetWindow - Injected by tests; a real caller passes `undefined` (same convention as `getFolderDropPort`).
  * @returns The desktop's bridge, or `null` outside the desktop app.
  * @complexity O(1).
  */
-export function getImportHandoffPort(targetWindow: Window | undefined): ImportHandoffPort | null {
+export function getImportHandoffPort({ targetWindow }: { targetWindow: Window | undefined }, _optional = {}): ImportHandoffPort | null {
   if (targetWindow !== undefined) return targetWindow.tovuImport ?? null;
   return typeof window === "undefined" ? null : (window.tovuImport ?? null);
 }

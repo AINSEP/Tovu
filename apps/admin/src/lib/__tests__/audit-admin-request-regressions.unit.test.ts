@@ -35,7 +35,7 @@ it("skills and preview errors retain the shared ApiError contract", async () => 
 it("skills writes preserve the encoded route, JSON body and admin cookies", async () => {
   const sent: { url: string; init?: RequestInit }[] = [];
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => { sent.push({ url, init }); return new Response("{}"); });
-  await enableSkill("skill/a", false);
+  await enableSkill({ toolId: "skill/a", enabled: false });
   expect(sent[0].url).toBe("/api/admin/v1/workspaces/workspace-local/skills/skill%2Fa");
   expect(sent[0].init).toMatchObject({ method: "PATCH", credentials: "same-origin", body: '{"enabled":false}' });
 });
@@ -50,5 +50,5 @@ it.each([
     expect(init).toMatchObject({ method: "GET", credentials: "same-origin" });
     return Response.json(response);
   });
-  await expect(loadSkillDraft("skill/incident")).rejects.toThrow("Could not load this skill. Try again.");
+  await expect(loadSkillDraft({ toolId: "skill/incident" })).rejects.toThrow("Could not load this skill. Try again.");
 });

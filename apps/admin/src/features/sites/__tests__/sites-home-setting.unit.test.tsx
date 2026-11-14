@@ -158,7 +158,7 @@ it("passes typed edits to the home, extra-folder and database setters", async ()
   const user = userEvent.setup();
   const calls: string[] = [];
   renderWith(fakeSettings({ home: "", rootList: [""], setHome: (value) => { calls.push(`home:${String(value)}`); },
-    setRootAt: (index, value) => { calls.push(`root:${index}:${value}`); }, setDatabases: (value) => { calls.push(`db:${String(value)}`); } }));
+    setRootAt: ({ index, value }) => { calls.push(`root:${index}:${value}`); }, setDatabases: (value) => { calls.push(`db:${String(value)}`); } }));
   await user.type(screen.getByLabelText("New websites folder"), "x");
   await user.type(screen.getByLabelText("Extra folder 1"), "y");
   await user.selectOptions(screen.getByLabelText("Database location"), "appData");
@@ -187,8 +187,8 @@ it("puts Sites settings beside the tab row and renders the dialog as a labelled 
   const user = userEvent.setup();
   const calls: string[] = [];
   const settings = fakeSettings({ home: "/Users/owner/Documents/Tovu/sites", setHome: (value) => { calls.push(`home:${String(value)}`); },
-    rootList: ["/extra/one"], setRootAt: (index, value) => { calls.push(`root:${index}:${value}`); },
-    addRoot: () => { calls.push("add"); }, removeRoot: (index) => { calls.push(`remove:${index}`); }, save: async () => { calls.push("save"); } });
+    rootList: ["/extra/one"], setRootAt: ({ index, value }) => { calls.push(`root:${index}:${value}`); },
+    addRoot: () => { calls.push("add"); }, removeRoot: ({ index }) => { calls.push(`remove:${index}`); }, save: async () => { calls.push("save"); } });
   render(<SitesHomeSetting home="/home" tabs={<div role="tablist" aria-label="Sites tabs" />} useSettings={() => settings} />);
   const row = screen.getByRole("tablist", { name: "Sites tabs" }).parentElement!;
   expect(within(row).getByRole("button", { name: "Sites settings" })).toBeTruthy();

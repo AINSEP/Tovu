@@ -28,7 +28,7 @@ export interface ThemeDeleteRequestController {
  * @complexity O(1) per request; at most one dialog open (a second request denies the first).
  */
 export function useThemeDeleteRequest(
-  required: { trash: (themeId: string) => Promise<void>; t: Translate },
+  required: { trash: (required: { themeId: string }, optional?: Record<string, never>) => Promise<void>; t: Translate },
   optional: { useConfirmation?: typeof useConfirmRequest } = {}
 ): ThemeDeleteRequestController {
   const { trash, t } = required;
@@ -50,7 +50,7 @@ export function useThemeDeleteRequest(
         tone: "danger",
       },
     });
-    if (accepted) await trash(themeId);
+    if (accepted) await trash({ themeId });
   }
 
   return { dialog: approval.dialog, requestDelete, blockedNotice, dismissBlockedNotice: () => setBlockedNotice(null) };

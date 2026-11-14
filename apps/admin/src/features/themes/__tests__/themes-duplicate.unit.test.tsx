@@ -28,7 +28,7 @@ describe("useThemes — duplicate", () => {
       await result.current.duplicate?.({ themeId: "basic" });
     });
 
-    expect(portSpy).toHaveBeenCalledWith("basic", "Basic copy");
+    expect(portSpy).toHaveBeenCalledWith({ themeId: "basic", newName: "Basic copy" });
     expect(result.current.themes).toEqual(["basic", "basic-copy"]);
     expect(result.current.themeNames).toMatchObject({ "basic-copy": "Basic copy" });
     expect(result.current.duplicateNotice).toBe('Duplicated as "Basic copy"');
@@ -47,7 +47,7 @@ describe("useThemes — duplicate", () => {
     await act(async () => {
       await result.current.duplicate?.({ themeId: "quartz" });
     });
-    expect(portSpy).toHaveBeenCalledWith("quartz", "quartz copy");
+    expect(portSpy).toHaveBeenCalledWith({ themeId: "quartz", newName: "quartz copy" });
   });
 
   it("surfaces a refusal as the screen error and clears the busy state", async () => {

@@ -20,7 +20,7 @@ describe("Sites sidebar label", () => {
   function mount({ name = "plannie", locale = "en", widths = { scrollWidth: 80, clientWidth: 80 }, collapsed = false } = {}) {
     return render(<FetchQueryProvider><Sidebar activeId="sites" railDefaultCollapsed={collapsed} railStorageKey={`sites-nav-test-${collapsed}`}>
       <ExistingTooltips />
-      <SitesSidebarNav groups={groups} locale={locale} options={{ port: createFakeSitesPort(snapshot(name)), measure: () => widths }} />
+      <SitesSidebarNav groups={groups} locale={locale} options={{ port: createFakeSitesPort({ snapshot: snapshot(name) }), measure: () => widths }} />
     </Sidebar></FetchQueryProvider>);
   }
 
@@ -84,7 +84,7 @@ describe("Sites sidebar label", () => {
   it("keeps Sites plain when there is no active name", async () => {
     let settle!: (value: AdminSitesSnapshot) => void;
     const response = new Promise<AdminSitesSnapshot>((resolve) => { settle = resolve; });
-    const port = createFakeSitesPort(() => response);
+    const port = createFakeSitesPort({ snapshot: () => response });
     render(<FetchQueryProvider><Sidebar activeId="sites" railStorageKey="sites-empty-name-test">
       <ExistingTooltips />
       <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
@@ -104,7 +104,7 @@ describe("Sites sidebar label", () => {
   it("shares the Sites screen snapshot cache and follows site refresh events", async () => {
     let current = snapshot();
     let reads = 0;
-    const port = createFakeSitesPort(async () => { reads += 1; return current; });
+    const port = createFakeSitesPort({ snapshot: async () => { reads += 1; return current; } });
     function SitesScreen() { useSites(port, (key) => key); return null; }
     render(<FetchQueryProvider><Sidebar activeId="sites" railStorageKey="sites-cache-test">
       <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
@@ -123,7 +123,7 @@ describe("Sites sidebar label", () => {
   });
 
   it("keeps exactly one split label, without decorating the row's className, across active-state changes", async () => {
-    const port = createFakeSitesPort(snapshot());
+    const port = createFakeSitesPort({ snapshot: snapshot() });
     const tree = (activeId: string) => <FetchQueryProvider><Sidebar activeId={activeId} railStorageKey="sites-active-flip-test">
       <SitesSidebarNav groups={groups} locale="en" options={{ port }} />
     </Sidebar></FetchQueryProvider>;

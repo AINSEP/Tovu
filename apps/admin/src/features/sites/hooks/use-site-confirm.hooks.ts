@@ -24,7 +24,7 @@ const SITE_CONFIRM_PRESENTATION: Record<ConfirmableSiteAction, { titleKey: strin
 export function useSiteConfirm({ t }: { t: Translate }, _optional = {}) {
   const [request, setRequest] = useState<{ message: string; action: ConfirmableSiteAction } | null>(null);
   const resolver = useRef<((ok: boolean) => void) | null>(null);
-  const confirm = useCallback((message: string, { action }: { action: ConfirmableSiteAction }) => {
+  const confirm = useCallback(({ message, action }: { message: string; action: ConfirmableSiteAction }, _optional = {}) => {
     resolver.current?.(false);
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve;

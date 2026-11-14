@@ -8,7 +8,7 @@ import type { SiteImport, SiteImportState, SiteShare } from "./hooks/site-transf
 
 /** An archive size in B / KB / MB / GB, one decimal from MB up. `—` for a missing or bad value.
  *  @complexity O(1). */
-export function formatTransferBytes(bytes: number | null | undefined): string {
+export function formatTransferBytes({ bytes }: { bytes: number | null | undefined }, _optional = {}): string {
   if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 ** 2) return `${Math.round(bytes / 1024)} KB`;
@@ -41,7 +41,7 @@ export function importStateView(state: SiteImportState, t: Translate): { label: 
 
 /** A link shown short: host and path, no scheme or query, so a table cell stays readable. The full
  *  link is still what Copy link copies. */
-export function shortLink(link: string): string {
+export function shortLink({ link }: { link: string }, _optional = {}): string {
   try {
     const url = new URL(link);
     return `${url.host}${url.pathname === "/" ? "" : url.pathname}`;
@@ -52,7 +52,7 @@ export function shortLink(link: string): string {
 
 /** Where an import came from: the share link's host, or "Uploaded zip". Never a server path. */
 export function importSourceLabel(source: SiteImport["source"], t: Translate): string {
-  return "url" in source ? shortLink(source.url) : t("Uploaded zip");
+  return "url" in source ? shortLink({ link: source.url }) : t("Uploaded zip");
 }
 
 /** The one ⓘ beside "Import Site"'s heading: a line per way in (the `groupOptionTooltips` idiom). */

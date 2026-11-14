@@ -82,8 +82,7 @@ export interface ThemeExploreSelectionResolution {
  * @complexity O(n) in `files.length` — up to three independent scans, no nesting.
  */
 export function resolveThemeExploreSelectionValue(
-  files: readonly ThemeExploreSelectableFile[],
-  value: string
+  { files, value }: { files: readonly ThemeExploreSelectableFile[]; value: string }, _optional = {}
 ): string | null {
   const exact = files.find((f) => f.path === value);
   if (exact) return exact.path;
@@ -113,7 +112,7 @@ export function resolveRequestedThemeExploreSelection(
 ): ThemeExploreSelectionResolution {
   for (const value of [fileId, pageId]) {
     if (!value) continue;
-    const resolved = resolveThemeExploreSelectionValue(files, value);
+    const resolved = resolveThemeExploreSelectionValue({ files: files, value: value });
     if (resolved) return { path: resolved, missed: null };
   }
   return { path: null, missed: fileId || pageId || null };

@@ -26,7 +26,7 @@ const REFUSED = "Couldn't open Tovu's Import tab: {reason}";
  */
 export function useDesktopImport(
   { t }: { t: Translate },
-  { port = getImportHandoffPort(undefined) }: { port?: ImportHandoffPort | null } = {},
+  { port = getImportHandoffPort({ targetWindow: undefined }) }: { port?: ImportHandoffPort | null } = {},
 ): DesktopImportController {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);

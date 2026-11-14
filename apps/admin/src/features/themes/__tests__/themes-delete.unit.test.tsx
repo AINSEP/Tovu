@@ -173,7 +173,7 @@ describe("useThemeDeleteRequest", () => {
       result.current.dialog.onConfirm();
       await pending;
     });
-    expect(trash).toHaveBeenCalledWith("plannie-copy");
+    expect(trash).toHaveBeenCalledWith({ themeId: "plannie-copy" });
     expect(result.current.dialog.open).toBe(false);
   });
 

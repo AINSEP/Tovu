@@ -27,12 +27,12 @@ import { useEffect, useRef } from "react";
  * clears it back to `null` on the next edit, so two creates in a row are two distinct transitions
  * (`null` -> `a`, `null` -> `b`) rather than one.
  *
- * @param createdName The controller's `createdName` — the site the last successful create made.
- * @param returnToList Navigates to the "All sites" tab. Must be referentially stable (a
+ * @param required.createdName The controller's `createdName` — the site the last successful create made.
+ * @param required.returnToList Navigates to the "All sites" tab. Must be referentially stable (a
  *   module-level function in `Sites.tsx`), or the effect re-runs every render.
  * @complexity Time/space: O(1).
  */
-export function useReturnToSiteListOnCreate(createdName: string | null, returnToList: () => void): void {
+export function useReturnToSiteListOnCreate({ createdName, returnToList }: { createdName: string | null; returnToList: () => void }, _optional = {}): void {
   const lastSeen = useRef(createdName);
   useEffect(() => {
     const previous = lastSeen.current;

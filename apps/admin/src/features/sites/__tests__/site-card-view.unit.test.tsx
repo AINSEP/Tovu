@@ -203,12 +203,12 @@ describe("useSiteConfirm", () => {
     const { result } = renderHook(() => useSiteConfirm({ t }));
     expect(result.current.open).toBe(false);
     let answer!: Promise<boolean>;
-    act(() => { answer = result.current.confirm("Move this site to Trash? You can restore it later.", { action: "trash" }); });
+    act(() => { answer = result.current.confirm({ message: "Move this site to Trash? You can restore it later.", action: "trash" }); });
     expect(result.current).toMatchObject({ open: true, title: "Move site to Trash?", confirmLabel: "Move to Trash", tone: "danger", body: "Move this site to Trash? You can restore it later." });
     act(() => result.current.onConfirm());
     await expect(answer).resolves.toBe(true);
     expect(result.current.open).toBe(false);
-    act(() => { answer = result.current.confirm("Switch now? Unsaved changes will be lost.", { action: "switch" }); });
+    act(() => { answer = result.current.confirm({ message: "Switch now? Unsaved changes will be lost.", action: "switch" }); });
     expect(result.current).toMatchObject({ title: "Switch to this site now?", confirmLabel: "Switch now", tone: "warning" });
     act(() => result.current.onCancel());
     await expect(answer).resolves.toBe(false);
@@ -217,8 +217,8 @@ describe("useSiteConfirm", () => {
   it("a second request cancels the first instead of leaving it pending", async () => {
     const { result } = renderHook(() => useSiteConfirm({ t }));
     let first!: Promise<boolean>, second!: Promise<boolean>;
-    act(() => { first = result.current.confirm("one", { action: "trash" }); });
-    act(() => { second = result.current.confirm("two", { action: "delete" }); });
+    act(() => { first = result.current.confirm({ message: "one", action: "trash" }); });
+    act(() => { second = result.current.confirm({ message: "two", action: "delete" }); });
     await expect(first).resolves.toBe(false);
     expect(result.current).toMatchObject({ body: "two", title: "Delete site permanently?", confirmLabel: "Delete permanently" });
     act(() => result.current.onConfirm());
@@ -231,7 +231,7 @@ describe("LocalSiteConfirmDialog", () => {
     const dialog = useSiteConfirm({ t });
     const [answer, setAnswer] = useState("none");
     return <>
-      <button type="button" onClick={() => void dialog.confirm("Move this site to Trash? You can restore it later.", { action: "trash" }).then((ok) => setAnswer(String(ok)))}>Ask</button>
+      <button type="button" onClick={() => void dialog.confirm({ message: "Move this site to Trash? You can restore it later.", action: "trash" }).then((ok) => setAnswer(String(ok)))}>Ask</button>
       <p>answer:{answer}</p>
       <LocalSiteConfirmDialog dialog={dialog} />
     </>;

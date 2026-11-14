@@ -85,7 +85,7 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
     await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
     if (mounted.current) tabs.onShowSkills();
   }, [loader, tabs.onShowSkills]);
-  const install = useSkillInstall(onInstalled);
+  const install = useSkillInstall({}, { onInstalled });
   useEffect(() => {
     mounted.current = true;
     const refresh = () => void reload();
@@ -96,7 +96,7 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
     };
   }, [reload]);
 
-  async function change(work: () => Promise<unknown>) {
+  async function change({ work }: { work: () => Promise<unknown> }, _optional = {}) {
     setError(null);
     setBusy(true);
     try {
@@ -114,9 +114,12 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
   }
 
   const onCancelRemove = useCallback(() => { if (!busy) setRemoving(null); }, [busy]);
-  const confirmation = useSkillConfirmation(removing !== null, onCancelRemove);
+  const confirmation = useSkillConfirmation({ active: removing !== null, onCancel: onCancelRemove });
   function onConfirmRemove() {
-    if (removing) void change(() => port.removeSkill(removing.toolId));
+    if (removing) {
+      const toolId = removing.toolId;
+      void change({ work: () => port.removeSkill({ toolId }) });
+    }
   }
   function onSubmitGithub(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,7 +130,7 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
     void install.proposeFiles(Array.from(event.target.files ?? []));
     event.target.value = "";
   }
-  function toggleExpanded(id: string) {
+  function toggleExpanded({ id }: { id: string }, _optional = {}) {
     setExpandedIds(previous => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -141,8 +144,8 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
     shortCommit: skill.source === "uploaded" ? undefined : skill.source.commit.slice(0, 7),
     expanded: expandedIds.has(skill.toolId),
     detailId: `skill-detail-${encodeURIComponent(skill.toolId)}`,
-    onToggleExpanded: () => toggleExpanded(skill.toolId),
-    onToggleEnabled: () => { void change(() => port.enableSkill(skill.toolId, !skill.enabled)); },
+    onToggleExpanded: () => toggleExpanded({ id: skill.toolId }),
+    onToggleEnabled: () => { void change({ work: () => port.enableSkill({ toolId: skill.toolId, enabled: !skill.enabled }) }); },
     onRemove: () => setRemoving(skill),
     onInspect: () => setInspecting(skill),
   }));

@@ -113,13 +113,13 @@ describe("useThemes — activate race safety", () => {
     > = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     const persistTheme = port.setActiveTheme;
-    const setActiveTheme = vi.fn((activeThemeId: string) => {
+    const setActiveTheme = vi.fn(({ activeThemeId }: { activeThemeId: string }) => {
       let resolve!: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void;
       const promise = new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((r) => {
         resolve = r;
       });
       deferred[activeThemeId] = { promise, resolve };
-      return promise.then(async value => { await persistTheme(activeThemeId); return value; });
+      return promise.then(async value => { await persistTheme({ activeThemeId: activeThemeId }); return value; });
     });
     port.setActiveTheme = setActiveTheme;
 
@@ -136,7 +136,7 @@ describe("useThemes — activate race safety", () => {
       void result.current.activate({ themeId: "slate" });
     });
     await waitFor(() => expect(setActiveTheme).toHaveBeenCalledTimes(1), { timeout: 5000 });
-    expect(setActiveTheme).toHaveBeenCalledWith("quartz");
+    expect(setActiveTheme).toHaveBeenCalledWith({ activeThemeId: "quartz" });
 
     // quartz (clicked first) resolves — but a newer activate (slate) already superseded it before
     // its result ever lands, so it must not paint, and slate's queued call now reaches the port.
@@ -171,7 +171,7 @@ describe("useThemes — activate race safety", () => {
     const deferred: Record<string, { resolve: (value: { settings: PresentationSettings; availableThemeIds: string[] }) => void }> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     port.setActiveTheme = vi.fn(
-      (activeThemeId: string) =>
+      ({ activeThemeId }: { activeThemeId: string }) =>
         new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
           deferred[activeThemeId] = { resolve };
         })
@@ -211,12 +211,12 @@ describe("useThemes — activate race safety", () => {
     const promises: Record<string, Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>> = {};
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     const persistTheme = port.setActiveTheme;
-    port.setActiveTheme = vi.fn((activeThemeId: string) => {
+    port.setActiveTheme = vi.fn(({ activeThemeId }: { activeThemeId: string }) => {
       const promise = new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve, reject) => {
         deferred[activeThemeId] = { reject, resolveOk: resolve };
       });
       promises[activeThemeId] = promise;
-      return promise.then(async value => { await persistTheme(activeThemeId); return value; });
+      return promise.then(async value => { await persistTheme({ activeThemeId: activeThemeId }); return value; });
     });
 
     const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
@@ -267,13 +267,13 @@ describe("useThemes — two activations back to back persist the theme the scree
     const calls: string[] = [];
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz", "slate"] });
     const persistTheme = port.setActiveTheme;
-    port.setActiveTheme = vi.fn((themeId: string) => {
+    port.setActiveTheme = vi.fn(({ activeThemeId: themeId }: { activeThemeId: string }) => {
       calls.push(themeId);
       return new Promise<{ settings: PresentationSettings; availableThemeIds: string[] }>((resolve) => {
         inFlight += 1;
         maxInFlight = Math.max(maxInFlight, inFlight);
         pending.push(() => {
-          void persistTheme(themeId);
+          void persistTheme({ activeThemeId: themeId });
           persisted = themeId;
           inFlight -= 1;
           resolve({ settings: settingsFor(themeId), availableThemeIds: ["basic", "quartz", "slate"] });

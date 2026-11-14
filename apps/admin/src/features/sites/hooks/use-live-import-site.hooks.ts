@@ -45,7 +45,7 @@ export function liveImportAdminUrl({ adminUrl, address }: { adminUrl: string; ad
   return url.toString();
 }
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = ({ ms }: { ms: number }, _optional = {}) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** A site is ready for import only when it is running and has an admin address. @complexity O(1). */
 function hasRunningAdmin({ state }: { state: AdminLocalSiteState | undefined }, _optional = {}): boolean {
@@ -58,13 +58,13 @@ function hasRunningAdmin({ state }: { state: AdminLocalSiteState | undefined }, 
  * @complexity O(attempts) list reads.
  */
 async function startAndWait(
-  { port, name, wait, attempts }: { port: SitesPort; name: string; wait: (ms: number) => Promise<void>; attempts: number },
+  { port, name, wait, attempts }: { port: SitesPort; name: string; wait: (required: { ms: number }, optional?: Record<string, never>) => Promise<void>; attempts: number },
   _optional = {},
 ): Promise<string | null> {
   let state = (await port.manageLocalSite?.({ name, action: "start", confirmed: true })) as AdminLocalSiteState | undefined;
   for (let tries = 0; !hasRunningAdmin({ state }); tries += 1) {
     if (tries >= attempts || state?.status === "crashed") return null;
-    await wait(1000);
+    await wait({ ms: 1000 });
     state = (await port.listSites()).localSites?.find((site) => site.name === name);
   }
   return state?.adminUrl ?? null;
@@ -77,7 +77,7 @@ async function startAndWait(
  */
 export function useLiveImportSite(
   { port, t }: { port: SitesPort; t: Translate },
-  { wait = sleep, attempts = 120 }: { wait?: (ms: number) => Promise<void>; attempts?: number } = {},
+  { wait = sleep, attempts = 120 }: { wait?: (required: { ms: number }, optional?: Record<string, never>) => Promise<void>; attempts?: number } = {},
 ): LiveImportSiteController {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +85,7 @@ export function useLiveImportSite(
   const busy = useRef(false);
 
   const start = useCallback(async (address: string) => {
-    if (busy.current || !validWebsiteAddress(address)) return;
+    if (busy.current || !validWebsiteAddress({ address: address })) return;
     busy.current = true;
     setCreating(true);
     setError(null);
@@ -94,10 +94,10 @@ export function useLiveImportSite(
       const taken = (await port.listSites()).sites.map((site) => site.name);
       made = (await port.createSite({ name: liveImportSiteName({ address, taken }) })).site.name;
       const adminUrl = await startAndWait({ port, name: made, wait, attempts });
-      if (adminUrl) port.openSite?.(liveImportAdminUrl({ adminUrl, address }));
+      if (adminUrl) port.openSite?.({ url: liveImportAdminUrl({ adminUrl, address }) });
       else setError(interpolate({ template: t(NOT_STARTED), vars: { name: made } }));
     } catch (failure) {
-      const key = siteWriteErrorKey(failure);
+      const key = siteWriteErrorKey({ e: failure });
       const reason = key ? t(key) : describeApiError({ e: failure instanceof Error ? failure : new Error("Request failed"), fallback: t("Couldn't make the new site.") });
       setError(made === null ? reason : `${interpolate({ template: t(NOT_STARTED), vars: { name: made } })} ${reason}`);
     } finally {

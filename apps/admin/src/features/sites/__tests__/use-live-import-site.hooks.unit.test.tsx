@@ -22,7 +22,7 @@ function port(overrides: Partial<SitesPort> = {}): SitesPort & { opened: string[
   const opened: string[] = [];
   return {
     opened,
-    openSite: (url) => { opened.push(url); },
+    openSite: ({ url }) => { opened.push(url); },
     listSites: async () => snapshot(["tovu-dev"]),
     createSite: async ({ name }) => ({ site: { name, dir: `/sites/${name}`, siteId: "s-1" } }),
     manageLocalSite: async ({ name }) => local(name, { status: "running" }),

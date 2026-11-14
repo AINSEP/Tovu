@@ -9,7 +9,7 @@ import { skillFailure } from "./skill-failure";
 
 interface SkillFilesDependencies {
   readonly toolId: string | null;
-  readonly read: (toolId: string) => Promise<SkillFiles>;
+  readonly read: (required: { toolId: string }, optional?: Record<string, never>) => Promise<SkillFiles>;
   readonly t: Translate;
 }
 
@@ -25,7 +25,7 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   const [selection, setSelection] = useState<{ toolId: string | null; path: string } | null>(null);
   const queryFetch = useQueryFetchCallback(async () => {
     if (toolId === null) throw new Error("skill files have no selected skill id");
-    try { return await read(toolId); }
+    try { return await read({ toolId }); }
     catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skill files."); }
   }, [read, toolId]);
   const query = useFetchQuery({ key: ["skills", "files", toolId ?? ""], fetch: queryFetch }, { enabled: toolId !== null, staleTime: 0 });
@@ -42,20 +42,20 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
   return {
     ...packageFilesViewState({ read: loaded, selectedPath: validPath, translate: skillCopy }),
     failure,
-    selectFile: (path: string) => setSelection({ toolId, path }),
+    selectFile: ({ path }: { path: string }, _optional = {}) => setSelection({ toolId, path }),
     t: skillCopy,
   };
 }
 
 /** The shared modal accepts these props directly; no Skills-specific modal component needed. */
-export function useSkillFilesModal(skill: InstalledSkill | null, onClose: () => void, { t = identity }: { t?: Translate } = {}): PackageFilesModalProps | null {
+export function useSkillFilesModal({ skill, onClose }: { skill: InstalledSkill | null; onClose: () => void }, { t = identity }: { t?: Translate } = {}): PackageFilesModalProps | null {
   const files = useSkillFiles({ toolId: skill?.toolId ?? null, read: listSkillFiles, t });
   if (!skill) return null;
   return {
     title: t("{name} skill files").replace("{name}", () => skill.name),
     subtitle: t("Read-only view of this skill's files; nothing runs from this screen."),
     headerExtras: files.failure ? createElement(ErrorNotice, { failure: files.failure, t }) : undefined,
-    files: files.files, selectedFile: files.selectedFile, onSelectFile: files.selectFile,
+    files: files.files, selectedFile: files.selectedFile, onSelectFile: (path) => files.selectFile({ path }),
     status: files.status, listNotice: files.listNotice,
     handlePrefix: "skill-file", t: files.t, onClose,
   };

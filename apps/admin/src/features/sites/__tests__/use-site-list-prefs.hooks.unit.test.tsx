@@ -28,7 +28,7 @@ describe("useSiteListPrefs", () => {
   it("applies a change at once and saves each one in order, the second waiting for the first", async () => {
     const first = deferred();
     const saved: string[] = [];
-    const save = vi.fn(async (next: { sort: string }) => { if (saved.length === 0) { saved.push("first-started"); await first.promise; } saved.push(next.sort); });
+    const save = vi.fn(async ({ next }: { next: { sort: string } }) => { if (saved.length === 0) { saved.push("first-started"); await first.promise; } saved.push(next.sort); });
     const { result } = await ready({ load: async () => undefined, save });
     act(() => result.current.onPrefsChange({ ...DEFAULT_SITE_LIST_PREFS, sort: "oldest" }));
     act(() => result.current.onPrefsChange({ ...DEFAULT_SITE_LIST_PREFS, sort: "name" }));

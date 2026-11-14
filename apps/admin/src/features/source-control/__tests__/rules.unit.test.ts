@@ -100,7 +100,7 @@ describe("sourceControlProviderInfoFromDescriptor", () => {
 
 describe("sourceControlProviders (IRON RULE: a saved connection never drops off the page)", () => {
   it("lists the listed hosts in the server's order", () => {
-    expect(sourceControlProviders(SOURCE_CONTROL_PROVIDER_DESCRIPTORS, []).map((p) => [p.id, p.listed])).toEqual([
+    expect(sourceControlProviders({ descriptors: SOURCE_CONTROL_PROVIDER_DESCRIPTORS, credentials: [] }).map((p) => [p.id, p.listed])).toEqual([
       ["github", true],
       ["forge", true],
     ]);
@@ -108,7 +108,7 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
 
   it("appends one bare unlisted entry per saved connection whose host is not listed, named by its id", () => {
     const rows = [credential({ id: "a", providerId: "gitlab" }), credential({ id: "b", providerId: "gitlab" }), credential({ id: "c", providerId: "github" })];
-    const providers = sourceControlProviders([GITHUB_PROVIDER], rows);
+    const providers = sourceControlProviders({ descriptors: [GITHUB_PROVIDER], credentials: rows });
     expect(providers.map((p) => [p.id, p.label, p.listed])).toEqual([
       ["github", "GitHub", true],
       ["gitlab", "gitlab", false],
@@ -116,7 +116,7 @@ describe("sourceControlProviders (IRON RULE: a saved connection never drops off 
   });
 
   it("still lists saved connections' hosts while the host list is missing", () => {
-    expect(sourceControlProviders(undefined, [credential({ providerId: "bitbucket" })]).map((p) => p.id)).toEqual(["bitbucket"]);
+    expect(sourceControlProviders({ descriptors: undefined, credentials: [credential({ providerId: "bitbucket" })] }).map((p) => p.id)).toEqual(["bitbucket"]);
   });
 });
 
@@ -171,7 +171,7 @@ describe("sourceControlCredentialRowReadyToSave", () => {
   });
 
   it("is never ready for an unlisted host", () => {
-    const unlisted = sourceControlProviders([], [credential({ providerId: "gitlab" })])[0]!;
+    const unlisted = sourceControlProviders({ descriptors: [], credentials: [credential({ providerId: "gitlab" })] })[0]!;
     expect(sourceControlCredentialRowReadyToSave({ ...blankFields("gitlab"), token: "glpat" }, unlisted)).toBe(false);
   });
 
@@ -209,26 +209,26 @@ describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialFo
 
 describe("classifySourceControlCredentialSubmitError", () => {
   it("classifies a non-ApiError as generic", () => {
-    expect(classifySourceControlCredentialSubmitError(new Error("boom"))).toEqual({ kind: "generic" });
+    expect(classifySourceControlCredentialSubmitError({ e: new Error("boom") })).toEqual({ kind: "generic" });
   });
 
   it("classifies a DUPLICATE_LABEL code as duplicate-label", () => {
     const err = new ApiError({ message: "dup", status: 409 }, { code: "DUPLICATE_LABEL" });
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "duplicate-label" });
   });
 
   it("classifies a VALIDATION code, carrying the body's detail text", () => {
     const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION", body: { detail: "token is required" } });
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "token is required" });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "token is required" });
   });
 
   it("falls back to the message as detail when a VALIDATION error carries no body.detail", () => {
     const err = new ApiError({ message: "bad request", status: 400 }, { code: "VALIDATION" });
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "bad request" });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "validation", detail: "bad request" });
   });
 
   it("classifies any other ApiError as generic", () => {
     const err = new ApiError({ message: "server exploded", status: 500 });
-    expect(classifySourceControlCredentialSubmitError(err)).toEqual({ kind: "generic" });
+    expect(classifySourceControlCredentialSubmitError({ e: err })).toEqual({ kind: "generic" });
   });
 });
