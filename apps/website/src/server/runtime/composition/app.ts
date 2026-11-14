@@ -42,8 +42,7 @@ import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./ag
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../features/entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
@@ -980,10 +979,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
     } }),
     menus: { resolveMenuDoc },
-    collectionList: {
-      parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout,
-      systemContentTypes: SYSTEM_CONTENT_TYPES,
-    },
+    collectionList: widgetCollectionListPort,
     resolveMenuTargetHref: createMenuPageTargetResolver({ postRepo }),
     entryList: entryRepo,
     navMenuReadModel: createNavMenuReadModel({ menuRepo, bindingRepo: navLocationBindingRepo }),

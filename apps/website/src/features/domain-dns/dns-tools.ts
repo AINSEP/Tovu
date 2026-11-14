@@ -87,15 +87,15 @@ export const dnsChangeDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 ]);
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-const optionalInt = (value: unknown, min: number, max: number): boolean => value === undefined || (Number.isInteger(value) && (value as number) >= min && (value as number) <= max);
-const optionalText = (value: unknown, max: number): boolean => value === undefined || (typeof value === "string" && value.length <= max);
-const caaIssuerValid = (issuer: unknown): boolean => typeof issuer === "string" && issuer.length > 0 && issuer.length <= 253;
-const optionalCaa = (value: unknown): boolean => value === undefined || (isObject(value) && caaIssuerValid(value.issuer));
+const optionalInt = ({ value, min, max }: { value: unknown; min: number; max: number }, _options = {}): boolean => value === undefined || (Number.isInteger(value) && (value as number) >= min && (value as number) <= max);
+const optionalText = ({ value, max }: { value: unknown; max: number }, _options = {}): boolean => value === undefined || (typeof value === "string" && value.length <= max);
+const caaIssuerValid = ({ issuer }: { issuer: unknown }, _options = {}): boolean => typeof issuer === "string" && issuer.length > 0 && issuer.length <= 253;
+const optionalCaa = ({ value }: { value: unknown }, _options = {}): boolean => value === undefined || (isObject(value) && caaIssuerValid({ issuer: value.issuer }));
 const RECORD_SHAPE = "each requirement record needs type (A, AAAA, CNAME, TXT, MX, CAA, NS or SRV), name and a value of at most 4096 characters; ttl 60-86400, priority 0-65535 and note up to 200 characters are optional.";
 const REQUIREMENT_SHAPE = "requirements must be 1-10 objects with purpose (site, mail or tls) and 1-50 records; domain, providerId (up to 64 characters) and caa.issuer are optional.";
 const INCLUDE_SHAPE = "include must be [\"mail\"].";
 
-function refuse(prefix: string, message: string): never {
+function refuse({ prefix, message }: { prefix: string; message: string }, _options = {}): never {
   throw new ToolInputError({ message: `${prefix}: ${message}` });
 }
 
@@ -103,12 +103,12 @@ function refuse(prefix: string, message: string): never {
 const RECORD_CHECKS: ReadonlyArray<(raw: Record<string, unknown>) => boolean> = [
   raw => (RECORD_TYPES as readonly unknown[]).includes(raw.type),
   raw => typeof raw.value === "string" && raw.value.length > 0 && raw.value.length <= 4096,
-  raw => optionalInt(raw.ttl, 60, 86400) && optionalInt(raw.priority, 0, 65535),
-  raw => optionalText(raw.note, 200),
+  raw => optionalInt({ value: raw.ttl, min: 60, max: 86400 }) && optionalInt({ value: raw.priority, min: 0, max: 65535 }),
+  raw => optionalText({ value: raw.note, max: 200 }),
 ];
 
-function readRecord(raw: unknown, prefix: string): DomainRecordRequirement {
-  if (!isObject(raw) || !RECORD_CHECKS.every(check => check(raw))) refuse(prefix, RECORD_SHAPE);
+function readRecord({ raw, prefix }: { raw: unknown; prefix: string }, _options = {}): DomainRecordRequirement {
+  if (!isObject(raw) || !RECORD_CHECKS.every(check => check(raw))) refuse({ prefix, message: RECORD_SHAPE });
   const name = readPublicDnsName({ value: raw.name, errorPrefix: prefix });
   const { type, value, ttl, priority, note } = raw as { type: DomainRecordRequirement["type"]; value: string; ttl?: number; priority?: number; note?: string };
   return { type, name, value, ...(ttl === undefined ? {} : { ttl }), ...(priority === undefined ? {} : { priority }), ...(note === undefined ? {} : { note }) };
@@ -117,25 +117,25 @@ function readRecord(raw: unknown, prefix: string): DomainRecordRequirement {
 const REQUIREMENT_CHECKS: ReadonlyArray<(raw: Record<string, unknown>) => boolean> = [
   raw => (PURPOSES as readonly unknown[]).includes(raw.purpose),
   raw => Array.isArray(raw.records) && raw.records.length > 0 && raw.records.length <= 50,
-  raw => optionalText(raw.providerId, 64) && optionalCaa(raw.caa),
+  raw => optionalText({ value: raw.providerId, max: 64 }) && optionalCaa({ value: raw.caa }),
 ];
 
-function readRequirement(raw: unknown, hostname: string, prefix: string): DnsPlanRequirement {
-  if (!isObject(raw) || !REQUIREMENT_CHECKS.every(check => check(raw))) refuse(prefix, REQUIREMENT_SHAPE);
+function readRequirement({ raw, hostname, prefix }: { raw: unknown; hostname: string; prefix: string }, _options = {}): DnsPlanRequirement {
+  if (!isObject(raw) || !REQUIREMENT_CHECKS.every(check => check(raw))) refuse({ prefix, message: REQUIREMENT_SHAPE });
   const domain = raw.domain === undefined ? hostname : readPublicDomain({ value: raw.domain, errorPrefix: prefix });
-  const records = (raw.records as unknown[]).map(record => readRecord(record, prefix));
+  const records = (raw.records as unknown[]).map(record => readRecord({ raw: record, prefix }));
   const purpose = raw.purpose as DnsPlanRequirement["purpose"];
   const caa = raw.caa as { issuer: string } | undefined;
   return { purpose, domain, providerId: (raw.providerId as string | undefined) ?? purpose, records, ...(caa === undefined ? {} : { caa: { issuer: caa.issuer } }) };
 }
 
-function readRequirements(raw: unknown, hostname: string, prefix: string): DnsPlanRequirement[] {
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 10) refuse(prefix, REQUIREMENT_SHAPE);
-  return raw.map(requirement => readRequirement(requirement, hostname, prefix));
+function readRequirements({ raw, hostname, prefix }: { raw: unknown; hostname: string; prefix: string }, _options = {}): DnsPlanRequirement[] {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 10) refuse({ prefix, message: REQUIREMENT_SHAPE });
+  return raw.map(requirement => readRequirement({ raw: requirement, hostname, prefix }));
 }
 
-function readInclude(raw: unknown, prefix: string): DnsRequirementInclude[] {
-  if (!Array.isArray(raw) || raw.length !== 1 || !(INCLUDES as readonly unknown[]).includes(raw[0])) refuse(prefix, INCLUDE_SHAPE);
+function readInclude({ raw, prefix }: { raw: unknown; prefix: string }, _options = {}): DnsRequirementInclude[] {
+  if (!Array.isArray(raw) || raw.length !== 1 || !(INCLUDES as readonly unknown[]).includes(raw[0])) refuse({ prefix, message: INCLUDE_SHAPE });
   return [raw[0] as DnsRequirementInclude];
 }
 
@@ -145,12 +145,12 @@ export function readDnsChangeInput(required: { input: unknown; errorPrefix: stri
   const hostname = readPublicDomain({ value: input.hostname, errorPrefix: required.errorPrefix });
   return {
     hostname,
-    ...(input.requirements === undefined ? {} : { requirements: readRequirements(input.requirements, hostname, required.errorPrefix) }),
-    ...(input.include === undefined ? {} : { include: readInclude(input.include, required.errorPrefix) }),
+    ...(input.requirements === undefined ? {} : { requirements: readRequirements({ raw: input.requirements, hostname, prefix: required.errorPrefix }) }),
+    ...(input.include === undefined ? {} : { include: readInclude({ raw: input.include, prefix: required.errorPrefix }) }),
   };
 }
 
-async function authorizeFor(deps: DnsChangeToolDeps, principalId: string, permission: string): Promise<void> {
+async function authorizeFor({ deps, principalId, permission }: { deps: DnsChangeToolDeps; principalId: string; permission: string }, _options = {}): Promise<void> {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission }, { entityType: "domain-dns" });
 }
 
@@ -180,19 +180,19 @@ export function buildDnsChangeRegistrations(deps: DnsChangeToolDeps): ToolRegist
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "domain-dns", catalogModule: "features/domain-dns/dns-tools.ts", catalog: indexCatalogById({ catalog: dnsChangeAgentToolCatalog }), derivedRisk: dnsChangeDerivedRisk, handlers: {
     dns_plan: async ctx => {
       const input = readDnsChangeInput({ input: ctx.input, errorPrefix: "dns_plan" });
-      await authorizeFor(deps, ctx.principal.id, "deployments.read");
+      await authorizeFor({ deps, principalId: ctx.principal.id, permission: "deployments.read" });
       return planView(await planDomainDns(input, ports));
     },
     dns_instructions: async ctx => {
       const input = readDnsChangeInput({ input: ctx.input, errorPrefix: "dns_instructions" });
-      await authorizeFor(deps, ctx.principal.id, "deployments.read");
+      await authorizeFor({ deps, principalId: ctx.principal.id, permission: "deployments.read" });
       const { planned, instructions } = await domainDnsInstructions(input, ports);
       return { hostname: planned.hostname, zone: instructions.zone, rows: instructions.rows, notes: instructions.notes, blockers: planned.blockers, fingerprint: planned.plan.fingerprint, untrusted: true };
     },
     dns_verify: async ctx => {
       const input = readDnsChangeInput({ input: ctx.input, errorPrefix: "dns_verify" });
-      await authorizeFor(deps, ctx.principal.id, "deployments.publish");
-      if (deps.bindings === undefined) refuse("dns_verify", "this site has no content database to keep the domain's tracking state in.");
+      await authorizeFor({ deps, principalId: ctx.principal.id, permission: "deployments.publish" });
+      if (deps.bindings === undefined) refuse({ prefix: "dns_verify", message: "this site has no content database to keep the domain's tracking state in." });
       const { binding, delegation, verification } = await verifyDomainDns(input, { ...ports, bindings: deps.bindings, now: deps.now });
       return {
         hostname: binding.hostname, zone: binding.zone, status: binding.status, attempt: binding.attempt, startedAt: binding.startedAt, nextCheckAt: binding.nextCheckAt,

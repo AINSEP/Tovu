@@ -74,8 +74,7 @@ import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platfo
 import { createTovuPluginHost } from "./plugin-host.js";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../features/entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
@@ -1719,7 +1718,7 @@ async function composeSiteRouteDeps(
   // hoisting rationale above). The actual `commentsReady` I/O (declareDataModule against the
   // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
   // pure, synchronous, I/O-free wiring only.
-  const entryRepo = new SqliteEntryRepo(kernel);
+  const entryRepo = new SqliteEntryRepo({ store: kernel });
   // Hoisted (2026-09-02 taxonomy render-surface gap fix) so the SAME instance backs both
   // `entryTermRepo` and the new `entryTermReadRepo` field below — one concrete class satisfying two
   // differently-shaped dependency slots, rather than two separate connections to the same table.
@@ -1757,10 +1756,7 @@ async function composeSiteRouteDeps(
       host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
     } }),
     menus: { resolveMenuDoc },
-    collectionList: {
-      parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout,
-      systemContentTypes: SYSTEM_CONTENT_TYPES,
-    },
+    collectionList: widgetCollectionListPort,
     // postRepo is constructed below; defer its capture until an actual widget render.
     resolveMenuTargetHref: (required, optional = {}) => createMenuPageTargetResolver({ postRepo })(required, optional),
     entryList: entryRepo,
@@ -1903,7 +1899,7 @@ async function composeSiteRouteDeps(
   // Held as a local rather than constructed inline, because the OAuth service below must be given
   // the SAME repo instance the routes read through — two instances would refresh a token into one
   // and read it back from the other.
-  const externalMcpServerRepo = new SqliteExternalMcpServerRepo(kernel);
+  const externalMcpServerRepo = new SqliteExternalMcpServerRepo({ store: kernel });
   // Device begin/poll share this root's durable store without opening another database handle.
   // Redirect callbacks carry their own sealed state and only need the same site key.
   const externalMcpOAuthDevices = createSqliteDeviceAuthorizationStore({ db: kernel, workspaceId, clock, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring });

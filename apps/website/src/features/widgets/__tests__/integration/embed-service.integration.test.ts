@@ -557,7 +557,7 @@ test("insertWidgetEmbed into a host whose body is 5000 levels deep saves instead
 test("insertWidgetEmbed rolls back document, version, refs and revision when ref persistence fails", async (t) => {
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
-  const entryRepo = new SqliteEntryRepo(db);
+  const entryRepo = new SqliteEntryRepo({ store: db });
   const contentTypeRepo = new SqliteContentTypeRepo(db);
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: db });
   const memory = makeSharedRepos();

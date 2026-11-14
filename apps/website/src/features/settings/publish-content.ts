@@ -114,7 +114,7 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     permission: "settings.workspace.write",
     // The share image may name a media item.
     dependsOn: ["media"],
-    ports: (deps) => deps.ports["site-setting"],
+    ports: ({ deps }) => deps.ports["site-setting"],
     list: async ({ ports: p, workspaceId }) => {
       const rows = await Promise.all(Object.keys(PUBLISHABLE_SETTINGS).map((id) => findSetting({ ports: p, workspaceId, id })));
       return rows.filter((row): row is SiteSettingRow => row !== null);
@@ -124,7 +124,7 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     include: (row) => !(row.key === OG_IMAGE && pointsAtThisComputer(row.value)),
     fields: { key: "local", label: "provenance", value: "transferred", cleared: "transferred", version: "local" },
     omitWhenAbsent: ["cleared"],
-    references: (entity) => {
+    references: ({ entity }) => {
       // `<media id>:<transform>`; a slug or URL names nothing a scoped publish can carry.
       const ref = entity.id === OG_IMAGE ? entity.state.value : null;
       const mediaId = typeof ref === "string" ? ref.split(":")[0] : "";

@@ -135,7 +135,7 @@ export function sqliteContentSite() {
   const repos = {
     db,
     posts: new SqlitePostRepo({ store: db }),
-    entries: new SqliteEntryRepo(db),
+    entries: new SqliteEntryRepo({ store: db }),
     contentTypes: new InMemoryContentTypeRepo(),
     taxonomies: new SqliteTaxonomyRepo({ db, workspaceId }),
     terms: new SqliteTermRepo({ db, workspaceId }),

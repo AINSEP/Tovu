@@ -1,5 +1,6 @@
 import type { ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord } from "#src/features/content-types/index";
 import type { EntryRecord } from "@jini-ai/cms/entries";
+import type { CollectionListPort } from "@jini-ai/cms/widgets/resolvers";
 import { SYSTEM_CONTENT_TYPES } from "../../contracts/core/system-content-types.js";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
 import type { CollectionListLayout, CollectionListStructuredData } from "./contracts.js";
@@ -118,8 +119,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
  * never rounded up past an authored limit.
  * @complexity O(1) */
 function clampConfigNumber(
-  raw: unknown,
-  bounds: { readonly fallback: number; readonly min: number; readonly max: number },
+  { raw, bounds }: { raw: unknown; bounds: { readonly fallback: number; readonly min: number; readonly max: number } }, _options = {},
 ): number {
   if (typeof raw !== "number" || !Number.isFinite(raw)) {
     return bounds.fallback;
@@ -132,7 +132,7 @@ function clampConfigNumber(
  * unrecognized value is an authoring mistake, not a filtering-safety concern, so it degrades to the
  * default rather than failing the whole marker.
  * @complexity O(1) */
-function parseLayout(raw: unknown): CollectionListLayout {
+function parseLayout({ raw }: { raw: unknown }, _options = {}): CollectionListLayout {
   return isCollectionListLayout(raw) ? raw : DEFAULT_COLLECTION_LIST_LAYOUT;
 }
 
@@ -144,7 +144,7 @@ function parseLayout(raw: unknown): CollectionListLayout {
  * @complexity O(w) where w is the number of authored where-keys; each does one O(f) field lookup
  * against the content type's f fields. w and f are both operator-authored/schema-sized, never
  * user-collection-sized. */
-function parseWhereClauses(rawWhere: unknown, contentType: ContentTypeRecord): SubParseResult<readonly CollectionWhereClause[]> {
+function parseWhereClauses({ rawWhere, contentType }: { rawWhere: unknown; contentType: ContentTypeRecord }, _options = {}): SubParseResult<readonly CollectionWhereClause[]> {
   if (rawWhere === undefined || rawWhere === null) {
     return { ok: true, value: [] };
   }
@@ -174,8 +174,7 @@ function parseWhereClauses(rawWhere: unknown, contentType: ContentTypeRecord): S
  * @complexity O(f) — one field-name lookup against the content type's f declared fields in the
  * field-reference branch; the keyword branches are O(1). */
 function parseSortSpec(
-  spec: string,
-  contentType: ContentTypeRecord,
+  { spec, contentType }: { spec: string; contentType: ContentTypeRecord }, _options = {},
 ): SubParseResult<{ readonly by: CollectionSortBy; readonly dir: "asc" | "desc" }> {
   switch (spec) {
     case "newest":
@@ -215,7 +214,7 @@ function parseConfiguredSort(
   options: Pick<ParseCollectionListConfigOptions, "defaultSort"> = {},
 ): SubParseResult<CollectionListQuery["sort"]> {
   const spec = typeof raw.sort === "string" && raw.sort.length > 0 ? raw.sort : options.defaultSort ?? DEFAULT_COLLECTION_LIST_SORT;
-  return parseSortSpec(spec, contentType);
+  return parseSortSpec({ spec, contentType });
 }
 
 /** Resolves which fields a card/list item displays. An authored `fields` array (of field names)
@@ -226,7 +225,7 @@ function parseConfiguredSort(
  * @complexity O(k * f) for an authored list of k names against f declared fields; O(f) for the
  * default path. Both k and f are schema-sized (a content type's field count), never
  * user-collection-sized. */
-function parseDisplayFields(rawFields: unknown, contentType: ContentTypeRecord): SubParseResult<readonly ContentTypeFieldDef[]> {
+function parseDisplayFields({ rawFields, contentType }: { rawFields: unknown; contentType: ContentTypeRecord }, _options = {}): SubParseResult<readonly ContentTypeFieldDef[]> {
   if (!Array.isArray(rawFields) || !rawFields.every((name) => typeof name === "string")) {
     return {
       ok: true,
@@ -251,9 +250,9 @@ function parseDisplayFields(rawFields: unknown, contentType: ContentTypeRecord):
  * a system or tombstoned content type, or a non-scalar `where` value) so a caller never falls back
  * to an unfiltered query on bad input.
  *
- * @param config - The marker/widget's raw authored config (parsed JSON; validated defensively —
+ * @param required.config - The marker/widget's raw authored config (parsed JSON; validated defensively —
  * a non-object value is treated as `{}`).
- * @param contentType - The already-resolved, already-loaded content type the collection lists
+ * @param required.contentType - The already-resolved, already-loaded content type the collection lists
  * against. This function does no lookup of its own.
  * @param options - `defaultSort`/`limitKey` let the Recent Entries widget share this parser with
  * its own legacy defaults (D7) instead of duplicating the grammar.
@@ -264,8 +263,7 @@ function parseDisplayFields(rawFields: unknown, contentType: ContentTypeRecord):
  * small, operator-authored `where` map.
  */
 export function parseCollectionListConfig(
-  config: unknown,
-  contentType: ContentTypeRecord,
+  { config, contentType }: { config: unknown; contentType: ContentTypeRecord },
   options: ParseCollectionListConfigOptions = {},
 ): ParseCollectionListConfigResult {
   if (SYSTEM_CONTENT_TYPES.includes(contentType.key)) {
@@ -277,7 +275,7 @@ export function parseCollectionListConfig(
 
   const raw = isPlainRecord(config) ? config : {};
 
-  const whereResult = parseWhereClauses(raw.where, contentType);
+  const whereResult = parseWhereClauses({ rawWhere: raw.where, contentType });
   if (!whereResult.ok) {
     return whereResult;
   }
@@ -287,25 +285,25 @@ export function parseCollectionListConfig(
     return sortResult;
   }
 
-  const fieldsResult = parseDisplayFields(raw.fields, contentType);
+  const fieldsResult = parseDisplayFields({ rawFields: raw.fields, contentType });
   if (!fieldsResult.ok) {
     return fieldsResult;
   }
 
   const limitKey = options.limitKey ?? "limit";
-  const limit = clampConfigNumber(raw[limitKey], {
+  const limit = clampConfigNumber({ raw: raw[limitKey], bounds: {
     fallback: DEFAULT_COLLECTION_LIST_LIMIT,
     min: MIN_COLLECTION_LIST_LIMIT,
     max: MAX_COLLECTION_LIST_LIMIT,
-  });
+  } });
 
-  const columns = clampConfigNumber(raw.columns, {
+  const columns = clampConfigNumber({ raw: raw.columns, bounds: {
     fallback: DEFAULT_COLLECTION_LIST_COLUMNS,
     min: MIN_COLLECTION_LIST_COLUMNS,
     max: MAX_COLLECTION_LIST_COLUMNS,
-  });
+  } });
 
-  const layout = parseLayout(raw.layout);
+  const layout = parseLayout({ raw: raw.layout });
   // Same degrade-not-reject rule as layout: an unknown value just emits no structured data.
   const structuredData: Pick<CollectionListDisplay, "structuredData"> = raw.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
 
@@ -328,11 +326,11 @@ export function parseCollectionListConfig(
  * gated G1-G3 slices once those decisions land; this function's signature is the seam they fill,
  * not a placeholder to delete.
  *
- * @param _typeKey - The entry's content-type key. Unused until G1.
- * @param _slug - The entry's slug. Unused until G1.
+ * @param required._typeKey - The entry's content-type key. Unused until G1.
+ * @param required._slug - The entry's slug. Unused until G1.
  * @complexity O(1)
  */
-export function entryPublicHref(_typeKey: string, _slug: string): string | null {
+export function entryPublicHref({ _typeKey, _slug }: { _typeKey: string; _slug: string }, _options = {}): string | null {
   return null;
 }
 
@@ -344,7 +342,7 @@ export function entryPublicHref(_typeKey: string, _slug: string): string | null 
  *
  * @complexity O(n) in the field name's length.
  */
-export function humanizeFieldName(name: string): string {
+export function humanizeFieldName({ name }: { name: string }, _options = {}): string {
   const words = name
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .split(/[_\-\s]+/)
@@ -358,3 +356,12 @@ export function humanizeFieldName(name: string): string {
   const capitalizedFirst = first.charAt(0).toUpperCase() + first.slice(1);
   return rest.length > 0 ? `${capitalizedFirst} ${rest.join(" ")}` : capitalizedFirst;
 }
+
+/** Adapt the collection helpers to the positional port owned by Jini's widget resolvers. */
+export const widgetCollectionListPort: CollectionListPort = {
+  parseCollectionListConfig: (config, contentType, options) => parseCollectionListConfig({ config, contentType }, options),
+  entryPublicHref: (type, slug) => entryPublicHref({ _typeKey: type, _slug: slug }),
+  humanizeFieldName: name => humanizeFieldName({ name }),
+  isCollectionListLayout,
+  systemContentTypes: SYSTEM_CONTENT_TYPES,
+};

@@ -147,7 +147,7 @@ test("recovery restore: plan -> confirm -> execute succeeds end-to-end and recor
     return append(row);
   };
   const migrations = new InMemoryMigrationRunsRepo();
-  migrations.setNonTerminal({ id: "interrupted-memory-migration", status: "DDL_IN_PROGRESS" });
+  migrations.setNonTerminal({ value: { id: "interrupted-memory-migration", status: "DDL_IN_PROGRESS" } });
   const resolved: string[] = [];
   const markResolved = migrations.markResolved.bind(migrations);
   migrations.markResolved = async ({ id }) => {

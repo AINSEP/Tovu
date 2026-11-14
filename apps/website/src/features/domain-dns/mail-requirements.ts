@@ -34,20 +34,20 @@ interface MailPorts {
   mailRequirements?: MailRequirementsPort;
 }
 
-function refuse(prefix: string, message: string): never {
+function refuse({ prefix, message }: { prefix: string; message: string }, _options = {}): never {
   throw new ToolInputError({ message: `${prefix}: ${message}` });
 }
 
 /** Same name, or one inside the other: the hostname's zone can carry the mail domain's records. */
-function related(hostname: string, domain: string): boolean {
+function related({ hostname, domain }: { hostname: string; domain: string }, _options = {}): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`) || domain.endsWith(`.${hostname}`);
 }
 
-const isDmarcRecord = (name: string) => (record: DomainRecordRequirement): boolean =>
+const isDmarcRecord = ({ name }: { name: string }, _options = {}) => (record: DomainRecordRequirement): boolean =>
   record.type === "TXT" && normalizeDnsName({ name: record.name }) === name && DMARC_VALUE.test(record.value.trim());
 
 /** Whether `name` already publishes DMARC: true, false, or `unknown` when it could not be read. */
-async function existingDmarc(name: string, ports: MailPorts): Promise<boolean | "unknown"> {
+async function existingDmarc({ name, ports }: { name: string; ports: MailPorts }, _options = {}): Promise<boolean | "unknown"> {
   const zone = await settlePort({ call: () => ports.provider.findZone(ports.context, { hostname: name }) });
   if (zone.status !== "ok" || zone.value === null) return "unknown";
   const zoneRef = zone.value.ref;
@@ -59,13 +59,13 @@ async function existingDmarc(name: string, ports: MailPorts): Promise<boolean | 
 /** The provider's requirement with DMARC reconciled against what the zone already has. */
 async function withDmarc(mail: DnsPlanRequirement, ports: MailPorts): Promise<DnsPlanRequirement[]> {
   const name = `_dmarc.${mail.domain}`;
-  const existing = await existingDmarc(name, ports);
+  const existing = await existingDmarc({ name, ports });
   if (existing === true) {
     // Never a second DMARC beside the site's own: keep theirs, drop the provider's.
-    const records = mail.records.filter(record => !isDmarcRecord(name)(record));
+    const records = mail.records.filter(record => !isDmarcRecord({ name })(record));
     return records.length > 0 ? [{ ...mail, records }] : [];
   }
-  if (existing === "unknown" || mail.records.some(isDmarcRecord(name))) return [mail];
+  if (existing === "unknown" || mail.records.some(isDmarcRecord({ name }))) return [mail];
   const hint: DnsPlanRequirement = {
     purpose: "mail", domain: mail.domain, providerId: DMARC_HINT_PROVIDER_ID,
     records: [{ type: "TXT", name, value: DMARC_HINT_VALUE, note: "DMARC in monitoring mode; tighten the policy once reports look clean." }],
@@ -84,13 +84,13 @@ export async function withMailRequirements(
   ports: MailPorts,
 ): Promise<DnsPlanRequirement[]> {
   const { hostname, errorPrefix } = required;
-  if (ports.mailRequirements === undefined) refuse(errorPrefix, "this site cannot report its mail provider's DNS records.");
+  if (ports.mailRequirements === undefined) refuse({ prefix: errorPrefix, message: "this site cannot report its mail provider's DNS records." });
   const found = await ports.mailRequirements({ workspaceId: ports.context.workspaceId });
   if (found === null) {
-    refuse(errorPrefix, "no mail DNS records are available: choose a transactional mail provider that verifies sending domains (mail_set_provider), save its key, and set the site's sender address (core.mail.senderEmail).");
+    refuse({ prefix: errorPrefix, message: "no mail DNS records are available: choose a transactional mail provider that verifies sending domains (mail_set_provider), save its key, and set the site's sender address (core.mail.senderEmail)." });
   }
   const domain = normalizeDnsName({ name: found.domain });
-  if (!related(hostname, domain)) refuse(errorPrefix, `the sender domain ${domain} is outside ${hostname}; plan it with hostname ${domain} instead.`);
+  if (!related({ hostname, domain })) refuse({ prefix: errorPrefix, message: `the sender domain ${domain} is outside ${hostname}; plan it with hostname ${domain} instead.` });
   const mail: DnsPlanRequirement = { ...found, domain, records: [...found.records] };
   const refreshed = (requirement: DnsPlanRequirement): boolean => requirement.purpose === "mail"
     && normalizeDnsName({ name: requirement.domain }) === domain && [mail.providerId, DMARC_HINT_PROVIDER_ID].includes(requirement.providerId);

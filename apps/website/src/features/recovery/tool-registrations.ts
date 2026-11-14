@@ -319,7 +319,7 @@ export function buildRecoveryRegistrations(
     // confirm click is the disclosure acknowledgment (CIC U-002).
     [RESTORE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "restored",
-      prepare: async (ctx) => {
+      prepare: async ({ ctx }) => {
         const input = requireInputRecord({ input: ctx.input });
         refuseUnexpectedKeys(input, ["restorePointId"]);
         const restorePointId = requireString({ input: input, key: "restorePointId" });
@@ -340,7 +340,7 @@ export function buildRecoveryRegistrations(
         danger: true,
         confirmLabel: "Replace current data",
       }),
-      run: async (ctx, { restorePointId, plan }, confirmer) => {
+      run: async ({ ctx, prepared: { restorePointId, plan }, confirmer }) => {
         const hooks = restoreHooks(ctx.principal.id, restorePointId);
         const confirmed = await confirmRestore({
           deps: {

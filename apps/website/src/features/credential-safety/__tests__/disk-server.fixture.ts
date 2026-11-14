@@ -20,7 +20,7 @@ const keyring = new InMemoryKeyring();
 const deps: ExternalMcpProbeRouteDeps = {
   workspaceId, clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() },
   authorize: async () => ({ allowed: true, reason: 'matched' }),
-  externalMcpServerRepo: new SqliteExternalMcpServerRepo(db),
+  externalMcpServerRepo: new SqliteExternalMcpServerRepo({ store: db }),
   externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),
   builtInExternalMcpServerIds: [], observability: createNoopObservabilityPort({}),
   siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),

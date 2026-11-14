@@ -77,7 +77,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     coversTables: ["presentation_settings"],
     permission: "theme.set",
     dependsOn: ["theme-files"],
-    ports: (deps) => deps.ports["active-theme"],
+    ports: ({ deps }) => deps.ports["active-theme"],
     list: async ({ ports: p, workspaceId }) => {
       const row = await findActiveTheme({ ports: p, workspaceId, id: ACTIVE_THEME_ID });
       return row ? [row] : [];
@@ -86,7 +86,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     fields: { id: "local", label: "provenance", themeId: "transferred", tree: "provenance", themeName: "local", version: "local" },
     // The dialog names the row "Tovu Theme", not the id `label` still packs (so hashes stay put).
     displayLabel: (row) => row.themeName ?? undefined,
-    references: (entity) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
+    references: ({ entity }) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
     write: async ({ ports, deps, workspaceId, state, principalId }) => {
       const themeId = state.themeId as string;
       const { authorize } = gatewayDeps(deps, "active-theme");

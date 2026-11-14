@@ -101,7 +101,7 @@ export const contributeRedirectPublish = (): PublishContentContributor =>
     entityType: "redirect",
     coversTables: [REDIRECT_TABLES.redirects],
     permission: "admin.redirects.manage",
-    ports: (deps) => deps.ports.redirect,
+    ports: ({ deps }) => deps.ports.redirect,
     list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(withTitle),
     find: ({ ports: p, workspaceId, id }) => findByNaturalKey(p.repo, workspaceId, id),
     idOf: (row) => redirectNaturalKey(row.matchType, row.fromPattern),

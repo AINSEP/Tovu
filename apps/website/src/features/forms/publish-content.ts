@@ -27,7 +27,7 @@ export const contributeFormPublish = (): PublishContentContributor =>
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",
-    ports: (deps) => deps.ports.form,
+    ports: ({ deps }) => deps.ports.form,
     list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(publishableForm),
     find: async ({ ports: p, workspaceId, id: slug }) => {
       const row = await p.repo.findBySlug({ workspaceId, slug });

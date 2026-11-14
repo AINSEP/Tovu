@@ -117,7 +117,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
         entryTermRepo: new SqliteEntryTermRepo({ db: seedDb, workspaceId }),
         taxonomyRevisionRepo: unusedBySeedInspect("taxonomyRevisionRepo"),
         stampWatermark: () => unusedBySeedInspect<{ call: never }>("stampWatermark").call,
-        entryRepo: new SqliteEntryRepo(seedDb),
+        entryRepo: new SqliteEntryRepo({ store: seedDb }),
         entryRefsRepo: unusedBySeedInspect("entryRefsRepo"),
         widgetBindingRepo: unusedBySeedInspect("widgetBindingRepo"),
         // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.

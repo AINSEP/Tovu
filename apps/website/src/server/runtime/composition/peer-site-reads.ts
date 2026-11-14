@@ -268,7 +268,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     taxonomyRepo: new SqliteTaxonomyRepo({ db: kernel, workspaceId }), termRepo: new SqliteTermRepo({ db: kernel, workspaceId }),
     entryTermRepo: new SqliteEntryTermRepo({ db: kernel, workspaceId }), taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId }),
     menuRepo: new SqliteMenuRepo(kernel), navLocationBindingRepo: new SqliteNavLocationBindingRepo(kernel),
-    entryRepo: new SqliteEntryRepo(kernel), contentTypeRepo: new SqliteContentTypeRepo(kernel),
+    entryRepo: new SqliteEntryRepo({ store: kernel }), contentTypeRepo: new SqliteContentTypeRepo(kernel),
     themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
     // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
     presentationRepo: { findByWorkspaceId: presentationRepo.findByWorkspaceId.bind(presentationRepo),

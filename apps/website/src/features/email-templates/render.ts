@@ -74,7 +74,7 @@ export function escapeHtml({ value }: { value: string }, _optional: Record<strin
  * @complexity O(n) in the text length.
  */
 export function fillPlaceholders(
-  { text, values, escape: escapeValue }: { text: string; values: EmailFieldValues; escape: (value: string) => string },
+  { text, values, escape: escapeValue }: { text: string; values: EmailFieldValues; escape: (required: { value: string }) => string },
   _optional: Record<string, never> = {},
 ): FilledText {
   const missing = new Set<string>();
@@ -84,7 +84,7 @@ export function fillPlaceholders(
       return "";
     }
     // Own keys contain strings by contract; the default also makes the indexed read explicit.
-    return escapeValue(values[name] ?? "");
+    return escapeValue({ value: values[name] ?? "" });
   });
   return { text: filled, missingFields: [...missing] };
 }
@@ -236,7 +236,7 @@ export function emailHtmlToText({ html }: { html: string }, _optional: Record<st
 
 /** A subject is one header line: fill raw (it is not HTML) and fold any line break a value carried. */
 function renderSubject({ subject, values }: { subject: string; values: EmailFieldValues }, _options: Record<string, never> = {}): FilledText {
-  const filled = fillPlaceholders({ text: subject, values, escape: (value) => value });
+  const filled = fillPlaceholders({ text: subject, values, escape: ({ value }) => value });
   return { text: filled.text.replace(/[\r\n]+/g, " ").trim(), missingFields: filled.missingFields };
 }
 
@@ -250,7 +250,7 @@ export interface RenderedEmail {
 function renderWith({ html, values }: { html: string; values: EmailFieldValues }, _options: Record<string, never> = {}): RenderedEmail {
   const declarations = readTemplateDeclarations({ html });
   const subject = renderSubject({ subject: declarations.subject, values: values });
-  const body = fillPlaceholders({ text: html, values, escape: (value) => escapeHtml({ value }) });
+  const body = fillPlaceholders({ text: html, values, escape: escapeHtml });
   return { subject: subject.text, html: body.text, missingFields: [...new Set([...subject.missingFields, ...body.missingFields])] };
 }
 

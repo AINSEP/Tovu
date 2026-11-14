@@ -50,10 +50,10 @@ export const contributeTaxonomyPublish = (): PublishContentContributor =>
     entityType: "taxonomy",
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
-    ports: (deps) => deps.ports.taxonomy,
+    ports: ({ deps }) => deps.ports.taxonomy,
     list: ({ ports: p }) => p.taxonomies.list(),
     find: ({ ports: p, workspaceId: _workspaceId, id }) => p.taxonomies.findAnyById({ id }),
-    isTrashed: (row) => row.status === TRASH,
+    isTrashed: ({ row }) => row.status === TRASH,
     fields: { name: "transferred", hierarchical: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
     // Not unique in the schema; two same-named groups would read as one on screen.
     address: { field: "name", holder: async ({ ports: p, workspaceId: _workspaceId, value: name }) => (await p.taxonomies.list()).find((t) => t.name === name) ?? null },
@@ -88,14 +88,14 @@ export const contributeTermPublish = (): PublishContentContributor =>
     coversTables: ["taxonomies", "terms", "entry_terms", "taxonomy_revisions"],
     permission: "admin.taxonomy.manage",
     dependsOn: ["taxonomy"],
-    ports: (deps) => deps.ports.term,
+    ports: ({ deps }) => deps.ports.term,
     list: async ({ ports: p }) => (await Promise.all((await p.taxonomies.list()).map((t) => p.terms.listByTaxonomy({ taxonomyId: t.id })))).flat(),
     find: ({ ports: p, workspaceId: _workspaceId, id }) => p.terms.findAnyById({ id }),
-    isTrashed: (row) => row.status === TRASH,
+    isTrashed: ({ row }) => row.status === TRASH,
     packOrder: parentFirst,
     fields: { taxonomyId: "transferred", parentId: "transferred", name: "transferred", id: "local", status: "local", updatedAt: "local", version: "local" },
     // Its taxonomy and its parent: a scoped publish of a term brings both.
-    references: ({ state }) => [
+    references: ({ entity: { state } }) => [
       { entityType: "taxonomy", key: String(state.taxonomyId) },
       ...(typeof state.parentId === "string" ? [{ entityType: "term", key: state.parentId }] : []),
     ],

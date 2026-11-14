@@ -69,10 +69,10 @@ export const contributeMenusPublish = (): PublishContentContributor =>
     // Menus' own write permission (`Jini/.../navigation/agent-tools.ts`, `routes/admin/content/menus/*`).
     permission: "admin.menus.update",
     dependsOn: ["post", "page"],
-    ports: (deps) => deps.ports.menu,
+    ports: ({ deps }) => deps.ports.menu,
     list: ({ ports: p, workspaceId }) => p.repo.list({ workspaceId }),
     find: ({ ports: p, workspaceId, id }) => p.repo.findById({ workspaceId, id }),
-    isTrashed: (row) => row.status === "trash",
+    isTrashed: ({ row }) => row.status === "trash",
     // `NavMenuEntry` has no authorship/provenance field, so everything packed is hashed.
     fields: {
       slug: "transferred",

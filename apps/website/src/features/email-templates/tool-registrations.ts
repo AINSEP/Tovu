@@ -36,7 +36,7 @@ export const emailTemplatesDerivedRisk: DerivedRiskByToolId = new Map<string, Ag
   ["email_template_preview", "none"],
 ]);
 
-function permission(deps: EmailTemplatesToolDeps, ctx: ToolExecutionContext, name: string): Promise<unknown> {
+function permission({ deps, ctx, name }: { deps: EmailTemplatesToolDeps; ctx: ToolExecutionContext; name: string }, _options = {}): Promise<unknown> {
   return requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: name }, { entityType: "email-template" });
 }
 
@@ -50,28 +50,28 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "email-templates", catalogModule: "features/email-templates/agent-tools.ts", catalog: indexCatalogById({ catalog: emailTemplatesAgentToolCatalog }), derivedRisk: emailTemplatesDerivedRisk, handlers: withModelFacingErrors({ handlers: {
     email_template_list: async ctx => {
       requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "content.read");
+      await permission({ deps, ctx, name: "content.read" });
       return listEmailTemplates({ deps, input: requireInputRecord({ input: ctx.input }) });
     },
     email_template_get: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "content.read");
+      await permission({ deps, ctx, name: "content.read" });
       return getEmailTemplate({ deps, id: requireText({ value: input.id, key: "id", max: 200 }) });
     },
     email_template_create: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, PAGES_EDIT_HTML_PERMISSION);
+      await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
       ctx.signal.throwIfAborted();
       return createEmailTemplate({ deps, input, actorId: ctx.principal.id });
     },
     email_template_edit: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, PAGES_EDIT_HTML_PERMISSION);
+      await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
       return editEmailTemplate({ deps, input, actorId: ctx.principal.id });
     },
     email_template_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
-      await permission(deps, ctx, "content.read");
+      await permission({ deps, ctx, name: "content.read" });
       return previewEmailTemplate({ deps, input });
     },
   }, rules: [

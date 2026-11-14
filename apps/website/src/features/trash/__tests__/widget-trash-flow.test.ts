@@ -75,7 +75,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     transaction: ({ work }) => (transaction)(work),
     entityPolicy: ({ entityType }) => (adapters).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
-  const entries = new SqliteEntryRepo(db);
+  const entries = new SqliteEntryRepo({ store: db });
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
     contentTypeRepo: new SqliteContentTypeRepo(db),

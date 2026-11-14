@@ -97,7 +97,7 @@ test('database destination uses real sealing, keeps blank updates, refuses white
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }); const emitted: SurfaceEmission[] = [];
   const exchange = exchanges.open({ binding: { toolId: SET_DESTINATION_TOOL_ID, principalId: 'owner' }, emit: async emission => { emitted.push(emission); } });
   const report = createDestinationExchangeReporter({ store, workspaceId });
-  const pending = report({ exchange, confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildDestinationForm(exchange.id) } }, handle: async () => ({ result: { saved: true } }) });
+  const pending = report({ exchange, confirmationEmission: { channel: 'mcp-ui', payload: { resource: buildDestinationForm({ exchangeId: exchange.id }) } }, handle: async () => ({ result: { saved: true } }) });
   await new Promise(resolve => setImmediate(resolve));
   exchanges.deliver({ exchangeId: exchange.id, principalId: 'owner', params: {} }, { toolId: SET_DESTINATION_TOOL_ID });
   const result = await pending;
@@ -159,7 +159,7 @@ async function reportDestinationResult({ t, result, payload, get = async () => n
   assert.deepEqual(exchanges.deliver({ exchangeId: exchange.id, principalId: 'owner', params: {} },
     { toolId: SET_DESTINATION_TOOL_ID }), { ok: true });
   const output = await report({ exchange, confirmationEmission: { channel: 'mcp-ui',
-    payload: payload ?? { resource: buildDestinationForm(exchange.id) } },
+    payload: payload ?? { resource: buildDestinationForm({ exchangeId: exchange.id }) } },
     handle: async answer => {
       assert.deepEqual(answer, { status: 'received', params: {} });
       return { result };

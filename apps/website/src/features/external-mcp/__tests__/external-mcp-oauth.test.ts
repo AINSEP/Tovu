@@ -832,7 +832,7 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
 });
 
 test("the settings deep link escapes its server id", () => {
-  assert.equal(externalMcpSettingsDeepLink("a b&c"), "/settings/external-mcp?server=a%20b%26c");
+  assert.equal(externalMcpSettingsDeepLink({ serverId: "a b&c" }), "/settings/external-mcp?server=a%20b%26c");
 });
 
 // ---------------------------------------------------------------------------

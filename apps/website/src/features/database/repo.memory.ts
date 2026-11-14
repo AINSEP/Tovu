@@ -16,10 +16,13 @@ export class InMemoryDatabaseLedgerRepo implements LedgerReadPort, BootLedgerPor
 
   private readonly now: () => string;
 
-  /** @param optional.now clock for synthesized rows (defaults to the system clock). */
-  constructor(initial: LedgerRow[] = [], optional: { now?: () => string } = {}) {
+  /**
+   * @param optional.initial Rows present initially.
+   * @param optional.now Clock for synthesized rows (defaults to the system clock).
+   */
+  constructor(_required: Record<string, never> = {}, { initial = [], now }: { initial?: LedgerRow[]; now?: () => string } = {}) {
     this.rows = [...initial];
-    this.now = optional.now ?? (() => new Date().toISOString());
+    this.now = now ?? (() => new Date().toISOString());
   }
 
   async append(row: LedgerRow): Promise<void> {
@@ -152,7 +155,7 @@ export class InMemorySiteStatusRepo implements SiteStatusPort {
 export class InMemoryMigrationRunsRepo implements MigrationRunsRepoPort {
   private nonTerminal: { id: string; status: string } | null = null;
 
-  setNonTerminal(value: { id: string; status: string } | null): void {
+  setNonTerminal({ value }: { value: { id: string; status: string } | null }): void {
     this.nonTerminal = value;
   }
 

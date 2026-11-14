@@ -34,7 +34,7 @@ export const mailDnsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   ["mail_dns_verify", "mutates-durable-state"],
 ]);
 
-async function authorizeFor(deps: DnsChangeToolDeps, principalId: string, permission: string): Promise<void> {
+async function authorizeFor({ deps, principalId, permission }: { deps: DnsChangeToolDeps; principalId: string; permission: string }, _options = {}): Promise<void> {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission }, { entityType: "domain-dns" });
 }
 
@@ -56,12 +56,12 @@ export function buildMailDnsRegistrations(deps: DnsChangeToolDeps): ToolRegistra
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "domain-dns", catalogModule: "features/domain-dns/mail-dns-tools.ts", catalog: indexCatalogById({ catalog: mailDnsAgentToolCatalog }), derivedRisk: mailDnsDerivedRisk, handlers: {
     mail_dns_status: async ctx => {
       requireInputRecord({ input: ctx.input });
-      await authorizeFor(deps, ctx.principal.id, "deployments.read");
+      await authorizeFor({ deps, principalId: ctx.principal.id, permission: "deployments.read" });
       return readMailDnsStatus({}, mailDnsPorts(deps));
     },
     mail_dns_verify: async ctx => {
       requireInputRecord({ input: ctx.input });
-      await authorizeFor(deps, ctx.principal.id, "deployments.publish");
+      await authorizeFor({ deps, principalId: ctx.principal.id, permission: "deployments.publish" });
       return verifyMailDnsStatus({}, mailDnsPorts(deps));
     },
   } });

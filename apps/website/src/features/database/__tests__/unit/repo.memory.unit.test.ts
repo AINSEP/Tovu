@@ -13,10 +13,10 @@ const row = (id: string, createdAt: string, extra: Partial<LedgerRow> = {}): Led
   ({ id, kind: "migration.applied", createdAt, restorePointId: null, outcome: "succeeded", ...extra } as LedgerRow);
 
 test("ledger query filters by kind/outcome/date window and pages newest-first with an id tie-break", async () => {
-  const repo = new InMemoryDatabaseLedgerRepo([
+  const repo = new InMemoryDatabaseLedgerRepo({}, { initial: [
     row("a", "2026-10-01T00:00:00.000Z"), row("b", "2026-10-02T00:00:00.000Z"), row("c", "2026-10-02T00:00:00.000Z"),
     row("d", "2026-10-03T00:00:00.000Z", { kind: "restore.applied", outcome: "failed" } as Partial<LedgerRow>),
-  ]);
+  ] });
   const first = await repo.query({ limit: 2 });
   assert.deepEqual(first.items.map((r) => r.id), ["d", "c"]);
   assert.equal(first.nextCursor, "c");
@@ -29,7 +29,7 @@ test("ledger query filters by kind/outcome/date window and pages newest-first wi
 });
 
 test("an interrupted migration is appended once per run, stamped by the injected clock", async () => {
-  const repo = new InMemoryDatabaseLedgerRepo([], { now: () => "2026-10-20T12:00:00.000Z" });
+  const repo = new InMemoryDatabaseLedgerRepo({}, { initial: [], now: () => "2026-10-20T12:00:00.000Z" });
   await repo.appendInterruptedRow({ siteId: "site", migrationRunId: "run-1" });
   await repo.appendInterruptedRow({ siteId: "site", migrationRunId: "run-1" });
   assert.deepEqual((await repo.query({ limit: 10 })).items, [
@@ -67,7 +67,7 @@ test("site status starts SERVING and remembers the last status set", async () =>
 test("migration runs resolve only the matching non-terminal run", async () => {
   const repo = new InMemoryMigrationRunsRepo();
   assert.equal(await repo.findNonTerminalForSite("site"), null);
-  repo.setNonTerminal({ id: "run-1", status: "running" });
+  repo.setNonTerminal({ value: { id: "run-1", status: "running" } });
   await repo.markResolved({ id: "other" });
   assert.deepEqual(await repo.findNonTerminalForSite("site"), { id: "run-1", status: "running" });
   await repo.markResolved({ id: "run-1" });
@@ -92,7 +92,7 @@ test("introspection reports a healthy in-sync memory schema with no pending migr
 test("ledger ordering is independent of insertion order, and a zero-size page has no cursor", async () => {
   const rows = [row("c", "2026-10-02T00:00:00.000Z"), row("a", "2026-10-01T00:00:00.000Z"), row("e", "2026-10-03T00:00:00.000Z"), row("b", "2026-10-02T00:00:00.000Z"), row("d", "2026-10-02T00:00:00.000Z")];
   for (const initial of [rows, [...rows].reverse()]) {
-    const repo = new InMemoryDatabaseLedgerRepo(initial);
+    const repo = new InMemoryDatabaseLedgerRepo({}, { initial });
     assert.deepEqual((await repo.query({ limit: 10 })).items.map((r) => r.id), ["e", "d", "c", "b", "a"]);
     assert.deepEqual(await repo.query({ limit: 0 }), { items: [], nextCursor: null });
   }

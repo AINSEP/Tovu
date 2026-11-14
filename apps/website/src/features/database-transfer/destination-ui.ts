@@ -14,14 +14,14 @@ import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/dae
 export const SET_DESTINATION_TOOL_ID = "database_transfer_set_destination";
 export const DESTINATION_ADDRESS_FIELD = "address";
 
-export function destinationSurfaceUri(exchangeId: string): UIResourceUri {
+export function destinationSurfaceUri({ exchangeId }: { exchangeId: string }, _options = {}): UIResourceUri {
   return `ui://tovu/database-transfer-destination/${exchangeId}` as UIResourceUri;
 }
 
 /** @complexity O(1). */
-export function buildDestinationForm(exchangeId: string): UIResource {
+export function buildDestinationForm({ exchangeId }: { exchangeId: string }, _options = {}): UIResource {
   return buildFormSurface({
-    uri: destinationSurfaceUri(exchangeId),
+    uri: destinationSurfaceUri({ exchangeId }),
     title: "Where should the copy of your site's data go?",
     description:
       "Paste the address of a Postgres database (it starts with postgres://). It stays on this server: the assistant never sees it, " +
@@ -48,7 +48,7 @@ export function buildDestinationForm(exchangeId: string): UIResource {
 /** `message` must never carry the address; every caller passes a fixed or redacted sentence. */
 export function buildDestinationOutcome(spec: { exchangeId: string; state: "success" | "failure"; message: string }): UIResource {
   return buildOutcomeSurface({
-    uri: destinationSurfaceUri(spec.exchangeId),
+    uri: destinationSurfaceUri({ exchangeId: spec.exchangeId }),
     title: spec.state === "success" ? "Destination saved" : "Destination not saved",
     state: spec.state,
     message: spec.message,

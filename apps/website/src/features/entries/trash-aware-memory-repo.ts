@@ -24,7 +24,7 @@ import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort, Entry
  *
  * @complexity O(1).
  */
-function siteFieldValue(row: EntryRecord, field: string): unknown {
+function siteFieldValue({ row, field }: { row: EntryRecord; field: string }, _options = {}): unknown {
   const fields = row.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null | undefined;
   return fields?.ext?.site?.[field];
 }
@@ -39,7 +39,7 @@ function sortKey(row: EntryRecord, by: CollectionSortBy): unknown {
   if (by === "published") return row.publishedAt;
   if (by === "updated") return row.updatedAt;
   if (by === "title") return row.title;
-  return siteFieldValue(row, by.field);
+  return siteFieldValue({ row, field: by.field });
 }
 
 /**
@@ -52,7 +52,7 @@ function sortKey(row: EntryRecord, by: CollectionSortBy): unknown {
  * @complexity O(1) (O(n) only in the rare cross-type string-coercion branch's implicit
  * `String()` call, n being the value's own serialized length).
  */
-function compareSortKeys(a: unknown, b: unknown): number {
+function compareSortKeys({ a, b }: { a: unknown; b: unknown }, _options = {}): number {
   if (a == null && b == null) return 0;
   if (a == null) return -1;
   if (b == null) return 1;
@@ -193,11 +193,11 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
     const rows = (await this.inner.listByWorkspace({ workspaceId }, { type: query.type, status: "published" })).filter(
       (row) => !this.deletedAt.has(row.id)
     );
-    const matching = rows.filter((row) => query.where.every((clause) => siteFieldValue(row, clause.field) === clause.value));
+    const matching = rows.filter((row) => query.where.every((clause) => siteFieldValue({ row, field: clause.field }) === clause.value));
 
     const direction = query.sort.dir === "asc" ? 1 : -1;
     const sorted = [...matching].sort((a, b) => {
-      const primary = compareSortKeys(sortKey(a, query.sort.by), sortKey(b, query.sort.by)) * direction;
+      const primary = compareSortKeys({ a: sortKey(a, query.sort.by), b: sortKey(b, query.sort.by) }) * direction;
       if (primary !== 0) return primary;
       if (a.id < b.id) return -1;
       if (a.id > b.id) return 1;

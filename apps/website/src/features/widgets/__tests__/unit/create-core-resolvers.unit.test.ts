@@ -1,5 +1,4 @@
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../entries/public-list.js";
-import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
+import { widgetCollectionListPort } from "../../../entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -49,7 +48,7 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
 }
 
 test("createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany", () => {
-  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
+  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
     entryList: new TrashAwareInMemoryEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
@@ -106,7 +105,7 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     });
-    const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, systemContentTypes: SYSTEM_CONTENT_TYPES },
+    const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
       entryList,
       navMenuReadModel: fakeMenuReadModel(menu),
       formDefinitionRepo,

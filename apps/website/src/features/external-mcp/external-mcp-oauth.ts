@@ -51,7 +51,7 @@ export class ExternalMcpReauthRequiredError extends Error {
     );
     this.name = "ExternalMcpReauthRequiredError";
     this.serverId = input.serverId;
-    this.settingsLink = externalMcpSettingsDeepLink(input.serverId);
+    this.settingsLink = externalMcpSettingsDeepLink({ serverId: input.serverId });
   }
 }
 
@@ -75,7 +75,7 @@ export function createExternalMcpReauthRequiredError(input: { serverId: string; 
  *
  * @complexity O(1).
  */
-export function externalMcpSettingsDeepLink(serverId: string): string {
+export function externalMcpSettingsDeepLink({ serverId }: { serverId: string }, _options = {}): string {
   return `/settings/external-mcp?server=${encodeURIComponent(serverId)}`;
 }
 
