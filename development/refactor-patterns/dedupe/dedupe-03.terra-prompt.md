@@ -1,6 +1,6 @@
 # Terra job dedupe-03: Tovu website: feature-level merges + import swaps to existing Jini exports
 
-READY (2026-11-13; revised after review d3r2: X31 moved out). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu clone you are given.
+READY (2026-11-13; revised after review d3r2: X31 moved out; revised after review d3r3: T32's shared builder takes `({ deps }, _optional = {})`, inbound keeps a one-line adapter). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Tovu clone you are given.
 
 Order: X (import swaps) first, then T/TR groups. Groups that name a Jini export use only exports that are already public in the installed `@jini-ai/*` packages; if an import does not resolve, STALE it (never edit Jini from this job).
 
@@ -179,10 +179,23 @@ Move the `inputSchema` JSDoc ("JSON Schema for this tool's `input`… refuses to
 Run `npx tsc --noEmit -p apps/website` once at the end to type-check (this job's only full tsc).
 
 ### T32, T33, T34: feature-owned builders and mappers (run after dedupe-01/02 have landed; in `server/inbound/*` change only the lines named here)
-- T32:
-  - Export `toMembersWriteServiceDeps` from `features/members/tool-registrations.ts`.
-  - Its parameter becomes `Pick<MembersToolDeps, "clock" | "idGen" | "memberRepo" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "mailStatus" | "originRegistry" | "principalRepo" | "mailSenderIdentity">`.
-  - `server/inbound/admin-http/routes/members/deps.ts` deletes its copy and re-exports it with `export { toMembersWriteServiceDeps } from "../../../../../features/members/tool-registrations.js";`. Check the relative depth first.
+- T32 (revised after review d3r3 finding 2: the new shared home takes the object signature; inbound keeps its existing positional name as a one-line adapter):
+  - In `features/members/tool-registrations.ts`, rename the file-private `toMembersWriteServiceDeps(deps: MembersToolDeps)` to an exported object-signature builder; the body (field mapping, key order) is unchanged:
+```ts
+export type MembersWriteServiceSourceDeps = Pick<MembersToolDeps, "clock" | "idGen" | "memberRepo" | "memberTierRepo" | "memberSubscriptionRepo" | "memberSessionRepo" | "magicLinkRepo" | "mailer" | "mailStatus" | "originRegistry" | "principalRepo" | "mailSenderIdentity">;
+export function buildMembersWriteServiceDeps({ deps }: { deps: MembersWriteServiceSourceDeps }, _optional: Record<string, never> = {}): MembersWriteServiceDeps
+```
+  - Its JSDoc: drop only the "local duplicate … rather than an import of it" rationale, which no longer holds; keep the ports/adapters-direction sentence as the reason this builder lives in the feature (inbound may import features, not the reverse).
+  - Update the four feature-local calls in the same file (~lines 202, 215, 258, 289): `toMembersWriteServiceDeps(deps)` becomes `buildMembersWriteServiceDeps({ deps })` (line 202 keeps its `{ ...buildMembersWriteServiceDeps({ deps }), onMemberCreated: … }` spread).
+  - `server/inbound/admin-http/routes/members/deps.ts` deletes its body and keeps its exported name and positional signature as a one-line adapter, so `disable.ts`, `request-magic-link.ts` and the other admin member routes stay unchanged:
+```ts
+import { buildMembersWriteServiceDeps } from "../../../../../features/members/tool-registrations.js";
+/** (keep the existing JSDoc, including @complexity / @overallScore) */
+export function toMembersWriteServiceDeps(deps: MembersRouteDeps): MembersWriteServiceDeps {
+  return buildMembersWriteServiceDeps({ deps });
+}
+```
+    Check the relative depth first (or use the file's existing `#src/features/members/...` alias style if that resolves to the same module). If `MembersRouteDeps` does not satisfy `MembersWriteServiceSourceDeps` structurally, SKIP T32 and report `STALE T32: <missing field>`.
 - T33 (moved here from job 10; it no longer waits on O4 because both launch-gate behaviors are passed in explicitly, so the merge changes nothing; O4 stays an open owner question):
   1. FIRST run the characterization test `apps/website/src/features/newsletter/__tests__/deps-builders.characterization.test.ts` (ALREADY WRITTEN by the design; it reuses the sentinel-fixture pattern of `routes/newsletter/__tests__/deps.test.ts`). The design already wrote this test file (not yet run). Run it first; if it fails for a reason other than the one stated, fix only the TEST's setup (fixture shape, import path), never its assertions, and report what you changed. It must PASS on the code before the change and after it. It must PASS on the code before the change and after it:
      - admin `toSendPipelineDeps(routeDeps)`: `unsubscribe` is defined (equal to `toUnsubscribeDeps(routeDeps)` field by field), `typeof sleep === "function"`, a separate case where, under `t.mock.timers`, `sleep(250)` is still pending at 249 ms and resolves at 250 ms (so a no-op sleep fails; review d3r finding 7), and `await launchGateDeps.isSendingEnabled("ws")` is `false` even when the fixture carries a `newsletterSendingEnabled` that returns `true`;
