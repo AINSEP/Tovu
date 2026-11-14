@@ -1,9 +1,11 @@
 {
-  "_comment": "Size-limit exceptions the owner accepted on 2026-11-11 (files <= 500 lines; functions <= 50 lines per owner 2026-11-13, replacing 100; blank lines and comments not counted by ESLint). The limits are a tripwire: anything over gets a responsibility-based split or an entry here with a reason the owner agreed to. Ratchet: new code must comply; accepted exceptions stay separate from the shrink-only debt list. Do not add an entry to silence a new finding; split it instead, or get an owner-agreed reason. NOT exempt on purpose: apps/website/src/server/runtime/composition/deps.ts and composition/app.ts (composeSiteRouteDeps, createRouteDeps) are the top hotspots and get split by feature in the refactor. Read by development/scripts/size-hotspots.mjs and the size gate. The Jini entries move to the Jini repo when the size gate lands there.",
+  "_comment": "Size-limit exceptions the owner accepted on 2026-11-11 (files error over 500 lines; functions warn over 50 and error over 80 per owner 2026-11-13; blank lines and comments not counted by ESLint). The limits are a tripwire: anything over the error limit gets a responsibility-based split or an entry here with a reason the owner agreed to. Ratchet: new code must comply; accepted exceptions stay separate from the shrink-only debt list. Do not add an entry to silence a new finding; split it instead, or get an owner-agreed reason. NOT exempt on purpose: apps/website/src/server/runtime/composition/deps.ts and composition/app.ts (composeSiteRouteDeps, createRouteDeps) are the top hotspots and get split by feature in the refactor. Read by development/scripts/size-hotspots.mjs and the size gate. The Jini entries move to the Jini repo when the size gate lands there.",
   "limits": {
     "fileLines": 500,
-    "functionLines": 50,
-    "_functionLinesNote": "Owner 2026-11-13: 50, replaces 100. Path exclusions are size-gate ignores; entries are individual file or function exceptions with reasons. New exception candidates go to the owner; the refactoring agent does not decide them."
+    "functionLines": 80,
+    "functionWarnLines": 50,
+    "_functionLinesNote": "owner 2026-11-13: warn 50, error 80 (replaces error at 50)",
+    "_exceptionsNote": "Path exclusions are size-gate ignores; entries are individual file or function exceptions with reasons. New exception candidates go to the owner; the refactoring agent does not decide them."
   },
   "pathExclusions": [
     { "repo": "tovu", "pattern": "(^|/)[^/]*-i18n\\.tsx?$", "reason": "Locale dictionaries: one entry per string, and the size grows with each language." },

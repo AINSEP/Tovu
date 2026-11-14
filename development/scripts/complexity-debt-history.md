@@ -4,8 +4,9 @@ These notes predate the unified production complexity baseline; counts and paths
 
 ## Size gate
 
-Run `npm run check:size` for the same production scope as the complexity gate. ESLint reports
-functions over 50 lines and files over 500, excluding blank lines and comments; IIFEs count too.
+Run `npm run check:size` for the same production scope as the complexity gate. Editor ESLint warns
+on functions over 50 lines; the CI gate errors over 80. Files error over 500. Blank lines and
+comments do not count, and IIFEs count as functions.
 Path exclusions and permanent file/function exceptions with their reasons live in
 `size-exceptions.json`. Only the owner can approve a new exception and its written reason;
 function exceptions also specify an `identity` matching the qualified function shown by the gate.
@@ -13,6 +14,8 @@ Editor ESLint shows the raw size findings; the gate applies the individual accep
 All other existing violations are in `size-debt.json`, keyed by file, function and rule.
 New or larger violations fail; delete a debt entry when the violation passes. In CI,
 `SIZE_BASE_REF` also rejects debt additions or increases relative to the base revision.
+When migrating from the former 50-line policy, new or increased debt must match the scan and belong
+to a source file identical to the base; later changes are still ratcheted.
 
 ## src-complexity-debt.json
 

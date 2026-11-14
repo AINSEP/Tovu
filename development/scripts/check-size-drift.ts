@@ -12,6 +12,7 @@ import { sizeExceptions, type SizeException } from "./size-eslint.config.mjs";
 
 const DEBT_FILE = "development/scripts/size-debt.json";
 const CHECKER_FILE = "development/scripts/check-size-drift.ts";
+const POLICY_FILE = "development/scripts/size-exceptions.json";
 
 function offsetsFor(source: string): number[] {
   const offsets = [0];
@@ -98,8 +99,17 @@ function gitAtBase(base: string, args: string[]): string {
   return execFileSync("git", [...args, base], { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
 }
 
+function sourceMatchesBase(base: string, file: string): boolean {
+  try {
+    return gitAtBase(`${base}:${file}`, ["show"]) === readFileSync(path.join(REPO_ROOT, file), "utf8");
+  } catch {
+    // An unreadable base or source cannot justify waiving the debt ratchet.
+    return false;
+  }
+}
+
 /** Do not allow additions or increases to the recorded debt in the same change as a violation. */
-function checkDebtHistory(current: readonly Violation[]): boolean {
+function checkDebtHistory(current: readonly Violation[], measured: readonly Violation[]): boolean {
   const base = process.env.SIZE_BASE_REF;
   if (!base) return true;
   const files = gitAtBase(base, ["ls-tree", "-r", "--name-only"]).trim().split("\n");
@@ -110,18 +120,33 @@ function checkDebtHistory(current: readonly Violation[]): boolean {
   }
   const previous = gitAtBase(`${base}:${DEBT_FILE}`, ["show"]);
   const drift = diffAgainstBaseline(readDebt(previous), current);
-  for (const entry of drift.added) console.error(`Added debt is not allowed: ${printViolation(entry)}`);
-  for (const { baseline, current: entry } of drift.worsened) {
+  const policy = files.includes(POLICY_FILE)
+    ? JSON.parse(gitAtBase(`${base}:${POLICY_FILE}`, ["show"])) as { limits?: { functionLines?: number } }
+    : undefined;
+  const from50 = policy?.limits?.functionLines === 50;
+  const inflated = diffAgainstBaseline(measured, current);
+  const inaccurateFiles = new Set([...inflated.added, ...inflated.worsened.map(item => item.current)].map(entry => entry.file));
+  const unchanged = new Map<string, boolean>();
+  // The owner approved a fresh 80-line baseline; only remeasure unchanged base files, without inflating debt.
+  const isMigrationDebt = (entry: Violation): boolean => {
+    if (!from50 || inaccurateFiles.has(entry.file)) return false;
+    if (!unchanged.has(entry.file)) unchanged.set(entry.file, sourceMatchesBase(base, entry.file));
+    return unchanged.get(entry.file) === true;
+  };
+  const added = drift.added.filter(entry => !isMigrationDebt(entry));
+  const worsened = drift.worsened.filter(item => !isMigrationDebt(item.current));
+  for (const entry of added) console.error(`Added debt is not allowed: ${printViolation(entry)}`);
+  for (const { baseline, current: entry } of worsened) {
     console.error(`Increased debt is not allowed: ${printViolation(entry)} (was ${baseline.value})`);
   }
-  return drift.added.length === 0 && drift.worsened.length === 0;
+  return added.length === 0 && worsened.length === 0;
 }
 
 export function main(_input: Record<string, never> = {}, _options: Record<string, never> = {}): void {
   const baseline = readDebt(readFileSync(path.join(REPO_ROOT, DEBT_FILE), "utf8"));
-  const historyOk = checkDebtHistory(baseline);
   const all = findSizeViolations();
   const { debt, accepted } = partitionExceptions({ violations: all });
+  const historyOk = checkDebtHistory(baseline, debt);
   const { added, removed, worsened } = diffAgainstBaseline(baseline, debt);
   for (const { violation, reason } of accepted) console.log(`Accepted exception: ${printViolation(violation)} — ${reason}`);
   for (const entry of added) console.error(`New violation: ${printViolation(entry)}`);
@@ -129,7 +154,8 @@ export function main(_input: Record<string, never> = {}, _options: Record<string
     console.error(`Worsened violation: ${printViolation(current)} (baseline ${before.value})`);
   }
   for (const entry of removed) console.error(`Delete stale debt entry: ${printViolation(entry)}`);
-  if (!historyOk || added.length || removed.length || worsened.length) {
+  const hasViolationDrift = added.length + removed.length + worsened.length > 0;
+  if (!historyOk || hasViolationDrift) {
     process.exitCode = 1;
     return;
   }
