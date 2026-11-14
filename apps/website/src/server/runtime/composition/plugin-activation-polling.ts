@@ -21,6 +21,20 @@ export interface PluginActivationPollDeps {
   readonly onPluginDisabled: (pluginId: string) => void;
 }
 
+/** A plugin whose last attach failed: what was logged, and how many passes to wait before retrying.
+ * The 2026-11-13 charts-recharts INTEGRITY_FAILED logged the same line every 5 s poll (5,895 lines
+ * in a day) and re-hashed its whole payload each time. Now the first occurrence of each distinct
+ * failure is still logged (never silent), retries back off 1, 3, 7… passes (capped near 10 min at
+ * the 5 s default), and a changed activation row version retries at once. */
+export interface PluginAttachFailure {
+  message: string;
+  version: string;
+  failures: number;
+  skipPasses: number;
+}
+
+const MAX_SKIP_PASSES = 120;
+
 /**
  * One reconciliation pass: attaches any plugin durably `enabled` for `workspaceId` that isn't
  * already in `attachedIds` (mutated in place — the caller keeps this Set across ticks so an
@@ -29,16 +43,22 @@ export interface PluginActivationPollDeps {
  * has that is no longer durably enabled. A single plugin's `onPluginEnabled` failure (its package
  * removed from disk, a tamper, …) is logged and skipped — it can never block reconciling the rest.
  */
-export async function reconcilePluginActivationsOnce(deps: PluginActivationPollDeps, attachedIds: Set<string>): Promise<void> {
+export async function reconcilePluginActivationsOnce(
+  deps: PluginActivationPollDeps,
+  attachedIds: Set<string>,
+  failures: Map<string, PluginAttachFailure> = new Map()
+): Promise<void> {
   const records = await deps.pluginActivationRepo.listAll();
   const enabledVersions = new Map(records.filter(record => record.workspaceId === deps.workspaceId && record.enabled).map(record => [record.pluginId, record.version]));
 
   for (const [pluginId, activeVersion] of enabledVersions) {
     const loadedVersion = deps.pluginLoadedVersion?.({ id: pluginId }, {});
-    if (attachedIds.has(pluginId) && (!deps.pluginLoadedVersion || loadedVersion === activeVersion)) continue;
-    await attachActivatedPlugin({ deps, attachedIds, pluginId });
+    const current = attachedIds.has(pluginId) && (!deps.pluginLoadedVersion || loadedVersion === activeVersion);
+    if (current || shouldWaitBeforeRetry(failures.get(pluginId), activeVersion)) continue;
+    await attachActivatedPlugin({ deps, attachedIds, failures, pluginId, version: activeVersion });
   }
 
+  for (const pluginId of failures.keys()) if (!enabledVersions.has(pluginId)) failures.delete(pluginId);
   for (const pluginId of attachedIds) {
     if (enabledVersions.has(pluginId)) continue;
     deps.onPluginDisabled(pluginId);
@@ -46,20 +66,37 @@ export async function reconcilePluginActivationsOnce(deps: PluginActivationPollD
   }
 }
 
+/** Counts down a failed plugin's backoff; a new activation version (re-enable, reinstall) retries now. */
+function shouldWaitBeforeRetry(failure: PluginAttachFailure | undefined, activeVersion: string): boolean {
+  if (!failure || failure.version !== activeVersion || failure.skipPasses === 0) return false;
+  failure.skipPasses -= 1;
+  return true;
+}
+
 /** An attach failure is local to this plugin; later attachments and detachments still run. */
 async function attachActivatedPlugin(
-  required: { deps: PluginActivationPollDeps; attachedIds: Set<string>; pluginId: string },
+  required: { deps: PluginActivationPollDeps; attachedIds: Set<string>; failures: Map<string, PluginAttachFailure>; pluginId: string; version: string },
   _optional: Record<string, never> = {}
 ): Promise<void> {
-  const { deps, attachedIds, pluginId } = required;
+  const { deps, attachedIds, failures, pluginId, version } = required;
   try {
     await deps.onPluginEnabled(pluginId);
     attachedIds.add(pluginId);
+    if (failures.delete(pluginId)) console.log(`[plugin-runtime] plugin '${pluginId}' is attached again after earlier failures`);
   } catch (error) {
-    console.warn(
-      `[plugin-runtime] plugin activation poll failed to attach '${pluginId}': ${error instanceof Error ? error.message : String(error)}`
-    );
+    recordAttachFailure({ failures, pluginId, version, message: error instanceof Error ? error.message : String(error) });
   }
+}
+
+/** Logs a failure only when it differs from the last one logged for this plugin, then backs off. */
+function recordAttachFailure(required: { failures: Map<string, PluginAttachFailure>; pluginId: string; version: string; message: string }): void {
+  const { failures, pluginId, version, message } = required;
+  const previous = failures.get(pluginId);
+  if (previous?.message !== message) {
+    console.warn(`[plugin-runtime] plugin activation poll failed to attach '${pluginId}': ${message}`);
+  }
+  const count = previous?.message === message && previous.version === version ? previous.failures + 1 : 1;
+  failures.set(pluginId, { message, version, failures: count, skipPasses: Math.min(2 ** count - 1, MAX_SKIP_PASSES) });
 }
 
 /**
@@ -75,6 +112,7 @@ export function startPluginActivationPolling(
 ): { stop: () => void } {
   const intervalMs = options.intervalMs ?? 5000;
   const attachedIds = new Set<string>();
+  const failures = new Map<string, PluginAttachFailure>();
   let stopped = false;
   // A pass can already be awaiting readiness or a durable read when stop() clears the timer.
   // Check again at each registry boundary so that settling that pass cannot change hooks.
@@ -94,7 +132,7 @@ export function startPluginActivationPolling(
   const timer = setInterval(() => {
     if (stopped) return;
     void seeded
-      .then(() => stopped ? undefined : reconcilePluginActivationsOnce(pollingDeps, attachedIds))
+      .then(() => stopped ? undefined : reconcilePluginActivationsOnce(pollingDeps, attachedIds, failures))
       .catch((error: unknown) => {
             console.warn(`[plugin-runtime] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);
       });

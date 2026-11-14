@@ -105,3 +105,63 @@ test("one plugin's attach failure is logged and skipped, never blocking reconcil
   assert.ok(!attachedIds.has("broken-plugin"), "a failed attach must not be recorded as attached");
   assert.ok(attachedIds.has("word-count"));
 });
+
+/** Collects `console.warn` lines for one test and restores it afterwards. */
+function captureWarnings(t: { after: (fn: () => void) => void }): string[] {
+  const lines: string[] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => { lines.push(args.map(String).join(" ")); };
+  t.after(() => { console.warn = original; });
+  return lines;
+}
+
+// 2026-11-13: a plugin that kept failing (charts-recharts, INTEGRITY_FAILED) logged the same line on
+// every 5 s poll: 5,895 identical lines in one day. One line per distinct failure, then back off.
+test("a plugin that keeps failing the same way is logged once, and retried with backoff, not every pass", async (t) => {
+  const warnings = captureWarnings(t);
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [record("broken-plugin", true)] });
+  let attempts = 0;
+  const deps: PluginActivationPollDeps = {
+    workspaceId: WORKSPACE,
+    pluginActivationRepo: repo,
+    onPluginEnabled: async () => { attempts += 1; throw new Error("plugin 'broken-plugin' failed to load (INTEGRITY_FAILED)"); },
+    onPluginDisabled: () => assert.fail("must not disable anything"),
+  };
+  const attachedIds = new Set<string>();
+  const failures = new Map();
+
+  for (let pass = 0; pass < 20; pass += 1) await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+
+  assert.equal(warnings.length, 1, warnings.join("\n"));
+  assert.match(warnings[0]!, /failed to attach 'broken-plugin'.*INTEGRITY_FAILED/);
+  assert.ok(attempts >= 2 && attempts <= 6, `backoff: expected a few retries in 20 passes, got ${attempts}`);
+});
+
+test("a NEW failure for the same plugin is logged again, and a recovery is logged once", async (t) => {
+  const warnings = captureWarnings(t);
+  const logs: string[] = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => { logs.push(args.map(String).join(" ")); };
+  t.after(() => { console.log = originalLog; });
+  const repo = new InMemoryPluginActivationRepo({ initialRows: [record("flaky", true)] });
+  let error: string | undefined = "first problem";
+  const deps: PluginActivationPollDeps = {
+    workspaceId: WORKSPACE,
+    pluginActivationRepo: repo,
+    onPluginEnabled: async () => { if (error) throw new Error(error); },
+    onPluginDisabled: () => assert.fail("must not disable anything"),
+  };
+  const attachedIds = new Set<string>();
+  const failures = new Map();
+
+  await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+  error = "second problem";
+  for (let pass = 0; pass < 200 && warnings.length < 2; pass += 1) await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+  error = undefined;
+  for (let pass = 0; pass < 200 && !attachedIds.has("flaky"); pass += 1) await reconcilePluginActivationsOnce(deps, attachedIds, failures);
+
+  assert.equal(warnings.length, 2, warnings.join("\n"));
+  assert.match(warnings[1]!, /second problem/);
+  assert.ok(attachedIds.has("flaky"), "a later attempt must still succeed: backoff never gives up");
+  assert.equal(logs.filter(line => line.includes("'flaky'")).length, 1, logs.join("\n"));
+});
