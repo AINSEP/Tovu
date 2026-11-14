@@ -137,8 +137,8 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   assert.match(source.slice(depsStart, source.indexOf("\n}\n", depsStart)), /\n\s*pendingTeardowns,/,
     "card Stop must receive the same tracker before-quit drains");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-card-stop-quit-"));
-  const projectsPath = sitesFilePath(root);
-  trackSite(projectsPath, root);
+  const projectsPath = sitesFilePath({ userDataDir: root });
+  trackSite({ projectsPath, siteDir: root });
   const stop = deferred();
   const pendingTeardowns = createShutdownTracker({});
   const openSites = new Map([[root, { server: { port: 4321, pid: 123, stop: () => stop.promise } }]]);

@@ -73,7 +73,7 @@ function startDesktopChat(deps: DesktopChatMainDeps, optional: { siteTools?: Sit
     resolveAddressee: ({ siteDir }, _options = {}) => resolveTrackedAddressee({
       siteDir,
       ports: {
-        readTracked: () => readTrackedSites(deps.projectsPath),
+        readTracked: () => readTrackedSites({ projectsPath: deps.projectsPath }),
         readSiteName: deps.readSiteName,
       },
     }),

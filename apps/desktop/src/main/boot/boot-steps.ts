@@ -138,15 +138,15 @@ export function settleDevFallbackRows<ClassifySiteDir>({ projectsPath, devFallba
   devFallbackDir: string | null;
   /** `site-dir-store.ts`'s `classifySiteDirSafely`, passed through to the seeders untouched. */
   classifySiteDir: ClassifySiteDir;
-  migrateLegacyDismissals: (projectsPath: string, devFallbackDir: string) => unknown;
-  seedDevFallbackSite: (projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDir) => unknown;
-  retireDevFallbackSite: (projectsPath: string, devFallbackDir: string, classifySiteDir: ClassifySiteDir) => unknown;
+  migrateLegacyDismissals: (required: { projectsPath: string; devFallbackDir: string }) => unknown;
+  seedDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir }) => unknown;
+  retireDevFallbackSite: (required: { projectsPath: string; devFallbackDir: string; classifySiteDir: ClassifySiteDir }) => unknown;
 }, _optional = {}): boolean {
   if (!devFallbackDir) return false;
-  migrateLegacyDismissals(projectsPath, devFallbackDir);
-  seedDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir);
+  migrateLegacyDismissals({ projectsPath, devFallbackDir });
+  seedDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
   // And its inverse: once the dev site moved into the single home, the seeded checkout row is a dead card.
-  retireDevFallbackSite(projectsPath, devFallbackDir, classifySiteDir);
+  retireDevFallbackSite({ projectsPath, devFallbackDir, classifySiteDir });
   return true;
 }
 

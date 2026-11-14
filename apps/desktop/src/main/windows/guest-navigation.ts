@@ -50,7 +50,7 @@ function installWebviewGuestPolicy(
   installGuestWindowOpenPolicy(contents, { isSupervisedGuestUrl, openExternal });
 
   contents.on("will-navigate", (event, url) => {
-    if (isSameOrigin(url, contents.getURL())) return;
+    if (isSameOrigin({ candidate: url, reference: contents.getURL() })) return;
     event.preventDefault();
     openExternally({ url });
   });

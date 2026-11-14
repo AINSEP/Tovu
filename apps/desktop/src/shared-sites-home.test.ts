@@ -289,7 +289,7 @@ test("an attached server reports the owner's exit once its lease changes, and St
   const claim = workspace.claim({ path: dir, app: "Web", port: 3456 });
   const server = attachRunningSite({ workspace, dir })!;
   const exits: unknown[] = [];
-  server.onExit((exit) => exits.push(exit));
+  server.onExit({ listener: (exit) => exits.push(exit) });
   t.mock.timers.tick(2000);
   assert.deepEqual(exits, [], "the same lease is still live");
   workspace.running({ path: dir }).release({ token: claim.record.token });
@@ -301,7 +301,7 @@ test("an attached server reports the owner's exit once its lease changes, and St
   const again = workspace.claim({ path: dir, app: "Web", port: 3457 });
   const second = attachRunningSite({ workspace, dir })!;
   const later: unknown[] = [];
-  second.onExit((exit) => later.push(exit));
+  second.onExit({ listener: (exit) => later.push(exit) });
   void second.stop();
   workspace.running({ path: dir }).release({ token: again.record.token });
   t.mock.timers.tick(10_000);

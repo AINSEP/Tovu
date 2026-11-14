@@ -72,7 +72,7 @@ function createDeps(overrides: Record<string, unknown> = {}) {
   const dir = tempDir();
   return {
     sharedSites: createSitesWorkspace({}, { homeDir: dir, env: { TOVU_SITES_HOME: dir }, cwd: dir, sourceRoots: [], platform: "linux" }),
-    projectsPath: sitesFilePath(dir),
+    projectsPath: sitesFilePath({ userDataDir: dir }),
     repoRoot: "/repo",
     statePath: path.join(dir, "desktop-state.json"),
     cliMode: "source" as const,

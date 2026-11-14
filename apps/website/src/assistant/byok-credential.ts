@@ -76,39 +76,39 @@ const VALID_PROTOCOLS = new Set(["anthropic", "openai", "azure", "google"]);
  */
 /** `requestBody.protocol`'s own field parse, split out of {@link parseRequestSuppliedCredential}
  *  purely to keep that function's complexity under the shop ceiling — behavior is unchanged. */
-function parseByokProtocol(value: unknown): ResolvedByokCredential["protocol"] | null {
+function parseByokProtocol({ value }: { value: unknown }, _options = {}): ResolvedByokCredential["protocol"] | null {
   return typeof value === "string" && VALID_PROTOCOLS.has(value) ? (value as ResolvedByokCredential["protocol"]) : null;
 }
 
 /** A required, non-blank string field (`apiKey`/`model`) — split out of
  *  {@link parseRequestSuppliedCredential} purely to keep that function's complexity under the shop
  *  ceiling. */
-function parseByokRequiredString(value: unknown): string | null {
+function parseByokRequiredString({ value }: { value: unknown }, _options = {}): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
 /** An optional, non-blank string field (`baseUrl`) — split out of
  *  {@link parseRequestSuppliedCredential} purely to keep that function's complexity under the shop
  *  ceiling. */
-function parseByokOptionalString(value: unknown): string | undefined {
+function parseByokOptionalString({ value }: { value: unknown }, _options = {}): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
 /** `requestBody.maxTokens`'s own field parse — split out of {@link parseRequestSuppliedCredential}
  *  purely to keep that function's complexity under the shop ceiling. */
-function parseByokMaxTokens(value: unknown): number | undefined {
+function parseByokMaxTokens({ value }: { value: unknown }, _options = {}): number | undefined {
   return typeof value === "number" && value > 0 ? value : undefined;
 }
 
 function parseRequestSuppliedCredential(requestBody: RequestSuppliedByokConfig): ResolvedByokCredential | null {
-  const protocol = parseByokProtocol(requestBody.protocol);
+  const protocol = parseByokProtocol({ value: requestBody.protocol });
   if (!protocol) return null;
-  const apiKey = parseByokRequiredString(requestBody.apiKey);
+  const apiKey = parseByokRequiredString({ value: requestBody.apiKey });
   if (!apiKey) return null;
-  const model = parseByokRequiredString(requestBody.model);
+  const model = parseByokRequiredString({ value: requestBody.model });
   if (!model) return null;
-  const baseUrl = parseByokOptionalString(requestBody.baseUrl);
-  const maxTokens = parseByokMaxTokens(requestBody.maxTokens);
+  const baseUrl = parseByokOptionalString({ value: requestBody.baseUrl });
+  const maxTokens = parseByokMaxTokens({ value: requestBody.maxTokens });
   return {
     protocol,
     apiKey,

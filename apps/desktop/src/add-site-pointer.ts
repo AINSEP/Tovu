@@ -191,14 +191,14 @@ function addSitePointer(input: AddSitePointerInput, options: SiteIdentityOptions
   // Read BEFORE the write, because afterwards both answers are gone: `trackSite` is idempotent
   // and clears the tombstone, so a caller asking after the fact cannot tell a fresh add from a
   // no-op, nor an ordinary add from the restoration of a project the operator had removed.
-  const alreadyTracked = readTrackedSites(input.projectsPath).some((row) => row.siteDir === siteDir);
-  const alreadyDismissed = !alreadyTracked && isSiteDirKnown(input.projectsPath, siteDir);
+  const alreadyTracked = readTrackedSites({ projectsPath: input.projectsPath }).some((row) => row.siteDir === siteDir);
+  const alreadyDismissed = !alreadyTracked && isSiteDirKnown({ projectsPath: input.projectsPath, siteDir });
 
   // ALWAYS `adopted`, and passed explicitly rather than left to `trackSite`'s default. This
   // folder existed as a site before this app ever saw it — every byte under it is someone else's —
   // and `project-delete-guard.ts` reads exactly this field to decide whether a later delete may
   // reach `fs.rm`. `created` here would hand a stranger's site to a recursive erase.
-  trackSite(input.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: input.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   return { siteDir, alreadyTracked, alreadyDismissed };
 }

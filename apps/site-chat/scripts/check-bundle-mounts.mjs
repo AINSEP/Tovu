@@ -63,7 +63,7 @@ export const ACTION_QUEUE_STORAGE_KEY = "tovu.site-assistant.action-queue.v1";
 export class BundleCheckError extends Error {}
 
 /** Abort the check with `message`. @throws {BundleCheckError} always. */
-export function fail(message) {
+export function fail({ message }, _options = {}) {
   throw new BundleCheckError(message);
 }
 
@@ -84,14 +84,14 @@ export function fail(message) {
 const PAGE_CONTENT_HTML = `<article class="entry"><h1 class="entry-title">Example Published Post</h1><p>Some body text.</p></article>`;
 
 /** Whether a jsdom `jsdomError` is its "Not implemented: navigation" report. */
-export function isNavigationError(error) {
+export function isNavigationError({ error }, _options = {}) {
   return typeof error?.message === "string" && error.message.includes("navigation");
 }
 
 /** Fail with every caught error listed under `heading`, when there are any. */
 function failOnErrors({ caughtErrors, heading }) {
   if (caughtErrors.length === 0) return;
-  fail(`${heading}\n` + caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n"));
+  fail({ message: `${heading}\n` + caughtErrors.map((e) => `  - ${e?.stack ?? e}`).join("\n") });
 }
 
 /** Install the three page APIs jsdom lacks and every real browser has — see this file's header. */
@@ -131,7 +131,7 @@ export async function runScenario({ scenario, bundleSource }, { settleMs = 150, 
   // navigate," independent of whether jsdom could have carried the navigation out.
   const navigationAttempts = [];
   dom.virtualConsole.on("jsdomError", (error) => {
-    if (isNavigationError(error)) navigationAttempts.push(error.message);
+    if (isNavigationError({ error })) navigationAttempts.push(error.message);
   });
 
   // See this file's header (SPEC-046 REQ-2/§4) for why these three are stubbed rather than left
@@ -139,7 +139,7 @@ export async function runScenario({ scenario, bundleSource }, { settleMs = 150, 
   // scenarios that exercise real page-content DOM behavior for a jsdom limitation, not a real bug.
   stubBrowserGaps({ window: dom.window });
 
-  scenario.seed?.(dom.window.sessionStorage);
+  scenario.seed?.({ storage: dom.window.sessionStorage });
 
   const caughtErrors = [];
   dom.window.addEventListener("error", (event) => {
@@ -172,13 +172,13 @@ export async function runScenario({ scenario, bundleSource }, { settleMs = 150, 
 
   const mountEl = dom.window.document.getElementById(MOUNT_ID);
   if (!mountEl) {
-    fail(`[${scenario.name}] #${MOUNT_ID} is missing from the DOM after evaluating the bundle`);
+    fail({ message: `[${scenario.name}] #${MOUNT_ID} is missing from the DOM after evaluating the bundle` });
   }
   if (mountEl.children.length === 0) {
-    fail(`[${scenario.name}] #${MOUNT_ID} has no children after evaluating the bundle — React never mounted into it`);
+    fail({ message: `[${scenario.name}] #${MOUNT_ID} has no children after evaluating the bundle — React never mounted into it` });
   }
 
-  scenario.verify?.(dom.window.sessionStorage, dom.window.document, navigationAttempts);
+  scenario.verify?.({ storage: dom.window.sessionStorage, document: dom.window.document, navigationAttempts });
 
   log(
     `[check-bundle-mounts] OK [${scenario.name}] — bundle executed cleanly and mounted ${mountEl.children.length} child element(s) into #${MOUNT_ID}.`,
@@ -189,7 +189,7 @@ export const scenarios = [
   { name: "clean sessionStorage" },
   {
     name: "poisoned transcript entry (REQ-1 fail-soft rehydrate)",
-    seed: (storage) => storage.setItem(TRANSCRIPT_STORAGE_KEY, "{not valid json, this is deliberately corrupt"),
+    seed: ({ storage }, _options = {}) => storage.setItem(TRANSCRIPT_STORAGE_KEY, "{not valid json, this is deliberately corrupt"),
     // Fail-soft rehydrate (`loadPersistedState` inside `session-store.ts`) clears the corrupt key
     // synchronously, before first render, so the corrupt STRING itself must never survive. What the
     // key holds by the time this runs is a separate, timing-dependent question this assertion must
@@ -201,56 +201,56 @@ export const scenarios = [
     // started failing deterministically once an unrelated bundle-size change shifted the timing —
     // see SPEC-046 Task 2's handoff notes. The real invariant: never the original corrupt bytes, and
     // whatever DOES replace them (nothing, or the freshly-persisted empty state) must be well-formed.
-    verify: (storage) => {
+    verify: ({ storage }, _options = {}) => {
       const value = storage.getItem(TRANSCRIPT_STORAGE_KEY);
       if (value === null) return; // effect has not (yet) re-persisted — also a valid post-clear state.
       if (value.startsWith("{not valid json")) {
-        fail("poisoned transcript entry: the corrupt value must not survive verbatim");
+        fail({ message: "poisoned transcript entry: the corrupt value must not survive verbatim" });
       }
       let parsed;
       try {
         parsed = JSON.parse(value);
       } catch {
-        fail(`poisoned transcript entry: whatever replaced the corrupt entry is not valid JSON: ${value}`);
+        fail({ message: `poisoned transcript entry: whatever replaced the corrupt entry is not valid JSON: ${value}` });
       }
       if (parsed.open !== false || !Array.isArray(parsed.messages) || parsed.messages.length !== 0) {
-        fail(`poisoned transcript entry: replaced with an unexpected, non-empty value: ${value}`);
+        fail({ message: `poisoned transcript entry: replaced with an unexpected, non-empty value: ${value}` });
       }
     },
   },
   {
     name: "wrong-shaped transcript entry (valid JSON, invalid ChatMessage shape)",
-    seed: (storage) => storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: true, messages: [{ oops: "no id/role/content" }] })),
+    seed: ({ storage }, _options = {}) => storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: true, messages: [{ oops: "no id/role/content" }] })),
     // Same drift guard as the poisoned-JSON scenario above: without asserting the seeded entry was
     // consumed/replaced, a `TRANSCRIPT_STORAGE_KEY` version bump in `session-store.ts` left
     // un-mirrored here would seed a key the running bundle never even reads, and this scenario would
     // still pass on "still mounts" alone — vacuously, since the wrong-shaped entry it meant to
     // exercise was never actually read by `loadPersistedState`.
-    verify: (storage) => {
+    verify: ({ storage }, _options = {}) => {
       const value = storage.getItem(TRANSCRIPT_STORAGE_KEY);
       if (value === null) return; // effect has not (yet) re-persisted — also a valid post-clear state.
       if (value.includes('"oops"')) {
-        fail("wrong-shaped transcript entry: the invalid ChatMessage entry must not survive verbatim");
+        fail({ message: "wrong-shaped transcript entry: the invalid ChatMessage entry must not survive verbatim" });
       }
       let parsed;
       try {
         parsed = JSON.parse(value);
       } catch {
-        fail(`wrong-shaped transcript entry: whatever replaced the invalid entry is not valid JSON: ${value}`);
+        fail({ message: `wrong-shaped transcript entry: whatever replaced the invalid entry is not valid JSON: ${value}` });
       }
       if (parsed.open !== false || !Array.isArray(parsed.messages) || parsed.messages.length !== 0) {
-        fail(`wrong-shaped transcript entry: replaced with an unexpected, non-empty value: ${value}`);
+        fail({ message: `wrong-shaped transcript entry: replaced with an unexpected, non-empty value: ${value}` });
       }
     },
   },
   {
     name: 'retired action queue never executes',
-    seed: storage => storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ type: 'highlight', target: { slug: 'example', title: 'Example Published Post', path: '/example' } })),
-    verify: (_storage, document, navigationAttempts) => {
+    seed: ({ storage }, _options = {}) => storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ type: 'highlight', target: { slug: 'example', title: 'Example Published Post', path: '/example' } })),
+    verify: ({ document, navigationAttempts }, _options = {}) => {
       const heading = document.querySelector('.entry-title');
-      if (heading?.__tovuScrollIntoViewCalls) fail('retired queue scrolled a target');
-      if (heading?.style.outline || heading?.classList.contains('tovu-site-assistant__highlight')) fail('retired queue highlighted a target');
-      if (navigationAttempts.length) fail('retired queue navigated');
+      if (heading?.__tovuScrollIntoViewCalls) fail({ message: 'retired queue scrolled a target' });
+      if (heading?.style.outline || heading?.classList.contains('tovu-site-assistant__highlight')) fail({ message: 'retired queue highlighted a target' });
+      if (navigationAttempts.length) fail({ message: 'retired queue navigated' });
     },
   },
   {
@@ -274,7 +274,7 @@ export const scenarios = [
     // `navigationAttempts`/`jsdomError` wiring above this function), so the guard is "zero navigation
     // ATTEMPTS," which is exactly as strong a signal as "zero real navigations" would be here.
     name: "a rehydrated message whose directive already executed must not re-fire navigation on mount (SPEC-046 regression)",
-    seed: (storage) =>
+    seed: ({ storage }, _options = {}) =>
       storage.setItem(
         TRANSCRIPT_STORAGE_KEY,
         JSON.stringify({
@@ -297,11 +297,11 @@ export const scenarios = [
           ],
         }),
       ),
-    verify: (_storage, _document, navigationAttempts) => {
+    verify: ({ navigationAttempts }, _options = {}) => {
       if (navigationAttempts.length > 0) {
         fail(
-          `rehydrated navigate directive re-fired on mount — ${navigationAttempts.length} navigation attempt(s) detected: ${JSON.stringify(navigationAttempts)}. ` +
-            "This is the exact shape of the live infinite-reload bug: an already-executed auto-navigate directive in the persisted transcript's last message must not run again just because a fresh component instance mounted.",
+          { message: `rehydrated navigate directive re-fired on mount — ${navigationAttempts.length} navigation attempt(s) detected: ${JSON.stringify(navigationAttempts)}. ` +
+            "This is the exact shape of the live infinite-reload bug: an already-executed auto-navigate directive in the persisted transcript's last message must not run again just because a fresh component instance mounted." },
         );
       }
     },
@@ -320,7 +320,7 @@ function readBundle({ bundlePath, readText }) {
   try {
     return readText(bundlePath);
   } catch (cause) {
-    return fail(`could not read ${bundlePath} — did the build run first? (${cause.message})`);
+    return fail({ message: `could not read ${bundlePath} — did the build run first? (${cause.message})` });
   }
 }
 

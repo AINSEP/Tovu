@@ -48,7 +48,7 @@ function fixture({ t }: { t: TestContext }) {
     shell: { openExternal: async (url) => { opened.push(url); } },
     openSites,
     serializer: createKeyedSerializer(),
-    projectsPath: sitesFilePath(path.join(root, "state")),
+    projectsPath: sitesFilePath({ userDataDir: path.join(root, "state") }),
     registryPath: path.join(root, "processes"),
     repoRoot: path.join(root, "repo"),
     statePath: path.join(root, "state", "desktop-state.json"),
@@ -97,7 +97,7 @@ function fixture({ t }: { t: TestContext }) {
 test("registered list joins current server state and returns fresh names on consecutive polls", (t) => {
   const f = fixture({ t });
   const id = f.site({ name: "listed" });
-  trackSite(f.deps.projectsPath, id);
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id });
   f.deps.openSites.set(id, { server: { port: 4321 } });
   f.previews.set(id, "data:image/png;base64,AA==");
   const listed = f.invoke({ channel: SITE_IPC_CHANNELS.list });
@@ -117,7 +117,7 @@ test("registered list never requests a capture for running sites without a previ
   const bare = f.site({ name: "bare" });
   const captured = f.site({ name: "captured" });
   const stopped = f.site({ name: "stopped" });
-  for (const id of [bare, captured, stopped]) trackSite(f.deps.projectsPath, id);
+  for (const id of [bare, captured, stopped]) trackSite({ projectsPath: f.deps.projectsPath, siteDir: id });
   f.deps.openSites.set(bare, { server: { port: 4401 } });
   f.deps.openSites.set(captured, { server: { port: 4402 } });
   f.previews.set(captured, "data:image/png;base64,AA==");
@@ -142,7 +142,7 @@ test("registered create forwards the display name to init and records the newly 
   assert.equal(f.adoptions[0]?.name, "My new website");
   assert.equal(f.adoptions[0]?.repoRoot, f.deps.repoRoot);
   assert.equal(f.adoptions[0]?.cliMode, "source");
-  assert.equal(readTrackedSites(f.deps.projectsPath)[0]?.siteId, "created-by-fixture");
+  assert.equal(readTrackedSites({ projectsPath: f.deps.projectsPath })[0]?.siteId, "created-by-fixture");
 });
 
 test("registered create refuses hosted databases before opening a folder picker", async (t) => {
@@ -150,7 +150,7 @@ test("registered create refuses hosted databases before opening a folder picker"
   await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Hosted", database: { kind: "supabase" } } }), /only creates SQLite sites/);
   assert.deepEqual(f.dialogs, []);
   assert.deepEqual(f.adoptions, []);
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }), []);
 });
 
 test("created website and its name survive a discovery-settings write failure", async (t) => {
@@ -165,7 +165,7 @@ test("created website and its name survive a discovery-settings write failure", 
   const created = await f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Still created", database: { kind: "sqlite" } } });
   assert.equal(attempts, 1); assert.equal(created.id, dir); assert.equal(created.displayName, "Still created");
   assert.equal(fs.existsSync(path.join(dir, ".site-meta.json")), true);
-  assert.equal(readTrackedSites(f.deps.projectsPath)[0]?.displayName, "Still created");
+  assert.equal(readTrackedSites({ projectsPath: f.deps.projectsPath })[0]?.displayName, "Still created");
 });
 
 test("registered asynchronous discovery uses the injected worker port and respects dismissals", async (t) => {
@@ -177,7 +177,7 @@ test("registered asynchronous discovery uses the injected worker port and respec
   f.deps.classifySiteDir = (dir) => { cardAdmissions.push(dir); return classifySiteDirSafely(dir); };
   f.deps.recentSiteDirs = () => assert.fail("the worker reads recent folders off-thread");
   const pending = f.invoke({ channel: SITE_IPC_CHANNELS.rescan });
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }), []);
   assert.deepEqual(cardAdmissions, [], "candidate discovery belongs to the worker");
   finish([id]);
   const records = await pending;
@@ -206,15 +206,15 @@ test("a discovery timeout rejects without adopting partial candidates", async (t
   const message = "Sites discovery timed out. Disconnect unavailable volumes or choose smaller sites folders and try again.";
   f.deps.discoverSites = async () => { throw new Error(message); };
   await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.rescan }), { message });
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }), []);
 });
 
 test("registered delete drains the selected adopted site and removes only its card and preview", async (t) => {
   const f = fixture({ t });
   const id = f.site({ name: "removed" });
   const keep = f.site({ name: "kept" });
-  trackSite(f.deps.projectsPath, id);
-  trackSite(f.deps.projectsPath, keep);
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id });
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: keep });
   const contentPath = path.join(id, "content.db");
   fs.writeFileSync(contentPath, "adopted site's bytes");
   await f.deps.openSiteServer({ siteDir: id, ctx: f.deps.ctx });
@@ -226,8 +226,8 @@ test("registered delete drains the selected adopted site and removes only its ca
   assert.deepEqual(f.closed, [{ siteDir: id, pid: 12345 }]);
   assert.deepEqual(f.deletedPreviews, [id]);
   assert.equal(f.previews.has(id), false);
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath).map((row) => row.siteDir), [keep]);
-  assert.equal(readProjectsFile(f.deps.projectsPath).dismissed.includes(id), true);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }).map((row) => row.siteDir), [keep]);
+  assert.equal(readProjectsFile({ projectsPath: f.deps.projectsPath }).dismissed.includes(id), true);
   assert.equal(fs.readFileSync(contentPath, "utf8"), "adopted site's bytes");
 });
 
@@ -247,8 +247,8 @@ test("registered rename updates the selected config, returned name and native wi
   const f = fixture({ t });
   const id = f.site({ name: "rename-me" });
   const other = f.site({ name: "leave-me" });
-  trackSite(f.deps.projectsPath, id);
-  trackSite(f.deps.projectsPath, other);
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id });
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: other });
   const titles: string[] = [];
   f.deps.openSites.set(id, { server: { port: 4321 }, window: {
     isDestroyed: () => false, setTitle: (title) => { titles.push(title); },
@@ -269,7 +269,7 @@ test("registered add-site tracks the picked existing folder without initializing
   const added = await f.invoke({ channel: SITE_IPC_CHANNELS.addSite });
   assert.equal(added.id, id);
   assert.equal(added.deleteErasesFiles, false);
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath).map((row) => row.siteDir), [id]);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }).map((row) => row.siteDir), [id]);
   assert.deepEqual(f.adoptions, []);
   assert.equal(fs.readFileSync(path.join(id, "config.json"), "utf8"), original);
   assert.deepEqual(f.dialogs[0]?.properties, ["openDirectory"]);
@@ -291,16 +291,16 @@ test("registered locate replaces the selected stale path with the folder the ope
   const stale = path.join(f.root, "missing-old-folder");
   const other = f.site({ name: "untouched" });
   const moved = f.site({ name: "new-location" });
-  trackSite(f.deps.projectsPath, stale);
-  trackSite(f.deps.projectsPath, other);
-  const createdAt = readTrackedSites(f.deps.projectsPath)[0]?.createdAt;
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: stale });
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: other });
+  const createdAt = readTrackedSites({ projectsPath: f.deps.projectsPath })[0]?.createdAt;
   f.pickedFolders.push(moved);
   const located = await f.invoke({ channel: SITE_IPC_CHANNELS.locate, payload: stale });
   assert.equal(located.id, moved);
   assert.equal(located.folderMissing, false);
   assert.equal(located.createdAt, createdAt);
   assert.equal(located.deleteErasesFiles, false);
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath).map((row) => row.siteDir), [moved, other]);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }).map((row) => row.siteDir), [moved, other]);
 });
 
 test("registered service discovery returns the CLI-backed lister's result using host configuration", async (t) => {
@@ -350,12 +350,12 @@ test("shared-home Create refuses another app winning the reserved folder without
   await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.create, payload: { displayName: "Raced", database: { kind: "sqlite" } } }), {
     message: "The new website folder was created by another app. Try creating this website again.",
   });
-  assert.deepEqual(f.adoptions, []); assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  assert.deepEqual(f.adoptions, []); assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }), []);
 });
 test("registered list skips bad catalog siblings and repeats import without duplicate cards", (t) => {
   const f = sharedFixture({ t }), first = f.site({ name: "valid", siteId: "same" }), copied = f.site({ name: "copy", siteId: "same" }), bad = f.site({ name: "broken" });
   fs.writeFileSync(path.join(bad, "config.json"), "{broken");
-  for (const dir of [first, copied, bad]) trackSite(f.deps.projectsPath, dir);
+  for (const dir of [first, copied, bad]) trackSite({ projectsPath: f.deps.projectsPath, siteDir: dir });
   // Production's name reader tolerates bad config independently of catalog admission.
   f.deps.readSiteName = (dir) => path.basename(dir);
   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
@@ -364,10 +364,10 @@ test("registered list skips bad catalog siblings and repeats import without dupl
 });
 test("removing a local adopted card retains the shared catalog, and external leases cannot be stopped or erased", async (t) => {
   const f = sharedFixture({ t }), id = f.site({ name: "shared" });
-  trackSite(f.deps.projectsPath, id); shareSiteDirectories({ workspace: f.workspace, dirs: [id], createdBy: "Web" });
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id }); shareSiteDirectories({ workspace: f.workspace, dirs: [id], createdBy: "Web" });
   await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
   assert.equal(f.workspace.registry({}).list({})[0]?.path, id); assert.equal(fs.existsSync(id), true);
-  trackSite(f.deps.projectsPath, id, "created", { siteId: "shared" });
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id }, { origin: "created", siteId: "shared" });
   const claim = f.workspace.claim({ path: id, app: "Web", port: 3456 });
   t.after(() => f.workspace.running({ path: id }).release({ token: claim.record.token }));
   await assert.rejects(() => f.invoke({ channel: SITE_IPC_CHANNELS.stop, payload: id }), { message: "Running in Web (port 3456). Stop it in that app." });
@@ -379,7 +379,7 @@ test("removing a local adopted card retains the shared catalog, and external lea
 
 test("registered Start attaches through the host port and retains the external owner's lease", async (t) => {
   const f = sharedFixture({ t }), id = f.site({ name: "external-start" });
-  trackSite(f.deps.projectsPath, id);
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id });
   const claim = f.workspace.claim({ path: id, app: "Web", port: 3456, scheme: "https" });
   f.deps.openSiteServer = async ({ siteDir: dir }) => {
     const server = attachRunningSite({ workspace: f.workspace, dir }); assert.ok(server);
@@ -396,7 +396,7 @@ test("registered Start attaches through the host port and retains the external o
 test("deskfx M1: a themes-only stale folder offers recovery and cannot spawn", async (t) => {
   const f = fixture({ t });
   const stale = path.join(f.root, "stale"); fs.mkdirSync(path.join(stale, "themes"), { recursive: true });
-  trackSite(f.deps.projectsPath, stale);
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: stale });
   f.deps.openSiteServer = async () => assert.fail("not a site must never start");
   const card = f.invoke({ channel: SITE_IPC_CHANNELS.list })[0];
   assert.equal(card.folderMissing, true);
@@ -428,7 +428,7 @@ test("deskfx S3: picker admission scans proposed aggregate roots before saving, 
 
 test("deskfx NIT: consecutive polls preserve createdAt and report each invalid catalog row once", (t) => {
   const f = fixture({ t }); const dir = f.site({ name: "stable" });
-  trackSite(f.deps.projectsPath, dir);
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: dir });
   const first = f.invoke({ channel: SITE_IPC_CHANNELS.list })[0];
   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list })[0].createdAt, first.createdAt);
   const workspace = createSitesWorkspace({}, { homeDir: f.root, env: {}, cwd: f.root, platform: "linux" });
@@ -509,7 +509,7 @@ test("setHome refuses a picked file or relative path, and without folder setting
 
 test("a lease held under this window's own server pid lets Delete erase, unless that entry is an attached external server", async (t) => {
   const f = sharedFixture({ t }), id = f.site({ name: "own-lease" });
-  trackSite(f.deps.projectsPath, id, "created", { siteId: "own-lease" });
+  trackSite({ projectsPath: f.deps.projectsPath, siteDir: id }, { origin: "created", siteId: "own-lease" });
   const claim = f.workspace.claim({ path: id, app: "Desktop", port: 4321 });
   const release = async () => { f.workspace.running({ path: id }).release({ token: claim.record.token }); };
   f.openSites.set(id, { server: { port: 4321, pid: claim.record.pid, external: true, stop: release } });
@@ -518,5 +518,5 @@ test("a lease held under this window's own server pid lets Delete erase, unless 
   f.openSites.set(id, { server: { port: 4321, pid: claim.record.pid, stop: release } });
   await f.invoke({ channel: SITE_IPC_CHANNELS.delete, payload: id });
   assert.equal(fs.existsSync(id), false, "this window's own server was stopped and the folder erased");
-  assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.deps.projectsPath }), []);
 });

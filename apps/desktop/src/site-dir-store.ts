@@ -333,7 +333,7 @@ function initSiteDir(input: InitSiteDirInput): Promise<string> {
     child.once("error", reject);
     child.once("exit", (code) => {
       if (code !== 0) {
-        const cliError = parseCliErrorLine(output);
+        const cliError = parseCliErrorLine({ text: output });
         const detail = cliError === null ? output.trim() : `${cliError.code}: ${cliError.message}`;
         reject(new Error(`tovu init failed for ${input.dir}: ${detail}`));
         return;

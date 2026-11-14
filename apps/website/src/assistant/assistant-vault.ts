@@ -39,7 +39,7 @@ export function createAssistantVault({ repo, context, sealer, keyring, clock }: 
   if (context.kind !== "site-assistant" && context.kind !== "personal-execution") throw new VaultError({ code: "context" });
   return createTovuStoreVault({ repo: { vault: repo }, kind: context.kind, context, keyring, clock,
     sealer: sealer ?? { seal: unavailable, open: unavailable },
-    storageError: error => {
+    storageError: (_required, { error } = {}) => {
       if (onSealFailure) onSealFailure(error);
       return error instanceof Error ? error : new VaultError({ code: INVALID_RECORD });
     },

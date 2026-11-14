@@ -4,7 +4,7 @@ import type { KeyringPort } from "@jini-ai/platform/secrets";
  * never captured, so a guard always sees the store's current keyring and translator. */
 export interface StorageFailureSource {
   keyring?: KeyringPort;
-  storageError: (error?: unknown) => Error;
+  storageError: (required: {}, options?: { error?: unknown }) => Error;
 }
 
 /** Only crypto errors become the feature's safe storage error; the original error is its argument.
@@ -15,17 +15,17 @@ export async function protectStorage<T>(
   { operation, source }: { operation: () => Promise<T>; source: Pick<StorageFailureSource, "storageError"> },
   _optional = {},
 ): Promise<T> {
-  try { return await operation(); } catch (error) { throw source.storageError(error); }
+  try { return await operation(); } catch (error) { throw source.storageError({}, { error }); }
 }
 
 /** Keyring port for a store vault. A missing keyring raises the storage error inside the guard, which
- * then translates it once more, so the feature receives storageError(storageError()). Jini's vault
+ * then translates it once more, passing the first storage error back to the translator. Jini's vault
  * service calls only `activeKey`; `derive` and `deriveSigningSecret` complete the port contract.
  * @complexity O(1) per call; delegates all key work to the injected keyring.
  */
 export function createStoreKeyring({ source }: { source: StorageFailureSource }, _optional = {}): KeyringPort {
   const withKeyring = <T>({ use }: { use: (keyring: KeyringPort) => Promise<T> }): Promise<T> => protectStorage({ source, operation: () => {
-    if (!source.keyring) throw source.storageError();
+    if (!source.keyring) throw source.storageError({});
     return use(source.keyring);
   } });
   return {

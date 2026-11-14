@@ -21,10 +21,10 @@ before(() => {
   writeFileSync(executable, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   // Ambient *_BIN variables are not configured overrides; model an installed CLI on PATH.
   process.env.PATH = [fixtureDir, originalPath].filter(Boolean).join(delimiter);
-  setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
 });
 after(() => {
-  setAgentModelProberForTesting(null);
+  setAgentModelProberForTesting({ prober: null });
   if (originalPath === undefined) delete process.env.PATH;
   else process.env.PATH = originalPath;
   rmSync(fixtureDir, { recursive: true, force: true });
@@ -169,9 +169,9 @@ test("listAssistantAgents memoizes — two back-to-back calls reuse the same in-
 
 test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result", async () => {
   let models = [{ id: "before-rescan", label: "Before rescan" }];
-  setAgentModelProberForTesting(async ({ def }) => def.id === "claude"
+  setAgentModelProberForTesting({ prober: async ({ def }) => def.id === "claude"
     ? { models, source: "live" }
-    : { models: def.fallbackModels, source: "fallback" });
+    : { models: def.fallbackModels, source: "fallback" } });
   try {
     const before = listAssistantAgents({}, { waitForProbe: true });
     assert.deepEqual((await before).find((agent) => agent.id === "claude")?.models, models);
@@ -183,7 +183,7 @@ test("rescanAssistantAgents forces a fresh probe, and a later listAssistantAgent
     assert.deepEqual((await rescanned).find((agent) => agent.id === "claude")?.models, models);
     assert.deepEqual((await listAssistantAgents()).find((agent) => agent.id === "claude")?.models, models);
   } finally {
-    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   }
 });
 
@@ -192,7 +192,7 @@ test("assistantAgentDiscoveryPending reports the process inventory's forced scan
   const gate = new Promise<void>((resolve) => { release = resolve; });
   await listAssistantAgents({}, { waitForProbe: true });
   assert.equal(assistantAgentDiscoveryPending(), false, "a settled probe is not pending");
-  setAgentModelProberForTesting(async ({ def }) => { await gate; return { models: def.fallbackModels, source: "fallback" }; });
+  setAgentModelProberForTesting({ prober: async ({ def }) => { await gate; return { models: def.fallbackModels, source: "fallback" }; } });
   try {
     const rescanned = rescanAssistantAgents({}, { waitForProbe: true });
     assert.equal(assistantAgentDiscoveryPending({}, {}), true, "the forced scan is still in flight");
@@ -201,7 +201,7 @@ test("assistantAgentDiscoveryPending reports the process inventory's forced scan
     assert.equal(assistantAgentDiscoveryPending(), false);
   } finally {
     release();
-    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   }
 });
 
@@ -214,12 +214,12 @@ test("assistantAgentDiscoveryPending reports the process inventory's forced scan
 test("rescanAssistantAgents surfaces the live model list the prober returns for an available def", async () => {
   const liveOnly = { id: "claude-live-only-test-id", label: "claude-live-only-test-id" };
   const probed: string[] = [];
-  setAgentModelProberForTesting(async ({ def }) => {
+  setAgentModelProberForTesting({ prober: async ({ def }) => {
     probed.push(def.id);
     return def.id === "claude"
       ? { models: [...def.fallbackModels, liveOnly], source: "live" }
       : { models: def.fallbackModels, source: "fallback" };
-  });
+  } });
   try {
     const agents = await rescanAssistantAgents({}, { waitForProbe: true });
     const claude = agents.find((agent) => agent.id === "claude");
@@ -232,7 +232,7 @@ test("rescanAssistantAgents surfaces the live model list the prober returns for 
       assert.equal(probed.includes(def.id), installed, `def '${def.id}' probed=${probed.includes(def.id)} but installed=${installed}`);
     }
   } finally {
-    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   }
 });
 
@@ -257,9 +257,9 @@ test("assistant inventory preserves dynamic catalog and resolved default for the
     launchFingerprint: "fixture", diagnostics: [], defaultSelectionId: models[0].id,
   };
   const defaultModelResolution = { status: "resolved" as const, id: models[0].id, source: "rpc" as const, resolvedAt: catalog.fetchedAt, launchFingerprint: "fixture" };
-  setAgentModelProberForTesting(async ({ def }) => def.id === "claude"
+  setAgentModelProberForTesting({ prober: async ({ def }) => def.id === "claude"
     ? { models, source: "live", catalog, defaultModelResolution }
-    : { models: def.fallbackModels, source: "fallback" });
+    : { models: def.fallbackModels, source: "fallback" } });
   try {
     const claude = (await rescanAssistantAgents({}, { waitForProbe: true })).find(agent => agent.id === "claude");
     assert.ok(claude);
@@ -268,17 +268,17 @@ test("assistant inventory preserves dynamic catalog and resolved default for the
     assert.deepEqual(claude.defaultModelResolution, defaultModelResolution);
     assert.equal(claude.supportsConcreteModelSelection, AGENT_DEFS.find(def => def.id === "claude")?.supportsConcreteModelSelection);
   } finally {
-    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   }
 });
 
 test("assistant rescan forces model discovery and preserves an unresolved default without guessing", async () => {
   const forces: boolean[] = [];
   const defaultModelResolution = { status: "unresolved" as const, reason: "Native metadata did not resolve a default; pick a concrete model." };
-  setAgentModelProberForTesting(async ({ def }, options = {}) => {
+  setAgentModelProberForTesting({ prober: async ({ def }, options = {}) => {
     if (def.id === "claude") forces.push(options.force === true);
     return { models: def.fallbackModels, source: "fallback", defaultModelResolution };
-  });
+  } });
   try {
     const first = (await listAssistantAgents({}, { waitForProbe: true })).find(agent => agent.id === "claude");
     assert.deepEqual(first?.defaultModelResolution, defaultModelResolution);
@@ -286,7 +286,7 @@ test("assistant rescan forces model discovery and preserves an unresolved defaul
     assert.deepEqual(rescanned?.defaultModelResolution, defaultModelResolution);
     assert.deepEqual(forces, [false, true]);
   } finally {
-    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   }
 });
 
@@ -434,10 +434,10 @@ test("Settings and chat share one background inventory while both requests retur
   const blocked = new Promise<void>(resolve => { finish = resolve; });
   const fallback = AGENT_DEFS.find(def => def.id === "claude")?.fallbackModels.filter(model => model.id !== "default");
   assert.ok(fallback);
-  setAgentModelProberForTesting(async ({ def }) => {
+  setAgentModelProberForTesting({ prober: async ({ def }) => {
     if (def.id === "claude") { calls++; started(); await blocked; }
     return { models: [{ id: "exact-model-v2", label: "exact-model-v2" }], source: "live" };
-  });
+  } });
   try {
     const settings = await listDetectedAssistantAgents();
     const chat = await listAssistantAgents();
@@ -454,6 +454,6 @@ test("Settings and chat share one background inventory while both requests retur
   } finally {
     finish();
     await listAssistantAgents({}, { waitForProbe: true });
-    setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+    setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   }
 });

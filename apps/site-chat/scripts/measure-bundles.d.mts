@@ -3,7 +3,7 @@ export interface BundleRow { asset: string; raw: number; gzip: number }
 export const ASSETS: string[];
 export const BUNDLE_TOTALS: [string, string[]][];
 export const LOADER_GZIP_BUDGET: number;
-export function measureBundles(input: { read: (name: string) => Uint8Array }): BundleRow[];
+export function measureBundles(input: { read: (required: { name: string }, options?: {}) => Uint8Array }): BundleRow[];
 export function assertLoaderBudget(input: { rows: BundleRow[] }): void;
 export function main(
   input?: { distDir?: string },

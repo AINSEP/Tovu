@@ -29,13 +29,13 @@ interface ShellPages {
   rendererFileUrl: string;
 }
 
-/** Preserve positional host callers; opaque/malformed origins fail closed. @complexity O(n) URL lengths. */
-function isSameOrigin(candidate: string, reference: string): boolean {
+/** Opaque or malformed origins fail closed. @complexity O(n) URL lengths. */
+function isSameOrigin({ candidate, reference }: { candidate: string; reference: string }, _options = {}): boolean {
   return compareOrigins({ candidate, reference });
 }
 
 /** Translate the host's external-link predicate. @complexity O(n) URL length. */
-function isExternalBrowserUrl(raw: string): boolean {
+function isExternalBrowserUrl({ raw }: { raw: string }, _options = {}): boolean {
   return admitExternalUrl({ raw });
 }
 
@@ -70,7 +70,7 @@ function installGuestWindowOpenPolicy(contents: Pick<NavigableContents, "setWind
 }
 
 /** Adapt Tovu's supervised-site predicate and optional attach-mode origin. @complexity O(n) URL length. */
-function isShellPageUrl(raw: string, pages: ShellPages): boolean {
+function isShellPageUrl({ raw, pages }: { raw: string; pages: ShellPages }, _options = {}): boolean {
   return admitShellPage({
     raw,
     pages: {

@@ -81,7 +81,7 @@ const isSupervised = (src: string) => src === SUPERVISED;
 
 test("a guest whose src is a supervised site is admitted, and the attach is not prevented", () => {
   const event = attachEvent();
-  assert.equal(admitGuestSource(event, { src: SUPERVISED }, { isAllowedSource: isSupervised }), true);
+  assert.equal(admitGuestSource({ event, params: { src: SUPERVISED }, options: { isAllowedSource: isSupervised } }), true);
   assert.equal(event.prevented, 0);
 });
 
@@ -90,7 +90,7 @@ test("a guest whose src is any other origin is refused by preventing the attach"
   // attached and received the speech preload.
   for (const src of ["https://attacker.example/admin", "http://127.0.0.1:4567@evil.example/admin/", "file:///etc/passwd"]) {
     const event = attachEvent();
-    assert.equal(admitGuestSource(event, { src }, { isAllowedSource: isSupervised }), false, src);
+    assert.equal(admitGuestSource({ event, params: { src }, options: { isAllowedSource: isSupervised } }), false, src);
     assert.equal(event.prevented, 1, src);
   }
 });
@@ -103,7 +103,7 @@ test("a guest with no src, or a non-string src, is refused without asking the pr
   };
   for (const params of [{}, { src: undefined }, { src: 42 }, { src: { toString: () => SUPERVISED } }]) {
     const event = attachEvent();
-    assert.equal(admitGuestSource(event, params, { isAllowedSource }), false);
+    assert.equal(admitGuestSource({ event, params, options: { isAllowedSource } }), false);
     assert.equal(event.prevented, 1);
   }
   assert.deepEqual(asked, []);
@@ -116,6 +116,6 @@ test("a predicate that throws refuses the attach instead of throwing out of Elec
   const isAllowedSource = () => {
     throw new Error("openSites was not ready");
   };
-  assert.equal(admitGuestSource(event, { src: SUPERVISED }, { isAllowedSource }), false);
+  assert.equal(admitGuestSource({ event, params: { src: SUPERVISED }, options: { isAllowedSource } }), false);
   assert.equal(event.prevented, 1);
 });

@@ -75,14 +75,14 @@ test("adding the same copied folder twice is idempotent", (t) => {
   fs.cpSync(f.original, f.copy, { recursive: true });
   const first = addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
   const before = fs.readFileSync(path.join(f.copy, ".site-meta.json"));
-  const rows = readTrackedSites(f.projectsPath);
+  const rows = readTrackedSites({ projectsPath: f.projectsPath });
   const second = addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
 
   assert.equal(first.alreadyTracked, false);
   assert.equal(second.alreadyTracked, true);
   assert.notEqual(readMeta({ siteDir: f.copy }).siteId, ORIGINAL_ID);
   assert.deepEqual(fs.readFileSync(path.join(f.copy, ".site-meta.json")), before);
-  assert.deepEqual(readTrackedSites(f.projectsPath), rows);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), rows);
 });
 
 test("adding a symlink alias keeps the original directory identity", (t) => {
@@ -123,14 +123,14 @@ test("a failed atomic identity replacement leaves both folders untouched and rep
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
   assert.deepEqual(readMeta({ siteDir: f.copy }), f.meta);
   assert.deepEqual(fs.readdirSync(f.copy).sort(), fs.readdirSync(f.original).sort(), "temporary file was removed");
-  assert.deepEqual(readTrackedSites(f.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });
 
 test("Start automatically re-identifies a copy already tracked by an older desktop", async (t) => {
   const f = fixture({ t });
   fs.cpSync(f.original, f.copy, { recursive: true });
-  trackSite(f.projectsPath, f.copy);
-  trackSite(f.projectsPath, f.original);
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.original });
   const started: string[] = [];
   const deps = {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
@@ -155,7 +155,7 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
   fs.renameSync(f.original, f.copy);
   fs.rmSync(path.join(f.copy, "content.db"));
   f.workspace.updateConfig({ patch: { databases: "appData" } });
-  trackSite(f.projectsPath, f.copy);
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   await handleStart(f.copy, {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
@@ -173,7 +173,7 @@ test("Start reports a plain sentence when a linked marker cannot safely be re-id
   fs.cpSync(f.original, f.copy, { recursive: true });
   fs.rmSync(path.join(f.copy, ".site-meta.json"));
   fs.symlinkSync(path.join(f.original, ".site-meta.json"), path.join(f.copy, ".site-meta.json"));
-  trackSite(f.projectsPath, f.copy);
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   let spawned = false;
   await assert.rejects(handleStart(f.copy, {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,

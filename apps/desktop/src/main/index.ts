@@ -548,7 +548,7 @@ function openSitesHomeWindow(): BrowserWindow | null {
 /** One main owns the desktop capability, regardless of its window/site count. It is never
  * republished when this instance attaches to another main's server. */
 const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
-  projectsPath: sitesFilePath(app.getPath("userData")),
+  projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
   revealPath: async ({ target }) => { shell.showItemInFolder(target); },
 }, warn: ({ message }) => console.warn(message) });
 
@@ -566,7 +566,7 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   resolveAdminDevProxyUrl: () => resolveAdminDevProxyUrl({ isPackaged: app.isPackaged, env: process.env }),
   startCaptureBridge: () => startDesktopCaptureBridge({ createWindow: (options) => new BrowserWindow(options), capturePool }),
   desktopMcpEnv: () => desktopMcpHttp.environment({}),
-  connectDesktopMcp: ({ server }) => desktopMcpHttp.connectSite({ adminUrl: server.adminUrl, onExit: ({ listener }) => server.onExit(listener) }),
+  connectDesktopMcp: ({ server }) => desktopMcpHttp.connectSite({ adminUrl: server.adminUrl, onExit: ({ listener }) => server.onExit({ listener }) }),
   startServer: (input) => startTovuServer({ ...input,
     isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
@@ -655,11 +655,11 @@ function isSupervisedGuestUrl({ raw }: { raw: string }, _optional = {}): boolean
  * @complexity O(n) in currently open sites.
  */
 function isShellPage({ raw }: { raw: string }, _optional = {}): boolean {
-  return isShellPageUrl(raw, {
+  return isShellPageUrl({ raw, pages: {
     isSupervisedSite: (raw) => isSupervisedGuestUrl({ raw }),
     attachUrl: process.env.TOVU_DESKTOP_URL?.trim(),
     rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
-  });
+  } });
 }
 
 const signInWindows = new WeakSet<WebContents>();
@@ -670,15 +670,15 @@ function registerGuestNavigationPolicy(): void {
   app.on("web-contents-created", (_event, contents) =>
     installWebviewGuestPolicy({ contents, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }), openExternal: ({ url }) => {
       const target = new URL(url);
-      if (!isSupervisedGuestUrl({ raw: url }) || !isSameOrigin(url, contents.getURL()) ||
+      if (!isSupervisedGuestUrl({ raw: url }) || !isSameOrigin({ candidate: url, reference: contents.getURL() }) ||
           !(isHostedMcpSignInLinkPath({ pathname: target.pathname }) || isHostedSignInLinkPath({ pathname: target.pathname }))) return void shell.openExternal(url);
       const popup = new BrowserWindow({ webPreferences: { session: contents.session, sandbox: true, contextIsolation: true, nodeIntegration: false } });
       signInWindows.add(popup.webContents);
       contents.session.setPermissionRequestHandler((wc, _permission, callback) => callback(!signInWindows.has(wc)));
       contents.session.setPermissionCheckHandler((wc) => !wc || !signInWindows.has(wc));
       installGuestWindowOpenPolicy(popup.webContents, { isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }), openExternal: ({ url: next }) => void shell.openExternal(next) });
-      popup.webContents.on("will-navigate", (event, next) => { if (!isExternalBrowserUrl(next)) event.preventDefault(); });
-      popup.webContents.on("will-redirect", (event) => { if (event.isMainFrame && !isExternalBrowserUrl(event.url)) event.preventDefault(); });
+      popup.webContents.on("will-navigate", (event, next) => { if (!isExternalBrowserUrl({ raw: next })) event.preventDefault(); });
+      popup.webContents.on("will-redirect", (event) => { if (event.isMainFrame && !isExternalBrowserUrl({ raw: event.url })) event.preventDefault(); });
       void popup.loadURL(url);
     } }));
 }
@@ -869,7 +869,7 @@ function installAppWideMenu(): void {
 /** `nested-sites-migration.ts`'s move, bound to this launch's workspace and userData. */
 async function migrateSitesHomeOnBoot(): Promise<void> {
   await migrateNestedSitesHome({ workspace: sharedSites, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
-    projectsPath: sitesFilePath(app.getPath("userData")),
+    projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
   });
 }
 
@@ -879,7 +879,7 @@ function sitesHomeCtx() {
     cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
     registryPath: registryDirPath(app.getPath("userData")),
-    projectsPath: sitesFilePath(app.getPath("userData")),
+    projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
   };
 }
 type SitesHomeCtx = ReturnType<typeof sitesHomeCtx>;
@@ -967,7 +967,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
       defaultRoots: SITE_SCAN_ROOTS,
       home: () => sharedSites.home({}),
       workspace: sharedSites,
-      createdSiteDirs: () => readTrackedSites(sitesCtx.projectsPath)
+      createdSiteDirs: () => readTrackedSites({ projectsPath: sitesCtx.projectsPath })
         .filter((row) => row.origin === "created").map((row) => row.siteDir),
     }),
     // A thunk, not the list: read fresh on every scan, so a site opened during this session is

@@ -144,7 +144,7 @@ function installGuestAttachPolicy<W extends SitesHomeWindow>({ window, ports }: 
   // input needs the desktop app, from inside the desktop app. That grant is only safe on a supervised
   // site's origin, so a guest pointed anywhere else is refused before it attaches.
   window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
-    if (!admitGuestSource(event, params, { isAllowedSource: ports.isSupervisedGuestUrl })) return;
+    if (!admitGuestSource({ event, params, options: { isAllowedSource: ports.isSupervisedGuestUrl } })) return;
     applyGuestWebPreferences(webPreferences, { preloadPath: ports.guestPreloadPath });
   });
 

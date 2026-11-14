@@ -414,7 +414,7 @@ function tryLocalMcpUiDelivery(
  * just not this caller's, or not an A2UI one); only `unknown-or-closed` falls through to the daemon.
  */
 async function proxyA2uiAction(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore, daemon: DaemonCallOptions): Promise<void> {
-  const action = readA2uiAction(req.body);
+  const action = readA2uiAction({ rawBody: req.body });
   if (!action.ok) {
     res.status(400).json(action.error);
     return;

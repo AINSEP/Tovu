@@ -40,7 +40,7 @@ interface ServerExit {
 
 /** The slice of a `startTovuServer` handle this module reads. `onExit` is optional: see `set`. */
 interface SupervisedServer {
-  onExit?: (listener: (exit: ServerExit) => void) => void;
+  onExit?: (required: { listener: (exit: ServerExit) => void }) => void;
 }
 
 /** The least a stored entry carries. The caller's real entry type (the server handle's `port` and
@@ -118,7 +118,7 @@ function createSiteSupervisor<E extends SiteEntry>(deps: SiteSupervisorDeps<E>):
       // A previous crash at this path is no longer the current answer about it.
       exits.delete(siteDir);
       if (typeof entry?.server?.onExit === "function") {
-        entry.server.onExit((exit) => handleExit(siteDir, entry, exit));
+        entry.server.onExit({ listener: (exit) => handleExit(siteDir, entry, exit) });
       }
       return this;
     },

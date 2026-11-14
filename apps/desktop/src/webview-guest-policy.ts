@@ -22,9 +22,7 @@ function applyGuestWebPreferences(webPreferences: GuestWebPreferences, options: 
 
 /** Adapt the Electron event and host predicate; failures refuse attachment. @complexity O(1) beyond the predicate. */
 function admitGuestSource(
-  event: { preventDefault(): void },
-  params: { src?: unknown },
-  options: GuestSourceOptions,
+  { event, params, options }: { event: { preventDefault(): void }; params: { src?: unknown }; options: GuestSourceOptions }, _options = {},
 ): boolean {
   return admitSource({ event, params, isAllowedSource: ({ src }) => options.isAllowedSource(src) });
 }

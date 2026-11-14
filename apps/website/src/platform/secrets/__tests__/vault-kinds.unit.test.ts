@@ -304,7 +304,7 @@ test("the store passes the original crypto error to its feature storage-error tr
   const f = storeFixture();
   const failure = new Error("key unavailable");
   const service = createTovuStoreVault({ ...f.required, sealer: { seal: async () => { throw failure; }, open: f.required.sealer.open.bind(f.required.sealer) },
-    storageError: error => new Error("safe feature failure", { cause: error }) });
+    storageError: (_required, { error } = {}) => new Error("safe feature failure", { cause: error }) });
   await assert.rejects(service.put({ ...f.input, id: "media" }), error => {
     assert.ok(error instanceof Error);
     assert.equal(error.message, "safe feature failure");
@@ -317,7 +317,7 @@ test("a missing keyring is translated twice: the inner storage error becomes the
   const f = storeFixture();
   const calls: unknown[][] = [];
   const service = createTovuStoreVault({ ...f.required, keyring: undefined, newId: () => "new",
-    storageError: (...args: unknown[]) => { calls.push(args); return new Error(`storage failure ${calls.length}`); } });
+    storageError: (_required, options) => { calls.push(options ? [options.error] : []); return new Error(`storage failure ${calls.length}`); } });
   await assert.rejects(service.put(f.input), { message: "storage failure 2" });
   assert.equal(calls.length, 2);
   assert.deepEqual(calls[0], []);

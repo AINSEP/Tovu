@@ -61,7 +61,7 @@ function createHostParser(
  */
 export function createTovuStoreVault(required: {
   repo: { vault?: VaultRepoPort }; kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution"; sealer: SecretSealerPort;
-  keyring?: KeyringPort; clock?: Clock; storageError: (error?: unknown) => Error;
+  keyring?: KeyringPort; clock?: Clock; storageError: (required: {}, options?: { error?: unknown }) => Error;
   /** Assistant stores constrain the full session/site scope and mint stable singleton IDs. */
   context?: VaultContext; newId?: (input: VaultOptions) => string;
 }, _options = {}): SecretsVaultService {

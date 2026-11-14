@@ -61,7 +61,7 @@ function isValidMessage(value: unknown): value is ChatMessage {
   return typeof value.id === "string" && (value.role === "user" || value.role === "assistant") && typeof value.content === "string";
 }
 
-function byteLength(value: string): number {
+function byteLength({ value }: { value: string }, _options = {}): number {
   return new TextEncoder().encode(value).length;
 }
 
@@ -118,7 +118,7 @@ export function savePersistedState(storage: SessionStore, state: PersistedSiteAs
   if (messages.length > MAX_MESSAGES) messages = messages.slice(messages.length - MAX_MESSAGES);
 
   let serialized = JSON.stringify({ open: state.open, messages });
-  while (messages.length > 0 && byteLength(serialized) > MAX_BYTES) {
+  while (messages.length > 0 && byteLength({ value: serialized }) > MAX_BYTES) {
     messages = messages.slice(1);
     serialized = JSON.stringify({ open: state.open, messages });
   }

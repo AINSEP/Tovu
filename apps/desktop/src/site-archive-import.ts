@@ -155,7 +155,7 @@ export async function tidyInterruptedImports(
 }
 
 function failureMessage({ stderr, code }: { stderr: string; code: number | null }): string {
-  const cliError = parseCliErrorLine(stderr);
+  const cliError = parseCliErrorLine({ text: stderr });
   if (cliError?.code === "VALIDATION") return cliError.message;
   const detail = cliError === null ? `exit code ${code}: ${stderr.trim().slice(-500)}` : `${cliError.code}: ${cliError.message}`;
   return `The import stopped before it finished. No website was created. Details: ${detail}`;

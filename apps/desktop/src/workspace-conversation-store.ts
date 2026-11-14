@@ -97,39 +97,39 @@ function createConversationStore(
     }) : [];
   };
   // Every chat write preserves audit metadata; renderer message saves cannot erase it.
-  const save = (rows: StoredConversation[]) => ports.write({ filePath: required.filePath, value: { conversations: rows, toolGaps: readGaps() } });
-  const locked = <T>(critical: () => T) => ports.withLock({ filePath: required.filePath, critical });
-  const mutate = (id: string, change: (row: StoredConversation) => void) => locked(() => {
+  const save = ({ rows }: { rows: StoredConversation[] }, _options = {}) => ports.write({ filePath: required.filePath, value: { conversations: rows, toolGaps: readGaps() } });
+  const locked = <T>({ critical }: { critical: () => T }, _options = {}) => ports.withLock({ filePath: required.filePath, critical });
+  const mutate = ({ id, change }: { id: string; change: (row: StoredConversation) => void }, _options = {}) => locked({ critical: () => {
     const rows = load();
     const row = rows.find((candidate) => candidate.id === id);
     if (row === undefined) throw new Error(`Conversation ${id} does not exist.`);
     change(row);
     row.updatedAt = ports.now();
-    save(rows);
-  });
+    save({ rows });
+  } });
 
   return {
-    appendToolGap: ({ entry }) => locked(() => {
+    appendToolGap: ({ entry }) => locked({ critical: () => {
       const entries = readGaps().filter(existing => existing.id !== entry.id);
       ports.write({ filePath: required.filePath, value: { conversations: load(), toolGaps: [...entries, entry].slice(-1000) } });
-    }),
+    } }),
     listToolGaps: (_required, { limit = 100 } = {}) => readGaps().slice(-Math.max(1, Math.min(200, limit))).reverse(),
     list: () => load().map(summarize).sort((a, b) => b.updatedAt - a.updatedAt),
-    create: () => locked(() => {
+    create: () => locked({ critical: () => {
       const now = ports.now();
       const row: StoredConversation = { id: ports.newId(), title: null, createdAt: now, updatedAt: now, messages: [] };
-      save([...load(), row]);
+      save({ rows: [...load(), row] });
       return summarize(row);
-    }),
-    rename: ({ id, title }) => mutate(id, (row) => { row.title = title; }),
-    remove: ({ id }) => locked(() => save(load().filter((row) => row.id !== id))),
+    } }),
+    rename: ({ id, title }) => mutate({ id, change: (row) => { row.title = title; } }),
+    remove: ({ id }) => locked({ critical: () => save({ rows: load().filter((row) => row.id !== id) }) }),
     loadMessages: ({ conversationId }) => load().find((row) => row.id === conversationId)?.messages ?? [],
-    saveMessage: ({ conversationId, message }) => mutate(conversationId, (row) => {
+    saveMessage: ({ conversationId, message }) => mutate({ id: conversationId, change: (row) => {
       const index = row.messages.findIndex((existing) => existing.id === message.id);
       if (index === -1) row.messages.push(message);
       else row.messages[index] = message;
       row.title ??= titleFrom(message);
-    }),
+    } }),
   };
 }
 

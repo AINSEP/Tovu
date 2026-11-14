@@ -129,5 +129,5 @@ async function startSoakSite({ site, repoRoot }, _options = {}) {
     await server?.stop();
     throw new Error(`Soak compiled serve instrumentation failed: ${redact(error?.message ?? error)}`);
   }
-  server.onExit(() => { if (!stopping) process.exit(1); });
+  server.onExit({ listener: () => { if (!stopping) process.exit(1); } });
 }

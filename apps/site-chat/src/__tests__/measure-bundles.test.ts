@@ -14,7 +14,7 @@ import { ASSETS, LOADER_GZIP_BUDGET, assertLoaderBudget, isEntryPoint, main, mea
 const text = (name: string) => Buffer.from(`/* ${name} */ ${'x'.repeat(name.length * 10)}`);
 
 test('every asset gets its raw and gzip size, then the two widget totals', () => {
-  const rows = measureBundles({ read: text });
+  const rows = measureBundles({ read: ({ name }) => text(name) });
   assert.deepEqual(rows.slice(0, ASSETS.length).map((row) => row.asset), ASSETS);
   for (const row of rows.slice(0, ASSETS.length)) {
     assert.equal(row.raw, text(row.asset).length);

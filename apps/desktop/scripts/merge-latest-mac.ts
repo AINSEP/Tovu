@@ -25,7 +25,7 @@ if (!out || inputs.length < 2) {
   process.exit(1);
 }
 try {
-  const merged = mergeMacManifests(inputs.map((file) => ({ label: file, manifest: yaml.load(readFileSync(file, "utf8")) })));
+  const merged = mergeMacManifests({ inputs: inputs.map((file) => ({ label: file, manifest: yaml.load(readFileSync(file, "utf8")) })) });
   writeFileSync(out, yaml.dump(merged, { lineWidth: -1 }));
   console.log(`merge-latest-mac: wrote ${out} (${merged.version}: ${merged.files.map((entry) => entry.url).join(", ")})`);
 } catch (error) {

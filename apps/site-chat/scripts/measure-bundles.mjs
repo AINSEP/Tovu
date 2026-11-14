@@ -12,13 +12,13 @@ export const LOADER_GZIP_BUDGET = 3000;
 
 /**
  * Raw and level-9 gzip sizes per asset plus the two widget totals.
- * @param {{ read: (name: string) => Uint8Array }} input reads one built asset by file name.
+ * @param {{ read: (input: { name: string }) => Uint8Array }} input reads one built asset by file name.
  * @returns {{ asset: string; raw: number; gzip: number }[]}
  * @complexity O(total asset bytes) for the gzip passes.
  */
 export function measureBundles({ read }) {
   const rows = ASSETS.map((asset) => {
-    const bytes = read(asset);
+    const bytes = read({ name: asset });
     return { asset, raw: bytes.length, gzip: gzipSync(bytes, { level: 9 }).length };
   });
   for (const [asset, names] of BUNDLE_TOTALS) {
@@ -38,7 +38,7 @@ export function main(
   { distDir = fileURLToPath(new URL('../dist/', import.meta.url)) } = {},
   { readFile = readFileSync, table = console.table } = {},
 ) {
-  const rows = measureBundles({ read: (name) => readFile(path.join(distDir, name)) });
+  const rows = measureBundles({ read: ({ name }, _options = {}) => readFile(path.join(distDir, name)) });
   table(rows);
   assertLoaderBudget({ rows });
   return rows;

@@ -19,14 +19,14 @@ function projectsFile(t: { after: (fn: () => void) => void }, contents?: string)
 const created = { siteDir: '/sites/a', createdAt: '2026-10-24T00:00:00.000Z', origin: 'created', siteId: 'site-a' };
 
 test('a well-formed file keeps provenance; a missing file is "missing" and empty', t => {
-  const read = readProjectsFile(projectsFile(t, JSON.stringify({ projects: [created], dismissed: ['/gone'] })));
+  const read = readProjectsFile({ projectsPath: projectsFile(t, JSON.stringify({ projects: [created], dismissed: ['/gone'] })) });
   assert.deepEqual(read, { state: 'ok', rows: [created], dismissed: ['/gone'], dismissedRecorded: true });
-  assert.deepEqual(readProjectsFile(projectsFile(t)), { state: 'missing', rows: [], dismissed: [], dismissedRecorded: false });
+  assert.deepEqual(readProjectsFile({ projectsPath: projectsFile(t) }), { state: 'missing', rows: [], dismissed: [], dismissedRecorded: false });
 });
 
 test('a parsed value of the wrong shape is damaged (never ok), and every recovered row loses origin and siteId', t => {
   for (const value of [null, [created], { projects: 'x' }, { projects: { 0: created } }, 'text', 7]) {
-    const read = readProjectsFile(projectsFile(t, JSON.stringify(value)));
+    const read = readProjectsFile({ projectsPath: projectsFile(t, JSON.stringify(value)) });
     assert.equal(read.state, 'unreadable', JSON.stringify(value));
     assert.deepEqual(read.rows, [], JSON.stringify(value));
   }
@@ -34,7 +34,7 @@ test('a parsed value of the wrong shape is damaged (never ok), and every recover
 
 test('a truncated file is salvaged, but recovered rows come back adopted without a siteId; hostile rows are dropped', t => {
   const whole = JSON.stringify({ projects: [created, null, 5, { ...created, siteDir: '/sites/b', siteId: 'site-b' }], dismissed: ['/x'] });
-  const read = readProjectsFile(projectsFile(t, whole.slice(0, whole.indexOf('"dismissed"') + 3)));
+  const read = readProjectsFile({ projectsPath: projectsFile(t, whole.slice(0, whole.indexOf('"dismissed"') + 3)) });
   assert.equal(read.state, 'unreadable');
   assert.deepEqual(read.rows, [
     { siteDir: '/sites/a', createdAt: created.createdAt, origin: 'adopted' },
@@ -47,10 +47,10 @@ test('a row needs BOTH a string siteDir and a string createdAt; dismissals keep 
     { siteDir: '/ok', createdAt: 'c' }, { siteDir: 5, createdAt: 'c' }, { siteDir: '/no-date' }, { createdAt: 'c' },
     { siteDir: '/weird-origin', createdAt: 'c', origin: 'CREATED' }, null,
   ];
-  const read = readProjectsFile(projectsFile(t, JSON.stringify({ projects: rows, dismissed: ['/a', 5, null, '/b'] })));
+  const read = readProjectsFile({ projectsPath: projectsFile(t, JSON.stringify({ projects: rows, dismissed: ['/a', 5, null, '/b'] })) });
   assert.deepEqual(read.rows, [{ siteDir: '/ok', createdAt: 'c', origin: 'adopted' }, { siteDir: '/weird-origin', createdAt: 'c', origin: 'adopted' }]);
   assert.deepEqual([read.dismissed, read.dismissedRecorded], [['/a', '/b'], true]);
-  const noDismissals = readProjectsFile(projectsFile(t, JSON.stringify({ projects: [], dismissed: 'x' })));
+  const noDismissals = readProjectsFile({ projectsPath: projectsFile(t, JSON.stringify({ projects: [], dismissed: 'x' })) });
   assert.deepEqual([noDismissals.dismissed, noDismissals.dismissedRecorded], [[], false]);
 });
 
@@ -61,7 +61,7 @@ test('trackSite stamps siteId only on a CREATED row with a non-empty string id',
   ];
   for (const [origin, siteId, stamped] of cases) {
     const file = projectsFile(t);
-    const [row] = trackSite(file, '/sites/new', origin as never, { siteId: siteId as never });
+    const [row] = trackSite({ projectsPath: file, siteDir: '/sites/new' }, { origin: origin as never, siteId: siteId as never });
     assert.equal(row?.origin, origin === SITE_ORIGIN.created ? 'created' : 'adopted', `${origin}/${String(siteId)}`);
     assert.equal('siteId' in (row ?? {}), stamped, `${origin}/${String(siteId)}`);
     if (stamped) assert.equal((row as { siteId?: string }).siteId, siteId);
@@ -70,6 +70,6 @@ test('trackSite stamps siteId only on a CREATED row with a non-empty string id',
 
 test('re-tracking a known dir adds no row, but clears its tombstone', t => {
   const file = projectsFile(t, JSON.stringify({ projects: [{ siteDir: '/a', createdAt: 'c', origin: 'adopted' }], dismissed: ['/a', '/b'] }));
-  assert.equal(trackSite(file, '/a').length, 1);
-  assert.deepEqual(readProjectsFile(file).dismissed, ['/b']);
+  assert.equal(trackSite({ projectsPath: file, siteDir: '/a' }).length, 1);
+  assert.deepEqual(readProjectsFile({ projectsPath: file }).dismissed, ['/b']);
 });

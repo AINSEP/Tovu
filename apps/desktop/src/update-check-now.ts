@@ -99,7 +99,7 @@ export function updateCheckNotice(
   }
 }
 
-const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
+const messageOf = ({ error }: { error: unknown }, _options = {}): string => error instanceof Error ? error.message : String(error);
 
 /**
  * One manual check at a time: a second click while one runs joins it, so no second dialog opens.
@@ -109,7 +109,7 @@ const messageOf = (error: unknown): string => error instanceof Error ? error.mes
 export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {}): { checkNow: () => Promise<UpdateCheckOutcome> } {
   let inFlight: Promise<UpdateCheckOutcome> | null = null;
 
-  function report(outcome: UpdateCheckOutcome, errorMessage?: string): UpdateCheckOutcome {
+  function report({ outcome }: { outcome: UpdateCheckOutcome }, { errorMessage }: { errorMessage?: string } = {}): UpdateCheckOutcome {
     const notice = updateCheckNotice({
       outcome, currentVersion: deps.currentVersion(), isPackaged: deps.isPackaged,
       automaticUpdates: deps.automaticUpdates(), errorMessage,
@@ -122,19 +122,19 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
     result: Awaited<ReturnType<CheckableUpdater['checkForUpdates']>>; automatic: boolean;
   }): UpdateCheckOutcome {
     const version = result?.updateInfo?.version;
-    if (!result?.isUpdateAvailable || !version) return report({ kind: 'up-to-date', version: deps.currentVersion() });
-    if (!automatic) return report({ kind: 'available', version });
+    if (!result?.isUpdateAvailable || !version) return report({ outcome: { kind: 'up-to-date', version: deps.currentVersion() } });
+    if (!automatic) return report({ outcome: { kind: 'available', version } });
     // The controller's own listener prompts when this finishes; only a failure needs saying here.
     result.downloadPromise?.catch((error: unknown) => {
-      deps.log({ message: `update download failed: ${messageOf(error)}` });
-      deps.notify({ type: 'error', message: `Couldn’t download Tovu ${version}`, detail: plainUpdateError({ message: messageOf(error) }) });
+      deps.log({ message: `update download failed: ${messageOf({ error })}` });
+      deps.notify({ type: 'error', message: `Couldn’t download Tovu ${version}`, detail: plainUpdateError({ message: messageOf({ error }) }) });
     });
-    return report({ kind: 'downloading', version });
+    return report({ outcome: { kind: 'downloading', version } });
   }
 
   async function run(): Promise<UpdateCheckOutcome> {
     const skip = deps.skipReason();
-    if (skip !== null) return report({ kind: 'unavailable', reason: skip });
+    if (skip !== null) return report({ outcome: { kind: 'unavailable', reason: skip } });
     const automatic = deps.automaticUpdates();
     try {
       const ready = automatic ? deps.readyVersion() : null;
@@ -151,8 +151,8 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
       const result = await updater.checkForUpdates();
       return reportCheckResult({ result, automatic });
     } catch (error) {
-      deps.log({ message: `update check failed: ${messageOf(error)}` });
-      return report({ kind: 'error' }, messageOf(error));
+      deps.log({ message: `update check failed: ${messageOf({ error })}` });
+      return report({ outcome: { kind: 'error' } }, { errorMessage: messageOf({ error }) });
     }
   }
 

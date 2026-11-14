@@ -113,15 +113,15 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   const subscriptions = new Map<string, () => void>();
   const lifecycleOf = async () => (await deps.runtime).lifecycle;
 
-  const detach = (subscriptionId: string) => {
+  const detach = ({ subscriptionId }: { subscriptionId: string }, _options = {}) => {
     subscriptions.get(subscriptionId)?.();
     subscriptions.delete(subscriptionId);
   };
 
   /** Attaches one subscription; resolves with its outcome. Every event is pushed tagged. */
-  async function subscribe(sender: EventSink, subscriptionId: string, runId: string, afterCursor: string | null): Promise<void> {
+  async function subscribe({ sender, subscriptionId, runId, afterCursor }: { sender: EventSink; subscriptionId: string; runId: string; afterCursor: string | null }, _options = {}): Promise<void> {
     const push = (message: WorkspaceChatEventMessage) => {
-      if (sender.isDestroyed()) { detach(subscriptionId); return; }
+      if (sender.isDestroyed()) { detach({ subscriptionId }); return; }
       sender.send(WORKSPACE_CHAT_IPC.event, message);
     };
     let ended = false;
@@ -131,7 +131,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
         ended = true;
         push({ subscriptionId, kind: "closed", reason: "terminal" });
         // Deferred: `stream()` may deliver a replayed `end` before it has returned its unsubscribe.
-        queueMicrotask(() => detach(subscriptionId));
+        queueMicrotask(() => detach({ subscriptionId }));
       }
     };
     try {
@@ -166,13 +166,13 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
         addressee: addresseeForStart(input, deps.resolveAddressee),
       },
     );
-    await subscribe(event.sender, input.subscriptionId, runId, null);
+    await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId, afterCursor: null });
     return { runId };
   });
   deps.ipcMain.handle(WORKSPACE_CHAT_IPC.reattach, async (event, input: WorkspaceChatReattachInput) => {
-    await subscribe(event.sender, input.subscriptionId, input.runId, input.afterCursor ?? null);
+    await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId: input.runId, afterCursor: input.afterCursor ?? null });
   });
-  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach(subscriptionId));
+  deps.ipcMain.handle(WORKSPACE_CHAT_IPC.detach, (_event, { subscriptionId }: { subscriptionId: string }) => detach({ subscriptionId }));
   deps.ipcMain.handle(WORKSPACE_CHAT_IPC.stop, async (_event, { runId }: { runId: string }) => {
     await (await lifecycleOf()).cancel({ runId, reason: "Stopped by the operator." });
   });
@@ -195,14 +195,14 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
 
   deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory(currentDirectory));
   deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory(directory));
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory(directory) ? path.resolve(directory) : null));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory({ directory }));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));
 
   return { activeSubscriptions: () => subscriptions.size };
 }
 
 /** `true` only for an existing directory. @complexity O(1) syscall. */
-function isDirectory(directory: unknown): boolean {
+function isDirectory({ directory }: { directory: unknown }, _options = {}): boolean {
   if (typeof directory !== "string" || directory === "") return false;
   try {
     return fs.statSync(directory).isDirectory();

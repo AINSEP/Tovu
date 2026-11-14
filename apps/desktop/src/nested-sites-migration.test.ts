@@ -61,7 +61,7 @@ function fixture(t: TestContext, platform: "darwin" | "win32") {
     const db = new Database(path.join(dir, "content.db"));
     db.exec("CREATE TABLE content (value TEXT); INSERT INTO content VALUES ('keep');"); db.close();
     workspace.registry({}).merge({ entries: [{ id: name, name, path: dir, createdBy: "test", lastOpened: "2026-10-12T00:00:00Z" }] });
-    trackSite(projectsPath, dir, SITE_ORIGIN.adopted);
+    trackSite({ projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
     return dir;
   };
   const listed = () => discoverSiteDirs({ scanRoots: workspace.roots({}), knownDirs: workspace.registry({}).list({}).map((row) => row.path),
@@ -99,7 +99,7 @@ for (const platform of ["darwin", "win32"] as const) {
     assert.deepEqual(fs.readFileSync(path.join(to, "content.db")), before);
     const row = f.workspace.registry({}).list({}).find((entry) => entry.id === "alpha")!;
     assert.equal(row.path, to); assert.equal(row.lastOpened, "2026-10-12T00:00:00Z");
-    assert.equal(readTrackedSites(f.projectsPath)[0]?.siteDir, to);
+    assert.equal(readTrackedSites({ projectsPath: f.projectsPath })[0]?.siteDir, to);
     assert.deepEqual(f.listed(), [to]); assert.deepEqual(f.workspace.roots({}), [f.home]);
     const catalog = fs.readFileSync(path.join(f.options.appDataDir, "sites.json"));
     await f.migrate(); assert.equal(f.calls(), 1);

@@ -40,7 +40,7 @@ function fakeContext(userDataDir: string = tempDir()) {
     revealed,
     context: {
       userDataDir,
-      projectsPath: sitesFilePath(userDataDir),
+      projectsPath: sitesFilePath({ userDataDir }),
       revealPath: async ({ target }: { target: string }) => {
         revealed.push(target);
       },
@@ -85,8 +85,8 @@ test("describeSitesMcpTools publishes the table without leaking handlers", () =>
 test("list_sites reports the tracked sites and whether each folder still exists", async () => {
   const { context } = fakeContext();
   const present = siteFixture("live");
-  trackSite(context.projectsPath, present, SITE_ORIGIN.adopted);
-  trackSite(context.projectsPath, "/gone/missing-site", SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: context.projectsPath, siteDir: present }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ projectsPath: context.projectsPath, siteDir: "/gone/missing-site" }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool("list_sites", {}, context);
 
@@ -110,7 +110,7 @@ test("add_site_pointer tracks a real site as adopted", async () => {
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.siteDir, siteDir);
-  assert.equal(readTrackedSites(context.projectsPath)[0]!.origin, SITE_ORIGIN.adopted);
+  assert.equal(readTrackedSites({ projectsPath: context.projectsPath })[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("add_site_pointer REFUSES an empty folder, writes no row, and initializes nothing", async () => {
@@ -122,7 +122,7 @@ test("add_site_pointer REFUSES an empty folder, writes no row, and initializes n
 
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.code, "SITE_DIR_EMPTY");
-  assert.deepEqual(readTrackedSites(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: context.projectsPath }), []);
   // The assertion the whole tool exists to satisfy: no `tovu init` ran here.
   assert.deepEqual(fs.readdirSync(siteDir), []);
 });
@@ -141,7 +141,7 @@ test("add_site_pointer REFUSES an incomplete site and an occupied folder", async
 
   assert.equal(first.structuredContent.code, "SITE_DIR_INCOMPLETE");
   assert.equal(second.structuredContent.code, "SITE_DIR_OCCUPIED");
-  assert.deepEqual(readTrackedSites(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: context.projectsPath }), []);
   assert.deepEqual(fs.readdirSync(incomplete), ["config.json"]);
   assert.deepEqual(fs.readdirSync(occupied), ["taxes.pdf"]);
 });
@@ -156,7 +156,7 @@ test("add_site_pointer REFUSES a relative path rather than resolving it somewher
   const result = await runSitesMcpTool("add_site_pointer", { siteDir: path.basename(siteDir) }, context);
 
   assert.equal(result.isError, true);
-  assert.deepEqual(readTrackedSites(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: context.projectsPath }), []);
 });
 
 test("add_site_pointer rejects a missing or non-string siteDir with a correctable message", async () => {
@@ -167,7 +167,7 @@ test("add_site_pointer rejects a missing or non-string siteDir with a correctabl
     assert.equal(result.isError, true, `accepted ${JSON.stringify(args)}`);
     assert.match(result.content[0]!.text, /'siteDir' is required/);
   }
-  assert.deepEqual(readTrackedSites(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: context.projectsPath }), []);
 });
 
 test("a tools/call with no arguments object at all is treated as empty arguments, not a crash", async () => {
@@ -178,7 +178,7 @@ test("a tools/call with no arguments object at all is treated as empty arguments
 
   assert.equal(result.isError, true);
   assert.match(result.content[0]!.text, /'siteDir' is required/);
-  assert.deepEqual(readTrackedSites(context.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: context.projectsPath }), []);
 });
 
 test("add_site_pointer reports an already-tracked site without claiming it added one", async () => {
@@ -190,14 +190,14 @@ test("add_site_pointer reports an already-tracked site without claiming it added
 
   assert.equal(result.structuredContent.alreadyTracked, true);
   assert.match(result.content[0]!.text, /was already in your websites/);
-  assert.equal(readTrackedSites(context.projectsPath).length, 1);
+  assert.equal(readTrackedSites({ projectsPath: context.projectsPath }).length, 1);
 });
 
 test("add_site_pointer tells the operator when it brings back a website they had removed", async () => {
   const { context } = fakeContext();
   const siteDir = siteFixture();
-  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
-  untrackSite(context.projectsPath, siteDir);
+  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
+  untrackSite({ projectsPath: context.projectsPath, siteDir });
 
   const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
 
@@ -205,13 +205,13 @@ test("add_site_pointer tells the operator when it brings back a website they had
   assert.equal(result.structuredContent.alreadyTracked, false);
   assert.equal(result.structuredContent.alreadyDismissed, true);
   assert.match(result.content[0]!.text, /^Added .* back to your websites\. You had removed this website before/);
-  assert.equal(readTrackedSites(context.projectsPath).length, 1);
+  assert.equal(readTrackedSites({ projectsPath: context.projectsPath }).length, 1);
 });
 
 test("reveal_site_folder opens a tracked site's folder", async () => {
   const { context, revealed } = fakeContext();
   const siteDir = siteFixture();
-  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
 
@@ -247,12 +247,12 @@ test("reveal_site_folder surfaces a file-manager failure as a readable tool erro
   const siteDir = siteFixture();
   const context = {
     userDataDir,
-    projectsPath: sitesFilePath(userDataDir),
+    projectsPath: sitesFilePath({ userDataDir }),
     revealPath: async () => {
       throw new Error("could not run 'open': ENOENT");
     },
   };
-  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
 
@@ -267,13 +267,13 @@ test("a handler that rejects with a non-Error value still yields a readable tool
   const siteDir = siteFixture();
   const context = {
     userDataDir,
-    projectsPath: sitesFilePath(userDataDir),
+    projectsPath: sitesFilePath({ userDataDir }),
     revealPath: async () => {
       // Some spawn wrappers reject with a bare string rather than an Error.
       throw "file manager unavailable";
     },
   };
-  trackSite(context.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
 

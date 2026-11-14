@@ -18,11 +18,11 @@ function isSkillFolder({ relative }: { relative: string }): boolean {
  * @complexity O(entries) under `dist`; one stat per entry.
  */
 export function payloadClosureScan({ dist }: { dist: string }, { fs }: { fs: Pick<PackagingFilesystemPort, 'entries' | 'stat'> }): string[] {
-  const walk = (relative: string): string[] => {
+  const walk = ({ relative }: { relative: string }, _options = {}): string[] => {
     const absolute = path.join(dist, relative);
     if (fs.stat({ path: absolute }).kind !== 'directory') return [absolute];
     if (isSkillFolder({ relative })) return [];
-    return fs.entries({ path: absolute }).flatMap(name => walk(path.join(relative, name)));
+    return fs.entries({ path: absolute }).flatMap(name => walk({ relative: path.join(relative, name) }));
   };
-  return walk('');
+  return walk({ relative: '' });
 }

@@ -47,7 +47,8 @@ fs.writeFileSync = (target, data, ...rest) => {
   return realWriteFileSync(target, data, ...rest);
 };
 const store = await import(pathToFileURL(modulePath).href);
-store[exportName](filePath, value);
+if (exportName === "trackSite") store[exportName]({ projectsPath: filePath, siteDir: value });
+else store[exportName](filePath, value);
 `;
 
 function tempDir(): string {
@@ -113,20 +114,20 @@ async function whileAnotherProcessWrites(other: OtherProcessWrite, ownWrite: () 
 }
 
 test("desktop-projects.json: a project another process adds while this one is writing is not lost", async () => {
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
 
   await whileAnotherProcessWrites({ moduleFile: "tracked-sites.ts", exportName: "trackSite", filePath: projectsPath, value: "/sites/child" }, () => {
-    trackSite(projectsPath, "/sites/parent");
+    trackSite({ projectsPath, siteDir: "/sites/parent" });
   });
 
   assert.deepEqual(
-    readTrackedSites(projectsPath).map(({ siteDir, origin }) => ({ siteDir, origin })),
+    readTrackedSites({ projectsPath }).map(({ siteDir, origin }) => ({ siteDir, origin })),
     [
       { siteDir: "/sites/child", origin: "adopted" },
       { siteDir: "/sites/parent", origin: "adopted" },
     ],
   );
-  assert.deepEqual(readDismissedSites(projectsPath), []);
+  assert.deepEqual(readDismissedSites({ projectsPath }), []);
 });
 
 test("desktop-state.json: a recent site another process remembers while this one is writing is not lost", async () => {

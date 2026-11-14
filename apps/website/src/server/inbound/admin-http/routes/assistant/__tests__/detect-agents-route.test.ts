@@ -45,7 +45,7 @@ function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps>
 
 test("detect-agents returns the default catalog and discovery status without an injected inventory", async () => {
   // Reuse the compatibility inventory's model-probe seam so discovery never spawns real CLIs.
-  setAgentModelProberForTesting(async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }));
+  setAgentModelProberForTesting({ prober: async ({ def }) => ({ models: def.fallbackModels, source: "fallback" }) });
   try {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-test" };
@@ -58,7 +58,7 @@ test("detect-agents returns the default catalog and discovery status without an 
     assert.equal(codex.discoveryPending, true);
   } finally {
     await listAssistantAgents({}, { waitForProbe: true });
-    setAgentModelProberForTesting(null);
+    setAgentModelProberForTesting({ prober: null });
   }
 });
 

@@ -82,7 +82,7 @@ test("rejects an invalid exchangeId even when a valid functionResponse has no su
   // A surface-scoped action would let the later surfaceId cross-check mask a missing ID guard.
   const message = { version: "v1.0", functionResponse: { functionCallId: "call-1", call: "greetUser", value: "hi" } };
   for (const exchangeId of [undefined, null, "", 42]) {
-    assert.deepEqual(readA2uiAction({ exchangeId, message }), {
+    assert.deepEqual(readA2uiAction({ rawBody: { exchangeId, message } }), {
       ok: false,
       error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" },
     });
@@ -91,7 +91,7 @@ test("rejects an invalid exchangeId even when a valid functionResponse has no su
 
 test("rejects a null or absent A2UI body with a validation error", () => {
   for (const body of [null, undefined]) {
-    assert.deepEqual(readA2uiAction(body), {
+    assert.deepEqual(readA2uiAction({ rawBody: body }), {
       ok: false,
       error: { error: "'exchangeId' must be a non-empty string", code: "VALIDATION_ERROR" },
     });

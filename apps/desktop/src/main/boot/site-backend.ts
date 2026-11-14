@@ -17,7 +17,7 @@ export interface SiteBackendServer {
   pid: number;
   bootToken: string | null;
   ownerSignInCapability?: string;
-  onExit(listener: () => void): void;
+  onExit(required: { listener: () => void }): void;
 }
 
 /** The per-launch inputs a site open reads (`main.ts`'s `SiteOpenCtx`). */
@@ -176,7 +176,7 @@ export function createSiteBackend<TServer extends SiteBackendServer>(
       if (attached) return { server: attached, spawned: false };
       throw error;
     }
-    server.onExit(() => captureBridge.close());
+    server.onExit({ listener: () => captureBridge.close() });
     return { server, spawned: true };
   }
 

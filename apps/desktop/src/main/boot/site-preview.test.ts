@@ -162,7 +162,7 @@ test("the boot sweep hands every tracked site dir to the store's sweep", () => {
   const swept: unknown[] = [];
   sweepSitePreviewsOnBoot({
     projectsPath: "/ud/projects.json",
-    readTrackedSites: (p) => { assert.equal(p, "/ud/projects.json"); return [{ siteDir: "/a" }, { siteDir: "/b" }]; },
+    readTrackedSites: ({ projectsPath }) => { assert.equal(projectsPath, "/ud/projects.json"); return [{ siteDir: "/a" }, { siteDir: "/b" }]; },
     sweepOrphanedPreviews: (input) => swept.push(input),
     warn: () => assert.fail("no warning on success"),
   });

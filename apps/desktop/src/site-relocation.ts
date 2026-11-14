@@ -188,12 +188,12 @@ function relocateMovedSites({ projectsPath }: { projectsPath: string }, options:
   const searchRoots = options.searchRoots ?? [];
   const classifySiteDir = options.classifySiteDir ?? classifySiteDirSafely;
   let report: RelocationReport = { moved: [], merged: [] };
-  if (!planRelocations({ current: readProjectsFile(projectsPath), searchRoots, classifySiteDir }).changed) return report;
-  updateProjectsFile(projectsPath, (current) => {
+  if (!planRelocations({ current: readProjectsFile({ projectsPath }), searchRoots, classifySiteDir }).changed) return report;
+  updateProjectsFile({ projectsPath, change: (current) => {
     const plan = planRelocations({ current, searchRoots, classifySiteDir });
     report = plan.report;
     return plan.changed ? { rows: plan.rows, dismissed: current.dismissed } : null;
-  });
+  } });
   const log = options.report ?? console.info;
   for (const { from, to } of report.moved) log(`tovu desktop: healed moved site ${from} → ${to}.`);
   for (const from of report.merged) log(`tovu desktop: removed stale duplicate site card ${from}; its valid twin is already tracked.`);
@@ -258,7 +258,7 @@ function createRelocationGate(_required: Record<string, never>, options: Relocat
  */
 function repointTrackedSite(projectsPath: string, fromDir: string, toDir: string): WritableTrackedRow[] {
   let tracked = false;
-  const next = updateProjectsFile(projectsPath, (current) => {
+  const next = updateProjectsFile({ projectsPath, change: (current) => {
     tracked = current.rows.some((row) => row.siteDir === fromDir);
     if (!tracked || fromDir === toDir) return null;
     const merge = current.rows.some((row) => row.siteDir === toDir);
@@ -267,7 +267,7 @@ function repointTrackedSite(projectsPath: string, fromDir: string, toDir: string
       return merge ? [] : [movedRow(row, toDir, readRelocationId(toDir))];
     });
     return { rows, dismissed: current.dismissed.filter((dir) => dir !== toDir) };
-  });
+  } });
   if (!tracked) throw new Error(`This app is not tracking a site at ${fromDir}, so there is nothing to locate.`);
   return next.rows;
 }

@@ -137,7 +137,7 @@ function makeTempRepo({ withCli = true, withAdminDist = true, withTsCli = false,
 }
 
 test("parseBootLine reads dir, port, schemaVersion and workspaceId from serve.ts's startup line", () => {
-  assert.deepEqual(parseBootLine(REAL_BOOT_LINE), {
+  assert.deepEqual(parseBootLine({ text: REAL_BOOT_LINE }), {
     dir: "/Users/la/Programming/Tovu/sites/tovu-com",
     port: 3601,
     schemaVersion: 42,
@@ -147,47 +147,47 @@ test("parseBootLine reads dir, port, schemaVersion and workspaceId from serve.ts
 
 test("parseBootLine tolerates a site dir containing spaces", () => {
   const line = "tovu serve: dir=/Users/la/My Sites/blog port=8080 schemaVersion=7 workspaceId=wm11\n";
-  assert.equal(parseBootLine(line)!.dir, "/Users/la/My Sites/blog");
-  assert.equal(parseBootLine(line)!.port, 8080);
+  assert.equal(parseBootLine({ text: line })!.dir, "/Users/la/My Sites/blog");
+  assert.equal(parseBootLine({ text: line })!.port, 8080);
 });
 
 test("parseBootLine returns null until the whole line has arrived", () => {
-  assert.equal(parseBootLine("tovu serve: dir=/tmp/site port=36"), null);
-  assert.equal(parseBootLine("booting…\n"), null);
+  assert.equal(parseBootLine({ text: "tovu serve: dir=/tmp/site port=36" }), null);
+  assert.equal(parseBootLine({ text: "booting…\n" }), null);
 });
 
 test("parseCliErrorLine reads Tovu's single `tovu: <CODE>: <message>` stderr line", () => {
-  assert.deepEqual(parseCliErrorLine("tovu: PORT_IN_USE: Port 3601 is already in use.\n"), {
+  assert.deepEqual(parseCliErrorLine({ text: "tovu: PORT_IN_USE: Port 3601 is already in use.\n" }), {
     code: "PORT_IN_USE",
     message: "Port 3601 is already in use.",
   });
-  assert.equal(parseCliErrorLine("some unrelated stderr noise\n"), null);
+  assert.equal(parseCliErrorLine({ text: "some unrelated stderr noise\n" }), null);
 });
 
 test("resolveCliEntry returns the path bin.tovu names", () => {
   const root = makeTempRepo();
-  assert.equal(resolveCliEntry(root), path.join(root, "dist", "src", "cli", "main.js"));
+  assert.equal(resolveCliEntry({ repoRoot: root }), path.join(root, "dist", "src", "cli", "main.js"));
 });
 
 test("resolveCliEntry fails with a build instruction when the CLI is not built", () => {
   const root = makeTempRepo({ withCli: false });
-  assert.throws(() => resolveCliEntry(root), /Tovu's CLI is not built.*Run `npm run build` at the repo root first\./s);
+  assert.throws(() => resolveCliEntry({ repoRoot: root }), /Tovu's CLI is not built.*Run `npm run build` at the repo root first\./s);
 });
 
 test("resolveCliEntry fails loudly when the manifest has no bin.tovu", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-test-"));
   fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "no-bin" }));
-  assert.throws(() => resolveCliEntry(root), /has no "bin\.tovu" field/);
+  assert.throws(() => resolveCliEntry({ repoRoot: root }), /has no "bin\.tovu" field/);
 });
 
 test("resolveDevCliEntry returns the CLI's own TypeScript source path", () => {
   const root = makeTempRepo({ withTsCli: true });
-  assert.equal(resolveDevCliEntry(root), path.join(root, "apps", "website", "src", "cli", "main.ts"));
+  assert.equal(resolveDevCliEntry({ repoRoot: root }), path.join(root, "apps", "website", "src", "cli", "main.ts"));
 });
 
 test("resolveDevCliEntry fails loudly when the TS source is missing", () => {
   const root = makeTempRepo({ withTsCli: false });
-  assert.throws(() => resolveDevCliEntry(root), /Tovu's CLI source is missing/);
+  assert.throws(() => resolveDevCliEntry({ repoRoot: root }), /Tovu's CLI source is missing/);
 });
 
 test("buildCliSpawnPlan defaults to compiled mode with the size flag before the entry", () => {
@@ -826,7 +826,7 @@ test("on win32, the boot-timeout escalation calls the injected killTree(pid) ins
     readyTimeoutMs: 20,
     stopGraceMs: 20,
     platform: "win32",
-    killTree: (pid) => killTreeCalls.push(pid),
+    killTree: ({ pid }) => killTreeCalls.push(pid),
   });
   // The stop path waits for a real exit; grant one so the rejection is not gated on the escalation.
   setTimeout(() => child.emit("exit", null, "SIGTERM"), 40);
@@ -859,7 +859,7 @@ test("on win32, the tree kill runs even when the direct child dies at once, as i
     readyTimeoutMs: 20,
     stopGraceMs: 200,
     platform: "win32",
-    killTree: (pid) => {
+    killTree: ({ pid }) => {
       killTreeCalls.push(pid);
       queueMicrotask(() => child.emit("exit", null, "SIGTERM"));
     },
@@ -902,7 +902,7 @@ test("on win32, Stop closes the stdin pipe and waits for the graceful exit inste
     repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
     spawnFn: (_command, _args, spawnOptions) => { options = spawnOptions; return child; },
     platform: "win32",
-    killTree: (pid) => killTreeCalls.push(pid),
+    killTree: ({ pid }) => killTreeCalls.push(pid),
   });
   child.stdout.write(REAL_BOOT_LINE);
   const handle = await started;
@@ -923,7 +923,7 @@ test("on win32, a child that ignores its stdin close is tree-killed after the gr
   const started = startTovuServer({
     repoRoot: makeTempRepo(), siteDir: "/tmp/site", port: 3601, baseEnv: {}, mirror: silentMirror(),
     spawnFn: () => child, stopGraceMs: 20, platform: "win32",
-    killTree: (pid) => { killTreeCalls.push(pid); queueMicrotask(() => child.emit("exit", null, "SIGKILL")); },
+    killTree: ({ pid }) => { killTreeCalls.push(pid); queueMicrotask(() => child.emit("exit", null, "SIGKILL")); },
   });
   child.stdout.write(REAL_BOOT_LINE);
   await (await started).stop();
@@ -944,7 +944,7 @@ test("on posix (the default), the boot-timeout escalation never calls an injecte
     stopGraceMs: 20,
     // No `platform` passed — defaults to the real `process.platform`, which is POSIX on every host
     // this suite runs on.
-    killTree: (pid) => killTreeCalls.push(pid),
+    killTree: ({ pid }) => killTreeCalls.push(pid),
   });
   setTimeout(() => child.emit("exit", null, "SIGTERM"), 40);
 
@@ -1095,7 +1095,7 @@ test("startTovuServer's handle reports the child's exit AFTER boot, which is the
   const handle = await started;
 
   const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
-  handle.onExit((exit) => seen.push(exit));
+  handle.onExit({ listener: (exit) => seen.push(exit) });
   child.emit("exit", 1, null);
 
   assert.deepEqual(seen, [{ code: 1, signal: null }]);
@@ -1119,7 +1119,7 @@ test("startTovuServer's onExit replays an exit that already happened before the 
 
   child.emit("exit", null, "SIGKILL");
   const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
-  handle.onExit((exit) => seen.push(exit));
+  handle.onExit({ listener: (exit) => seen.push(exit) });
 
   assert.deepEqual(seen, [{ code: null, signal: "SIGKILL" }]);
 });

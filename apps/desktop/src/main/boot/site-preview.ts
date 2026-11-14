@@ -103,12 +103,12 @@ export function createPreviewTargetResolver({ ports }: { ports: PreviewTargetPor
  */
 export function sweepSitePreviewsOnBoot({ projectsPath, readTrackedSites, sweepOrphanedPreviews, warn }: {
   projectsPath: string;
-  readTrackedSites: (projectsPath: string) => readonly { siteDir: string }[];
+  readTrackedSites: (required: { projectsPath: string }) => readonly { siteDir: string }[];
   sweepOrphanedPreviews: (required: { trackedDirs: string[] }) => unknown;
   warn: (required: { message: string }) => void;
 }, _optional = {}): void {
   try {
-    const trackedDirs = readTrackedSites(projectsPath).map((row) => row.siteDir);
+    const trackedDirs = readTrackedSites({ projectsPath }).map((row) => row.siteDir);
     sweepOrphanedPreviews({ trackedDirs });
   } catch (error) {
     warn({ message: `tovu desktop: could not sweep orphaned site previews — ${(error as Error).message}` });

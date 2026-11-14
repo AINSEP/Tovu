@@ -40,7 +40,7 @@ export interface TreeQuietSignals {
 }
 
 /** Why a live `vite build --watch` blocks packaging — the named, known culprit from the incident. */
-function viteWatchProblem(viteWatchRunning: boolean): string | null {
+function viteWatchProblem({ viteWatchRunning }: { viteWatchRunning: boolean }, _options = {}): string | null {
   if (!viteWatchRunning) return null;
   return (
     "a `vite build --watch` process is running against apps/desktop. It rewrites dist/renderer " +
@@ -87,7 +87,7 @@ function movingProblem(movingPaths: readonly string[]): string | null {
  */
 export function treeQuietProblems(signals: TreeQuietSignals): string[] {
   return [
-    viteWatchProblem(signals.viteWatchRunning),
+    viteWatchProblem({ viteWatchRunning: signals.viteWatchRunning }),
     gitDirtyProblem(signals.gitDirtyPaths ?? []),
     movingProblem(signals.movingPaths ?? []),
   ].filter((problem) => problem !== null);

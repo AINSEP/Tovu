@@ -135,7 +135,7 @@ function runAddSite({ positional, userDataDirOverride, io }: { positional: strin
   const userDataDir = resolveAnnouncedUserDataDir({ override: userDataDirOverride, log: io.out });
 
   try {
-    const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: sitesFilePath(userDataDir) });
+    const result = addSitePointer({ siteDir: rawSiteDir, projectsPath: sitesFilePath({ userDataDir }) });
     io.out({ text: describeAddSiteResult(result) });
     return EXIT_OK;
   } catch (err) {

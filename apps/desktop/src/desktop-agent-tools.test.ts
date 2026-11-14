@@ -33,7 +33,7 @@ function call(runId: string, input: unknown): ToolExecutionContext {
 }
 
 function harness(overrides: Partial<DesktopAgentToolDeps> = {}) {
-  const projectsPath = sitesFilePath(tempDir());
+  const projectsPath = sitesFilePath({ userDataDir: tempDir() });
   const navigated: string[] = [];
   const gatewayCalls: unknown[] = [];
   const addressees = new Map<string, TurnAddressee>();
@@ -90,7 +90,7 @@ test("every tool is the local operator's own: the policy allows any call", () =>
 test("a shared desktop verb runs the real table and returns its text with the structured payload", async () => {
   const h = harness();
   const site = path.join(tempDir(), "alpha");
-  trackSite(h.projectsPath, site, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: h.projectsPath, siteDir: site }, { origin: SITE_ORIGIN.adopted });
   const listed = await h.tool("desktop.list_sites").handler(call("r1", undefined)) as { text: string; structured: { count: number }; isError: boolean };
   assert.equal(listed.isError, false);
   assert.equal(listed.structured.count, 1);

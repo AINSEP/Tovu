@@ -72,7 +72,7 @@ test('registered presence trusts only the shell, counts own windows, and uses th
   }
   const deps = baseDeps();
   t.after(() => fs.rmSync(path.dirname(deps.projectsPath), { recursive: true, force: true }));
-  trackSite(deps.projectsPath, '/sites/a');
+  trackSite({ projectsPath: deps.projectsPath, siteDir: '/sites/a' });
   const registered = new Map<string, Parameters<ProjectIpcDeps['ipcMain']['handle']>[1]>();
   const presence = registerSiteIpcHandlers({ ...deps, ipcMain: {
     handle: (channel, handler) => { registered.set(channel, handler); },
@@ -164,7 +164,7 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
   return {
     isPresenceShell: (sender: { isDestroyed(): boolean; getURL(): string }) =>
       !sender.isDestroyed() && sender.getURL() === new URL('../dist/renderer/index.html', import.meta.url).href,
-    projectsPath: sitesFilePath(dir),
+    projectsPath: sitesFilePath({ userDataDir: dir }),
     registryPath: path.join(dir, "site-processes"),
     repoRoot: "/repo",
     statePath: path.join(dir, "desktop-state.json"),
@@ -267,7 +267,7 @@ test("a crashed project is reported stopped, with a statusDetail saying why", as
   const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
 
   let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
-  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
+  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => { died = listener; } } });
   assert.equal(buildSiteRecord(row, deps).status, "running");
 
   died!({ code: 1, signal: null });
@@ -288,15 +288,15 @@ test("a project that was simply never started has no statusDetail to report", ()
 test("a killed project reports its signal rather than an exit code", () => {
   const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
-  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
+  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => { died = listener; } } });
   died!({ code: null, signal: "SIGKILL" });
   assert.equal(buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps).statusDetail, "The site's server was stopped by SIGKILL.");
 });
 
 test("handleList returns one record per tracked row, joined against openSites", () => {
   const deps = baseDeps();
-  trackSite(deps.projectsPath, "/sites/a");
-  trackSite(deps.projectsPath, "/sites/b");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/b" });
   deps.openSites.set("/sites/b", { server: { port: 9000 }, window: {} });
 
   const records = handleList(deps);
@@ -313,7 +313,7 @@ test("handleList heals a renamed folder when its relocation gate allows a pass, 
   const before = writeSite(path.join(root, "before"), "site-gate");
   const after = path.join(root, "after");
   const allowed = baseDeps();
-  trackSite(allowed.projectsPath, before);
+  trackSite({ projectsPath: allowed.projectsPath, siteDir: before });
   let passes = 0;
   const open = { shouldRun: () => (passes += 1) > 0 };
 
@@ -325,7 +325,7 @@ test("handleList heals a renamed folder when its relocation gate allows a pass, 
   const root2 = tempDir();
   const before2 = writeSite(path.join(root2, "before"), "site-gate-2");
   const skipped = baseDeps();
-  trackSite(skipped.projectsPath, before2);
+  trackSite({ projectsPath: skipped.projectsPath, siteDir: before2 });
   const closed = { shouldRun: () => false };
   handleList({ ...skipped, relocationGate: closed });
   fs.renameSync(before2, path.join(root2, "after"));
@@ -367,7 +367,7 @@ test("handleAddSite tracks an existing site as `adopted` and returns its record"
   // The consequence that matters: `deleteErasesFiles` false means a later delete drops the card and
   // leaves every byte of someone else's site where it is.
   assert.equal(record.deleteErasesFiles, false);
-  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, "adopted");
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.origin, "adopted");
 });
 
 test("handleAddSite REFUSES an empty folder and never initializes a site in it", async () => {
@@ -381,7 +381,7 @@ test("handleAddSite REFUSES an empty folder and never initializes a site in it",
   // into an empty folder on purpose. This one must not, and an empty folder is the case where the
   // difference is visible.
   assert.deepEqual(fs.readdirSync(siteDir), []);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test("handleAddSite REFUSES an incomplete site and an occupied folder", async () => {
@@ -397,8 +397,8 @@ test("handleAddSite REFUSES an incomplete site and an occupied folder", async ()
   const second = addSiteDeps(occupied);
   await assert.rejects(() => handleAddSite(second.deps), /folder of unrelated files/);
 
-  assert.deepEqual(readTrackedSites(first.deps.projectsPath), []);
-  assert.deepEqual(readTrackedSites(second.deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: first.deps.projectsPath }), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: second.deps.projectsPath }), []);
   assert.deepEqual(fs.readdirSync(incomplete), ["config.json"]);
   assert.deepEqual(fs.readdirSync(occupied), ["a.txt"]);
   assert.equal(fs.readFileSync(path.join(incomplete, "config.json"), "utf8"), "{}");
@@ -422,7 +422,7 @@ test("handleAddSite returns null for a cancelled dialog without writing anything
 
   assert.equal(await handleAddSite(deps), null);
 
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test("handleAddSite keeps an already-tracked project's original createdAt", async () => {
@@ -439,7 +439,7 @@ test("handleAddSite keeps an already-tracked project's original createdAt", asyn
   assert.equal(second.createdAt, first.createdAt);
   assert.equal(first.alreadyTracked, false);
   assert.equal(second.alreadyTracked, true);
-  assert.equal(readTrackedSites(deps.projectsPath).length, 1);
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1);
 });
 
 /** Creation fixtures use an isolated sites home; existing-folder tests retain their picker. */
@@ -532,8 +532,8 @@ test("handleCreate initializes the planned folder, tracks it, and returns its re
   assert.equal(record.id, picked);
   assert.equal(record.displayName, "New Site");
   assert.equal(record.folderMissing, false);
-  assert.equal(readTrackedSites(deps.projectsPath)[0]?.origin, SITE_ORIGIN.created);
-  assert.deepEqual(readTrackedSites(deps.projectsPath).map((r) => r.siteDir), [picked]);
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]?.origin, SITE_ORIGIN.created);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((r) => r.siteDir), [picked]);
 });
 
 test("handleCreate passes a custom admin password only to init and never persists or returns it", async () => {
@@ -583,7 +583,7 @@ test("handleDelete on an untracked id is a no-op — no stop, no fs.rm, no throw
   await assert.doesNotReject(() => handleDelete(siteDir, deps));
   assert.deepEqual(fs.readdirSync(siteDir).map((name) => [name, fs.readFileSync(path.join(siteDir, name), "utf8")]), files);
   assert.equal(deps.openSites.get(siteDir), entry);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test("handleDelete on a running project the app CREATED stops the server before removing the directory", async () => {
@@ -596,7 +596,7 @@ test("handleDelete on a running project the app CREATED stops the server before 
   // `created`, outside `deps.repoRoot`, and still holding the site whose id the row recorded — the
   // only combination the guard lets through, which is what makes this the proof that the guard did
   // not simply disable delete for everything.
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-a" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-a" });
   deps.openSites.set(siteDir, {
     server: {
       stop: async () => {
@@ -611,7 +611,7 @@ test("handleDelete on a running project the app CREATED stops the server before 
   try {
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.equal(fs.existsSync(siteDir), true, "files must survive until stop completes");
-    assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [siteDir]);
+    assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [siteDir]);
     assert.equal(deps.openSites.has(siteDir), true);
     assert.deepEqual(order, []);
   } finally {
@@ -622,14 +622,14 @@ test("handleDelete on a running project the app CREATED stops the server before 
   assert.deepEqual(order, ["stopped", "destroyed"]);
   assert.equal(deps.openSites.has(siteDir), false);
   assert.equal(fs.existsSync(siteDir), false);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test("handleDelete stops a sites-home-opened (embedded-tab) entry that carries no window at all", async () => {
   const siteDir = path.join(tempDir(), "embedded-tab-site");
   fs.mkdirSync(siteDir);
   const deps = baseDeps();
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   let stopped = false;
   deps.openSites.set(siteDir, { server: { stop: async () => { stopped = true; } } });
 
@@ -643,7 +643,7 @@ test("handleDelete drops the cached preview for a project it ERASES", async () =
   const siteDir = writeSite(path.join(tempDir(), "erased-with-preview"), "site-erase");
   const deleted: string[] = [];
   const deps = baseDeps({ deletePreview: ({ id }) => deleted.push(id) });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-erase" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-erase" });
 
   await handleDelete(siteDir, deps);
 
@@ -658,7 +658,7 @@ test("handleDelete drops the cached preview for a project it only REMOVES (adopt
   fs.mkdirSync(siteDir);
   const deleted: string[] = [];
   const deps = baseDeps({ deletePreview: ({ id }) => deleted.push(id) });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
   await handleDelete(siteDir, deps);
 
@@ -705,7 +705,7 @@ test("handleStart serializes on the site dir, calls openSiteServer with ctx, and
       deps.openSites.set(siteDir, { server: { port: 4321 } });
     },
   });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const record = await handleStart("/sites/a", deps);
 
@@ -720,7 +720,7 @@ test("handleStart refuses a missing folder before attempting to spawn", async ()
   // the operator hunting for a config file in a folder that was simply gone.
   const siteDir = path.join(tempDir(), "renamed-away");
   const deps = baseDeps({ classifySiteDir: classifySiteDirSafely, openSiteServer: async () => assert.fail("must refuse before spawn") });
-  trackSite(deps.projectsPath, siteDir);
+  trackSite({ projectsPath: deps.projectsPath, siteDir });
 
   await assert.rejects(
     () => handleStart(siteDir, deps),
@@ -731,7 +731,7 @@ test("handleStart refuses a missing folder before attempting to spawn", async ()
 test("handleStart refuses an existing non-site folder before spawning", async () => {
   const siteDir = tempDir();
   const deps = baseDeps({ openSiteServer: async () => assert.fail("must refuse before spawn") });
-  trackSite(deps.projectsPath, siteDir);
+  trackSite({ projectsPath: deps.projectsPath, siteDir });
 
   await assert.rejects(() => handleStart(siteDir, deps), /Folder moved or not a site/);
 });
@@ -753,7 +753,7 @@ test("P1: Stop/Restart cancels a pending preview before the site's graceful drai
   const deps = baseDeps({
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }) => { order.push(`cancel ${siteDir}`); },
   });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
   deps.openSites.set("/sites/a", { server: { port: 4321, stop: async () => { order.push("drain"); } } });
   await handleStop("/sites/a", deps);
   assert.deepEqual(order, ["cancel /sites/a", "drain"]);
@@ -766,7 +766,7 @@ test("P1: removing an adopted site cancels its preview before the server drains"
   const deps = baseDeps({
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }) => { order.push(`cancel ${siteDir}`); },
   });
-  trackSite(deps.projectsPath, "/sites/a", SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.adopted });
   deps.openSites.set("/sites/a", { server: { stop: async () => { order.push("drain"); } } });
   await handleDelete("/sites/a", deps);
   assert.deepEqual(order, ["cancel /sites/a", "drain"]);
@@ -776,7 +776,7 @@ test("handleStop drains the server, drops the entry, and returns a stopped recor
   let stopped = 0;
   const deps = baseDeps();
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { stopped += 1; } } });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const record = await handleStop("/sites/a", deps);
 
@@ -806,12 +806,12 @@ test("the entry is dropped BEFORE the stop is awaited, so a deliberate stop is n
     server: {
       port: 4321,
       pid: 777,
-      onExit: (listener) => listeners.push(listener),
+      onExit: ({ listener }) => listeners.push(listener),
       // What a real `stopChild` does: the child exits, and its `exit` listener fires, DURING the stop.
       stop: async () => { for (const listener of listeners) listener({ code: null, signal: "SIGTERM" }); },
     },
   });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const record = await handleStop("/sites/a", deps);
 
@@ -829,7 +829,7 @@ test("the crash-safety row is dropped only AFTER the child is really gone, and b
   const draining = new Promise<void>((resolve) => { release = resolve; });
   const deps = baseDeps({ recordSiteClosed: (_registryPath, siteDir, options) => order.push(`closed:${siteDir}:${options?.pid}`) });
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { await draining; order.push("stopped"); } } });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const stopping = handleStop("/sites/a", deps);
   try {
@@ -847,7 +847,7 @@ test("stopping an already-stopped site is a no-op that still returns its record,
   // The renderer polls on an interval, so a card can be a click behind main's truth through no
   // fault of the operator's. Refusing would surface an error for the state they already wanted.
   const deps = baseDeps({ recordSiteClosed: () => assert.fail("nothing was open to close") });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const record = await handleStop("/sites/a", deps);
 
@@ -856,7 +856,7 @@ test("stopping an already-stopped site is a no-op that still returns its record,
 
 test("a rejected card Stop keeps the crash-recovery row and reports failure", async () => {
   const deps = baseDeps();
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
   let closedRows = 0;
   deps.recordSiteClosed = () => { closedRows++; };
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 123, stop: async () => {
@@ -870,7 +870,7 @@ test("handleStop runs inside the per-site serializer, so a delete cannot erase u
   const keys: string[] = [];
   const deps = baseDeps({ serializer: { run: <T,>({ key, fn }: { key: string; fn: () => T | PromiseLike<T> }) => { keys.push(key); return fn(); } } });
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 1, stop: async () => {} } });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   await handleStop("/sites/a", deps);
 
@@ -887,7 +887,7 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
   const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [] });
   const alphaLease = sharedSites.claim({ path: alpha, app: "Tovu", port: 4321 });
   const betaLease = sharedSites.claim({ path: beta, app: "Tovu", port: 4322 });
-  const deps = baseDeps({ transitions, sharedSites, serializer: createKeyedSerializer(), projectsPath: sitesFilePath(root) });
+  const deps = baseDeps({ transitions, sharedSites, serializer: createKeyedSerializer(), projectsPath: sitesFilePath({ userDataDir: root }) });
   t.after(() => {
     sharedSites.running({ path: alpha }).release({ token: alphaLease.record.token });
     sharedSites.running({ path: beta }).release({ token: betaLease.record.token });
@@ -901,8 +901,8 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
   } } });
   const betaEntry = { server: { port: 4322, pid: 2, stop: async () => assert.fail("beta must keep serving") } };
   deps.openSites.set(beta, betaEntry);
-  trackSite(deps.projectsPath, alpha);
-  trackSite(deps.projectsPath, beta);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: alpha });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: beta });
   let automaticStarts = 0;
   let spawned = 0;
   deps.openSiteServer = async () => { spawned++; };
@@ -964,8 +964,8 @@ function externalLeaseFixture(t: { after: (fn: () => void) => void }) {
       release();
     },
   };
-  const deps = baseDeps({ transitions, sharedSites, externalSites: externalSites as ProjectIpcDeps["externalSites"], serializer: createKeyedSerializer(), projectsPath: sitesFilePath(root) });
-  trackSite(deps.projectsPath, site);
+  const deps = baseDeps({ transitions, sharedSites, externalSites: externalSites as ProjectIpcDeps["externalSites"], serializer: createKeyedSerializer(), projectsPath: sitesFilePath({ userDataDir: root }) });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: site });
   return { site, deps, calls, lease };
 }
 
@@ -1028,7 +1028,7 @@ test("a site reads `starting` for its whole boot, not `stopped` until the port o
   let release = () => {};
   const booting = new Promise<void>((resolve) => { release = resolve; });
   deps.openSiteServer = async (siteDir: string) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const starting = handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
   assert.equal(first(handleList(deps)).status, "starting");
@@ -1044,7 +1044,7 @@ test("a start that FAILS leaves the card stopped, not starting forever", async (
   const transitions = createSiteTransitions();
   const deps = baseDeps({ transitions });
   deps.openSiteServer = async () => { throw new Error("tovu serve failed: PORT_IN_USE"); };
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   await assert.rejects(() => handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">), /PORT_IN_USE/); // assigned just above
   assert.equal(first(handleList(deps)).status, "stopped");
@@ -1057,9 +1057,9 @@ test("a mid-transition card shows no stale crash reason from a previous exit", a
   const openSites = createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} });
   const listeners: Array<(exit: { code: number | null; signal: string | null }) => void> = [];
   const deps = baseDeps({ openSites, transitions });
-  openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => listeners.push(listener) } });
+  openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => listeners.push(listener) } });
   for (const listener of listeners) listener({ code: 1, signal: null });
-  trackSite(deps.projectsPath, "/sites/a");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
   assert.match(first(handleList(deps)).statusDetail ?? "", /exited \(code 1\)/, "the crash IS reported while settled");
 
   let release = () => {};
@@ -1077,8 +1077,8 @@ test("without a transitions store, every record is exactly the two-valued answer
   // safe if its absence changes nothing.
   const deps = baseDeps();
   deps.openSites.set("/sites/a", { server: { port: 4321 } });
-  trackSite(deps.projectsPath, "/sites/a");
-  trackSite(deps.projectsPath, "/sites/b");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/b" });
 
   const records = handleList(deps);
   assert.equal(records[0]?.status, "running");
@@ -1098,7 +1098,7 @@ test("registerSiteIpcHandlers registers exactly the real channels declared in SI
       deps.openSites.set(id, { server: { port: 4321, pid: 777, stop: async () => { stops += 1; } } });
     },
   });
-  trackSite(deps.projectsPath, siteDir);
+  trackSite({ projectsPath: deps.projectsPath, siteDir });
 
   registerSiteIpcHandlers(deps as ProjectIpcDeps); // only start/stop are invoked below
 
@@ -1132,7 +1132,7 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
   // directory the `tovu serve` is booting in.
   const siteDir = writeSite(path.join(tempDir(), "started-then-deleted"), "site-a");
   const deps = baseDeps({ serializer: createKeyedSerializer() });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-a" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-a" });
 
   const order: string[] = [];
   let releaseBoot!: () => void; // assigned synchronously by the Promise executor below
@@ -1160,7 +1160,7 @@ test("handleStart refuses a project that was deleted while its start was queued 
   // directory that had just been erased.
   const siteDir = writeSite(path.join(tempDir(), "deleted-then-started"), "site-a");
   const deps = baseDeps({ serializer: createKeyedSerializer() });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-a" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-a" });
 
   let spawned = false;
   deps.openSiteServer = async () => { spawned = true; };
@@ -1188,7 +1188,7 @@ test("handleDelete does NOT erase a created project's path once a DIFFERENT site
   await handleDelete(siteDir, deps);
 
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "a replacement site's files must survive delete");
-  assert.deepEqual(readTrackedSites(deps.projectsPath), [], "the card must still go away");
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [], "the card must still go away");
 });
 
 test("handleCreate stamps the new site's own identity on its created row", async () => {
@@ -1199,7 +1199,7 @@ test("handleCreate stamps the new site's own identity on its created row", async
   const record = await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
   assert.ok(record);
 
-  assert.equal(readTrackedSites(deps.projectsPath)[0]!.siteId, "site-a");
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.siteId, "site-a");
   assert.equal(record.deleteErasesFiles, true, "the site it just made is still the site at that path");
 });
 
@@ -1209,7 +1209,7 @@ test("handleAddSite records no deletion identity for a folder it merely adopted"
   const siteDir = writeSite(path.join(tempDir(), "already-a-site"), "site-a");
   const { deps } = addSiteDeps(siteDir);
   await handleAddSite(deps);
-  const [row] = readTrackedSites(deps.projectsPath);
+  const [row] = readTrackedSites({ projectsPath: deps.projectsPath });
   assert.equal(row!.origin, SITE_ORIGIN.adopted);
   assert.equal(row!.siteId, undefined);
 });
@@ -1231,12 +1231,12 @@ test("handleDelete does NOT erase the directory of a project the app only adopte
 
   const deps = baseDeps();
   // No origin argument: the legacy/unknown-provenance row shape, which must fail CLOSED.
-  trackSite(deps.projectsPath, siteDir);
+  trackSite({ projectsPath: deps.projectsPath, siteDir });
 
   await handleDelete(siteDir, deps);
 
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "an adopted project's files must survive delete");
-  assert.deepEqual(readTrackedSites(deps.projectsPath), [], "the card must still go away");
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [], "the card must still go away");
 });
 
 test("handleDelete refuses to erase anything under the repo root, even a row claiming the app created it", async () => {
@@ -1245,7 +1245,7 @@ test("handleDelete refuses to erase anything under the repo root, even a row cla
   writeSite(siteDir, "repo-site", { "content.db": "leona's 44 MB production database" });
 
   const deps = baseDeps({ repoRoot });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "repo-site" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "repo-site" });
 
   await handleDelete(siteDir, deps);
 
@@ -1257,11 +1257,11 @@ test("handleCreate records created for initialization and refuses a raced existi
   // That distinction protects existing folders from ever receiving created deletion authority.
   const deps = createDeps({ adoptSiteDir: async ({ dir }) => writeSite(dir, "site-created") });
   const record = await handleCreate({ displayName: "New Site" }, deps);
-  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, SITE_ORIGIN.created);
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.origin, SITE_ORIGIN.created);
   assert.equal(record.deleteErasesFiles, true);
   const raced = createDeps({ classifySiteDir: () => "site", adoptSiteDir: async () => assert.fail("Create must not adopt a raced folder") });
   await assert.rejects(handleCreate({ displayName: "Raced" }, raced), { message: "The new website folder was created by another app. Try creating this website again." });
-  assert.deepEqual(readTrackedSites(raced.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: raced.projectsPath }), []);
 });
 
 test("buildSiteRecord tells the renderer whether delete will erase files, from the guard main obeys", () => {
@@ -1291,7 +1291,7 @@ test("handleDelete still stops and closes a running project it may not erase", a
 
   const order: string[] = [];
   const deps = baseDeps();
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   deps.openSites.set(siteDir, {
     server: { stop: async () => order.push("stopped") },
     window: { isDestroyed: () => false, destroy: () => order.push("destroyed") },
@@ -1345,9 +1345,9 @@ test("rescanSites reads persisted extra folders fresh and leaves all discoveries
   assert.deepEqual(records.map((record) => record.id), [luvira, plannie]);
   assert.ok(records.every((record) => record.status === "stopped" && record.desiredState === "stopped" && record.port === 0));
   assert.equal((wired.openSites as Map<string, unknown>).size, 0);
-  const before = readTrackedSites(wired.projectsPath);
+  const before = readTrackedSites({ projectsPath: wired.projectsPath });
   assert.equal((await rescanSites(wired)).length, 2);
-  assert.deepEqual(readTrackedSites(wired.projectsPath), before);
+  assert.deepEqual(readTrackedSites({ projectsPath: wired.projectsPath }), before);
   folders.remove({ root: outsideRoot });
   assert.equal((await rescanSites(wired)).length, 2, 'removing a root never removes existing cards');
 });
@@ -1355,7 +1355,7 @@ test("rescanSites reads persisted extra folders fresh and leaves all discoveries
 test("rescanSites gives discovered same-named sites distinct display names without renaming tracked ones", async () => {
   const deps = scanDeps({ readSiteName: () => "Same" });
   const tracked = siteFolder(fs.realpathSync(tempDir()), "tracked");
-  trackSite(deps.projectsPath, tracked);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: tracked });
   siteFolder(deps.scanRoot, "a");
   siteFolder(deps.scanRoot, "b");
   const records = await rescanSites(deps);
@@ -1420,7 +1420,7 @@ test("rescanSites records a discovery as adopted, so deleting its card can never
   siteFolder(deps.scanRoot, "alpha");
   const [record] = await rescanSites(deps);
   assert.equal(record!.deleteErasesFiles, false); // this test's own siteFolder call above seeds exactly one discoverable site
-  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, SITE_ORIGIN.adopted);
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.origin, SITE_ORIGIN.adopted);
 });
 
 test("rescanSites never resurrects a project the operator removed on purpose", async () => {
@@ -1445,12 +1445,12 @@ test("rescanSites picks up a recently-opened site that lives outside every scan 
 test("rescanSites leaves an already-tracked project's row as it was, apart from the cached name", async () => {
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
-  trackSite(deps.projectsPath, alpha, SITE_ORIGIN.adopted);
-  const before = readTrackedSites(deps.projectsPath);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: alpha }, { origin: SITE_ORIGIN.adopted });
+  const before = readTrackedSites({ projectsPath: deps.projectsPath });
   await rescanSites(deps);
   // D-18: listing caches the last known name so a later missing-folder card can still show it;
   // origin, createdAt and identity must stay exactly as tracked.
-  assert.deepEqual(readTrackedSites(deps.projectsPath), [{ ...before[0]!, displayName: "alpha" }]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [{ ...before[0]!, displayName: "alpha" }]);
 });
 
 test("rescanSites ignores a folder under the scan root that is not a site", async () => {
@@ -1491,7 +1491,7 @@ function seedForeignRegistryRow(deps: Pick<ProjectIpcDeps, "registryPath">, site
 test("handleDelete refuses to erase a directory a SECOND app instance still has open", async () => {
   const siteDir = writeSite(path.join(tempDir(), "site-shared"), "site-shared", { "content.db": "real bytes" });
   const deps = baseDeps({ isLiveServeRow: () => true });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-shared" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-shared" });
   seedForeignRegistryRow(deps, siteDir);
 
   await assert.rejects(() => handleDelete(siteDir, deps), /still has this site open/);
@@ -1499,7 +1499,7 @@ test("handleDelete refuses to erase a directory a SECOND app instance still has 
   // The load-bearing half: refused BEFORE any side effect, not partway through one.
   assert.equal(fs.existsSync(siteDir), true, "the directory must survive — a live server is still writing to it");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true);
-  assert.equal(readTrackedSites(deps.projectsPath).length, 1, "the project must stay tracked, since nothing was deleted");
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1, "the project must stay tracked, since nothing was deleted");
 });
 
 test("handleDelete does not stop its OWN server when it refuses", async () => {
@@ -1508,7 +1508,7 @@ test("handleDelete does not stop its OWN server when it refuses", async () => {
   const closed: unknown[] = [];
   const deps = baseDeps({ isLiveServeRow: () => true, recordSiteClosed: (...args) => closed.push(args) });
   deps.openSites.set(siteDir, { server: { pid: 4242, stop: async () => { stopped = true; } } });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-shared-open" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-shared-open" });
   seedForeignRegistryRow(deps, siteDir);
 
   await assert.rejects(() => handleDelete(siteDir, deps), /still has this site open/);
@@ -1524,7 +1524,7 @@ test("this instance's OWN registry row never counts as a foreign server", async 
   const siteDir = writeSite(path.join(tempDir(), "site-own"), "site-own", {});
   const deps = baseDeps({ isLiveServeRow: () => true });
   deps.openSites.set(siteDir, { server: { pid: 777, stop: async () => {} } });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-own" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-own" });
   seedForeignRegistryRow(deps, siteDir, 777);
 
   await assert.doesNotReject(() => handleDelete(siteDir, deps));
@@ -1539,7 +1539,7 @@ test("a STALE registry row does not wedge a delete", async () => {
   for (const pid of [deadPid, process.pid]) {
     const siteDir = writeSite(path.join(tempDir(), "site-stale"), "site-stale", {});
     const deps = baseDeps();
-    trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-stale" });
+    trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-stale" });
     seedForeignRegistryRow(deps, siteDir, pid);
 
     await assert.doesNotReject(() => handleDelete(siteDir, deps));
@@ -1552,7 +1552,7 @@ test("handleDelete refuses to erase while a registry file is unreadable — its 
   // without knowing whether that sibling had this very site open.
   const siteDir = writeSite(path.join(tempDir(), "site-unknown"), "site-unknown", { "content.db": "real bytes" });
   const deps = baseDeps({ isLiveServeRow: () => true });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "site-unknown" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-unknown" });
   const torn = instanceFilePath(deps.registryPath, "424242-f0f0f0f0");
   fs.mkdirSync(deps.registryPath, { recursive: true });
   fs.writeFileSync(torn, '{\n  "sites": [\n    { "siteDir": ');
@@ -1562,7 +1562,7 @@ test("handleDelete refuses to erase while a registry file is unreadable — its 
     (error: Error) => error.message === `Could not read ${torn}, so Tovu cannot tell whether another copy of Tovu still has this site open. Nothing was deleted. Restart Tovu and try again.`,
   );
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "nothing may be erased on an unknown");
-  assert.equal(readTrackedSites(deps.projectsPath).length, 1, "and the project stays tracked");
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1, "and the project stays tracked");
 });
 
 test("REMOVING an adopted project is not gated by a sibling instance — it erases nothing", async () => {
@@ -1570,11 +1570,11 @@ test("REMOVING an adopted project is not gated by a sibling instance — it eras
   // its own copy running is not endangered by that, so refusing would block a harmless action.
   const siteDir = writeSite(path.join(tempDir(), "site-adopted"), "site-adopted", { "content.db": "real bytes" });
   const deps = baseDeps({ isLiveServeRow: () => true });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted, { siteId: "site-adopted" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted, siteId: "site-adopted" });
   seedForeignRegistryRow(deps, siteDir);
 
   await assert.doesNotReject(() => handleDelete(siteDir, deps));
-  assert.deepEqual(readTrackedSites(deps.projectsPath), [], "the card is gone");
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [], "the card is gone");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "and every byte stays");
 });
 
@@ -1594,8 +1594,8 @@ test("handleRename renames an ADOPTED row, which carries no siteId and never wil
   // is to say the feature would not have worked on a single real site.
   const deps = renameDeps({ readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name });
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "adopted-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
-  assert.equal(readTrackedSites(deps.projectsPath)[0]!.siteId, undefined, "precondition: adopted rows carry no siteId");
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.siteId, undefined, "precondition: adopted rows carry no siteId");
 
   const record = handleRename({ id: dir, name: "Renamed Site" }, deps);
 
@@ -1616,7 +1616,7 @@ test("handleRename refuses a directory that is no longer a complete Tovu site", 
   // The moved-, emptied-, or deleted-folder case — the one this guard actually catches most often.
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "gone-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
   fs.rmSync(path.join(dir, ".site-meta.json"));
 
   assert.throws(() => handleRename({ id: dir, name: "New" }, deps), /no longer a complete Tovu site \(incomplete\)/);
@@ -1630,7 +1630,7 @@ test("handleRename refuses when a CREATED row's recorded identity no longer matc
   // `created` case and the adopted test above is the fail-open one.
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "swapped-site"), "id-original");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.created, { siteId: "id-original" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.created, siteId: "id-original" });
   // A DIFFERENT site now occupies that path.
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "id-stranger", schemaVersion: 58 }));
 
@@ -1642,7 +1642,7 @@ test("handleRename renames a CREATED row whose identity still matches", () => {
   // The other half of the check above — it must not refuse the case it exists to permit.
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "created-site"), "id-same");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.created, { siteId: "id-same" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.created, siteId: "id-same" });
 
   handleRename({ id: dir, name: "Still Mine" }, deps);
 
@@ -1652,7 +1652,7 @@ test("handleRename renames a CREATED row whose identity still matches", () => {
 test("handleRename rejects an invalid name without writing", () => {
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "named-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
 
   assert.throws(() => handleRename({ id: dir, name: "   " }, deps), /1 to 200 characters/);
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")).name, "named-site");
@@ -1663,7 +1663,7 @@ test("handleRename retitles an OPEN own-server window, so the native Window menu
   // site switcher (distinct titles, distinct entries)" — so a stale one is a stale CONTROL.
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "open-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
   const titles: string[] = [];
   deps.openSites.set(dir, {
     server: { port: 4321 },
@@ -1678,7 +1678,7 @@ test("handleRename retitles an OPEN own-server window, so the native Window menu
 test("handleRename skips a destroyed own-server window", () => {
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "destroyed-window-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
   const titles: string[] = [];
   deps.openSites.set(dir, {
     server: { port: 4321 },
@@ -1698,7 +1698,7 @@ test("handleRename survives the usual case, where there is no window at all", ()
   // would throw on nearly every rename of a running site.
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "tabbed-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
   deps.openSites.set(dir, { server: { port: 4321 } });
 
   const record = handleRename({ id: dir, name: "Tabbed" }, deps);
@@ -1712,7 +1712,7 @@ test("handleRename does not touch .site-meta.json — the marker repairSite refu
   // write: `repairSite`'s refusal protects the schema stamp, and a rename must never go near it.
   const deps = renameDeps();
   const dir = writeSite(path.join(path.dirname(deps.projectsPath), "stamped-site"), "id-a");
-  trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
   const before = fs.readFileSync(path.join(dir, ".site-meta.json"), "utf8");
 
   handleRename({ id: dir, name: "Renamed" }, deps);
@@ -1726,19 +1726,19 @@ test("handleList heals a renamed site folder: the card follows the folder to its
   const deps = baseDeps();
   const parent = tempDir();
   const oldDir = path.join(parent, "tovu-com");
-  writeTrackedSites(deps.projectsPath, [{ siteDir: oldDir, createdAt: "2026-01-01", relocationId: "id-1" }]);
+  writeTrackedSites({ projectsPath: deps.projectsPath, rows: [{ siteDir: oldDir, createdAt: "2026-01-01", relocationId: "id-1" }] });
   const newDir = writeSite(path.join(parent, "tovu-dev"), "id-1");
 
   const records = handleList(deps);
 
   assert.deepEqual(records.map((record) => [record.id, record.folderMissing]), [[newDir, false]]);
-  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [newDir]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [newDir]);
 });
 
 test("handleList keeps a folder it cannot find, and says so on the card", () => {
   const deps = baseDeps();
   const gone = path.join(tempDir(), "deleted-site");
-  trackSite(deps.projectsPath, gone);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: gone });
 
   assert.deepEqual(handleList(deps).map((record) => [record.id, record.folderMissing]), [[gone, true]]);
 });
@@ -1747,7 +1747,7 @@ test("handleList still answers when the healed list cannot be saved", (t) => {
   const deps = baseDeps();
   const parent = tempDir();
   const oldDir = path.join(parent, "tovu-com");
-  writeTrackedSites(deps.projectsPath, [{ siteDir: oldDir, createdAt: "2026-01-01", relocationId: "id-1" }]);
+  writeTrackedSites({ projectsPath: deps.projectsPath, rows: [{ siteDir: oldDir, createdAt: "2026-01-01", relocationId: "id-1" }] });
   writeSite(path.join(parent, "tovu-dev"), "id-1");
   const stored = fs.readFileSync(deps.projectsPath, "utf8");
   const renameSync = fs.renameSync;
@@ -1762,7 +1762,7 @@ test("handleList still answers when the healed list cannot be saved", (t) => {
   assert.deepEqual(handleList(deps).map((record) => record.id), [oldDir]);
   assert.equal(failedWrites, 1, "the heal must actually attempt to persist");
   assert.equal(fs.readFileSync(deps.projectsPath, "utf8"), stored);
-  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [oldDir]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [oldDir]);
 });
 
 test("buildSiteRecord's folderMissing is false for a folder that exists", () => {
@@ -1784,24 +1784,24 @@ test("handleLocate points a missing card at the folder the operator picked", asy
   const picked = siteFixture("moved-here");
   const deps = locateDeps(picked);
   const gone = path.join(tempDir(), "gone");
-  trackSite(deps.projectsPath, gone);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: gone });
 
   const record = await handleLocate(gone, deps);
 
   assert.equal(record.id, picked);
   assert.equal(record.folderMissing, false);
-  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [picked]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [picked]);
 });
 
 test("handleLocate refuses a folder that is not a Tovu site, and changes nothing", async () => {
   const deps = locateDeps(tempDir());
   const gone = path.join(tempDir(), "gone");
-  trackSite(deps.projectsPath, gone);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: gone });
 
   await assert.rejects(() => handleLocate(gone, deps), {
     message: /is not a complete Tovu site \(empty\)\. Pick the folder that holds this website\.$/,
   });
-  assert.deepEqual(readTrackedSites(deps.projectsPath).map((row) => row.siteDir), [gone]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [gone]);
 });
 
 test("handleLocate rejects a cancelled dialog", async () => {
@@ -1813,26 +1813,26 @@ test("handleLocate merges into an already-tracked folder without replacing its r
   const picked = siteFixture("already-tracked");
   const deps = locateDeps(picked);
   const gone = path.join(tempDir(), "gone");
-  trackSite(deps.projectsPath, gone);
-  trackSite(deps.projectsPath, picked);
-  const existing = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === picked)!;
+  trackSite({ projectsPath: deps.projectsPath, siteDir: gone });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: picked });
+  const existing = readTrackedSites({ projectsPath: deps.projectsPath }).find((row) => row.siteDir === picked)!;
 
   const record = await handleLocate(gone, deps);
 
   assert.equal(record.id, picked);
   assert.equal(record.folderMissing, false);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), [existing]);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [existing]);
 });
 
 test("handleLocate refuses an untracked id without altering the tracked list", async () => {
   const picked = siteFixture("picked");
   const deps = locateDeps(picked);
-  trackSite(deps.projectsPath, picked);
-  const before = readTrackedSites(deps.projectsPath);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: picked });
+  const before = readTrackedSites({ projectsPath: deps.projectsPath });
 
   await assert.rejects(() => handleLocate("/never-tracked", deps), /not tracking a site.*nothing to locate/);
 
-  assert.deepEqual(readTrackedSites(deps.projectsPath), before);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), before);
 });
 
 test('D-01: delete untracks and removes the preview only after the files are gone; a failed erase keeps the card', async () => {
@@ -1841,22 +1841,22 @@ test('D-01: delete untracks and removes the preview only after the files are gon
     const deps = baseDeps({
       removeSiteTree: async ({ root }): Promise<void> => {
         assert.equal(root, siteDir);
-        assert.equal(readTrackedSites(deps.projectsPath).length, 1, 'keep the recovery card during erase');
+        assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1, 'keep the recovery card during erase');
         if (fails) throw Object.assign(new Error('unlink failed'), { code: 'EACCES' });
         fs.rmSync(root, { recursive: true });
       },
       deletePreview: () => assert.equal(fs.existsSync(siteDir), false),
     });
-    trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'd01-site' });
+    trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: 'd01-site' });
     if (fails) {
       await assert.rejects(handleDelete(siteDir, deps), {
         message: 'Could not delete this website. Permission was denied. Its card has been kept so you can try again.',
       });
-      assert.equal(readTrackedSites(deps.projectsPath).length, 1);
+      assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1);
       assert.equal(fs.existsSync(siteDir), true);
     } else {
       await handleDelete(siteDir, deps);
-      assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+      assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
       assert.equal(fs.existsSync(siteDir), false);
     }
   }
@@ -1871,10 +1871,10 @@ test('D-01: deleting a read-only plugin store really removes its entire tree', a
   fs.chmodSync(store, 0o555);
   fs.chmodSync(path.dirname(store), 0o555);
   const deps = baseDeps();
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'immutable-site' });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: 'immutable-site' });
   await handleDelete(siteDir, deps);
   assert.equal(fs.existsSync(siteDir), false);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test('D-02: invalid Create names are rejected with exact inline copy before opening the folder picker', async () => {
@@ -1896,7 +1896,7 @@ test('D-18: the last read name survives a missing folder, including after Rename
     writeSiteName,
     classifySiteDir: classifySiteDirSafely,
   });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: 'named-site' });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: 'named-site' });
   assert.equal(first(handleList(deps)).displayName, 'slug');
   handleRename({ id: siteDir, name: 'My website' }, deps);
   fs.rmSync(siteDir, { recursive: true });
@@ -1921,7 +1921,7 @@ test('D-10: Create passes the first free name to the injected initializer', asyn
   for (const [slug, name] of [['a', ' Bakery '], ['b', 'BAKERY 2'], ['c', 'Bakery 4']]) {
     const dir = path.join(root, slug!);
     names.set(dir, name!);
-    trackSite(deps.projectsPath, dir, SITE_ORIGIN.adopted);
+    trackSite({ projectsPath: deps.projectsPath, siteDir: dir }, { origin: SITE_ORIGIN.adopted });
   }
   const target = planNewSiteDir({ name: 'bakery' }, { workspace: deps.sharedSites });
   const result = await handleCreate({ displayName: 'bakery' }, deps);
@@ -1940,7 +1940,7 @@ test('D-10: Add aliases duplicate names durably without writing either site conf
   const { deps } = addSiteDeps(second, {
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).name as string,
   });
-  trackSite(deps.projectsPath, first, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: first }, { origin: SITE_ORIGIN.adopted });
   assert.equal((await handleAddSite(deps))?.displayName, 'bakery 2');
   assert.equal((await handleAddSite(deps))?.displayName, 'bakery 2');
   assert.equal(handleList(deps).find((row) => row.id === second)?.displayName, 'bakery 2');
@@ -1958,8 +1958,8 @@ test('D-10: Rename refuses duplicate before calling its write port and allows it
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => names.get(dir)!,
     writeSiteName: (dir: string, name: string) => { writes += 1; names.set(dir, name.trim()); return name.trim(); },
   });
-  trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
-  trackSite(deps.projectsPath, other, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: own }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: other }, { origin: SITE_ORIGIN.adopted });
   assert.throws(() => handleRename({ id: own, name: ' BAKERY 2 ' }, deps), {
     message: 'A website named "BAKERY 2" is already tracked. Choose a different name.',
   });
@@ -1995,10 +1995,10 @@ test("stalecard: list heals a themes-only duplicate using its valid tracked twin
   const root = tempDir(), stale = path.join(root, "repo", "sites", "tovu-dev");
   fs.mkdirSync(path.join(stale, "themes"), { recursive: true });
   const moved = writeSite(path.join(root, "Documents", "Tovu", "tovu-dev"), "site-id");
-  writeTrackedSites(deps.projectsPath, [
+  writeTrackedSites({ projectsPath: deps.projectsPath, rows: [
     { siteDir: stale, createdAt: "2026-01-01", relocationId: "site-id", displayName: "tovu-dev" },
     { siteDir: moved, createdAt: "2026-01-01" },
-  ]);
+  ] });
   assert.deepEqual(handleList(deps).map((row) => [row.id, row.folderMissing]), [[moved, false]]);
   assert.deepEqual(handleList(deps).map((row) => row.id), [moved]);
   assert.deepEqual(fs.readdirSync(stale), ["themes"]);
@@ -2008,10 +2008,10 @@ test("stalecard: same-name different-id cards survive list and retain their dist
   const deps = baseDeps();
   const root = tempDir(), stale = path.join(root, "repo", "sites", "tovu-dev");
   const valid = writeSite(path.join(root, "Documents", "Tovu", "tovu-dev"), "other-id");
-  writeTrackedSites(deps.projectsPath, [
+  writeTrackedSites({ projectsPath: deps.projectsPath, rows: [
     { siteDir: stale, createdAt: "2026-01-01", relocationId: "old-id", displayName: "tovu-dev" },
     { siteDir: valid, createdAt: "2026-01-01" },
-  ]);
+  ] });
   assert.deepEqual(handleList(deps).map((row) => [row.installDir, row.displayName, row.folderMissing]), [
     [stale, "tovu-dev", true], [valid, "tovu-dev", false],
   ]);
@@ -2053,14 +2053,14 @@ test("shared discovery imports new paths while preserving local creation authori
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const local = writeSite(path.join(root, "local"), "local-id");
   const discovered = writeSite(path.join(root, "discovered"), "discovered-id");
-  const projectsPath = sitesFilePath(root);
+  const projectsPath = sitesFilePath({ userDataDir: root });
   const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
   sharedSites.registry({}).merge({ entries: [{ id: "discovered-id", name: "Discovered", path: discovered, createdBy: "Web", lastOpened: null }] });
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: ({ siteDir }) => path.basename(siteDir) });
-  trackSite(projectsPath, local, SITE_ORIGIN.created, { siteId: "local-id" });
+  trackSite({ projectsPath, siteDir: local }, { origin: SITE_ORIGIN.created, siteId: "local-id" });
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: ({ siteDir }) => path.basename(siteDir) });
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName: ({ siteDir }) => path.basename(siteDir) });
-  const rows = readTrackedSites(projectsPath);
+  const rows = readTrackedSites({ projectsPath });
   assert.equal(rows.length, 2);
   assert.equal(rows.find((row) => row.siteDir === local)?.origin, SITE_ORIGIN.created);
   assert.equal(rows.find((row) => row.siteDir === local)?.siteId, "local-id");
@@ -2072,10 +2072,10 @@ test("shared discovery imports new paths while preserving local creation authori
 test("shared discovery with no workspace is inert and unavailable discovery preserves local records", (t) => {
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const projectsPath = sitesFilePath(root);
+  const projectsPath = sitesFilePath({ userDataDir: root });
   importSharedSiteDiscovery({ projectsPath, sharedSites: undefined, readSiteName: ({ siteDir }) => path.basename(siteDir) });
   assert.equal(fs.existsSync(projectsPath), false);
-  trackSite(projectsPath, path.join(root, "local"));
+  trackSite({ projectsPath, siteDir: path.join(root, "local") });
   const before = fs.readFileSync(projectsPath, "utf8");
   const sharedSites = { registry: () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } } as unknown as NonNullable<ProjectIpcDeps["sharedSites"]>;
   const warn = t.mock.method(console, "warn", () => {});
@@ -2094,13 +2094,13 @@ test("shared discovery gives an adopted same-named site a display alias like Add
   const source = writeSite(path.join(root, "source"), "source-id");
   const imported = writeSite(path.join(root, "imported"), "imported-id");
   const readSiteName = () => "imp-src";
-  const projectsPath = sitesFilePath(root);
-  trackSite(projectsPath, source);
+  const projectsPath = sitesFilePath({ userDataDir: root });
+  trackSite({ projectsPath, siteDir: source });
   const sharedSites = createSitesWorkspace({}, { homeDir: root, cwd: root, env: {}, sourceRoots: [], platform: "linux" });
   sharedSites.registry({}).merge({ entries: [{ id: "imported-id", name: "imp-src", path: imported, createdBy: "Web", lastOpened: null }] });
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName });
   importSharedSiteDiscovery({ projectsPath, sharedSites, readSiteName });
-  const rows = readTrackedSites(projectsPath);
+  const rows = readTrackedSites({ projectsPath });
   assert.equal(rows.find((row) => row.siteDir === source)?.displayNameAlias, undefined, "the already-tracked source keeps its name");
   assert.equal(rows.find((row) => row.siteDir === imported)?.displayNameAlias, "imp-src 2");
   assert.equal(JSON.parse(fs.readFileSync(path.join(imported, "config.json"), "utf8")).name, "imported", "the site's own config is untouched");
@@ -2114,7 +2114,7 @@ test("handleStart with no injected classifier uses the real one and starts a rea
   let started = 0;
   // handleStart declares the classifier optional; omit it entirely rather than passing undefined.
   const { classifySiteDir: _injected, ...deps } = baseDeps({ openSiteServer: async () => { started += 1; } });
-  trackSite(deps.projectsPath, siteDir);
+  trackSite({ projectsPath: deps.projectsPath, siteDir });
   await handleStart(siteDir, deps);
   assert.equal(started, 1);
 });
@@ -2123,7 +2123,7 @@ test("a SITE_DIR_INVALID start failure becomes 'folder not found' only when the 
   const siteDir = siteFixture("vanishing");
   const invalid = new Error("SITE_DIR_INVALID: config.json is missing at the site");
   const deps = baseDeps({ openSiteServer: async () => { throw invalid; } });
-  trackSite(deps.projectsPath, siteDir);
+  trackSite({ projectsPath: deps.projectsPath, siteDir });
   await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), (error) => error === invalid, "the folder is still there: serve's own reason stands");
 
   deps.openSiteServer = async () => { fs.rmSync(siteDir, { recursive: true, force: true }); throw invalid; };
@@ -2133,7 +2133,7 @@ test("a SITE_DIR_INVALID start failure becomes 'folder not found' only when the 
   });
 
   const other = siteFixture("other-failure");
-  trackSite(deps.projectsPath, other);
+  trackSite({ projectsPath: deps.projectsPath, siteDir: other });
   deps.openSiteServer = async () => { throw "port in use"; };
   await assert.rejects(handleStart(other, deps as ProjectIpcDeps), (error) => error === "port in use");
 });
@@ -2152,7 +2152,7 @@ test("Locate and Add Site share the folder into the shared catalog when shared s
   const moved = writeSite(path.join(root, "moved-here"), "moved-id");
   const located = locateDeps(moved);
   located.sharedSites = workspace;
-  trackSite(located.projectsPath, path.join(root, "gone"));
+  trackSite({ projectsPath: located.projectsPath, siteDir: path.join(root, "gone") });
   await handleLocate(path.join(root, "gone"), located as ProjectIpcDeps);
   assert.ok(workspace.registry({}).list({}).some((row) => row.path === moved), "the located folder is in the shared catalog");
 
@@ -2165,11 +2165,11 @@ test("Locate and Add Site share the folder into the shared catalog when shared s
 test("an erase that fails for a reason other than permissions says the folder could not be removed", async () => {
   const siteDir = writeSite(path.join(tempDir(), "busy-site"), "busy-site");
   const deps = baseDeps({ removeSiteTree: async () => { throw Object.assign(new Error("resource busy"), { code: "EBUSY" }); } });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: "busy-site" });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "busy-site" });
   await assert.rejects(handleDelete(siteDir, deps as ProjectIpcDeps), {
     message: "Could not delete this website. The folder could not be removed. Its card has been kept so you can try again.",
   });
-  assert.equal(readTrackedSites(deps.projectsPath).length, 1);
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1);
 });
 
 test("D-10: Rename also refuses the remembered name of a tracked site whose folder is missing", () => {
@@ -2181,9 +2181,9 @@ test("D-10: Rename also refuses the remembered name of a tracked site whose fold
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => (dir === own ? 'Own' : assert.fail(`a missing folder's name is never read from disk: ${dir}`)),
     writeSiteName: (_dir: string, name: string) => { writes += 1; return name.trim(); },
   });
-  trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
-  trackSite(deps.projectsPath, missing, SITE_ORIGIN.adopted);
-  writeTrackedSites(deps.projectsPath, readTrackedSites(deps.projectsPath).map((row) => row.siteDir === missing ? { ...row, displayName: 'Bakery' } : row));
+  trackSite({ projectsPath: deps.projectsPath, siteDir: own }, { origin: SITE_ORIGIN.adopted });
+  trackSite({ projectsPath: deps.projectsPath, siteDir: missing }, { origin: SITE_ORIGIN.adopted });
+  writeTrackedSites({ projectsPath: deps.projectsPath, rows: readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir === missing ? { ...row, displayName: 'Bakery' } : row) });
   assert.throws(() => handleRename({ id: own, name: 'bakery' }, deps), {
     message: 'A website named "bakery" is already tracked. Choose a different name.',
   });
@@ -2201,10 +2201,10 @@ test("erasing a created site drops it from the shared catalog, and a catalog fai
       ? { ...real, registry: (required: Record<string, never>) => ({ ...real.registry(required), remove: () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } }) }
       : real;
     const deps = baseDeps({ sharedSites, removeSiteTree: async ({ root: dir }: { root: string }) => { fs.rmSync(dir, { recursive: true }); } });
-    trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId: `made-${catalogFails}` });
+    trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: `made-${catalogFails}` });
     await handleDelete(siteDir, deps as ProjectIpcDeps);
     assert.equal(fs.existsSync(siteDir), false);
-    assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+    assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
     assert.equal(real.registry({}).list({}).some((row) => row.path === siteDir), catalogFails, "kept only when the catalog refused");
   }
   assert.deepEqual(warn.mock.calls.map((entry) => entry.arguments[0]), ["tovu desktop: could not remove the erased website from the shared catalog."]);
@@ -2244,7 +2244,7 @@ test("re-adding a tracked site still succeeds when its name cannot be cached, an
       return "Readded";
     },
   });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   const record = await handleAddSite(deps);
   assert.equal(record?.displayName, "Readded");
   assert.equal(record?.alreadyTracked, true);
@@ -2266,7 +2266,7 @@ test("a list whose names changed on disk is still returned when the name cache c
       return "Renamed in Finder";
     },
   });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   const records = handleList(deps);
   assert.equal(first(records).displayName, "Renamed in Finder");
   assert.equal(warn.mock.calls.at(-1)?.arguments[0], "tovu desktop: could not remember website names");
@@ -2293,7 +2293,7 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
     const server = {
       pid: nextPid++, port: 4000 + nextPid, external: false,
       outputTail: () => 'safe redacted output [REDACTED]',
-      onExit: (fn: typeof listeners[number]) => { listeners.push(fn); },
+      onExit: ({ listener }: { listener: typeof listeners[number] }) => { listeners.push(listener); },
       stop: async () => { server.die(0); },
       stopIfIdle: async (): Promise<boolean> => false,
       die(code = 1) { if (exited) return; exited = true; for (const fn of listeners) fn({ code, signal: null }); },
@@ -2304,7 +2304,7 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
     openSiteServer: async () => { if (openSites.has(siteDir)) return; boots++; if (bootError) throw bootError; openSites.set(siteDir, { server: child() }); },
     ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); }, removeHandler: channel => { registered.delete(channel); } },
   });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, {
     now: () => now, sleepMinutes: () => minutes,
     schedule: ({ delayMs, run }) => { const task = { delayMs, run, cancelled: false }; timers.push(task); return () => { task.cancelled = true; }; },
@@ -2503,7 +2503,7 @@ test('B2 Quit tracks a pending automatic boot and stops a child adopted after ca
       deps.openSites.set(siteDir, { server: { pid: 333, port: 4333, stop: async () => { stops++; } } });
     },
   });
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   const lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, {
     now: () => 100, schedule: input => { run = input.run; return () => {}; },
   });
@@ -2548,7 +2548,7 @@ test('site registration accepts frozen deps and passes its runtime to record bui
     ipcMain: { handle: (channel, handler) => { registered.set(channel, handler); }, removeHandler: channel => { registered.delete(channel); } },
   }));
   const siteDir = '/sites/frozen-deps';
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.adopted);
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   const lifecycle = registerSiteIpcHandlers(deps as unknown as ProjectIpcDeps, {
     now: () => 1_000, schedule: () => () => {},
   });
@@ -2639,7 +2639,7 @@ test("handleImportArchive records the imported site as one this app made, with t
   assert.deepEqual(asked, [{ source: { file: "/picked/shop.tovu.zip" }, repoRoot: "/repo", cliMode: "source" }]);
   assert.equal(record.id, siteDir);
   assert.deepEqual(record.warnings, ["Plugin kept switched off."]);
-  assert.equal(readTrackedSites(deps.projectsPath)[0]!.origin, "created");
+  assert.equal(readTrackedSites({ projectsPath: deps.projectsPath })[0]!.origin, "created");
   assert.equal(record.deleteErasesFiles, true, "an imported copy is this app's own, so deleting it may erase it");
 });
 
@@ -2647,13 +2647,13 @@ test("handleImportArchive: a cancelled picker imports nothing", async () => {
   const { deps, asked } = importDeps(null, { dir: siteFixture() });
   assert.equal(await handleImportArchive({ pick: true }, deps), null);
   assert.deepEqual(asked, []);
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test("handleImportArchive: an import the person cancelled records nothing", async () => {
   const { deps } = addSiteDeps("/picked/a.tovu.zip", { importSiteArchive: async () => null } as never);
   assert.equal(await handleImportArchive({ pick: true }, deps as Parameters<typeof handleImportArchive>[1]), null);
-  assert.deepEqual(readTrackedSites((deps as { projectsPath: string }).projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: (deps as { projectsPath: string }).projectsPath }), []);
 });
 
 test("handleImportArchive passes a share link through untouched and a dropped .zip by its path", async () => {
@@ -2676,7 +2676,7 @@ test("handleImportArchive refuses a wrong file, a relative path and an empty req
 test("handleImportArchive: an importer that refuses leaves nothing tracked and its words intact", async () => {
   const { deps } = importDeps("/picked/x.zip", new Error("ZIP size or SHA-256 mismatch."));
   await assert.rejects(handleImportArchive({ pick: true }, deps), { message: "ZIP size or SHA-256 mismatch." });
-  assert.deepEqual(readTrackedSites(deps.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
 
 test("handleImportArchive gives a second import with the same name its own display name", async () => {

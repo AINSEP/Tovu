@@ -57,7 +57,7 @@ interface HistoryTurn {
  * in) rather than assuming a fixed "drop the last element" so this stays correct even if a future
  * caller's `history` does not end in the user turn.
  */
-function priorTurnsBeforeLatestUserMessage(history: ChatMessage[]): ChatMessage[] {
+function priorTurnsBeforeLatestUserMessage({ history }: { history: ChatMessage[] }, _options = {}): ChatMessage[] {
   // Precondition: `history` holds a user turn. `startRun` calls `latestUserPromptFromHistory` first,
   // which throws when there is none and scans for the same condition (last `role === "user"`, from
   // the end) over the same unmutated array — so this scan always stops at an index >= 0. The former
@@ -70,8 +70,8 @@ function priorTurnsBeforeLatestUserMessage(history: ChatMessage[]): ChatMessage[
 
 /** Bounds the prior turns sent alongside a message. Not the security boundary (see file header) —
  *  just keeps a long local conversation from ballooning every request's payload. */
-function boundHistoryForRequest(history: ChatMessage[]): HistoryTurn[] {
-  const prior = priorTurnsBeforeLatestUserMessage(history);
+function boundHistoryForRequest({ history }: { history: ChatMessage[] }, _options = {}): HistoryTurn[] {
+  const prior = priorTurnsBeforeLatestUserMessage({ history });
   const recent = prior.length > MAX_HISTORY_MESSAGES ? prior.slice(prior.length - MAX_HISTORY_MESSAGES) : prior;
   return recent
     .filter((m) => m.content.trim().length > 0)
@@ -88,7 +88,7 @@ interface ChatFrameError {
   readonly message: string;
 }
 /** Parses one complete SSE frame's `event:`/`data:` lines (defaulting `event` to `"message"`). */
-function parseSseFrame(frame: string): { event: string; data: string | null } {
+function parseSseFrame({ frame }: { frame: string }, _options = {}): { event: string; data: string | null } {
   let event = "message";
   let data: string | null = null;
   for (const line of frame.split("\n")) {
@@ -102,14 +102,14 @@ function parseSseFrame(frame: string): { event: string; data: string | null } {
  * Extracts and dispatches every complete `\n\n`-delimited frame currently in `buffer` via `onFrame`,
  * returning the remaining not-yet-terminated tail for the next read.
  */
-function drainCompleteFrames(buffer: string, onFrame: (event: string, data: unknown) => void): string {
+function drainCompleteFrames({ buffer, onFrame }: { buffer: string; onFrame: (event: string, data: unknown) => void }, _options = {}): string {
   let remaining = buffer;
   let boundary = remaining.indexOf("\n\n");
   while (boundary !== -1) {
     const frame = remaining.slice(0, boundary);
     remaining = remaining.slice(boundary + 2);
 
-    const { event, data } = parseSseFrame(frame);
+    const { event, data } = parseSseFrame({ frame });
     // `sse()` always writes both lines together; a frame with no `data:` line is not one of ours
     // (a proxy keep-alive comment, e.g.) and is skipped rather than handed to `JSON.parse(null)`.
     if (data !== null) onFrame(event, JSON.parse(data));
@@ -132,9 +132,7 @@ function drainCompleteFrames(buffer: string, onFrame: (event: string, data: unkn
  * @overallScore 100
  */
 async function pumpServerSentEvents(
-  response: Response,
-  onFrame: (event: string, data: unknown) => void,
-  onChunk: () => void,
+  { response, onFrame, onChunk }: { response: Response; onFrame: (event: string, data: unknown) => void; onChunk: () => void }, _options = {},
 ): Promise<void> {
   const body = response.body;
   if (!body) throw new Error("site assistant response had no stream body");
@@ -148,7 +146,7 @@ async function pumpServerSentEvents(
     if (done) break;
     onChunk();
     buffer += decoder.decode(value, { stream: true });
-    buffer = drainCompleteFrames(buffer, onFrame);
+    buffer = drainCompleteFrames({ buffer, onFrame });
   }
 }
 
@@ -218,7 +216,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       };
       // Settled runs stay silent: an error after `end` (a late frame, a reset socket) must not
       // paint a failure under a reply the visitor already has.
-      const fail = (error: unknown) => {
+      const fail = ({ error }: { error: unknown }, _options = {}) => {
         if (settled) return;
         failed = true;
         handlers.onError(visitorFacingError({ error }));
@@ -226,7 +224,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       // `expectReply: false` only for an abort: a visitor's own Stop is not a missing reply.
       const finish = ({ expectReply = true }: { expectReply?: boolean } = {}) => {
         if (settled) return;
-        if (expectReply && !failed && !replied) fail(NO_REPLY_REASON);
+        if (expectReply && !failed && !replied) fail({ error: NO_REPLY_REASON });
         settled = true;
         options.onToolConfirmation?.({ directive: null });
         clearTimeout(idleTimer);
@@ -245,19 +243,19 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
             credentials: "same-origin", mode: "same-origin", redirect: "error",
             // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
             // key stays server-side, and this route requires no admin session.
-            body: JSON.stringify({ message, history: boundHistoryForRequest(input.history as ChatMessage[]) }),
+            body: JSON.stringify({ message, history: boundHistoryForRequest({ history: input.history as ChatMessage[] }) }),
             signal: controller.signal,
           });
 
           if (!response.ok) {
             // A non-JSON refusal still reaches the visitor with its HTTP status below.
             const body = (await response.json().catch(() => null)) as { error?: string } | null;
-            fail(new Error(body?.error || `site assistant request failed (${response.status})`));
+            fail({ error: new Error(body?.error || `site assistant request failed (${response.status})`) });
             finish();
             return;
           }
 
-          await pumpServerSentEvents(response, (event, data) => {
+          await pumpServerSentEvents({ response, onFrame: (event, data) => {
             // End is terminal even for frames coalesced into the same response chunk.
             if (settled) return;
             if (event === "text") {
@@ -266,7 +264,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
               collected.push(ev);
               handlers.onEvent(ev);
             } else if (event === "error") {
-              fail(new Error((data as ChatFrameError).message || "site assistant error"));
+              fail({ error: new Error((data as ChatFrameError).message || "site assistant error") });
             } else if (event === "end") {
               // The end reason is server telemetry only; nothing here branches on it.
               finish();
@@ -280,7 +278,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
             } else {
               // Ignore event kinds outside this transport's protocol.
             }
-          }, armIdleTimer);
+          }, onChunk: armIdleTimer });
           // Stream ended without an explicit "end" frame (e.g. the connection just closed) —
           // finish anyway so the pane never shows a run stuck "in progress" forever.
           finish();
@@ -290,11 +288,11 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
           // it into a clean upstream cancellation rather than a wasted completed generation. The
           // idle timer's abort is the exception: the visitor asked nothing to stop, so say why.
           if (error instanceof DOMException && error.name === "AbortError") {
-            if (timedOut) fail(TIMEOUT_REASON);
+            if (timedOut) fail({ error: TIMEOUT_REASON });
             finish({ expectReply: false });
             return;
           }
-          fail(error);
+          fail({ error });
           finish();
         }
       })();

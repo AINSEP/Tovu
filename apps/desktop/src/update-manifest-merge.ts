@@ -53,7 +53,7 @@ function assertManifest(value: unknown, label: string): asserts value is UpdateM
 }
 
 /**
- * @param inputs the parsed per-arch manifests, each with a label for error messages.
+ * @param required.inputs the parsed per-arch manifests, each with a label for error messages.
  * @returns one manifest listing every input's zips (see this file's header for why only zips). Its legacy top-level `path`/`sha512` name the
  *   Intel zip: a very old updater that reads only those gets a build that runs everywhere (Apple
  *   Silicon through Rosetta), never an arm64 build on an Intel Mac.
@@ -61,7 +61,7 @@ function assertManifest(value: unknown, label: string): asserts value is UpdateM
  *   result does not hold exactly one arm64 zip and exactly one other zip.
  * @complexity O(n) in files.
  */
-function mergeMacManifests(inputs: ReadonlyArray<{ label: string; manifest: unknown }>): UpdateManifest {
+function mergeMacManifests({ inputs }: { inputs: ReadonlyArray<{ label: string; manifest: unknown }> }, _options = {}): UpdateManifest {
   if (inputs.length === 0) throw new Error("no manifests to merge");
   const manifests = inputs.map(({ label, manifest }) => {
     assertManifest(manifest, label);

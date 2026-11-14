@@ -56,8 +56,8 @@ test("add-site adds a real site and reports the path it recorded", () => {
   assert.ok(io.stdout().includes(siteDir));
   // Stated in the output because the promise is load-bearing and people do not read source.
   assert.match(io.stdout(), /not moved, copied, or changed/);
-  assert.equal(readTrackedSites(sitesFilePath(userDataDir))[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)).map(({ siteDir, origin }) => ({ siteDir, origin })),
+  assert.equal(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) })[0]!.origin, SITE_ORIGIN.adopted); // just written by the add-site call above, so a row for this dir always exists
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).map(({ siteDir, origin }) => ({ siteDir, origin })),
     [{ siteDir: path.resolve(siteDir), origin: SITE_ORIGIN.adopted }]);
 });
 
@@ -100,7 +100,7 @@ test("with no --user-data-dir the real CLI uses the env override and says plainl
   assert.equal(child.status, EXIT_OK, child.stderr);
   assert.ok(child.stdout.includes(`Using app data: ${userDataDir}\n`));
   assert.match(child.stdout, /this directory does not exist yet — it will be created/);
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)).map((row) => row.siteDir), [path.resolve(siteDir)]);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).map((row) => row.siteDir), [path.resolve(siteDir)]);
 });
 
 test("a filesystem failure while recording is thrown as itself, never dressed up as a refusal", () => {
@@ -125,7 +125,7 @@ test("add-site EXITS NON-ZERO and writes nothing when the folder is not a site",
   // `!== 0`, so a usage bug cannot masquerade as a refusal.
   assert.equal(code, EXIT_REFUSED);
   assert.match(io.stderr(), /no Tovu site here to add/);
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }), []);
   // And nothing was initialized in the operator's folder.
   assert.deepEqual(fs.readdirSync(empty), []);
 });
@@ -148,7 +148,7 @@ test("add-site refuses an incomplete and an occupied folder with their own reaso
   assert.match(second.stderr(), /folder of unrelated files/);
   assert.match(second.stderr(), /subfolder/);
 
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }), []);
 });
 
 test("add-site with no path is a USAGE error, distinct from a refusal", () => {
@@ -172,7 +172,7 @@ test("add-site REFUSES several paths rather than silently adding only the first"
   assert.equal(code, EXIT_USAGE);
   assert.match(io.stderr(), /takes one path, but got 3/);
   assert.match(io.stderr(), /quote it/);
-  assert.deepEqual(readTrackedSites(sitesFilePath(userDataDir)), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }), []);
 });
 
 test("add-site is idempotent and says so on the second run", () => {
@@ -185,7 +185,7 @@ test("add-site is idempotent and says so on the second run", () => {
 
   assert.equal(code, EXIT_OK);
   assert.match(io.stdout(), /Already in your websites/);
-  assert.equal(readTrackedSites(sitesFilePath(userDataDir)).length, 1);
+  assert.equal(readTrackedSites({ projectsPath: sitesFilePath({ userDataDir }) }).length, 1);
 });
 
 test("add-site tells the operator when it is restoring a website they removed", () => {
@@ -193,7 +193,7 @@ test("add-site tells the operator when it is restoring a website they removed", 
   const siteDir = siteFixture();
   runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: capture().io });
   // The operator removing it in the app writes a tombstone; naming the folder again clears it.
-  untrackSite(sitesFilePath(userDataDir), siteDir);
+  untrackSite({ projectsPath: sitesFilePath({ userDataDir }), siteDir });
   const io = capture();
 
   runTovuDesktopCli({ argv: ["add-site", siteDir, "--user-data-dir", userDataDir], io: io.io });

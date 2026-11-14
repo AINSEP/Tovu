@@ -62,7 +62,7 @@ for (const linked of [false, true]) {
 
 test('Start of a legacy-tracked app-data copy snapshots its content before the server opens it', async (t) => {
   const f = fixture(t, false);
-  trackSite(f.projectsPath, f.copy);
+  trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   await handleStart(f.copy, {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
     serializer: createKeyedSerializer(), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
@@ -82,7 +82,7 @@ test('an unreadable external database refuses Add without changing identity or t
   const before = fs.readFileSync(path.join(f.copy, '.site-meta.json'));
   assert.throws(() => addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace }), /copied website could not start/);
   assert.deepEqual(fs.readFileSync(path.join(f.copy, '.site-meta.json')), before);
-  assert.deepEqual(readTrackedSites(f.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });
 
 test('a linked data.nosync directory gives the copy independent content and chat databases', (t) => {
@@ -113,5 +113,5 @@ test('failed marker commit restores copied database links and removes its provis
   assert.equal(fs.readlinkSync(path.join(f.copy, 'content.db')), f.sourcePath);
   assert.deepEqual(fs.readdirSync(f.copy).sort(), fs.readdirSync(f.original).sort());
   assert.deepEqual(fs.readdirSync(path.join(f.workspace.config({}).appData, 'databases')), []);
-  assert.deepEqual(readTrackedSites(f.projectsPath), []);
+  assert.deepEqual(readTrackedSites({ projectsPath: f.projectsPath }), []);
 });

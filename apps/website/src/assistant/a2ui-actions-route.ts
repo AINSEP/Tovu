@@ -112,7 +112,7 @@ export type ReadA2uiActionResult =
  *
  * @complexity O(size of the message) for the schema parse.
  */
-export function readA2uiAction(rawBody: unknown): ReadA2uiActionResult {
+export function readA2uiAction({ rawBody }: { rawBody: unknown }, _options = {}): ReadA2uiActionResult {
   const body = (rawBody ?? {}) as { exchangeId?: unknown; message?: unknown };
   const exchangeId = body.exchangeId;
   if (typeof exchangeId !== "string" || exchangeId.length === 0) {
@@ -176,7 +176,7 @@ export function registerA2uiActionsRoute(app: Express, deps: A2uiActionsRouteDep
       return;
     }
 
-    const action = readA2uiAction(req.body);
+    const action = readA2uiAction({ rawBody: req.body });
     if (!action.ok) {
       res.status(400).json(action.error);
       return;

@@ -102,9 +102,9 @@ test("dev-fallback rows: migrate dismissals, then seed, then retire — all with
   });
   assert.equal(ran, true);
   assert.deepEqual(calls, [
-    ["migrate", "/ud/projects.json", "/repo/sites/tovu-dev"],
-    ["seed", "/ud/projects.json", "/repo/sites/tovu-dev", classify],
-    ["retire", "/ud/projects.json", "/repo/sites/tovu-dev", classify],
+    ["migrate", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev" }],
+    ["seed", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify }],
+    ["retire", { projectsPath: "/ud/projects.json", devFallbackDir: "/repo/sites/tovu-dev", classifySiteDir: classify }],
   ]);
 });
 

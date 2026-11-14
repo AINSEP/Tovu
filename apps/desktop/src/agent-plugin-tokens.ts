@@ -158,7 +158,7 @@ async function listTokenSignInPlugins(input: {
       child.once("exit", (exitCode) => resolve({ code: exitCode, stdout: out, stderr: err }));
     });
     if (code !== 0) {
-      const cliError = parseCliErrorLine(stderr);
+      const cliError = parseCliErrorLine({ text: stderr });
       const detail = cliError === null ? stderr.trim() : `${cliError.code}: ${cliError.message}`;
       throw new Error(`tovu agent-plugins token-sign-in failed: ${detail}`);
     }

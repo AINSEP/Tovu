@@ -167,7 +167,7 @@ const SITE_DIR_SCHEMA = Object.freeze({
  * @complexity O(n) in the tracked-row count, one `stat` pair per row.
  */
 function listSites(_args: ToolArgs, context: ToolContext): ToolHandlerResult {
-  const sites = readTrackedSites(context.projectsPath).map((row) => ({
+  const sites = readTrackedSites({ projectsPath: context.projectsPath }).map((row) => ({
     siteDir: row.siteDir,
     name: path.basename(row.siteDir),
     origin: row.origin,
@@ -241,7 +241,7 @@ function describeAddResult(result: ReturnType<typeof addSitePointer>): string {
 async function revealSiteFolder(args: ToolArgs, context: ToolContext): Promise<ToolHandlerResult> {
   const requested = requireStringArg(args, "siteDir");
   const siteDir = path.resolve(path.sep, requested);
-  const tracked = readTrackedSites(context.projectsPath).some((row) => row.siteDir === siteDir);
+  const tracked = readTrackedSites({ projectsPath: context.projectsPath }).some((row) => row.siteDir === siteDir);
   if (!tracked) {
     throw new ToolInputError(
       `${siteDir} is not one of this app's websites, so it will not be opened. Call 'list_sites' and use one of the 'siteDir' values it returns.`,

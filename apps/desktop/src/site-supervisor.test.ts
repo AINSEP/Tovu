@@ -34,7 +34,7 @@ function fakeServer(port = 4321) {
     port,
     pid: 4242,
     stop: async () => {},
-    onExit(listener: (exit: ServerExit) => void) {
+    onExit({ listener }: { listener: (exit: ServerExit) => void }) {
       if (exit !== null) {
         listener(exit);
         return;

@@ -149,7 +149,7 @@ test("an error after readiness cannot replace the handle, and the supervisor sti
   f.child.stdout.write("tovu serve: dir=/fixture port=4321 schemaVersion=58 workspaceId=fixture\n");
   const handle = await started;
   const seen: unknown[] = [];
-  handle.onExit((exit) => { seen.push(exit); });
+  handle.onExit({ listener: (exit) => { seen.push(exit); } });
   f.child.emit("error", new Error("late child error"));
   f.child.exitCode = 7;
   f.child.emit("exit", 7, null);

@@ -169,7 +169,7 @@ interface OpenSiteEntry {
     pid?: number;
     origin?: string;
     stop?: () => Promise<unknown>;
-    onExit?: (listener: (exit: ServerExitLike) => void) => void;
+    onExit?: (required: { listener: (exit: ServerExitLike) => void }) => void;
     stopIfIdle?: (required?: {}, optional?: {}) => Promise<boolean>;
     outputTail?: (required?: {}, optional?: {}) => string;
   };
@@ -548,7 +548,7 @@ export function importSharedSiteDiscovery(
   if (!sharedSites) return;
   try {
     // The shared catalog supplies discovery, never the local origin/deletion authority.
-    const rows = readTrackedSites(projectsPath);
+    const rows = readTrackedSites({ projectsPath });
     if (rows.length) shareSiteDirectories({ workspace: sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy", migration: `projects:${projectsPath}` });
     adoptWithUniqueNames({ deps: { projectsPath, readSiteName }, siteDirs: sharedSites.registry({}).list({}).map((entry) => entry.path) });
   } catch (error) { console.warn("tovu desktop: shared discovery is unavailable; showing local website cards.", formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
@@ -570,14 +570,14 @@ function handleList(
     Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
 ) {
   importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
-  const file = readProjectsFile(deps.projectsPath);
+  const file = readProjectsFile({ projectsPath: deps.projectsPath });
   if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
     relocateMovedSites({ projectsPath: deps.projectsPath }, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [], classifySiteDir: deps.classifySiteDir });
   } catch (error) {
     console.warn(`tovu desktop: could not save moved site folders — ${(error as Error).message}`);
   }
-  const rows = readTrackedSites(deps.projectsPath);
+  const rows = readTrackedSites({ projectsPath: deps.projectsPath });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: rows.map((row) => row.siteDir), createdBy: "desktop-legacy" });
   return recordsWithRememberedNames({ rows, deps });
 }
@@ -587,10 +587,10 @@ function rememberSiteName(
   { projectsPath, siteDir, displayName }: { projectsPath: string; siteDir: string; displayName: string }, _optional = {},
 ): void {
   try {
-    updateProjectsFile(projectsPath, (current) => ({
+    updateProjectsFile({ projectsPath, change: (current) => ({
       rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayName } : row),
       dismissed: current.dismissed,
-    }));
+    }) });
   } catch (error) {
     // A metadata cache failure must not report a completed Create/Add/Rename as a failed action.
     console.warn('tovu desktop: could not remember website name', error);
@@ -603,13 +603,13 @@ function recordsWithRememberedNames(
   const names = new Map(records.filter((record) => !record.folderMissing).map((record) => [record.id, record.displayName]));
   if (rows.some((row) => names.has(row.siteDir) && names.get(row.siteDir) !== row.displayName)) {
     try {
-      updateProjectsFile(deps.projectsPath, (current) => ({
+      updateProjectsFile({ projectsPath: deps.projectsPath, change: (current) => ({
         rows: current.rows.map((row) => {
           const displayName = names.get(row.siteDir);
           return displayName === undefined ? row : { ...row, displayName };
         }),
         dismissed: current.dismissed,
-      }));
+      }) });
     } catch (error) { console.warn('tovu desktop: could not remember website names', error); }
   }
   return records;
@@ -653,7 +653,7 @@ async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "c
 function otherSiteNames({ deps, siteDir }: {
   deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDir: string;
 }, _optional = {}): string[] {
-  return readTrackedSites(deps.projectsPath).filter((row) => row.siteDir !== siteDir).map((row) =>
+  return readTrackedSites({ projectsPath: deps.projectsPath }).filter((row) => row.siteDir !== siteDir).map((row) =>
     row.displayNameAlias ?? (!fs.existsSync(row.siteDir) && row.displayName ? row.displayName : deps.readSiteName({ siteDir: row.siteDir })));
 }
 
@@ -661,10 +661,10 @@ function otherSiteNames({ deps, siteDir }: {
 function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
   projectsPath: string; siteDir: string; displayNameAlias?: string;
 }, _optional = {}): void {
-  updateProjectsFile(projectsPath, (current) => ({
+  updateProjectsFile({ projectsPath, change: (current) => ({
     rows: current.rows.map((row) => row.siteDir === siteDir ? { ...row, displayNameAlias } : row),
     dismissed: current.dismissed,
-  }));
+  }) });
 }
 
 /**
@@ -676,7 +676,7 @@ function rememberSiteAlias({ projectsPath, siteDir, displayNameAlias }: {
 function adoptWithUniqueNames({ deps, siteDirs }: {
   deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">; siteDirs: string[];
 }, _optional = {}): void {
-  for (const siteDir of adoptDiscoveredSites(deps.projectsPath, siteDirs)) {
+  for (const siteDir of adoptDiscoveredSites({ projectsPath: deps.projectsPath, siteDirs })) {
     const originalName = deps.readSiteName({ siteDir });
     const displayName = uniqueSiteName({ name: originalName, names: otherSiteNames({ deps, siteDir }) });
     if (displayName !== originalName) rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias: displayName });
@@ -777,7 +777,7 @@ function recordCreatedSite(
   // at a path, and a path is not an identity. See `project-delete-guard.ts`'s test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
   const siteId = readSiteIdentity(siteDir);
-  trackSite(deps.projectsPath, siteDir, SITE_ORIGIN.created, { siteId });
+  trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
   // Remember the created site's parent beyond MRU eviction/card
   // removal, so a site created beside it by the CLI or web admin can appear on the next scan.
@@ -786,7 +786,7 @@ function recordCreatedSite(
   rememberSiteName({ projectsPath: deps.projectsPath, siteDir, displayName });
   const displayNameAlias = displayName !== deps.readSiteName({ siteDir }) ? displayName : undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir, displayNameAlias });
-  const tracked = readTrackedSites(deps.projectsPath).find((row) => row.siteDir === siteDir);
+  const tracked = readTrackedSites({ projectsPath: deps.projectsPath }).find((row) => row.siteDir === siteDir);
   if (!tracked) throw new Error("The website was created, but its desktop catalog entry is missing. Use Import to add the folder again.");
   return buildSiteRecord({ ...tracked, displayNameAlias }, deps);
 }
@@ -860,7 +860,7 @@ async function handleAddSite(
   const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: folder, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   // addSitePointer just tracked this exact siteDir above.
-  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir);
+  const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === siteDir);
   if (!row) throw new Error(`Added site ${siteDir} is missing from tracked projects.`);
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
@@ -1039,7 +1039,7 @@ async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" 
  * @complexity see {@link handleDelete}.
  */
 async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites">): Promise<void> {
-  const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
+  const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
@@ -1070,7 +1070,7 @@ async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPat
   }
   // The row is the recovery handle for a partial erase: keep it until removal succeeds.
   if (erasesFiles) await eraseProjectDirectory({ id, deps });
-  untrackSite(deps.projectsPath, id);
+  untrackSite({ projectsPath: deps.projectsPath, siteDir: id });
   if (erasesFiles) removeFromSharedCatalog({ id, sharedSites: deps.sharedSites });
   // Unconditional — independent of `erasesFiles` below. A preview is this shell's own decoration,
   // not the operator's data, so a row that is merely REMOVED (adopted, files kept) still drops its
@@ -1202,7 +1202,7 @@ function identityHasChanged(row: SiteRow): boolean {
  */
 function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projectsPath" | "classifySiteDir" | "writeSiteName" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
   const id = input?.id;
-  const row = readTrackedSites(deps.projectsPath).find((tracked) => tracked.siteDir === id);
+  const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((tracked) => tracked.siteDir === id);
   if (row === undefined) {
     throw new Error(`This app is not tracking a site at ${id}, so there is nothing to rename.`);
   }
@@ -1332,7 +1332,7 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  */
 async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "startAllowed">>) {
   return await deps.serializer.run({ key: id, fn: async () => {
-    const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
+    const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
@@ -1407,7 +1407,7 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  */
 async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites">) {
   return await deps.serializer.run({ key: id, fn: async () => {
-    const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === id);
+    const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
     if (row === undefined) {
       throw new Error(`Unknown project: ${id}`);
     }
@@ -1765,7 +1765,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   async function maintainSites({ snapshot }: { snapshot: ResourcesSnapshot }): Promise<void> {
     const at = now();
     const minutes = sleepMinutes();
-    const sites = readTrackedSites(deps.projectsPath);
+    const sites = readTrackedSites({ projectsPath: deps.projectsPath });
     for (const { siteDir } of sites) await maintainSite({ siteDir, snapshot, at, minutes });
   }
 
@@ -1782,7 +1782,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   // With no window left nothing reports presence, so ten idle minutes would stop the sites the user kept.
   let keptAwake = false;
   const presence = createSitePresence({ allowed: deps.isPresenceShell ?? (() => false),
-    trackedIds: () => new Set(readTrackedSites(deps.projectsPath).map(row => row.siteDir)),
+    trackedIds: () => new Set(readTrackedSites({ projectsPath: deps.projectsPath }).map(row => row.siteDir)),
   }, { hasSiteWindow: siteId => keptAwake || Boolean(states.get(siteId)?.keepAwake) || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
   deps.ipcMain.handle(SITE_PRESENCE_CHANNEL, ({ sender }, input: { siteIds?: unknown } | undefined) => {
     notePresence();
@@ -1819,7 +1819,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.keepRunning, ({ sender }, input: { id?: unknown } | undefined) => {
     if (sender.isDestroyed() || !deps.isPresenceShell?.(sender)) throw new Error('Keep running is only available from the desktop window.');
     const siteDir = input?.id;
-    if (typeof siteDir !== 'string' || !readTrackedSites(deps.projectsPath).some(site => site.siteDir === siteDir)) {
+    if (typeof siteDir !== 'string' || !readTrackedSites({ projectsPath: deps.projectsPath }).some(site => site.siteDir === siteDir)) {
       throw new Error('Keep running needs a tracked site.');
     }
     // Preserve the choice across automatic recovery; Stop/delete/manual Start release it in cancel.
