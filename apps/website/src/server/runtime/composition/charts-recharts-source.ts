@@ -24,10 +24,12 @@ export const RECHARTS_DEFAULT_PROVIDER = "plugin.recharts";
 // 194095b1a) and the middle-dot separator wrapping (47b4199e0) that used to be patched into the bundle.
 export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
   pluginId: "charts-recharts",
-  version: "0.7.0",
+  version: "0.7.2",
   browserProviders: [{ id: RECHARTS_DEFAULT_PROVIDER, kind: "chart", contractVersion: 1,
     kinds: ["bar", "line", "pie"], javascript: "client/provider.js", stylesheet: "client/styles.css" }],
-  // The full packaged integrity map (licenses included), copied from the reviewed 0.7.0 build.
+  // The full packaged integrity map (licenses included), copied from the reviewed 0.7.2 build.
+  // 0.7.0 -> 0.7.2 (2026-11-13, Jini 0.7.2 release): again only the three license-metadata files
+  // changed (version strings); provider.js, styles.css and server/index.mjs are byte-identical.
   // 0.6.24 -> 0.7.0 (2026-11-13): only three license-metadata files changed (version strings);
   // provider.js, styles.css and server/index.mjs are byte-identical. Missing this bump after the
   // Jini 0.7.0 move left the pinned folder absent: INTEGRITY_FAILED, charts off on every site.
@@ -36,11 +38,11 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
     "client/styles.css": "sha256-8bf7290ed757364db0ab99e55f2ab682647f572fbdda622f1c39937727e8eb3c",
     "licenses/_jini-ai_provider-plugins/LICENSE": "sha256-9d95806a26532623360eb84bb17d298f394b55ef73fb4c0796d99b4319b2b0da",
     "licenses/_jini-ai_provider-plugins/NOTICE": "sha256-41f25c5b9af4c8e8e98e2a7c658b3922253c760686e17e0ef7fa003fae83cb95",
-    "licenses/_jini-ai_provider-plugins/package-license.json": "sha256-3827ebcebc2ee244ddd52e242e17e39a0c7e43baa8c414f980f3f22e58c8cb1a",
+    "licenses/_jini-ai_provider-plugins/package-license.json": "sha256-68c7edfa94243e6847f8d1dabd8ee204cc9f2463a29301be5f4d341bf59b8562",
     "licenses/_jini-ai_ui/LICENSE": "sha256-9d95806a26532623360eb84bb17d298f394b55ef73fb4c0796d99b4319b2b0da",
-    "licenses/_jini-ai_ui/LICENSE-SOURCE": "sha256-719e65e0fba2e55cf53f4b4ebe7174340bab0e88695bed92a81a6bf990ac19a2",
+    "licenses/_jini-ai_ui/LICENSE-SOURCE": "sha256-e3f6b5e7de4952abc33b547a211648673fe4e8fb78904f0a763182af24ef983a",
     "licenses/_jini-ai_ui/NOTICE": "sha256-41f25c5b9af4c8e8e98e2a7c658b3922253c760686e17e0ef7fa003fae83cb95",
-    "licenses/_jini-ai_ui/package-license.json": "sha256-1cef9dc7892975dbd987a9b14a884f09ed5542df26a2475857179b71f7348271",
+    "licenses/_jini-ai_ui/package-license.json": "sha256-6a9ef389dc5d8e32642aed6e6523b962ca65557176a3fe4515dfc875a264a958",
     "licenses/_reduxjs_toolkit/LICENSE": "sha256-49784961ec6c4941437b7a2c54d8977d0528076a9e7c73dd40f7d0942b8f106d",
     "licenses/_reduxjs_toolkit/package-license.json": "sha256-841f76ddac88a780f1d16a201f72ad529d0b50148fcba84d103a65a8689f95b0",
     "licenses/clsx/license": "sha256-9a9edad7baae52622bddf3c15b2ef8a33d2c89f2d25408ad13e8a7481c6b0c97",
@@ -119,7 +121,7 @@ const manifest: PluginManifest = {
  *   would turn a missing pinned version into a boot failure instead of a table fallback.
  * @throws When the declared package is not installed: a packaging defect, never a runtime choice.
  * @complexity O(1) resolver calls.
- * @example rechartsSourceDir({}) // …/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts/0.7.0
+ * @example rechartsSourceDir({}) // …/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts/0.7.2
  */
 export function rechartsSourceDir(
   _required: Record<string, never> = {},
