@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 /**
  * @file The Themes screen's card-action glyphs (owner 2026-10-08: the card's text buttons became
  * icons). Jini has no compass, so Explore's glyph stays local here — the same split
@@ -6,16 +7,8 @@
  * the button around it carries the accessible name.
  */
 
-/** The 24px grid, 1.5 stroke and round joins every admin line icon shares (`plugins-visuals.tsx`). */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 export interface IconProps {
   size?: number;

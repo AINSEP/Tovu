@@ -5,6 +5,7 @@
  * never quite is.
  */
 import type { JSX } from 'react';
+import { IconFrame } from './icon-frame.js';
 import type { RunnerSectionId } from '../contracts/sections.js';
 
 const paths: Record<RunnerSectionId, JSX.Element> = {
@@ -100,18 +101,9 @@ const paths: Record<RunnerSectionId, JSX.Element> = {
 
 export function SectionIcon({ id }: { id: RunnerSectionId }) {
   return (
-    <svg
-      className="icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <IconFrame>
       {paths[id]}
-    </svg>
+    </IconFrame>
   );
 }
 
@@ -123,16 +115,7 @@ const GEAR_TOOTH_ANGLES = [0, 60, 120, 180, 240, 300];
  *  icon made exactly that mistake). */
 export function GearIcon() {
   return (
-    <svg
-      className="icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <IconFrame>
       {/* Teeth first, so the stroked body circle paints over where they meet it — the seam
           between a filled tooth and a stroked arc is what makes a cog read as loose dots
           (a sun) instead of one solid part. Each tooth's inner edge sits INSIDE the body
@@ -153,7 +136,7 @@ export function GearIcon() {
       ))}
       <circle cx="10" cy="10" r="4.8" fill="var(--bg, #fff)" />
       <circle cx="10" cy="10" r="1.9" />
-    </svg>
+    </IconFrame>
   );
 }
 
@@ -186,18 +169,9 @@ const navPaths: Record<NavIconKind, JSX.Element> = {
  *  toolbar chrome (back, forward, reload), not a nav destination. */
 export function NavIcon({ kind }: { kind: NavIconKind }) {
   return (
-    <svg
-      className="icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <IconFrame>
       {navPaths[kind]}
-    </svg>
+    </IconFrame>
   );
 }
 
@@ -238,17 +212,8 @@ const menuPaths: Record<MenuIconKind, JSX.Element> = {
 
 export function MenuIcon({ kind }: { kind: MenuIconKind }) {
   return (
-    <svg
-      className="icon"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <IconFrame>
       {menuPaths[kind]}
-    </svg>
+    </IconFrame>
   );
 }

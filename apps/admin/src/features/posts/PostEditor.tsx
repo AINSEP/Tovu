@@ -867,7 +867,7 @@ function PostAutosaveStaleBanner({ staleBasis }: { staleBasis: StandingDraftStal
  * Optimistic concurrency (2026-09-06) — the "someone else saved while you were editing" banner.
  * Rendered only after a save was actually rejected with `409 VERSION_CONFLICT`; never on load, and
  * never for the slug-uniqueness 409 the same route can also return (see `rules.ts`'s
- * `readPostVersionConflict` for the distinction the server's `code` makes possible).
+ * `readVersionConflict` for the distinction the server's `code` makes possible).
  *
  * Deliberately does NOT show the other operator's content, offer a diff, or replace anything in the
  * editor: the operator's own typed work is still on screen untouched, which is the single most

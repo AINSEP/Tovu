@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 /**
  * @file This screen's own small icon set — two inline SVGs for its tab row, no icon dependency.
  * Same rationale `source-control-visuals.tsx` and `deployment/deployment-visuals.tsx` give for
@@ -9,18 +10,8 @@
  * reader, not information).
  */
 
-/** Shared attributes for a decorative line icon — same 24px grid, 1.5 stroke, round joins as the
- *  other `*-visuals.tsx` sets and `Roles.hooks.tsx`, so every tab row in this admin reads as one
- *  family. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 /** Timeline — a ledger: three entries down the page, each with its marker. */
 export function TimelineIcon({ size = 16 }: { size?: number }) {

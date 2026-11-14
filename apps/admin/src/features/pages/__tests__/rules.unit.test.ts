@@ -1,22 +1,14 @@
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../../lib/admin-post-list-sort";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/lib/api";
 import {
-  DEFAULT_PAGE_SORT,
   pageVersionConflictMessage,
-  readPageVersionConflict,
   buildPageAutosaveDraft,
   buildPageSavePlan,
-  comparePagesByStatus,
-  comparePagesBySlug,
-  comparePagesByTitle,
-  comparePagesByUpdated,
-  isAutosaveDraftStale,
   pageAcceptsHtmlBody,
   pageAdminPath,
-  pageAutosaveBannerMessage,
   pageAutosaveStaleBasisMessage,
-  pageColumnSortLabel,
   pageDirtyGuardBaseline,
   pageEditableHtml,
   pageEditorSurface,
@@ -30,7 +22,6 @@ import {
   pickerValueToChoice,
   THEME_DEFAULT_SENTINEL,
   themePageRowMenuItems,
-  updatedPageColumnSortLabel,
 } from "../rules";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
@@ -199,17 +190,17 @@ describe("themePageRowMenuItems", () => {
  * here, independent of any table, is each column's own comparator direction and its accessible-name
  * phrasing — mirrors `posts/__tests__/rules.unit.test.ts`'s identical section.
  */
-describe("comparePagesByUpdated", () => {
+describe("compareAdminPostsByUpdated", () => {
   const oldest = page({ id: "pg-old", updatedAt: "2026-01-01T00:00:00.000Z" });
   const middle = page({ id: "pg-mid", updatedAt: "2026-06-01T00:00:00.000Z" });
   const newest = page({ id: "pg-new", updatedAt: "2026-08-10T00:00:00.000Z" });
 
   it("ascending order (DataTable's 'asc') sorts least-recently-updated first", () => {
-    expect([middle, oldest, newest].sort(comparePagesByUpdated).map((p) => p.id)).toEqual(["pg-old", "pg-mid", "pg-new"]);
+    expect([middle, oldest, newest].sort(compareAdminPostsByUpdated).map((p) => p.id)).toEqual(["pg-old", "pg-mid", "pg-new"]);
   });
 
   it("negating it (DataTable's 'desc') sorts most-recently-updated first", () => {
-    expect([middle, oldest, newest].sort((a, b) => -comparePagesByUpdated(a, b)).map((p) => p.id)).toEqual([
+    expect([middle, oldest, newest].sort((a, b) => -compareAdminPostsByUpdated(a, b)).map((p) => p.id)).toEqual([
       "pg-new",
       "pg-mid",
       "pg-old",
@@ -217,38 +208,38 @@ describe("comparePagesByUpdated", () => {
   });
 });
 
-describe("updatedPageColumnSortLabel", () => {
+describe("updatedColumnSortLabel", () => {
   it("states 'not sorted by updated date' and offers newest-first when direction is null", () => {
-    const label = updatedPageColumnSortLabel({ t: identityT, direction: null });
+    const label = updatedColumnSortLabel({ t: identityT, direction: null });
     expect(label).toMatch(/not sorted by updated date/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
-    const label = updatedPageColumnSortLabel({ t: identityT, direction: "desc" });
+    const label = updatedColumnSortLabel({ t: identityT, direction: "desc" });
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
   it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
-    const label = updatedPageColumnSortLabel({ t: identityT, direction: "asc" });
+    const label = updatedColumnSortLabel({ t: identityT, direction: "asc" });
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([updatedPageColumnSortLabel({ t: identityT, direction: null }), updatedPageColumnSortLabel({ t: identityT, direction: "asc" }), updatedPageColumnSortLabel({ t: identityT, direction: "desc" })]).size).toBe(3);
+    expect(new Set([updatedColumnSortLabel({ t: identityT, direction: null }), updatedColumnSortLabel({ t: identityT, direction: "asc" }), updatedColumnSortLabel({ t: identityT, direction: "desc" })]).size).toBe(3);
   });
 });
 
-describe("comparePagesByTitle / comparePagesBySlug", () => {
+describe("compareAdminPostsByTitle / compareAdminPostsBySlug", () => {
   const a = page({ id: "pg-a", title: "Alpha", slug: "charlie" });
   const b = page({ id: "pg-b", title: "Bravo", slug: "bravo" });
   const c = page({ id: "pg-c", title: "Charlie", slug: "alpha" });
 
   for (const [name, fn, ascending, descending] of [
-    ["comparePagesByTitle", comparePagesByTitle, ["pg-a", "pg-b", "pg-c"], ["pg-c", "pg-b", "pg-a"]],
-    ["comparePagesBySlug", comparePagesBySlug, ["pg-c", "pg-b", "pg-a"], ["pg-a", "pg-b", "pg-c"]],
+    ["compareAdminPostsByTitle", compareAdminPostsByTitle, ["pg-a", "pg-b", "pg-c"], ["pg-c", "pg-b", "pg-a"]],
+    ["compareAdminPostsBySlug", compareAdminPostsBySlug, ["pg-c", "pg-b", "pg-a"], ["pg-a", "pg-b", "pg-c"]],
   ] as const) {
     describe(name, () => {
       it("sorts A-to-Z ascending", () => {
@@ -262,18 +253,18 @@ describe("comparePagesByTitle / comparePagesBySlug", () => {
   }
 });
 
-describe("comparePagesByStatus", () => {
+describe("compareAdminPostsByStatus", () => {
   // Exactly two pages with different statuses — see `posts/rules.ts`'s own test for why a third,
   // necessarily-tied row would test `Array#sort`'s stability rather than this comparator.
   const draft = page({ id: "pg-draft", status: "draft" });
   const published = page({ id: "pg-published", status: "published" });
 
   it("ascending sorts draft before published", () => {
-    expect([published, draft].sort(comparePagesByStatus).map((p) => p.id)).toEqual(["pg-draft", "pg-published"]);
+    expect([published, draft].sort(compareAdminPostsByStatus).map((p) => p.id)).toEqual(["pg-draft", "pg-published"]);
   });
 
   it("negating it sorts published before draft", () => {
-    expect([draft, published].sort((a, b) => -comparePagesByStatus(a, b)).map((p) => p.id)).toEqual([
+    expect([draft, published].sort((a, b) => -compareAdminPostsByStatus(a, b)).map((p) => p.id)).toEqual([
       "pg-published",
       "pg-draft",
     ]);
@@ -327,33 +318,33 @@ describe("pageAdminPath", () => {
   });
 });
 
-describe("DEFAULT_PAGE_SORT", () => {
+describe("DEFAULT_ADMIN_POST_SORT", () => {
   it("is Updated, newest-first, consistent with Posts' own default", () => {
-    expect(DEFAULT_PAGE_SORT).toEqual({ column: "updated", direction: "desc" });
+    expect(DEFAULT_ADMIN_POST_SORT).toEqual({ column: "updated", direction: "desc" });
   });
 });
 
-describe("pageColumnSortLabel", () => {
+describe("columnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = pageColumnSortLabel({ t: identityT, columnName: "Title", direction: null });
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: null });
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = pageColumnSortLabel({ t: identityT, columnName: "Title", direction: "asc" });
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: "asc" });
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = pageColumnSortLabel({ t: identityT, columnName: "Title", direction: "desc" });
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: "desc" });
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([pageColumnSortLabel({ t: identityT, columnName: "Title", direction: null }), pageColumnSortLabel({ t: identityT, columnName: "Title", direction: "asc" }), pageColumnSortLabel({ t: identityT, columnName: "Title", direction: "desc" })]).size).toBe(3);
+    expect(new Set([columnSortLabel({ t: identityT, columnName: "Title", direction: null }), columnSortLabel({ t: identityT, columnName: "Title", direction: "asc" }), columnSortLabel({ t: identityT, columnName: "Title", direction: "desc" })]).size).toBe(3);
   });
 });
 
@@ -515,32 +506,6 @@ describe("pageEditorSurface", () => {
   });
 });
 
-describe("isAutosaveDraftStale", () => {
-  it("is false when the draft's baseVersion still matches the row's current version", () => {
-    expect(isAutosaveDraftStale({ draftBaseVersion: 3, currentVersion: 3 })).toBe(false);
-  });
-
-  it("is true once a real save has moved the row's version past the draft's basis", () => {
-    expect(isAutosaveDraftStale({ draftBaseVersion: 3, currentVersion: 4 })).toBe(true);
-  });
-});
-
-describe("pageAutosaveBannerMessage", () => {
-  const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();
-
-  it("a fresh draft reads 'Unsaved changes from N minutes ago'", () => {
-    expect(pageAutosaveBannerMessage({ savedAt: "2026-09-06T00:05:00.000Z", nowMs: NOW, stale: false })).toBe(
-      "Unsaved changes from 5 minutes ago"
-    );
-  });
-
-  it("a stale draft names the newer save explicitly instead of implying it is current", () => {
-    expect(pageAutosaveBannerMessage({ savedAt: "2026-09-06T00:05:00.000Z", nowMs: NOW, stale: true })).toBe(
-      "Unsaved changes from before a newer save (captured 5 minutes ago)"
-    );
-  });
-});
-
 /**
  * The stale-basis notice's copy, pinned literally. `toBe` on the whole sentence, not a substring
  * match: this is the only thing an operator ever learns about a running editor that has silently
@@ -610,24 +575,6 @@ describe("pagePartialSaveMessage", () => {
     expect(pagePartialSaveMessage({ t, locale: "en", reason: new Error("") })).toBe(
       "en:Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry. (en:failed to save page)"
     );
-  });
-});
-
-describe("readPageVersionConflict", () => {
-  it.each([undefined, {}, { details: null }, { details: { expectedVersion: "4", currentVersion: "5" } }])(
-    "leaves unknown conflict versions null for body %j", (body) => {
-      const error = new ApiError({ message: "stale save", status: 409 }, { code: "VERSION_CONFLICT", body });
-      expect(readPageVersionConflict({ e: error, attemptedStatus: "published" })).toEqual({
-        expectedVersion: null, currentVersion: null, attemptedStatus: "published",
-      });
-    },
-  );
-
-  it("keeps the available version when only the current version is missing", () => {
-    const error = new ApiError({ message: "stale save", status: 409 }, { code: "VERSION_CONFLICT", body: { details: { expectedVersion: 4 } } });
-    expect(readPageVersionConflict({ e: error, attemptedStatus: undefined })).toEqual({
-      expectedVersion: 4, currentVersion: null, attemptedStatus: undefined,
-    });
   });
 });
 
@@ -742,8 +689,8 @@ describe("sort labels and conflict copy are translated, not English passthrough"
     const { t: pagesT } = await import("../pages-i18n");
     const { t: editorT } = await import("../page-editor-i18n");
     const deT = (key: string): string => pagesT({ locale: "de", key });
-    expect(pageColumnSortLabel({ t: deT, columnName: deT("Title"), direction: null })).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
-    expect(updatedPageColumnSortLabel({ t: deT, direction: "desc" })).toMatch(/^Nach Aktualisierungsdatum sortiert/);
+    expect(columnSortLabel({ t: deT, columnName: deT("Title"), direction: null })).toBe("Nicht nach Titel sortiert. Aktivieren, um aufsteigend zu sortieren.");
+    expect(updatedColumnSortLabel({ t: deT, direction: "desc" })).toMatch(/^Nach Aktualisierungsdatum sortiert/);
     const message = pageVersionConflictMessage((key) => editorT({ locale: "de", key }), { expectedVersion: null, currentVersion: 7, attemptedStatus: undefined });
     expect(message).toContain("die von dir geladene Version");
     expect(message).toContain("Version 7");

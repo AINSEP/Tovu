@@ -1,3 +1,4 @@
+import { openLightboxDialog, closeLightboxDialog } from "@jini-ai/ui/admin-widgets";
 import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
 
 /**
@@ -18,22 +19,6 @@ import { useEffect, useRef, type MouseEvent, type SyntheticEvent } from "react";
  * remounts it and reseeds its draft — this hook has no opinion on that; it only opens and closes
  * the `<dialog>` box around whatever is currently keyed inside it.
  */
-function openDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.showModal === "function") {
-    if (!dialog.open) dialog.showModal();
-    return;
-  }
-  dialog.setAttribute("open", "");
-}
-
-function closeDialog(dialog: HTMLDialogElement): void {
-  if (typeof dialog.close === "function") {
-    if (dialog.open) dialog.close();
-    return;
-  }
-  dialog.removeAttribute("open");
-}
-
 export interface EditMediaModalController {
   dialogRef: React.RefObject<HTMLDialogElement | null>;
   /** Fires on the dialog's native `cancel` event (Escape). Prevented and routed through `onClose`
@@ -64,8 +49,8 @@ export function useEditMediaModal(open: boolean, onClose: () => void): EditMedia
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open) openDialog(dialog);
-    else closeDialog(dialog);
+    if (open) openLightboxDialog(dialog);
+    else closeLightboxDialog(dialog);
   }, [open]);
 
   function handleNativeCancel(e: SyntheticEvent<HTMLDialogElement>) {

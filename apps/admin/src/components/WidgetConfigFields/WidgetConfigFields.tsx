@@ -316,6 +316,13 @@ function FilterRow(props: {
   );
 }
 
+type FetchedConfigFieldsProps = {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  agentHandle?: string;
+  t: Translate;
+} & FetchedOptionsSeam;
+
 /**
  * `recent-entries` (RECENT_ENTRIES_REGISTRATION), labeled "Collection list" in this UI (R1 renamed
  * the widget's behavior, not its type key — `widgetType`/stored config are unaffected). Fetches
@@ -334,12 +341,7 @@ function RecentEntriesConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   t,
   ...props
-}: {
-  config: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
-  agentHandle?: string;
-  t: Translate;
-} & FetchedOptionsSeam) {
+}: FetchedConfigFieldsProps) {
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
   const base = props.agentHandle;
   const { items: collections, error: collectionsError } = useOptions<AdminContentType>(
@@ -428,12 +430,7 @@ function MenuConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   t,
   ...props
-}: {
-  config: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
-  agentHandle?: string;
-  t: Translate;
-} & FetchedOptionsSeam) {
+}: FetchedConfigFieldsProps) {
   const { items: menus, error } = useOptions<AdminMenu>(
     { fetchList: () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus), key: ["menus", "options"] },
     { errorFallback: t("failed to load menus") },
@@ -474,12 +471,7 @@ function ContactFormConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   t,
   ...props
-}: {
-  config: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
-  agentHandle?: string;
-  t: Translate;
-} & FetchedOptionsSeam) {
+}: FetchedConfigFieldsProps) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
     { fetchList: () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data), key: ["forms", "options"] },
     { errorFallback: t("failed to load forms") },
@@ -522,6 +514,12 @@ function ContactFormConfigFields({
   );
 }
 
+const FETCHED_CONFIG_EDITORS = {
+  "recent-entries": RecentEntriesConfigFields,
+  menu: MenuConfigFields,
+  "contact-form": ContactFormConfigFields,
+} as const;
+
 export function WidgetConfigFields(
   props: {
     widgetType: AdminWidgetType;
@@ -554,35 +552,11 @@ export function WidgetConfigFields(
     case "social-links":
       return <SocialLinksConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} t={t} />;
     case "recent-entries":
-      return (
-        <RecentEntriesConfigFields
-          config={props.config}
-          onChange={props.onChange}
-          agentHandle={props.agentHandle}
-          useFetchedOptions={props.useFetchedOptions}
-          t={t}
-        />
-      );
     case "menu":
-      return (
-        <MenuConfigFields
-          config={props.config}
-          onChange={props.onChange}
-          agentHandle={props.agentHandle}
-          useFetchedOptions={props.useFetchedOptions}
-          t={t}
-        />
-      );
-    case "contact-form":
-      return (
-        <ContactFormConfigFields
-          config={props.config}
-          onChange={props.onChange}
-          agentHandle={props.agentHandle}
-          useFetchedOptions={props.useFetchedOptions}
-          t={t}
-        />
-      );
+    case "contact-form": {
+      const Editor = FETCHED_CONFIG_EDITORS[props.widgetType];
+      return <Editor config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} useFetchedOptions={props.useFetchedOptions} t={t} />;
+    }
     default:
       return null;
   }

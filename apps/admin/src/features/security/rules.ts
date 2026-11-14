@@ -750,8 +750,9 @@ export function buildAccessTokenUpdatePatch(
 export type AccessTokenSubmitFailure = { kind: "duplicate-label" } | { kind: "validation"; detail: string } | { kind: "generic" };
 
 /**
- * Classifies a rejected create/update/delete call. Checks BOTH `e.code` and `e.message` for the two
- * known markers, same reasoning `classifyPublishCredentialSubmitError` documents.
+ * Classifies a rejected create/update/delete call. Reads `e.code`, falling back to `e.message`, for
+ * the two known markers, same reasoning `classifyCredentialSubmitError` in
+ * `lib/credential-submit-error.ts` documents.
  * @complexity O(1).
  */
 export function classifyAccessTokenSubmitError({ e }: { e: unknown }, _options = {}): AccessTokenSubmitFailure {

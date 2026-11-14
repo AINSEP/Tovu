@@ -204,6 +204,21 @@ function DockerfileSaveStatus({
   return null;
 }
 
+interface DockerfileEditorState {
+  draft: string;
+  setDraft: (value: string) => void;
+  isDirty: boolean;
+  saving: boolean;
+  saveError: string | null;
+  saveConflict: { exists: boolean; contents: string | null } | null;
+  saved: boolean;
+  copied: boolean;
+  onCopy: () => void;
+  onSave: () => void;
+  onReloadAfterConflict: () => void;
+  t: Translate;
+}
+
 /** The editable Dockerfile card: Copy/Download/Save actions, the line count, an "unsaved changes"
  *  pill, and the textarea itself — the one card that renders in BOTH the "exists" and "doesn't exist
  *  yet" cases (see `dockerfileTabBody`), since the write route makes both cases the same underlying
@@ -222,21 +237,7 @@ function DockerfileEditorCard({
   onSave,
   onReloadAfterConflict,
   t,
-}: {
-  exists: boolean;
-  draft: string;
-  setDraft: (value: string) => void;
-  isDirty: boolean;
-  saving: boolean;
-  saveError: string | null;
-  saveConflict: { exists: boolean; contents: string | null } | null;
-  saved: boolean;
-  copied: boolean;
-  onCopy: () => void;
-  onSave: () => void;
-  onReloadAfterConflict: () => void;
-  t: Translate;
-}) {
+}: DockerfileEditorState & { exists: boolean }) {
   // Copy/Download act on `draft` — see `use-dockerfile-source.hooks.ts`'s header for why the copy
   // handler itself reads `draft` rather than the last-saved `snapshot`. There is nothing worth
   // copying or downloading out of an empty, untouched box, so both are disabled on a blank draft
@@ -416,20 +417,7 @@ export function DockerfileTab(props: DockerfileTabProps) {
  *  `DockerfileEditorCard`'s own doc); only the illustrated empty-state block is conditional. */
 function dockerfileTabBody(
   snapshot: AdminDockerfileSource,
-  editor: {
-    draft: string;
-    setDraft: (value: string) => void;
-    isDirty: boolean;
-    saving: boolean;
-    saveError: string | null;
-    saveConflict: { exists: boolean; contents: string | null } | null;
-    saved: boolean;
-    copied: boolean;
-    onCopy: () => void;
-    onSave: () => void;
-    onReloadAfterConflict: () => void;
-    t: Translate;
-  }
+  editor: DockerfileEditorState
 ) {
   return (
     <>

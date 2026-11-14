@@ -1,3 +1,4 @@
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../lib/admin-post-list-sort";
 import { createPostsTranslator } from "./Posts.hooks";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
@@ -10,13 +11,6 @@ import { formatTimestamp } from "@jini-ai/ui/panel-kit";
 import { navigate } from "../../lib/router";
 import {
   postRowMenuItems,
-  comparePostsByTitle,
-  comparePostsBySlug,
-  comparePostsByStatus,
-  comparePostsByUpdated,
-  postColumnSortLabel,
-  updatedColumnSortLabel,
-  DEFAULT_POST_SORT,
 } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { ServerLabel } from "@/components/status-labels";
@@ -86,8 +80,8 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // ever active at a time. Migrated onto `DataTable`'s own shared sort mechanism the same day: this
   // state and its setter are now passed straight through as `sort`/`onSortChange` below, and
   // `DataTable` itself applies each column's comparator, computes the next click's state, and
-  // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
-  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
+  // renders the caret/`aria-sort` — see `lib/admin-post-list-sort.ts` for what's left here.
+  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_ADMIN_POST_SORT);
 
   // `postsListNotice` answers non-null exactly when `posts` is null, so gating on `!posts` returns
   // that notice AND keeps TS's narrowing, so `rows={posts}` below type-checks as `AdminPost[]`
@@ -135,8 +129,8 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // Sortable headers (2026-08-10, Updated only; generalized to all four 2026-09-02;
             // migrated onto `DataTable`'s own shared sort mechanism 2026-09-02) — `DataTable` now
             // renders the button, caret, and `aria-sort` itself from this descriptor; only the
-            // domain-specific comparator and label wording stay here (`rules.ts`).
-            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel({ t: t, columnName: t("Title"), direction: direction }) },
+            // domain-specific comparator and label wording live in `lib/admin-post-list-sort.ts`.
+            sort: { compare: compareAdminPostsByTitle, label: (direction) => columnSortLabel({ t: t, columnName: t("Title"), direction: direction }) },
             cell: (post) => (
               <a
                 href={`/admin/posts/${post.slug}`}
@@ -149,7 +143,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "slug",
             header: "Slug",
-            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel({ t: t, columnName: t("Slug"), direction: direction }) },
+            sort: { compare: compareAdminPostsBySlug, label: (direction) => columnSortLabel({ t: t, columnName: t("Slug"), direction: direction }) },
             cell: (post) => (
               <a
                 href={siteUrl({ path: `/${post.slug}` })}
@@ -164,7 +158,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "status",
             header: t("Status"),
-            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel({ t: t, columnName: t("Status"), direction: direction }) },
+            sort: { compare: compareAdminPostsByStatus, label: (direction) => columnSortLabel({ t: t, columnName: t("Status"), direction: direction }) },
             cell: (post) => <span className={`status status-${post.status}`}><ServerLabel value={post.status} /></span>,
           },
           {
@@ -172,7 +166,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             header: t("Updated"),
             // "desc" (newest first) is this column's own starting direction, unlike the other
             // three's ascending default — unchanged from the pre-existing Updated-only feature.
-            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel({ t: t, direction: direction }) },
+            sort: { compare: compareAdminPostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel({ t: t, direction: direction }) },
             cell: (post) => formatTimestamp({ iso: post.updatedAt }, { timeZone: "local" }),
           },
           {

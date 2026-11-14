@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 
 import { useAgentPluginDisableConfirm } from "./hooks/use-agent-plugin-disable-confirm.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -75,46 +75,22 @@ export function AgentPluginDisableConfirmDialog({
   const confirmWord = variant === "remove" ? "Turn off" : "Disable";
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{copy.title}</h2>
-        <p>{copy.body}</p>
-        {copy.dependents ? <p>{copy.dependents}</p> : null}
-        <span className="editor-actions">
-          {/* Cancel is the default-focused control, matching `ExternalMcpRemoveConfirmDialog`'s own
-              "the interrupting action is never the default" precedent. */}
-          <button
-            type="button"
-            className="btn-secondary"
-            autoFocus
-            onClick={onCancel}
-            {...agentHandle({ handle: `${agentHandleBase}-${variant}-cancel` }, {
-              role: "button",
-              label: `Close this dialog without ${variant === "remove" ? "turning off" : "disabling"} ${name}`,
-            })}
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={onConfirm}
-            {...agentHandle({ handle: `${agentHandleBase}-${variant}-confirm` }, {
-              role: "button",
-              label: variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`,
-            })}
-          >
-            {t(confirmWord)}
-          </button>
-        </span>
-      </div>
-    </div>
+    /* Cancel is the default-focused control, matching `ExternalMcpRemoveConfirmDialog`'s own
+       "the interrupting action is never the default" precedent. */
+    <ConfirmActionDialog
+      dialogRef={dialogRef}
+      titleId={titleId}
+      title={copy.title}
+      body={copy.body}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      extra={copy.dependents}
+      cancelText={t("Cancel")}
+      confirmText={t(confirmWord)}
+      cancelHandle={`${agentHandleBase}-${variant}-cancel`}
+      cancelAgentLabel={`Close this dialog without ${variant === "remove" ? "turning off" : "disabling"} ${name}`}
+      confirmHandle={`${agentHandleBase}-${variant}-confirm`}
+      confirmAgentLabel={variant === "remove" ? `Turn off ${name}` : `Disable ${name} for this site`}
+    />
   );
 }

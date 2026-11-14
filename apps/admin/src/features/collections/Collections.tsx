@@ -142,6 +142,53 @@ function ContentTypeFieldFieldset({
   );
 }
 
+type Translate = ContentTypeFieldFieldsetProps["t"];
+
+function ContentTypeFieldsSection({ fields, fieldHandles, idPrefix, handlePrefix, showRemoveButton, removeButtonLabel, updateField, removeField, addField, error, t }: {
+  fields: DraftField[];
+  fieldHandles: string[];
+  idPrefix: string;
+  handlePrefix: "new-content-type" | "edit-fields";
+  showRemoveButton: boolean;
+  removeButtonLabel: string;
+  updateField: ContentTypeFieldFieldsetProps["onUpdateField"];
+  removeField: ContentTypeFieldFieldsetProps["onRemoveField"];
+  addField: () => void;
+  error: string | null;
+  t: Translate;
+}) {
+  return (
+    <>
+      <div>
+        <h3 className="jini-dialog-section-title">{t({ key: "Fields" })}</h3>
+        {fields.map((f, index) => (
+          <ContentTypeFieldFieldset
+            key={f._rowId}
+            field={f}
+            index={index}
+            idPrefix={idPrefix}
+            agentHandleBase={fieldHandles[index]}
+            onUpdateField={updateField}
+            onRemoveField={removeField}
+            showRemoveButton={showRemoveButton}
+            removeButtonLabel={removeButtonLabel}
+            t={t}
+          />
+        ))}
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={addField}
+          {...agentHandle({ handle: `${handlePrefix}-add-field` }, { role: "button", label: "Add another field to this content type" })}
+        >
+          {t({ key: "Add field" })}
+        </button>
+      </div>
+      {error ? <span className="save-error" role="alert">{error}</span> : null}
+    </>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // New content type modal (design-spec.md §1.3 — recommended modal, applied here per §6)
 // ---------------------------------------------------------------------------
@@ -203,37 +250,19 @@ export function NewContentTypeDialog({
           />
         </div>
 
-        <div>
-          <h3 className="jini-dialog-section-title">{t({ key: "Fields" })}</h3>
-          {fields.map((f, index) => (
-            <ContentTypeFieldFieldset
-              key={f._rowId}
-              field={f}
-              index={index}
-              idPrefix="ct-field"
-              agentHandleBase={fieldHandles[index]}
-              onUpdateField={updateField}
-              onRemoveField={removeField}
-              showRemoveButton={fields.length > 1}
-              removeButtonLabel={t({ key: "Remove this field from the new content type" })}
-              t={t}
-            />
-          ))}
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={addField}
-            {...agentHandle({ handle: "new-content-type-add-field" }, { role: "button", label: "Add another field to this content type" })}
-          >
-            {t({ key: "Add field" })}
-          </button>
-        </div>
-
-        {error ? (
-          <span className="save-error" role="alert">
-            {error}
-          </span>
-        ) : null}
+        <ContentTypeFieldsSection
+          fields={fields}
+          fieldHandles={fieldHandles}
+          idPrefix="ct-field"
+          handlePrefix="new-content-type"
+          showRemoveButton={fields.length > 1}
+          removeButtonLabel={t({ key: "Remove this field from the new content type" })}
+          updateField={updateField}
+          removeField={removeField}
+          addField={addField}
+          error={error}
+          t={t}
+        />
 
         </div>
         <div className="jini-dialog-footer editor-actions">
@@ -299,37 +328,19 @@ export function EditFieldsDialog({
         })}
       >
         <div className="jini-dialog-body">
-        <div>
-          <h3 className="jini-dialog-section-title">{t({ key: "Fields" })}</h3>
-          {fields.map((f, index) => (
-            <ContentTypeFieldFieldset
-              key={f._rowId}
-              field={f}
-              index={index}
-              idPrefix="ct-edit-field"
-              agentHandleBase={fieldHandles[index]}
-              onUpdateField={updateField}
-              onRemoveField={removeField}
-              showRemoveButton={true}
-              removeButtonLabel={t({ key: "Remove this field from this content type" })}
-              t={t}
-            />
-          ))}
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={addField}
-            {...agentHandle({ handle: "edit-fields-add-field" }, { role: "button", label: "Add another field to this content type" })}
-          >
-            {t({ key: "Add field" })}
-          </button>
-        </div>
-
-        {error ? (
-          <span className="save-error" role="alert">
-            {error}
-          </span>
-        ) : null}
+        <ContentTypeFieldsSection
+          fields={fields}
+          fieldHandles={fieldHandles}
+          idPrefix="ct-edit-field"
+          handlePrefix="edit-fields"
+          showRemoveButton={true}
+          removeButtonLabel={t({ key: "Remove this field from this content type" })}
+          updateField={updateField}
+          removeField={removeField}
+          addField={addField}
+          error={error}
+          t={t}
+        />
 
         </div>
         <div className="jini-dialog-footer editor-actions">

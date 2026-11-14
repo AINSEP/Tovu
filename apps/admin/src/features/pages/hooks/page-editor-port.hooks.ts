@@ -1,5 +1,6 @@
 import type { AdminPagePluginEmbed, AdminPost, ThemeTier } from "@/lib/api";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
+import type { PagesPort } from "./pages-port.hooks";
 
 /**
  * @file What `usePageEditor` needs from the outside world, as an interface rather than a direct
@@ -27,7 +28,7 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * not two hand-copied signatures that could quietly drift). See `use-standing-draft-autosave.hooks.ts`'s
  * own header for why the hook itself stays ignorant of both features either way.
  */
-export interface PageEditorPort extends StandingDraftAutosavePort {
+export interface PageEditorPort extends StandingDraftAutosavePort, Pick<PagesPort, "updatePost" | "deletePage"> {
   getPage(required: { routeSlug: string }): Promise<{ post: AdminPost; pluginEmbeds?: readonly AdminPagePluginEmbed[] }>;
   getPresentation(): Promise<{
     activeThemeTemplates: string[];
@@ -46,23 +47,6 @@ export interface PageEditorPort extends StandingDraftAutosavePort {
     activeThemeTier: ThemeTier | null;
   }>;
   updatePageHtml(required: { id: string; html: string }): Promise<{ post: AdminPost }>;
-  /**
-   * `expectedVersion` (2026-09-07) is the optimistic-concurrency basis, NOT a field of the page:
-   * the `AdminPost.version` this editor loaded, which the server compares and rejects with
-   * `409 VERSION_CONFLICT` when a newer save has superseded it. Same optional, purely additive
-   * extension `PostEditorPort` already declares — one shared kind-blind route (`PUT /posts/:id`)
-   * serves both editors. Omitting it is exactly the last-write-wins behavior this method has always
-   * had; `usePageEditor` always sends it once the row has loaded.
-   */
-  updatePost(
-    required: {
-      target: { id: string };
-      patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> & {
-        expectedVersion?: number;
-      };
-    }
-  ): Promise<{ post: AdminPost }>;
-  deletePage(required: { id: string }): Promise<{ post: AdminPost }>;
   /**
    * Synchronous URL builder for the admin-only template-preview iframe — NOT a network call itself;
    * the browser navigates to the returned URL when the iframe's `src` is set. Belongs on the port

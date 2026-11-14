@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 
 import { usePluginRemoveConfirm } from "./hooks/use-plugin-remove-confirm.hooks";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -34,44 +34,20 @@ export function PluginRemoveConfirmDialog({
   const titleId = `${agentHandleBase}-remove-confirm-title`;
 
   return (
-    <div className="settings-dialog-backdrop" onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className="settings-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id={titleId}>{copy.title}</h2>
-        <p>{copy.body}</p>
-        <span className="editor-actions">
-          {/* Cancel stays default-focused because moving a shared package affects every workspace. */}
-          <button
-            type="button"
-            className="btn-secondary"
-            autoFocus
-            onClick={onCancel}
-            {...agentHandle({ handle: `${agentHandleBase}-remove-cancel` }, {
-              role: "button",
-              label: `Close this dialog without moving ${name} to the Trash`,
-            })}
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={onConfirm}
-            {...agentHandle({ handle: `${agentHandleBase}-remove-confirm` }, {
-              role: "button",
-              label: `Move ${name} to the Trash`,
-            })}
-          >
-            {t("Move to trash")}
-          </button>
-        </span>
-      </div>
-    </div>
+    /* Cancel stays default-focused because moving a shared package affects every workspace. */
+    <ConfirmActionDialog
+      dialogRef={dialogRef}
+      titleId={titleId}
+      title={copy.title}
+      body={copy.body}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      cancelText={t("Cancel")}
+      confirmText={t("Move to trash")}
+      cancelHandle={`${agentHandleBase}-remove-cancel`}
+      cancelAgentLabel={`Close this dialog without moving ${name} to the Trash`}
+      confirmHandle={`${agentHandleBase}-remove-confirm`}
+      confirmAgentLabel={`Move ${name} to the Trash`}
+    />
   );
 }

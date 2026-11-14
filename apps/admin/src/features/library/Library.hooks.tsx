@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import type { KeyboardEvent } from "react";
 import type { LibraryController } from "./hooks/use-library.hooks";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
@@ -11,15 +12,7 @@ import { navigate } from "../../lib/router";
  * "View in Documents".
  */
 
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+
 
 export function UploadIcon({ size = 16 }: { size?: number }) {
   return (

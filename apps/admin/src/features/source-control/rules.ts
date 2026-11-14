@@ -1,5 +1,5 @@
+import type { CredentialSubmitFailure } from "../../lib/credential-submit-error";
 import {
-  ApiError,
   type AdminPublishTargetField,
   type AdminSourceControlConnectionInput,
   type AdminSourceControlCredentialSummary,
@@ -151,23 +151,4 @@ export function sourceControlCredentialRowReadyToSave(fields: SourceControlCrede
 /** What a rejected credential create/update means for the FORM — a dictionary-key-shaped result to
  *  translate and apply, mirroring `PublishCredentialSubmitFailure` exactly. `"generic"` is the
  *  catch-all every other kind falls back to. */
-export type SourceControlCredentialSubmitFailure = { kind: "duplicate-label" } | { kind: "validation"; detail: string } | { kind: "generic" };
-
-/**
- * Classifies a rejected create/update call. Checks BOTH `e.code` and `e.message` for the two known
- * markers, same reasoning `classifyPublishCredentialSubmitError` documents in `deployment/rules.ts`
- * — this page's own backend slice (not yet built, see this feature's handoff note) is expected to
- * follow the same `409 -> { error: "DUPLICATE_LABEL" }` / `400 -> { error: "VALIDATION", detail }`
- * shape every other admin write route in this app uses.
- * @complexity O(1).
- */
-export function classifySourceControlCredentialSubmitError(e: unknown): SourceControlCredentialSubmitFailure {
-  if (!(e instanceof ApiError)) return { kind: "generic" };
-  const marker = e.code ?? e.message;
-  if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };
-  if (marker === "VALIDATION") {
-    const detail = typeof e.body?.detail === "string" ? e.body.detail : e.message;
-    return { kind: "validation", detail };
-  }
-  return { kind: "generic" };
-}
+export type SourceControlCredentialSubmitFailure = CredentialSubmitFailure;

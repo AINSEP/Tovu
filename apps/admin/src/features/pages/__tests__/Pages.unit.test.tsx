@@ -1012,7 +1012,7 @@ describe("pagesListNotice", () => {
  * that sorted index, so every row whose sort position differed from its array position published
  * another page's handle — an agent asked to open "Draft Page" clicked "About".
  *
- * The fixture below is arranged so the default sort (`DEFAULT_PAGE_SORT`, Updated newest-first)
+ * The fixture below is arranged so the default sort (`DEFAULT_ADMIN_POST_SORT`, Updated newest-first)
  * inverts the array order: `pg1` is first in `pages` but renders second.
  */
 describe("per-row agent handles survive the table's own sort", () => {

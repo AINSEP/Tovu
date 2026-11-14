@@ -49,7 +49,7 @@ import {
   customCredentialReadyToSave,
   sortAccessTokenGroups,
   type AccessTokenCategoryId,
-  type AccessTokenFormFields,
+  type AccessTokenFormFields as CredentialAccessTokenFormFields,
   type AccessTokenKind,
   type AccessTokenProviderInfo,
   type AccessTokenProviderRef,
@@ -190,8 +190,7 @@ function addFormKey(ref: AccessTokenProviderRef): string {
   return `${ref.kind}:${ref.providerId}`;
 }
 
-export interface AccessTokenExistingRowState {
-  readonly row: AccessTokenRow;
+export interface AccessTokenFormFields {
   readonly name: string;
   readonly token: string;
   /** The provider's extra descriptor fields, keyed by field name. */
@@ -202,6 +201,10 @@ export interface AccessTokenExistingRowState {
   readonly readyToSave: boolean;
   readonly saving: boolean;
   readonly error: string | null;
+}
+
+export interface AccessTokenExistingRowState extends AccessTokenFormFields {
+  readonly row: AccessTokenRow;
 }
 /** Merges one saved row with its own draft/busy state — defaults name to the row's current display
  *  name (Replace's "current Name pre-filled" behavior) and username to the row's own saved username
@@ -224,18 +227,8 @@ function existingRowState(
   return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
 }
 
-export interface AccessTokenAddFormState {
+export interface AccessTokenAddFormState extends AccessTokenFormFields {
   readonly visible: boolean;
-  readonly name: string;
-  readonly token: string;
-  /** The provider's extra descriptor fields, keyed by field name. */
-  readonly values: Readonly<Record<string, string>>;
-  readonly username: string;
-  readonly worksFor: string[];
-  /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
-  readonly readyToSave: boolean;
-  readonly saving: boolean;
-  readonly error: string | null;
 }
 /** @complexity O(1). */
 function addFormState({ entry, info }: { entry: AddFormEntry | undefined; info: AccessTokenProviderInfo }, _optional: Record<string, never> = {}): AccessTokenAddFormState {
@@ -624,7 +617,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     });
   }
 
-  /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `AccessTokenFormFields`
+  /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `CredentialAccessTokenFormFields`
    *  shape to build (no `ref`-keyed catalog lookup, no descriptor `values`), so it reuses only what genuinely
    *  applies: {@link customCredentialReplaceReadyToSave}'s readiness rule (rename-alone, username-alone,
    *  or either together is ready, same as a new token — see that function's own doc for why this is
@@ -633,7 +626,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
    *  Split out purely to keep {@link replaceToken} itself under this repo's complexity gate. */
   async function replaceCustomCredential(row: AccessTokenRow): Promise<void> {
     const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
-    const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
+    const fields: CredentialAccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
     if (!accessTokenExistingRowReadyToSave({ fields, row, info: accessTokenRowProviderInfo(providers, row) })) return;
@@ -675,7 +668,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
     // grows a saved username inherits the correct prefill automatically instead of silently reading
     // blank the same way custom rows used to.
     const draft = existingTokenDraft({ row, draft: existingDrafts[row.id] });
-    const fields: AccessTokenFormFields = { ref, ...draft };
+    const fields: CredentialAccessTokenFormFields = { ref, ...draft };
     const info = accessTokenProviderInfo(providers, ref);
     const error = credentialDraftError({ value: fields.token }, { locale });
     if (error) { setExistingBusy(prev => ({ ...prev, [row.id]: { saving: false, error } })); return; }
@@ -788,7 +781,7 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
   async function createToken(ref: AccessTokenProviderRef): Promise<void> {
     const key = addFormKey(ref);
     const entry = addForms[key] ?? blankAddFormEntry();
-    const fields: AccessTokenFormFields = { ref, ...entry.draft };
+    const fields: CredentialAccessTokenFormFields = { ref, ...entry.draft };
     const info = accessTokenProviderInfo(providers, ref);
     const error = credentialDraftError({ value: fields.token }, { locale, required: true });
     if (error) { setAddForms(prev => ({ ...prev, [key]: { ...entry, saving: false, error } })); return; }
