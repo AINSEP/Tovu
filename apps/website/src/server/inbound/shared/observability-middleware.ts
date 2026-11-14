@@ -4,7 +4,7 @@ import type { Logger } from "@jini-ai/core/primitives";
 import { logCompletedRequest } from "@jini-ai/http-kit/observability";
 import type { Tracker, TrackerSpan, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 
-import { runWithErrorReportScope, type ErrorReportScope } from "../../../platform/observability/report-error.js";
+import { runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
 import { sendAdminFailure } from "../admin-http/routes/system/site-share-errors.js";
 

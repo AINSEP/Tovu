@@ -10,7 +10,7 @@ import { listIndexes, listTables } from "../../kernel/dialect.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, openSqliteFileKernel } from "../../kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../index.js";
 import { runMigrations } from "../runner.js";
 

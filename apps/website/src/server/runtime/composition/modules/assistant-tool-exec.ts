@@ -23,7 +23,7 @@ import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createRemoteAttachmentLookup, registerToolExecutionRoutes, requireToolExecutionCaller, type AttachmentLookup, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
 import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 import type { ByokToolSurface } from "#src/assistant/index";
-import type { DurableRunHead, DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import { durableAttemptOwnsAnswer } from "#src/server/inbound/assistant/run-start-decisions";
 import { TOOL_EXEC_TOKEN_ENV_VAR, currentToolExecToken } from "#src/assistant/daemon-access";
 import { parseDaemonCallContext, readDaemonCallContext, runWithDaemonCallContext } from "#src/assistant/daemon-call-context";

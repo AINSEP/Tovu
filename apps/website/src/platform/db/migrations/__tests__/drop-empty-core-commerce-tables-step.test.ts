@@ -7,7 +7,7 @@ import { listTables } from "../../kernel/dialect.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "../0011_drop_empty_core_commerce_tables.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";

@@ -27,7 +27,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 
 function openDb(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-col-"));

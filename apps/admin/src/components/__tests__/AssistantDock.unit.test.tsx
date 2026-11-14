@@ -79,7 +79,7 @@ import { ChatPane as RealChatPane, MessageRow, MCP_UI_EXT_EVENT_NAME, MID_RUN_US
 import { OverflowAwareMcpUiSurfaceCard } from "../AssistantDock/OverflowAwareMcpUiSurfaceCard";
 import { RoutedA2uiSurfaceCard } from "../AssistantDock/RoutedA2uiSurfaceCard";
 import { SlowRunNoticeCard } from "../AssistantDock/SlowRunNoticeCard";
-import { zipFolderFiles } from "../InstallTabCard/folder-zip";
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 const mockLoadExecutionConfig = vi.fn<typeof loadExecutionConfig>();
 const mockSaveExecutionConfig = vi.fn<typeof saveExecutionConfig>();

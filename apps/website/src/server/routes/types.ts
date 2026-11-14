@@ -21,7 +21,7 @@ import type {
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";
 import type { SiteBinding } from "#src/platform/site-dir/index";
 import type { SiteBackupSources } from "#src/features/site-backup/sources";
-import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
+import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { RemoveEntity, TrashDb, TrashKindMover, TrashRegistry } from "#src/features/trash/index";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
@@ -102,13 +102,13 @@ import type {
   RestorePointListPort,
   RestorePointSavePort,
   RestorePointIdempotencyLookupPort,
-} from "../../features/database/restore-points.js";
+} from "@jini-ai/db/tools";
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
 import type {
   BootLedgerPort,
   MigrationRunsRepoPort,
   SiteStatusPort,
-} from "../../features/database/boot/reconcile-interrupted-migration.js";
+} from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/index.js";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
@@ -132,8 +132,8 @@ import type {
   ImportableTaxonomyRepoPort,
   ImportableTermRepoPort,
 } from "../../features/taxonomy/index.js";
-import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure.js";
-import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link.js";
+import type { DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
+import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-link";
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
@@ -682,7 +682,7 @@ export interface MembersDeps {
    *  sign-in links, newsletter confirmations and form notifications. */
   mailSenderIdentity?: MailSenderIdentityPort;
   /** The mail provider's own sender-domain verdict, separate from DNS (`mail_dns_status`, the mail-dns route). */
-  mailSenderDomainVerification?: import("#src/platform/mail/sender-domain-verification").SenderDomainVerificationPort;
+  mailSenderDomainVerification?: import("@jini-ai/platform/mail").SenderDomainVerificationPort;
   /** Fresh `core.mail.testMode`, so a test send reports a redirect or capture truthfully. */
   mailTestMode?: () => Promise<import("#src/features/settings/mail-provider").MailTestModeSetting>;
   /** One per site: shared by `mail_send_test` and the mail-test-send route (`features/mail-status/test-send.ts`). */
@@ -727,12 +727,12 @@ export interface DatabaseRecoveryDeps {
    */
   siteStatusRepo: SiteStatusPort;
   /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
-   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
+   * as unavailable (`@jini-ai/db/recovery/lookup-adapters`'s `AlwaysUnavailableWatermarkSource`) — the
    * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
    * see that class's doc comment. */
   disclosureWatermarkSource: DisclosureWatermarkSourcePort;
   /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
-   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
+   * server-side (`@jini-ai/db/recovery/lookup-adapters`'s `RestorePointDeepLinkLookup`, backed by the
    * same real `restorePointsRepo` list above). */
   deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
 }

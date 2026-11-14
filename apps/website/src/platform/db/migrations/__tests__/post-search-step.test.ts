@@ -7,7 +7,7 @@ import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listTables } from "../../kernel/dialect.js";
 import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { openChatDb } from "../../sqlite/chat-db.js";
 import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS, migrateChatDatabase, migrateContentDatabase, runMigrations } from "../index.js";
 import { hasLedger } from "../runner.js";

@@ -19,7 +19,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
 import { pluginKernel, type PluginKernel } from "../plugin-store.js";
 import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 

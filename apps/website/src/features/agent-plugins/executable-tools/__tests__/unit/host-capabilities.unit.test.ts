@@ -12,7 +12,7 @@ import {
   HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE, UNDECLARED_ORIGIN_MESSAGE,
   createAgentPluginToolCapabilities, createFrozenConnectionAccounts, createGuardedPluginHttp,
   type AgentPluginConnectionAccess, type AgentPluginConnectionTarget,
-} from '../../host-capabilities.js';
+} from '@jini-ai/agent-plugins/connect/executable';
 
 type SendOptions = Parameters<HttpClientPort['send']>[1];
 

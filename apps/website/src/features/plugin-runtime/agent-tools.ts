@@ -77,10 +77,10 @@
  *   See that file's header for why the asymmetry is the point rather than an omission.
  * - `plugins_set_enabled` is included, but is NOT the low-risk "flip a flag" operation its own name
  *   suggests: enabling a plugin whose manifest declares a `dataModule` invokes ADR-023's
- *   core-mediated DDL engine (`features/plugins/data-module.ts`) against the LIVE database —
+ *   core-mediated DDL engine (`@jini-ai/db/data-modules`) against the LIVE database —
  *   snapshot-protected and single-transaction, but genuinely schema-affecting, not a pure metadata
  *   toggle. The tool's own description says so; see this file's header and
- *   `features/plugins/data-module.ts`'s own header for the full "never-brick" doctrine this rides
+ *   `@jini-ai/db/data-modules`'s own header for the full "never-brick" doctrine this rides
  *   on. Still included per this dispatch's brief (comparatively low-risk and REVERSIBLE — disabling
  *   undoes the activation-state flip; a plugin's own DDL is additive/idempotent per ADR-023 §2,
  *   never a drop on disable) — unlike `database_execute_migrate_forward`/`backup_execute_restore`,

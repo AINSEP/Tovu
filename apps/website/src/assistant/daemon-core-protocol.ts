@@ -3,7 +3,7 @@
 import type { AiTraceEvent } from "@jini-ai/agent-runtime/ai-trace";
 import { z } from "zod";
 import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
-import type { DurableRunStore, DurableRunHead } from "./durable-runs/ports.js";
+import type { DurableRunStore, DurableRunHead } from "@jini-ai/chat/server/durable-runs";
 
 /** Only fields the daemon's start/liveness gates read; the daemon already owns its event log.
  * Read afresh at every gate. This is neither a cached acceptance nor a second attempt ledger. */

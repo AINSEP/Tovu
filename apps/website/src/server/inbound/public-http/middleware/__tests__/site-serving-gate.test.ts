@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import type { SiteStatusPort } from "#src/features/database/boot/reconcile-interrupted-migration";
+import type { SiteStatusPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { startTestServer } from "../../../../__tests__/helpers/http-test-server.js";
 import { applySiteServingGate } from "../site-serving-gate.js";
 

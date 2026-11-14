@@ -7,7 +7,7 @@ import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 import { openSqliteSnapshotSource } from "#src/features/database-transfer/sqlite-source";
 import { planSnapshotTables } from "#src/features/database-transfer/table-catalog";
 import { listColumns, listIndexes, listTables } from "../../kernel/dialect.js";
-import { readSchemaShape } from "../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { runMigrations } from "../runner.js";
 import { SECRETS_VAULT_ID } from "../0012_secrets_vault.js";
 import { insertFixture, previous, vaultFixture, vaultStep } from "./secrets-vault.fixture.js";

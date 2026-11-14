@@ -7,7 +7,7 @@ import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
 import { asDeployOpsModule, parseDeployOpsFile as parseDeployOpsDescriptors } from "@jini-ai/devops/deploy";
-import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "./types.js";
+import type { DeployOpsDescriptor, DeployOpsModule, DeployOpsRegistry, LoadedDeployOps } from "@jini-ai/devops/deploy";
 
 /** Installed modules use the same activation, bundled digest and disk containment gates as deploy targets. */
 export const DEPLOY_OPS_FILENAME = "tovu-deploy-ops.json";

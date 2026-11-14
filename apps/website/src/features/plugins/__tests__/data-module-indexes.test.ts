@@ -7,7 +7,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 
 /**
  * @file ADR-023 §2 / ADR-031 OQ-1 — the declared-index grammar (SPEC-033).

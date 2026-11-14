@@ -7,7 +7,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal.js";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";

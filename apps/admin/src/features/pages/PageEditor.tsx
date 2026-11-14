@@ -1,4 +1,4 @@
-import { standingDraftRecoveryMessage } from "../../lib/standing-draft-recovery-message";
+import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import { useEffect, type RefObject } from "react";
@@ -321,7 +321,7 @@ function PageEditorActions({
  * Standing-draft autosave (2026-09-06) — the "restore or discard" recovery banner. Never rendered
  * unless `usePageEditor` found a parked draft on mount (`recoverableDraft`); never applies it on its
  * own — both buttons require an explicit click, per the owner's own worry about silently clobbering
- * a different tab/operator's work. `standingDraftRecoveryMessage` (`lib/standing-draft-recovery-message.ts`)
+ * a different tab/operator's work. `standingDraftRecoveryMessage` (`@jini-ai/ui/panel-kit`)
  * owns the actual wording decision so this component stays markup only.
  */
 function PageAutosaveRecoveryBanner({

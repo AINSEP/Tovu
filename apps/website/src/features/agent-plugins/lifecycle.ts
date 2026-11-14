@@ -25,7 +25,7 @@ import { createNodeAgentPluginEffects } from "@jini-ai/agent-plugins/lifecycle/n
 import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js";
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
-import { UNTESTED_PLUGIN_GUIDANCE } from "./identity.js";
+import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { assertAgentPluginReady, findSoonAgentPlugin, readHostPluginMaturity, type SoonCatalogPort } from "./soon-lock.js";
 import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "./host-plugin-guidance.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";

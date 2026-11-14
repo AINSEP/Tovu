@@ -5,7 +5,7 @@ import type { HttpClientPort } from '@jini-ai/core/primitives';
 import { buildPluginContributionToolRegistrations, createPluginContributionRegistry, pluginToolIdFor } from '@jini-ai/plugins/host';
 import { defineAgentPluginToolContribution, type IssuedTokenMemories, type LoadedAgentPluginTool } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { buildAdminSurfaceActionTools } from '@jini-ai/agent-plugins/admin-surfaces';
-import type { AgentPluginExecutableRuntimeHost } from '@jini-ai/agent-plugins/connect/executable';
+import type { AgentPluginExecutableRuntimeHost, AgentPluginArtifactWriter, AgentPluginConnectionAccess, FrozenConnectionAccounts, AgentPluginRateLimiter, AgentPluginStateReaderFor, AgentPluginApiOriginsFor } from '@jini-ai/agent-plugins/connect/executable';
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSurfaceSource } from '../admin-surfaces/surfaces.js';
 import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
@@ -14,7 +14,6 @@ import type { ApplyExtensionApprovalPolicy } from '#src/contracts/headless/assis
 import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
 import { APPROVAL_FAMILY_BY_EFFECT } from './approval.js';
 import { agentPluginDisclosureMessages } from './approval-bindings.js';
-import type { AgentPluginArtifactWriter, AgentPluginConnectionAccess, FrozenConnectionAccounts, AgentPluginRateLimiter, AgentPluginStateReaderFor, AgentPluginApiOriginsFor } from './host-capabilities.js';
 
 /** The file a plugin ships at its package root to contribute executable tools. */
 export const AGENT_PLUGIN_TOOLS_FILENAME = 'tovu-agent-tools.json';

@@ -23,7 +23,7 @@ import { askThenReport } from '@jini-ai/daemon/surface-exchanges';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import { toolMetadata } from '../../../contracts/core/tool-metadata/custom-credentials.js';
 import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
-import type { CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts } from '../credential-tool-host.js';
+import type { CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts } from '@jini-ai/integrations/credentialed-http/tools';
 import { createCustomCredential, resolveCustomCredentialByLabel } from '../store.js';
 import { createApiCredentialSaveToolHandlers, createCustomCredentialsToolRegistrations, type CustomCredentialsToolDeps } from '../tool-registrations.js';
 import { credentialToolDeps, ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runDeploy, runDeployOps } from "../run-ops.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import type { DeployOpsContext, DeployOpsDeployInput, DeployOpsDeployResult } from "../types.js";
+import type { DeployOpsContext, DeployOpsDeployInput, DeployOpsDeployResult } from "@jini-ai/devops/deploy";
 import { fixture, execution } from "./example-ops-fixture.js";
 
 type Deploy = (ctx: DeployOpsContext, input: DeployOpsDeployInput) => Promise<DeployOpsDeployResult>;

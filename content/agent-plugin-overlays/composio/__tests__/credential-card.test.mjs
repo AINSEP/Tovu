@@ -2,7 +2,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
 // Moved from content/agent-plugins/composio (D-W): the plugin ships as @jini-ai/agent-plugins/composio; this Tovu-bound test reads it from there.

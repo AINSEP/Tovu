@@ -19,7 +19,7 @@ import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf,
 import type { StorageKernel } from "../../../platform/db/kernel/port.js";
 import { CHAT_TABLE_NAMES } from "../../../platform/db/sqlite/chat-orphan-check.js";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
-import { declareDataModule, type DataModuleDecl, type TableDecl } from "#src/features/plugins/data-module";
+import { declareDataModule, type DataModuleDecl, type TableDecl } from "@jini-ai/db/data-modules";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row>;

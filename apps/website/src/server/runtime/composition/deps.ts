@@ -379,7 +379,7 @@ import {
 } from "#src/features/taxonomy/repo.sqlite";
 import { toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import { createTermPurgeFollowUp, createTaxonomyPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
-import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { resolveSitesHome } from "#src/platform/site-dir/sites-home";

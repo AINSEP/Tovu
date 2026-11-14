@@ -16,7 +16,7 @@ import { allowAll, fakeConnections, fakeHttp, PLUGIN, WORKSPACE, startConfirming
 import { deriveApiConnectionKey } from '@jini-ai/integrations/api-connections';
 import { createSurfaceConnections } from '../../../api-connections/surface-connections.js';
 import type { ApiConnectionHost } from '../../../api-connections/host.js';
-import { createFrozenConnectionAccounts } from '../host-capabilities.js';
+import { createFrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
 
 const surface: LoadedAdminSurface = {
   plugin: { pluginId: PLUGIN, packageRoot: '/trusted/acme' },

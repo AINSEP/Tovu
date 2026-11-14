@@ -1,7 +1,7 @@
 import type { PluginActivationRecord, PluginActivationRepoPort } from "@jini-ai/plugins/host";
 
 import { agentPluginActivations } from "./activation-effects.js";
-import { readProviderPluginLink } from "./identity.js";
+import { readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests, readTrustedPluginFile } from "./lifecycle.js";
 
 /**

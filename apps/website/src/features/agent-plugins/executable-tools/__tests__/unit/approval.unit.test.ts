@@ -16,7 +16,7 @@ import { APPROVAL_FAMILY_BY_EFFECT, NOT_CONNECTED_MESSAGE, TOOL_WITHDRAWN_MESSAG
 import {
   UNAPPROVED_CONNECTION_MESSAGE, createAgentPluginToolCapabilities, createFrozenConnectionAccounts,
   type AgentPluginConnectionAccess, type AgentPluginConnectionTarget, type FrozenConnectionAccounts,
-} from '../../host-capabilities.js';
+} from '@jini-ai/agent-plugins/connect/executable';
 
 const TARGET = { toolId: 'p_acme_office__append_rows', pluginId: 'acme-office', workspaceId: 'ws-1' } as const;
 

@@ -7,7 +7,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { syncBuiltinESMExports } from "node:module";
 import Database from "better-sqlite3";
-import { declareDataModule } from "../data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 
 import { checkDiskHeadroom } from "../disk-headroom.js";
 

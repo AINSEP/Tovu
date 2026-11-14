@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { htmlToMarkdown } from "../html-to-markdown.js";
+import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { fetchWebPage, readWebFetchInput, WEB_FETCH_USER_AGENT, type WebFetchPorts } from "../web-page.js";
 import type { HttpRequest } from "#src/platform/http/index";
 

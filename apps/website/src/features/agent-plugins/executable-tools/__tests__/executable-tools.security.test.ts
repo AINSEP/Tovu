@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isMcpUiToolCallPermitted } from '../../../../assistant/mcp-ui-tool-calls.js';
 import { NOT_CONNECTED_MESSAGE } from '../approval.js';
-import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE, type AgentPluginStateReaderFor } from '../host-capabilities.js';
+import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts, HTTPS_ONLY_MESSAGE, RESPONSE_TOO_LARGE_MESSAGE, type AgentPluginStateReaderFor } from '@jini-ai/agent-plugins/connect/executable';
 import { bootFixture, fakeConnections, fakeHttp, startConfirmingCall, PLUGIN, WORKSPACE } from './fixtures.js';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 import type { AgentPluginToolCapabilities, AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';

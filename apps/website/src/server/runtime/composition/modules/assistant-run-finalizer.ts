@@ -35,8 +35,8 @@ import type { Tracker } from "@jini-ai/diagnostics/observability";
  */
 import { checkpointIntervalMs as scaledCheckpointIntervalMs, checkpointProgress, type ChatMessage } from "@jini-ai/chat/core";
 import { randomUUID } from "node:crypto";
-import { createDurableRecovery } from "#src/assistant/durable-runs/recover";
-import type { DurableRecovery, DurableRun, RecoveryTrigger } from "#src/assistant/durable-runs/ports";
+import { createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
+import type { DurableRecovery, DurableRun, RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
 import { verifyAttemptChildDead } from "#src/server/inbound/assistant/attempt-process-identity";
 import { agentCarriesOwnMemory } from "#src/assistant/agent-session-preset";
 import { isProcessAlive } from "@jini-ai/sidecar";

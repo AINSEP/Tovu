@@ -3,7 +3,7 @@ import test from "node:test";
 import ts from "typescript";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
-import type { DurableRun, DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { registerDurableToolGuard } from "../durable-run-routes.js";
 import { captureDaemonRun, daemonSource, evaluateDaemonExpression } from "./helpers/daemon-source.js";

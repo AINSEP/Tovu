@@ -9,7 +9,7 @@
  * (`HOST_SOON_AGENT_PLUGINS` in `bundled-catalog.ts`). This module imports no lifecycle code:
  * `lifecycle.ts` binds it into the enable paths of the activation owner, and boot passes the same ports.
  */
-import { readPluginMaturity, type PluginMaturity } from "./identity.js";
+import { readPluginMaturity, type PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { HOST_SOON_AGENT_PLUGINS } from "./bundled-catalog.js";
 
 /** Recorded as `updatedBy` when boot switches a Soon plugin off, so the audit says why. */

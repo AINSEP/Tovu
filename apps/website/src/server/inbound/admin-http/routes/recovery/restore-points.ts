@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
-import { listRestorePoints } from "#src/features/database/restore-points";
+import { listRestorePoints } from "@jini-ai/db/tools";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 

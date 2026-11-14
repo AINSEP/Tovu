@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from "../../identity.js";
+import { readInstalledAgentPluginIdentity, readPluginMaturity, readProviderPluginLink } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 
 const plugin = { pluginId: "github", packageRoot: path.join("/plugins", "github") };
 

@@ -5,7 +5,7 @@ import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { createChatStoreFactory } from "#src/assistant/persistence/store-factory";
 import { createAssistantRunFinalizer, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
 import { INCIDENT_PARTIAL } from "#src/assistant/durable-runs/__tests__/incident.fixture";
-import { EXHAUSTED_NOTICE } from "#src/assistant/durable-runs/recover";
+import { EXHAUSTED_NOTICE } from "@jini-ai/chat/server/durable-runs";
 
 test("serving recovery absorbs a daemon lost during restart and finalizes one continued incident message without a browser", async () => {
   const db = openChatDb(":memory:");

@@ -7,7 +7,7 @@ import { SITE_KEY_MANAGE_PERMISSION } from '#src/features/identity/site-key-perm
 import type { SecretConfirmRequest, SecretConfirm } from './secrets.js';
 import { getDeployOpsAgentToolCatalog } from './agent-tools.js';
 import { bindDeployOpsRuntime, type DeployOpsToolDeps } from './run-ops.js';
-import type { DeployOpsRegistry } from './types.js';
+import type { DeployOpsRegistry } from '@jini-ai/devops/deploy';
 import { buildDeployOpsRegistrations as build } from '@jini-ai/devops/deploy';
 export type { DeployOpsToolDeps } from './run-ops.js';
 export const deployOpsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([

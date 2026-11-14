@@ -21,7 +21,7 @@ import { createSurfaceConnections } from '../../../api-connections/surface-conne
 import type { ApiConnectionHost } from '../../../api-connections/host.js';
 import { createAdminSurfaceCapabilities } from '../../admin-surfaces/capabilities.js';
 import { createAgentPluginAdminSurfaceHandlers } from '../../admin-surfaces/handlers.js';
-import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from '../host-capabilities.js';
+import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from '@jini-ai/agent-plugins/connect/executable';
 import { registerAgentPluginExecutableTools } from '../register.js';
 import { allowAll, fakeHttp, PLUGIN, WORKSPACE, startConfirmingCall } from './fixtures.js';
 

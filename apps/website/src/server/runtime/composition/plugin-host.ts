@@ -9,7 +9,7 @@ import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/index';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
-import { readInstalledAgentPluginIdentity } from '#src/features/agent-plugins/identity';
+import { readInstalledAgentPluginIdentity } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';

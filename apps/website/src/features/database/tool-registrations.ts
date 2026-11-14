@@ -20,7 +20,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * `requireToolPermission` themselves. The one exception is `database_plan_migrate_forward`,
  * documented at its own handler.
  */
-import { createDatabaseReadTools, type InputReaders } from "@jini-ai/db/tools";
+import { createDatabaseReadTools, type InputReaders, type RestorePointListPort, type RestorePointSavePort } from "@jini-ai/db/tools";
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, requireNoInput, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
@@ -42,12 +42,8 @@ import type { ToolContributor } from "@jini-ai/core";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import { TOVU_DATABASE_MESSAGES } from "./db-messages.js";
-import { executeMigrateForward } from "./migrate-forward/execute.js";
+import { executeMigrateForward } from "@jini-ai/db/recovery/migrate-forward-execute";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
-import {
-  type RestorePointListPort,
-  type RestorePointSavePort,
-} from "./restore-points.js";
 import type { LedgerReadPort } from "./timeline.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { executeMigrateForward, RestorePointUnavailableError, type OperationLockAcquireFailure, type OperationLockAcquireResult, type OperationLockPort } from "../../migrate-forward/execute.js";
+import { executeMigrateForward, RestorePointUnavailableError, type OperationLockAcquireFailure, type OperationLockAcquireResult, type OperationLockPort } from "@jini-ai/db/recovery/migrate-forward-execute";
 
 /**
  * @file SPEC-017 C-105 / CIC U-003 (binding reference to SPEC-019 CIC U-001) / REQ-08 / AC-09 /

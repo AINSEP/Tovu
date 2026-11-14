@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createRestorePoint } from "../../restore-points.js";
+import { createRestorePoint } from "@jini-ai/db/tools";
 
 /**
  * @file SPEC-017 C-108 / REQ-22 / AC-26 / AC-27 — `backup_create_restore_point`.

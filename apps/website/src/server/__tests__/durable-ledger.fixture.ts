@@ -1,6 +1,6 @@
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatRunLedger } from "#src/assistant/persistence/run-ledger";
-import type { DurableRun, DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 
 /** Recovery integration fake: all mutations honor the same generation and terminal predicates. */
 export function recoveryLedgerFixture(

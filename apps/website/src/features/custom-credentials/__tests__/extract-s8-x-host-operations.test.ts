@@ -15,8 +15,7 @@ import { customCredentialsAgentToolCatalog } from '../agent-tools.js';
 import { bindTovuCredentialToolOperations, customCredentialsDerivedRisk, createCredentialSaveHandlers, createCredentialToolRegistrations } from '../tool-registrations.js';
 import type { DeployTargetRegistry, LoadedDeployTarget } from '../../deployments/contracts.js';
 import { CustomCredentialDuplicateLabelError, CustomCredentialValidationError, CustomCredentialSecretStoreUnconfiguredError } from '../store.js';
-import type { CustomCredentialToolHost } from '../credential-tool-host.js';
-import type { CredentialToolActorDeps, CredentialToolOperations } from '../credential-tool-operations.js';
+import type { CustomCredentialToolHost, CredentialToolActorDeps, CredentialToolOperations } from '@jini-ai/integrations/credentialed-http/tools';
 import { credentialToolDeps, ctx, fixedExchanges, oldEntryHashes } from './extract-s8-c2p2-pins.support.js';
 
 const ids = { list: 'acme_inventory', verify: 'acme_check', setUsername: 'acme_username', makeRequest: 'acme_request', writeFiles: 'acme_files', save: 'acme_save' };

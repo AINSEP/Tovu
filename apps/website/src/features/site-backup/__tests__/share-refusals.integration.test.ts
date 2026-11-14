@@ -16,7 +16,7 @@ import { SiteShareRegistry, newShareIdentity } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, type ShareDelivery } from "../share-service.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { FIRST_PARTY_DATA_MODULES } from "../../../server/runtime/composition/data-modules.js";
-import { declareDataModule } from "../../plugins/data-module.js";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { importFixture, stamp } from "./import.fixture.js";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "../share-backend.js";

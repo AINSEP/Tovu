@@ -10,7 +10,7 @@ import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { createAssistantByokModule } from "../../runtime/composition/modules/assistant-byok.js";
 import { DESCRIBE_TOOL_TOOL_ID, SEARCH_TOOLS_TOOL_ID } from "#src/assistant/tool-audit-preset";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "#src/features/tool-audit/types";
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 import { agentToolAttempts } from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 

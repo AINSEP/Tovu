@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultMailProviderSetup, parseMailProviderSetup, parseMailProviderSetupProperty } from "../../mail-provider-setup.js";
+import { defaultMailProviderSetup, parseMailProviderSetup, parseMailProviderSetupProperty } from "@jini-ai/platform/mail";
 import { parseMailAdaptersFile } from "../../mail-adapter-registry.js";
 
 /**

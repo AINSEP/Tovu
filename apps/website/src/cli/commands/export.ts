@@ -9,7 +9,7 @@ import type { SiteStore } from "../../server/runtime/composition/open-site-store
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
-import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
+import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { ExportIncompleteError, ExportBlockedPendingRecoveryError } from "../errors.js";
 
 /**

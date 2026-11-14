@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { FOLDER_EMPTY, FOLDER_UNREADABLE, FolderZipError, zipFolderFiles } from "./folder-zip";
+import { FOLDER_EMPTY, FOLDER_UNREADABLE, FolderZipError, zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 export const FOLDER_TOO_MANY = "That folder has more than 4096 files.";
 

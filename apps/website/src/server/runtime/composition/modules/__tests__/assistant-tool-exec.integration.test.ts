@@ -20,7 +20,7 @@ import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../../../../as
 import { installFirstPartyToolContributors } from "../../tool-catalog-manifest.js";
 import { constrainPrincipalToReadOnlyTools } from "../../../../../assistant/read-only-tool-constraint.js";
 import { ensureAgentDaemonToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "../../../../../assistant/daemon-access.js";
-import { hasUnknownToolCall } from "#src/assistant/durable-runs/continuation";
+import { hasUnknownToolCall } from "@jini-ai/chat/server/durable-runs";
 import type { RouteDeps } from "../../../../routes/types.js";
 import { acceptToolRun, startResettingToolProxy } from "./assistant-tool-exec.fixture.js";
 

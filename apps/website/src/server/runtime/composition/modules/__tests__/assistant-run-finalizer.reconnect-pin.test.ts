@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger, RunSettlement } from "#src/assistant/index";
 import { createAssistantRunFinalizer, type RunDaemonClient } from "../assistant-run-finalizer.js";
 
