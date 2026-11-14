@@ -63,6 +63,7 @@
     "check:seal-aad": "tsx apps/website/src/features/webhooks/seal-aad-invariant.ts",
     "check:secret-scan": "tsx apps/website/src/features/webhooks/secret-scan-guard.ts",
     "check:complexity": "node --import tsx development/scripts/check-src-complexity-drift.ts",
+    "check:size": "node --import tsx development/scripts/check-size-drift.ts",
     "check:admin-complexity-drift": "npm run check:complexity",
     "check:src-complexity-drift": "npm run check:complexity",
     "check:governance-adr-scope-drift": "tsx development/scripts/check-governance-adr-scope-drift.ts",

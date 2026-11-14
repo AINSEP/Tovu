@@ -1,9 +1,9 @@
 {
-  "_comment": "Size-limit exceptions the owner accepted on 2026-11-11 (files <= 500 lines, functions <= 100 lines; blank lines and comments not counted, like ESLint max-lines / max-lines-per-function with skipBlankLines + skipComments). The limits are a tripwire: anything over gets a responsibility-based split or an entry here with a reason the owner agreed to. Ratchet: new or touched code must comply, and this list only shrinks; delete an entry once the file or function is back under the limit. Do not add an entry to silence a new finding; split it instead, or get an owner-agreed reason. NOT exempt on purpose: apps/website/src/server/runtime/composition/deps.ts and composition/app.ts (composeSiteRouteDeps, createRouteDeps) are the top hotspots and get split by feature in the refactor. Read by development/scripts/size-hotspots.mjs. The Jini entries move to the Jini repo when the size gate lands there.",
+  "_comment": "Size-limit exceptions the owner accepted on 2026-11-11 (files <= 500 lines; functions <= 50 lines per owner 2026-11-13, replacing 100; blank lines and comments not counted by ESLint). The limits are a tripwire: anything over gets a responsibility-based split or an entry here with a reason the owner agreed to. Ratchet: new code must comply; accepted exceptions stay separate from the shrink-only debt list. Do not add an entry to silence a new finding; split it instead, or get an owner-agreed reason. NOT exempt on purpose: apps/website/src/server/runtime/composition/deps.ts and composition/app.ts (composeSiteRouteDeps, createRouteDeps) are the top hotspots and get split by feature in the refactor. Read by development/scripts/size-hotspots.mjs and the size gate. The Jini entries move to the Jini repo when the size gate lands there.",
   "limits": {
     "fileLines": 500,
-    "functionLines": 100,
-    "_functionLinesNote": "Owner confirmed 100 on 2026-11-11. When the gate lands (refactor stage), pathExclusions become ESLint path ignores for max-lines / max-lines-per-function and entries become per-file overrides; this file stays the reasons list. New exception candidates go to the owner; the refactoring agent does not decide them."
+    "functionLines": 50,
+    "_functionLinesNote": "Owner 2026-11-13: 50, replaces 100. Path exclusions are size-gate ignores; entries are individual file or function exceptions with reasons. New exception candidates go to the owner; the refactoring agent does not decide them."
   },
   "pathExclusions": [
     { "repo": "tovu", "pattern": "(^|/)[^/]*-i18n\\.tsx?$", "reason": "Locale dictionaries: one entry per string, and the size grows with each language." },
@@ -16,13 +16,13 @@
     { "repo": "tovu", "file": "apps/website/src/platform/db/schema.sqlite.ts", "reason": "DB schema declaration, one line per column; splitting it scatters one table set." },
     { "repo": "tovu", "file": "apps/admin/src/features/consent/consent-dictionary.ts", "reason": "Data table: literal copy rows, no logic." },
     { "repo": "tovu", "file": "apps/website/src/contracts/core/credential-copy.ts", "reason": "Data table: literal copy rows, no logic." },
-    { "repo": "tovu", "file": "apps/website/src/features/trash/registry.ts", "function": "buildTrashRegistry", "reason": "Data table: one literal row per trashable type." },
-    { "repo": "tovu", "file": "apps/website/src/features/post/tool-registrations.ts", "function": "content_post_update", "reason": "Registration list: tool wiring entries." },
-    { "repo": "tovu", "file": "apps/website/src/features/post/tool-registrations.ts", "function": "fn", "reason": "Registration list: tool wiring entries (inner handler of content_post_update)." },
-    { "repo": "tovu", "file": "apps/website/src/features/theme/agent-tools.ts", "function": "getThemesAgentToolCatalog", "reason": "Registration list: agent tool catalog entries." },
-    { "repo": "tovu", "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts", "function": "composePeer", "reason": "Registration list: peer-site read wiring." },
-    { "repo": "tovu", "file": "apps/website/src/features/redirects/tool-registrations.ts", "function": "buildRedirectsRegistrations", "reason": "Registration list: tool wiring entries." },
-    { "repo": "tovu", "file": "apps/website/src/features/webmcp/generated/annotated-actions-script.ts", "function": "createAnnotatedActionsScript", "reason": "Inline browser script in one template string." },
+    { "repo": "tovu", "file": "apps/website/src/features/trash/registry.ts", "function": "buildTrashRegistry", "identity": "buildTrashRegistry#1", "reason": "Data table: one literal row per trashable type." },
+    { "repo": "tovu", "file": "apps/website/src/features/post/tool-registrations.ts", "function": "content_post_update", "identity": "buildPostRegistrations#1.content_post_update#1", "reason": "Registration list: tool wiring entries." },
+    { "repo": "tovu", "file": "apps/website/src/features/post/tool-registrations.ts", "function": "fn", "identity": "buildPostRegistrations#1.content_post_update#1.fn#1", "reason": "Registration list: tool wiring entries (inner handler of content_post_update)." },
+    { "repo": "tovu", "file": "apps/website/src/features/theme/agent-tools.ts", "function": "getThemesAgentToolCatalog", "identity": "getThemesAgentToolCatalog#1", "reason": "Registration list: agent tool catalog entries." },
+    { "repo": "tovu", "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts", "function": "composePeer", "identity": "composePeer#1", "reason": "Registration list: peer-site read wiring." },
+    { "repo": "tovu", "file": "apps/website/src/features/redirects/tool-registrations.ts", "function": "buildRedirectsRegistrations", "identity": "buildRedirectsRegistrations#1", "reason": "Registration list: tool wiring entries." },
+    { "repo": "tovu", "file": "apps/website/src/features/webmcp/generated/annotated-actions-script.ts", "function": "createAnnotatedActionsScript", "identity": "createAnnotatedActionsScript#1", "reason": "Inline browser script in one template string." },
     { "repo": "jini", "file": "packages/chat/src/react/features/chat-pane/styles.ts", "reason": "Stylesheet: CSS in one template string, no logic." },
     { "repo": "jini", "file": "packages/ui/src/features/mcp-ui/surfaces/form.ts", "function": "formScript", "reason": "Inline browser script in one template string." },
     { "repo": "jini", "file": "packages/ui/src/features/mcp-ui/surfaces/confirmation.ts", "function": "confirmationScript", "reason": "Inline browser script in one template string." },

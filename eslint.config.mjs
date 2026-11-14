@@ -2,6 +2,7 @@ import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 import { sonarSourceConfig } from './development/sonarjs/policy.mjs';
 import { complexityConfig } from './development/scripts/complexity-eslint.config.mjs';
+import { sizeConfig } from './development/scripts/size-eslint.config.mjs';
 
 import effectResourceCleanup from './development/eslint-rules/effect-resource-cleanup.mjs';
 import singleFetchQueryProvider from './development/eslint-rules/single-fetch-query-provider.mjs';
@@ -209,8 +210,8 @@ export default [
       // Raw size/complexity metrics duplicating a gate this file already enforces differently, or
       // that this agent's own governing skill treats as never a standalone finding.
       'sonarjs/cyclomatic-complexity': 'off', // duplicates the `complexity` core rule already tiered per-scope in this file at a third default threshold (10)
-      'sonarjs/max-lines-per-function': 'off', // raw function size; never a standalone finding per this agent's own function-quality-assessment skill
-      'sonarjs/max-lines': 'off', // same size-metric objection, and fires mostly on `*-i18n.{ts,tsx}` flat translation dictionaries that are large by design
+      'sonarjs/max-lines-per-function': 'off', // raw function size; never a standalone finding per this agent's own function-quality-assessment skill; the owner-mandated core rule is applied below
+      'sonarjs/max-lines': 'off', // same size-metric objection, and fires mostly on `*-i18n.{ts,tsx}` flat translation dictionaries that are large by design; the scoped core rule is applied below
       // Duplicates biome, which already runs repo-wide via `npm run lint` (recommended preset).
       'sonarjs/no-unused-vars': 'off', // duplicates biome's `noUnusedVariables`
       'sonarjs/unused-import': 'off', // duplicates biome's `noUnusedImports`
@@ -364,4 +365,5 @@ export default [
     },
   },
   ...complexityConfig,
+  ...sizeConfig,
 ];
