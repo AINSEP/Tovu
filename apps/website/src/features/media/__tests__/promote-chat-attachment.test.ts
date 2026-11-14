@@ -30,7 +30,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeMediaTools } from "../tool-registrations.js";
 
-const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
@@ -106,7 +106,7 @@ function fakeRouteDeps() {
 /** Finds the real, already-wired `media_upload_asset` registration — the same handler this bridge
  *  must delegate to, never a second implementation of it. */
 function wiredMediaUploadAsset(deps: RegistryDepsWithoutLimiter): ToolRegistration {
-  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find((r) => r.descriptor.id === "media_upload_asset");
+  const found = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).find((r) => r.descriptor.id === "media_upload_asset");
   assert.ok(found, "expected 'media_upload_asset' to be wired");
   return found;
 }

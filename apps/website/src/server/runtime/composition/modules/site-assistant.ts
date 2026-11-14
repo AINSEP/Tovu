@@ -300,7 +300,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
   // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
   // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
   // actively sending; `history` is passive background context they did not just author.
-  const priorTurns = resolveBoundedHistory(body.history);
+  const priorTurns = resolveBoundedHistory({ rawHistory: body.history });
 
   // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
   // budget never reaches the provider call (or its 501/503 config-error branches either) —

@@ -42,7 +42,7 @@ test("export: a failed export closes the store only after the legacy tail and cr
       order.push("close");
     },
     createSiteRouteDeps: async (_dbPath, options) => {
-      options?.onStoreOpened?.(composedStore as unknown as SiteStore);
+      options?.onStoreOpened?.({ store: composedStore as unknown as SiteStore });
       return routeDeps as unknown as ExportRouteDeps;
     },
     registerPluginSdkResolver: () => {},
@@ -154,7 +154,7 @@ test("export with only failed assets reports an incomplete export and closes the
     }),
   }), error => {
     assert.equal((error as Error).name, "ExportIncompleteError");
-    assert.equal(mapErrorToCliOutcome(error).exitCode, 6);
+    assert.equal(mapErrorToCliOutcome({ err: error }).exitCode, 6);
     assert.match((error as Error).message, /1 failed asset/);
     return true;
   });

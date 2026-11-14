@@ -584,7 +584,7 @@ function registerSurfaceTools(
   { registry, deps, surfaceExchanges }: { registry: ReturnType<typeof createToolRegistry>; deps: AssistantToolRegistryDeps; surfaceExchanges: SurfaceExchangeStore },
   options: Pick<ByokToolSurfaceOptions, "contributions" | "hostRegistrations"> = {},
 ): void {
-  const registrations = buildAssistantToolRegistrations(deps, { surfaceExchanges }, { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS });
+  const registrations = buildAssistantToolRegistrations(deps, { surfaces: { surfaceExchanges }, options: { contributions: options.contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } });
   for (const registration of [...registrations, ...(options.hostRegistrations?.({ registrations }) ?? [])]) {
     registry.register(registration);
   }

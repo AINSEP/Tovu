@@ -298,13 +298,13 @@ test("the real Widgets catalog and tool-registrations' independent classificatio
   const { deps } = fakeRouteDeps();
   for (const id of widgetsRegistrations(deps).keys()) {
     if (WIDGETS_COLLAPSED_CONTENT_READ_IDS.has(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Widgets catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("widgets_create_instance", { ...catalogEntry("widgets_create_instance"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "widgets_create_instance", catalogEntry: { ...catalogEntry("widgets_create_instance"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

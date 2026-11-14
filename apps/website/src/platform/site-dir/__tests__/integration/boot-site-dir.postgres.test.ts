@@ -106,7 +106,7 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
   try {
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       store: boot.store,
-      onStoreOpened: (store) => { composed = store; },
+      onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
       db: boot.db,
       workspaceId: boot.workspaceId,
       uploadsDir: path.join(dir, "uploads"),

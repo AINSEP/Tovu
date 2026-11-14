@@ -177,12 +177,12 @@ test("no whole-theme or file-delete operation is agent-callable anywhere in the 
 test("an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unknown operations are refused, never assumed safe)", () => {
   assert.throws(
     () =>
-      assertRiskMetadataIsWirable("theme_delete_file", {
+      assertRiskMetadataIsWirable({ toolId: "theme_delete_file", catalogEntry: {
         name: "theme_delete_file",
         description: "hypothetical",
         sideEffects: "mutates-durable-state",
         authorization: { permission: "theme.edit" },
-      }, contributions),
+      } }, { contributions: contributions }),
     /has no entry in DERIVED_RISK_BY_TOOL_ID/
   );
 });
@@ -215,7 +215,7 @@ test("every wired themes registration publishes its catalog entry's inputSchema 
 
 test("each catalog entry's declared risk matches what this layer derives from its handler", () => {
   for (const id of CATALOGUED_THEMES_TOOL_IDS) {
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 

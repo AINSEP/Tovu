@@ -207,7 +207,7 @@ function buildBaseRole(routeDeps: ReturnType<typeof createRouteDeps>): RoleSnaps
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
   installFirstPartyToolContributors({ contributions });
-  const ids = new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions }).map((r) => r.descriptor.id));
+  const ids = new Set(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } }).map((r) => r.descriptor.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
 }
 

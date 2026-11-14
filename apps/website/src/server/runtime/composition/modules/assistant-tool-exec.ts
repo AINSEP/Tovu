@@ -125,7 +125,7 @@ async function prepareSitePluginRun({ runStore, workspaceId, plugins, runId, res
   if (!run?.principalId) { refuse(); return; }
   if (!plugins) { res.status(503).json({ error: "plugin preflight is unavailable" }); return; }
   const parsed = JSON.parse(run.request.contextRef) as Record<string, unknown>;
-  const context = parseRunStartContextRef(JSON.stringify({ ...parsed, principalId: run.principalId }));
+  const context = parseRunStartContextRef({ contextRef: JSON.stringify({ ...parsed, principalId: run.principalId }) });
   const pinnedPrefix = await plugins.pinnedPrefix({ pluginRefIds: context.pluginRefIds });
   if (!(await lookup())) { refuse(); return; }
   const prefix = await prepareAutomaticSitePlugins({ run: { ...run, principalId: run.principalId }, context, pinnedPrefix, plugins, res, lookup });

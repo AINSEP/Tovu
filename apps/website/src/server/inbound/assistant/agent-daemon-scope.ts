@@ -699,7 +699,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     // `frontendBindToken` also rides in this envelope but is deliberately not read here —
     // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
     // one place that decides which tab a run may drive.
-    const decoded = parseRunStartContextRef(request.contextRef);
+    const decoded = parseRunStartContextRef({ contextRef: request.contextRef });
     coldStartContext = decoded.coldStartContext;
     prompt = decoded.prompt;
     noteFullRunInput({ runId: run.id, input: prompt });
@@ -747,7 +747,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   // A no-op when `conversationId` is absent, matching the stream subscription below: there is
   // nothing to key concurrency by for a daemon client other than the admin chat pane.
   if (conversationId !== undefined) liveRunTracker.register({ conversationId: conversationId, runId: run.id }, {});
-  if (pageContext !== undefined) runActiveContexts.record(run.id, pageContext);
+  if (pageContext !== undefined) runActiveContexts.record({ runId: run.id, pageContext });
   void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
     console.error(`[agent-daemon] run ${run.id}: could not wait for completion before cleaning up:`,
       describeErrorForLog(error));
@@ -763,7 +763,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     messageAttachmentRefsByRunId.delete(run.id);
     durableMessageIdsByRunId.delete(run.id);
     runCredentials.revoke({ runId: run.id }, {});
-    runActiveContexts.forget(run.id);
+    runActiveContexts.forget({ runId: run.id });
     // The owner must outlive the run's end (a finished run is still read and replayed), but not the
     // lifecycle's own terminal record, or this map grows for the daemon's lifetime. Once forgotten,
     // a still-present run is denied to everyone (`requireRunOwnership` fails closed), never opened.
@@ -1029,7 +1029,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // The admin screen this message was sent from goes AFTER the marker (the marker only works as
       // the prompt's first line) and directly before the operator's words, so "this page" has
       // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
-      prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix(prompt, buildPageContextPromptBlock(pageContext))}`;
+      prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix(prompt, buildPageContextPromptBlock({ context: pageContext }))}`;
       prompt += attachmentRunFields.attachmentNotice ?? "";
       // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
       // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets

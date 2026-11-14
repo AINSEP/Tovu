@@ -84,7 +84,7 @@ test("SQLite composition: the provider switch moves its linked face", async (t) 
   t.after(() => close());
   const routeDeps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
     siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (store) => { close = () => store.close(); },
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
   });
   await routeDeps.identityReady;
   const ports = await seedLinkedFace({ root, workspaceId: routeDeps.workspaceId });

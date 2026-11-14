@@ -45,7 +45,7 @@ export const SEND_BATCH_CLAIMED_EVENT = "newsletter.send.batch.claimed";
  * + `recordResult` (the hosted mail adapter caps a call at 10s). A run that throws after leasing a row keeps the lease, so
  * the lease must also expire before the batch event's LAST attempt, whichever attempt took it. The tightest case is a
  * lease taken on attempt `MAX_OUTBOX_ATTEMPTS - 1`: the last attempt can follow after only
- * computeOutboxBackoffMs(MAX_OUTBOX_ATTEMPTS - 1, random 0) = 240s. A lease still live then fails that attempt, the
+ * computeOutboxBackoffMs({ attempts: MAX_OUTBOX_ATTEMPTS - 1 }, { random: () => 0 }) = 240s. A lease still live then fails that attempt, the
  * outbox seals the event "failed", and the row stays "pending" forever. Hence 2 minutes, not the first draft's 5
  * (review fix, 2026-09-16). `send-pipeline.test.ts` pins both bounds.
  */

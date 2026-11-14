@@ -119,7 +119,7 @@ export function buildEvalToolRegistry(
   const contributions = createEvalToolContributions();
   installFirstPartyToolContributors({ contributions });
   const registry = createToolRegistry({});
-  const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), surfaces, { ...options, contributions });
+  const registrations: readonly ToolRegistration[] = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: surfaces, options: { ...options, contributions } });
   for (const registration of registrations) registry.register(registration);
 
   const size = registry.list({}).length;

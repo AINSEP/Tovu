@@ -8,13 +8,13 @@ export type { RunAgentPayload, RunProtocolEventWire, TerminalOutcome, RunFrameOu
 
 import type { RunAgentPayload, TerminalOutcome, RunFrameOutcome, RunFrameCarry } from "@jini-ai/chat/core/run-events";
 
-export function asString(v: unknown): string { return owner.asString({ value: v }, {}); }
+export function asString({ v }: { v: unknown }, _options = {}): string { return owner.asString({ value: v }, {}); }
 
 export function parseUsageEvent(payload: RunAgentPayload): AgentEvent { return owner.parseUsageEvent({ payload }, {}); }
 
 export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent | null { return owner.translateRunAgentPayload({ payload }, {}); }
 
-export function terminalReasonNotice(reason: string): AgentEvent | null { return owner.terminalReasonNotice({ reason, notice: RUN_NOTICES.toolStepLimit }, {}); }
+export function terminalReasonNotice({ reason }: { reason: string }, _options = {}): AgentEvent | null { return owner.terminalReasonNotice({ reason, notice: RUN_NOTICES.toolStepLimit }, {}); }
 
 
 
@@ -25,15 +25,15 @@ export const RUN_NEVER_STARTED_LABEL = "Run failed before the agent started";
 
 export const RUN_NEVER_STARTED_DETAIL = "Nothing ran, so there is no exit code. The reason, when there is one, is shown above.";
 
-export function readTerminalOutcome(raw: string | undefined): TerminalOutcome | null { return owner.readTerminalOutcome({ raw }, {}); }
+export function readTerminalOutcome({ raw }: { raw: string | undefined }, _options = {}): TerminalOutcome | null { return owner.readTerminalOutcome({ raw }, {}); }
 
-export function terminalOutcomeNotice(raw: string | undefined): AgentEvent | null { return owner.terminalOutcomeNotice({ raw, notices: RUN_NOTICES }, {}); }
+export function terminalOutcomeNotice({ raw }: { raw: string | undefined }, _options = {}): AgentEvent | null { return owner.terminalOutcomeNotice({ raw, notices: RUN_NOTICES }, {}); }
 
-export function terminalFailureError(raw: string | undefined): Error | null { return owner.terminalFailureError({ raw }, {}); }
+export function terminalFailureError({ raw }: { raw: string | undefined }, _options = {}): Error | null { return owner.terminalFailureError({ raw }, {}); }
 
-export function readTerminalReason(raw: string | undefined, wrapped: boolean): string { return owner.readTerminalReason({ raw, wrapped }, {}); }
+export function readTerminalReason({ raw, wrapped }: { raw: string | undefined; wrapped: boolean }, _options = {}): string { return owner.readTerminalReason({ raw, wrapped }, {}); }
 
-export function parseFrame(rawFrame: string): { event: string; data: string } | null { return owner.parseFrame({ rawFrame }, {}); }
+export function parseFrame({ rawFrame }: { rawFrame: string }, _options = {}): { event: string; data: string } | null { return owner.parseFrame({ rawFrame }, {}); }
 
 export async function* readSseFrames(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> { yield* owner.readSseFrames({ body }, {}); }
 
@@ -44,14 +44,14 @@ export async function* readSseFrames(body: ReadableStream<Uint8Array>): AsyncGen
  *  `assistant-transport-ag-ui.ts`'s `AG_UI_RUN_ID_PREFIX`. */
 const NON_DAEMON_RUN_ID_PREFIXES = ["byok:", "agui:"] as const;
 
-export function isDaemonRunId(runId: string): boolean { return owner.isDaemonRunId({ runId, excludedPrefixes: NON_DAEMON_RUN_ID_PREFIXES }, {}); }
+export function isDaemonRunId({ runId }: { runId: string }, _options = {}): boolean { return owner.isDaemonRunId({ runId, excludedPrefixes: NON_DAEMON_RUN_ID_PREFIXES }, {}); }
 
 export function runContentFromEvents(events: readonly AgentEvent[]): string { return owner.runContentFromEvents({ events }, {}); }
 
 export function runEventsForSave(events: readonly AgentEvent[]): AgentEvent[] { return owner.runEventsForSave({ events }, {}); }
 
 /** `carry`: one fresh `{}` per daemon connection, so a split echo line's later chunks are dropped too. */
-export function translateRunFrame(kind: string, raw: string | undefined, carry?: RunFrameCarry): RunFrameOutcome { return owner.translateRunFrame({ kind, raw, notices: RUN_NOTICES }, carry ? { carry } : {}); }
+export function translateRunFrame({ kind, raw }: { kind: string; raw: string | undefined }, { carry }: { carry?: RunFrameCarry } = {}): RunFrameOutcome { return owner.translateRunFrame({ kind, raw, notices: RUN_NOTICES }, carry ? { carry } : {}); }
 
 export const RUN_NOTICES: owner.RunNotices = {
   toolStepLimit: { kind: "status", label: "Stopped early — tool-step limit reached", detail: "This turn used all the tool steps allowed for one message, so it may be unfinished. Ask it to continue to pick up where it left off." },

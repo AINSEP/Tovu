@@ -373,13 +373,13 @@ test("the real Media catalog and tool-registrations' independent classification 
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.media_asset") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a Media catalog entry cannot downgrade its own risk — declaring sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("media_upload_asset", { ...catalogEntry("media_upload_asset"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "media_upload_asset", catalogEntry: { ...catalogEntry("media_upload_asset"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

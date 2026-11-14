@@ -357,7 +357,7 @@ function stopWatch({ watch }: { watch: Watch }, _options = {}): void {
 }
 
 function watchable({ message }: { message: ChatMessage }, _optional = {}): boolean {
-  if (message.role !== "assistant" || !message.runId || !isDaemonRunId(message.runId)) return false;
+  if (message.role !== "assistant" || !message.runId || !isDaemonRunId({ runId: message.runId })) return false;
   return message.runStatus !== undefined && !isTerminalRunStatus({ status: message.runStatus });
 }
 
@@ -597,7 +597,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   }
 
   function applyStreamFrame(watch: Watch, frame: { event: string; data: string }): StreamResult | undefined {
-    const outcome = translateRunFrame(frame.event, frame.data, watch.frameCarry);
+    const outcome = translateRunFrame({ kind: frame.event, raw: frame.data }, { carry: watch.frameCarry });
     watch.events.push(...outcome.events);
     if (outcome.error) watch.failed = true;
     if (outcome.terminal) {

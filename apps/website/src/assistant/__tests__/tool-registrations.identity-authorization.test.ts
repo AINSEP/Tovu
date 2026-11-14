@@ -180,7 +180,7 @@ const IDENTITY_TOOL_IDS: ReadonlySet<string> = new Set(identityAgentToolCatalog.
 
 function identityRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaceExchanges: SURFACE_EXCHANGES }, { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: withChatDeleteGrant({ deps }) }), { surfaces: { surfaceExchanges: SURFACE_EXCHANGES }, options: { contributions, permanentDeletePolicy: ALL_CHAT_DELETE_TOOLS } })
       .filter(
         (registration) =>
           IDENTITY_TOOL_IDS.has(registration.descriptor.id) || Object.values(IDENTITY_COLLAPSED_ID).includes(registration.descriptor.id),
@@ -659,7 +659,7 @@ test("every wired identity tool declares user.manage or role.manage — never a 
 
 test("chat delete policy defaults off; checked identity deletes retain a plan confirmation", async () => {
   const { deps } = await buildHarness();
-  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions });
+  const off = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } });
   for (const id of ["identity_role_delete", "identity_policy_delete"]) {
     assert.equal(off.some(tool => tool.descriptor.id === id), false);
     const on = identityRegistrations(deps).get(id)!;

@@ -605,27 +605,27 @@ test("the real catalog and this layer's independent classification agree for eve
     if (DERIVED_CONTENT_READ_IDS.has(id)) continue; // already cross-checked pre-collapse, under its original id — see DERIVED_CONTENT_READ_IDS's own doc
     // The human-confirmed tools pass only with their handler — the build itself checked that.
     if (HUMAN_CONFIRMED_TOOL_IDS.includes(id)) continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_content_type_tombstone", catalogEntry: { ...catalogEntry("collections_content_type_tombstone"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse'", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_future_tool", { ...catalogEntry("collections_content_type_define"), name: "collections_future_tool" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_future_tool", catalogEntry: { ...catalogEntry("collections_content_type_define"), name: "collections_future_tool" } }, { contributions: contributions }),
     /has no entry in DERIVED_RISK_BY_TOOL_ID/,
   );
 });
 
 test("the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), sideEffects: "mints-token" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_content_type_define", catalogEntry: { ...catalogEntry("collections_content_type_define"), sideEffects: "mints-token" } }, { contributions: contributions }),
     /declares sideEffects 'mints-token' but this layer derives 'mutates-durable-state'/,
   );
 });
@@ -636,7 +636,7 @@ test("the mismatch check is symmetric — an over-declared risk fails too, so th
 
 test("a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("collections_content_type_tombstone", { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "collections_content_type_tombstone", catalogEntry: { ...catalogEntry("collections_content_type_tombstone"), actorClassRule: "confirmer-must-equal-own-delegatedBy" } }, { contributions: contributions }),
     {
       message:
         "tool-registrations: 'collections_content_type_tombstone' declares actorClassRule 'confirmer-must-equal-own-delegatedBy', which needs a human confirmer — " +
@@ -662,8 +662,8 @@ test("collections_execute_cleanup — the one catalog entry that DOES carry the 
 });
 
 test("an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" }, contributions));
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" }, contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "collections_content_type_define", catalogEntry: { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" } }, { contributions: contributions }));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "collections_content_type_define", catalogEntry: { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" } }, { contributions: contributions }));
 });
 
 // ---------------------------------------------------------------------------

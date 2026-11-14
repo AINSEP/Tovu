@@ -21,7 +21,7 @@ test("system_read_server_logs is registered and found for recent-error questions
   await routeDeps.identityReady;
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   for (const query of ["show me recent server errors", "what went wrong on the server", "server logs", "show the server console output"]) {
     const top = catalog.search({ query }, { limit: 3 }).map(hit => hit.id);

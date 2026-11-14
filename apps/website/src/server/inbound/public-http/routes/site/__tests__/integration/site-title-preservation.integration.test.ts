@@ -162,7 +162,7 @@ async function bootSiteDeps(t: TestContext, dir: string, beforeBootChain?: (stor
   const deps = await createSiteRouteDeps(siteContentDbPath(dir), {
     db: boot.db,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => { composed = store; },
+    onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
@@ -619,7 +619,7 @@ test("AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWo
   let composed: { close(): Promise<void> } | undefined;
   try {
     deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, {
-      dbPath: siteContentDbPath(dir), onStoreOpened: (store) => { composed = store; },
+      dbPath: siteContentDbPath(dir), onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     });
     await deps.siteTitleReady;
     assert.equal(await resolveSiteTitleForRender(deps), SITE_NAME, "before the rename");

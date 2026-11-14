@@ -153,7 +153,7 @@ function main(): void {
   if (keyDrift.length > 0) throw new Error(`Derived resource keys have drifted from the shipped cards: ${keyDrift.join(", ")}`);
 
   /** Model-facing text: exactly what `search_tools` returns, keyword tail stripped. */
-  const plainOf = (id: string) => stripSearchKeywords(preIds.get(id)?.description ?? "");
+  const plainOf = (id: string) => stripSearchKeywords({ indexed: preIds.get(id)?.description ?? "" });
 
   // ---- Ground truth --------------------------------------------------------------------------
   /** Each tool's own declared `readOnly`, read straight off the built registration — used only to

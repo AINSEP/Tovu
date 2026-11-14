@@ -154,7 +154,7 @@ function approvalDeps(deps: GatewayDeps): ApprovalDeps {
  * @complexity O(1) plus one downstream `authorize`/`authorizeInstance` call.
  * @overallScore 100
  */
-export function authorizeForHooks(deps: GatewayDeps, hooks: GatedMutationHooks<unknown, unknown>, required: { principalId: string; permission: string }): Promise<{ allowed: boolean; reason: string }> {
+export function authorizeForHooks({ deps, hooks, required }: { deps: GatewayDeps; hooks: GatedMutationHooks<unknown, unknown>; required: { principalId: string; permission: string } }, _options = {}): Promise<{ allowed: boolean; reason: string }> {
   return authorizeApproval({ ...required, deps: approvalDeps(deps), hooks });
 }
 

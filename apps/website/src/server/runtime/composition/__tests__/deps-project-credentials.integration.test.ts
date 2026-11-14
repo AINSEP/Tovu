@@ -30,7 +30,7 @@ async function bootSite(required: { siteDir: string; openProjectStore: () => Ret
   let close = async () => {};
   const deps = await createSiteRouteDeps(path.join(required.siteDir, "content.db"), { openProjectStore: required.openProjectStore,
     siteBinding: { dir: required.siteDir, name: path.basename(required.siteDir), dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (store) => { close = () => store.close(); } });
+    onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); } });
   await deps.identityReady;
   return { deps, close: async () => { await deps.pluginRuntimeReady; await close(); } };
 }

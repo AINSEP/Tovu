@@ -78,7 +78,7 @@ export async function writeAssistantVault(
 ): Promise<{ record: VaultRecord; tokenHint: CredentialTokenHint | null }> {
   const repo = assistantVaultRepo({ repo: deps.repo });
   const existing = await repo.findOne(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: ({ error }) => {
+  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: ({ error }, _optional = {}) => {
     throw unconfigured({ detail: error instanceof Error ? error.message : String(error) });
   } });
   const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey }), ...settings({ existing }) });

@@ -26,7 +26,7 @@ test("bad private share storage logs and disables only sharing", async t => {
     const deps = await createSiteRouteDeps(path.join(dbDir, "content.db"), {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { close = () => store.close(); },
+      onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     });
     try {
       await deps.identityReady;
@@ -102,7 +102,7 @@ test("content.db reached through a symlinked folder keeps the same share catalog
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: store => { close = () => store.close(); },
+      onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     });
     try {
       await deps.identityReady;
@@ -128,7 +128,7 @@ test("default share catalog is the private ops/shares beside the site's database
     const deps = await createSiteRouteDeps(path.join(dbDir, "content.db"), {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible },
-      onStoreOpened: store => { close = () => store.close(); },
+      onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     });
     try {
       await deps.identityReady;
@@ -158,7 +158,7 @@ test("two sites with different databases but the same workspace id and copied me
     const deps = await createSiteRouteDeps(path.join(siteDir, "data.nosync", "content.db"), {
       themesDir: path.join(siteDir, "themes"), uploadsDir: path.join(siteDir, "uploads"),
       siteBinding: { dir: siteDir, name: `site-${name}`, dirOverridden: true, switcherCompatible: true },
-      onStoreOpened: store => { close = () => store.close(); },
+      onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
     });
     t.after(() => close?.());
     await deps.identityReady;

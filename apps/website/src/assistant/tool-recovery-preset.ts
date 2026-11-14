@@ -28,7 +28,7 @@ import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
  */
 export const TOOL_FAILURE_RECOVERY_TOOL_ID = "assistant_tool_failure_recovery";
 
-function recoverySurfaceUri(exchangeId: string): UIResourceUri {
+function recoverySurfaceUri({ exchangeId }: { exchangeId: string }, _options = {}): UIResourceUri {
   return `ui://tovu/tool-failure-recovery/${exchangeId}` as UIResourceUri;
 }
 
@@ -46,7 +46,7 @@ function buildRecoveryFormResource(input: { exchangeId: string; hint: string; re
   const fields: SurfaceField[] = askFor ? [{ kind: "string", name: askFor.key, label: askFor.prompt, required: true }] : [];
 
   return buildFormSurface({
-    uri: recoverySurfaceUri(exchangeId),
+    uri: recoverySurfaceUri({ exchangeId: exchangeId }),
     title: "A tool call failed — try the suggested fix?",
     description: hint,
     details: [{ label: "Suggested fix", value: remedyToolId }],

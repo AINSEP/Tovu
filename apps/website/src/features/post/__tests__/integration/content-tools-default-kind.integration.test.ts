@@ -46,7 +46,7 @@ function harness(_required: Record<string, never>, { allowed = true }: { allowed
   contributions.contributors.register({ contribution: contributePostTools() });
   const registrations = buildAssistantToolRegistrations(
     toAssistantRegistryDeps({ routeDeps: deps as unknown as RegistryDepsWithoutLimiter }),
-    undefined, { contributions },
+    { surfaces: undefined, options: { contributions } },
   );
   const registry = createToolRegistry({});
   for (const registration of registrations) registry.register(registration);

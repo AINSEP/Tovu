@@ -37,7 +37,7 @@ import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegist
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
 
-const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
@@ -213,7 +213,7 @@ function catalogEntry(toolId: string): AgentToolDefinition {
 }
 
 function mediaGenerationRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
+  return new Map(buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).filter((r) => r.descriptor.id.startsWith("media_generate")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(toolId: string, deps: RegistryDepsWithoutLimiter): ToolRegistration {
@@ -248,7 +248,7 @@ test("requiresConfirmation is unset — no ceremony beyond the ordinary permissi
 });
 
 test("the real catalog and this wiring layer's own risk classification agree", () => {
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("media_generate_asset", catalogEntry("media_generate_asset"), contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "media_generate_asset", catalogEntry: catalogEntry("media_generate_asset") }, { contributions: contributions }));
 });
 
 // ---------------------------------------------------------------------------

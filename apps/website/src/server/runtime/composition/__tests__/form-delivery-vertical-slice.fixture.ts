@@ -159,7 +159,7 @@ export async function bootSite(required: { dir: string }): Promise<FixtureSite> 
   let store: SiteStore | undefined;
   const deps = await createSiteRouteDeps(path.join(required.dir, "content.db"), {
     siteBinding: { dir: required.dir, name: path.basename(required.dir), dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (opened) => { store = opened; },
+    onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
   });
   await Promise.allSettled(Object.entries(deps).filter(([key, value]) => key.endsWith("Ready") && value instanceof Promise).map(([, value]) => value));
   assert.ok(deps.contentKernel, "the SQLite composition exposes its content kernel");

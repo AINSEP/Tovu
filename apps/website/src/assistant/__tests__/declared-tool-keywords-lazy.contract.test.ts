@@ -19,9 +19,9 @@ test('bundled keywords are read only on first search use and then reused on both
   assert.strictEqual(toolSearchKeywords({}), keywords);
   assert.match(keywords.credential_save!, /lazy-provider/);
   for (const metadata of [undefined, {}]) {
-    const indexed = indexedDescriptionFor('credential_save', 'Save a credential.', { metadata, includeDoc2query: false });
+    const indexed = indexedDescriptionFor({ toolId: 'credential_save', description: 'Save a credential.' }, { metadata, includeDoc2query: false });
     assert.match(indexed, /lazy-provider/);
-    assert.equal(stripSearchKeywords(indexed), 'Save a credential.');
+    assert.equal(stripSearchKeywords({ indexed: indexed }), 'Save a credential.');
   }
   assert.equal(reads, 1, 'both indexing paths reuse the same shipped vocabulary');
 });

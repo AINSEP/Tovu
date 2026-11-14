@@ -32,15 +32,15 @@ const VALID_PROFILES: ReadonlySet<string> = new Set(["author", "publish", "insta
 /** Injectable effects of {@link runThemeValidateCommand}. */
 export interface RunThemeValidateCommandPorts {
   validate?: typeof validateThemePackage;
-  output?: (message: string) => void;
-  setExitCode?: (code: number) => void;
+  output?: (required: { message: string }, optional?: Record<string, never>) => void;
+  setExitCode?: (required: { code: number }, optional?: Record<string, never>) => void;
 }
 
-function writeStdout(message: string): void {
+function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
 }
 
-function setProcessExitCode(code: number): void {
+function setProcessExitCode({ code }: { code: number }, _optional = {}): void {
   process.exitCode = code;
 }
 
@@ -51,13 +51,13 @@ function formatFinding(finding: ThemeValidationFinding): string {
 
 /** The `--json`-off branch of `runThemeValidateCommand` — split out so that function's own
  * cognitive complexity isn't compounded by nesting this printing logic inside its `if/else`. */
-function printHumanReadableResult(id: string, profile: string, result: ValidateThemePackageResult, output: (message: string) => void): void {
-  output(`theme '${id}' (schema v${result.schemaVersion}, profile: ${profile}): ${result.valid ? "VALID" : "INVALID"}\n`);
+function printHumanReadableResult({ id, profile, result, output }: { id: string; profile: string; result: ValidateThemePackageResult; output: (required: { message: string }, optional?: Record<string, never>) => void }, _options = {}): void {
+  output({ message: `theme '${id}' (schema v${result.schemaVersion}, profile: ${profile}): ${result.valid ? "VALID" : "INVALID"}\n` });
   if (result.errors.length > 0) {
-    output(`errors (${result.errors.length}):\n${result.errors.map(formatFinding).join("\n")}\n`);
+    output({ message: `errors (${result.errors.length}):\n${result.errors.map(formatFinding).join("\n")}\n` });
   }
   if (result.warnings.length > 0) {
-    output(`warnings (${result.warnings.length}):\n${result.warnings.map(formatFinding).join("\n")}\n`);
+    output({ message: `warnings (${result.warnings.length}):\n${result.warnings.map(formatFinding).join("\n")}\n` });
   }
 }
 
@@ -84,12 +84,12 @@ export async function runThemeValidateCommand(
   const result = validate({ themeDir: dir, id, profile: profile as ThemeValidationProfile });
 
   if (input.json) {
-    output(`${JSON.stringify(result, null, 2)}\n`);
+    output({ message: `${JSON.stringify(result, null, 2)}\n` });
   } else {
-    printHumanReadableResult(id, profile, result, output);
+    printHumanReadableResult({ id: id, profile: profile, result: result, output: output });
   }
 
   if (!result.valid) {
-    setExitCode(1);
+    setExitCode({ code: 1 });
   }
 }

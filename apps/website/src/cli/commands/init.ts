@@ -59,7 +59,7 @@ const STORAGE_KINDS = ["sqlite", "pglite", "postgres"] as const;
  *
  * @throws {ValidationError} an unknown kind, or `--storage-env` without `--storage postgres`.
  */
-export function parseInitStorage(storage: string | undefined, storageEnv: string | undefined): SiteStorage {
+export function parseInitStorage({ storage, storageEnv }: { storage: string | undefined; storageEnv: string | undefined }, _options = {}): SiteStorage {
   const kind = storage ?? "sqlite";
   if (!(STORAGE_KINDS as readonly string[]).includes(kind)) {
     throw new ValidationError({ message: `init: --storage must be one of ${STORAGE_KINDS.join(", ")}` });
@@ -113,7 +113,7 @@ export async function readConnectionStringFromUser(
  * @overallScore 100
  */
 export async function runInitCommand(input: RunInitCommandInput, _options: Record<string, never> = {}): Promise<void> {
-  const storage = parseInitStorage(input.storage, input.storageEnv);
+  const storage = parseInitStorage({ storage: input.storage, storageEnv: input.storageEnv });
   const sealed = storage.kind === "postgres" && storage.secretRef === "site";
   assertSeparateInitStdin({ input, sealed });
   const createInput = await readCreateInput(input);
@@ -126,7 +126,7 @@ export async function runInitCommand(input: RunInitCommandInput, _options: Recor
   const { config } = readSiteDir({ dir: result.dir });
   process.stdout.write(`created site '${config.name}' at ${result.dir}\n`);
   process.stdout.write(`next: tovu serve ${result.dir}\n`);
-  await storeNewSiteAgentPluginTokens(result, tokens, input.sealAgentPluginTokens);
+  await storeNewSiteAgentPluginTokens({ site: result, tokens }, { seal: input.sealAgentPluginTokens });
 }
 
 /** Read desktop's create credentials once, without putting a secret in argv, env, or diagnostics.
@@ -165,9 +165,9 @@ async function readAndCheckInitTokens({ input, createInput }: {
 }, _options: Record<string, never> = {}): Promise<Record<string, string>> {
   // Read and checked BEFORE the site is made: a rejected token creates nothing.
   let tokens: Record<string, string>;
-  if (input.createInputStdin) tokens = await readNewSiteAgentPluginTokensFromStdin(async () => JSON.stringify(createInput.agentPluginTokens ?? {}));
-  else if (input.agentPluginTokensStdin) tokens = await readNewSiteAgentPluginTokensFromStdin(input.readAgentPluginTokens);
+  if (input.createInputStdin) tokens = await readNewSiteAgentPluginTokensFromStdin({}, { read: async () => JSON.stringify(createInput.agentPluginTokens ?? {}) });
+  else if (input.agentPluginTokensStdin) tokens = await readNewSiteAgentPluginTokensFromStdin({}, { read: input.readAgentPluginTokens });
   else tokens = {};
-  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck());
+  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck({}));
   return tokens;
 }

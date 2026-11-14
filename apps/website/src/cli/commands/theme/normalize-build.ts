@@ -27,7 +27,7 @@ export interface RunThemeNormalizeBuildCommandInput {
   json?: boolean;
 }
 
-function writeStdout(message: string): void {
+function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
 }
 
@@ -49,7 +49,7 @@ function formatSummary(result: NormalizeBuildOutputResult): string {
  */
 export async function runThemeNormalizeBuildCommand(
   input: RunThemeNormalizeBuildCommandInput,
-  optional: { normalize?: typeof normalizeBuildOutputDirectory; output?: (message: string) => void } = {}
+  optional: { normalize?: typeof normalizeBuildOutputDirectory; output?: (required: { message: string }, optional?: Record<string, never>) => void } = {}
 ): Promise<void> {
   // Default ports are wired here, at the command edge; tests inject their own.
   const { normalize = normalizeBuildOutputDirectory, output = writeStdout } = optional;
@@ -69,8 +69,8 @@ export async function runThemeNormalizeBuildCommand(
   const result = normalize({ outputDir, pageFileNames, primaryStylesheetFile: input.primaryStylesheet });
 
   if (input.json) {
-    output(`${JSON.stringify(result, null, 2)}\n`);
+    output({ message: `${JSON.stringify(result, null, 2)}\n` });
   } else {
-    output(formatSummary(result));
+    output({ message: formatSummary(result) });
   }
 }

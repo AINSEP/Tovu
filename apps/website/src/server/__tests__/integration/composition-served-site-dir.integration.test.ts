@@ -96,7 +96,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     // No uploadsDir/themesDir overrides: their defaults are under test too.
     deps = await createSiteRouteDeps(path.join(siteA, "content.db"), {
       siteBinding: bindingFor(siteA),
-      onStoreOpened: store => { closeStore = () => store.close(); },
+      onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
     });
   });
 
@@ -270,7 +270,7 @@ test("stock seed: blob hydration and the publish-content seed hash read the SERV
       createSiteRouteDeps(path.join(siteA, "content.db"), {
         db: liveDb,
         workspaceId,
-        onStoreOpened: store => { closeStore = () => store.close(); },
+        onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
@@ -309,7 +309,7 @@ test("stock seed: a first boot with no content.db hydrates it from the SERVED si
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
       createSiteRouteDeps(path.join(siteA, "content.db"), {
-        onStoreOpened: store => { closeStore = () => store.close(); },
+        onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),

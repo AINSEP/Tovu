@@ -397,10 +397,10 @@ function listLookupIdSchema(required: { resource: string; lookup: ListLookup; li
 /**
  * A card's model-visible description: every member tool's OWN plain description, concatenated,
  * plus the exact id parameter guidance, followed by ONE {@link KEYWORD_MARKER} boundary and every member's combined keyword/doc2query
- * vocabulary (via `indexedDescriptionFor(id, "")`, which returns exactly that tail with no marker of
+ * vocabulary (via `indexedDescriptionFor({ toolId: id, description: "" })`, which returns exactly that tail with no marker of
  * its own — see that function's own doc).
  *
- * Deliberately NOT `members.map(id => indexedDescriptionFor(id, plainDescOf(id))).join(" ")` (each
+ * Deliberately NOT `members.map(id => indexedDescriptionFor({ toolId: id, description: plainDescOf(id) })).join(" ")` (each
  * member's own already-marked text, naively concatenated) even though that is what the measured
  * eval arm literally computes and BM25 scores identically either way (same token bag, order-blind).
  * The reason to build it this way instead: {@link stripSearchKeywords} cuts a description at the
@@ -422,7 +422,7 @@ function cardDescription(
     "content_read is a namespace, not a tool; call this exact tool id without a resource argument."].filter(Boolean).join(" ");
   const plain = `${id}: ${prose}`;
   const tail = memberIds
-    .map((id) => indexedDescriptionFor(id, ""))
+    .map((id) => indexedDescriptionFor({ toolId: id, description: "" }))
     .filter((part) => part.length > 0)
     .join(" ");
   return tail.length > 0 ? `${plain}${KEYWORD_MARKER}${tail}` : plain;

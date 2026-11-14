@@ -124,6 +124,6 @@ function makeHooks(required: {
 function inspectionPlanHash({ details }: { details: DomainPublishDetails }, _options = {}): string {
   const inspected = details.inspection;
   if (!inspected?.domains) throw new Error('Domain publish plan has no domain inspection');
-  return planHashOf({ ...details, inspection: { resourceName: inspected.resourceName, targetId: inspected.targetId,
-    hostingChanges: inspected.hostingChanges, domainFingerprint: inspected.domains.fingerprint } });
+  return planHashOf({ details: { ...details, inspection: { resourceName: inspected.resourceName, targetId: inspected.targetId,
+    hostingChanges: inspected.hostingChanges, domainFingerprint: inspected.domains.fingerprint } } });
 }

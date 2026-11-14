@@ -51,7 +51,7 @@ export interface RunExportCommandInput {
  * precedence chain exactly once (`apps/website/src/server/runtime/composition/site-paths.ts`'s `resolveExportOutputRootDir`); only the
  * CLI-only `--out` flag is decided here. This function never reads `process.env` itself.
  */
-function resolveExportOutputDir(input: RunExportCommandInput, exportOutputRootDir: string): string {
+function resolveExportOutputDir({ input, exportOutputRootDir }: { input: RunExportCommandInput; exportOutputRootDir: string }, _options = {}): string {
   if (input.out !== undefined) return path.resolve(input.out);
   return exportOutputRootDir;
 }
@@ -101,7 +101,7 @@ function printExportReport(report: ExportReport): void {
 function assertExportComplete({ report }: { report: ExportReport }, _optional = {}): void {
   if (report.routes.failed.length > 0 || report.assets.failed.length > 0) {
     throw new ExportIncompleteError(
-      `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above`
+      { message: `export finished with ${report.routes.failed.length} failed route(s) and ${report.assets.failed.length} failed asset(s) — see stderr above` }
     );
   }
 }
@@ -159,10 +159,10 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
       // export root above all) lands in that unrelated site. Same values as `serve.ts`'s binding,
       // for the same reasons; this command does not pin `TOVU_SITE_DIR` the way `serve` does.
       siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: (store) => (composedStore = store),
+      onStoreOpened: ({ store }, _optional = {}) => (composedStore = store),
     });
     routeDepsForCleanup = routeDeps;
-    const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
+    const outputDir = resolveExportOutputDir({ input: input, exportOutputRootDir: routeDeps.exportOutputRootDir });
 
     // See this file's header. The same CRITICAL check `tovu serve`'s boot lifecycle runs first,
     // before this command ever crawls a route — a site left mid-migration by a crash must never be
@@ -175,7 +175,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
     });
     if (reconciliation.blocked) {
       throw new ExportBlockedPendingRecoveryError(
-        `refusing to export ${target} — a crash-interrupted migration was detected and this site is now BLOCKED_PENDING_RECOVERY; resolve it via Recovery before exporting.`
+        { message: `refusing to export ${target} — a crash-interrupted migration was detected and this site is now BLOCKED_PENDING_RECOVERY; resolve it via Recovery before exporting.` }
       );
     }
 

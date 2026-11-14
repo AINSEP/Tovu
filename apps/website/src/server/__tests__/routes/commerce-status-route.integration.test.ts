@@ -38,6 +38,6 @@ test("commerce off: first-party and legacy catalogs expose no commerce tools", (
   };
   installFirstPartyToolContributors({ contributions });
   assert.equal(contributions.contributors.list({}).some(entry => entry.domain === "commerce-get-status"), false);
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: createRouteDeps() }), { surfaces: undefined, options: { contributions } });
   assert.deepEqual(registrations.filter(entry => /^(commerce_|payments_|lipay_|store_)/.test(entry.descriptor.id)).map(entry => entry.descriptor.id), []);
 });

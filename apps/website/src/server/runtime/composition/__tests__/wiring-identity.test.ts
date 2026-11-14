@@ -61,7 +61,7 @@ before(async () => {
   deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
     db: boot.db,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => { composed = store as unknown as ComposedStore; },
+    onStoreOpened: ({ store }, _optional = {}) => { composed = store as unknown as ComposedStore; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Wiring Identity Site", dirOverridden: true, switcherCompatible: false },

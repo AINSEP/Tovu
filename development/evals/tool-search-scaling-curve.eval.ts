@@ -134,7 +134,7 @@ function buildCombinedIndex(
   reseedToolCatalog({ db, entries: [
     ...real.map((d) => ({
       id: d.id,
-      description: includeSearchKeywords ? indexedDescriptionFor(d.id, d.description ?? "") : (d.description ?? ""),
+      description: includeSearchKeywords ? indexedDescriptionFor({ toolId: d.id, description: d.description ?? "" }) : (d.description ?? ""),
       inputSchema: d.inputSchema,
       source: sourceForToolId(d.id),
     })),
@@ -147,7 +147,7 @@ function buildCombinedIndex(
   ] });
   return {
     search(query, limit = 10) {
-      return searchToolCatalog({ db, query }, { limit }).map((hit) => ({ ...hit, description: stripSearchKeywords(hit.description) }));
+      return searchToolCatalog({ db, query }, { limit }).map((hit) => ({ ...hit, description: stripSearchKeywords({ indexed: hit.description }) }));
     },
   };
 }

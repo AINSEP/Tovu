@@ -850,7 +850,7 @@ export async function finishStaticTierDocument(
 ): Promise<string> {
   const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } = input;
 
-  const expanded = expandPartials(html, theme);
+  const expanded = expandPartials({ html: html, theme: theme });
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
@@ -1600,7 +1600,7 @@ export async function renderViaTemplate(
   const { pageId, html: rawTemplate } = resolution;
 
   // Expand before content resolution so a partial's own byline suppresses the core header too.
-  const withTitle = injectPageTitle(expandPartials(rawTemplate, theme), post.title);
+  const withTitle = injectPageTitle(expandPartials({ html: rawTemplate, theme: theme }), post.title);
   const withCurrentId = injectCurrentEntityContentId(withTitle, post.id);
   // Taxonomy render-surface gap fix (2026-09-02): assigned terms are metadata ABOUT the entry, not
   // part of its authored body, so they go in the conventional "filed under" position: right after

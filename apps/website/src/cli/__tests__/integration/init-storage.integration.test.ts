@@ -48,13 +48,13 @@ function readMeta(dir: string): Record<string, unknown> {
 }
 
 test("parseInitStorage: default sqlite, the three kinds, postgres sealed or env-named, bad input refused", () => {
-  assert.deepEqual(parseInitStorage(undefined, undefined), { kind: "sqlite" });
-  assert.deepEqual(parseInitStorage("pglite", undefined), { kind: "pglite" });
-  assert.deepEqual(parseInitStorage("postgres", undefined), { kind: "postgres", secretRef: "site" });
-  assert.deepEqual(parseInitStorage("postgres", "DATABASE_URL"), { kind: "postgres", secretRef: { env: "DATABASE_URL" } });
-  assert.throws(() => parseInitStorage("mysql", undefined), (err: unknown) => err instanceof ValidationError && /sqlite, pglite, postgres/.test(err.message));
-  assert.throws(() => parseInitStorage("pglite", "DATABASE_URL"), (err: unknown) => err instanceof ValidationError && /postgres only/.test(err.message));
-  assert.throws(() => parseInitStorage("postgres", "not a name"), (err: unknown) => err instanceof ValidationError && /environment variable name/.test(err.message));
+  assert.deepEqual(parseInitStorage({ storage: undefined, storageEnv: undefined }), { kind: "sqlite" });
+  assert.deepEqual(parseInitStorage({ storage: "pglite", storageEnv: undefined }), { kind: "pglite" });
+  assert.deepEqual(parseInitStorage({ storage: "postgres", storageEnv: undefined }), { kind: "postgres", secretRef: "site" });
+  assert.deepEqual(parseInitStorage({ storage: "postgres", storageEnv: "DATABASE_URL" }), { kind: "postgres", secretRef: { env: "DATABASE_URL" } });
+  assert.throws(() => parseInitStorage({ storage: "mysql", storageEnv: undefined }), (err: unknown) => err instanceof ValidationError && /sqlite, pglite, postgres/.test(err.message));
+  assert.throws(() => parseInitStorage({ storage: "pglite", storageEnv: "DATABASE_URL" }), (err: unknown) => err instanceof ValidationError && /postgres only/.test(err.message));
+  assert.throws(() => parseInitStorage({ storage: "postgres", storageEnv: "not a name" }), (err: unknown) => err instanceof ValidationError && /environment variable name/.test(err.message));
 });
 
 test("init without --storage still writes a SQLite site", async () => {

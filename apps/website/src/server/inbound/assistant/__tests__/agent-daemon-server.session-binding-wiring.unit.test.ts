@@ -70,7 +70,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     resolveAgentLaunch: () => ({ launchPath: "/fixture/cli" }),
     assistantInventory: { listAssistantAgents: async () => ["claude", "codex"].map(id => ({ id, available: true, authStatus: "unknown" })) },
     ensureJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" },
-    parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
+    parseRunStartContextRef: ({ contextRef }: { contextRef: string }) => ({ ...contexts.get(contextRef), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
     buildPageContextPromptBlock: () => "",
     principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), durableMessageIdsByRunId: new Map(), runOwners: { record() {} }, ownerRetentionTimers: new Set(),

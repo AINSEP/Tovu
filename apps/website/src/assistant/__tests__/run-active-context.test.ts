@@ -37,7 +37,7 @@ test("STORE: nothing recorded reads as inactive", () => {
 test("STORE: a live run's screen is the active resource, its entry id the resourceRef", () => {
   const time = clock();
   const store = createRunActiveContextStore({ now: time.now });
-  store.record("run-1", PAGE_EDITOR);
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
   time.advance(250);
 
   assert.deepEqual(store.read(), {
@@ -53,7 +53,7 @@ test("STORE: a live run's screen is the active resource, its entry id the resour
 
 test("STORE: a screen with no open entry uses its path as the resourceRef and has no name", () => {
   const store = createRunActiveContextStore({ now: () => 5 });
-  store.record("run-1", MEDIA_INDEX);
+  store.record({ runId: "run-1", pageContext: MEDIA_INDEX });
 
   assert.deepEqual(store.read(), {
     active: true,
@@ -68,8 +68,8 @@ test("STORE: a screen with no open entry uses its path as the resourceRef and ha
 
 test("STORE: a finished run's screen is forgotten", () => {
   const store = createRunActiveContextStore();
-  store.record("run-1", PAGE_EDITOR);
-  store.forget("run-1");
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
+  store.forget({ runId: "run-1" });
 
   assert.deepEqual(store.read(), { active: false });
 });
@@ -77,7 +77,7 @@ test("STORE: a finished run's screen is forgotten", () => {
 test("STORE: a screen older than http-kit's active-context TTL reads as inactive", () => {
   const time = clock();
   const store = createRunActiveContextStore({ now: time.now });
-  store.record("run-1", PAGE_EDITOR);
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
 
   time.advance(ACTIVE_CONTEXT_TTL_MS);
   assert.equal(store.read().active, true);
@@ -87,8 +87,8 @@ test("STORE: a screen older than http-kit's active-context TTL reads as inactive
 
 test("STORE: two live runs on DIFFERENT screens are ambiguous — inactive, never the wrong screen", () => {
   const store = createRunActiveContextStore();
-  store.record("run-1", PAGE_EDITOR);
-  store.record("run-2", MEDIA_INDEX);
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
+  store.record({ runId: "run-2", pageContext: MEDIA_INDEX });
 
   assert.deepEqual(store.read(), { active: false });
 });
@@ -96,9 +96,9 @@ test("STORE: two live runs on DIFFERENT screens are ambiguous — inactive, neve
 test("STORE: two live runs on the SAME screen agree, and the newer recording wins", () => {
   const time = clock();
   const store = createRunActiveContextStore({ now: time.now });
-  store.record("run-1", PAGE_EDITOR);
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
   time.advance(100);
-  store.record("run-2", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Landing sample (renamed)" } });
+  store.record({ runId: "run-2", pageContext: { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Landing sample (renamed)" } } });
 
   const answer = store.read();
   assert.equal(answer.active, true);
@@ -110,9 +110,9 @@ test("STORE: two live runs on the SAME screen agree, and the newer recording win
 test("STORE: a stale run on another screen does not make a fresh one ambiguous", () => {
   const time = clock();
   const store = createRunActiveContextStore({ now: time.now });
-  store.record("run-old", MEDIA_INDEX);
+  store.record({ runId: "run-old", pageContext: MEDIA_INDEX });
   time.advance(ACTIVE_CONTEXT_TTL_MS + 1);
-  store.record("run-new", PAGE_EDITOR);
+  store.record({ runId: "run-new", pageContext: PAGE_EDITOR });
 
   const answer = store.read();
   assert.equal(answer.active, true);
@@ -122,7 +122,7 @@ test("STORE: a stale run on another screen does not make a fresh one ambiguous",
 test("STORE: a screen exactly at the TTL is still live", () => {
   const time = clock();
   const store = createRunActiveContextStore({ now: time.now });
-  store.record("run-1", MEDIA_INDEX);
+  store.record({ runId: "run-1", pageContext: MEDIA_INDEX });
   time.advance(ACTIVE_CONTEXT_TTL_MS);
 
   assert.equal(store.read().active, true);
@@ -130,8 +130,8 @@ test("STORE: a screen exactly at the TTL is still live", () => {
 
 test("STORE: equal recording times resolve to the run recorded last", () => {
   const store = createRunActiveContextStore({ now: () => 7 });
-  store.record("run-1", PAGE_EDITOR);
-  store.record("run-2", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Second" } });
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
+  store.record({ runId: "run-2", pageContext: { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Second" } } });
 
   const answer = store.read();
   assert.equal(answer.active && answer.resourceName, "Second");
@@ -140,11 +140,11 @@ test("STORE: equal recording times resolve to the run recorded last", () => {
 test("STORE: the newest recording wins even when an older run re-records later in map order", () => {
   const time = clock();
   const store = createRunActiveContextStore({ now: time.now });
-  store.record("run-a", PAGE_EDITOR);
+  store.record({ runId: "run-a", pageContext: PAGE_EDITOR });
   time.advance(10);
-  store.record("run-b", PAGE_EDITOR);
+  store.record({ runId: "run-b", pageContext: PAGE_EDITOR });
   time.advance(10);
-  store.record("run-a", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Newest" } });
+  store.record({ runId: "run-a", pageContext: { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, title: "Newest" } } });
 
   const answer = store.read();
   assert.equal(answer.active && answer.resourceName, "Newest");
@@ -152,8 +152,8 @@ test("STORE: the newest recording wins even when an older run re-records later i
 
 test("STORE: the same path with a different open entry is a different screen", () => {
   const store = createRunActiveContextStore();
-  store.record("run-1", PAGE_EDITOR);
-  store.record("run-2", { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, id: "other-id" } });
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
+  store.record({ runId: "run-2", pageContext: { ...PAGE_EDITOR, entry: { ...PAGE_EDITOR.entry!, id: "other-id" } } });
 
   assert.deepEqual(store.read(), { active: false });
 });
@@ -161,7 +161,7 @@ test("STORE: the same path with a different open entry is a different screen", (
 test("MCP: get_active_context against the daemon route returns the run's screen instead of a 404", async (t) => {
   const token = "test-daemon-token";
   const store = createRunActiveContextStore({ now: () => 42 });
-  store.record("run-1", PAGE_EDITOR);
+  store.record({ runId: "run-1", pageContext: PAGE_EDITOR });
   const app = express();
   app.use(requireAgentDaemonToken({ env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: token } }, {}));
   registerRunActiveContextRoute(app, store);

@@ -96,7 +96,7 @@ function main(): void {
     throw new Error(`case fields name resources outside the family: expect=[${badExpect.join(",")}] bait=[${badBait.join(",")}]`);
   }
 
-  const plainOf = (id: string) => stripSearchKeywords(byId.get(id) ?? "");
+  const plainOf = (id: string) => stripSearchKeywords({ indexed: byId.get(id) ?? "" });
   const queryBlock = CASES.map((c, i) => `${i + 1}. ${c.query}`).join("\n");
 
   writeFileSync(

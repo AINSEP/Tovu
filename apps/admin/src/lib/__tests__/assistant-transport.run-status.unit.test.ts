@@ -74,7 +74,7 @@ const subscriptions: AbortController[] = [];
 /** The finalizer uses this same translation before committing its projection. This fixture
  * models the HTTP boundary; real persistence is covered by the server companion suite. */
 function saveTerminalProjection(payload: Record<string, unknown>, events: AgentEvent[] = []): void {
-  const outcome = translateRunFrame("end", endFrame(payload));
+  const outcome = translateRunFrame({ kind: "end", raw: endFrame(payload) });
   savedMessage = { ...savedMessage, runStatus: outcome.terminal!, endedAt: 123,
     events: [...events, ...outcome.events],
     content: events.flatMap((event) => event.kind === "text" ? [event.text] : []).join("") };
@@ -125,24 +125,24 @@ afterEach(() => {
 
 describe("terminalFailureError", () => {
   test("a failed end payload yields a reportable Error naming the exit code and signal", () => {
-    const error = terminalFailureError(endFrame({ status: "failed", code: 1, signal: null, resumable: false }));
+    const error = terminalFailureError({ raw: endFrame({ status: "failed", code: 1, signal: null, resumable: false }) });
     expect(error).toBeInstanceOf(Error);
     expect(error!.message).toContain("exit code 1");
     expect(error!.message).toContain("signal none");
   });
 
   test("a canceled end payload is NOT a failure — a stop the operator asked for must not read as one", () => {
-    expect(terminalFailureError(endFrame({ status: "canceled", code: null, signal: "SIGTERM" }))).toBeNull();
+    expect(terminalFailureError({ raw: endFrame({ status: "canceled", code: null, signal: "SIGTERM" }) })).toBeNull();
   });
 
   test("a succeeded end payload yields no error", () => {
-    expect(terminalFailureError(endFrame({ status: "succeeded", code: 0, signal: null }))).toBeNull();
+    expect(terminalFailureError({ raw: endFrame({ status: "succeeded", code: 0, signal: null }) })).toBeNull();
   });
 
   test("an absent, malformed, or status-less payload never fabricates a failure", () => {
-    expect(terminalFailureError(undefined)).toBeNull();
-    expect(terminalFailureError("not json at all")).toBeNull();
-    expect(terminalFailureError(endFrame({ code: 0 }))).toBeNull();
+    expect(terminalFailureError({ raw: undefined })).toBeNull();
+    expect(terminalFailureError({ raw: "not json at all" })).toBeNull();
+    expect(terminalFailureError({ raw: endFrame({ code: 0 }) })).toBeNull();
   });
 });
 

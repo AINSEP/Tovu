@@ -71,7 +71,7 @@ test("installed + enabled + configured provider plugin boots through the real co
 
   let closeFirst = async () => {};
   const siteBinding = { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false };
-  const first = await createSiteRouteDeps(dbPath, { siteBinding, onStoreOpened: (store) => { closeFirst = () => store.close(); } });
+  const first = await createSiteRouteDeps(dbPath, { siteBinding, onStoreOpened: ({ store }, _optional = {}) => { closeFirst = () => store.close(); } });
   await first.identityReady;
   await sqlitePluginActivationRepoFor({ store: first.contentKernel! }).save({ workspaceId: first.workspaceId, pluginId: PLUGIN_ID, version, enabled: true, updatedAt: "2026-10-26" });
   // The retired-key check runs over the real credential listing (nothing saved the old way here).
@@ -88,7 +88,7 @@ test("installed + enabled + configured provider plugin boots through the real co
   console.warn = (...args: unknown[]) => { warnings.push(args.join(" ")); };
   let closeSecond = async () => {};
   try {
-    const deps = await createSiteRouteDeps(dbPath, { siteBinding, onStoreOpened: (store) => { closeSecond = () => store.close(); } });
+    const deps = await createSiteRouteDeps(dbPath, { siteBinding, onStoreOpened: ({ store }, _optional = {}) => { closeSecond = () => store.close(); } });
     await deps.identityReady;
     assert.deepEqual(warnings.filter((line) => line.includes("provider")), []);
     assert.equal(isNoopObservabilityPort(deps.observability), false);
@@ -118,7 +118,7 @@ test("two sites of one project: settings saved from site A land in project.db an
     const version = install ? await installFakeProvider({ siteDir }) : "1.0.0";
     let close = async () => {};
     const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), { openProjectStore: projectStore,
-      siteBinding: { dir: siteDir, name, dirOverridden: true, switcherCompatible: false }, onStoreOpened: (store) => { close = () => store.close(); } });
+      siteBinding: { dir: siteDir, name, dirOverridden: true, switcherCompatible: false }, onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); } });
     await deps.identityReady;
     return { deps, version, close: () => close() };
   };
@@ -161,7 +161,7 @@ test("a project store that can't open (EACCES on its folder): the site boots, wa
   let close = async () => {};
   try {
     const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), { openProjectStore: () => Promise.reject(denied),
-      siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, onStoreOpened: (store) => { close = () => store.close(); } });
+      siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); } });
     await deps.identityReady;
     assert.ok(warnings.some((line) => line.includes("[project-store]") && line.includes("EACCES") && line.includes("refused")), warnings.join("\n"));
     assert.equal(deps.providerConfig!.scope, "project");

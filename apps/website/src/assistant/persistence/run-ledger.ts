@@ -13,7 +13,7 @@ export type ChatRunLedger = JiniLedger;
  * @complexity O(1) indexed reads/writes; event projection remains with the shared ledger.
  */
 export function createChatRunLedger({ store }: { store: ChatKernel | SqliteConnectionSource }, { tracker }: { tracker?: Tracker } = {}): ChatRunLedger {
-  const ledger = createLedger({ kernel: chatKernel(store), isDaemonRunId: ({ runId }) => isDaemonRunId(runId) }, {});
+  const ledger = createLedger({ kernel: chatKernel(store), isDaemonRunId: ({ runId }) => isDaemonRunId({ runId: runId }) }, {});
   return { ...ledger,
     async settle(required, optional) {
       const changed = await ledger.settle(required, optional);

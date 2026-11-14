@@ -77,7 +77,7 @@ test("SINK AUDIT: in the real assistant catalog no published description or inpu
   };
   installFirstPartyToolContributors({ contributions });
   const routeDeps = createRouteDeps() as unknown as RegistryDepsWithoutLimiter;
-  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, { contributions });
+  const registrations = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) }, options: { contributions } });
   const published = new Set(registrations.map((entry) => entry.descriptor.id));
   const retired = [...RETIRED_READ_TOOL_TO_CARD.keys()].filter((id) => !published.has(id));
   assert.ok(retired.includes("menus_list_menus"), "the menu card must be collapsed in this composition for the audit to mean anything");

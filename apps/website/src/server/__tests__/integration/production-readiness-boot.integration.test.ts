@@ -46,7 +46,7 @@ async function withComposedSite(
     const dbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
     const open = async () => {
       assert.equal(closeStore, undefined, "close the previous composition before reopening");
-      const deps = await createSiteRouteDeps(dbPath, { siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, storeRole: "client", onStoreOpened: (store) => { closeStore = () => store.close(); } });
+      const deps = await createSiteRouteDeps(dbPath, { siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false }, storeRole: "client", onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); } });
       await Promise.all(Object.values(deps).filter((value) => value instanceof Promise));
       // Drain the SQLite boot writers chained off the exposed readiness promises.
       await new Promise<void>((resolve) => setImmediate(resolve));

@@ -23,7 +23,7 @@ test("the run prompt renders decoded.pageContext directly after the dispatch mar
     DAEMON_ENTRY_SOURCE,
     // History is selected (resume tail or cold-start context) before this decoration, so the
     // decorated `prompt` already holds the operator's words; `pageContext` is the decoded field.
-    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(prompt, buildPageContextPromptBlock\(pageContext\)\)\}`;/,
+    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(prompt, buildPageContextPromptBlock\(\{ context: pageContext \}\)\)\}`;/,
   );
 });
 
@@ -34,7 +34,7 @@ test("onStarted forwards page context and the operator's words to the executor",
   };
   const runActiveContexts = createRunActiveContextStore();
   const input = await captureDaemonRun({ prompt: "Please edit this page.", pageContext }, { runActiveContexts });
-  assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock(pageContext)}\n\nPlease edit this page.`);
+  assert.equal(input.prompt, `<<SUBAGENT_DISPATCH>>\n\n${buildPageContextPromptBlock({ context: pageContext })}\n\nPlease edit this page.`);
   // The same decoded screen is what `GET /api/active` answers from while the run is live.
   const active = runActiveContexts.read();
   assert.equal(active.active, true);

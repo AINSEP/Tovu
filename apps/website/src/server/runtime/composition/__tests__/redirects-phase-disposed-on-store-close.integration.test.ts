@@ -32,7 +32,7 @@ test("closing the site store removes its redirect resolver from both resolve pha
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   let store: SiteStore | undefined;
   const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
-    onStoreOpened: (opened) => (store = opened),
+    onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
   });
   await bootSettled(deps);
   const ctx = { workspaceId: deps.workspaceId };

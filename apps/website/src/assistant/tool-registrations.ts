@@ -276,13 +276,13 @@ function derivedRiskByToolId(contributions?: AssistantToolContributions): Derive
  * safe, and that no tool demanding a human-confirmation transport can be wired while none exists.
  * Those are properties of the whole tool surface, so the test needs the whole-surface map.
  *
- * @param toolId - The tool id to check.
- * @param catalogEntry - Its `agent-tools.ts` entry, the declared side of the comparison.
+ * @param required.toolId - The tool id to check.
+ * @param required.catalogEntry - Its `agent-tools.ts` entry, the declared side of the comparison.
  * @throws {Error} If the tool is unclassified, misclassified, or needs missing confirmation support.
  * @complexity O(1).
  * @overallScore 100
  */
-export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: AgentToolDefinition, contributions?: AssistantToolContributions): void {
+export function assertRiskMetadataIsWirable({ toolId, catalogEntry }: { toolId: string; catalogEntry: AgentToolDefinition }, { contributions }: { contributions?: AssistantToolContributions } = {}): void {
   assertToolIsWirable({ toolId, catalogEntry, derivedRisk: derivedRiskByToolId(contributions) });
 }
 
@@ -374,7 +374,7 @@ function prepareReadRegistrations({ registrations, ownerByToolId, routeDeps, opt
 /** Build only the peer-readable CMS catalog; excluded builders must never touch peer credentials. */
 function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }: {
   peerDeps: AssistantToolRegistryDeps; surfaces: AssistantSurfaceDeps;
-  options: NonNullable<Parameters<typeof buildAssistantToolRegistrations>[2]>;
+  options: NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["options"]>;
   peer: NonNullable<AssistantToolRegistryDeps["peerSiteReads"]>;
   peerReadable: (input: { registration: ToolRegistration }) => boolean;
 }, _optional = {}): ToolRegistration[] {
@@ -387,10 +387,10 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
     // Adapt once after deriving cards so a card cannot resolve the same target twice.
     contentTargetInputs: undefined,
   } : undefined;
-  const raw = buildAssistantToolRegistrations(peerDeps, surfaces, {
+  const raw = buildAssistantToolRegistrations(peerDeps, { surfaces: surfaces, options: {
     ...options, targetScope: "off", includeContentReadCollapse: false,
     batchableTools: [], contributions: peerContributions,
-  });
+  } });
   // A peer bag is cached across callers using raw or collapsed catalogs. Retain both
   // names over the same domain handlers instead of making the first caller choose its ABI.
   const rawIds = new Set(raw.map(tool => tool.descriptor.id));
@@ -405,7 +405,7 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
  * @param routeDeps - The same dependency bag the admin HTTP routes are built from (structurally —
  * see {@link AssistantToolRegistryDeps}), so a tool call and the equivalent human click reach
  * identical domain code.
- * @param surfaces - Assistant-transport machinery for surface-raising tools. Defaults to a fresh,
+ * @param optional.surfaces - Assistant-transport machinery for surface-raising tools. Defaults to a fresh,
  * unshared store, which is right for the many tests that build the registration list only to inspect
  * descriptors and never execute a handler. A caller that also mounts
  * `registerMcpUiToolCallsRoute` must pass its own instance — see {@link AssistantSurfaceDeps}.
@@ -420,23 +420,28 @@ function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadabl
  */
 export function buildAssistantToolRegistrations(
   routeDeps: AssistantToolRegistryDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
-  /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`/`indexedDescriptionFor`'s
-   *  own `includeDoc2query`. `includeContentReadCollapse: false` returns every domain's raw
-   *  registrations BEFORE the `content_read` collapse below — the ONLY way to reconstruct the
-   *  pre-collapse tool set now that this function performs the real collapse unconditionally by
-   *  default, needed by `development/evals/tool-search-parent-tool-read.eval.ts`'s own earlier,
-   *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
-   *  against the now-real thing. Every real caller (the two production composition roots) leaves
-   *  this at its default. */
-  options: {
-    readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
-    /** Test seam: which tools take `items` (default: every tool not on `BATCH_OPT_OUT`); lets a test batch a tool whose approval class asks. */
-    readonly batchableTools?: readonly BatchableTool[];
-    /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
-    readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;
-    /** Disable only when rebuilding handlers over the host's read-only peer dependencies. */
-    readonly targetScope?: "on" | "off";
+  {
+    surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+    options = {},
+  }: {
+    surfaces?: AssistantSurfaceDeps;
+    /** Test seam, mirroring `buildToolCatalogQuery`'s own `includeSearchKeywords`/`indexedDescriptionFor`'s
+     *  own `includeDoc2query`. `includeContentReadCollapse: false` returns every domain's raw
+     *  registrations BEFORE the `content_read` collapse below — the ONLY way to reconstruct the
+     *  pre-collapse tool set now that this function performs the real collapse unconditionally by
+     *  default, needed by `development/evals/tool-search-parent-tool-read.eval.ts`'s own earlier,
+     *  synthetic-arm sections to keep measuring a valid "what if we had not collapsed" comparison
+     *  against the now-real thing. Every real caller (the two production composition roots) leaves
+     *  this at its default. */
+    options?: {
+      readonly contributions?: AssistantToolContributions; readonly includeContentReadCollapse?: boolean;
+      /** Test seam: which tools take `items` (default: every tool not on `BATCH_OPT_OUT`); lets a test batch a tool whose approval class asks. */
+      readonly batchableTools?: readonly BatchableTool[];
+      /** Boot roots retain all eligible handlers; discovery applies a fresh per-run grant. */
+      readonly permanentDeletePolicy?: AssistantPermanentDeletesPolicy;
+      /** Disable only when rebuilding handlers over the host's read-only peer dependencies. */
+      readonly targetScope?: "on" | "off";
+    };
   } = {},
 ): ToolRegistration[] {
   const enrichedRouteDeps = enrichToolRouteDeps({ routeDeps });
@@ -464,7 +469,7 @@ export function buildAssistantToolRegistrations(
       return registration.handler(ctx, optional);
     } } : registration);
   const approvedRegistrations = guardedRegistrations.map(registration => applyToolApprovalPolicy({ registration, surfaces: guardedSurfaces }, {
-    localeFor: async ctx => {
+    localeFor: async ({ ctx }, _optional = {}) => {
       if (!routeDeps.settingsRepo) return "en";
       const setting = await getEffectiveSetting({ repo: routeDeps.settingsRepo }, {
         namespace: LANGUAGE_NAMESPACE, key: "locale",
@@ -486,7 +491,7 @@ export function buildAssistantToolRegistrations(
       // Installation ownership is checked BEFORE registry discovery or opening another site's files.
       if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
       const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
-        buildRegistrations: peerDeps => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
+        buildRegistrations: ({ deps: peerDeps }, _optional = {}) => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
       });
       if (resolved === "current") return resolved;
       return { principal: resolved.principal, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {

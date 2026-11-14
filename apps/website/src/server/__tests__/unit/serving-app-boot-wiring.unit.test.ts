@@ -222,7 +222,7 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} routes idle shutdown through the existing registered store stop`, () => {
     const source = readCodeLines(bootPath).join("\n");
     assert.match(source, /const servingOptions = \{\s*stopForIdle:/);
-    assert.match(source, /registerStop: stop => \{ requestStop = stop; \}/);
+    assert.match(source, /registerStop: \(\{ stop \}, _optional = \{\}\) => \{ requestStop = stop; \}/);
     assert.match(source, /setImmediate\(\(\) => stop\(input\)\)/);
     assert.match(source, /\(deps, servingOptions\)/);
   });

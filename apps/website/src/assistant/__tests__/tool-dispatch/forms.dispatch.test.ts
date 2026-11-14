@@ -37,7 +37,7 @@ async function buildRealExecutor() {
   await routeDeps.identityReady;
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) {
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })) {
     registry.register(registration);
   }
   const toolExecutor = createToolExecutor({ registry });

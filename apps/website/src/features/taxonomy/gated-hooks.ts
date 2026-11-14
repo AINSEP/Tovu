@@ -70,7 +70,7 @@ export function buildMergeTermHooks(input: BuildMergeTermHooksInput): GatedMutat
         overlapLossDisclosed: overlappingContentCount > 0,
         overlappingContentCount,
       };
-      return { planHash: planHashOf(details), details };
+      return { planHash: planHashOf({ details: details }), details };
     },
     executeMutation: async () => {
       const { repointedCount } = await input.entryTermRepo.repointTerm({ fromTermId: input.fromTermId, intoTermId: input.intoTermId });

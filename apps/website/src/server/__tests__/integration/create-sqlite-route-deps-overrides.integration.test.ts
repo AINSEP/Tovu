@@ -106,7 +106,7 @@ test("new overrides path: a pre-opened db + explicit workspaceId is honored verb
   const deps = await createSiteRouteDeps(dbPath, {
     db, workspaceId: customWorkspaceId,
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-    onStoreOpened: (store) => { closeStore = () => store.close(); },
+    onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
   });
 
   assert.equal(deps.workspaceId, customWorkspaceId, "REQ-06: the override's workspaceId must be honored verbatim, not the legacy literal");

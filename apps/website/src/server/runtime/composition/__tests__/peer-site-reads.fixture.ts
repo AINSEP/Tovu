@@ -141,7 +141,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     formDefinitionRepo: a.formDefinitionRepo, chatHistory: a.chatHistory, peerSiteReads: peer,
     toolAttemptAuditSink,
   } });
-  const build = (collapsed = false) => buildAssistantToolRegistrations(deps, undefined, { contributions, includeContentReadCollapse: collapsed });
+  const build = (collapsed = false) => buildAssistantToolRegistrations(deps, { surfaces: undefined, options: { contributions, includeContentReadCollapse: collapsed } });
   /** Invoke actual assembled handlers with A's identity; peer scoping must replace it with B's owner. */
   const call = (id: string, input: unknown, principalId = a.ownerId) => {
     const registration = build().find(tool => tool.descriptor.id === id);

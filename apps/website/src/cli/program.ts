@@ -129,7 +129,7 @@ export function createProgram(): Command {
     .description("list the bundled Agent Plugins a new site can connect with a pasted access token")
     .option("--json", "print JSON (the only format)")
     .action(async () => {
-      await runTokenSignInPluginsCommand();
+      await runTokenSignInPluginsCommand({});
     });
 
   program

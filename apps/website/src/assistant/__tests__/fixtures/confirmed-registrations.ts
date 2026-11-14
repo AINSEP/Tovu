@@ -22,13 +22,13 @@ const fixtureSurfaces = (): AssistantSurfaceDeps => ({ surfaceExchanges: createS
 export function buildConfirmedAssistantToolRegistrations(
   { routeDeps, surfaces, options }: {
     routeDeps: Parameters<typeof buildAssistantToolRegistrations>[0];
-    surfaces?: Parameters<typeof buildAssistantToolRegistrations>[1];
-    options?: Parameters<typeof buildAssistantToolRegistrations>[2];
+    surfaces?: AssistantSurfaceDeps;
+    options?: NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["options"];
   },
   { confirmPlanTools = [] }: { confirmPlanTools?: readonly string[] } = {},
 ): ReturnType<typeof buildAssistantToolRegistrations> {
   const boundSurfaces = surfaces ?? fixtureSurfaces();
-  return confirmFixtureRegistrations({ registrations: buildAssistantToolRegistrations(routeDeps, boundSurfaces, options), surfaces: boundSurfaces }, { confirmPlanTools });
+  return confirmFixtureRegistrations({ registrations: buildAssistantToolRegistrations(routeDeps, { surfaces: boundSurfaces, options: options }), surfaces: boundSurfaces }, { confirmPlanTools });
 }
 
 /** Other domain tests explicitly approve file changes; gate tests keep using production builders. */

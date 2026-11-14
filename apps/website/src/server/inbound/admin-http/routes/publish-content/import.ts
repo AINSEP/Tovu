@@ -232,9 +232,9 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       // workspace's restore-point capability at all. `gateway.execute()`'s own fresh authorize()
       // (CIC U-001) remains the authoritative check and is unchanged by this.
       const preCheck = await authorizeForHooks(
-        withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
-        confirmOnlyHooks(deps.workspaceId),
-        { principalId: principal.id, permission: "publish_content.apply" }
+        { deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
+        hooks: confirmOnlyHooks(deps.workspaceId),
+        required: { principalId: principal.id, permission: "publish_content.apply" } }
       );
       if (!preCheck.allowed) {
         res.status(403).json({

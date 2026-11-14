@@ -20,7 +20,7 @@ test('live checks, unsaved draft previews and finding text rank in the top three
   contributions.contributors.clear({}); installFirstPartyToolContributors({ contributions });
   const deps = createRouteDeps(); await deps.identityReady;
   const registry = createToolRegistry({});
-  for (const r of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, undefined, { contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, { surfaces: undefined, options: { contributions } })) registry.register(r);
   const catalog = buildToolCatalogQuery(registry);
   const queries = {
     fetch_live_url: ['is the live site updated', 'check the production website', 'did it publish to the public domain', 'compare live vs local page'],

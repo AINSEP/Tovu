@@ -34,9 +34,9 @@ test("readAllStdin returns every chunk of the stream as one UTF-8 string", async
 test("the default token check refuses a plugin the bundled root does not provide, without probing", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-token-check-"));
   try {
-    const check = defaultNewSiteAgentPluginTokenCheck(root);
+    const check = defaultNewSiteAgentPluginTokenCheck({}, { sourceRoot: root });
     assert.equal(await check({ pluginId: "not-bundled", token: "tok" }), "unsupported");
-    assert.equal(await defaultNewSiteAgentPluginTokenCheck()({ pluginId: "not-a-bundled-plugin-id", token: "tok" }), "unsupported");
+    assert.equal(await defaultNewSiteAgentPluginTokenCheck({})({ pluginId: "not-a-bundled-plugin-id", token: "tok" }), "unsupported");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -44,14 +44,14 @@ test("the default token check refuses a plugin the bundled root does not provide
 
 test("token-sign-in prints the sign-in plugin list as one JSON line", async () => {
   const out: string[] = [];
-  await runTokenSignInPluginsCommand(bundledAgentPluginsRoot(), { output: (message) => out.push(message) });
+  await runTokenSignInPluginsCommand({}, { sourceRoot: bundledAgentPluginsRoot(), output: ({ message }, _optional = {}) => out.push(message) });
   assert.deepEqual(out, [`${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsRoot() }) })}\n`]);
 });
 
 test("token-sign-in defaults to the bundled root and stdout", async (t) => {
   const written: string[] = [];
   t.mock.method(process.stdout, "write", (chunk: string) => { written.push(chunk); return true; });
-  await runTokenSignInPluginsCommand();
+  await runTokenSignInPluginsCommand({});
   t.mock.restoreAll();
   const expected = `${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsRoot() }) })}\n`;
   assert.equal(written.filter((chunk) => chunk === expected).length, 1, "the list is written to stdout exactly once");

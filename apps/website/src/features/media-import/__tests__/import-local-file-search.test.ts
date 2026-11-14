@@ -12,7 +12,7 @@ import { installFirstPartyToolContributors } from "../../../server/runtime/compo
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { buildToolCatalogQuery } from "../../../assistant/tool-catalog-query.js";
 
-const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>["surfaces"]>> = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
@@ -25,7 +25,7 @@ async function realCatalog() {
   await deps.identityReady;
   const registry = createToolRegistry({});
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) registry.register(registration);
   return { registry, catalog: buildToolCatalogQuery(registry) };
 }
 

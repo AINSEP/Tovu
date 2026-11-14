@@ -18,7 +18,7 @@ const FIXTURE_PLUGINS_DIR = path.resolve(import.meta.dirname, "../fixtures/deplo
 
 function capture(env: Record<string, string> = {}) {
   const out: string[] = []; const err: string[] = [];
-  return { out, err, ports: { env, stdout: (m: string) => { out.push(m); }, stderr: (m: string) => { err.push(m); } } };
+  return { out, err, ports: { env, stdout: ({ message: m }: { message: string }, _optional = {}) => { out.push(m); }, stderr: ({ message: m }: { message: string }, _optional = {}) => { err.push(m); } } };
 }
 
 function captureFixture() {

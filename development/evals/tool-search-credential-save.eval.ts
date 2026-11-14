@@ -19,7 +19,7 @@ assert.equal(registrations.filter(d => d.id === 'credential_save').length, 1);
 assert.equal(registrations.some(d => retired.has(d.id)), false, 'no executable save aliases may remain');
 
 // Freeze enrichment once so unchanged tools have byte-identical documents in both arms.
-const current = registrations.map(d => ({ ...d, description: indexedDescriptionFor(d.id, d.description ?? '') }));
+const current = registrations.map(d => ({ ...d, description: indexedDescriptionFor({ toolId: d.id, description: d.description ?? '' }) }));
 const template = current.find(d => d.id === 'credential_save')!;
 const previous = [...current.filter(d => d.id !== 'credential_save'), ...baseline.map(row => ({ ...template, ...row }))];
 const before = buildToolCatalogQuery({ list: () => previous }, { includeSearchKeywords: false });

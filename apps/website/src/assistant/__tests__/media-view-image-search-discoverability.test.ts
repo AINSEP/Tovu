@@ -38,7 +38,7 @@ async function realCatalog() {
   await routeDeps.identityReady;
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
+  for (const registration of buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) {
     registry.register(registration);
   }
   return buildToolCatalogQuery(registry);

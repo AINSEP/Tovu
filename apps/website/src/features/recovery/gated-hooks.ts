@@ -5,7 +5,7 @@ export type BuildRestoreHooksInput = Omit<JiniHooksInput, "planHashOf" | "resolv
 
 /** Bind the shared hash/actor policy without taking ownership of the mutation ceremony. */
 export function buildRestoreHooks(input: BuildRestoreHooksInput, optional: Record<string, never> = {}): ReturnType<typeof buildHooks> {
-  return buildHooks({ ...input, planHashOf: ({ details }) => planHashOf(details), resolveActorClassIdentity }, optional);
+  return buildHooks({ ...input, planHashOf: ({ details }) => planHashOf({ details: details }), resolveActorClassIdentity }, optional);
 }
 export { RestorePointNotFoundError, toRecoveryResult } from "@jini-ai/db/recovery/restore-hooks";
 export type { RecoveryErrorPayload } from "@jini-ai/db/recovery/restore-hooks";

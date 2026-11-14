@@ -36,7 +36,7 @@ const tools = registry.list({}).map((d) => {
     // `indexedDescriptionFor` is the real composer used by `buildToolCatalogQuery` — reconstructing
     // it by hand here would silently score a different corpus than production indexes.
     plain: base,
-    withKeywords: indexedDescriptionFor(d.id, base),
+    withKeywords: indexedDescriptionFor({ toolId: d.id, description: base }),
     withDoc2query: d2q ? `${base} — ${d2q.join(" ")}` : base,
   };
 });

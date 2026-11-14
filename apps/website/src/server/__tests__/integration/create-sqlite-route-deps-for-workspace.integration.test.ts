@@ -138,7 +138,7 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
       },
       createSiteRouteDeps,
     });
-    deps = await composeWithPorts({ workspaceIdOverride: "ws-shared-handle" }, { dbPath, onStoreOpened: (opened) => { store = opened; } });
+    deps = await composeWithPorts({ workspaceIdOverride: "ws-shared-handle" }, { dbPath, onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; } });
     assert.equal(openedHandles.length, 1, "validation and composition must open only one connection");
     const [validationConnection] = openedHandles;
     assert.ok(validationConnection);

@@ -95,7 +95,7 @@ export function createTenantScopedChatStore(
   { db, principal }: { db: ChatKernel | SqliteConnectionSource; principal: ChatPrincipal }, { ledger = createChatRunLedger({ store: db }) }: { ledger?: ChatRunLedger } = {},
 ): ChatHistoryStore {
   return createRunGuardedChatStore({
-    isDaemonRunId: ({ runId }) => isDaemonRunId(runId),
+    isDaemonRunId: ({ runId }) => isDaemonRunId({ runId: runId }),
     store: createChatHistoryStore({ kernel: chatKernel(db), scope: {
       scopeId: principal.workspaceId, ownerKind: principal.kind,
       ownerId: principal.kind === "user" ? principal.userId : hashSessionKey({ sessionKey: principal.sessionKey }),

@@ -481,7 +481,7 @@ test("a trash-then-restore round trip refreshes the live routeDeps.themes entry 
 test("n06: theme trash is reversible, so the host policy runs it without approval and the bytes stay restorable", async () => {
   const {deps, themesDir} = fakeRouteDeps();
   const original = fs.readFileSync(path.join(themesDir, "plain", "styles.css"));
-  const headless = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions }).find(r => r.descriptor.id === "theme_trash_file")!;
+  const headless = buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } }).find(r => r.descriptor.id === "theme_trash_file")!;
   const result = await headless.handler(executionContext({ themeId: "plain", path: "styles.css" })) as {trashed: boolean; trashedPath: string};
   assert.equal(result.trashed, true);
   assert.deepEqual(fs.readFileSync(path.join(themesDir, "plain", result.trashedPath)), original);

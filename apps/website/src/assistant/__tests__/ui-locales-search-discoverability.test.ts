@@ -27,7 +27,7 @@ test("supported language and code questions rank settings_list_ui_locales in the
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
   const registry = createToolRegistry({});
   const withoutLocales = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) {
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) {
     registry.register(registration);
     if (registration.descriptor.id !== "settings_list_ui_locales") withoutLocales.register(registration);
   }

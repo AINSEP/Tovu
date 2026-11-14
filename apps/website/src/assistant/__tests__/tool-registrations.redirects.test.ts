@@ -206,13 +206,13 @@ test("the independent risk classification agrees with the catalog for every wire
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.redirect") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("redirects_create", { ...catalogEntry("redirects_create"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "redirects_create", catalogEntry: { ...catalogEntry("redirects_create"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

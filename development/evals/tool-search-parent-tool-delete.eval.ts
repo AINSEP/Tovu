@@ -212,7 +212,7 @@ function run(): void {
   const registry = createToolRegistry({});
   // Default options: the REAL current catalog, content_read collapse included — what both production
   // composition roots build today. Not `includeContentReadCollapse: false`.
-  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), undefined, { contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: fakeRouteDeps() }), { surfaces: undefined, options: { contributions } })) registry.register(r);
   const all = registry.list({}) as readonly Descriptor[];
   const realIds = new Set(all.map((d) => d.id));
   const n = HELD_OUT_V2.length;
@@ -251,7 +251,7 @@ function run(): void {
   const results: { name: string; vecs: Record<Cutoff, boolean[]> }[] = [];
 
   function memberDescription(id: string): string {
-    return indexedDescriptionFor(id, byId.get(id)?.description ?? "");
+    return indexedDescriptionFor({ toolId: id, description: byId.get(id)?.description ?? "" });
   }
 
   // ---- Arm A-thin: short generic description, blind by construction.

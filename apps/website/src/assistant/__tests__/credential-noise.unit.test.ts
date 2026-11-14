@@ -13,15 +13,15 @@ test('assembled history is sanitized without reporting a new paste on the curren
     userPrompt: 'deploy to vercel please', principalId: 'owner' }) }, {});
   assert.equal(envelope.includes(secret), false);
   assert.equal(JSON.parse(envelope).secretRedacted, undefined);
-  const result = parseRunStartContextRef(envelope);
+  const result = parseRunStartContextRef({ contextRef: envelope });
   assert.equal(result.prompt.includes(CREDENTIAL_PASTE_MODEL_NOTE), false);
   assert.equal(result.coldStartContext?.includes(CREDENTIAL_PASTE_MODEL_NOTE), false);
   assert.equal(result.userPrompt, 'deploy to vercel please');
 });
 
 test('direct daemon parsing does not turn a newly sanitized historical key into a current notice', () => {
-  const result = parseRunStartContextRef(JSON.stringify({ prompt: `Earlier: ${secret}\nCurrent: deploy to vercel please`,
-    coldStartContext: `Earlier: ${secret}`, userPrompt: 'deploy to vercel please', principalId: 'owner' }));
+  const result = parseRunStartContextRef({ contextRef: JSON.stringify({ prompt: `Earlier: ${secret}\nCurrent: deploy to vercel please`,
+    coldStartContext: `Earlier: ${secret}`, userPrompt: 'deploy to vercel please', principalId: 'owner' }) });
   assert.equal(JSON.stringify(result).includes(secret), false);
   assert.equal(JSON.stringify(result).includes(CREDENTIAL_PASTE_MODEL_NOTE), false);
 });
@@ -36,7 +36,7 @@ test('public DKIM history cannot flag a current public deployment URL as a paste
     userPrompt: current, principalId: 'owner' }) }, {});
   assert.equal(JSON.parse(envelope).secretRedacted, undefined);
   assert.equal(envelope.includes(dkim), false);
-  const result = parseRunStartContextRef(envelope);
+  const result = parseRunStartContextRef({ contextRef: envelope });
   assert.equal(result.userPrompt, current);
   assert.equal(JSON.stringify(result).includes(CREDENTIAL_PASTE_MODEL_NOTE), false);
 });
@@ -45,7 +45,7 @@ test('a real current secret is sanitized before acceptance and warns on both CLI
   const envelope = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: `Save ${secret}`, userPrompt: `Save ${secret}`,
     coldStartContext: `## user\nSave ${secret}`, principalId: 'owner' }) }, {});
   assert.equal(envelope.includes(secret), false);
-  const parsed = parseRunStartContextRef(envelope);
+  const parsed = parseRunStartContextRef({ contextRef: envelope });
   for (const text of [parsed.prompt, parsed.coldStartContext, parsed.userPrompt]) {
     assert.equal(text?.split(CREDENTIAL_PASTE_MODEL_NOTE).length, 2);
   }

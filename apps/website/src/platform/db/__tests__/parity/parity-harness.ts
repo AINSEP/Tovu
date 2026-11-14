@@ -31,7 +31,7 @@ import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/
  * the tree, so ONE scripted transcript runs against either code generation: `loadParityModules`
  * imports the same stores and repos from a source root (the working tree, or a `git archive` of
  * the last pre-vault commit for the one-time golden capture). Store and repo names stayed stable
- * across 0012. The archived execution-credential resolver is adapted to the current argument shape
+ * across 0012. The archived credential resolvers are adapted to the current argument shape
  * below so the same transcript still covers both versions. Repo paths moved
  * to their domains in 2a0c60acb; the archived pre-vault source retains platform/db/repos. Sealed bytes
  * legitimately change (0012 copies, the boot re-seal rewrites), so the transcript records the
@@ -54,7 +54,11 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
   const exec = await load("assistant/execution-credential-store.ts");
   return {
     current: root === CURRENT_SRC,
-    site,
+    site: root === CURRENT_SRC ? site : {
+      ...site,
+      resolveSiteAssistantApiKey: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (error: unknown) => void } = {}) =>
+        site.resolveSiteAssistantApiKey(deps, input, onDecryptFailure),
+    },
     exec: root === CURRENT_SRC ? exec : {
       ...exec,
       resolveExecutionCredential: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (error: unknown) => void } = {}) =>
@@ -290,7 +294,7 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
   for (const workspaceId of ["ws", "ws2", "ws-empty"]) {
     const at = (name: string) => `${name}@${workspaceId}`;
     t[at("site.get")] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId }));
-    t[at("site.resolve")] = await outcome(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId }));
+    t[at("site.resolve")] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId } }));
     t[at("media.get")] = await outcome(() => mods.media.getMediaProviderCredentials(d.media, { workspaceId }));
     for (const providerId of ["media-test", "openai"]) {
       t[at(`media.resolve.${providerId}`)] = await outcome(() => mods.media.resolveMediaProviderCredential(d.media, { workspaceId, providerId }));
@@ -440,7 +444,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
   }
   if (run("assistant")) {
     t["assistant.1.site-set"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", apiKey: "ws2-new-site-key-1234567890" }));
-    t["assistant.2.site-resolve"] = await outcome(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId: "ws2" }));
+    t["assistant.2.site-resolve"] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws2" } }));
     t["assistant.3.site-metadata-only"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", model: "ws2-next" }));
     t["assistant.4.site-delete"] = await outcome(() => mods.site.deleteSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
     t["assistant.5.site-get"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
@@ -492,7 +496,7 @@ export async function cascadeTranscript(mods: ParityModules, ctx: ParityContext)
   t["principal.1.delete-p"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM principals WHERE id = 'p'`));
   t["principal.2.p-key"] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
   t["principal.3.mcp"] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
-  t["principal.4.site-kept"] = await outcome(() => mods.site.resolveSiteAssistantApiKey(d.site, { workspaceId: "ws" }));
+  t["principal.4.site-kept"] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws" } }));
   t["workspace.1.delete-ws2"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM workspaces WHERE id = 'ws2'`));
   t["workspace.2.site"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
   t["workspace.3.q-key"] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId: "ws2", principalId: "q" }));

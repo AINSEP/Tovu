@@ -254,7 +254,7 @@ test("the API process's sweep re-runs on its interval: a chat that expires after
     };
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       chatExpirySweep: { intervalMs: 20, now },
-      onStoreOpened: (opened) => (store = opened),
+      onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
     });
     await bootSettled(deps);
     await waitFor(() => passes >= 3, "two passes after the boot pass");
@@ -284,7 +284,7 @@ test("closing the API process's store waits for the sweep pass in flight before 
     };
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       chatExpirySweep: { intervalMs: 20, now },
-      onStoreOpened: (opened) => (store = opened),
+      onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
     });
     await bootSettled(deps);
     clock += 2 * 3_600_000;
@@ -312,7 +312,7 @@ test("the agent daemon's composition (client) never starts the sweep", async () 
     const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
       storeRole: "client",
       chatExpirySweep: { intervalMs: 20, now },
-      onStoreOpened: (opened) => (store = opened),
+      onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
     });
     await bootSettled(deps);
     // A started sweep runs its first pass synchronously while the composition opens its store, so a

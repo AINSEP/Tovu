@@ -22,7 +22,7 @@ test("four site-insight tools rank top three through the full production FTS cat
   const deps = createRouteDeps();
   await deps.identityReady;
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter: createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock }) }, { surfaces: undefined, options: { contributions } })) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
   const questions: Record<string, string[]> = {
     content_stats: ["how many posts do I have", "posts vs pages pie chart", "word count of my articles", "content statistics breakdown"],

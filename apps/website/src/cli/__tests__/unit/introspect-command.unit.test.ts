@@ -17,13 +17,13 @@ const manifest = introspectProgram(program);
 
 test("defaults to the raw commander manifest as pretty JSON plus a newline", async () => {
   const out: string[] = [];
-  await runIntrospectCommand({ manifest }, { output: (message) => out.push(message) });
+  await runIntrospectCommand({ manifest }, { output: ({ message }, _optional = {}) => out.push(message) });
   assert.deepEqual(out, [`${JSON.stringify(manifest, null, 2)}\n`]);
 });
 
 test("--format mcp reshapes the manifest into MCP tool definitions", async () => {
   const out: string[] = [];
-  await runIntrospectCommand({ manifest, format: "mcp" }, { output: (message) => out.push(message) });
+  await runIntrospectCommand({ manifest, format: "mcp" }, { output: ({ message }, _optional = {}) => out.push(message) });
   const tools = JSON.parse(out.join("")) as Array<{ name: string }>;
   assert.deepEqual(tools, JSON.parse(JSON.stringify(toMcpTools(manifest))));
   assert.ok(tools.some((tool) => tool.name.includes("init")), "the init command becomes a tool");
@@ -31,7 +31,7 @@ test("--format mcp reshapes the manifest into MCP tool definitions", async () =>
 
 test("an unknown --format is refused without printing", async () => {
   const out: string[] = [];
-  await assert.rejects(runIntrospectCommand({ manifest, format: "yaml" }, { output: (message) => out.push(message) }),
+  await assert.rejects(runIntrospectCommand({ manifest, format: "yaml" }, { output: ({ message }, _optional = {}) => out.push(message) }),
     { name: "ValidationError", message: '--format must be one of: commander, mcp (got "yaml")' });
   assert.deepEqual(out, []);
 });

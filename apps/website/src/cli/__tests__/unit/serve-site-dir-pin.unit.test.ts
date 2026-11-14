@@ -65,7 +65,7 @@ test("pinServedSiteDirIntoEnv points the site root at the directory this invocat
   const env = bareServeEnv();
   assert.notEqual(resolveSiteRoot({ env, cwd: process.cwd() }), TARGET, "control: unpinned, the root is cwd-derived");
 
-  pinServedSiteDirIntoEnv(TARGET, env);
+  pinServedSiteDirIntoEnv({ target: TARGET }, { env: env });
 
   assert.equal(env.TOVU_SITE_DIR, TARGET);
   assert.equal(resolveSiteRoot({ env, cwd: process.cwd() }), TARGET);
@@ -73,13 +73,13 @@ test("pinServedSiteDirIntoEnv points the site root at the directory this invocat
 
 test("pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the explicit <dir> argument is what this process serves", () => {
   const env = { ...bareServeEnv(), TOVU_SITE_DIR: "/somewhere/else" };
-  pinServedSiteDirIntoEnv(TARGET, env);
+  pinServedSiteDirIntoEnv({ target: TARGET }, { env: env });
   assert.equal(env.TOVU_SITE_DIR, TARGET);
 });
 
 test("tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory", () => {
   const apiEnv = bareServeEnv();
-  pinServedSiteDirIntoEnv(TARGET, apiEnv);
+  pinServedSiteDirIntoEnv({ target: TARGET }, { env: apiEnv });
   // Both processes consume their composition root's siteStoragePaths: attachments stay
   // under the served site even when content.db lives in data.nosync or app-data.
   const apiDirectory = resolveSiteStoragePaths({ contentDbPath: withProcessEnv(apiEnv, defaultContentDbPath), siteDir: TARGET, uploadsDir: path.join(TARGET, "uploads") }, { env: apiEnv }).chatAttachmentsDir;
@@ -97,7 +97,7 @@ test("tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-a
 
 test("the pinned value is what the daemon child inherits — buildDaemonSpawnEnvOverrides leaves an already-set TOVU_SITE_DIR alone", () => {
   const apiEnv = bareServeEnv();
-  pinServedSiteDirIntoEnv(TARGET, apiEnv);
+  pinServedSiteDirIntoEnv({ target: TARGET }, { env: apiEnv });
 
   const overrides = withProcessEnv(apiEnv, () => buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }));
   assert.equal(overrides.TOVU_SITE_DIR, undefined, "the parent already carries it, so the child override is a no-op");
@@ -114,7 +114,7 @@ test("the pinned value is what the daemon child inherits — buildDaemonSpawnEnv
 
 test("tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal", () => {
   const apiEnv = bareServeEnv();
-  pinServedSiteDirIntoEnv(TARGET, apiEnv);
+  pinServedSiteDirIntoEnv({ target: TARGET }, { env: apiEnv });
   const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
 
   const daemonBinding = describeSiteBinding({ env: childEnv, cwd: process.cwd() });
@@ -128,7 +128,7 @@ test("tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matchi
 
 test("tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable", () => {
   const apiEnv = bareServeEnv();
-  pinServedSiteDirIntoEnv(TARGET, apiEnv);
+  pinServedSiteDirIntoEnv({ target: TARGET }, { env: apiEnv });
   const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
 
   const resolved = resolveSitesDeps({
@@ -162,7 +162,7 @@ test("serve <dir> ignores legacy DB overrides so the web server and daemon share
   t.after(() => fs.rmSync(target, { recursive: true, force: true }));
   const apiEnv = { ...bareServeEnv(), TOVU_CHAT_DB: path.join(target, "wrong-chat.db"),
     TOVU_CONTENT_DB: path.join(target, "wrong-content.db"), TOVU_DB: "memory" };
-  pinServedSiteDirIntoEnv(target, apiEnv);
+  pinServedSiteDirIntoEnv({ target: target }, { env: apiEnv });
   // The web server explicitly passes these paths to composition; the daemon derives its defaults.
   const webPaths = resolveSiteDatabasePaths({ dir: target });
   const overrides = withProcessEnv(apiEnv, () => buildDaemonSpawnEnvOverrides({

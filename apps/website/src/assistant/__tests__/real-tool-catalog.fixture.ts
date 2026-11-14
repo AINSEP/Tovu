@@ -43,6 +43,6 @@ export async function realToolCatalog(_required = {}, optional: { permanentDelet
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
   const routeDeps = { ...deps, siteSearch, magicLinkPerEmailLimiter };
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(routeDeps, undefined, { contributions, permanentDeletePolicy: optional.permanentDeletePolicy })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(routeDeps, { surfaces: undefined, options: { contributions, permanentDeletePolicy: optional.permanentDeletePolicy } })) registry.register(registration);
   return { registry, catalog: buildToolCatalogQuery(registry) };
 }

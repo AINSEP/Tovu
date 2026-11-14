@@ -199,7 +199,7 @@ test('peer content/chat/journal connections reject writes; missing dependencies 
   f.b.db.$client.prepare('UPDATE identity_users SET username = ? WHERE principal_id = ?').run('renamed-owner', f.b.ownerId);
   let peerDeps: Parameters<typeof buildAssistantToolRegistrations>[0] | undefined;
   const resolved = await f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
-    buildRegistrations: deps => { peerDeps = deps; return inspection(async () => deps.workspaceId); } });
+    buildRegistrations: ({ deps }, _optional = {}) => { peerDeps = deps; return inspection(async () => deps.workspaceId); } });
   assert.notEqual(resolved, 'current');
   assert.equal(resolved !== 'current' && (resolved.principal as { toolAccess?: string }).toolAccess, 'read-only');
   for (const handle of f.contentHandles) await assert.rejects(handle.execute(sql`CREATE TABLE forbidden(id TEXT)`), /readonly|read-only/i);
@@ -277,8 +277,8 @@ test('a missing journal refuses without creating it and closes the provisional c
 
 test('batch shared site and collapsed content_read dispatch reach B through the same wrappers', async t => {
   const f = await peerFixture(t);
-  const registrations = buildAssistantToolRegistrations(f.deps, undefined, { contributions: f.contributions,
-    includeContentReadCollapse: false, batchableTools: [{ toolId: 'content_post_list' }] });
+  const registrations = buildAssistantToolRegistrations(f.deps, { surfaces: undefined, options: { contributions: f.contributions,
+    includeContentReadCollapse: false, batchableTools: [{ toolId: 'content_post_list' }] } });
   const list = registrations.find(tool => tool.descriptor.id === 'content_post_list')!;
   const batch = await invokeRegisteredTool(list, { ...context({ site: 'B', kind: 'post', items: [{}, {}] }), principal: { id: f.a.ownerId } }) as {
     succeeded: number; results: Array<{ result: unknown }>;
@@ -341,7 +341,7 @@ test("a peer's blob store reads only files inside its own uploads folder, and th
   const f = await peerFixture(t);
   let peerDeps: Record<string, any> | undefined;
   await f.peer.resolve({ siteName: 'B', toolId: 'inspect', callerPrincipalId: f.a.ownerId,
-    buildRegistrations: deps => { peerDeps = deps as unknown as Record<string, any>; return inspection(async () => deps.workspaceId); } });
+    buildRegistrations: ({ deps }, _optional = {}) => { peerDeps = deps as unknown as Record<string, any>; return inspection(async () => deps.workspaceId); } });
   assert.ok(peerDeps);
   const uploads = path.join(f.b.dir, 'uploads');
   const stored = (fs.readdirSync(uploads, { recursive: true, withFileTypes: true }) as fs.Dirent[]).find(entry => entry.isFile());

@@ -288,7 +288,7 @@ test("idle stop preserves daemon/store ordering and the requested exit code", as
   closeStoreOnShutdown({
     store: fakeStore("sqlite", async () => { order.push("store"); }),
     onShutdown: () => { order.push("daemon"); },
-  }, { proc, registerStop: registered => { stop = registered; }, stopServing: async () => { order.push("listener"); } });
+  }, { proc, registerStop: ({ stop: registered }, _optional = {}) => { stop = registered; }, stopServing: async () => { order.push("listener"); } });
   const exited = proc.exited();
   stop({ exitCode: 89 });
   await exited;

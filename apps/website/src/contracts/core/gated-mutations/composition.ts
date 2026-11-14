@@ -99,7 +99,7 @@ export function buildOwnerOnlyInstanceAuthorize(params: { ownerPrincipalId: Prom
  * this from LIVE state (not a cached value) at both `plan()`-time and `execute()`-time is what
  * makes CIC U-001-B3's "plan re-derivation" check meaningful — a details object that changed
  * between confirm and execute produces a different hash, which `execute()` rejects as `PLAN_STALE`. */
-export function planHashOf(details: unknown): string {
+export function planHashOf({ details }: { details: unknown }, _options = {}): string {
   return createHash("sha256").update(JSON.stringify(details)).digest("hex");
 }
 

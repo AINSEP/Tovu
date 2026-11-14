@@ -62,7 +62,7 @@ export async function startResettablePinApi(
     server.listen(port, "127.0.0.1", resolve);
   });
   const open = async () => {
-    const deps = await createSiteRouteDeps(dbPath, { onStoreOpened: (opened) => { store = opened; } });
+    const deps = await createSiteRouteDeps(dbPath, { onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; } });
     modules = buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath });
     const boot = await runBootLifecycle(modules);
     setReadinessSnapshot(boot);

@@ -14,7 +14,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
  * `serve-site-dir-pin.unit.test.ts` (calls it directly, asserts the env mutation and every
  * downstream resolver that reads `TOVU_SITE_DIR`). What NONE of those tests prove is that
  * `runServeCommand` — the only production call site — actually calls it. Delete
- * `serve.ts`'s `pinServedSiteDirIntoEnv(target);` line and every one of those tests still passes,
+ * `serve.ts`'s `pinServedSiteDirIntoEnv({ target: target });` line and every one of those tests still passes,
  * because they invoke the primitive directly; the API/daemon `TOVU_SITE_DIR` split-brain the audit
  * fixed comes back silently.
  *
@@ -25,7 +25,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
  *
  * Why this is a source-text check, not a behavioral one: `runServeCommand` takes no injectable
  * deps or env (`RunServeCommandInput` is just `{ dir, port?, workspaceId?, emitBootToken? }`), and
- * `pinServedSiteDirIntoEnv(target)` is called with no env argument, so it always mutates the real
+ * `pinServedSiteDirIntoEnv({ target: target })` is called with no env option, so it always mutates the real
  * `process.env`. Every step around it in `runServeCommand` (`bootSiteDir`, `runBootLifecycle`,
  * `app.listen(port)`) does real filesystem/DB/network work ending in an actual bound TCP listener
  * — precisely the boot-and-bind sequence this dispatch prohibits exercising here. A behavioral test
@@ -37,7 +37,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
 
 const SERVE_TS_PATH = path.resolve(import.meta.dirname, "../../commands/serve.ts");
 const RUN_SERVE_COMMAND_SIGNATURE = "export async function runServeCommand(";
-const PIN_CALL = "pinServedSiteDirIntoEnv(target)";
+const PIN_CALL = "pinServedSiteDirIntoEnv({ target: target })";
 
 /**
  * `runServeCommand` is declared last in `serve.ts`, so everything from its signature to end of
@@ -55,7 +55,7 @@ function readRunServeCommandBody(source: string): string {
   return source.slice(start);
 }
 
-test("runServeCommand's body actually CALLS pinServedSiteDirIntoEnv(target), not just imports/defines it", () => {
+test("runServeCommand's body actually CALLS pinServedSiteDirIntoEnv, not just imports/defines it", () => {
   const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
   const body = readRunServeCommandBody(source);
 
@@ -84,8 +84,8 @@ test("sanity: the exact call-site text is not also the primitive's own declarati
     occurrences,
     1,
     `expected "${PIN_CALL}" to appear exactly once in serve.ts (the call site); found ${occurrences}. ` +
-      "The primitive's own declaration is `export function pinServedSiteDirIntoEnv(target: string, ...)` " +
-      "-- note the `: string` after `target`, which is why it does not also match this literal string."
+      "The primitive's own declaration destructures and types the target, so it does not also " +
+      "match this literal call string."
   );
 });
 
@@ -194,11 +194,11 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     },
   });
   module("../../../server/runtime/composition/deps.ts", {
-    createSiteRouteDeps: async (dbPath: string, options: { onStoreOpened(store: unknown): void; siteBinding: { dir: string } }) => {
+    createSiteRouteDeps: async (dbPath: string, options: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void; siteBinding: { dir: string } }) => {
       // The site's resolved placement (data.nosync on a sites-home site since 1cffdf3cf), not a fixed root file.
       assert.equal(dbPath, resolveSiteDatabasePaths({ dir: process.env.TOVU_SITE_DIR! }).contentDbPath);
       assert.equal(options.siteBinding.dir, process.env.TOVU_SITE_DIR);
-      options.onStoreOpened(composedStore);
+      options.onStoreOpened({ store: composedStore });
       return deps;
     },
   });

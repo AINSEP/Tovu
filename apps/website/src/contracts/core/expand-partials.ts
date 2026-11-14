@@ -2,7 +2,7 @@ import { PARTIAL_MARKER_TYPE, substituteMarkers, withElementKeptIfAttributed } f
 import { DEFAULT_THEME_SLOTS, type ThemeSlotDescriptor } from "./theme-slots.js";
 
 /** `nav.html` → `nav`; the partial-id key `loadStaticTierAssets` stores root partials under. */
-function partialIdFromSource(source: string): string {
+function partialIdFromSource({ source }: { source: string }, _options = {}): string {
   return source.endsWith(".html") ? source.slice(0, -".html".length) : source;
 }
 
@@ -19,17 +19,16 @@ function partialIdFromSource(source: string): string {
  * behavior for the same case.
  */
 function resolveSlotMarker(
-  descriptor: ThemeSlotDescriptor,
-  partials: Record<string, string>,
-  config: Readonly<Record<string, unknown>>
+  { descriptor, partials, config }: { descriptor: ThemeSlotDescriptor; partials: Record<string, string>; config: Readonly<Record<string, unknown>> },
+  _options = {},
 ): string {
   const variant = typeof config.variant === "string" ? config.variant : undefined;
   const current = typeof config.current === "string" ? config.current : undefined;
   const source =
     variant === undefined
       ? descriptor.source
-      : descriptor.variants?.[variant] ?? `${partialIdFromSource(descriptor.source)}-${variant}.html`;
-  const partial = partials[partialIdFromSource(source)] ?? "";
+      : descriptor.variants?.[variant] ?? `${partialIdFromSource({ source: descriptor.source })}-${variant}.html`;
+  const partial = partials[partialIdFromSource({ source: source })] ?? "";
 
   if (descriptor.honorsCurrentPage !== true || current === undefined) return partial;
   /** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
@@ -56,15 +55,14 @@ function resolveSlotMarker(
  * pre-unification version ran one full regex pass per declared slot key, times two spellings.
  */
 function resolveSlots(
-  html: string,
-  partials: Record<string, string>,
-  slots: Readonly<Record<string, ThemeSlotDescriptor>> = DEFAULT_THEME_SLOTS
+  { html, partials }: { html: string; partials: Record<string, string> },
+  { slots = DEFAULT_THEME_SLOTS }: { slots?: Readonly<Record<string, ThemeSlotDescriptor>> } = {},
 ): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
-    return withElementKeptIfAttributed({ marker: marker, inner: resolveSlotMarker(descriptor, partials, marker.config) });
+    return withElementKeptIfAttributed({ marker: marker, inner: resolveSlotMarker({ descriptor: descriptor, partials: partials, config: marker.config }) });
   } });
 }
 
@@ -81,6 +79,6 @@ function resolveSlots(
  *
  * @complexity Same as {@link resolveSlots}: O(n) over `html`'s length.
  */
-export function expandPartials(html: string, theme: { partials: Record<string, string>; manifest: { slots?: Record<string, ThemeSlotDescriptor> } }): string {
-  return resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
+export function expandPartials({ html, theme }: { html: string; theme: { partials: Record<string, string>; manifest: { slots?: Record<string, ThemeSlotDescriptor> } } }, _options = {}): string {
+  return resolveSlots({ html: html, partials: theme.partials }, { slots: theme.manifest.slots ?? DEFAULT_THEME_SLOTS });
 }

@@ -827,7 +827,7 @@ export function renderStaticPage(
   html = rewriteAssetPaths(html, theme.manifest.id, theme.manifest.apiVersion);
   warnUnrewrittenAssetPaths({ html, theme, pageId });
   html = injectColorMode(html, theme.manifest.defaultMode);
-  html = expandPartials(html, theme);
+  html = expandPartials({ html: html, theme: theme });
   html = injectMenuEmbeds(html, menus ?? {});
   html = injectPostPreviewsEmbeds(html, postPreviews ?? [], postPreviewBatches ?? new Map(), postPreviewsPage);
   html = injectCollectionEmbeds(html, collectionLists ?? new Map());

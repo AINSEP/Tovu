@@ -14,7 +14,7 @@ export interface RunThemeGenerateIndexCommandInput {
   json?: boolean;
 }
 
-function formatSummary(id: string, result: GenerateStaticPortabilityIndexResult): string {
+function formatSummary({ id, result }: { id: string; result: GenerateStaticPortabilityIndexResult }, _options = {}): string {
   if (result.status === "written") {
     return `theme '${id}': generated portability index at ${result.path}\n`;
   }
@@ -34,7 +34,7 @@ export async function runThemeGenerateIndexCommand(input: RunThemeGenerateIndexC
   if (input.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
-    process.stdout.write(formatSummary(id, result));
+    process.stdout.write(formatSummary({ id: id, result: result }));
   }
 
   if (result.status === "skipped") {

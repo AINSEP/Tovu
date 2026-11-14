@@ -42,8 +42,8 @@ export type RunActiveContextAnswer =
 
 /** The live runs' screens: recorded at run start, forgotten at run end. */
 export interface RunActiveContextStore {
-  record(runId: string, pageContext: RunPageContext): void;
-  forget(runId: string): void;
+  record(required: { runId: string; pageContext: RunPageContext }, optional?: Record<string, never>): void;
+  forget(required: { runId: string }, optional?: Record<string, never>): void;
   read(): RunActiveContextAnswer;
 }
 
@@ -97,10 +97,10 @@ export function createRunActiveContextStore(options: { readonly now?: () => numb
   const byRunId = new Map<string, Recorded>();
 
   return {
-    record(runId, pageContext) {
+    record({ runId, pageContext }, _optional = {}) {
       byRunId.set(runId, { pageContext, ts: now() });
     },
-    forget(runId) {
+    forget({ runId }, _optional = {}) {
       byRunId.delete(runId);
     },
     read() {

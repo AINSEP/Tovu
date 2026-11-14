@@ -45,7 +45,7 @@ function pagesWriteHtml(routeDeps: RootDeps): ToolRegistration {
   installFirstPartyToolContributors({ contributions });
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   const allowAll: RegistryDeps["authorize"] = async () => ({ allowed: true, reason: "test" });
-  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, undefined, { contributions });
+  const registrations = buildAssistantToolRegistrations({ ...routeDeps, magicLinkPerEmailLimiter, authorize: allowAll } as RegistryDeps, { surfaces: undefined, options: { contributions } });
   const registration = registrations.find((r) => r.descriptor.id === "pages_write_html");
   assert.ok(registration, "pages_write_html must be registered by the real first-party registry");
   return registration;

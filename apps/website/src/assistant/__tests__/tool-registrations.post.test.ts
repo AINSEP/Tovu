@@ -99,7 +99,7 @@ function postRegistrations(deps: RegistryDepsWithoutLimiter, surfaceExchanges = 
   // "content_post_"-prefixed id so `wired(...)` keeps working for callers that ask for either the
   // old ids (still true for create/delete/search/update, never collapsed) or the new merged one.
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaceExchanges }, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: { surfaceExchanges }, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("content_post_") || r.descriptor.id === "content_read.content_post")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -307,25 +307,25 @@ test("the independent risk classification agrees with the catalog for all 6 wire
   // built from `DOMAIN_SLICES`/`listToolContributors()` and never learns content_read's ids.
   for (const id of postRegistrations(deps).keys()) {
     if (id === "content_read.content_post") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a catalog entry cannot downgrade its own risk — declaring content_post_create sideEffects:'none' fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("content_post_create", { ...catalogEntry("content_post_create"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "content_post_create", catalogEntry: { ...catalogEntry("content_post_create"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
 test("content_post_delete is classified as genuinely destructive, distinctly from an edit", () => {
   assert.equal(catalogEntry("content_post_delete").sideEffects, "deletes-durable-state");
-  assert.doesNotThrow(() => assertRiskMetadataIsWirable("content_post_delete", catalogEntry("content_post_delete"), contributions));
+  assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: "content_post_delete", catalogEntry: catalogEntry("content_post_delete") }, { contributions: contributions }));
 });
 
 test("content_post_delete cannot soften itself to a mere mutation — the independent check refuses it", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "mutates-durable-state" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "content_post_delete", catalogEntry: { ...catalogEntry("content_post_delete"), sideEffects: "mutates-durable-state" } }, { contributions: contributions }),
     /declares sideEffects 'mutates-durable-state' but this layer derives 'deletes-durable-state'/,
     "folding a delete into the same bucket as an edit is exactly what the separate union member exists to catch",
   );
@@ -333,7 +333,7 @@ test("content_post_delete cannot soften itself to a mere mutation — the indepe
 
 test("content_post_delete cannot downgrade itself to 'none' either", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("content_post_delete", { ...catalogEntry("content_post_delete"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "content_post_delete", catalogEntry: { ...catalogEntry("content_post_delete"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'deletes-durable-state'/,
   );
 });

@@ -38,7 +38,7 @@ export function createToolHumanConfirmer({ surfaces }: { surfaces: AssistantSurf
 export function applyToolApprovalPolicy(
   { registration, surfaces }: { registration: ToolRegistration; surfaces: AssistantSurfaceDeps },
   { localeFor = async () => 'en', disclose, context }: {
-    localeFor?: (ctx: ToolExecutionContext) => Promise<string>;
+    localeFor?: (required: { ctx: ToolExecutionContext }, optional?: Record<string, never>) => Promise<string>;
     context?: ApprovalContextPort;
     /** Extra rows for the card, computed from the frozen call before asking (e.g. the account and
      *  the resources an external tool would change). A throw refuses the call before any effect. */
@@ -55,7 +55,7 @@ export function applyToolApprovalPolicy(
     asks: ({ class: actionClass }) => approvalClassAsks({ class: actionClass }),
     describe: async ({ ctx, class: actionClass }) => {
       let locale = 'en';
-      try { locale = await localeFor(ctx); } catch { /* Copy failure must never bypass a safety gate. */ }
+      try { locale = await localeFor({ ctx }); } catch { /* Copy failure must never bypass a safety gate. */ }
       const disclosed = disclose ? await disclose({ ctx }) : [];
       return toolApprovalConfirmation({ descriptor: registration.descriptor, input: ctx.input, locale, details: disclosed,
         danger: actionClass === 'trash' || actionClass === 'delete' || actionClass === 'restore-over-existing' });

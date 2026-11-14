@@ -85,8 +85,8 @@ async function harness() {
     contributions.contributors.register({ contribution });
   }
   const build = (workspaceId = WORKSPACE, batch = true) => buildAssistantToolRegistrations(
-    toAssistantRegistryDeps({ routeDeps: { ...deps, workspaceId } }), undefined,
-    { contributions, ...(batch ? {} : { batchableTools: [] }) },
+    toAssistantRegistryDeps({ routeDeps: { ...deps, workspaceId } }), { surfaces: undefined,
+    options: { contributions, ...(batch ? {} : { batchableTools: [] }) } },
   );
   const find = (registrations: readonly ToolRegistration[], id: string) => {
     const registration = registrations.find(tool => tool.descriptor.id === id);

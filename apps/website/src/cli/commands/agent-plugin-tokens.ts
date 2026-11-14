@@ -28,7 +28,7 @@ export function bundledAgentPluginsRoot(): string {
   return bundledAgentPluginsDir();
 }
 
-function writeStdout(message: string): void {
+function writeStdout({ message }: { message: string }, _optional = {}): void {
   process.stdout.write(message);
 }
 
@@ -43,7 +43,7 @@ export async function readAllStdin({ input = process.stdin }: { input?: NodeJS.R
  * The `{ [pluginId]: token }` JSON object read from stdin, validated by the create route's rules.
  * @throws {ValidationError} Not JSON, or not that shape. The message never carries a token.
  */
-export async function readNewSiteAgentPluginTokensFromStdin(read: () => Promise<string> = readAllStdin): Promise<Record<string, string>> {
+export async function readNewSiteAgentPluginTokensFromStdin(_required: Record<string, never>, { read = readAllStdin }: { read?: () => Promise<string> } = {}): Promise<Record<string, string>> {
   let raw: unknown;
   try {
     raw = JSON.parse(await read());
@@ -59,7 +59,7 @@ export async function readNewSiteAgentPluginTokensFromStdin(read: () => Promise<
 export type NewSiteAgentPluginTokenCheck = (input: { pluginId: string; token: string }) => Promise<TokenCheckOutcome>;
 
 /** The real check: the bundled plugins (the new site has no workspace yet) and the guarded client. */
-export function defaultNewSiteAgentPluginTokenCheck(sourceRoot: string = bundledAgentPluginsRoot()): NewSiteAgentPluginTokenCheck {
+export function defaultNewSiteAgentPluginTokenCheck(_required: Record<string, never>, { sourceRoot = bundledAgentPluginsRoot() }: { sourceRoot?: string } = {}): NewSiteAgentPluginTokenCheck {
   const httpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY);
   const resolveInstalledPlugin = resolveBundledAgentPlugin({ bundledSourceRoot: sourceRoot });
   return (input) => checkAgentPluginAccessToken({ workspaceId: "new-site", credentials: composePluginCredentials({ httpClient }), resolveInstalledPlugin }, input);
@@ -82,10 +82,10 @@ export type SealNewSiteAgentPluginTokens = (input: { siteDir: string; siteKeyId:
  * app reads it). The site already exists, so a failure is reported, not thrown.
  */
 export async function storeNewSiteAgentPluginTokens(
-  site: { dir: string; siteId: string },
-  tokens: Readonly<Record<string, string>>,
-  seal: SealNewSiteAgentPluginTokens = sealPendingAgentPluginTokensForNewSite,
-  write: (line: string) => void = (line) => void process.stdout.write(line),
+  { site, tokens }: { site: { dir: string; siteId: string }; tokens: Readonly<Record<string, string>> },
+  { seal = sealPendingAgentPluginTokensForNewSite, write = (line) => void process.stdout.write(line) }: {
+    seal?: SealNewSiteAgentPluginTokens; write?: (line: string) => void;
+  } = {},
 ): Promise<void> {
   const pluginIds = Object.keys(tokens);
   if (pluginIds.length === 0) return;
@@ -102,9 +102,9 @@ export async function storeNewSiteAgentPluginTokens(
  * a pasted token, as `{ "plugins": [{ pluginId, displayName, helpUrl }] }`.
  */
 export async function runTokenSignInPluginsCommand(
-  sourceRoot: string = bundledAgentPluginsRoot(),
-  { output = writeStdout }: { output?: (message: string) => void } = {},
+  _required: Record<string, never>,
+  { sourceRoot = bundledAgentPluginsRoot(), output = writeStdout }: { sourceRoot?: string; output?: (required: { message: string }, optional?: Record<string, never>) => void } = {},
 ): Promise<void> {
   const plugins = await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: sourceRoot });
-  output(`${JSON.stringify({ plugins })}\n`);
+  output({ message: `${JSON.stringify({ plugins })}\n` });
 }

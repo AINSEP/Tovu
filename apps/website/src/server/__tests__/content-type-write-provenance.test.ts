@@ -224,7 +224,7 @@ test("an agent-tool write records principalKind 'agent' while carrying the SAME 
 
   // 2. The SAME human asks the assistant to make the next change. The daemon executes the tool
   //    under the principal Tovu's proxy stamped into the run — the same principal id as above.
-  const registration = buildAssistantToolRegistrations(toolRegistryDeps(deps), undefined, { contributions }).find(
+  const registration = buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaces: undefined, options: { contributions } }).find(
     (r) => r.descriptor.id === "collections_content_type_update_fields"
   );
   assert.ok(registration);
@@ -259,7 +259,7 @@ test("every agent tool stamps 'agent' — deprecate/reactivate/tombstone include
   });
 
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaceExchanges }, { contributions }).map((r) => [r.descriptor.id, r]));
+  const byId = new Map(buildAssistantToolRegistrations(toolRegistryDeps(deps), { surfaces: { surfaceExchanges }, options: { contributions } }).map((r) => [r.descriptor.id, r]));
   const ctx = (input: Record<string, unknown>) => ({
     executionId: "exec-1",
     principal: { id: principalId },

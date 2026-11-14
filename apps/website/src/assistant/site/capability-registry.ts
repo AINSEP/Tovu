@@ -170,5 +170,5 @@ export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, option
   }
   const executor = createVisitorExecutor({ capabilities: [...capabilities.values()] }, { ports: options.visitorExecution });
   if (options.visitorExecution) schemas = schemas.filter(schema => executor.isAdvertised({ toolId: schema.name }));
-  return { schemas, invoke: (invocation, optional) => executor.invoke(invocation, optional) };
+  return { schemas, invoke: (invocation, optional = {}) => executor.invoke(invocation, optional) };
 }

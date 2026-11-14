@@ -23,7 +23,7 @@ async function catalog() {
   await deps.identityReady;
   const registry = createToolRegistry({});
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: deps.clock });
-  for (const r of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, undefined, { contributions })) registry.register(r);
+  for (const r of buildAssistantToolRegistrations({ ...deps, magicLinkPerEmailLimiter }, { surfaces: undefined, options: { contributions } })) registry.register(r);
   return buildToolCatalogQuery(registry);
 }
 test("plan and execute pulls are reachable through the real catalog and rank in the top three", async () => {

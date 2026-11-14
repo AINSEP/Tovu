@@ -276,7 +276,7 @@ function renderHumanConfirmation(
   _optional: Record<string, never> = {},
 ): ReturnType<typeof buildConfirmationSurface> {
   const { toolId } = spec;
-  const action = (decision: "confirm" | "cancel", choice?: string) => ({
+  const action = ({ decision }: { decision: "confirm" | "cancel" }, { choice }: { choice?: string } = {}) => ({
     toolName: toolId,
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
   });
@@ -287,11 +287,11 @@ function renderHumanConfirmation(
     text: { done: "Response received." },
     ...confirmationCopy({ spec }),
     danger: spec.danger ?? false,
-    confirm: { label: spec.confirmLabel, ...action("confirm") },
+    confirm: { label: spec.confirmLabel, ...action({ decision: "confirm" }) },
     ...(alternatives.length > 0
-      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action("confirm", alternative.choice) })) }
+      ? { alternatives: alternatives.map((alternative) => ({ id: alternative.id, label: alternative.label, ...action({ decision: "confirm" }, { choice: alternative.choice }) })) }
       : {}),
-    cancel: { label: spec.cancelLabel ?? "Cancel", ...action("cancel") },
+    cancel: { label: spec.cancelLabel ?? "Cancel", ...action({ decision: "cancel" }) },
     app: { appName: `tovu-${toolId.replaceAll("_", "-")}`, appVersion: "1" },
     preferredFrameSize: ["100%", "340px"],
     // The chat counts this down and closes the card when it passes, so nobody answers a card the

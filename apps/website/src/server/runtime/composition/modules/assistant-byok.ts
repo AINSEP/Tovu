@@ -425,7 +425,7 @@ async function resolveTurnInputsOrRespond(
   let folders: string[];
   try { folders = readPickedFolders({ value: body.folders }, {}); }
   catch { res.status(400).json({ error: "Invalid picked folders", code: "VALIDATION_ERROR" }); return null; }
-  const messages = [...withPageContextBlock({ messages: history, pageContext: readRunPageContext(body.pageContext), folders })];
+  const messages = [...withPageContextBlock({ messages: history, pageContext: readRunPageContext({ value: body.pageContext }), folders })];
 
   const authed = getAuthedPrincipal(res);
   const credential = await credentialPort.resolve({

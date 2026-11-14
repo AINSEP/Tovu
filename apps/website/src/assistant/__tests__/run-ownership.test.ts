@@ -331,7 +331,7 @@ test("the production daemon mounts ownership before run routes and records the d
   const record = body.statements.findIndex((node) => text(node) === "runOwners.record({ runId: run.id, principalId: principal.id }, {});");
   assert.ok(record >= 0, "the decoded principal must be recorded unconditionally before starting work");
   const decode = body.statements.findIndex((node) => ts.isTryStatement(node)
-    && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef(request.contextRef);")
+    && node.tryBlock.statements.some((statement) => text(statement) === "const decoded = parseRunStartContextRef({ contextRef: request.contextRef });")
     && node.tryBlock.statements.some((statement) => text(statement) === "principal = Object.freeze({ id: decoded.principalId });")
     && node.catchClause?.block.statements.some(ts.isReturnStatement));
   assert.ok(decode >= 0 && decode < record, "ownership must use the validated contextRef principal, with malformed input returning before recording");

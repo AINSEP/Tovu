@@ -86,7 +86,7 @@ export interface SetSiteAssistantCredentialInput {
   model?: string;
 }
 
-function assertValidSiteAssistantCredentialApiKey(apiKey: string | undefined): void {
+function assertValidSiteAssistantCredentialApiKey({ apiKey }: { apiKey: string | undefined }, _options = {}): void {
   if (apiKey !== undefined && apiKey.trim().length === 0) {
     throw new SiteAssistantCredentialValidationError("apiKey must not be empty — use DELETE to clear it");
   }
@@ -111,7 +111,7 @@ function assertValidSiteAssistantCredentialStringFields(input: Pick<SetSiteAssis
  *  purely to keep that function's complexity under the shop ceiling — behavior (including message
  *  text and ordering) is unchanged. */
 function assertValidSetSiteAssistantCredentialInput(input: SetSiteAssistantCredentialInput): void {
-  assertValidSiteAssistantCredentialApiKey(input.apiKey);
+  assertValidSiteAssistantCredentialApiKey({ apiKey: input.apiKey });
   assertValidSiteAssistantCredentialStringFields(input);
 }
 
@@ -146,8 +146,9 @@ export interface ResolvedSiteAssistantCredential {
 
 /** Runtime fail-closed read: one indexed singleton lookup and at most one Jini open. Metadata and
  * payload come from one snapshot, so rotation cannot return a half-replaced credential. */
-export async function resolveSiteAssistantApiKey(deps: { repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort }, input: { workspaceId: UUID },
-  onDecryptFailure: (error: unknown) => void = () => {},
+export async function resolveSiteAssistantApiKey(
+  { deps, input }: { deps: { repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID } },
+  { onDecryptFailure = () => {} }: { onDecryptFailure?: (error: unknown) => void } = {},
 ): Promise<ResolvedSiteAssistantCredential | null> {
   try {
     const context = assistantVaultContext({ workspaceId: input.workspaceId, kind: "site-assistant" });

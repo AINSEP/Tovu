@@ -113,7 +113,7 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
 
 function pluginsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {
   return new Map(
-    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), undefined, { contributions })
+    buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps: deps }), { surfaces: undefined, options: { contributions } })
       .filter((r) => r.descriptor.id.startsWith("plugins_") || r.descriptor.id === "content_read.plugin")
       .map((r) => [r.descriptor.id, r]),
   );
@@ -192,13 +192,13 @@ test("the independent risk classification agrees with the catalog for both wired
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.plugin") continue;
-    assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id), contributions));
+    assert.doesNotThrow(() => assertRiskMetadataIsWirable({ toolId: id, catalogEntry: catalogEntry(id) }, { contributions: contributions }));
   }
 });
 
 test("a plugins catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for set_enabled fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("plugins_set_enabled", { ...catalogEntry("plugins_set_enabled"), sideEffects: "none" }, contributions),
+    () => assertRiskMetadataIsWirable({ toolId: "plugins_set_enabled", catalogEntry: { ...catalogEntry("plugins_set_enabled"), sideEffects: "none" } }, { contributions: contributions }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });

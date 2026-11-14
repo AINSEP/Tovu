@@ -164,7 +164,7 @@ async function buildRealNativeOnlySurface() {
   await routeDeps.identityReady;
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
@@ -179,7 +179,7 @@ async function buildRealSurfaceWithPluginTool() {
   await installRealUiUxDesignPlugin(routeDeps.workspaceId);
 
   const registry = createToolRegistry({});
-  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
+  for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
   await registerInstalledAgentPluginTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy } });
 
   const catalog = buildToolCatalogQuery(registry);

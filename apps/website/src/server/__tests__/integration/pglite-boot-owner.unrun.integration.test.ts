@@ -114,7 +114,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
     store: boot.store,
     workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => (composed = store),
+    onStoreOpened: ({ store }, _optional = {}) => (composed = store),
     uploadsDir: path.join(siteDir, "uploads"),
     themesDir: path.join(siteDir, "themes"),
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
