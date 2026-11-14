@@ -1,6 +1,6 @@
 # Terra job dedupe-07: Jini agent-runtime + integrations
 
-READY (2026-11-13; revised after review d3r: J25 shared signatures get the defaulted options object; size rule; revised after review d3r2: J25 test-first recipe, J15 destination is the existing `src/role-marker-guard.ts`, J58's timeout half moved to the Opus backlog). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
+READY (2026-11-13; revised after review d3r: J25 shared signatures get the defaulted options object; size rule; revised after review d3r2: J25 test-first recipe, J15 destination is the existing `src/role-marker-guard.ts`, J58's timeout half moved to the Opus backlog; revised after review d3r3: J25 also changes the renderer's own `firstInlineImageData` selector, and its RED→GREEN is recorded by the cloud gate, not run by Terra). Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
@@ -106,7 +106,8 @@ Phase A (integrations only):
         expect(result.bytes.toString('utf8')).toBe('snake');
     });
 ```
-   Run that single file (`cd packages/integrations && npx vitest run --maxWorkers=2 src/media-providers/dispatch/providers/__tests__/aihubmix.test.ts`) BEFORE step 1 and confirm exactly this case is RED (it rejects with "no inline image data"). Every other case in the file must stay GREEN. If the case is already GREEN, stop and report `STALE J25: empty-inlineData case already passes`. Then do step 1 and run the same file GREEN. The neighbouring camelCase-preferred and non-string cases stay unchanged.
+   This test is driven by the renderer's own selector, not by `aihubmix-shared.ts`: `renderAIHubMixImage` never calls the shared image-fetch helper; its Gemini path parses the response itself through the file-private `firstInlineImageData` in `providers/aihubmix.ts` (~line 136, review d3r3 finding 1). Step 1 changes both selectors.
+   J25 exception to the test rules above (review d3r3 finding 1): Terra does NOT run this file. Instead, commit this test edit ALONE, before any J25 source edit, with the message `test(integrations): J25 characterization — empty inlineData falls through to inline_data (expected RED)`. The cloud gate then runs `cd packages/integrations && npx vitest run --maxWorkers=2 src/media-providers/dispatch/providers/__tests__/aihubmix.test.ts` twice and records both results: at this test-only commit exactly this case must be RED (it rejects with "no inline image data") and every other case GREEN; at the step-1 commit the whole file must be GREEN. If the gate finds the case already GREEN at the test-only commit, it reports `STALE J25: empty-inlineData case already passes`. The neighbouring camelCase-preferred and non-string cases stay unchanged.
 1. `packages/integrations/src/media-providers/dispatch/providers/aihubmix-shared.ts`: change the exported positional functions to EXACTLY these signatures: agent-runtime's current public ones (`packages/agent-runtime/src/providers/aihubmix.ts` at 48e6159a4) plus a defaulted trailing options object, `_optional: Record<string, never> = {}` (and `_required: Record<string, never> = {}` for the zero-argument `aihubmixAppCodeHeader`). The defaults keep every existing call compiling unchanged: agent-runtime's `aihubmixAppCodeHeader()` calls and its tests, and agent-runtime's own one-object callers. So agent-runtime's re-export in Phase B is source-compatible for its public consumers, and no legacy adapter is needed. Copy agent-runtime's bodies and JSDoc; `aihubmixHeaders` spreads `aihubmixAppCodeHeader()`; the Gemini image-part pick uses `||`. `AIHUBMIX_APP_CODE`, `AIHUBMIX_DEFAULT_BASE_URL`, `AIHubMixProtocol`, `AIHubMixGeminiImageRequest` stay as they are.
 ```ts
 export function aihubmixHeaders({ apiKey }: { apiKey: string }, _optional: Record<string, never> = {}): Record<string, string>
@@ -118,8 +119,25 @@ export async function aihubmixGeminiImageBytes({ req, doFetch }: { req: AIHubMix
 export function aihubmixWireModel({ catalogId }: { catalogId: string }, _optional: Record<string, never> = {}): string
 ```
    Keep this file's module doc (APP-Code paragraph, "Simplified from the origin", "Not ported"); add any sentence of agent-runtime's module doc about APP-Code that it lacks. Update the only callers: `providers/aihubmix.ts` (import at ~line 63; switch each call to the object form) and `providers/__tests__/aihubmix-shared.test.ts`.
+   In the same step and commit, change the renderer's own selector, which is the code the step-0 test exercises (review d3r3 finding 1). `providers/aihubmix.ts` ~lines 134-137, before:
+```ts
+/** First non-empty base64 string across the parts; camelCase `inlineData` wins over `inline_data` within one part. */
+function firstInlineImageData(parts: ReadonlyArray<GeminiPart>): string | undefined {
+  return parts.map((p) => p.inlineData?.data ?? p.inline_data?.data).find((d): d is string => typeof d === 'string' && d.length > 0);
+}
+```
+   after (only the operator and the comment change):
+```ts
+/** First non-empty base64 string across the parts. Within one part, a camelCase `inlineData.data` that is any
+ *  truthy value wins over `inline_data.data`; an empty string (or other falsy value) falls through to the
+ *  snake-case field, matching agent-runtime's `||` pick that survives J25. */
+function firstInlineImageData(parts: ReadonlyArray<GeminiPart>): string | undefined {
+  return parts.map((p) => p.inlineData?.data || p.inline_data?.data).find((d): d is string => typeof d === 'string' && d.length > 0);
+}
+```
+   Keep the renderer's one-fetch flow: `parseGeminiImageResponse` keeps parsing the single response the dispatcher already fetched; do NOT route it through `aihubmixGeminiImageBytes` (that would issue its own fetch).
 2. Narrow subpath (do NOT export these from the `./media-providers` barrel): create `packages/integrations/src/media-providers/aihubmix.ts` containing a one-line doc and `export * from './dispatch/providers/aihubmix-shared.js';`. In `packages/integrations/package.json` add, next to each `./media-providers/catalog` entry: `jini.entries["./media-providers/aihubmix"] = "node"`; `exports["./media-providers/aihubmix"] = { "types": "./dist/media-providers/aihubmix.d.ts", "import": "./dist/media-providers/aihubmix.js", "default": "./dist/media-providers/aihubmix.js" }`; `typesVersions["*"]["media-providers/aihubmix"] = ["./dist/media-providers/aihubmix.d.ts"]`. Why narrow: `aihubmix-shared.ts` has no imports, while the `./media-providers` barrel re-exports the SQLite task store, staging and dispatch; agent-runtime loads integrations lazily today (`model-discovery-adapters.ts:309-321`), so its provider path must not start loading that whole barrel.
-3. Type-check integrations only; run its aihubmix tests. Commit. Report `J25 PHASE A DONE (needs H3)`. Stop J25 here.
+3. Type-check integrations only (no tests: the cloud gate runs `aihubmix.test.ts` at both commits per step 0, and `aihubmix-shared.test.ts` at the step-1 commit). Commit. Report `J25 PHASE A DONE (needs H3; cloud gate: aihubmix.test.ts RED at <test-only sha>, GREEN at <step-1 sha>)`. Stop J25 here.
 
 Phase B (run ONLY when the dispatch says "H3 done: @jini-ai/integrations built"):
 4. `packages/agent-runtime/src/providers/aihubmix.ts`: delete `AIHUBMIX_APP_CODE` … `aihubmixWireModel` (lines ~30-192) and put in their place:

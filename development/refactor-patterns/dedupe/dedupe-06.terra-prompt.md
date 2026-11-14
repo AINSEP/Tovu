@@ -1,6 +1,6 @@
 # Terra job dedupe-06: Jini chat + ui (mechanical groups only)
 
-READY (2026-11-13; revised after review d3r; revised after review d3r2: J07 moved out, J51's returned function takes an object). UI lifecycle consolidations (J02, J35, J39, J48, T16J, T18J, T23J) and J07 (needs a coordinator decision) are no longer in this job: they are Opus work, one feature at a time, listed in `opus-ui-backlog.md` (same folder). What stays here is markup, types, pure functions and one command-registration preamble, none of which changes an effect, a listener or a timer. Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
+READY (2026-11-13; revised after review d3r; revised after review d3r2: J07 moved out, J51's returned function takes an object; revised after review d3r3: JR05's `act` takes `({ selection }, _optional = {})`, J28 explicit call-site migration onto the existing `template-i18n.ts#interpolate` with a `keepPlaceholderWhen` option). UI lifecycle consolidations (J02, J35, J39, J48, T16J, T18J, T23J) and J07 (needs a coordinator decision) are no longer in this job: they are Opus work, one feature at a time, listed in `opus-ui-backlog.md` (same folder). What stays here is markup, types, pure functions and one command-registration preamble, none of which changes an effect, a listener or a timer. Self-contained. Background and the reason for every decision: `development/refactor-patterns/dedupe/PLAN.md` (Tovu repo). Repo: the Jini clone you are given (Jini only; paths below are relative to the Jini repo root).
 
 ## Rules for every group in this job (read before editing)
 - HARD: stop before ~250k tokens of context. If you get close: commit what is done (by explicit paths), list the groups you did not finish under "REMAINING" in your report, and stop.
@@ -21,7 +21,7 @@ Cross-package rule (PLAN.md "Coordinator gates"): no group left in this job impo
 ## Groups in this job (decision, risk, expected saving, divergence, tests)
 - **J01** EXTRACT SHARED HELPER — risk L; est. −90 lines; divergence: none (Glob/Grep/Web cards already render class "op-title" with no shimmer = shimmer:false)
   - tests: cd packages/chat && npx vitest run --maxWorkers=2 src/react/components/__tests__/ToolCard.test.tsx src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx src/react/components/__tests__/ToolCard.cli-events.test.tsx
-- **J28** EXTRACT SHARED HELPER — risk L; est. −7 lines; divergence: none; the two I18n contexts stay separate (merging would change which provider translates renderer strings - owner decision, not done)
+- **J28** MERGE INTO EXISTING (`features/i18n/template-i18n.ts#interpolate` gains `{ keepPlaceholderWhen }`, default unchanged) — risk L; est. −12 lines; divergence: missing-value policy, made an explicit option (review d3r3 finding 5); the two I18n contexts stay separate (merging would change which provider translates renderer strings - owner decision, not done)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/i18n/__tests__/context.test.tsx src/renderers/react/__tests__/i18n.test.tsx
 - **J34** MERGE INTO EXISTING — risk L; est. −27 lines; divergence: none (types only)
   - tests: cd packages/ui && npx vitest run --maxWorkers=2 src/features/resource-dashboard
@@ -75,8 +75,39 @@ Replace bodies (keep each function's signature, `const t = useT()`, and its `obj
 - WebFetchCard / WebSearchCard: className "op-web", same shape.
 Delete each card's now-unused `isRunning`. DelegatedToolCard and GenericCard stay (they use ToolRowHead).
 
-## J28 interpolate (EXTRACT, ui)
-New ui/src/features/i18n/interpolate.ts with `interpolateTranslation({ template }, { vars } = {})` (body of context.tsx#interpolate). Both context.tsx and renderers/react/i18n.tsx import it and delete their `interpolate`.
+## J28 interpolate (MERGE INTO EXISTING, ui; revised after review d3r3 findings 4 and 5)
+Decision (recorded here; no new helper file): `packages/ui/src/features/i18n/template-i18n.ts` already owns `interpolate({ template, vars })` with the same placeholder regex `/\{(\w+)\}/g` and the same `String(value)` conversion as the two file-private copies (`features/i18n/context.tsx` ~line 191, `renderers/react/i18n.tsx` ~line 55). The ONLY contract differences are the missing-value policy and an absent `vars`:
+- existing `interpolate`: keeps `{name}` only when `!(name in vars)` (property presence); a present key whose value is `null`/`undefined` (reachable only through casts or JS callers) prints `"null"`/`"undefined"`; `vars` is required.
+- the two copies: return the template unchanged when `vars` is `undefined`; keep `{name}` when `vars[name] == null` (nullish preservation).
+Both use the same inherited-property lookup for prototype names, so that edge is identical and stays as it is. So extend the existing owner with an explicit policy option whose default is today's behavior, and delete both copies.
+
+1. `template-i18n.ts`: replace `interpolate` with (keep its existing "Parameterized messages belong in locale data too…" why-comment above it):
+```ts
+/** Which `{name}` placeholders stay as literal text. `'absent'` (default): only names not present in `vars`.
+ *  `'nullish'`: also names whose value is `null`/`undefined`; the React I18n contexts' policy, so a host passing
+ *  `{ count: undefined }` sees `{count}` instead of the word "undefined". */
+export type KeepPlaceholderWhen = 'absent' | 'nullish';
+export function interpolate(
+  { template, vars }: { template: string; vars: Record<string, string | number> | undefined },
+  { keepPlaceholderWhen = 'absent' }: { keepPlaceholderWhen?: KeepPlaceholderWhen } = {},
+): string {
+  // No vars: nothing to substitute, so every placeholder stays (the I18n contexts' `t(key)` path).
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const keep = keepPlaceholderWhen === 'nullish' ? vars[key] == null : !(key in vars);
+    return keep ? match : String(vars[key]);
+  });
+}
+```
+   Public default unchanged: every existing caller (admin, `panel-kit`, `universal.ts`, `index.ts` re-exports) passes a defined `vars` and no options, so it gets exactly today's `in` behavior. Widening `vars` to accept `undefined` breaks no caller; the only new behavior is for untyped JS passing `undefined`, which threw a TypeError before and now returns the template. Do NOT export `KeepPlaceholderWhen` from `index.ts`/`universal.ts`/`panel-kit` (no consumer needs the name; the option's string literals type-check without it).
+2. `features/i18n/context.tsx`: add `import { interpolate } from './template-i18n.js';`, delete the file-private `function interpolate(template, vars)` (~line 191), and migrate both calls explicitly:
+   - ~line 157: `return interpolate(raw, vars);` → `return interpolate({ template: raw, vars }, { keepPlaceholderWhen: 'nullish' });`
+   - ~line 173: `t: (key, vars) => interpolate(key, vars),` → `t: (key, vars) => interpolate({ template: key, vars }, { keepPlaceholderWhen: 'nullish' }),`
+3. `renderers/react/i18n.tsx`: add `import { interpolate } from '../../features/i18n/template-i18n.js';` (that file has no imports, so the `./renderers` entry loads nothing extra), delete its file-private `function interpolate(template, vars)` (~line 55), and migrate both calls explicitly:
+   - ~line 34: `t: (key: string, vars?: TranslationVars) => interpolate(dictionary?.[key] ?? key, vars),` → `t: (key: string, vars?: TranslationVars) => interpolate({ template: dictionary?.[key] ?? key, vars }, { keepPlaceholderWhen: 'nullish' }),`
+   - ~line 42: `t: (key, vars) => interpolate(key, vars),` → `t: (key, vars) => interpolate({ template: key, vars }, { keepPlaceholderWhen: 'nullish' }),`
+   Update this file's header sentence "no dependency on `@jini-ai/ui`": it now lives inside `@jini-ai/ui`, so say it keeps its own tiny context (separate from `features/i18n`'s provider; merging the two would change which provider translates renderer strings, an owner decision not taken here) and shares only the pure `interpolate`.
+4. `rg -n "interpolate\(" packages/ui/src/features/i18n/context.tsx packages/ui/src/renderers/react/i18n.tsx` must show only the four object-form calls.
 
 ## J34 ResourceBoardView props (MERGE, ui)
 ResourceBoardView.tsx: change `export interface ResourceBoardViewProps<TBody = unknown> {` to `export interface ResourceBoardViewProps<TBody = unknown> extends Omit<ResourceBoardToolbarProps, 'selectedCount'> {`. Add `type ResourceBoardToolbarProps` to the existing `./ResourceBoardToolbar.js` import. Delete the props that the toolbar declares (sortOptions … cancelSelectLabel, createLabel, onCreate) but KEEP `selected: ReadonlySet<string>;` in its current position. The `enableBulkDelete` doc now comes from the toolbar.
@@ -173,16 +204,17 @@ Add `type LexicalCommand, type LexicalEditor, type RangeSelection` to the `lexic
 ```ts
 /** Registers one caret key at high priority. `act` runs only for a plain (unmodified, not
  *  composing) key on a collapsed range selection and returns whether it handled a mention;
- *  a handled key's default action is prevented. */
+ *  a handled key's default action is prevented. `act` is this helper's own contract (Lexical
+ *  fixes only the outer `registerCommand` listener), so it takes `({ selection }, _optional = {})`. */
 function registerMentionCaretKey(
-  { editor, command, act }: { editor: LexicalEditor; command: LexicalCommand<KeyboardEvent>; act: (selection: RangeSelection) => boolean },
+  { editor, command, act }: { editor: LexicalEditor; command: LexicalCommand<KeyboardEvent>; act: (requiredArgs: { selection: RangeSelection }, optionalArgs?: Record<string, never>) => boolean },
   _optional: Record<string, never> = {},
 ): () => void {
   return editor.registerCommand(command, (event) => {
     if (editor.isComposing() || !hasPlainNavigationIntent(event)) return false;
     const selection = $getSelection();
     if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
-    if (!act(selection)) return false;
+    if (!act({ selection })) return false;
     event.preventDefault();
     return true;
   }, COMMAND_PRIORITY_HIGH);
@@ -191,20 +223,20 @@ function registerMentionCaretKey(
 Hook body (keep the Origin doc):
 ```ts
 return mergeRegister(
-  registerMentionCaretKey({ editor, command: KEY_ARROW_LEFT_COMMAND, act: (selection) => {
+  registerMentionCaretKey({ editor, command: KEY_ARROW_LEFT_COMMAND, act: ({ selection }, _optional = {}) => {
     const mention = mentionBeforeCaret(selection);
     if (!mention) return false;
     selectBeforeMention(mention);
     return true;
   } }),
-  registerMentionCaretKey({ editor, command: KEY_ARROW_RIGHT_COMMAND, act: (selection) => {
+  registerMentionCaretKey({ editor, command: KEY_ARROW_RIGHT_COMMAND, act: ({ selection }, _optional = {}) => {
     const mention = mentionAfterCaret(selection);
     if (!mention) return false;
     selectAfterMention(mention);
     return true;
   } }),
-  registerMentionCaretKey({ editor, command: KEY_BACKSPACE_COMMAND, act: (selection) => removeMentionAtCaret(selection, true) }),
-  registerMentionCaretKey({ editor, command: KEY_DELETE_COMMAND, act: (selection) => removeMentionAtCaret(selection, false) }),
+  registerMentionCaretKey({ editor, command: KEY_BACKSPACE_COMMAND, act: ({ selection }, _optional = {}) => removeMentionAtCaret(selection, true) }),
+  registerMentionCaretKey({ editor, command: KEY_DELETE_COMMAND, act: ({ selection }, _optional = {}) => removeMentionAtCaret(selection, false) }),
 );
 ```
 
