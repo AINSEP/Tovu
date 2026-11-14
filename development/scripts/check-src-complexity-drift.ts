@@ -20,27 +20,28 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import { complexityScopes } from "./complexity-eslint.config.mjs";
 
-const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
+export const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DEBT_FILE = "development/scripts/src-complexity-debt.json";
 const DEBT_PATH = path.join(REPO_ROOT, DEBT_FILE);
 
 type ComplexityRule = "complexity" | "sonarjs/cognitive-complexity";
+type SizeRule = "max-lines" | "max-lines-per-function";
 export interface Violation {
   readonly file: string;
   readonly function: string;
   readonly line: number;
-  readonly rule: ComplexityRule;
+  readonly rule: ComplexityRule | SizeRule;
   readonly value: number;
 }
-interface EslintMessage {
+export interface EslintMessage {
   ruleId: string | null;
   fatal?: boolean;
   line: number;
   column: number;
   message: string;
 }
-interface EslintFileResult { filePath: string; messages: EslintMessage[] }
-interface FunctionLocation { start: number; end: number; name: string }
+export interface EslintFileResult { filePath: string; messages: EslintMessage[] }
+export interface FunctionLocation { start: number; headStart: number; end: number; name: string; isFunction: boolean }
 
 /** Stable per-function identity; line and value are allowed to change independently. */
 export function violationKey(violation: Violation): string {
@@ -82,8 +83,27 @@ export function diffAgainstBaseline(baseline: readonly Violation[], current: rea
   return { added, removed, worsened };
 }
 
+function locationName(node: ts.Node, tree: ts.SourceFile, isStaticBlock: boolean): string {
+  const namedNode = node as ts.Node & { name?: ts.Node };
+  const parent = node.parent;
+  let name = namedNode.name?.getText(tree);
+  if (!name && (ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent))) {
+    name = parent.name.getText(tree);
+  }
+  if (!name) name = isStaticBlock ? "<static block>" : "<anonymous>";
+  return name;
+}
+
+function locationRange(node: ts.Node, tree: ts.SourceFile, name: string, isFunction: boolean): FunctionLocation {
+  const start = node.getStart(tree);
+  const parent = node.parent;
+  // ESLint reports property-valued functions at the property name, before the function starts.
+  const headStart = ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) ? parent.getStart(tree) : start;
+  return { start, headStart, end: node.end, name, isFunction };
+}
+
 /** Index lexical function names and ranges, including anonymous callbacks and class initializers. */
-function functionLocations(file: string, source: string): FunctionLocation[] {
+export function functionLocations(file: string, source: string): FunctionLocation[] {
   const kind = /\.[jt]sx$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
   const locations: FunctionLocation[] = [];
@@ -94,18 +114,12 @@ function functionLocations(file: string, source: string): FunctionLocation[] {
     const isInitializer = ts.isPropertyDeclaration(node) && node.initializer && !ts.isFunctionLike(node.initializer);
     const isStaticBlock = ts.isClassStaticBlockDeclaration(node);
     if (isFunction || isInitializer || isStaticBlock) {
-      const namedNode = node as ts.Node & { name?: ts.Node };
-      const parent = node.parent;
-      let name = namedNode.name?.getText(tree);
-      if (!name && (ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent))) {
-        name = parent.name.getText(tree);
-      }
-      if (!name) name = isStaticBlock ? "<static block>" : "<anonymous>";
+      const name = locationName(node, tree, isStaticBlock);
       const prefix = [...parents, name].join(".");
       const ordinal = (counts.get(prefix) ?? 0) + 1;
       counts.set(prefix, ordinal);
       const qualified = `${prefix}#${ordinal}`;
-      locations.push({ start: node.getStart(tree), end: node.end, name: qualified });
+      locations.push(locationRange(node, tree, qualified, Boolean(isFunction)));
       nextParents = [...parents, `${name}#${ordinal}`];
     }
     ts.forEachChild(node, child => visit(child, nextParents));
@@ -138,13 +152,15 @@ function readViolations(result: EslintFileResult): Violation[] {
   });
 }
 
-/** Run only the two complexity rules and fail closed on scanner or parser failures. */
-export function findViolations(): Violation[] {
+/** Run a standalone ESLint configuration and fail closed on scanner failures. */
+export function runEslint(
+  { config, scopes }: { config: string; scopes: readonly string[] }, _options: Record<string, never> = {},
+): EslintFileResult[] {
   const args = [
     path.join(REPO_ROOT, "node_modules/eslint/bin/eslint.js"),
-    "--no-config-lookup", "--config", "development/scripts/complexity-eslint.config.mjs",
+    "--no-config-lookup", "--config", config,
     "--no-inline-config", "--no-error-on-unmatched-pattern", "--no-warn-ignored", "--format", "json",
-    ...complexityScopes,
+    ...scopes,
   ];
   let raw: string;
   try {
@@ -155,7 +171,12 @@ export function findViolations(): Violation[] {
     if (failure.status !== 1 || !failure.stdout) throw error;
     raw = failure.stdout;
   }
-  return (JSON.parse(raw) as EslintFileResult[]).flatMap(readViolations);
+  return JSON.parse(raw) as EslintFileResult[];
+}
+
+/** Run only the two complexity rules and fail closed on scanner or parser failures. */
+export function findViolations(): Violation[] {
+  return runEslint({ config: "development/scripts/complexity-eslint.config.mjs", scopes: complexityScopes }).flatMap(readViolations);
 }
 
 function printViolation(violation: Violation): string {
