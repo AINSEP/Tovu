@@ -59,7 +59,7 @@ export const toNowIso = (nowMs: number): string => new Date(nowMs).toISOString()
 
 /** Whether a stored row is publicly visible right now (`isLiveAt` on its raw columns). @complexity O(1). */
 export function isRowLive(row: Pick<PostRow, "status" | "publish_at" | "deleted_at">, nowIso: string): boolean {
-  return isLiveAt({ status: row.status, publishAt: row.publish_at, deletedAt: row.deleted_at }, nowIso);
+  return isLiveAt({ record: { status: row.status, publishAt: row.publish_at, deletedAt: row.deleted_at }, nowIso });
 }
 
 /**

@@ -1998,7 +1998,7 @@ export async function updatePost(
  *  {@link classifyStatusTransition} is what keeps a scheduled save from emitting `entry.published`
  *  before go-live (2026-10-21); `go-live.ts` announces it when it does go live. @complexity O(1). */
 function publicFacingStatus(required: { post: PostRecord; nowIso: string }): PostStatus {
-  return isLiveAt(required.post, required.nowIso) ? "published" : "draft";
+  return isLiveAt({ record: required.post, nowIso: required.nowIso }) ? "published" : "draft";
 }
 
 /**
@@ -2253,7 +2253,7 @@ export async function listPublishedPosts(
 ): Promise<{ posts: PublicPostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
   const nowIso = optional.nowIso ?? currentIso();
-  return { posts: posts.filter((post): post is PublicPostRecord => isPublicPost(post) && isLiveAt(post, nowIso)) };
+  return { posts: posts.filter((post): post is PublicPostRecord => isPublicPost(post) && isLiveAt({ record: post, nowIso })) };
 }
 
 export interface ListPublishedPostPreviewsRequired {
@@ -2310,7 +2310,7 @@ export async function getPublishedPostBySlug(
   const slug = required.input.slug.trim().toLowerCase();
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
   // A scheduled row 404s exactly like a draft until its time passes — no existence leak.
-  if (!isPublicPost(post) || !isLiveAt(post, _optional.nowIso ?? currentIso())) {
+  if (!isPublicPost(post) || !isLiveAt({ record: post, nowIso: _optional.nowIso ?? currentIso() })) {
     throw new PostNotFoundError(`post '${slug}' was not found`);
   }
   return { post };
@@ -2341,7 +2341,7 @@ export async function findPublishedPostById(
 ): Promise<PublicPostRecord | null> {
   const { workspaceId, id } = required.input;
   const post = await required.deps.repo.findById({ workspaceId, id });
-  if (!isPublicPost(post) || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
+  if (!isPublicPost(post) || !isLiveAt({ record: post, nowIso: _optional.nowIso ?? currentIso() })) return null;
   return post;
 }
 
@@ -2362,7 +2362,7 @@ export async function findPublishedPostBySlug(
 ): Promise<PublicPostRecord | null> {
   const { workspaceId, slug } = required.input;
   const post = await required.deps.repo.findBySlug({ workspaceId, slug });
-  if (!isPublicPost(post) || !isLiveAt(post, _optional.nowIso ?? currentIso())) return null;
+  if (!isPublicPost(post) || !isLiveAt({ record: post, nowIso: _optional.nowIso ?? currentIso() })) return null;
   return post;
 }
 

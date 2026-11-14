@@ -450,7 +450,7 @@ function readIncludeSwitches(required: { raw: Record<string, unknown> }): SiteBa
  *  ({@link requireUnreservedFolder}) are checked once the credential names the host. */
 function parseFolder({ raw }: { raw: string | undefined }, _optional: Record<string, never> = {}): string | undefined {
   if (raw === undefined) return undefined;
-  return normalizeWriteFilePath(raw);
+  return normalizeWriteFilePath({ rawPath: raw });
 }
 
 /**
@@ -475,10 +475,10 @@ function parsePlanInput({ rawInput }: { rawInput: unknown }, _optional: Record<s
     credential: optionalString({ raw, field: "credential" }),
     owner: raw.owner,
     repo: raw.repo,
-    branch: branch === undefined ? undefined : validateBranch(branch),
+    branch: branch === undefined ? undefined : validateBranch({ value: branch }),
     folder: parseFolder({ raw: optionalString({ raw, field: "folder" }) }),
     include: parseInclude({ value: raw.include }),
-    commitMessage: commitMessage === undefined ? undefined : validateCommitMessage(commitMessage),
+    commitMessage: commitMessage === undefined ? undefined : validateCommitMessage({ value: commitMessage }),
   };
 }
 
@@ -546,7 +546,7 @@ export async function planSiteBackup(required: { deps: SiteBackupToolDeps; call:
   if (!credential.ok) return { planned: false, code: credential.code, message: credential.message };
 
   const folderName = path.basename(sources.siteDir);
-  const folder = input.folder ?? normalizeWriteFilePath(folderName);
+  const folder = input.folder ?? normalizeWriteFilePath({ rawPath: folderName });
   const { owner, repo: repoName } = validateRepositoryTarget({ owner: input.owner, repo: input.repo }, credential.provider.validateTarget);
   requireUnreservedFolder({ folder, provider: credential.provider });
   const target = backupTarget({ credential, owner, repo: repoName });

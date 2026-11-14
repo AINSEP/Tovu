@@ -162,7 +162,7 @@ export function withAttachedProject(
       const value = await read(input);
       return await attached(input) ? value : null;
     } catch (error) {
-      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.', describeErrorForLog(error));
+      console.warn('[shared-keys] Provider settings could not be read. Retry Shared Keys; local settings remain available. Details: P25_SHARED_PROVIDER_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
       return null;
     }
   }

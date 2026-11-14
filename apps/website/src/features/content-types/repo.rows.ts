@@ -18,7 +18,7 @@ import { DECLARED_CONTENT_TYPE_OWNERS, declaredOwnerFor } from "./declared-owner
 export type ContentTypeRow = Selectable<ContentDatabase["content_types"]>;
 
 /** `ContentTypeRecord` has no surrogate id, so the row's primary key is `${workspaceId}::${key}`. */
-export function syntheticId(workspaceId: string, key: string): string {
+export function syntheticId({ workspaceId, key }: { workspaceId: string; key: string }, _optional = {}): string {
   return `${workspaceId}::${key}`;
 }
 
@@ -53,7 +53,7 @@ export function toRow(record: ContentTypeRecord): Insertable<ContentDatabase["co
     throw new Error(`content type '${record.key}' declares owner '${record.owner}', but only these code-declared owners can be stored: ${declared}`);
   }
   return {
-    id: syntheticId(record.workspaceId, record.key),
+    id: syntheticId({ workspaceId: record.workspaceId, key: record.key }),
     workspace_id: record.workspaceId,
     key: record.key,
     label: record.label,

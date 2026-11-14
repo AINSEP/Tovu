@@ -68,7 +68,7 @@ export type DatabaseTransferAdapters = Pick<Parameters<typeof createDatabaseTran
 
 /** Input errors name the rule, never the connection string. */
 const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("DATABASE_TRANSFER"),
+  forbiddenRule({ domainPrefix: "DATABASE_TRANSFER" }),
   { error: InvalidConnectionStringError, code: "DATABASE_TRANSFER_INVALID_CONNECTION_STRING" },
   { error: DestinationUnreadableError, code: "DATABASE_TRANSFER_DESTINATION_UNREADABLE" },
 ];
@@ -100,7 +100,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     catalog: deps.databaseTransferAdapters.catalog,
     partialExclusions: (name, source) => name === "content" ? countPartialExclusions(source) : [],
     captureChatSnapshot: () => deps.databaseTransferAdapters.captureChatSnapshot(deps),
-    failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)), describeError: describeErrorForLog,
+    failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)), describeError: error => describeErrorForLog({ err: error }),
     schemaMismatchGuidance: "this Tovu version's Postgres layout does not match it",
     readers: { inputRecord: input => requireInputRecord({ input }), string: (input, key) => requireString({ input, key }) },
     surfaces: {

@@ -88,7 +88,7 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   } catch (error) {
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
-    safely(log, [`[site-key] could not determine whether this server has usable site key material. Cause: ${describeErrorForLog(error)}`]);
+    safely(log, [`[site-key] could not determine whether this server has usable site key material. Cause: ${describeErrorForLog({ err: error })}`]);
     return;
   }
   if (status.active) return;

@@ -185,7 +185,7 @@ async function recordHistoryIfPublished(
     } });
   } catch (error) {
     // Keep the true publish result; database errors can embed secret parameters.
-    console.warn("[static-publish] destination history write failed after publish", describeErrorForLog(error));
+    console.warn("[static-publish] destination history write failed after publish", describeErrorForLog({ err: error }));
   }
 }
 

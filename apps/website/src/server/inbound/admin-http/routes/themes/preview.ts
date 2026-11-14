@@ -60,7 +60,7 @@ function settleWithin(work: Promise<void>, ms: number): Promise<void> {
   const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, ms); });
   return Promise.race([work.catch((error: unknown) => {
     console.warn("[theme-preview] Could not wait for the preview capture:",
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
   }), timeout]).finally(() => clearTimeout(timer));
 }
 

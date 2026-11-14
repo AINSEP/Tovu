@@ -35,7 +35,7 @@ export async function readServerAdmissions(
       : { ok: true, connections: report.connections, configFailures: report.configFailures };
   } catch (error) {
     // Fixed metadata only: an opaque transport failure must not expose credentials to the client.
-    console.error("external-mcp server admissions read failed", describeErrorForLog(error));
+    console.error("external-mcp server admissions read failed", describeErrorForLog({ err: error }));
     return unavailable();
   }
 }

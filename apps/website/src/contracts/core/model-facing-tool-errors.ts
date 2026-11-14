@@ -1,5 +1,5 @@
 /**
- * @file CMS permission-error binding and positional adapters for existing callers.
+ * @file CMS permission-error binding and adapters for existing callers.
  * Domains own safe-message allowlists; unlisted errors remain redacted, including returned
  * failure results. Generic rules and the security rationale live in
  * `@jini-ai/core/model-facing-tool-errors`.
@@ -28,11 +28,11 @@ export * from "@jini-ai/core/model-facing-tool-errors";
  * `authorize()` reason — no data, no internals. Surfacing it tells a model whether to stop asking
  * or to ask a human for access; redacting it tells it only that something broke.
  *
- * @param domainPrefix - The domain's SCREAMING_SNAKE prefix, e.g. `MEMBERS`.
+ * @param required.domainPrefix - The domain's SCREAMING_SNAKE prefix, e.g. `MEMBERS`.
  * @returns The rule to place in that domain's allowlist.
  * @complexity O(1).
  */
-export function forbiddenRule(domainPrefix: string): ModelFacingErrorRule {
+export function forbiddenRule({ domainPrefix }: { domainPrefix: string }, _optional = {}): ModelFacingErrorRule {
   return createForbiddenRule({ domainPrefix, error: ForbiddenError });
 }
 
@@ -48,11 +48,11 @@ export function forbiddenRule(domainPrefix: string): ModelFacingErrorRule {
  * core's own `describeErrorForLog` is total from the release after 0.7.1; the guard here covers
  * the installed 0.7.x and can be deleted once Tovu depends on that release.
  *
- * @param err - The caught value.
+ * @param required.err - The caught value.
  * @returns e.g. `SqliteError(SQLITE_BUSY)`, or `TypeError cause=Error(ECONNREFUSED)`.
  * @complexity O(1).
  */
-export function describeErrorForLog(err: unknown): string {
+export function describeErrorForLog({ err }: { err: unknown }, _optional = {}): string {
   try {
     return describeSharedErrorForLog({ err });
   } catch {

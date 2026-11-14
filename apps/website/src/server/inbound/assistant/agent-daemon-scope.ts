@@ -674,7 +674,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   const releaseRun = idlePark.hold({}, {});
   void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
     console.error(`[agent-daemon] run ${run.id}: could not wait for completion before releasing activity:`,
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
   }).finally(releaseRun);
   function noteFullRunInput({ runId, input }: { runId: string; input: string }, _optional = {}): void {
     if (routeDeps.aiTraceSink?.capture === "full") tracing.noteRunInput({ runId, input });
@@ -750,7 +750,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   if (pageContext !== undefined) runActiveContexts.record({ runId: run.id, pageContext });
   void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
     console.error(`[agent-daemon] run ${run.id}: could not wait for completion before cleaning up:`,
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
   }).finally(() => {
     const releaseCleanup = idlePark.hold({}, {});
     pluginAbort.abort();
@@ -1065,7 +1065,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     try { return await siteTools.preflight({ runId: run.id, signal: pluginAbort.signal }); }
     catch (err) {
       let errorDiagnostic = "[diagnostic unavailable]";
-      try { errorDiagnostic = describeErrorForLog(err); } catch { /* Keep the original failure path if diagnostics fail. */ }
+      try { errorDiagnostic = describeErrorForLog({ err }); } catch { /* Keep the original failure path if diagnostics fail. */ }
       console.warn('[agent-plugins] automatic preflight unavailable', errorDiagnostic);
       return { prefix: pluginRefIds.length ? null : "", refusalPrefix: "", pluginIds: [] };
     }
@@ -1659,11 +1659,11 @@ void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }
   disposeAiTracing();
   await assistantInventory.dispose({}).catch((cleanupError: unknown) => {
     console.error("[agent-daemon] Could not dispose the agent inventory after startup failed:",
-      describeErrorForLog(cleanupError));
+      describeErrorForLog({ err: cleanupError }));
   });
   await daemonStore?.close().catch((cleanupError: unknown) => {
     console.error("[agent-daemon] Could not close the daemon store after startup failed:",
-      describeErrorForLog(cleanupError));
+      describeErrorForLog({ err: cleanupError }));
   });
   throw error;
 }

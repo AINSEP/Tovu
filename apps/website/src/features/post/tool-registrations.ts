@@ -460,7 +460,7 @@ function scheduleView(post: PostRecord): Pick<PostToolView, "publishAt" | "featu
   return {
     ...(post.publishAt ? { publishAt: post.publishAt } : {}),
     ...(post.featuredMediaId ? { featuredMediaId: post.featuredMediaId } : {}),
-    ...(isScheduledAt(post, currentIso()) ? { scheduled: true as const } : {}),
+    ...(isScheduledAt({ record: post, nowIso: currentIso() }) ? { scheduled: true as const } : {}),
   };
 }
 

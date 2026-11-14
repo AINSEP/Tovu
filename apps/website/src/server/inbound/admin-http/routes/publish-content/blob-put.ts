@@ -40,7 +40,7 @@ function decodeBlobBytes(rawBody: unknown): Uint8Array | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const dataBase64 = body.dataBase64;
   if (typeof dataBase64 !== "string" || !dataBase64) return null;
-  return decodeStrictBase64(dataBase64);
+  return decodeStrictBase64({ value: dataBase64 });
 }
 
 export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = (app, deps) => {

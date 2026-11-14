@@ -498,7 +498,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   } catch (error) {
     // Plugin code: its throw must not break this function's never-throw contract, and its raw
     // message may carry provider detail, so a fixed message is returned instead.
-    console.warn("[source-control] source control provider could not commit; the commit remains incomplete", describeErrorForLog(error));
+    console.warn("[source-control] source control provider could not commit; the commit remains incomplete", describeErrorForLog({ err: error }));
     return { ok: false, code: "PROVIDER_ERROR", message: "the source control provider failed while committing" };
   }
 

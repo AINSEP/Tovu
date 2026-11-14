@@ -843,7 +843,7 @@ test("makeCredentialedRequest: an EgressRefusedError from the http client passes
 
 test("ConsoleCredentialedRequestAuditLog: an egress refusal's full detail, resolved address included, is kept in the server-side line", () => {
   const lines: string[] = [];
-  new ConsoleCredentialedRequestAuditLog((line) => lines.push(line)).record({
+  new ConsoleCredentialedRequestAuditLog({}, { log: (line) => lines.push(line) }).record({
     label: "internal",
     host: "internal-db.corp",
     method: "GET",
@@ -863,7 +863,7 @@ test("makeCredentialedRequest: ConsoleCredentialedRequestAuditLog logs a structu
   const writeDeps = await seedNameComAndExampleHost();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);
   const lines: string[] = [];
-  const deps = makeDeps({ httpClient, audit: new ConsoleCredentialedRequestAuditLog((line) => lines.push(line)) }, writeDeps);
+  const deps = makeDeps({ httpClient, audit: new ConsoleCredentialedRequestAuditLog({}, { log: (line) => lines.push(line) }) }, writeDeps);
 
   await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "POST", url: "https://api.name.com/v4/domains", body: "hello" });
 

@@ -40,7 +40,7 @@ export function createEarlySessionCapture(
     if (typeof childPid !== "number" || !attemptStore) return;
     const startedAt = await readStart({ pid: childPid }, {}).catch((error: unknown) => {
       console.warn(`[agent-daemon] Could not read the start time of child process ${childPid}:`,
-        describeErrorForLog(error));
+        describeErrorForLog({ err: error }));
       return null;
     });
     if (startedAt) await attemptStore.captureSession({ runId, sessionId, child: { pid: childPid, startedAt } }, {});

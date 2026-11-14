@@ -29,7 +29,7 @@ const SEEDED_KEYS = new Set(["widget", "widget_area"]);
 
 /** Refuses a seeded key inbound too: `widget`/`widget-area` own those schemas, and a grant limited to
  *  `content-type` must not reach them. */
-const seededKeyRefusal = (key: string): string | null =>
+const seededKeyRefusal = ({ key }: { key: string }, _optional = {}): string | null =>
   SEEDED_KEYS.has(key) ? `content-type '${key}' is seeded on every instance and is never published` : null;
 
 export const contributeContentTypePublish = (): PublishContentContributor =>
@@ -37,11 +37,11 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
     entityType: "content-type",
     coversTables: ["content_types"],
     permission: "admin.collections.manage",
-    ports: ({ deps }) => deps.ports["content-type"],
-    list: ({ ports: p, workspaceId }) => p.repo.listByWorkspace({ workspaceId }),
-    find: ({ ports: p, workspaceId, id: key }) => p.repo.findByKey({ workspaceId, key }),
-    idOf: ({ row }) => row.key,
-    include: (row) => row.status !== "tombstone" && !SEEDED_KEYS.has(row.key),
+    ports: ({ deps }, _optional = {}) => deps.ports["content-type"],
+    list: ({ ports: p, workspaceId }, _optional = {}) => p.repo.listByWorkspace({ workspaceId }),
+    find: ({ ports: p, workspaceId, id: key }, _optional = {}) => p.repo.findByKey({ workspaceId, key }),
+    idOf: ({ row }, _optional = {}) => row.key,
+    include: ({ row }, _optional = {}) => row.status !== "tombstone" && !SEEDED_KEYS.has(row.key),
     fields: {
       key: "transferred",
       label: "transferred",
@@ -55,9 +55,9 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
       owner: "local",
     },
     validate: async ({ entity, existing }) =>
-      seededKeyRefusal(entity.id) ?? (existing?.status === "tombstone" ? tombstonedAtDestination("content-type", entity.id) : null),
+      seededKeyRefusal({ key: entity.id }) ?? (existing?.status === "tombstone" ? tombstonedAtDestination("content-type", entity.id) : null),
     write: async ({ ports, deps, workspaceId, id: key, state, existing, principalId: actorId }) => {
-      const seeded = seededKeyRefusal(key);
+      const seeded = seededKeyRefusal({ key });
       if (seeded) throw new PublishContentApplyRowError("blocked", seeded);
       const gateway = gatewayDeps(deps, "content-type");
       const outbox = toContentTypeOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId });

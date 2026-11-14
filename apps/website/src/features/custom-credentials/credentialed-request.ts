@@ -625,7 +625,7 @@ export interface CredentialedRequestAuditPort {
 export class ConsoleCredentialedRequestAuditLog implements CredentialedRequestAuditPort {
   private readonly audit: JiniConsoleAuditLog;
 
-  constructor(log: (line: string) => void = (line) => console.log(line)) {
+  constructor(_required: Record<string, never>, { log = (line: string) => console.log(line) }: { log?: (line: string) => void } = {}) {
     this.audit = new JiniConsoleAuditLog({ prefix: "[custom-credentials]", log: ({ line }) => log(line) });
   }
 
@@ -669,7 +669,7 @@ function adaptCredentialResolver(deps: Pick<CredentialedRequestDeps, "repo" | "s
 
 /** Translate body/audit arguments without changing the guarded transport or plugin trust gates. */
 function adaptRequestDeps(deps: CredentialedRequestDeps): JiniRequestDeps {
-  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
+  const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog({});
   return {
     resolver: adaptCredentialResolver(deps),
     // Forward the policy so a pre-save probe cannot follow redirects through the legacy host ABI.
@@ -703,7 +703,7 @@ const REQUEST_POLICY: CredentialedRequestOptions = {
 };
 
 /** Keep host not-found identity and the Access Tokens remedy wording at the adapter boundary. */
-function rethrowHostError(error: unknown): never {
+function rethrowHostError({ error }: { error: unknown }, _optional = {}): never {
   if (error instanceof CredentialNotFoundError) throw new CustomCredentialNotFoundError(error.message);
   if (error instanceof CredentialedRequestValidationError && error.message.includes("which is not one of this credential's saved hosts (")) {
     throw new CredentialedRequestValidationError({ message: `${error.message} — add it to this credential in the Access Tokens form first` });
@@ -725,7 +725,7 @@ export async function resolveRequestTarget(
     return await resolveCredentialTarget({ resolver: {
       describe: (required) => describeCredentialByLabel({ repo: deps.repo }, required),
     }, input });
-  } catch (error) { return rethrowHostError(error); }
+  } catch (error) { return rethrowHostError({ error }); }
 }
 
 /** Probe through the guarded port, retaining Tovu's diagnostic policy and host error identity.
@@ -736,7 +736,7 @@ export async function verifyCustomCredential(
   input: { workspaceId: string; label: unknown }
 ): Promise<CustomCredentialVerificationResult> {
   try { return await verifyCredential({ deps: adaptRequestDeps(deps), input }, REQUEST_POLICY); }
-  catch (error) { return rethrowHostError(error); }
+  catch (error) { return rethrowHostError({ error }); }
 }
 
 /** Execute an authorized request; Jini owns validation, header injection and response redaction.
@@ -753,7 +753,7 @@ export async function makeCredentialedRequest(
   const { headers, body, ...requiredInput } = input;
   try {
     return await requestWithCredential({ deps: adaptRequestDeps(deps), input: requiredInput }, { ...REQUEST_POLICY, headers, body });
-  } catch (error) { return rethrowHostError(error); }
+  } catch (error) { return rethrowHostError({ error }); }
 }
 
 /** Adapt the guarded host client to Jini's bodyless, redirect-refusing GET probe.

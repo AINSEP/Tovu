@@ -40,7 +40,7 @@ test("binding: the fan-out sink delegates every primary method to the host sink 
 
 test("binding: forwarders receive batch hits too, and host hooks are adapted to the engine shape", async () => {
   const forwarded: string[] = [];
-  const deps = { ...hostDeps(), hooks: { beforeIngest: async (h: NormalizedHit) => ({ ...h, path: `${h.path}!` }) } };
+  const deps = { ...hostDeps(), hooks: { beforeIngest: async ({ hit: h }: { hit: NormalizedHit }) => ({ ...h, path: `${h.path}!` }) } };
   const { deps: bound, optional } = createAnalyticsIngestBinding({ deps }, {
     forwarders: [{ id: "v", context: { workspaceId: "ws-1", mode: "live" }, forwarder: { forward: async ({ hit: h }) => {
       forwarded.push(h.path); return { status: "ok", value: undefined };
@@ -55,7 +55,7 @@ test("binding: forwarders receive batch hits too, and host hooks are adapted to 
 test("createLocalAnalyticsSink seeds initial hits and exposes all()", async () => {
   const sink = createLocalAnalyticsSink({}, { initialHits: [hit("/seed")] });
   assert.deepEqual(sink.all().map((h) => h.path), ["/seed"]);
-  assert.deepEqual((await sink.list()).map((h) => h.path), ["/seed"]);
+  assert.deepEqual((await sink.list({})).map((h) => h.path), ["/seed"]);
 });
 
 test("binding: a shared limiter over its cap drops the forward but the built-in sink still accepts", async () => {

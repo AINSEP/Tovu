@@ -44,7 +44,7 @@ const catalog: AgentToolDefinition = {
 export const filesCopyAgentToolCatalog: AgentToolDefinition[] = [catalog];
 export const filesCopyDerivedRisk: DerivedRiskByToolId = new Map([["files_copy", "mutates-durable-state"]]);
 const byId = indexCatalogById({ catalog: filesCopyAgentToolCatalog });
-const callerError = (error: unknown) => {
+const callerError = ({ error }: { error: unknown }, _optional = {}) => {
   if (error instanceof FsFilePathError || error instanceof FsWriteInputError || error instanceof MediaValidationError) return true;
   return isThemeShapeRejection(error) || isImportShapeRejection({ error });
 };
@@ -151,7 +151,7 @@ function appendFiles({ files, group, prefix }: { files: AssetFile[]; group: Asse
  * @returns One registration. @complexity O(1). @example buildFilesCopyRegistrations(deps, surfaces); */
 export function buildFilesCopyRegistrations(deps: AssetToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const handler = approvalToolHandler<PreparedAssets>({ surfaces,
-    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: "files_copy", catalog: byId, isShapeRejection: ({ error }) => callerError(error), fn: () => prepare({ deps, ctx }) }),
+    prepare: ({ ctx }) => withSchemaOnRejection({ toolId: "files_copy", catalog: byId, isShapeRejection: ({ error }) => callerError({ error }), fn: () => prepare({ deps, ctx }) }),
     describe: ({ prepared }) => describeWriteBatch(prepared.batch ?? { folder: "", writes: [] }, { toolId: "files_copy" }),
     run: async ({ ctx, prepared }) => {
       if (!prepared.files.length) return { applied: false, written: [], skipped: prepared.skipped };

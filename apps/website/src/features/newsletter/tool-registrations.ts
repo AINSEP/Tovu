@@ -282,7 +282,7 @@ async function resendPendingSubscriptionConfirmation(
     }
   } catch (error) {
     let errorDiagnostic = "[diagnostic unavailable]";
-    try { errorDiagnostic = describeErrorForLog(error); } catch { /* Keep the original failure path if diagnostics fail. */ }
+    try { errorDiagnostic = describeErrorForLog({ err: error }); } catch { /* Keep the original failure path if diagnostics fail. */ }
     // A contact-specific failure must not turn this acknowledgement into an enumeration oracle.
     // Keep diagnostics free of addresses, tokens and provider endpoints.
     console.error("[newsletter] confirmation request could not be processed; inspect mail configuration", errorDiagnostic);

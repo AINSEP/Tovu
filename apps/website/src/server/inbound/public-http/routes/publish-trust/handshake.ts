@@ -132,7 +132,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     // A site without a configured key is an ordinary state, not a boot failure.
     if (isNoSiteKeyError(error)) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity for the handshake:",
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
     return null;
   });
   const limiter = createRateLimiter({

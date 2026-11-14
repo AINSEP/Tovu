@@ -49,7 +49,7 @@ const NEEDS_A_PERSON: ReadonlySet<string> = new Set(["connection-not-found", "no
  * (the forms ledger turns it into a retryable `delivery-failed`, without its text).
  * @complexity O(1).
  */
-function asDeliveryError(error: unknown): unknown {
+function asDeliveryError({ error }: { error: unknown }, _optional = {}): unknown {
   if (error instanceof ConnectionBudgetExceededError) return new FormDeliveryError({ code: "rate-limited", retryable: true, retryAfterMs: error.retryAfterMs, outcome: "not-applied" });
   if (error instanceof ApiConnectionError && NEEDS_A_PERSON.has(error.code)) return new FormDeliveryError({ code: "authorization-required", retryable: false, outcome: "not-applied" });
   return error;
@@ -60,14 +60,14 @@ function asDeliveryError(error: unknown): unknown {
  * @throws FormDeliveryError `configuration-invalid` when the binding names none (fail closed).
  * @complexity O(1).
  */
-function frozenAccountOf(binding: FormDeliveryBinding | undefined): string {
+function frozenAccountOf({ binding }: { binding: FormDeliveryBinding | undefined }, _optional = {}): string {
   const accountId = binding?.config.accountId;
   if (typeof accountId !== "string" || accountId === "") throw new FormDeliveryError({ code: "configuration-invalid", retryable: false, outcome: "not-applied" });
   return accountId;
 }
 
 /** Hands out the attempt's first token once, then a fresh read per call. @complexity O(1) per call. */
-function perRequestTokens(first: string, read: () => Promise<string>): () => Promise<string> {
+function perRequestTokens({ first, read }: { first: string; read: () => Promise<string> }, _optional = {}): () => Promise<string> {
   let unused: string | undefined = first;
   return async () => {
     const token = unused;
@@ -96,7 +96,7 @@ export function createOAuthFormDeliveryConnectionPort(
   _optional: Record<string, never> = {},
 ): OAuthFormDeliveryConnectionPort {
   /** The host and owning plugin when this port owns the ref (the adapter's plugin declares it here). */
-  async function owner(workspaceId: string, connectionRef: string, adapterId: string) {
+  async function owner({ workspaceId, connectionRef, adapterId }: { workspaceId: string; connectionRef: string; adapterId: string }, _optional = {}) {
     const host = required.hostFor({ workspaceId });
     const pluginId = host ? await required.adapterPluginId({ workspaceId, adapterId }) : null;
     const declared = host && pluginId ? await host.declaredFor({ pluginId, connectionRef }) : undefined;
@@ -104,16 +104,16 @@ export function createOAuthFormDeliveryConnectionPort(
   }
 
   return async ({ workspaceId, connectionRef, adapterId }, optional = {}) => {
-    const owned = await owner(workspaceId, connectionRef, adapterId);
+    const owned = await owner({ workspaceId, connectionRef, adapterId });
     if (!owned) return null;
     const { host, pluginId, declared } = owned;
-    const frozen = { expectedAccountId: frozenAccountOf(optional.binding) };
+    const frozen = { expectedAccountId: frozenAccountOf({ binding: optional.binding }) };
     const read = () => host.accessTokensFor({ pluginId }).getAccessToken({ connectionRef }, frozen);
-    const token = await read().catch((error: unknown) => Promise.reject(asDeliveryError(error)));
+    const token = await read().catch((error: unknown) => Promise.reject(asDeliveryError({ error })));
     // The push kit allows the base URL's origin plus each `additionalHosts` entry compared as an
     // exact origin; an OAuth destination reaches only the https origins its plugin declared on the
     // connection (none declared: nothing allowed).
     const [baseUrl = "", ...additionalHosts] = declared.apiOrigins;
-    return { token, baseUrl, additionalHosts, getAccessToken: perRequestTokens(token, read) };
+    return { token, baseUrl, additionalHosts, getAccessToken: perRequestTokens({ first: token, read }) };
   };
 }

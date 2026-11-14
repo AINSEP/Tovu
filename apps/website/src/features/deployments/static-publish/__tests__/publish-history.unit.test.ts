@@ -111,11 +111,11 @@ test("InMemoryPublishHistoryStore.list: respects a caller-supplied limit smaller
 });
 
 test("resolvePublishHistoryListLimit: defaults when omitted, clamps below 1 and above the max ceiling — a caller cannot force an unbounded read", () => {
-  assert.equal(resolvePublishHistoryListLimit(undefined), 50);
-  assert.equal(resolvePublishHistoryListLimit(0), 1);
-  assert.equal(resolvePublishHistoryListLimit(-5), 1);
-  assert.equal(resolvePublishHistoryListLimit(1_000_000), MAX_PUBLISH_HISTORY_LIST_LIMIT);
-  assert.equal(resolvePublishHistoryListLimit(10), 10);
+  assert.equal(resolvePublishHistoryListLimit({ requested: undefined }), 50);
+  assert.equal(resolvePublishHistoryListLimit({ requested: 0 }), 1);
+  assert.equal(resolvePublishHistoryListLimit({ requested: -5 }), 1);
+  assert.equal(resolvePublishHistoryListLimit({ requested: 1_000_000 }), MAX_PUBLISH_HISTORY_LIST_LIMIT);
+  assert.equal(resolvePublishHistoryListLimit({ requested: 10 }), 10);
 });
 
 test("both publish-history adapters return newest recorded first, even when publishedAt is out of order", async (t) => {

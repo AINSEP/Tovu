@@ -40,6 +40,6 @@ test("snapshot time uses English formatting in an explicitly pinned timezone and
   const prior = process.env.TZ;
   process.env.TZ = "UTC";
   t.after(async () => { if (prior === undefined) delete process.env.TZ; else process.env.TZ = prior; });
-  assert.equal(formatSnapshotTime("2026-09-27T15:41:00Z"), "Sep 27, 3:41 PM");
-  assert.equal(formatSnapshotTime("not-a-date"), "not-a-date");
+  assert.equal(formatSnapshotTime({ iso: "2026-09-27T15:41:00Z" }), "Sep 27, 3:41 PM");
+  assert.equal(formatSnapshotTime({ iso: "not-a-date" }), "not-a-date");
 });

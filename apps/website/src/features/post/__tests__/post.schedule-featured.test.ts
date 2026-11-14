@@ -117,20 +117,20 @@ test("publishAt must carry a timezone offset; a bad value writes nothing", async
 });
 
 test("isScheduledAt/isLiveAt: a draft is never scheduled; trash is never live", () => {
-  assert.equal(isScheduledAt({ status: "draft", publishAt: AFTER }, BEFORE), false);
-  assert.equal(isScheduledAt({ status: "published", publishAt: AFTER }, BEFORE), true);
-  assert.equal(isLiveAt({ status: "published", publishAt: null }, BEFORE), true);
-  assert.equal(isLiveAt({ status: "published", deletedAt: BEFORE }, AFTER), false);
+  assert.equal(isScheduledAt({ record: { status: "draft", publishAt: AFTER }, nowIso: BEFORE }), false);
+  assert.equal(isScheduledAt({ record: { status: "published", publishAt: AFTER }, nowIso: BEFORE }), true);
+  assert.equal(isLiveAt({ record: { status: "published", publishAt: null }, nowIso: BEFORE }), true);
+  assert.equal(isLiveAt({ record: { status: "published", deletedAt: BEFORE }, nowIso: AFTER }), false);
 });
 
 test("published rows without a schedule are live, including at the go-live instant", () => {
   for (const publishAt of [undefined, null, BEFORE, GO_LIVE]) {
     const record = { status: "published", publishAt };
-    assert.equal(isScheduledAt(record, GO_LIVE), false);
-    assert.equal(isLiveAt(record, GO_LIVE), true);
+    assert.equal(isScheduledAt({ record, nowIso: GO_LIVE }), false);
+    assert.equal(isLiveAt({ record, nowIso: GO_LIVE }), true);
   }
-  assert.equal(isLiveAt({ status: "draft", publishAt: BEFORE }, GO_LIVE), false);
-  assert.equal(isLiveAt({ status: "published", publishAt: AFTER }, GO_LIVE), false);
+  assert.equal(isLiveAt({ record: { status: "draft", publishAt: BEFORE }, nowIso: GO_LIVE }), false);
+  assert.equal(isLiveAt({ record: { status: "published", publishAt: AFTER }, nowIso: GO_LIVE }), false);
 });
 
 test("display dates prefer the go-live time and otherwise use the last update", () => {

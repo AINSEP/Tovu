@@ -114,14 +114,14 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     permission: "settings.workspace.write",
     // The share image may name a media item.
     dependsOn: ["media"],
-    ports: ({ deps }) => deps.ports["site-setting"],
+    ports: ({ deps }, _optional = {}) => deps.ports["site-setting"],
     list: async ({ ports: p, workspaceId }) => {
       const rows = await Promise.all(Object.keys(PUBLISHABLE_SETTINGS).map((id) => findSetting({ ports: p, workspaceId, id })));
       return rows.filter((row): row is SiteSettingRow => row !== null);
     },
     find: ({ ports, workspaceId, id }) => findSetting({ ports, workspaceId, id }),
-    idOf: ({ row }) => row.key,
-    include: (row) => !(row.key === OG_IMAGE && pointsAtThisComputer(row.value)),
+    idOf: ({ row }, _optional = {}) => row.key,
+    include: ({ row }, _optional = {}) => !(row.key === OG_IMAGE && pointsAtThisComputer(row.value)),
     fields: { key: "local", label: "provenance", value: "transferred", cleared: "transferred", version: "local" },
     omitWhenAbsent: ["cleared"],
     references: ({ entity }) => {

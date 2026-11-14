@@ -133,7 +133,7 @@ test("default warn goes to console.warn", async () => {
     });
     assert.deepEqual(await resolve({ request: "r" }), []);
     const hooks = createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}, [{ beforeIngest: async () => { throw new Error("h"); } }]) });
-    await hooks.beforeIngest(hit());
+    await hooks.beforeIngest({ hit: hit() });
     const load = cacheAnalyticsProviders({ load: async () => providerSet({}, [], ["refused one"]), clock: { nowMs: () => 0 } });
     await load();
   } finally {
@@ -190,16 +190,16 @@ test("cacheAnalyticsProviders keeps a newer cache entry when an older load rejec
 
 test("createPluginAnalyticsHooks: no handlers or a failed load pass the hit unchanged; handlers chain", async () => {
   const h = hit();
-  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}) }).beforeIngest(h), h);
-  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => { throw new Error("x"); } }).beforeIngest(h), h);
+  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}) }).beforeIngest({ hit: h }), h);
+  assert.equal(await createPluginAnalyticsHooks({ loadProviders: async () => { throw new Error("x"); } }).beforeIngest({ hit: h }), h);
 
   const warnings: string[] = [];
   const hooks = createPluginAnalyticsHooks({ loadProviders: async () => providerSet({}, [
     { beforeIngest: async () => { throw new Error("broken"); } },
     { beforeIngest: async ({ hit: x }) => (x.path === "/internal" ? null : { ...x, path: `${x.path}/tagged` }) },
   ]) }, { warn: (m) => warnings.push(m) });
-  assert.equal((await hooks.beforeIngest(hit("/a")))?.path, "/a/tagged");
-  assert.equal(await hooks.beforeIngest(hit("/internal")), null);
+  assert.equal((await hooks.beforeIngest({ hit: hit("/a") }))?.path, "/a/tagged");
+  assert.equal(await hooks.beforeIngest({ hit: hit("/internal") }), null);
   assert.deepEqual(warnings, [
     "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",
     "[analytics] beforeIngest hook #0 failed and was skipped: beforeIngest handler threw",

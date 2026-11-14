@@ -44,19 +44,19 @@ function makeHit(overrides: Partial<NormalizedHit> = {}): NormalizedHit {
 function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
   test(`[${label}] accept() then list() round-trips`, async () => {
     const sink = makeSink();
-    await sink.accept(makeHit());
-    const found = await sink.list();
+    await sink.accept({ hit: makeHit() });
+    const found = await sink.list({});
     assert.deepEqual(found, [makeHit()]);
   });
 
   test(`[${label}] list() returns hits newest-first`, async () => {
     const sink = makeSink();
     // "Newest" means acceptance order (SQL id), including delayed/out-of-order timestamps.
-    await sink.accept(makeHit({ path: "/a", occurredAt: "2026-07-16T00:03:00.000Z" }));
-    await sink.accept(makeHit({ path: "/b", occurredAt: "2026-07-16T00:01:00.000Z" }));
-    await sink.accept(makeHit({ path: "/c", occurredAt: "2026-07-16T00:02:00.000Z" }));
+    await sink.accept({ hit: makeHit({ path: "/a", occurredAt: "2026-07-16T00:03:00.000Z" }) });
+    await sink.accept({ hit: makeHit({ path: "/b", occurredAt: "2026-07-16T00:01:00.000Z" }) });
+    await sink.accept({ hit: makeHit({ path: "/c", occurredAt: "2026-07-16T00:02:00.000Z" }) });
     assert.deepEqual(
-      (await sink.list()).map((h) => h.path),
+      (await sink.list({})).map((h) => h.path),
       ["/c", "/b", "/a"]
     );
   });
@@ -64,31 +64,31 @@ function runSuite(label: string, makeSink: () => AnalyticsSinkPort) {
   test(`[${label}] acceptBatch() persists every hit in the batch`, async () => {
     const sink = makeSink();
     const hits = [makeHit({ path: "/a", visitorHash: "visitor-a", referrerHost: "referrer.example" }), makeHit({ path: "/b", visitorHash: "visitor-b", kind: "event", eventName: "signup", eventProps: { plan: "pro" } })];
-    await sink.acceptBatch(hits);
-    assert.equal((await sink.list()).length, 2);
-    assert.deepEqual(await sink.list(), [...hits].reverse());
+    await sink.acceptBatch({ hits });
+    assert.equal((await sink.list({})).length, 2);
+    assert.deepEqual(await sink.list({}), [...hits].reverse());
   });
 
   test(`[${label}] acceptBatch() of an empty batch is a no-op that leaves stored hits untouched`, async () => {
     const sink = makeSink();
-    await sink.accept(makeHit({ path: "/kept" }));
-    await sink.acceptBatch([]);
-    assert.deepEqual((await sink.list()).map((hit) => hit.path), ["/kept"]);
+    await sink.accept({ hit: makeHit({ path: "/kept" }) });
+    await sink.acceptBatch({ hits: [] });
+    assert.deepEqual((await sink.list({})).map((hit) => hit.path), ["/kept"]);
   });
 
   test(`[${label}] list() honors an explicit limit`, async () => {
     const sink = makeSink();
     for (let i = 0; i < 10; i += 1) {
-      await sink.accept(makeHit({ path: `/p${i}` }));
+      await sink.accept({ hit: makeHit({ path: `/p${i}` }) });
     }
-    assert.equal((await sink.list({ limit: 3 })).length, 3);
-    assert.deepEqual((await sink.list({ limit: 3 })).map(hit => hit.path), ["/p9", "/p8", "/p7"]);
+    assert.equal((await sink.list({}, { limit: 3 })).length, 3);
+    assert.deepEqual((await sink.list({}, { limit: 3 })).map(hit => hit.path), ["/p9", "/p8", "/p7"]);
   });
 
   test(`[${label}] a hit with a populated eventProps bag round-trips`, async () => {
     const sink = makeSink();
-    await sink.accept(makeHit({ kind: "event", eventName: "signup", eventProps: { plan: "pro" } }));
-    const found = await sink.list();
+    await sink.accept({ hit: makeHit({ kind: "event", eventName: "signup", eventProps: { plan: "pro" } }) });
+    const found = await sink.list({});
     assert.deepEqual(found[0].eventProps, { plan: "pro" });
   });
 }
@@ -99,9 +99,9 @@ describeEachDialect("AnalyticsSinkPort (SQL)", { tables: ["analytics_events"], m
 
   test(`[${dialect}] list() reads back only this sink's workspace`, async () => {
     const sink = makeSink();
-    await sink.accept(makeHit({ workspaceId: "workspace-2", path: "/other" }));
-    await sink.accept(makeHit({ path: "/mine" }));
-    assert.deepEqual((await sink.list()).map((h) => h.path), ["/mine"]);
+    await sink.accept({ hit: makeHit({ workspaceId: "workspace-2", path: "/other" }) });
+    await sink.accept({ hit: makeHit({ path: "/mine" }) });
+    assert.deepEqual((await sink.list({})).map((h) => h.path), ["/mine"]);
   });
 });
 
@@ -117,12 +117,12 @@ test("ADR-046 Phase 1: analytics_events survives a simulated process restart (re
   const dbPath = join(dir, "content.db");
   try {
     const db1 = openContentDb(dbPath);
-    await new SqliteBufferSink({ db: db1, workspaceId: WORKSPACE_ID }).accept(makeHit({ path: "/restart-check" }));
+    await new SqliteBufferSink({ db: db1, workspaceId: WORKSPACE_ID }).accept({ hit: makeHit({ path: "/restart-check" }) });
 
     // "Restart": a brand-new content.db handle against the SAME on-disk file — the
     // process-local array this replaces would have lost the row entirely.
     const db2 = openContentDb(dbPath);
-    const found = await new SqliteBufferSink({ db: db2, workspaceId: WORKSPACE_ID }).list();
+    const found = await new SqliteBufferSink({ db: db2, workspaceId: WORKSPACE_ID }).list({});
     assert.equal(found.length, 1);
     assert.equal(found[0].path, "/restart-check");
   } finally {

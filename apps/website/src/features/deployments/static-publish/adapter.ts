@@ -578,7 +578,7 @@ function credentialChangedSinceReview({ input, credential }: { input: StaticPubl
 async function readPluginExportHosts({ deps }: { deps: StaticPublishDeps }, _options = {}) {
   // Report-only data: a catalog read failure must not stop a publish.
   return deps.pluginExportHosts?.().catch((error: unknown) => {
-    console.warn("[static-publish] Could not read plugin export hosts", describeErrorForLog({ err: error }));
+    console.warn("[static-publish] Could not read plugin export hosts", describeErrorForLog({ err: { err: error } }));
     return undefined;
   });
 }
@@ -617,7 +617,7 @@ function filesForReceiver({ files, submitUrl }: { files: DeployFile[]; submitUrl
 async function saveReceiverKey({ outcome, save }: { outcome: StaticPublishOutcome; save?: (required: { readonly url: string }) => Promise<void> }, _options = {}): Promise<void> {
   if (!save || outcome.ok === false) return;
   try { await save({ url: outcome.url }); }
-  catch (error) { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it", describeErrorForLog(error)); }
+  catch (error) { console.warn("[static-publish] the form receiver key could not be saved; the next publish will replace it", describeErrorForLog({ err: error })); }
 }
 
 /** Redact declared secrets from full/partial provider failures and retain the saved credential id.

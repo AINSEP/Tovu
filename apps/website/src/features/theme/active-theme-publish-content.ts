@@ -77,7 +77,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     coversTables: ["presentation_settings"],
     permission: "theme.set",
     dependsOn: ["theme-files"],
-    ports: ({ deps }) => deps.ports["active-theme"],
+    ports: ({ deps }, _optional = {}) => deps.ports["active-theme"],
     list: async ({ ports: p, workspaceId }) => {
       const row = await findActiveTheme({ ports: p, workspaceId, id: ACTIVE_THEME_ID });
       return row ? [row] : [];

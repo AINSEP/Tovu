@@ -145,7 +145,7 @@ const BOOT_ORDERING_FALLBACK: Omit<AnalyticsSiteConfig, "workspaceId"> = {
  *  resolution on ANY of them means the whole namespace is still unregistered (boot ordering — see
  *  `BOOT_ORDERING_FALLBACK`'s doc comment), not a per-field gap. Hoisted into a `.some` scan rather
  *  than a 7-term `||` chain so the caller checks one guard, not a repeated comparison per key. */
-function anyEffectiveValueUnregistered(values: ReadonlyArray<Awaited<ReturnType<typeof getEffective>>>): boolean {
+function anyEffectiveValueUnregistered({ values }: { values: ReadonlyArray<Awaited<ReturnType<typeof getEffective>>> }, _optional = {}): boolean {
   return values.some((value) => value === null);
 }
 
@@ -196,7 +196,7 @@ export function createSettingsAnalyticsConfig(deps: CreateSettingsAnalyticsConfi
 
       // Fall back together rather than mixing partially-resolved live values with fallback ones —
       // see `anyEffectiveValueUnregistered`'s own doc for why this is a whole-namespace check.
-      if (anyEffectiveValueUnregistered(resolved)) {
+      if (anyEffectiveValueUnregistered({ values: resolved })) {
         return { workspaceId, ...BOOT_ORDERING_FALLBACK };
       }
 

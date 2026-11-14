@@ -1740,7 +1740,7 @@ async function composeSiteRouteDeps(
   // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
   // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
   // keeps this identical to `apps/website/src/server/runtime/composition/app.ts`'s hermetic root, where sharing is load-bearing.
-  const contentTypeRepo = new SqliteContentTypeRepo(kernel);
+  const contentTypeRepo = new SqliteContentTypeRepo({ store: kernel });
   const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — the boot-wiring pass
   // `resolvers/index.ts`'s `wireCoreResolvers` file header always said was needed before the app

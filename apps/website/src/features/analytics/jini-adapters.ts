@@ -71,9 +71,9 @@ export function createAnalyticsIngestBinding<Request>(
   const sink = createFanOutAnalyticsSink({
     primary: {
       capabilities: () => host.sink.capabilities(),
-      accept: ({ hit }) => host.sink.accept(hit),
-      acceptBatch: ({ hits }) => host.sink.acceptBatch(hits),
-      list: (_required, listOptional) => host.sink.list(listOptional),
+      accept: ({ hit }) => host.sink.accept({ hit }),
+      acceptBatch: ({ hits }) => host.sink.acceptBatch({ hits }),
+      list: (_required, listOptional) => host.sink.list({}, listOptional),
     },
   }, { forwarders: optional.forwarders ?? [], report: reportForwardFailure, ...(optional.limiter ? { limiter: optional.limiter } : {}) });
   return {
@@ -85,7 +85,7 @@ export function createAnalyticsIngestBinding<Request>(
       saltContext: analyticsSaltContext,
       privacyPolicy: analyticsPrivacyPolicy,
     },
-    optional: hooks ? { hooks: { beforeIngest: ({ hit }) => hooks.beforeIngest(hit) } } : {},
+    optional: hooks ? { hooks: { beforeIngest: ({ hit }) => hooks.beforeIngest({ hit }) } } : {},
   };
 }
 
@@ -104,9 +104,9 @@ export function createLocalAnalyticsSink(
   const sink = new LocalBufferSink({}, optional);
   return {
     capabilities: () => sink.capabilities({}),
-    accept: (hit) => sink.accept({ hit }),
-    acceptBatch: (hits) => sink.acceptBatch({ hits }),
-    list: (input) => sink.list({}, input),
+    accept: ({ hit }, _optional = {}) => sink.accept({ hit }),
+    acceptBatch: ({ hits }, _optional = {}) => sink.acceptBatch({ hits }),
+    list: (_required, optional = {}) => sink.list({}, optional),
     all: () => sink.all({}),
   };
 }

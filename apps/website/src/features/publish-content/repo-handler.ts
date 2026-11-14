@@ -72,11 +72,11 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** Must also return a trashed row, so precheck can refuse it rather than plan a create. */
   readonly find: (required: { ports: Ports; workspaceId: string; id: string }, optional?: Record<string, never>) => Promise<Row | null>;
   /** Defaults to `row.id`. */
-  readonly idOf?: (required: { row: Row }) => string;
+  readonly idOf?: (required: { row: Row }, optional?: Record<string, never>) => string;
   /** Defaults to `row.version`. */
   readonly versionOf?: (row: Row) => number;
   /** Pack filter beyond trash (kind, active status, excluded keys). */
-  readonly include?: (row: Row, optional?: Record<string, never>) => boolean;
+  readonly include?: (required: { row: Row }, optional?: Record<string, never>) => boolean;
   /** Pack skips a trashed row; precheck refuses a trashed destination row. */
   readonly isTrashed?: (required: { row: Row }) => boolean;
   /** e.g. parent-first for a tree-shaped type. */
@@ -156,7 +156,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
   const portsKey = config.portsKey ?? entityType;
   const schemaVersion = config.schemaVersion ?? 1;
   const dependsOn = config.dependsOn ?? [];
-  const idOf = config.idOf ?? (({ row }: { row: Row }) => (row as { id: string }).id);
+  const idOf = config.idOf ?? (({ row }: { row: Row }, _optional = {}) => (row as { id: string }).id);
   const versionOf = config.versionOf ?? ((row: Row) => (row as { version: number }).version);
   const fieldsWhere = (keep: (d: FieldDisposition) => boolean) =>
     Object.entries<FieldDisposition>(config.fields).filter(([, d]) => keep(d)).map(([field]) => field);
@@ -196,7 +196,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     async function* pack(): AsyncIterable<PackedEntity> {
       const p = ports();
       if (!p) return;
-      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.(row) ?? true));
+      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.({ row }) ?? true));
       for (const row of config.packOrder ? config.packOrder(rows) : rows) {
         const displayLabel = config.displayLabel?.(row);
         yield {

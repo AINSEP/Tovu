@@ -386,7 +386,7 @@ export async function resumeCampaign(required: {
     await requeuePendingSends({ deps: required.deps, campaign: result.campaign, audienceSnapshotId: result.campaign.audienceSnapshotId });
   } catch (error) {
     // Do not expose repository/provider diagnostics or turn an already-committed resume into a refusal.
-    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying", describeErrorForLog(error));
+    console.error("[newsletter] pending delivery requeue failed after resume; inspect the send log before retrying", describeErrorForLog({ err: error }));
     return { ...result, requeueFailed: true };
   }
   return result;
