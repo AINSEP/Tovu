@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { optionalOneOf, optionalString, readToolLimit, ToolInputError } from "@jini-ai/core";
 import type { Express } from "express";
@@ -32,27 +34,12 @@ function parseQueueQuery(query: Record<string, unknown>): { status: CommentStatu
 
 export function registerAdminCommentsModerationQueueRoute(app: Express, deps: AdminCommentsModerationQueueDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/comments/queue", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "comments.read",
-        workspaceId: deps.workspaceId,
-        entityType: "comment",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'comments.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "comments.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "comments.read", workspaceId: deps.workspaceId, entityType: "comment" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { status, limit, cursor } = parseQueueQuery(req.query);
       const page = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status, limit, cursor });

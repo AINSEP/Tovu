@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from "express";
 
@@ -68,28 +70,12 @@ function respondToModerationResult(res: Response, result: Awaited<ReturnType<Com
 export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCommentsModerateDeps): void {
   for (const spec of ACTIONS) {
     app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
-          principalId: principal.id,
-          permission: spec.permission,
-          workspaceId: deps.workspaceId,
-          entityType: "comment",
-          entityId: req.params.commentId,
-        });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for '${spec.permission}' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: spec.permission, reason: authResult.reason },
-          });
-          return;
-        }
+        const params = { principalId: principal.id, permission: spec.permission, workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
+        if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
         const parsedBody = parseModerationBody(req.body);
         if (!parsedBody) {
@@ -115,28 +101,12 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
   }
 
   app.post("/api/admin/v1/workspaces/:workspaceId/comments/:commentId/purge", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "comments.delete.force",
-        workspaceId: deps.workspaceId,
-        entityType: "comment",
-        entityId: req.params.commentId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'comments.delete.force' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "comments.delete.force", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "comments.delete.force", workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body as Record<string, unknown>;
       const result = await deps.commentWriteService.purge({

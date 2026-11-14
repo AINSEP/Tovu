@@ -2,31 +2,31 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 import {
   acceptOverwriteEntityKeys,
   INVALID_OVERWRITE_KEYS,
   OVERWRITE_REFUSED,
   readOverwriteEntityKeys,
-  rejectForeignWorkspace,
-  routeParam,
 } from "../route-helpers.js";
 
-test("routeParam reads an absent or null param as an empty string, never the literal 'undefined'/'null'", () => {
-  assert.equal(routeParam({ params: {} }, "workspaceId"), "");
-  assert.equal(routeParam({ params: { workspaceId: undefined } }, "workspaceId"), "");
-  assert.equal(routeParam({ params: { peerId: "peer-1" } }, "peerId"), "peer-1");
+test("readRouteParam reads an absent or undefined param as an empty string, never the literal 'undefined'", () => {
+  assert.equal(readRouteParam({ req: { params: {} }, name: "workspaceId" }), "");
+  // Exercise an intentionally invalid request that Express would not normally supply.
+  assert.equal(readRouteParam({ req: { params: { workspaceId: undefined as unknown as string } }, name: "workspaceId" }), "");
+  assert.equal(readRouteParam({ req: { params: { peerId: "peer-1" } }, name: "peerId" }), "peer-1");
 });
 
 test("rejectForeignWorkspace sends the 404 for an absent workspace param", () => {
   const { res, capture } = createCapturingResponse();
-  assert.equal(rejectForeignWorkspace({ params: {} }, res, "ws"), true);
+  assert.equal(rejectForeignWorkspace({ req: { params: {} }, res, workspaceId: "ws" }), true);
   assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
 });
 
 test("rejectForeignWorkspace lets the matching workspace through without writing", () => {
   const { res, capture } = createCapturingResponse();
-  assert.equal(rejectForeignWorkspace({ params: { workspaceId: "ws" } }, res, "ws"), false);
+  assert.equal(rejectForeignWorkspace({ req: { params: { workspaceId: "ws" } }, res, workspaceId: "ws" }), false);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: undefined });
 });
 

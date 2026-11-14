@@ -8,41 +8,15 @@ import type { PublishContentRouteDeps } from "./deps.js";
 
 /**
  * @file The request preamble and body readers every publish-content route file in this folder
- * shares: the mount-path 404, the authenticated-principal-plus-permission gate, the typed-error to
- * HTTP mapping, and the `overwriteEntityKeys` reader. One copy, so a route cannot drift from the
- * others on the exact 404/403 body or on the 1000-entry cap.
+ * shares: the authenticated-principal-plus-permission gate, the typed-error to HTTP mapping, and
+ * the `overwriteEntityKeys` reader. One copy, so a route cannot drift from the others on the exact
+ * 403 body or on the 1000-entry cap. The mount-path 404 lives in `shared/route-guards.ts`.
  */
-
-/** The request shape these helpers read: only the matched route params. */
-export interface RouteParamsRequest {
-  params: Record<string, string | undefined>;
-}
 
 /** The status-and-body pair a refusal or a mapped error answers with. */
 export interface RouteRefusal {
   status: number;
   body: Record<string, unknown>;
-}
-
-/**
- * Reads a matched route param as a string. Express always fills a matched `:param`, so the `""`
- * fallback only matters to a caller that invokes a handler directly; it keeps such a call from
- * comparing against the literal string `"undefined"`.
- * @complexity O(1).
- */
-export function routeParam(req: RouteParamsRequest, name: string): string {
-  return String(req.params[name] ?? "");
-}
-
-/**
- * The mount-path guard: a request naming another workspace gets the 404 before anything else runs.
- * @returns `true` when the 404 has been sent and the handler must stop.
- * @complexity O(1).
- */
-export function rejectForeignWorkspace(req: RouteParamsRequest, res: Response, workspaceId: string): boolean {
-  if (routeParam(req, "workspaceId") === workspaceId) return false;
-  res.status(404).json({ error: "workspace was not found" });
-  return true;
 }
 
 /**

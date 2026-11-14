@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
@@ -254,10 +255,7 @@ function validateSetEnabledRequest(
   res: Response,
   deps: AgentPluginsRouteDeps,
 ): { pluginId: string; enabled: boolean } | undefined {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return undefined;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
 
   const pluginId = String(req.params.pluginId ?? "");
   const enabled = (req.body as { enabled?: unknown } | undefined)?.enabled;

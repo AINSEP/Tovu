@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { MemberNotFoundError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
@@ -24,31 +26,15 @@ export const registerAdminMemberGetRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const memberId = String(req.params.memberId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
 
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "member.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "member",
-        entityId: memberId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'member.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "member.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "member.manage", workspaceId: deps.workspaceId, entityType: "member", entityId: memberId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const member = await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: memberId });
       if (!member) {

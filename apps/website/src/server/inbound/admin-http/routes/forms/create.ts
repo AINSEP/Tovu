@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
 import { DuplicateCommandError } from "@jini-ai/cms/core";
@@ -34,10 +35,7 @@ function parseFormCreateBody(rawBody: unknown): {
  */
 export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

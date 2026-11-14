@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { trashMember, MemberConflictError, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -12,9 +13,7 @@ import type { MembersRouteDeps } from "./deps.js";
 export const registerAdminMemberDeleteRoute: RouteRegistrar = (app, routeDeps) => {
   const deps = routeDeps as MembersRouteDeps;
   app.delete("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" }); return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const memberId = String(req.params.memberId ?? "");
     try {
       const principal = getAuthedPrincipal(res);

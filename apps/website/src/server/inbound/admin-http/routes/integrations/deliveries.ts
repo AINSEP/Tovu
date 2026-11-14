@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminDeliveryResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -28,30 +30,14 @@ export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistra
   app.get(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/deliveries",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const subscriptionId = String(req.params.subscriptionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
-          principalId: principal.id,
-          permission: "admin.integrations.manage",
-          workspaceId: deps.workspaceId,
-          entityType: "webhook_subscription",
-          entityId: subscriptionId,
-        });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: "admin.integrations.manage", reason: authResult.reason },
-          });
-          return;
-        }
+        const params = { principalId: principal.id, permission: "admin.integrations.manage", workspaceId: deps.workspaceId, entityType: "webhook_subscription", entityId: subscriptionId };
+        if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
         const subscription = await deps.webhookSubscriptionRepo.findById({
           workspaceId: deps.workspaceId,

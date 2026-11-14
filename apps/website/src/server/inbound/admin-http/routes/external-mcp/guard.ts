@@ -1,5 +1,6 @@
 import type { Response } from "express";
 
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 
@@ -40,20 +41,8 @@ export async function guardExternalMcpRequest(
   }
 
   const principal = getAuthedPrincipal(res);
-  const authResult = await deps.authorize({
-    principalId: principal.id,
-    permission: PERMISSION,
-    workspaceId: deps.workspaceId,
-    entityType: "integration",
-  });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for '${PERMISSION}' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission: PERMISSION, reason: authResult.reason },
-    });
-    return false;
-  }
+  const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: "integration" };
+  if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return false;
 
   return true;
 }

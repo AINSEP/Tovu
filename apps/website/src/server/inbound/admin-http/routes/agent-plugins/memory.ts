@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import type { Request, Response } from "express";
@@ -58,7 +59,7 @@ async function isInstalled(deps: AgentPluginsRouteDeps, pluginId: string): Promi
 export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app, deps) => {
   const url = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory";
   const handle = (write: boolean) => async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,

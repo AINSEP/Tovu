@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
@@ -63,10 +64,7 @@ async function rejectUnlessAuthorized(
   deps: AdminFsFilesCustomRootDeps,
   permission: string,
 ): Promise<boolean> {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return true;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
   const principal = getAuthedPrincipal(res);
   return !(await authorizeOrRespond(res, deps.authorize, {
     principalId: principal.id,

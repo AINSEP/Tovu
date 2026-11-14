@@ -1,3 +1,4 @@
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
@@ -16,20 +17,8 @@ export function registerAdminContentTypeListRoute(app: Express, deps: ContentTyp
   app.get("/api/admin/v1/content-types", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.read",
-        workspaceId: deps.workspaceId,
-        entityType: "content-type",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.read", workspaceId: deps.workspaceId, entityType: "content-type" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await listContentTypes({ repo: deps.contentTypeRepo, workspaceId: deps.workspaceId });
       res.json(result);

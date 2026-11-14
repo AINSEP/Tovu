@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from 'express';
 import { DocumentTextExtractionError, MediaNotFoundError, MediaValidationError, readDocumentText } from '@jini-ai/cms/media';
@@ -10,7 +11,7 @@ export function registerAdminMediaTextRoute(required: { app: Express; deps: Medi
   const { app, deps } = required;
   app.get('/api/admin/v1/workspaces/:workspaceId/media/:mediaId/text', async (req, res) => {
     res.set('Cache-Control', 'private, no-store').set('X-Content-Type-Options', 'nosniff');
-    if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: 'workspace was not found' }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const id = String(req.params.mediaId);

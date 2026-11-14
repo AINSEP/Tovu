@@ -3,6 +3,7 @@ import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { PrincipalRecord } from "@jini-ai/user-management";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "../dev-auth.js";
 import {
   NewsletterCampaignNotEditableError,
@@ -48,16 +49,8 @@ export async function requireNewsletterPermissionOrRespond(
   res: Response
 ): Promise<PrincipalRecord | null> {
   const principal = getAuthedPrincipal(res);
-  const authResult = await authorize({ principalId: principal.id, permission, workspaceId, entityType });
-  if (!authResult.allowed) {
-    res.status(403).json({
-      error: `principal '${principal.id}' is not authorized for '${permission}' (${authResult.reason})`,
-      code: "FORBIDDEN",
-      details: { permission, reason: authResult.reason },
-    });
-    return null;
-  }
-  return principal;
+  const params = { principalId: principal.id, permission, workspaceId, entityType };
+  return (await authorizeDirectOrRespond({ res, authorize, params })) ? principal : null;
 }
 
 export interface NewsletterErrorResponse {

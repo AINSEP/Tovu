@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../../../../../features/agent-plugins/lifecycle.js";
 import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
@@ -24,10 +25,7 @@ import type { AgentPluginsRouteRegistrar } from "./deps.js";
  */
 export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const pluginId = String(req.params.pluginId ?? "");
 

@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { createAgentPluginUpdateEffects, requireUpdateMcpDeps } from "#src/features/agent-plugins/update-effects";
 import type { Request, RequestHandler, Response } from "express";
 import { raw } from "express";
@@ -101,10 +102,7 @@ function installOptions(required: { deps: AgentPluginsRouteDeps; actor: string }
 export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   const parseZip = raw({ type: "application/zip", limit: maxAgentPluginInstallArchiveBytes(), inflate: false });
   const installHandler: RequestHandler = async (req, res) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return undefined;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return undefined;

@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { parseExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { updateFormDefinition } from "#src/features/forms/index";
@@ -23,10 +24,7 @@ function authoringPatch({ body }: { body: Record<string, unknown> }, _options = 
  * the audit boundary live in the write service, covering route and future tool callers alike. */
 export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const body = (req.body ?? {}) as Record<string, unknown>;
       const principal = getAuthedPrincipal(res);

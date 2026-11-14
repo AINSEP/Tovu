@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getExecutionCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -13,10 +14,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  */
 export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
@@ -28,10 +29,7 @@ function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
 
 export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
   app.get("/api/content/v1/workspaces/:workspaceId/posts/:slug", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const slug = String(req.params.slug ?? "");

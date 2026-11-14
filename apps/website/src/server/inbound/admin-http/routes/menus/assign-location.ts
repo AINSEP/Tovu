@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 import { assignLocation, MenuConflictError, MenuNotFoundError, MenuVersionConflictError } from "#src/features/navigation/index";
@@ -52,10 +54,7 @@ function sendAssignLocationError(
  */
 export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const locationKey = parseLocationKey(req.body);
     if (!locationKey) {
@@ -67,21 +66,8 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.menus.assign",
-        workspaceId: deps.workspaceId,
-        entityType: "menu",
-        entityId: menuId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.menus.assign' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.menus.assign", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.menus.assign", workspaceId: deps.workspaceId, entityType: "menu", entityId: menuId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { menu, binding, displacedMenu } = await assignLocation({
         deps: {

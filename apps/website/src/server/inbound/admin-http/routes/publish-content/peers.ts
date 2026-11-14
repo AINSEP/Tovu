@@ -14,11 +14,10 @@ import {
   authorizedPrincipalId,
   bodyRecord,
   mappedErrorResponse,
-  rejectForeignWorkspace,
-  routeParam,
   sendRefusal,
   type MappedErrorClass,
 } from "./route-helpers.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -95,7 +94,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers";
 
   app.get(base, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId(res, deps, "publish_content.read")) === null) return;
       const peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
@@ -106,7 +105,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   });
 
   app.post(base, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
       const body = bodyRecord(req.body);
@@ -124,12 +123,12 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   });
 
   app.patch(`${base}/:peerId`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
       const peer = await updatePublishContentPeer(toWriteDeps(deps), {
         workspaceId: deps.workspaceId,
-        id: routeParam(req, "peerId"),
+        id: readRouteParam({ req, name: "peerId" }),
         ...presentPeerFields(bodyRecord(req.body)),
       });
       res.json({ peer });
@@ -139,14 +138,14 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
   });
 
   app.delete(`${base}/:peerId`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId(res, deps, "publish_content.apply")) === null) return;
       // Idempotent 204, matching this codebase's other credential DELETE routes: deleting an
       // already-absent peer is a success, not a 404.
       await deletePublishContentPeer({ repo: deps.publishContentPeerRepo }, {
         workspaceId: deps.workspaceId,
-        id: routeParam(req, "peerId"),
+        id: readRouteParam({ req, name: "peerId" }),
       });
       res.status(204).end();
     } catch (err) {

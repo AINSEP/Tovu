@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
@@ -64,30 +66,14 @@ function sendChangeSetRevertError(res: Response, err: unknown): void {
  */
 export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const changeSetId = String(req.params.changeSetId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "changeset.revert",
-        workspaceId: deps.workspaceId,
-        entityType: "change_set",
-        entityId: changeSetId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'changeset.revert' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "changeset.revert", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "changeset.revert", workspaceId: deps.workspaceId, entityType: "change_set", entityId: changeSetId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       const reverted = await revertChangeSet({

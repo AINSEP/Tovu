@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminFormSubmissionResponse } from "#src/server/inbound/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -33,31 +35,15 @@ export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, d
   app.get(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const formId = String(req.params.formId ?? "");
       const submissionId = String(req.params.submissionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
-          principalId: principal.id,
-          permission: "admin.forms.submissions.read",
-          workspaceId: deps.workspaceId,
-          entityType: "form_submission",
-          entityId: submissionId,
-        });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for 'admin.forms.submissions.read' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: "admin.forms.submissions.read", reason: authResult.reason },
-          });
-          return;
-        }
+        const params = { principalId: principal.id, permission: "admin.forms.submissions.read", workspaceId: deps.workspaceId, entityType: "form_submission", entityId: submissionId };
+        if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
         // Slug first, id second — same rationale as `list-submissions.ts`/`get-by-id.ts`: the
         // Submissions tab URL is /admin/forms/:slug, and `FormEditor.tsx` passes that same route
