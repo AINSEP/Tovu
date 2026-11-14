@@ -14,7 +14,7 @@ function discoverForInput(input: DesktopDiscoveryInput): string[] {
   // Read settings in this worker too: canonicalizing removable roots can itself block.
   return discoverSiteDirs({
     scanRoots: input.scanRoots ?? workspace.roots({}),
-    knownDirs: [...readDesktopState(input.statePath).recentSiteDirs, ...workspace.registry({}).list({}).map((row) => row.path)],
+    knownDirs: [...readDesktopState({ statePath: input.statePath }).recentSiteDirs, ...workspace.registry({}).list({}).map((row) => row.path)],
     classifySiteDir: classifySiteDirSafely,
   }, { homeDir: workspace.homeDir, sitesHome: workspace.home({}) });
 }

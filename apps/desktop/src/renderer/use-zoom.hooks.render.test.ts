@@ -48,7 +48,7 @@ test('a registered guest takes its remembered level, and the menu zooms the visi
   const fake = zoomBridge();
   const store = memoryStorage({ 'tovu:zoom:/a': '1.5' });
   let active: string | null = '/a';
-  const hook = renderHook({ t, useHook: () => useZoom(active, { bridge: fake.bridge, storage: store.storage }) });
+  const hook = renderHook({ t, useHook: () => useZoom({ activeGuestId: active }, { bridge: fake.bridge, storage: store.storage }) });
   const a = guest();
   hook.current().registerGuest('/a', a);
   assert.equal(a.level, 1.5);
@@ -68,7 +68,7 @@ test('a registered guest takes its remembered level, and the menu zooms the visi
 test('a deregistered guest is no longer a target; the command falls back to the shell window', (t) => {
   const fake = zoomBridge();
   const store = memoryStorage();
-  const hook = renderHook({ t, useHook: () => useZoom('/a', { bridge: fake.bridge, storage: store.storage }) });
+  const hook = renderHook({ t, useHook: () => useZoom({ activeGuestId: '/a' }, { bridge: fake.bridge, storage: store.storage }) });
   const a = guest(1);
   hook.current().registerGuest('/a', a);
   assert.equal(a.level, 0, 'no remembered level: a fresh guest starts at actual size');
@@ -81,7 +81,7 @@ test('a deregistered guest is no longer a target; the command falls back to the 
 test('with no bridge the hook subscribes to nothing, and defaults to the shell\'s own localStorage', (t) => {
   const window = installDom();
   window.localStorage.setItem('tovu:zoom:/b', '-1');
-  const hook = renderHook({ t, useHook: () => useZoom('/b', { bridge: undefined }) });
+  const hook = renderHook({ t, useHook: () => useZoom({ activeGuestId: '/b' }, { bridge: undefined }) });
   const b = guest();
   hook.current().registerGuest('/b', b);
   assert.equal(b.level, -1);
@@ -94,7 +94,7 @@ test('a shell whose localStorage getter throws still renders, and zoom still wor
   Object.defineProperty(window, 'localStorage', { configurable: true, get() { reads += 1; throw new Error('SecurityError: storage denied'); } });
   t.after(() => { if (original) Object.defineProperty(window, 'localStorage', original); });
   const fake = zoomBridge();
-  const hook = renderHook({ t, useHook: () => useZoom('/c', { bridge: fake.bridge }) });
+  const hook = renderHook({ t, useHook: () => useZoom({ activeGuestId: '/c' }, { bridge: fake.bridge }) });
   assert.equal(reads, 0, 'rendering never touches storage');
   const c = guest(2);
   hook.current().registerGuest('/c', c);
@@ -106,7 +106,7 @@ test('a shell whose localStorage getter throws still renders, and zoom still wor
 
 test('unmounting drops the zoom command subscription', (t) => {
   const fake = zoomBridge();
-  const hook = renderHook({ t, useHook: () => useZoom('/a', { bridge: fake.bridge, storage: memoryStorage().storage }) });
+  const hook = renderHook({ t, useHook: () => useZoom({ activeGuestId: '/a' }, { bridge: fake.bridge, storage: memoryStorage().storage }) });
   assert.deepEqual(fake.log, ['subscribe']);
   hook.unmount();
   assert.deepEqual(fake.log, ['subscribe', 'unsubscribe']);

@@ -49,15 +49,15 @@ export interface RunnerConversationController {
   /** The current state. Same object identity until something changes (`useSyncExternalStore`). */
   getState: () => RunnerConversationState;
   /** Calls `listener` after every state change; returns the unsubscribe. */
-  subscribe: (listener: () => void) => () => void;
+  subscribe: (input: { listener: () => void }) => () => void;
   /** Re-reads the list; on failure (or with no bridge) resolves to the list already published. */
   refresh: () => Promise<readonly WorkspaceConversationSummary[]>;
-  select: (id: string) => void;
+  select: (input: { id: string }) => void;
   create: () => Promise<void>;
-  remove: (id: string) => Promise<void>;
-  rename: (id: string, title: string) => Promise<void>;
+  remove: (input: { id: string }) => Promise<void>;
+  rename: (input: { id: string; title: string }) => Promise<void>;
   /** `ChatPane`'s `onMessagesChange` — see `UseRunnerConversations.onMessagesChange`. */
-  onMessagesChange: (messages: ChatMessage[]) => void;
+  onMessagesChange: (input: { messages: ChatMessage[] }) => void;
 }
 
 type Log = (...args: unknown[]) => void;
@@ -110,17 +110,17 @@ export function createRunnerConversationController(
   };
   return {
     getState: () => core.state,
-    subscribe: (listener) => subscribe(core, listener),
+    subscribe: ({ listener }) => subscribe({ core, listener }),
     refresh: () => refresh(core),
-    select: (id) => select(core, id),
+    select: ({ id }) => select({ core, id }),
     create: () => create(core),
-    remove: (id) => remove(core, id),
-    rename: (id, title) => rename(core, { id, title }),
-    onMessagesChange: (messages) => onMessagesChange(core, messages),
+    remove: ({ id }) => remove({ core, id }),
+    rename: ({ id, title }) => rename(core, { id, title }),
+    onMessagesChange: ({ messages }) => onMessagesChange({ core, messages }),
   };
 }
 
-function subscribe(core: ControllerCore, listener: () => void): () => void {
+function subscribe({ core, listener }: { core: ControllerCore; listener: () => void }, _options: Record<string, never> = {}): () => void {
   core.listeners.add(listener);
   return () => {
     core.listeners.delete(listener);
@@ -174,7 +174,7 @@ async function refresh(core: ControllerCore): Promise<readonly WorkspaceConversa
   }
 }
 
-function select(core: ControllerCore, id: string): void {
+function select({ core, id }: { core: ControllerCore; id: string }, _options: Record<string, never> = {}): void {
   const bridge = core.bridge;
   if (bridge === undefined || core.deleted.has(id)) return;
   const seq = beginSwitch(core);
@@ -229,7 +229,7 @@ async function create(core: ControllerCore): Promise<void> {
   publish(core, { conversations, activeId: conversation.id, initialMessages: [], paneKey: conversation.id });
 }
 
-async function remove(core: ControllerCore, id: string): Promise<void> {
+async function remove({ core, id }: { core: ControllerCore; id: string }, _options: Record<string, never> = {}): Promise<void> {
   const bridge = core.bridge;
   if (bridge === undefined) return;
   await bridge.deleteConversation({ id });
@@ -248,7 +248,7 @@ async function remove(core: ControllerCore, id: string): Promise<void> {
   // `select`, deliberately, not a raw publish of `activeId: next` — see `commitSelection`'s doc:
   // only `select` publishes id, transcript and written-ids together, in the order that keeps a
   // remount from ever showing an empty pane under a non-empty switcher entry.
-  select(core, next);
+  select({ core, id: next });
 }
 
 /** `remove` of the open thread when no other thread is left. */
@@ -325,7 +325,7 @@ function saveMessage(
  * with nothing selected calls this with `[]` — `persistableMessages([]).length === 0` makes that a
  * no-op below, rather than mistaking a mount echo for new content to save.
  */
-function onMessagesChange(core: ControllerCore, messages: ChatMessage[]): void {
+function onMessagesChange({ core, messages }: { core: ControllerCore; messages: ChatMessage[] }, _options: Record<string, never> = {}): void {
   const conversationId = core.state.activeId;
   if (conversationId !== null) {
     flush(core, { conversationId, messages });

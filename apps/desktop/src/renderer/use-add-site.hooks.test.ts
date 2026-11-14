@@ -54,7 +54,7 @@ test("a folder refusal keeps the recovery instruction without exposing the path"
     '.site-meta.json). If your site lives in a subfolder, point at that subfolder instead.';
   assert.ok(pointerSource.includes('If your site lives in a subfolder'), 'the refusal text moved');
 
-  const shown = describeAddFailure(new Error(`Error invoking remote method 'runner:sites:add-site': Error: ${real}`));
+  const shown = describeAddFailure({ error: new Error(`Error invoking remote method 'runner:sites:add-site': Error: ${real}`) });
 
   // Keep the part that tells them what to do. `useSiteRescan` flattens
   // every failure into one string; doing that here would throw away the only actionable half.
@@ -63,7 +63,7 @@ test("a folder refusal keeps the recovery instruction without exposing the path"
 
 test("the Electron IPC prefix and folder path are replaced by recovery text", () => {
   const shown = describeAddFailure(
-    new Error("Error invoking remote method 'runner:sites:add-site': Error: /tmp/x has no Tovu site in it yet."),
+    { error: new Error("Error invoking remote method 'runner:sites:add-site': Error: /tmp/x has no Tovu site in it yet.") },
   );
 
   assert.equal(shown, 'No Tovu website was found in this folder. Choose an existing website or use Create website.');
@@ -73,14 +73,14 @@ test("the Electron IPC prefix and folder path are replaced by recovery text", ()
 
 test("a cancelled folder picker shows NOTHING", () => {
   // A refusal, but reporting the operator's own decision back to them as an error is noise.
-  assert.equal(describeAddFailure(new Error(`Error invoking remote method 'x': Error: ${CANCELLED_MESSAGE}`)), null);
-  assert.equal(describeAddFailure(new Error(CANCELLED_MESSAGE)), null);
+  assert.equal(describeAddFailure({ error: new Error(`Error invoking remote method 'x': Error: ${CANCELLED_MESSAGE}`) }), null);
+  assert.equal(describeAddFailure({ error: new Error(CANCELLED_MESSAGE) }), null);
 });
 
 test("an empty or non-Error rejection still produces something sayable", () => {
-  assert.equal(describeAddFailure(new Error('')), "Couldn't add that website.");
-  assert.equal(describeAddFailure(new Error('Error: ')), "Couldn't add that website.");
-  assert.equal(describeAddFailure('plain string'), 'plain string');
+  assert.equal(describeAddFailure({ error: new Error('') }), "Couldn't add that website.");
+  assert.equal(describeAddFailure({ error: new Error('Error: ') }), "Couldn't add that website.");
+  assert.equal(describeAddFailure({ error: 'plain string' }), 'plain string');
 });
 
 test("re-adding a tracked website REPLACES its row instead of showing a second card", () => {

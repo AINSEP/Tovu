@@ -69,8 +69,7 @@ import { useEffect, useState } from 'react';
  *   history listeners, which need the same lifetime and cannot take a second ref on one element.
  */
 export function useWebviewLoadFailure(
-  resetKey: unknown,
-  { timers = window }: { timers?: Pick<Window, 'setTimeout' | 'clearTimeout'> } = {},
+  { resetKey }: { resetKey: unknown }, { timers = window }: { timers?: Pick<Window, 'setTimeout' | 'clearTimeout'> } = {},
 ): {
   failed: boolean;
   stalled: boolean;

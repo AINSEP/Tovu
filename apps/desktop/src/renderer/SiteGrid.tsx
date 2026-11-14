@@ -64,7 +64,7 @@ import { ToolIcon } from './tool-icons.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
- * never its result. Written as `useDeleteState = useDeleteConfirmation(onDelete)` it would only
+ * never its result. Written as `useDeleteState = useDeleteConfirmation({ onDelete })` it would only
  * run when a caller omitted the prop, so hook order would vary by call site; as written it is
  * called unconditionally below and the order is fixed.
  *
@@ -118,13 +118,13 @@ export function SiteGrid({
   useListPrefs?: typeof useSiteListPrefs;
 }) {
   const { pendingId, deletingId, deleteError, requestDelete, cancelDelete, confirmDelete } =
-    useDeleteState(onDelete);
-  const rename = useRenameState(onRenamed);
+    useDeleteState({ onDelete });
+  const rename = useRenameState({}, { onRenamed });
   const actions = useActions();
   // Start opens the site once it is running, through the very `onOpen` a card click calls — see
   // `runPowerToggle`.
-  const power = usePower(onSiteUpdated, { onStarted: onOpen });
-  const locate = useLocate(onSiteUpdated);
+  const power = usePower({}, { onSiteUpdated, onStarted: onOpen });
+  const locate = useLocate({}, { onLocated: onSiteUpdated });
   const { prefs, onPrefsChange } = useListPrefs();
   const list = useSiteListView({
     items: projects.map((project) => ({ id: project.id, name: project.displayName, createdAt: project.createdAt, running: project.status === 'running', project })),
@@ -152,9 +152,9 @@ export function SiteGrid({
           actions={actions}
           power={power}
           locate={locate}
-          onRequestDelete={requestDelete}
+          onRequestDelete={(id) => requestDelete({ id })}
           onCancelDelete={cancelDelete}
-          onConfirmDelete={confirmDelete}
+          onConfirmDelete={(id) => confirmDelete({ id })}
           usePreview={usePreview}
         />
       ))}
@@ -413,7 +413,7 @@ function CardConfirmOverlay({
     >
       <p className="card__confirmtitle">{copy.confirmTitle}</p>
       <p className="card__confirmbody">
-        {codeSpans(copy.confirmBody).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}
+        {codeSpans({ text: copy.confirmBody }).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}
       </p>
       {error && <p className="card__confirmerror" role="alert">{error}</p>}
       <div className="card__confirmacts">
@@ -655,7 +655,7 @@ function SiteCardMenu({
               type="button"
               role="menuitem"
               className="card__menuitem"
-              onClick={choose(() => void actions.openInBrowser(project.id))}
+              onClick={choose(() => void actions.openInBrowser({ id: project.id }))}
             >
               Open in browser
             </button>
@@ -698,7 +698,7 @@ function SiteCardMenu({
  * @complexity O(1).
  */
 function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: SiteRenameState }) {
-  const invalid = showsInvalidNameHint(rename.draft);
+  const invalid = showsInvalidNameHint({ draft: rename.draft });
 
   return (
     <div
@@ -725,7 +725,7 @@ function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: S
         onChange={(event) => rename.setDraft(event.target.value)}
         onPaste={namePasteHandler({ setName: rename.setDraft })}
         // Escape cancels, Enter submits when Save is enabled. See `renameInputKeyDown`.
-        onKeyDown={renameInputKeyDown(rename, project.id)}
+        onKeyDown={renameInputKeyDown({ rename, id: project.id })}
         disabled={rename.saving}
       />
       {invalid && <p className="card__confirmerror">A name must be 1 to 200 characters, not counting spaces at either end.</p>}
@@ -738,7 +738,7 @@ function CardRenameOverlay({ project, rename }: { project: SiteRecord; rename: S
         <button
           type="button"
           className="button button--contrast"
-          onClick={() => void rename.submitRename(project.id)}
+          onClick={() => void rename.submitRename({ id: project.id })}
           disabled={!rename.canSave}
         >
           {rename.saving ? 'Saving…' : 'Save'}

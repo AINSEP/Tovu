@@ -490,7 +490,7 @@ export function siteRecordLifecycle(
  * @complexity O(1).
  */
 function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
-  const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site";
+  const validSite = (deps.classifySiteDir ?? classifySiteDirSafely)({ dir: row.siteDir }) === "site";
   const openEntry = deps.openSites.get(row.siteDir);
   const sharedRunning: SharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
   const { sharedPort, lifecycle } = siteRecordLifecycle({ siteDir: row.siteDir, openEntry, sharedRunning, transitions: deps.transitions });
@@ -637,7 +637,7 @@ async function handleLocate({ id, deps }: { id: string; deps: Pick<ProjectIpcDep
   if (picked.canceled || siteDir === undefined) {
     throw new Error("No folder was chosen.");
   }
-  const kind = deps.classifySiteDir(siteDir);
+  const kind = deps.classifySiteDir({ dir: siteDir });
   if (kind !== "site") {
     throw new Error(`${siteDir} is not a complete Tovu site (${kind}). Pick the folder that holds this website.`);
   }
@@ -738,7 +738,7 @@ async function handleCreate(
   // the first of those is a directory this app made, and only that one may ever be erased again —
   // see `project-delete-guard.ts`. Create must refuse a folder another app took before either
   // classification, rather than recording its existing site as one this app made.
-  const wasEmpty = deps.classifySiteDir(target) === "empty";
+  const wasEmpty = deps.classifySiteDir({ dir: target }) === "empty";
   assertTokensCanReachFolder({ tokens: agentPluginTokens, folderWasEmpty: wasEmpty });
   if (!wasEmpty && input.adminPassword !== undefined) throw new Error("An admin password can only be set while creating a new site. Change an existing site's password under Users.");
   if (!wasEmpty) throw new Error("The new website folder was created by another app. Try creating this website again.");
@@ -746,7 +746,7 @@ async function handleCreate(
   const displayName = uniqueSiteName({ name: input.displayName, names });
   const init = { output: "" };
   const adopt = async () => {
-    if (deps.classifySiteDir(target) !== "empty") throw new Error("The new website folder was created by another app. Try creating this website again.");
+    if (deps.classifySiteDir({ dir: target }) !== "empty") throw new Error("The new website folder was created by another app. Try creating this website again.");
     return deps.adoptSiteDir({
     dir: target,
     repoRoot: deps.repoRoot,
@@ -1209,7 +1209,7 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
 
   // The SAFE classifier (`deps.classifySiteDir` is `classifySiteDirSafely` — see `main.ts`), so an
   // unreadable directory becomes a refusal with a reason rather than a throw from inside the guard.
-  const kind = deps.classifySiteDir(row.siteDir);
+  const kind = deps.classifySiteDir({ dir: row.siteDir });
   if (kind !== "site") {
     throw new Error(
       `${row.siteDir} is no longer a complete Tovu site (${kind}), so its name cannot be changed. ` +
@@ -1229,7 +1229,7 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
   if (nameError || typeof requestedName !== "string") throw new Error(nameError ?? "A site name is required to rename a website.");
   const duplicateError = duplicateSiteNameError({ name: requestedName, names: otherSiteNames({ deps, siteDir: row.siteDir }) });
   if (duplicateError) throw new Error(duplicateError);
-  const name = deps.writeSiteName(row.siteDir, requestedName);
+  const name = deps.writeSiteName({ siteDir: row.siteDir, rawName: requestedName });
   // An explicit successful rename replaces any Add alias; otherwise the card would keep its old name.
   row.displayNameAlias = undefined;
   rememberSiteAlias({ projectsPath: deps.projectsPath, siteDir: row.siteDir });
@@ -1337,7 +1337,7 @@ async function handleStart<TCtx>({ id, deps }: { id: string; deps: Pick<ProjectI
       throw new Error(`Unknown project: ${id}`);
     }
     if (deps.startAllowed && !deps.startAllowed()) return buildSiteRecord(row, deps);
-    if ((deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
+    if ((deps.classifySiteDir ?? classifySiteDirSafely)({ dir: row.siteDir }) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
     ensureIndependentSiteIdentity({ siteDir: row.siteDir }, { workspace: deps.sharedSites });
     if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [row.siteDir], createdBy: "Desktop", allowRelocation: true });
     await markTransition({ transitions: deps.transitions, siteDir: id, transition: "starting", body: () => explainMissingSiteDir({ siteDir: id, starting: deps.openSiteServer({ siteDir: id, ctx: deps.ctx }) }) });
@@ -1903,7 +1903,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   statePath: string;
   cliMode: "source" | "compiled";
   readSiteName: (required: { siteDir: string }) => string;
-  writeSiteName: (siteDir: string, rawName: unknown) => string;
+  writeSiteName: (input: { siteDir: string; rawName: unknown }) => string;
   readPreviewVersion: (required: { siteDir: string }) => number | null;
   readPreviewDataUrl: (required: { id: string }) => string | null;
   deletePreview: (required: { id: string }) => void;
@@ -1921,7 +1921,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   listTokenSignInPlugins?: (input: { repoRoot: string; cliMode?: "source" | "compiled" }) => Promise<TokenSignInPlugin[]>;
   // `classifySiteDirSafely`'s verdicts, spelled out because `site-dir-store.ts` does not export its
   // `SiteClassification`. The throwing `classifySiteDir` and the tests' fakes return a subset.
-  classifySiteDir: (dir: string) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
+  classifySiteDir: (input: { dir: string }) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
   openSiteServer: (required: { siteDir: string; ctx: TCtx }) => Promise<unknown>;
   /**
    * `site-transitions.ts`'s store — which sites are mid-start or mid-stop right now, the fact

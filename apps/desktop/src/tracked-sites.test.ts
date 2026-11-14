@@ -479,7 +479,7 @@ test("discoverSiteDirs skips a candidate whose classifier throws, rather than ab
   const found = discoverSiteDirs({
     scanRoots: [root],
     knownDirs: [],
-    classifySiteDir: (dir) => {
+    classifySiteDir: ({ dir }) => {
       if (dir === bad) throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
       return "site";
     },

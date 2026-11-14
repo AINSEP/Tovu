@@ -176,7 +176,7 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     readPreviewVersion: () => null,
     readPreviewDataUrl: () => null,
     deletePreview: () => {},
-    classifySiteDir: (siteDir) => siteDir.startsWith("/sites/") ? "site" : classifySiteDirSafely(siteDir),
+    classifySiteDir: ({ dir: siteDir }) => siteDir.startsWith("/sites/") ? "site" : classifySiteDirSafely({ dir: siteDir }),
     recordSiteClosed: () => {},
     // The REAL registry reader and identity proof, pointed at a per-test temp path that does not
     // exist yet — so every test that is not about a sibling app instance sees an empty registry and
@@ -907,8 +907,8 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
   let spawned = 0;
   deps.openSiteServer = async () => { spawned++; };
   const source = fs.readFileSync(path.join(__dirname, "renderer", "use-site-workspace.hooks.ts"), "utf8");
-  const siteSurfaceUrl = sourceFunction(source, "siteSurfaceUrl", { sitePortPresentation });
-  const prepareExternalWorkspace = sourceFunction(source, "prepareExternalWorkspace", { siteSurfaceUrl });
+  const siteSurfaceUrl = sourceFunction({ source, name: "siteSurfaceUrl" }, { bindings: { sitePortPresentation } });
+  const prepareExternalWorkspace = sourceFunction({ source, name: "prepareExternalWorkspace" }, { bindings: { siteSurfaceUrl } });
 
   const stopping = handleStop({ id: alpha, deps });
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -1956,7 +1956,7 @@ test('D-10: Rename refuses duplicate before calling its write port and allows it
   const names = new Map([[own, 'Bakery'], [other, 'bakery 2']]);
   const deps = renameDeps({
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => names.get(dir)!,
-    writeSiteName: (dir: string, name: string) => { writes += 1; names.set(dir, name.trim()); return name.trim(); },
+    writeSiteName: ({ siteDir: dir, rawName }: { siteDir: string; rawName: unknown }) => { const name = rawName as string; writes += 1; names.set(dir, name.trim()); return name.trim(); },
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir: own }, { origin: SITE_ORIGIN.adopted });
   trackSite({ projectsPath: deps.projectsPath, siteDir: other }, { origin: SITE_ORIGIN.adopted });
@@ -2179,7 +2179,7 @@ test("D-10: Rename also refuses the remembered name of a tracked site whose fold
   let writes = 0;
   const deps = renameDeps({
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => (dir === own ? 'Own' : assert.fail(`a missing folder's name is never read from disk: ${dir}`)),
-    writeSiteName: (_dir: string, name: string) => { writes += 1; return name.trim(); },
+    writeSiteName: ({ rawName }: { siteDir: string; rawName: unknown }) => { writes += 1; return (rawName as string).trim(); },
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir: own }, { origin: SITE_ORIGIN.adopted });
   trackSite({ projectsPath: deps.projectsPath, siteDir: missing }, { origin: SITE_ORIGIN.adopted });

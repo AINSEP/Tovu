@@ -4,7 +4,7 @@ import ts from 'typescript';
 import React from 'react';
 
 /** Execute a private function's actual source without importing the whole Electron UI. */
-export function sourceFunction(source: string, name: string, bindings: Record<string, unknown> = {}): any {
+export function sourceFunction({ source, name }: { source: string; name: string }, { bindings = {} }: { bindings?: Record<string, unknown> } = {}): any {
   const file = ts.createSourceFile('renderer.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const declaration = file.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
   assert.ok(declaration, `missing function ${name}`);
@@ -18,12 +18,12 @@ export function sourceFunction(source: string, name: string, bindings: Record<st
 }
 
 /** Walk the elements actually returned by a component, including private child components. */
-export function elements(node: any): any[] {
-  if (Array.isArray(node)) return node.flatMap(elements);
+export function elements({ node }: { node: any }, _options: Record<string, never> = {}): any[] {
+  if (Array.isArray(node)) return node.flatMap((child) => elements({ node: child }));
   if (!React.isValidElement(node)) return [];
   const element = node as React.ReactElement<any>;
-  if (typeof element.type === 'function') return elements((element.type as (props: typeof element.props) => React.ReactNode)(element.props));
-  return [element, ...elements(element.props.children)];
+  if (typeof element.type === 'function') return elements({ node: (element.type as (props: typeof element.props) => React.ReactNode)(element.props) });
+  return [element, ...elements({ node: element.props.children })];
 }
 
 /** Small synchronous hook runner: state, callback closures, effect dependencies and cleanup. */
@@ -61,7 +61,7 @@ export function hookHarness() {
   };
   return {
     bindings,
-    render<T>(run: () => T): T {
+    render<T>({ run }: { run: () => T }): T {
       let result: T;
       for (let count = 0; count < 20; count++) {
         cursor = 0; dirty = false; queued = [];

@@ -37,12 +37,12 @@ function fakeTimers(): IntervalTimers & { running: () => number; fire: () => voi
   const periods: number[] = [];
   return {
     periods,
-    setInterval: (callback, ms) => {
+    setInterval: ({ callback, ms }) => {
       periods.push(ms);
       active.set(next, callback);
       return next++;
     },
-    clearInterval: (handle) => {
+    clearInterval: ({ handle }) => {
       active.delete(handle as number);
     },
     running: () => active.size,
@@ -56,7 +56,7 @@ test("ticks on its period while the window is visible", () => {
   const doc = fakeDocument("visible");
   const timers = fakeTimers();
   let ticks = 0;
-  startVisibleInterval(() => ticks++, 4000, doc, timers);
+  startVisibleInterval({ tick: () => ticks++, periodMs: 4000 }, { doc, timers });
   assert.equal(timers.running(), 1);
   assert.deepEqual(timers.periods, [4000]);
   timers.fire();
@@ -68,7 +68,7 @@ test("stops its timer when the window is hidden", () => {
   const doc = fakeDocument("visible");
   const timers = fakeTimers();
   let ticks = 0;
-  startVisibleInterval(() => ticks++, 4000, doc, timers);
+  startVisibleInterval({ tick: () => ticks++, periodMs: 4000 }, { doc, timers });
   doc.set("hidden");
   assert.equal(timers.running(), 0);
   timers.fire();
@@ -78,7 +78,7 @@ test("stops its timer when the window is hidden", () => {
 test("starts with no timer when the window is already hidden", () => {
   const doc = fakeDocument("hidden");
   const timers = fakeTimers();
-  startVisibleInterval(() => {}, 4000, doc, timers);
+  startVisibleInterval({ tick: () => {}, periodMs: 4000 }, { doc, timers });
   assert.equal(timers.running(), 0);
 });
 
@@ -86,7 +86,7 @@ test("ticks at once and resumes when the window is shown again", () => {
   const doc = fakeDocument("visible");
   const timers = fakeTimers();
   let ticks = 0;
-  startVisibleInterval(() => ticks++, 4000, doc, timers);
+  startVisibleInterval({ tick: () => ticks++, periodMs: 4000 }, { doc, timers });
   doc.set("hidden");
   doc.set("visible");
   assert.equal(ticks, 1, "a shown window catches up without waiting a whole period");
@@ -99,7 +99,7 @@ test("the returned stop clears the timer and the listener", () => {
   const doc = fakeDocument("visible");
   const timers = fakeTimers();
   let ticks = 0;
-  const stop = startVisibleInterval(() => ticks++, 4000, doc, timers);
+  const stop = startVisibleInterval({ tick: () => ticks++, periodMs: 4000 }, { doc, timers });
   stop();
   assert.equal(timers.running(), 0);
   assert.equal(doc.listenerCount(), 0);
@@ -111,7 +111,7 @@ test("the returned stop clears the timer and the listener", () => {
 test("the default timers are the real global interval: it ticks, and stop clears it", async () => {
   const doc = fakeDocument("visible");
   let ticks = 0;
-  const stop = startVisibleInterval(() => { ticks += 1; }, 5, doc);
+  const stop = startVisibleInterval({ tick: () => { ticks += 1; }, periodMs: 5 }, { doc });
   await new Promise((resolve) => setTimeout(resolve, 40));
   stop();
   const afterStop = ticks;

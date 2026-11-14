@@ -9,29 +9,29 @@ const TEMP = '/var/folders/7_/scratch/T/sites/junk';
 const OCCUPIED = `${TEMP} is a folder of unrelated files, not a Tovu site (no config.json and no .site-meta.json). If your site lives in a subfolder, point at that subfolder instead.`;
 
 test('D-24: Add shows a short recovery message without the error class or temporary path', () => {
-  assert.equal(describeAddFailure(new Error(`Error invoking remote method 'runner:sites:add-site': AddSitePointerError: ${OCCUPIED}`)),
+  assert.equal(describeAddFailure({ error: new Error(`Error invoking remote method 'runner:sites:add-site': AddSitePointerError: ${OCCUPIED}`) }),
     'This folder is not a Tovu website. Choose the folder containing your website.');
 });
 
 test('D-24: an empty folder points to Create website', () => {
-  assert.equal(describeAddFailure(new Error(`${TEMP} does not exist, or is an empty folder — there is no Tovu site here to add.`)),
+  assert.equal(describeAddFailure({ error: new Error(`${TEMP} does not exist, or is an empty folder — there is no Tovu site here to add.`) }),
     'No Tovu website was found in this folder. Choose an existing website or use Create website.');
 });
 
 test('D-24: a damaged folder and an unreadable folder have different recovery instructions', () => {
-  assert.equal(describeAddFailure(new Error(`${TEMP} looks like a half-initialized or damaged Tovu site — it is missing config.json.`)),
+  assert.equal(describeAddFailure({ error: new Error(`${TEMP} looks like a half-initialized or damaged Tovu site — it is missing config.json.`) }),
     'This Tovu website is incomplete. Choose a complete website folder.');
-  assert.equal(describeAddFailure(new Error(`${TEMP} cannot be examined — it may be on an unmounted volume.`)),
+  assert.equal(describeAddFailure({ error: new Error(`${TEMP} cannot be examined — it may be on an unmounted volume.`) }),
     'Cannot read this website folder. Check that it is available and that Tovu has permission to read it.');
 });
 
 test('D-24: unknown path-bearing Add failures have a short fallback', () => {
-  assert.equal(describeAddFailure(new Error(`ENOENT: open '${TEMP}/config.json'`)),
+  assert.equal(describeAddFailure({ error: new Error(`ENOENT: open '${TEMP}/config.json'`) }),
     'Could not add this website. Check the folder and try again.');
 });
 
 test('D-24: Add recovery text uses the desktop locale', () => {
-  assert.equal(describeAddFailure(new Error(OCCUPIED), { locale: 'es' }),
+  assert.equal(describeAddFailure({ error: new Error(OCCUPIED) }, { locale: 'es' }),
     'Esta carpeta no es un sitio web de Tovu. Elige la carpeta que contiene tu sitio web.');
 });
 
@@ -47,14 +47,14 @@ test('D-24: every supported locale has all six recovery messages', () => {
 });
 
 test('D-24: a failed site start hides the internal temp path', async () => {
-  assert.deepEqual(await performSiteStart('/sites/a', { startSite: async () => {
+  assert.deepEqual(await performSiteStart({ id: '/sites/a', bridge: { startSite: async () => {
     throw new Error(`Error invoking remote method 'runner:sites:start': Error: tovu serve failed for ${TEMP}: exit 1`);
-  } }), { error: 'Could not start this website. Try again or check its logs.' });
+  } } }), { error: 'Could not start this website. Try again or check its logs.' });
 });
 
 test('D-24: starting from a card uses the same path-free message', async () => {
-  assert.deepEqual(await performPowerAction('start', '/sites/a', {
+  assert.deepEqual(await performPowerAction({ action: 'start', id: '/sites/a', bridge: {
     startSite: async () => { throw new Error(`tovu serve failed for ${TEMP}: exit 1`); },
     stopSite: async () => assert.fail('Start must not stop the site'),
-  }), { error: 'Could not start this website. Try again or check its logs.' });
+  } }), { error: 'Could not start this website. Try again or check its logs.' });
 });

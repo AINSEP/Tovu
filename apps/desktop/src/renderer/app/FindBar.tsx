@@ -20,7 +20,7 @@ export function FindBar({ find }: { find: FindInPage }) {
         type="text"
         className="findbar__input"
         value={find.query}
-        onChange={(event) => find.setQuery(event.target.value)}
+        onChange={(event) => find.setQuery({ text: event.target.value })}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();

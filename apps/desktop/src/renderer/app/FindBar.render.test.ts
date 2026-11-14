@@ -16,7 +16,7 @@ function fakeFind(fields: Partial<FindInPage> = {}): { find: FindInPage; calls: 
   const calls: string[] = [];
   const find: FindInPage = {
     open: true, query: 'tovu', result: null, countLabel: '2 of 5', inputRef: () => {},
-    setQuery: (text) => { calls.push(`query:${text}`); },
+    setQuery: ({ text }) => { calls.push(`query:${text}`); },
     next: () => { calls.push('next'); }, previous: () => { calls.push('previous'); }, close: () => { calls.push('close'); },
     registerGuest: () => {},
     ...fields,

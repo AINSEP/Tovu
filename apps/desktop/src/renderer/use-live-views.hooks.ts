@@ -148,12 +148,12 @@ export async function probeRelease(
 export async function releaseExcessViews({ candidates, excess, guestOf }: {
   candidates: readonly string[];
   excess: number;
-  guestOf: (id: string) => LiveGuest | null;
+  guestOf: (input: { id: string }) => LiveGuest | null;
 }, { timeoutMs }: { timeoutMs?: number } = {}): Promise<{ id: string; parked: ParkedView | null }[]> {
   const released: { id: string; parked: ParkedView | null }[] = [];
   for (const id of candidates) {
     if (released.length >= excess) break;
-    const answer = await probeRelease({ guest: guestOf(id) }, { timeoutMs });
+    const answer = await probeRelease({ guest: guestOf({ id }) }, { timeoutMs });
     if (answer.release) released.push({ id, parked: answer.parked });
   }
   return released;
@@ -235,7 +235,7 @@ function applyReleases({ state, released }: { state: LiveViewsState; released: r
 
 export interface LiveViews {
   /** Whether this tab may mount its guest: the focused tab always may. */
-  isLive: (id: string) => boolean;
+  isLive: (input: { id: string }) => boolean;
   /** Each released tab's last route and scroll, for its next mount. */
   parked: Readonly<Record<string, ParkedView>>;
   /** The guest each tab mounted, so a probe can reach it. Stable across renders. */
@@ -272,11 +272,11 @@ export function useLiveViews({ openIds, focusedId }: { openIds: readonly string[
     let active = true;
     const { candidates, excess } = releaseCandidates({ order: JSON.parse(orderKey) as string[], focusedId, limit });
     if (excess === 0) return undefined;
-    void releaseExcessViews({ candidates, excess, guestOf: (id) => guests.current.get(id) ?? null }, { timeoutMs }).then((released) => {
+    void releaseExcessViews({ candidates, excess, guestOf: ({ id }) => guests.current.get(id) ?? null }, { timeoutMs }).then((released) => {
       if (active) setState((current) => applyReleases({ state: current, released }));
     });
     return () => { active = false; };
   }, [orderKey, focusedId, limit, timeoutMs]);
 
-  return { isLive: (id) => order.includes(id), parked: state.parked, registerGuest };
+  return { isLive: ({ id }) => order.includes(id), parked: state.parked, registerGuest };
 }

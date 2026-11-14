@@ -32,8 +32,8 @@ export type SiteStartResult = { record: SiteRecord; error?: undefined } | { reco
  *   (`DEFAULT_READY_TIMEOUT_MS`, up to 60s).
  */
 export async function performSiteStart(
-  id: string,
-  bridge: { startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined,
+  { id, bridge }: { id: string; bridge: { startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined },
+  _options: Record<string, never> = {},
 ): Promise<SiteStartResult> {
   if (bridge === undefined) return { error: 'Tovu desktop connection required to start a website.' };
   try {
@@ -75,14 +75,16 @@ export async function performSiteStart(
  * That boolean is what lets {@link startThenNotify} tell a real start apart from a failed attempt
  * that merely finished.
  *
- * @param onSiteUpdated applies main's refreshed record the moment a start resolves. Optional, and
+ * @param options.onSiteUpdated applies main's refreshed record the moment a start resolves. Optional, and
  *   the tab is still eventually correct without it — the 4s poll gets there — but see this
  *   function's own doc above for why that gap is exactly the bug an operator can see.
  */
 export function useSiteStart(
-  project: SiteRecord,
-  onSiteUpdated?: (record: SiteRecord) => void,
-  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'startSite'> } = {},
+  { project }: { project: SiteRecord },
+  { onSiteUpdated, getBridge = runnerInventoryBridge }: {
+    onSiteUpdated?: (record: SiteRecord) => void;
+    getBridge?: BridgeLookup<'startSite'>;
+  } = {},
 ): {
   starting: boolean;
   error: string | null;
@@ -99,7 +101,7 @@ export function useSiteStart(
     }
     setStarting(true);
     setError(null);
-    const result = await performSiteStart(project.id, bridge);
+    const result = await performSiteStart({ id: project.id, bridge: { startSite: ({ id }) => bridge.startSite({ id }) } });
     try {
       if (result.error !== undefined) {
         setError(result.error);
@@ -132,8 +134,7 @@ export function useSiteStart(
  * @complexity O(1) plus `start`'s own cost.
  */
 export function startThenNotify(
-  start: () => Promise<boolean>,
-  onStarted: (() => void) | undefined,
+  { start, onStarted }: { start: () => Promise<boolean>; onStarted: (() => void) | undefined }, _options: Record<string, never> = {},
 ): () => Promise<void> {
   return async () => {
     const started = await start();

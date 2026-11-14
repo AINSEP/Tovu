@@ -60,7 +60,7 @@ function recordingDrop(entries: readonly DraggedEntry[]) {
 
 test('a dropped folder is swallowed and its path written into the composer draft', () => {
   const { calls, event, getPathForFile, composer } = recordingDrop([{ path: '/Users/x/Site', isDirectory: true }]);
-  captureFolderDrop(event, getPathForFile, composer);
+  captureFolderDrop({ event, getPathForFile, composerHandle: composer });
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation', 'insertText:/Users/x/Site']);
 });
 
@@ -70,31 +70,31 @@ test('several dropped folders go in as ONE space-joined insert, in drop order, l
     { path: '/a/loose.txt', isDirectory: false },
     { path: '/a/Two', isDirectory: true },
   ]);
-  captureFolderDrop(event, getPathForFile, composer);
+  captureFolderDrop({ event, getPathForFile, composerHandle: composer });
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation', 'insertText:/a/One /a/Two']);
 });
 
 test('a drop with no folder in it passes through untouched, so ChatPane can stage it as an attachment', () => {
   const { calls, event, getPathForFile, composer } = recordingDrop([{ path: '/a/loose.txt', isDirectory: false }]);
-  captureFolderDrop(event, getPathForFile, composer);
+  captureFolderDrop({ event, getPathForFile, composerHandle: composer });
   assert.deepEqual(calls, []);
 });
 
 test('without a desktop bridge (no getPathForFile) even a folder drop passes through untouched', () => {
   const { calls, event, composer } = recordingDrop([{ path: '/Users/x/Site', isDirectory: true }]);
-  captureFolderDrop(event, undefined, composer);
+  captureFolderDrop({ event, getPathForFile: undefined, composerHandle: composer });
   assert.deepEqual(calls, []);
 });
 
 test('a folder whose path cannot be recovered is not a folder drop — the event passes through', () => {
   const { calls, event, composer } = recordingDrop([{ path: '', isDirectory: true }]);
-  captureFolderDrop(event, () => '', composer);
+  captureFolderDrop({ event, getPathForFile: () => '', composerHandle: composer });
   assert.deepEqual(calls, []);
 });
 
 test('a folder drop before ChatPane publishes its composer handle is still swallowed, with nothing inserted', () => {
   const { calls, event, getPathForFile } = recordingDrop([{ path: '/Users/x/Site', isDirectory: true }]);
-  captureFolderDrop(event, getPathForFile, { current: null });
+  captureFolderDrop({ event, getPathForFile, composerHandle: { current: null } });
   assert.deepEqual(calls, ['preventDefault', 'stopPropagation']);
 });
 

@@ -97,13 +97,13 @@ test('no status produces a label that contradicts its action', () => {
 
 test("'start' calls startSite and reports main's own record back", async () => {
   const calls: string[] = [];
-  const result = await performPowerAction('start', '/sites/a', {
+  const result = await performPowerAction({ action: 'start', id: '/sites/a', bridge: {
     startSite: async ({ id }, _options = {}) => {
       calls.push(`start:${id}`);
       return RECORD;
     },
     stopSite: async () => assert.fail('stopSite must not be called for a start'),
-  });
+  } });
 
   assert.deepEqual(calls, ['start:/sites/a']);
   assert.equal(result.record, RECORD, 'the record must be the one main resolved with, not one composed here');
@@ -111,13 +111,13 @@ test("'start' calls startSite and reports main's own record back", async () => {
 
 test("'stop' calls stopSite, never startSite", async () => {
   const calls: string[] = [];
-  const result = await performPowerAction('stop', '/sites/b', {
+  const result = await performPowerAction({ action: 'stop', id: '/sites/b', bridge: {
     startSite: async () => assert.fail('startSite must not be called for a stop'),
     stopSite: async ({ id }, _options = {}) => {
       calls.push(`stop:${id}`);
       return RECORD;
     },
-  });
+  } });
 
   assert.deepEqual(calls, ['stop:/sites/b']);
   assert.equal(result.record, RECORD, 'stop must propagate the record returned by main');
@@ -127,26 +127,26 @@ test("'stop' calls stopSite, never startSite", async () => {
 test('a rejected call surfaces the Error message verbatim rather than re-wrapping it', async () => {
   // Main's refusals name the fix ("tovu serve failed: PORT_IN_USE: …"). A paraphrase here would
   // throw that away at the only place the operator reads it.
-  const result = await performPowerAction('start', '/sites/a', {
+  const result = await performPowerAction({ action: 'start', id: '/sites/a', bridge: {
     startSite: () => Promise.reject(new Error('tovu serve failed: PORT_IN_USE')),
     stopSite: async () => RECORD,
-  });
+  } });
 
   assert.equal(result.error, 'tovu serve failed: PORT_IN_USE');
   assert.equal(result.record, undefined);
 });
 
 test('a non-Error rejection is coerced with String(), not left as [object Object]', async () => {
-  const result = await performPowerAction('stop', '/sites/a', {
+  const result = await performPowerAction({ action: 'stop', id: '/sites/a', bridge: {
     startSite: async () => RECORD,
     stopSite: () => Promise.reject('offline'),
-  });
+  } });
 
   assert.equal(result.error, 'offline');
 });
 
 test('no bridge at all is an operator-facing message, not a thrown error', async () => {
-  const result = await performPowerAction('start', '/sites/a', undefined);
+  const result = await performPowerAction({ action: 'start', id: '/sites/a', bridge: undefined });
   assert.equal(result.error, 'The desktop bridge is unavailable.');
 });
 
@@ -247,11 +247,11 @@ test('Stop confirmation inserts site and app names as literal text', () => {
 });
 
 test('codeSpans renders backticked text as code and drops empty parts', () => {
-  assert.deepEqual(codeSpans('This stops `npm run dev`, including it.'), [
+  assert.deepEqual(codeSpans({ text: 'This stops `npm run dev`, including it.' }), [
     { text: 'This stops ', code: false }, { text: 'npm run dev', code: true }, { text: ', including it.', code: false },
   ]);
-  assert.deepEqual(codeSpans('`npm run dev` を停止'), [{ text: 'npm run dev', code: true }, { text: ' を停止', code: false }]);
-  assert.deepEqual(codeSpans('plain'), [{ text: 'plain', code: false }]);
+  assert.deepEqual(codeSpans({ text: '`npm run dev` を停止' }), [{ text: 'npm run dev', code: true }, { text: ' を停止', code: false }]);
+  assert.deepEqual(codeSpans({ text: 'plain' }), [{ text: 'plain', code: false }]);
 });
 
 test('the Stop confirm is its own card overlay; delete still wins a tie', () => {

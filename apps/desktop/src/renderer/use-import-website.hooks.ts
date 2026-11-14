@@ -182,7 +182,7 @@ export function useCopyDetails(
 export function createOpenImported({ openProjectTab, stopImporting }: {
   openProjectTab: import('./use-project-tabs.hooks.js').ProjectTabsState['openProjectTab']; stopImporting: () => void;
 }, _options = {}) {
-  return ({ id }: { id: string }, { adminPage }: { adminPage?: import('./import-site-entry.js').SiteAdminPage } = {}) => { openProjectTab(id, { adminPage }); stopImporting(); };
+  return ({ id }: { id: string }, { adminPage }: { adminPage?: import('./import-site-entry.js').SiteAdminPage } = {}) => { openProjectTab({ id }, { adminPage }); stopImporting(); };
 }
 
 // The Import button, and the web admin's "Open Import in Tovu" (owner, 2026-11-10), which may

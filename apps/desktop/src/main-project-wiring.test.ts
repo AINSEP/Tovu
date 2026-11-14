@@ -82,7 +82,7 @@ test("the deps carry the transitions store, or every start and stop reports the 
 test("the deps carry a scan root and the recently-opened list for the scan to read", () => {
   const depsBlock = projectDepsBlock();
   assert.match(depsBlock, /siteScanRoots: SITE_SCAN_ROOTS/);
-  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(sitesCtx\.statePath, \{ workspace: sharedSites \}\)/);
+  assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(\{ statePath: sitesCtx\.statePath \}, \{ workspace: sharedSites \}\)/);
 });
 
 test("the scan root is the sites directory the dev fallback already lives in", () => {

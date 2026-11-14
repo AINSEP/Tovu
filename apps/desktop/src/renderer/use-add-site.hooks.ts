@@ -81,7 +81,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
       if (!added) return;
       showAddedSite(added, { setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked });
     } catch (error) {
-      const message = describeAddFailure(error);
+      const message = describeAddFailure({ error });
       setAddError(message);
       setAddDetails(message === null ? null : copyableDetails({ error }));
     } finally {
@@ -145,7 +145,7 @@ function mergeAddedSite(
  *
  * @complexity O(n) in the message length.
  */
-function describeAddFailure(error: unknown, optional: { locale?: string } = {}): string | null {
+function describeAddFailure({ error }: { error: unknown }, optional: { locale?: string } = {}): string | null {
   const raw = error instanceof Error ? error.message : String(error);
   const message = humanSiteError({ error: raw, fallback: "Couldn't add that website." });
   // Their own choice, not a failure to report back at them.

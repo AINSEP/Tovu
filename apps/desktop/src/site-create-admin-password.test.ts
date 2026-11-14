@@ -20,7 +20,7 @@ test("every desktop create arm passes an explicit default or private custom pass
     for (const adminPassword of [undefined, " desktop chosen 🔑 "]) {
       for (const arm of ["init", "resolve", "adopt", "env", "picker"] as const) {
         const dir = path.join(root, `${arm}-${adminPassword === undefined ? "default" : "custom"}`);
-        const statePath = stateFilePath(path.join(root, `${arm}-state`));
+        const statePath = stateFilePath({ userDataDir: path.join(root, `${arm}-state`) });
         let payload = "";
         let argv: string[] = [];
         let childEnv: NodeJS.ProcessEnv = {};

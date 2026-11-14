@@ -68,7 +68,7 @@ function setup(t: TestContext, { form = {}, plugins = [], supabaseDatabaseAvaila
     handleSubmit: recorder(calls, 'handleSubmit') as never,
     ...form,
   };
-  const useForm = ((received: unknown) => { formReceived = received; return state; }) as typeof useCreateWebsiteForm;
+  const useForm: typeof useCreateWebsiteForm = ({ onCreate: received }) => { formReceived = received; return state; };
   const onBack = recorder(calls, 'onBack') as () => void;
   const view = mount({ t, element: createElement(CreateWebsiteOnboarding, {
     onBack, onCreate, useForm, usePluginTokens, supabaseDatabaseAvailable,

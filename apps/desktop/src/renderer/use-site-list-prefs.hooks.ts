@@ -15,15 +15,15 @@ import { DEFAULT_SITE_LIST_PREFS, parseSiteListPrefs, type SiteListPrefs } from 
 export const SITE_LIST_STORAGE_KEY = 'tovu-runner.site-list';
 
 export interface SiteListStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
+  getItem(input: { key: string }): string | null;
+  setItem(input: { key: string; value: string }): void;
 }
 
 /** Resolved at each call: reading the `window.localStorage` getter can itself throw when storage is
  *  denied, so it must stay inside the `try` of the functions below (see `shellZoomStorage`). */
 const windowStorage: SiteListStorage = {
-  getItem: (key) => window.localStorage.getItem(key),
-  setItem: (key, value) => window.localStorage.setItem(key, value),
+  getItem: ({ key }) => window.localStorage.getItem(key),
+  setItem: ({ key, value }) => window.localStorage.setItem(key, value),
 };
 
 /**
@@ -33,7 +33,7 @@ const windowStorage: SiteListStorage = {
  */
 export function readSiteListPrefs({ storage }: { storage: SiteListStorage }, _options = {}): SiteListPrefs {
   try {
-    const stored = storage.getItem(SITE_LIST_STORAGE_KEY);
+    const stored = storage.getItem({ key: SITE_LIST_STORAGE_KEY });
     return stored === null ? DEFAULT_SITE_LIST_PREFS : parseSiteListPrefs({ stored: JSON.parse(stored) });
   } catch {
     return DEFAULT_SITE_LIST_PREFS;
@@ -44,7 +44,7 @@ export function readSiteListPrefs({ storage }: { storage: SiteListStorage }, _op
  *  nothing the person can do here would fix storage. @complexity O(n) stored ids. */
 export function writeSiteListPrefs({ storage, prefs }: { storage: SiteListStorage; prefs: SiteListPrefs }, _options = {}): void {
   try {
-    storage.setItem(SITE_LIST_STORAGE_KEY, JSON.stringify(prefs));
+    storage.setItem({ key: SITE_LIST_STORAGE_KEY, value: JSON.stringify(prefs) });
   } catch {
     // See this function's doc: session-only is the honest fallback.
   }

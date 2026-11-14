@@ -36,7 +36,7 @@ function workspaceBridge() {
 test('an own running site shows its admin at once and subscribes to history only while visible', async (t) => {
   const fake = workspaceBridge();
   let hidden = false;
-  const hook = renderHook({ t, useHook: () => useSiteWorkspace(OWN, hidden, { getBridge: fake.getBridge }) });
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: OWN, hidden }, { getBridge: fake.getBridge }) });
   const workspace = hook.current();
   assert.equal(workspace.running, true);
   assert.equal(workspace.src, 'http://127.0.0.1:4100/admin/');
@@ -55,7 +55,7 @@ test('an own running site shows its admin at once and subscribes to history only
 
 test('a stopped site mounts no guest and shows no url', (t) => {
   const fake = workspaceBridge();
-  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ ...OWN, status: 'stopped' }, false, { getBridge: fake.getBridge }) });
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: { ...OWN, status: 'stopped' }, hidden: false }, { getBridge: fake.getBridge }) });
   assert.equal(hook.current().running, false);
   assert.equal(hook.current().src, '');
   assert.equal(hook.current().displayUrl, '');
@@ -63,7 +63,7 @@ test('a stopped site mounts no guest and shows no url', (t) => {
 
 test('a foreign site mounts only once main has admitted its origin', async (t) => {
   const fake = workspaceBridge();
-  const hook = renderHook({ t, useHook: () => useSiteWorkspace(FOREIGN, false, { getBridge: fake.getBridge }) });
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: FOREIGN, hidden: false }, { getBridge: fake.getBridge }) });
   assert.equal(hook.current().src, '');
   assert.deepEqual(fake.calls.filter((call) => call.startsWith('start')), ['start:/outside/b']);
   fake.next().resolve({ ...FOREIGN, status: 'running' });
@@ -74,19 +74,19 @@ test('a foreign site mounts only once main has admitted its origin', async (t) =
 
 test('a refused attach is shown on the tab; a settlement after unmount is dropped', async (t) => {
   const fake = workspaceBridge();
-  const hook = renderHook({ t, useHook: () => useSiteWorkspace(FOREIGN, false, { getBridge: fake.getBridge }) });
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: FOREIGN, hidden: false }, { getBridge: fake.getBridge }) });
   fake.next().reject(new Error('origin not allowed'));
   await settle();
   assert.equal(hook.current().attachError, 'origin not allowed');
   assert.equal(hook.current().src, '');
 
-  const thrown = renderHook({ t, useHook: () => useSiteWorkspace({ ...FOREIGN, id: '/outside/c' }, false, { getBridge: fake.getBridge }) });
+  const thrown = renderHook({ t, useHook: () => useSiteWorkspace({ project: { ...FOREIGN, id: '/outside/c' }, hidden: false }, { getBridge: fake.getBridge }) });
   fake.next().reject('plain refusal');
   await settle();
   assert.equal(thrown.current().attachError, 'plain refusal');
 
-  const late = renderHook({ t, useHook: () => useSiteWorkspace({ ...FOREIGN, id: '/outside/d' }, false, { getBridge: fake.getBridge }) });
-  const lateFail = renderHook({ t, useHook: () => useSiteWorkspace({ ...FOREIGN, id: '/outside/e' }, false, { getBridge: fake.getBridge }) });
+  const late = renderHook({ t, useHook: () => useSiteWorkspace({ project: { ...FOREIGN, id: '/outside/d' }, hidden: false }, { getBridge: fake.getBridge }) });
+  const lateFail = renderHook({ t, useHook: () => useSiteWorkspace({ project: { ...FOREIGN, id: '/outside/e' }, hidden: false }, { getBridge: fake.getBridge }) });
   const admit = fake.next();
   const refuse = fake.next();
   late.unmount();
@@ -110,13 +110,13 @@ test('selecting the current view of a site with no address loads nothing', () =>
     dispatch: (action) => void dispatched.push(action),
     bridge: undefined, siteId: OWN.id, port: 0,
   });
-  actions.selectView('admin');
+  actions.selectView({ option: 'admin' });
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'admin' }], 'no load and no remount for a portless site');
 });
 
 test('an attached guest reports its history and navigations into the workspace', (t) => {
   const fake = workspaceBridge();
-  const hook = renderHook({ t, useHook: () => useSiteWorkspace(OWN, false, { getBridge: fake.getBridge }) });
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: OWN, hidden: false }, { getBridge: fake.getBridge }) });
   const window = installDom();
   let canGoBack = false;
   const guest = Object.assign(window.document.createElement('webview'), {
@@ -168,7 +168,7 @@ test('a replacement guest takes over the navigation listeners and the visible ta
   // One stable port, as production's module-level default is: a fresh arrow per render would re-run
   // every effect that depends on it.
   const getBridge = () => bridge;
-  const hook = renderHook({ t, useHook: () => useSiteWorkspace(OWN, false, { getBridge }) });
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace({ project: OWN, hidden: false }, { getBridge }) });
 
   const first = recordingGuest({ canGoBack: true, canGoForward: false });
   act(() => hook.current().guestRef(first.guest));

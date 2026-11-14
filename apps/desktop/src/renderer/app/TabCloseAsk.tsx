@@ -22,7 +22,7 @@ export function TabCloseAsk({ project, stopping, error, onStop, onKeepRunning, o
     <div className="projects-feedback tab-close-ask" role="alertdialog" aria-label={copy.title}>
       <div className="tab-close-ask__text">
         <p>{copy.title}</p>
-        {copy.body !== null && <p>{codeSpans(copy.body).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}</p>}
+        {copy.body !== null && <p>{codeSpans({ text: copy.body }).map((part, index) => (part.code ? <code key={index}>{part.text}</code> : part.text))}</p>}
         {error !== null && <p className="card__confirmerror" role="alert">{error}</p>}
       </div>
       <div className="tab-close-ask__actions">

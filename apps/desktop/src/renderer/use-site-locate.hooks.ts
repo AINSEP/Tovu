@@ -32,21 +32,24 @@ export type SiteLocateResult = { record?: SiteRecord; error?: string };
  */
 export async function performSiteFolderAction(
   { id, bridge }: { id: string; bridge: { locateSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined },
-  { describeError = describeAddFailure }: { describeError?: (error: unknown) => string | null } = {},
+  { describeError = describeAddFailure }: { describeError?: typeof describeAddFailure } = {},
 ): Promise<SiteLocateResult> {
   if (bridge === undefined) return { error: 'The desktop bridge is unavailable.' };
   try { return { record: await bridge.locateSite({ id }) }; }
   catch (err) {
-    const error = describeError(err);
+    const error = describeError({ error: err });
     return error === null ? {} : { error };
   }
 }
 
 /**
- * @param onLocated called with main's record at the found folder and the id it replaces.
+ * @param options.onLocated called with main's record at the found folder and the id it replaces.
  * @complexity O(1) per render.
  */
-export function useSiteLocate(onLocated?: (record: SiteRecord, previousId: string) => void): SiteLocate {
+export function useSiteLocate(
+  _required: Record<string, never>,
+  { onLocated }: { onLocated?: (record: SiteRecord, previousId: string) => void } = {},
+): SiteLocate {
   const [locatingId, setLocatingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({});
 

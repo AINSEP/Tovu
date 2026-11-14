@@ -49,15 +49,15 @@ const NAME_MAX_LENGTH = 200;
  *
  * @complexity O(n) in the draft length.
  */
-export function isValidSiteName(draft: string): boolean {
+export function isValidSiteName({ draft }: { draft: string }, _options: Record<string, never> = {}): boolean {
   const trimmed = draft.trim();
   return trimmed.length > 0 && trimmed.length <= NAME_MAX_LENGTH;
 }
 
 /** Whether Save should be enabled — a valid name, and nothing already in flight.
  *  @complexity O(n) in the draft length (delegates to {@link isValidSiteName}). */
-export function canSubmitRename(draft: string, saving: boolean): boolean {
-  return isValidSiteName(draft) && !saving;
+export function canSubmitRename({ draft, saving }: { draft: string; saving: boolean }, _options: Record<string, never> = {}): boolean {
+  return isValidSiteName({ draft }) && !saving;
 }
 
 /** Shown when `runnerInventoryBridge()` returns nothing — a renderer running outside Electron (a
@@ -77,9 +77,7 @@ export type RenameSubmission =
  * @complexity O(1).
  */
 export function renameSubmission(
-  bridge: RunnerInventoryBridge | undefined,
-  id: string,
-  draft: string,
+  { bridge, id, draft }: { bridge: RunnerInventoryBridge | undefined; id: string; draft: string }, _options: Record<string, never> = {},
 ): RenameSubmission {
   if (siteNameError({ name: draft })) return { kind: 'refused', message: SITE_NAME_ERROR };
   if (bridge === undefined) return { kind: 'refused', message: NO_BRIDGE_RENAME_MESSAGE };
@@ -94,7 +92,7 @@ export function renameSubmission(
  *
  * @complexity O(n) in the message length.
  */
-export function describeRenameFailure(error: unknown): string {
+export function describeRenameFailure({ error }: { error: unknown }, _options: Record<string, never> = {}): string {
   return humanSiteError({ error, fallback: 'Could not rename this website.' });
 }
 
@@ -109,7 +107,7 @@ export interface SiteRenameState {
   canSave: boolean;
   startRename: (project: SiteRecord) => void;
   cancelRename: () => void;
-  submitRename: (id: string) => Promise<void>;
+  submitRename: (input: { id: string }) => Promise<void>;
 }
 
 /**
@@ -118,8 +116,8 @@ export interface SiteRenameState {
  *
  * @complexity O(n) in the draft length (delegates to {@link isValidSiteName}).
  */
-export function showsInvalidNameHint(draft: string): boolean {
-  return draft.length > 0 && !isValidSiteName(draft);
+export function showsInvalidNameHint({ draft }: { draft: string }, _options: Record<string, never> = {}): boolean {
+  return draft.length > 0 && !isValidSiteName({ draft });
 }
 
 /**
@@ -130,32 +128,33 @@ export function showsInvalidNameHint(draft: string): boolean {
  * `canSave` is read off the `rename` object this was built with — the same render's value the inline
  * handler it replaced closed over.
  *
- * @param rename the grid's rename state, narrowed to what the handler reads.
- * @param id the card being renamed, handed to `submitRename`.
+ * @param input.rename the grid's rename state, narrowed to what the handler reads.
+ * @param input.id the card being renamed, handed to `submitRename`.
  * @returns the handler; composing key events leave the in-progress text untouched.
  * @complexity O(1).
  */
 export function renameInputKeyDown(
-  rename: Pick<SiteRenameState, 'canSave' | 'cancelRename' | 'submitRename'>,
-  id: string,
+  { rename, id }: { rename: Pick<SiteRenameState, 'canSave' | 'cancelRename' | 'submitRename'>; id: string },
+  _options: Record<string, never> = {},
 ): (event: { key: string; isComposing?: boolean; nativeEvent?: { isComposing?: boolean }; keyCode?: number }) => void {
   return (event) => {
     if (event.isComposing || event.nativeEvent?.isComposing || event.keyCode === 229) return;
     if (event.key === 'Escape') rename.cancelRename();
-    if (event.key === 'Enter' && rename.canSave) void rename.submitRename(id);
+    if (event.key === 'Enter' && rename.canSave) void rename.submitRename({ id });
   };
 }
 
 /**
  * Drive the grid's rename flow.
  *
- * @param onRenamed called after a successful rename so the caller can refresh its list. The record
+ * @param options.onRenamed called after a successful rename so the caller can refresh its list. The record
  *   main returns is handed over rather than re-fetched — main already built it, and a second
  *   `list` round trip would let the card show a stale name for a frame.
  */
 export function useSiteRename(
-  onRenamed?: (record: SiteRecord) => void,
-  { getBridge = runnerInventoryBridge }: {
+  _required: Record<string, never>,
+  { onRenamed, getBridge = runnerInventoryBridge }: {
+    onRenamed?: (record: SiteRecord) => void;
     /** The bridge port, read at submit time; defaults to the preload's `window.tovuRunner`. */
     getBridge?: () => RunnerInventoryBridge | undefined;
   } = {},
@@ -185,8 +184,8 @@ export function useSiteRename(
     return () => document.removeEventListener('keydown', onEscape, true);
   }, [renamingId, saving]);
 
-  const submitRename = async (id: string) => {
-    const decision = renameSubmission(getBridge(), id, draft);
+  const submitRename = async ({ id }: { id: string }, _options: Record<string, never> = {}) => {
+    const decision = renameSubmission({ bridge: getBridge(), id, draft });
     if (decision.kind === 'refused') {
       // Set the error WITHOUT ever setting `saving` — a call that never reached the bridge did not
       // start, and a spinner for work that is not happening is a lie. Same reasoning
@@ -201,7 +200,7 @@ export function useSiteRename(
       setRenamingId(null);
       onRenamed?.(record);
     } catch (err) {
-      setRenameError(describeRenameFailure(err));
+      setRenameError(describeRenameFailure({ error: err }));
     } finally {
       setSaving(false);
     }
@@ -213,7 +212,7 @@ export function useSiteRename(
     setDraft,
     saving,
     renameError,
-    canSave: canSubmitRename(draft, saving),
+    canSave: canSubmitRename({ draft, saving }),
     startRename,
     cancelRename,
     submitRename,

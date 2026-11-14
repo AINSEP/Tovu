@@ -100,7 +100,7 @@ export function siteWorkspaceReducer(state: SiteWorkspaceState, action: SiteWork
     case 'guest-changed':
       return { ...state, liveUrl: null, history: action.history };
     case 'parked':
-      return { ...state, view: surfaceOfUrl(action.url), liveUrl: null, restoreUrl: action.url };
+      return { ...state, view: surfaceOfUrl({ url: action.url }), liveUrl: null, restoreUrl: action.url };
   }
   // Typed cases are exhaustive; preserve undefined fallthrough for untyped callers.
   return undefined as never;
@@ -147,21 +147,21 @@ export function restoredSrc({ surfaceSrc, restoreUrl }: { surfaceSrc: string; re
 }
 
 /** Which surface a guest url belongs to: the admin by its path, everything else is the site. */
-export function surfaceOfUrl(url: string): SiteSurface {
+export function surfaceOfUrl({ url }: { url: string }, _options: Record<string, never> = {}): SiteSurface {
   const { pathname } = new URL(url);
   return pathname === '/admin' || pathname.startsWith('/admin/') ? 'admin' : 'site';
 }
 
 /** The surface on screen: the guest's own url once it has reported one, the request until then. */
 function liveSurface(state: SiteWorkspaceState): SiteSurface {
-  return state.liveUrl === null ? state.view : surfaceOfUrl(state.liveUrl);
+  return state.liveUrl === null ? state.view : surfaceOfUrl({ url: state.liveUrl });
 }
 
 /**
  * Reads the guest's history, or no history when there is no guest or it cannot answer yet —
  * Electron throws from every `<webview>` method until the guest is attached.
  */
-export function readHistory(guest: WorkspaceGuest | null): SiteHistory {
+export function readHistory({ guest }: { guest: WorkspaceGuest | null }, _options: Record<string, never> = {}): SiteHistory {
   if (guest === null) return NO_HISTORY;
   try {
     return { canGoBack: guest.canGoBack(), canGoForward: guest.canGoForward() };
@@ -181,10 +181,10 @@ export function readHistory(guest: WorkspaceGuest | null): SiteHistory {
  */
 export function trackGuestNavigation(guest: WorkspaceGuest, dispatch: Dispatch<SiteWorkspaceAction>): () => void {
   const onNavigate = (event: WebviewDidNavigateEvent) => {
-    dispatch({ type: 'navigated', url: event.url, history: readHistory(guest) });
+    dispatch({ type: 'navigated', url: event.url, history: readHistory({ guest }) });
   };
   const onNavigateInPage = (event: WebviewDidNavigateInPageEvent) => {
-    dispatch({ type: 'navigated', url: event.isMainFrame ? event.url : null, history: readHistory(guest) });
+    dispatch({ type: 'navigated', url: event.isMainFrame ? event.url : null, history: readHistory({ guest }) });
   };
   try { guest.addEventListener('did-navigate', onNavigate); } catch { /* Guest not attached. */ }
   try { guest.addEventListener('did-navigate-in-page', onNavigateInPage); } catch { /* Guest not attached. */ }
@@ -200,8 +200,8 @@ export function trackGuestNavigation(guest: WorkspaceGuest, dispatch: Dispatch<S
  *
  * @returns whether the guest was told to move.
  */
-export function stepHistory(guest: WorkspaceGuest | null, command: SiteHistoryCommand): boolean {
-  const history = readHistory(guest);
+export function stepHistory({ guest, command }: { guest: WorkspaceGuest | null; command: SiteHistoryCommand }, _options: Record<string, never> = {}): boolean {
+  const history = readHistory({ guest });
   const allowed = command === 'back' ? history.canGoBack : history.canGoForward;
   if (guest === null || !allowed) return false;
   try {
@@ -224,7 +224,7 @@ export function subscribeSiteHistory(input: {
   guest: WorkspaceGuest | null;
 }): (() => void) | undefined {
   if (input.hidden || input.bridge === undefined) return undefined;
-  return input.bridge.onSiteHistory({ listener: (command) => void stepHistory(input.guest, command) });
+  return input.bridge.onSiteHistory({ listener: (command) => void stepHistory({ guest: input.guest, command }) });
 }
 
 export interface WorkspaceActions {
@@ -233,7 +233,7 @@ export interface WorkspaceActions {
   recover: () => void;
   goBack: () => void;
   goForward: () => void;
-  selectView: (option: SiteSurface) => void;
+  selectView: (input: { option: SiteSurface }) => void;
   openInBrowser: () => void;
 }
 
@@ -258,7 +258,7 @@ export function createWorkspaceActions(input: {
   const remount = () => dispatch({ type: 'remount' });
   // A guest that is not attached yet throws from `reload()`/`loadURL()`; remounting it is the only
   // load left to try.
-  const loadOrRemount = (load: (target: WorkspaceGuest) => void) => {
+  const loadOrRemount = ({ load }: { load: (target: WorkspaceGuest) => void }, _options: Record<string, never> = {}) => {
     if (guest === null) { remount(); return; }
     try {
       load(guest);
@@ -271,11 +271,11 @@ export function createWorkspaceActions(input: {
 
   return {
     // Cache bypass covers external theme edits while retaining guest history.
-    reload: () => (input.failed || input.stalled ? remount() : loadOrRemount((target) => target.reloadIgnoringCache())),
+    reload: () => (input.failed || input.stalled ? remount() : loadOrRemount({ load: (target) => target.reloadIgnoringCache() })),
     recover: remount,
-    goBack: () => void stepHistory(guest, 'back'),
-    goForward: () => void stepHistory(guest, 'forward'),
-    selectView: (option) => {
+    goBack: () => void stepHistory({ guest, command: 'back' }),
+    goForward: () => void stepHistory({ guest, command: 'forward' }),
+    selectView: ({ option }) => {
       if (option === surface) return;
       dispatch({ type: 'select-view', view: option });
       // A different `src` is the navigation. The same `src` would navigate nowhere, so load it.
@@ -284,9 +284,9 @@ export function createWorkspaceActions(input: {
       // `loadURL` rejects when a newer navigation aborts it, which is ordinary, not a failure.
       const url = siteSurfaceUrl({ port: input.port, view: option, externalUrl: input.externalUrl });
       if (!url) return;
-      loadOrRemount((target) => void target.loadURL(url).catch((error: unknown) => {
+      loadOrRemount({ load: (target) => void target.loadURL(url).catch((error: unknown) => {
         if (!(error instanceof Error && error.message.includes("ERR_ABORTED"))) console.error("[workspace] Could not load the site", describeErrorForLog({ err: error }));
-      }));
+      }) });
     },
     // An id and a surface, never a url: main rebuilds the url from the registry row. If the project
     // has stopped existing, the next poll takes the tab away; other failures need a diagnostic.
@@ -339,7 +339,7 @@ export interface SiteWorkspace extends WorkspaceActions {
  * Per tab, never lifted into `App`: every open project stays mounted at once, so a shared value
  * would move every other tab's guest too.
  */
-export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPage, parked, getBridge = runnerInventoryBridge }: {
+export function useSiteWorkspace({ project, hidden }: { project: SiteRecord; hidden: boolean }, { adminPage, parked, getBridge = runnerInventoryBridge }: {
   adminPage?: SiteAdminPage;
   /** This tab's last release (`useLiveViews`): the route and scroll its next guest comes back to. */
   parked?: ParkedView;
@@ -358,11 +358,11 @@ export function useSiteWorkspace(project: SiteRecord, hidden: boolean, { adminPa
     );
     return () => { active = false; };
   }, [project.id, project.externalUrl, getBridge]);
-  const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure(loadResetKey(state));
+  const { failed, stalled, loaded, guest, guestRef } = useWebviewLoadFailure({ resetKey: loadResetKey(state) });
 
   // A new guest node (a remount, or the guest appearing at all) has its own, empty history.
   useEffect(() => {
-    dispatch({ type: 'guest-changed', history: readHistory(guest) });
+    dispatch({ type: 'guest-changed', history: readHistory({ guest }) });
     return guest === null ? undefined : trackGuestNavigation(guest, dispatch);
   }, [guest]);
 

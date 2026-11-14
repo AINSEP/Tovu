@@ -22,7 +22,7 @@ import { reportShellTelemetry } from './product-telemetry.js';
 
 export interface SiteActions {
   /** Open a running site's PUBLIC surface in the default browser. */
-  openInBrowser: (id: string) => Promise<string | null>;
+  openInBrowser: (input: { id: string }) => Promise<string | null>;
 }
 
 /**
@@ -32,7 +32,7 @@ export interface SiteActions {
  * @complexity O(1) — no state, one thin wrapper.
  */
 export function useSiteActions(): SiteActions {
-  const call = async (act: (bridge: NonNullable<ReturnType<typeof runnerInventoryBridge>>) => Promise<unknown>) => {
+  const call = async ({ act }: { act: (bridge: NonNullable<ReturnType<typeof runnerInventoryBridge>>) => Promise<unknown> }, _options: Record<string, never> = {}) => {
     const bridge = runnerInventoryBridge();
     if (!bridge) return 'The desktop bridge is unavailable.';
     try {
@@ -47,9 +47,9 @@ export function useSiteActions(): SiteActions {
     // `view: 'site'` — the PUBLIC site, not the admin. The workspace bar's own "Open in browser"
     // sends whichever surface that tab is showing, which is right there and wrong here: a card has
     // no current surface, and "open in browser" from a card means the website.
-    openInBrowser: (id) => {
+    openInBrowser: ({ id }) => {
       reportShellTelemetry({ payload: { kind: 'action', id: 'open_preview' } });
-      return call((bridge) => bridge.openSiteExternal({ siteId: id, view: 'site' }));
+      return call({ act: (bridge) => bridge.openSiteExternal({ siteId: id, view: 'site' }) });
     },
   };
 }

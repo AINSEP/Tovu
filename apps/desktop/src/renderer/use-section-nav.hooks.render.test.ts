@@ -16,7 +16,7 @@ import { deriveSitesHomeView } from './sites-home-view.js';
 function useNavigationShell(getBridge: () => Pick<RunnerInventoryBridge, 'onNavigate'> | undefined) {
   const tabs = useProjectTabs();
   const nav = useSectionNav(tabs.setActiveTab);
-  useRunnerNavigation(nav.setActiveId, tabs.setActiveTab, { getBridge });
+  useRunnerNavigation({ setActiveId: nav.setActiveId, setActiveTab: tabs.setActiveTab }, { getBridge });
   return { tabs, nav };
 }
 
@@ -24,7 +24,7 @@ test('useRunnerNavigation: an agent navigate moves the section and returns to th
   const listeners = new Set<(section: RunnerSectionId) => void>();
   const getBridge = () => ({ onNavigate: ({ listener }: { listener: (section: RunnerSectionId) => void }, _options = {}) => { listeners.add(listener); return () => listeners.delete(listener); } });
   const hook = renderHook(t, () => useNavigationShell(getBridge));
-  act(() => hook.current().tabs.openProjectTab('a'));
+  act(() => hook.current().tabs.openProjectTab({ id: 'a' }));
   act(() => hook.current().nav.startCreating());
   assert.equal(listeners.size, 1);
   act(() => { for (const listener of listeners) listener('agents' as RunnerSectionId); });
@@ -51,7 +51,7 @@ test('useRunnerNavigation: without a bridge nothing subscribes and the nav stays
 
 test('useSectionNav: a section click resets create, Appearance and the open tab; Appearance drops the tab', (t) => {
   const hook = renderHook(t, () => useNavigationShell(() => undefined));
-  act(() => hook.current().tabs.openProjectTab('a'));
+  act(() => hook.current().tabs.openProjectTab({ id: 'a' }));
   act(() => hook.current().nav.openAppearance());
   assert.equal(hook.current().nav.appearanceOpen, true);
   assert.equal(hook.current().tabs.activeTab, null);
@@ -73,7 +73,7 @@ test('useSectionNav: a section click resets create, Appearance and the open tab;
 test('useSectionNav: Import is a tab: it comes forward from a site, hides behind All, and only Cancel, close or a section move closes it', (t) => {
   const hook = renderHook(t, () => useNavigationShell(() => undefined));
   const state = () => ({ front: hook.current().nav.isImporting, open: hook.current().nav.importTabOpen, tab: hook.current().tabs.activeTab });
-  act(() => hook.current().tabs.openProjectTab('a'));
+  act(() => hook.current().tabs.openProjectTab({ id: 'a' }));
   act(() => hook.current().nav.startImporting());
   assert.deepEqual(state(), { front: true, open: true, tab: null }, 'opening it leaves the site tab for the page');
   act(() => hook.current().nav.hideImporting());

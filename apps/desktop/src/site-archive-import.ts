@@ -38,7 +38,7 @@ interface ChildOptions { spawnFn?: ImportSpawn; baseEnv?: NodeJS.ProcessEnv; tim
 interface ChildPlan { repoRoot: string; cliMode?: "source" | "compiled" }
 
 /** Children running right now, so quitting and Cancel can stop them. At most a few per app. */
-const running = new Map<ImportChild, (reason: ImportStopReason, graceMs: number) => Promise<void>>();
+const running = new Map<ImportChild, (input: { reason: ImportStopReason; grace: number }) => Promise<void>>();
 
 const STOP_MESSAGES: Record<Exclude<ImportStopReason, "cancel">, string> = {
   quit: "The import was stopped because Tovu was closing. No website was created. Open Tovu and import again.",
@@ -55,7 +55,7 @@ export async function stopRunningImports(
   _required: Record<string, never> = {},
   { graceMs = STOP_GRACE_MS, reason = "quit" }: { graceMs?: number; reason?: ImportStopReason } = {},
 ): Promise<void> {
-  await Promise.all([...running.values()].map((stop) => stop(reason, graceMs)));
+  await Promise.all([...running.values()].map((stop) => stop({ reason, grace: graceMs })));
 }
 
 const keepTail = ({ text }: { text: string }) => (text.length > MAX_OUTPUT_CHARS ? text.slice(-MAX_OUTPUT_CHARS) : text);
@@ -99,14 +99,14 @@ async function runImportChild(
   child.stdout.on("data", (chunk: string) => { stdout = keepTail({ text: stdout + chunk }); });
   child.stderr.on("data", (chunk: string) => { stderr = keepTail({ text: stderr + chunk }); });
   const ended = childEnded({ child, closeWaitMs });
-  const stop = (reason: ImportStopReason, grace: number) => {
+  const stop = ({ reason, grace }: { reason: ImportStopReason; grace: number }, _options: Record<string, never> = {}) => {
     stopReason ??= reason;
     child.stdin?.end();
     killTimer ??= setTimeout(() => child.kill("SIGKILL"), grace);
     return ended.then(() => undefined, () => undefined);
   };
   running.set(child, stop);
-  const deadline = setTimeout(() => void stop("timeout", graceMs), timeoutMs);
+  const deadline = setTimeout(() => void stop({ reason: "timeout", grace: graceMs }), timeoutMs);
   try {
     const code = await ended;
     return { code, stdout, stderr, stopReason };

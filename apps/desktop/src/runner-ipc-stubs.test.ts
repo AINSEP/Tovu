@@ -151,7 +151,7 @@ test("every registered handler throws rather than returning any value", () => {
 
 test("notPortedError names the channel it was built for, not a shared one", () => {
   assert.notEqual(
-    notPortedError("workspace:chat:start").message,
-    notPortedError("workspace:chat:stop").message,
+    notPortedError({ channel: "workspace:chat:start" }).message,
+    notPortedError({ channel: "workspace:chat:stop" }).message,
   );
 });

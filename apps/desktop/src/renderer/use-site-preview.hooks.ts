@@ -38,9 +38,8 @@ export type PreviewFetchPlan =
  * @complexity O(1).
  */
 export function previewFetchPlan(
-  id: string,
-  previewVersion: number | null,
-  bridge: RunnerInventoryBridge | undefined,
+  { id, previewVersion, bridge }: { id: string; previewVersion: number | null; bridge: RunnerInventoryBridge | undefined },
+  _options: Record<string, never> = {},
 ): PreviewFetchPlan {
   if (previewVersion === null) return { kind: 'clear' };
   if (bridge === undefined) return { kind: 'skip' };
@@ -61,8 +60,8 @@ export function previewFetchPlan(
  * @complexity O(1).
  */
 export function nextPreviewUrl(
-  cancelled: boolean,
-  outcome: { readonly ok: true; readonly url: string | null } | { readonly ok: false },
+  { cancelled, outcome }: { cancelled: boolean; outcome: { readonly ok: true; readonly url: string | null } | { readonly ok: false } },
+  _options: Record<string, never> = {},
 ): string | null | undefined {
   if (cancelled) return undefined;
   return outcome.ok ? outcome.url : null;
@@ -86,7 +85,7 @@ export function useSitePreview(
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const plan = previewFetchPlan(id, previewVersion, getBridge());
+    const plan = previewFetchPlan({ id, previewVersion, bridge: getBridge() });
     if (plan.kind === 'clear') {
       setUrl(null);
       return undefined;
@@ -97,11 +96,11 @@ export function useSitePreview(
     plan.bridge
       .getSitePreview({ id: plan.id })
       .then((result) => {
-        const next = nextPreviewUrl(cancelled, { ok: true, url: result });
+        const next = nextPreviewUrl({ cancelled, outcome: { ok: true, url: result } });
         if (next !== undefined) setUrl(next);
       })
       .catch(() => {
-        const next = nextPreviewUrl(cancelled, { ok: false });
+        const next = nextPreviewUrl({ cancelled, outcome: { ok: false } });
         if (next !== undefined) setUrl(next);
       });
     return () => {

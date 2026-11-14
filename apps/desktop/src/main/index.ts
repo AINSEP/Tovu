@@ -330,7 +330,7 @@ const sharedSites = createSitesWorkspace({}, { cwd: PAYLOAD_ROOT, sourceRoots: a
   appDataDir: userDataProfile.overridden ? app.getPath("userData") : undefined,
 });
 /** The sites-home `discoverSites` lanes: picker validation and a rescan never cancel each other. */
-const siteDiscovery = createSiteDiscoveryLanes({ discover: ({ scanRoots, signal }) => discoverDesktopSites({ statePath: stateFilePath(app.getPath("userData")), scanRoots,
+const siteDiscovery = createSiteDiscoveryLanes({ discover: ({ scanRoots, signal }) => discoverDesktopSites({ statePath: stateFilePath({ userDataDir: app.getPath("userData") }), scanRoots,
   workspaceOptions: { cwd: PAYLOAD_ROOT, sourceRoots: app.isPackaged ? [] : [path.join(REPO_ROOT, "sites")] } }, { signal }) });
 
 // Only the payload child opens project.db or a legacy owner.db. Electron chooses the profile
@@ -705,7 +705,7 @@ async function promptAndOpenNewSite(ctx: SiteOpenCtx): Promise<void> { await pro
  */
 function buildAppMenu(ctx: SiteOpenCtx): Menu {
   return Menu.buildFromTemplate(ownServerMenuTemplate({ platform: process.platform,
-    recents: existingRecentSiteDirs(ctx.statePath, { workspace: sharedSites }), settings: desktopUpdateSettingsMenu(),
+    recents: existingRecentSiteDirs({ statePath: ctx.statePath }, { workspace: sharedSites }), settings: desktopUpdateSettingsMenu(),
     openNewSite: () => void serializer.run({ key: "__open_new__", fn: () => promptAndOpenNewSite(ctx) }),
     openRecent: ({ dir }) => void serializer.run({ key: dir, fn: () => adoptAndOpenSite({ dir, ctx }) }) }));
 }
@@ -754,7 +754,7 @@ function reconcileOrphansOnBoot(): Promise<void> {
 /** Boot mode 2 — own server — see `own-server-boot.ts`. */
 async function bootOwnServerMode(): Promise<void> {
   registerProjectLifecycle(buildProjectDeps(sitesHomeCtx()));
-  const ctx: SiteOpenCtx = { cliMode: resolveCliMode(), statePath: stateFilePath(app.getPath("userData")), registryPath: registryDirPath({ userDataDir: app.getPath("userData") }) };
+  const ctx: SiteOpenCtx = { cliMode: resolveCliMode(), statePath: stateFilePath({ userDataDir: app.getPath("userData") }), registryPath: registryDirPath({ userDataDir: app.getPath("userData") }) };
   await bootOwnServerModeIn({ ctx, ports: { sitesConfigWarning: () => sharedSites.config({}).warning, warn: ({ message }) => console.warn(message),
     refreshAppMenu, resolveStartupSiteDirs, selftest: SELFTEST,
     installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker({ expectedCount }); },
@@ -877,7 +877,7 @@ async function migrateSitesHomeOnBoot(): Promise<void> {
 function sitesHomeCtx() {
   return {
     cliMode: resolveCliMode(),
-    statePath: stateFilePath(app.getPath("userData")),
+    statePath: stateFilePath({ userDataDir: app.getPath("userData") }),
     registryPath: registryDirPath({ userDataDir: app.getPath("userData") }),
     projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
   };
@@ -972,7 +972,7 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     }),
     // A thunk, not the list: read fresh on every scan, so a site opened during this session is
     // found by a later rescan instead of being frozen out by a snapshot taken at boot.
-    recentSiteDirs: () => existingRecentSiteDirs(sitesCtx.statePath, { workspace: sharedSites }),
+    recentSiteDirs: () => existingRecentSiteDirs({ statePath: sitesCtx.statePath }, { workspace: sharedSites }),
     ctx: sitesCtx,
   };
 }

@@ -82,7 +82,7 @@ const RUNNER_STUB_CHANNELS = Object.freeze([
  *
  * @complexity O(1).
  */
-function notPortedError(channel: string): RunnerNotPortedError {
+function notPortedError({ channel }: { channel: string }, _options: Record<string, never> = {}): RunnerNotPortedError {
   const error = new Error(
     `${RUNNER_MAIN_NOT_PORTED}: ${channel} has no main-process implementation yet. The Tovu-Runner UI port brought the renderer across in phase 1; Tovu-Runner/src/main/ lands in phase 2.`,
   ) as RunnerNotPortedError;
@@ -107,7 +107,7 @@ function notPortedError(channel: string): RunnerNotPortedError {
 function registerRunnerIpcStubs({ ipcMain }: { ipcMain: StubIpcMain }): readonly string[] {
   for (const channel of RUNNER_STUB_CHANNELS) {
     ipcMain.handle(channel, () => {
-      throw notPortedError(channel);
+      throw notPortedError({ channel });
     });
   }
   return RUNNER_STUB_CHANNELS;

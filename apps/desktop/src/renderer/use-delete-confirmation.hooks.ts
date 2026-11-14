@@ -16,21 +16,20 @@ import { dismissOnEscape, humanSiteError } from './site-shell-policy.js';
  * @param options.doc where the Escape listener goes while a card is pending; `document` by default.
  */
 export function useDeleteConfirmation(
-  onDelete: (id: string) => Promise<void>,
-  { doc = document }: { doc?: Pick<Document, 'addEventListener' | 'removeEventListener'> } = {},
+  { onDelete }: { onDelete: (id: string) => Promise<void> }, { doc = document }: { doc?: Pick<Document, 'addEventListener' | 'removeEventListener'> } = {},
 ): {
   pendingId: string | null;
   deletingId: string | null;
   deleteError: string | null;
-  requestDelete: (id: string) => void;
+  requestDelete: (input: { id: string }) => void;
   cancelDelete: () => void;
-  confirmDelete: (id: string) => Promise<void>;
+  confirmDelete: (input: { id: string }) => Promise<void>;
 } {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const requestDelete = (id: string) => {
+  const requestDelete = ({ id }: { id: string }, _options: Record<string, never> = {}) => {
     setDeleteError(null);
     setPendingId(id);
   };
@@ -43,7 +42,7 @@ export function useDeleteConfirmation(
     return () => doc.removeEventListener('keydown', onEscape, true);
   }, [pendingId, deletingId, doc]);
 
-  const confirmDelete = async (id: string) => {
+  const confirmDelete = async ({ id }: { id: string }, _options: Record<string, never> = {}) => {
     setDeletingId(id);
     setDeleteError(null);
     try {

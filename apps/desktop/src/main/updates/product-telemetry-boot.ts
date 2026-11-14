@@ -129,7 +129,7 @@ function startMemorySampling({ args, readConsent }: { args: ProductTelemetryBoot
   const memory = startMemory({ monitor, tracker: state.product.tracker, readConsent,
     desktopPid: processInfo.pid, rendererPids: () => new Set(webContents.getAllWebContents().map(contents => contents.getOSProcessId())),
     heapUsedBytes: () => processInfo.memoryUsage().heapUsed, uptime: () => processInfo.uptime(),
-  }, { schedule: ({ tick, ms }) => schedule(tick, ms, visibility) });
+  }, { schedule: ({ tick, ms }) => schedule({ tick, periodMs: ms }, { doc: visibility }) });
   state.disposers.push(memory.dispose);
 }
 

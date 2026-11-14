@@ -110,7 +110,7 @@ function relocationTarget({ row, context }: { row: TrackedSiteRow; context: Plan
   if (identity === null || identity === undefined) return null;
   const roots = new Set([path.dirname(row.siteDir), ...context.searchRoots]);
   const candidates = new Set([...context.knownDirs, ...[...roots].flatMap((root) => childPathsOf({ root }))]);
-  const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir(dir) === "site" && readRelocationId({ siteDir: dir }) === identity);
+  const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir({ dir }) === "site" && readRelocationId({ siteDir: dir }) === identity);
   const [match] = matches;
   if (matches.length !== 1 || match === undefined || context.dismissed.includes(match)) return null; // Only one undismissed match can be used.
   // The target was matched BY this id, so the id travels with it rather than being read off disk again.
@@ -134,7 +134,7 @@ function movedRow({ row, siteDir, relocationId }: { row: TrackedSiteRow; siteDir
  * @complexity O(1) bounded marker reads for a valid folder; {@link relocationTarget}'s cost for a missing one.
  */
 function planRow({ plan, row, context }: { plan: RelocationPlan; row: TrackedSiteRow; context: PlanContext }, _options = {}): void {
-  if (context.classifySiteDir(row.siteDir) === "site") {
+  if (context.classifySiteDir({ dir: row.siteDir }) === "site") {
     const id = row.relocationId === undefined ? readRelocationId({ siteDir: row.siteDir }) : null;
     plan.changed ||= id !== null;
     plan.rows.push(id === null ? row : { ...row, relocationId: id });
@@ -235,7 +235,7 @@ function createRelocationGate(_required: Record<string, never>, options: Relocat
   let lastRunAt = 0;
   return {
     shouldRun({ file }, _options = {}) {
-      const picture = [...file.rows.map((row) => `${row.siteDir}\u0000${classifySiteDir(row.siteDir)}`), "\u0000dismissed", ...file.dismissed].join("\n");
+      const picture = [...file.rows.map((row) => `${row.siteDir}\u0000${classifySiteDir({ dir: row.siteDir })}`), "\u0000dismissed", ...file.dismissed].join("\n");
       const at = now();
       if (picture === lastPicture && at - lastRunAt < maxIdleMs) return false;
       lastPicture = picture;

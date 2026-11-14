@@ -77,7 +77,7 @@ test('the probe is the release script, and its yes comes back with the route', a
 
 test('releasing stops once enough agreed, and a veto moves on to the next candidate', async () => {
   const asked: string[] = [];
-  const guestOf = (id: string) => ({
+  const guestOf = ({ id }: { id: string }) => ({
     executeJavaScript: async () => { asked.push(id); return { release: id !== 'a' }; },
   }) as unknown as LiveGuest;
   assert.deepEqual(await releaseExcessViews({ candidates: ['a', 'b', 'c'], excess: 1, guestOf }), [{ id: 'b', parked: null }]);

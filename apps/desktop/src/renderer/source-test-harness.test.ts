@@ -17,7 +17,7 @@ test('hookHarness.render refuses a hook that never settles', () => {
     setCount(count + 1);
     return count;
   };
-  assert.throws(() => harness.render(useRunaway), /hook did not settle/);
+  assert.throws(() => harness.render({ run: useRunaway }), /hook did not settle/);
   assert.equal(renders, 20, 'it gives up after a bounded number of renders');
 });
 
@@ -28,5 +28,5 @@ test('hookHarness.render returns once a state update stops changing anything', (
     setValue('settled');
     return value;
   };
-  assert.equal(harness.render(useOnce), 'settled');
+  assert.equal(harness.render({ run: useOnce }), 'settled');
 });

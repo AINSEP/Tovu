@@ -57,8 +57,8 @@ test('D-20: fast typing issues one search for the complete exact query; clear/cl
   const timers = new Map<number, () => void>();
   let next = 0;
   const scheduler = createFindQueryScheduler({}, { clock: {
-    schedule: (callback, delay) => { assert.equal(delay, FIND_QUERY_SETTLE_MS); timers.set(++next, callback); return next; },
-    cancel: (timer) => { timers.delete(timer as number); },
+    schedule: ({ callback, delay }) => { assert.equal(delay, FIND_QUERY_SETTLE_MS); timers.set(++next, callback); return next; },
+    cancel: ({ timer }) => { timers.delete(timer as number); },
   } });
   const finds: string[] = [];
   const guest: FindableGuest = {
@@ -67,7 +67,7 @@ test('D-20: fast typing issues one search for the complete exact query; clear/cl
   };
   for (let length = 1; length <= 'Plugin API'.length; length++) {
     const text = 'Plugin API'.slice(0, length);
-    scheduler.schedule({ run: () => runFind({ kind: 'guest', element: guest }, undefined, text, { forward: true, findNext: true }, null) });
+    scheduler.schedule({ run: () => runFind({ target: { kind: 'guest', element: guest }, bridge: undefined, text, options: { forward: true, findNext: true } }, { selection: null }) });
     assert.deepEqual(finds, []);
     assert.equal(timers.size, 1);
   }
@@ -83,7 +83,7 @@ test('D-20: fast typing issues one search for the complete exact query; clear/cl
 });
 
 test('D-24: IPC and AddSitePointerError class prefixes never reach the operator', () => {
-  assert.equal(describeAddFailure(new Error("Error invoking remote method 'runner:sites:add-site': AddSitePointerError: This folder is not a Tovu website.")), 'This folder is not a Tovu website.');
+  assert.equal(describeAddFailure({ error: new Error("Error invoking remote method 'runner:sites:add-site': AddSitePointerError: This folder is not a Tovu website.") }), 'This folder is not a Tovu website.');
   assert.equal(humanSiteError({ error: "Error invoking remote method 'runner:sites:create': Error: Could not create website.", fallback: 'unknown' }), 'Could not create website.');
 });
 
@@ -109,7 +109,7 @@ test('D-02/D-17: oversized paste preserves the full draft for validation instead
   assert.equal(prevented, true);
   assert.equal(draft, name);
   assert.equal(siteNameError({ name: draft }), 'A name must be 1 to 200 characters, not counting spaces at either end.');
-  assert.equal(canSubmitRename(draft, false), false);
+  assert.equal(canSubmitRename({ draft, saving: false }), false);
 });
 
 test('tabAfterClose: closing the active tab that is not in the strip leaves no active tab', () => {

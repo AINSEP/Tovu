@@ -172,7 +172,7 @@ function listSites(_args: ToolArgs, context: ToolContext): ToolHandlerResult {
     name: path.basename(row.siteDir),
     origin: row.origin,
     addedAt: row.createdAt,
-    present: (context.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) === "site",
+    present: (context.classifySiteDir ?? classifySiteDirSafely)({ dir: row.siteDir }) === "site",
   }));
   return {
     structured: { sites, count: sites.length },

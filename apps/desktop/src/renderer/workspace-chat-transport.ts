@@ -108,7 +108,7 @@ function isMediaBlock(value: unknown): value is ToolResultMediaBlock {
   return block.type === 'image' && typeof block.mimeType === 'string' && typeof block.data === 'string';
 }
 
-function mediaBlocks(media: unknown): readonly ToolResultMediaBlock[] {
+function mediaBlocks({ media }: { media: unknown }, _options: Record<string, never> = {}): readonly ToolResultMediaBlock[] {
   return Array.isArray(media) ? media.filter(isMediaBlock) : [];
 }
 
@@ -154,7 +154,7 @@ function translateToolInputDelta(payload: Extract<RunAgentPayload, { type: 'tool
 
 function translateToolResult(payload: Extract<RunAgentPayload, { type: 'tool_result' }>, record: SubscriptionRecord): AgentEvent | null {
   if (record.mirroredToolUseIds.has(payload.toolUseId)) return null;
-  const blocks = mediaBlocks(payload.media);
+  const blocks = mediaBlocks({ media: payload.media });
   return {
     kind: 'tool_result',
     toolUseId: payload.toolUseId,
@@ -238,7 +238,7 @@ function applyRunEndEvent(record: SubscriptionRecord, event: Extract<RunProtocol
   const failedSilently = event.payload.status === 'failed' && !record.errored;
   if (failedSilently) {
     record.errored = true;
-    record.handlers.onError(new Error(exitDescription(event.payload.code, event.payload.signal ?? null)));
+    record.handlers.onError(new Error(exitDescription({ code: event.payload.code, signal: event.payload.signal ?? null })));
   }
   settle(record);
 }
@@ -260,7 +260,7 @@ function applyRunEvent(record: SubscriptionRecord, event: RunProtocolEvent): voi
   }
 }
 
-function exitDescription(code: number | null, signal: string | null): string {
+function exitDescription({ code, signal }: { code: number | null; signal: string | null }, _options: Record<string, never> = {}): string {
   if (signal !== null) return `The agent process was terminated by ${signal}.`;
   if (code !== null) return `The agent process exited with code ${code}.`;
   return 'The agent run failed before producing a result.';
@@ -289,7 +289,7 @@ interface ChatStartPayload {
   attachmentPaths?: readonly string[];
 }
 
-function buildChatStartPayload(subscriptionId: string, agentId: string, input: StartRunInput): ChatStartPayload {
+function buildChatStartPayload({ subscriptionId, agentId, input }: { subscriptionId: string; agentId: string; input: StartRunInput }, _options: Record<string, never> = {}): ChatStartPayload {
   return {
     subscriptionId,
     prompt: buildTranscript({ history: input.history }, { targetAgentId: agentId }),
@@ -312,7 +312,7 @@ function buildChatStartPayload(subscriptionId: string, agentId: string, input: S
  * explicitly rather than closing over the outer one, so this stays testable independent of
  * `createWorkspaceChatTransport`'s closure.
  */
-function wireCancelSignal(bridge: RunnerInventoryBridge, cancelSignal: AbortSignal | undefined, runId: string): void {
+function wireCancelSignal({ bridge, cancelSignal, runId }: { bridge: RunnerInventoryBridge; cancelSignal: AbortSignal | undefined; runId: string }, _options: Record<string, never> = {}): void {
   if (cancelSignal?.aborted === true) {
     void bridge.chatStop({ runId }).catch((error: unknown) => console.error("[workspace-chat] Could not stop the run", describeErrorForLog({ err: error })));
     return;
@@ -365,7 +365,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
   }
 
   /** Detaches the browser side. The run keeps going in main — that is exactly `StartRunInput.signal`'s contract. */
-  function detach(subscriptionId: string): void {
+  function detach({ subscriptionId }: { subscriptionId: string }, _options: Record<string, never> = {}): void {
     if (!records.delete(subscriptionId)) return;
     void bridge.chatDetach({ subscriptionId }).catch(() => {
       // The renderer is already done with this subscription; a failed teardown invoke (window
@@ -386,15 +386,15 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
       const { subscriptionId, record } = open(handlers);
       const alreadyDetached = input.signal.aborted;
       if (alreadyDetached) records.delete(subscriptionId);
-      else input.signal.addEventListener('abort', () => detach(subscriptionId), { once: true });
+      else input.signal.addEventListener('abort', () => detach({ subscriptionId }), { once: true });
 
       try {
-        const { runId } = await bridge.chatStart(buildChatStartPayload(subscriptionId, agentId, input));
+        const { runId } = await bridge.chatStart(buildChatStartPayload({ subscriptionId, agentId, input }));
         record.runId = runId;
         // Main now owns the subscription; a pane that was already gone must detach it too.
         // The pane is gone, so a late teardown failure has no remaining listener to notify.
         if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});
-        wireCancelSignal(bridge, input.cancelSignal, runId);
+        wireCancelSignal({ bridge, cancelSignal: input.cancelSignal, runId });
         return { runId };
       } catch (error) {
         records.delete(subscriptionId);
@@ -413,7 +413,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
       });
 
       const abort = (): void => {
-        detach(subscriptionId);
+        detach({ subscriptionId });
         record.finish?.();
       };
       if (options?.signal?.aborted === true) {
@@ -442,7 +442,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
 
     dispose(): void {
       offChatEvent();
-      for (const subscriptionId of [...records.keys()]) detach(subscriptionId);
+      for (const subscriptionId of [...records.keys()]) detach({ subscriptionId });
     },
   };
 }

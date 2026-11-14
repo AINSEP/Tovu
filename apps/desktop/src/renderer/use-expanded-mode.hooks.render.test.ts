@@ -13,7 +13,7 @@ import { useExpandedMode, type KeydownTarget } from './use-expanded-mode.hooks.j
 test('useExpandedMode: toggles, collapses on Escape only, and never outlives the workspace it immerses', (t) => {
   const window = installDom();
   let showSiteTab = true;
-  const hook = renderHook(t, () => useExpandedMode(showSiteTab));
+  const hook = renderHook(t, () => useExpandedMode({ showSiteTab }));
   const press = (key: string) => act(() => { window.dispatchEvent(new window.KeyboardEvent('keydown', { key })); });
   assert.equal(hook.current().expanded, false);
   act(() => hook.current().toggleExpanded());
@@ -31,7 +31,7 @@ test('useExpandedMode: toggles, collapses on Escape only, and never outlives the
 test('useExpandedMode: listens for Escape only while expanded, and releases the listener on collapse and unmount', (t) => {
   const keys = countingTarget<KeydownTarget>();
   let showSiteTab = true;
-  const hook = renderHook(t, () => useExpandedMode(showSiteTab, { target: keys.port }));
+  const hook = renderHook(t, () => useExpandedMode({ showSiteTab }, { target: keys.port }));
   assert.equal(keys.live(), 0, 'nothing to collapse, nothing listening');
   act(() => hook.current().toggleExpanded());
   assert.equal(keys.live(), 1);

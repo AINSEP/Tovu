@@ -109,11 +109,11 @@ test("the fixtures really are the folder states these tests claim to exercise", 
   fs.mkdirSync(occupied);
   fs.writeFileSync(path.join(occupied, "taxes.pdf"), "x");
 
-  assert.equal(classifySiteDir(siteFixture()), "site");
-  assert.equal(classifySiteDir(empty), "empty");
-  assert.equal(classifySiteDir(path.join(tempDir(), "absent")), "empty");
-  assert.equal(classifySiteDir(incomplete), "incomplete");
-  assert.equal(classifySiteDir(occupied), "occupied");
+  assert.equal(classifySiteDir({ dir: siteFixture() }), "site");
+  assert.equal(classifySiteDir({ dir: empty }), "empty");
+  assert.equal(classifySiteDir({ dir: path.join(tempDir(), "absent") }), "empty");
+  assert.equal(classifySiteDir({ dir: incomplete }), "incomplete");
+  assert.equal(classifySiteDir({ dir: occupied }), "occupied");
 });
 
 test("addSitePointer tracks a real site as `adopted`, so a later delete can never erase it", () => {

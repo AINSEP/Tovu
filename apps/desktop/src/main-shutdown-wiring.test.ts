@@ -35,10 +35,10 @@ test('the entry defines lifecycle cleanup that clears maintenance, retries and r
   const cleared: unknown[] = [];
   let disposals = 0;
   const recoveringSiteWindows = new Map([['/site', {}]]);
-  const stop = sourceFunction(source, 'stopSiteLifecycle', {
+  const stop = sourceFunction({ source, name: 'stopSiteLifecycle' }, { bindings: {
     clearInterval: (value: unknown) => { cleared.push(value); }, siteMaintenanceTimer: timer,
     siteLifecycle: { dispose: () => { disposals++; } }, recoveringSiteWindows,
-  });
+  } });
   stop();
   stop();
   assert.deepEqual(cleared, [timer, undefined]);

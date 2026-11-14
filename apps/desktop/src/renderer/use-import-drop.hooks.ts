@@ -46,7 +46,7 @@ export function useImportDrop(
     if (busy) return;
     route(classifyImportDrop({ dataTransfer: event.dataTransfer, getPathForFile }));
   };
-  const onPicked = (files: File[]) => {
+  const onPicked = ({ files }: { files: File[] }, _options: Record<string, never> = {}) => {
     if (!busy) route(classifyImportFiles({ files, getPathForFile }));
   };
   return { dragging, onPicked, dropProps: { onDragEnter: onDragOver, onDragOver, onDragLeave, onDropCapture } };

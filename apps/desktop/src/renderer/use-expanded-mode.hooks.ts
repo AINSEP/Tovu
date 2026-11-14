@@ -13,12 +13,11 @@ export type KeydownTarget = Pick<Window, 'addEventListener' | 'removeEventListen
  * nav, tab strip, fleet chat) gets out of the way. Owns both the state and the two rules that keep
  * it honest — it must never outlive the workspace it is immersing, and Escape must collapse it.
  *
- * @param showSiteTab whether a project's workspace is on screen (`deriveSitesHomeView`'s flag).
+ * @param input.showSiteTab whether a project's workspace is on screen (`deriveSitesHomeView`'s flag).
  * @param options.target where Escape is listened for; `window` unless a test supplies its own.
  */
 export function useExpandedMode(
-  showSiteTab: boolean,
-  { target = window }: { target?: KeydownTarget } = {},
+  { showSiteTab }: { showSiteTab: boolean }, { target = window }: { target?: KeydownTarget } = {},
 ): {
   expanded: boolean;
   toggleExpanded: () => void;

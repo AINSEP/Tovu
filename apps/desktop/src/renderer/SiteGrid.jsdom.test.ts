@@ -75,9 +75,9 @@ function fakeHooks() {
   const hooks: Partial<GridProps> = {
     useDeleteState: () => ({
       pendingId: state.pendingId, deletingId: state.deletingId, deleteError: state.deleteError,
-      requestDelete: (id: string) => { calls.push(`request delete ${id}`); },
+      requestDelete: ({ id }: { id: string }) => { calls.push(`request delete ${id}`); },
       cancelDelete: () => { calls.push('cancel delete'); },
-      confirmDelete: async (id: string) => { calls.push(`confirm delete ${id}`); },
+      confirmDelete: async ({ id }: { id: string }) => { calls.push(`confirm delete ${id}`); },
     }),
     useRenameState: (): SiteRenameState => ({
       renamingId: state.renamingId, draft: state.draft, saving: state.saving, canSave: state.canSave,
@@ -85,9 +85,9 @@ function fakeHooks() {
       setDraft: (next) => { calls.push(`draft ${next}`); },
       startRename: (project) => { calls.push(`start rename ${project.id}`); },
       cancelRename: () => { calls.push('cancel rename'); },
-      submitRename: async (id) => { calls.push(`submit rename ${id}`); },
+      submitRename: async ({ id }) => { calls.push(`submit rename ${id}`); },
     }),
-    useActions: () => ({ openInBrowser: async (id: string) => { calls.push(`browser ${id}`); return null; } }),
+    useActions: () => ({ openInBrowser: async ({ id }: { id: string }) => { calls.push(`browser ${id}`); return null; } }),
     usePower: () => {
       const power: SitePower = {
         statusOf: (project) => state.statuses[project.id] ?? project.status,
@@ -509,11 +509,11 @@ test('Start opens through the grid\'s own onOpen, and main\'s refreshed records 
   fakes.hooks.useLocate = (...args) => { locateArgs.push(args); return realLocate(...args); };
   const onSiteUpdated = () => {};
   const grid = renderGrid(t, [site('/sites/a')], fakes, { onSiteUpdated });
-  const [updated, options] = powerArgs[0]!;
-  assert.equal(updated, onSiteUpdated);
+  const [, options] = powerArgs[0]!;
+  assert.equal(options?.onSiteUpdated, onSiteUpdated);
   options?.onStarted?.('/sites/a');
   assert.deepEqual(grid.opened, ['/sites/a']);
-  assert.equal(locateArgs[0]![0], onSiteUpdated);
+  assert.equal(locateArgs[0]![1]?.onLocated, onSiteUpdated);
 });
 
 test('Enter or Space on the card opens it; the same key on anything inside the card does not', (t) => {
@@ -611,8 +611,8 @@ test('delete through the real confirmation hook: the ⋮ entry only asks, Cancel
 function memoryStorage(seed: Record<string, string> = {}) {
   const items = new Map(Object.entries(seed));
   const storage: SiteListStorage = {
-    getItem: (key) => items.get(key) ?? null,
-    setItem: (key, value) => { items.set(key, value); },
+    getItem: ({ key }) => items.get(key) ?? null,
+    setItem: ({ key, value }) => { items.set(key, value); },
   };
   return { storage, saved: () => JSON.parse(items.get(SITE_LIST_STORAGE_KEY) ?? 'null') };
 }
