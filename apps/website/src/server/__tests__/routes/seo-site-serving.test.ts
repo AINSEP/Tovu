@@ -41,8 +41,8 @@ function buildAdminTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminSeoGetEntryRoute(app, deps);
-  registerAdminSeoPutEntryRoute(app, deps);
+  registerAdminSeoGetEntryRoute({ app, deps });
+  registerAdminSeoPutEntryRoute({ app, deps });
   return { app, deps };
 }
 

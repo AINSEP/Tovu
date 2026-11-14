@@ -85,7 +85,7 @@ function buildApp(options: { jsonParser?: boolean } = {}) {
     registerAdminPageUpdateHtmlRoute,
     registerAdminPageDeleteRoute,
   ]) {
-    register(app, deps);
+    register({ app, deps });
   }
   return { app, deps };
 }

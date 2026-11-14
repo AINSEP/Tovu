@@ -150,7 +150,7 @@ function sseWriteHeadHeaders(req: Request): Record<string, string> {
  * The timers this stream schedules on, falling back to the globals.
  * @complexity O(1).
  */
-function resolveFeedTimers(feedTimers: FeedTimers | undefined): Required<FeedTimers> {
+function resolveFeedTimers({ feedTimers }: { feedTimers: FeedTimers | undefined }, _options: Record<string, never> = {}): Required<FeedTimers> {
   const { scheduleInterval = setInterval, clearScheduledInterval = clearInterval } = feedTimers ?? {};
   return { scheduleInterval, clearScheduledInterval };
 }
@@ -229,7 +229,7 @@ function runChangeFeed(required: Admission & {
   /** Namespace per settingId, cached for the connection's life: a settingId's namespace changes
    *  only via `renameDefinition`, which appends its own revision and so re-notifies anyway. */
   const namespaceBySettingId = new Map<string, string | null>();
-  const resolveNamespace = async (settingId: string): Promise<string | null> => {
+  const resolveNamespace = async ({ settingId }: { settingId: string }, _options: Record<string, never> = {}): Promise<string | null> => {
     const cached = namespaceBySettingId.get(settingId);
     if (cached !== undefined) return cached;
     const definition = await deps.settingsRepo.findDefinitionBySettingId({ settingId });
@@ -242,7 +242,7 @@ function runChangeFeed(required: Admission & {
   // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
   const previewFeed = createThemePreviewFeed({
     read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
-    emit: (frame) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
+    emit: ({ frame }, _options = {}) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
   }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
   let closed = false;
   /** True while a `tick` is mid-flight — see the guard at the top of `tick`. */
@@ -322,7 +322,7 @@ function runChangeFeed(required: Admission & {
       });
 
       const batch = await collectChangedNamespaces({
-        revisions, viewer, resolveNamespace: ({ settingId }) => resolveNamespace(settingId),
+        revisions, viewer, resolveNamespace,
       });
       // Advance even when nothing was visible, so writes this viewer cannot see are examined once
       // rather than on every tick forever.
@@ -362,7 +362,7 @@ export const registerAdminSettingsEventsRoute = (app: Express, deps: SettingsEve
   app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", asyncRoute({ handler: async (req, res) => {
     // Resolved per request, not at registration: a test that swaps the global timers after the
     // route is registered must still be the one this stream schedules on.
-    const timers = resolveFeedTimers(deps.feedTimers);
+    const timers = resolveFeedTimers({ feedTimers: deps.feedTimers });
     const admission = await admitSubscriber({ req, res, deps });
     if (!admission) return;
 

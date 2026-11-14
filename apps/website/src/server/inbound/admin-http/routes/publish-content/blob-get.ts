@@ -70,7 +70,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * AND a hostile peer, which a server-side check cannot. Hashing here too would double the CPU per
  * download to re-prove a property the only trust boundary already enforces.
  */
-export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/blobs/:sha", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

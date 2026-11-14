@@ -60,7 +60,7 @@ export interface ConnectAndRecordDeps {
   readonly clock: Clock;
   readonly idGen: { newId(): string };
   /** Writes this install's grant for `baseUrl`. Bound to `publish-trust`'s `connectDestination`. */
-  connectGrant(input: { baseUrl: string; entityTypes: readonly string[] }): Promise<GrantWriteResult>;
+  connectGrant(input: { baseUrl: string; entityTypes: readonly string[] }, optional?: Record<string, never>): Promise<GrantWriteResult>;
   /** Reverses the grant this install holds. Bound to `publish-trust`'s `disconnectDestination`,
    *  and called ONLY to compensate a failed peer-row write. */
   reverseGrant(): Promise<GrantReverseResult>;

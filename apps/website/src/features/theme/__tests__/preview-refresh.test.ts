@@ -118,7 +118,7 @@ test("feed starts silently, deduplicates ticks and delivers optional navigation 
   const { createThemePreviewFeed } = await import("../preview-refresh.js");
   let frame = { revision: "initial", path: "/old-tool-path" };
   const emitted: unknown[] = [];
-  const feed = createThemePreviewFeed({ read: () => frame, emit: (event) => emitted.push(event) });
+  const feed = createThemePreviewFeed({ read: () => frame, emit: ({ frame: event }, _options = {}) => emitted.push(event) });
   feed();
   feed();
   frame = { revision: "changed", path: "/new-tool-path" };
@@ -158,7 +158,7 @@ test("a tool navigation between connection and first tick is delivered, not trea
   const { createThemePreviewFeed } = await import("../preview-refresh.js");
   let frame: import("../preview-refresh.js").ThemePreviewRefresh | null = null;
   const emitted: unknown[] = [];
-  const feed = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) });
+  const feed = createThemePreviewFeed({ read: () => frame, emit: ({ frame: next }, _options = {}) => emitted.push(next) });
   frame = { revision: "new-tool", path: "/create-a-theme" };
   feed();
   assert.deepEqual(emitted, [{ revision: "new-tool", path: "/create-a-theme" }]);
@@ -196,13 +196,12 @@ test("both active-theme settings writers signal a new preview revision", async (
     throw new Error("missing handler");
   };
   registerAdminPresentationPatchRoute(
-    {
+    { app: {
       patch: (route: string, handler: typeof patch) => {
         assert.equal(route, "/api/admin/v1/workspaces/:workspaceId/presentation");
         patch = handler;
       },
-    } as never,
-    deps as never,
+    } as never, deps: deps as never },
   );
   let body: any;
   const response = {
@@ -225,7 +224,7 @@ test("a resumed desktop feed delivers the revision saved during its disconnected
   const { createThemePreviewFeed } = await import("../preview-refresh.js");
   const emitted: unknown[] = [];
   const frame = { revision: "while-disconnected", path: "/new-path" };
-  const tick = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) }, { resumeRevision: "last-delivered" });
+  const tick = createThemePreviewFeed({ read: () => frame, emit: ({ frame: next }, _options = {}) => emitted.push(next) }, { resumeRevision: "last-delivered" });
   tick(); tick();
   assert.deepEqual(emitted, [frame]);
 });
@@ -274,7 +273,7 @@ test("a feed that starts with no marker stays silent until one appears, and igno
   const { createThemePreviewFeed } = await import("../preview-refresh.js");
   let frame: import("../preview-refresh.js").ThemePreviewRefresh | null = null;
   const emitted: unknown[] = [];
-  const tick = createThemePreviewFeed({ read: () => frame, emit: (next) => emitted.push(next) });
+  const tick = createThemePreviewFeed({ read: () => frame, emit: ({ frame: next }, _options = {}) => emitted.push(next) });
   tick();
   assert.deepEqual(emitted, []);
   frame = { revision: "first" };

@@ -55,7 +55,7 @@ function sendPageCreateError(res: Response, err: unknown): void {
  * oversized request 413s before `createPost`/the command gateway ever runs — mirrors
  * `posts/create.ts`'s identical wiring.
  */
-export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/pages",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),

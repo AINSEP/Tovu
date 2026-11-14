@@ -49,8 +49,8 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
   createAssistantSettingsModule(deps).registerRoutes?.(app);
-  registerAdminSettingsSetRoute(app, deps);
-  registerAdminSettingsRegisterDefinitionsRoute(app, deps);
+  registerAdminSettingsSetRoute({ app, deps });
+  registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
   createSiteAssistantModule(deps, { GEMINI_API_KEY: "env-key-must-not-rescue-missing-saved-key",
     TOVU_SITE_ASSISTANT_MODEL: "env-model", TOVU_SITE_ASSISTANT_BASE_URL: endpoint }).registerRoutes?.(app);
   // A real declarative renderer with no disk theme/build dependency; homepage content proves

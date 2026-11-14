@@ -41,7 +41,7 @@ function duplicateInput({ body, sourceThemeId }: { body: unknown; sourceThemeId:
  * source, which is more than `theme.set`'s "choose among existing themes". Never activates — the
  * screen's own Activate button does that as a separate, deliberate step.
  */
-export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/duplicate", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

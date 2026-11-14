@@ -84,7 +84,7 @@ function buildApp(options: {
     if (options.publishTrust) res.locals.publishTrust = options.publishTrust;
     next();
   });
-  registerPublishContentCapabilitiesRoute(app, deps);
+  registerPublishContentCapabilitiesRoute({ app, deps });
   return app;
 }
 

@@ -15,8 +15,8 @@ const ROOT = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId";
 async function invoke(authorize: ContentRouteDeps["authorize"], suffix: "/original" | "/page/publish") {
   const app = express();
   const deps = portFake<ContentRouteDeps>({ workspaceId: "ws-1", authorize, themes: [], themesDir: "/nonexistent" });
-  registerAdminThemeSaveOriginalRoute(app, deps);
-  registerAdminThemePagePublishRoute(app, deps);
+  registerAdminThemeSaveOriginalRoute({ app, deps });
+  registerAdminThemePagePublishRoute({ app, deps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-1" };
   await extractRouteHandler(app, "post", `${ROOT}${suffix}`)({ params: { workspaceId: "ws-1", themeId: "plain" }, body: { page: "index", published: true } }, res);

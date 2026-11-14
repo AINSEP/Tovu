@@ -70,7 +70,7 @@ function parseSetRequestFields(rawBody: unknown): {
  * `principalId` that isn't an active principal in the request's workspace)
  * maps to 404, NOT 500 — this was Red-Team RT-001's flagged gap.
  */
-export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "put", path: "/api/admin/v1/workspaces/:workspaceId/settings/value",
     errorMappings: SET_ERROR_MAPPINGS,
     handle: async ({ request: req, principal, authorize }) => {

@@ -10,7 +10,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * `admin.redirects.manage`. 404s if the rule itself doesn't exist (distinct
  * from "no hits recorded yet", which still 200s with `hitCount: 0`).
  */
-export const registerAdminRedirectHitsRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectHitsRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/redirects/:id/hits", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

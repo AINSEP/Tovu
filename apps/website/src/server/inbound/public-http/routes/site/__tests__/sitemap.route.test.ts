@@ -35,7 +35,7 @@ function buildSitemapOnlyApp(depsOverrides: Partial<SeoRouteDeps>): { app: expre
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerSeoSitemapRoute(app, deps);
+  registerSeoSitemapRoute({ app, deps });
   return { app, deps };
 }
 

@@ -79,48 +79,48 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
   return {
     name: "content",
     registerRoutes: (app) => {
-      registerAdminPostListRoute(app, deps);
-      registerAdminPostCreateRoute(app, deps);
-      registerAdminPostGetRoute(app, deps);
-      registerAdminPostTemplatePreviewRoute(app, deps);
-      registerAdminPostUpdateRoute(app, deps);
-      registerAdminPostDeleteRoute(app, deps);
+      registerAdminPostListRoute({ app, deps });
+      registerAdminPostCreateRoute({ app, deps });
+      registerAdminPostGetRoute({ app, deps });
+      registerAdminPostTemplatePreviewRoute({ app, deps });
+      registerAdminPostUpdateRoute({ app, deps });
+      registerAdminPostDeleteRoute({ app, deps });
       // Standing-draft autosave (2026-09-06) — kind-blind, serves both Posts and Pages (see the
       // route file's own header for why this is not duplicated under /pages/).
-      registerAdminPostAutosaveRoute(app, deps);
-      registerAdminPageListRoute(app, deps);
-      registerAdminPageCreateRoute(app, deps);
-      registerAdminPageGetRoute(app, deps);
-      registerAdminPageUpdateRoute(app, deps);
+      registerAdminPostAutosaveRoute({ app, deps });
+      registerAdminPageListRoute({ app, deps });
+      registerAdminPageCreateRoute({ app, deps });
+      registerAdminPageGetRoute({ app, deps });
+      registerAdminPageUpdateRoute({ app, deps });
       // Registered after the metadata PUT so the more specific `/pages/:pageId/html` path is not
       // shadowed — Express matches in registration order, and `/pages/:pageId` would otherwise never
       // reach this one. (It would not today, since that route has no trailing segment, but the
       // ordering is the guarantee, not the current path shapes.)
-      registerAdminPageUpdateHtmlRoute(app, deps);
-      registerAdminPageDeleteRoute(app, deps);
+      registerAdminPageUpdateHtmlRoute({ app, deps });
+      registerAdminPageDeleteRoute({ app, deps });
       // HTML email templates: Pages storage (kind "email-template"), same HTML store and gates.
-      registerAdminEmailTemplateRoutes(app, deps);
-      registerAdminChangeSetListRoute(app, deps);
-      registerAdminChangeSetGetRoute(app, deps);
-      registerAdminChangeSetRevertRoute(app, deps);
-      registerAdminPresentationGetRoute(app, deps);
-      registerAdminPresentationPatchRoute(app, deps);
-      registerAdminThemeRescanRoute(app, deps);
-      registerAdminThemesListRoute(app, deps);
-      registerAdminThemeDuplicateRoute(app, deps);
+      registerAdminEmailTemplateRoutes({ app, deps });
+      registerAdminChangeSetListRoute({ app, deps });
+      registerAdminChangeSetGetRoute({ app, deps });
+      registerAdminChangeSetRevertRoute({ app, deps });
+      registerAdminPresentationGetRoute({ app, deps });
+      registerAdminPresentationPatchRoute({ app, deps });
+      registerAdminThemeRescanRoute({ app, deps });
+      registerAdminThemesListRoute({ app, deps });
+      registerAdminThemeDuplicateRoute({ app, deps });
       // Explore screen. `/themes/:themeId/file` is registered BEFORE `/themes/:themeId` would
       // shadow it — Express matches in registration order, and while `/themes/:themeId` has no
       // trailing segment today, the ordering is the guarantee rather than the current path shapes
       // (the same reasoning the pages `/html` route above is ordered by).
-      registerAdminThemeFileGetRoute(app, deps);
-      registerAdminThemeFilePutRoute(app, deps);
-      registerAdminThemeFileResetRoute(app, deps);
-      registerAdminThemeFileCopyRoute(app, deps);
-      registerAdminThemeFileRenameRoute(app, deps);
-      registerAdminThemeFileDeleteRoute(app, deps);
-      registerAdminThemePagePublishRoute(app, deps);
-      registerAdminThemeSaveOriginalRoute(app, deps);
-      registerAdminThemeDetailRoute(app, deps);
+      registerAdminThemeFileGetRoute({ app, deps });
+      registerAdminThemeFilePutRoute({ app, deps });
+      registerAdminThemeFileResetRoute({ app, deps });
+      registerAdminThemeFileCopyRoute({ app, deps });
+      registerAdminThemeFileRenameRoute({ app, deps });
+      registerAdminThemeFileDeleteRoute({ app, deps });
+      registerAdminThemePagePublishRoute({ app, deps });
+      registerAdminThemeSaveOriginalRoute({ app, deps });
+      registerAdminThemeDetailRoute({ app, deps });
     },
   };
 }

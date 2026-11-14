@@ -45,7 +45,7 @@ function buildApp(): { app: express.Express; outbound: string[] } {
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerPublishContentPeerTransportRoutes(app, deps);
+  registerPublishContentPeerTransportRoutes({ app, deps });
   return { app, outbound };
 }
 

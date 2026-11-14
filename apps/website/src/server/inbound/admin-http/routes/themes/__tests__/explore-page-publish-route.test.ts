@@ -68,7 +68,7 @@ function buildTestApp(themesDir: string): { app: express.Express; deps: ContentR
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemePagePublishRoute(app, deps);
+  registerAdminThemePagePublishRoute({ app, deps });
   return { app, deps };
 }
 

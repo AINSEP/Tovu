@@ -33,7 +33,7 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
   deps.blobStore.get = async input => { reads++; return get(input); };
   const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
   const routeDeps = { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps;
-  registerPublishContentBlobGetRoute(app, routeDeps); registerPublishContentBlobPutRoute(app, routeDeps);
+  registerPublishContentBlobGetRoute({ app, deps: routeDeps }); registerPublishContentBlobPutRoute({ app, deps: routeDeps });
   const base = await startTestServer(app, t);
   const sharedDeps = { ...deps, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo,
     referenceCheck: { findReferences: async () => [] } };
@@ -141,7 +141,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
       'theme-files': { themesDir } },
     backstop: { coveredRoots: ['themes'], coveredTables: [], files: createRawFileSitePort({ siteDir }), blobs: deps.blobStore } };
   const app = express(); app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  registerPublishContentBlobGetRoute(app, { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps);
+  registerPublishContentBlobGetRoute({ app, deps: { ...deps, fileBlobIndex: createFileBlobIndex() } as unknown as PublishContentRouteDeps });
   const base = await startTestServer(app, t);
   for (const status of ['tombstoned', 'active'] as const) {
     await deps.assetBlobRepo.save({ ...retained, status });

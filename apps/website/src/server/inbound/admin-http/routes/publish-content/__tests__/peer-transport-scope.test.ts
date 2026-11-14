@@ -133,8 +133,8 @@ function buildApp(httpClient: HttpClientPort): { app: express.Express } {
     res.locals.authCredentialKind = "session";
     next();
   });
-  registerPublishContentPeerRoutes(app, deps);
-  registerPublishContentPeerTransportRoutes(app, deps);
+  registerPublishContentPeerRoutes({ app, deps });
+  registerPublishContentPeerTransportRoutes({ app, deps });
   return { app };
 }
 

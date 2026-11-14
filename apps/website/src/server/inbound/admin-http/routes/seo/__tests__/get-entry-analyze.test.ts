@@ -59,7 +59,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminSeoGetEntryAnalyzeRoute(app, deps);
+  registerAdminSeoGetEntryAnalyzeRoute({ app, deps });
   return app;
 }
 

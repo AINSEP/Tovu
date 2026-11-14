@@ -31,7 +31,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `posts/update.ts`'s own legacy kind-blindness rather than inventing a stricter rule on one
  * surface than its update twin has.
  */
-export const registerAdminPageDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

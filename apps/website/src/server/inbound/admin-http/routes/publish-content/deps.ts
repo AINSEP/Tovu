@@ -91,7 +91,7 @@ export type PublishContentRouteDeps = Pick<
   | keyof ContentPublishSources
 >;
 
-export type PublishContentRouteRegistrar = (app: Express, deps: PublishContentRouteDeps) => void;
+export type PublishContentRouteRegistrar = (required: { app: Express; deps: PublishContentRouteDeps }, optional?: Record<string, never>) => void;
 
 export type PublishContentProjectionDeps = ContentPublishSources & Partial<Pick<PublishContentRouteDeps, "contentKernel" | "siteBinding">> & Pick<PublishContentRouteDeps,
   | "clock" | "idGen" | "outbox" | "pluginBeforeSaveHook" | "blobStore"

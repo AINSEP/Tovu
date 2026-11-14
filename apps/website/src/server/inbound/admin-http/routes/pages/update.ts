@@ -127,7 +127,7 @@ function sendPageUpdateError(res: Response, err: unknown): void {
  * cap `pages/create.ts` applies, since §4 scopes it to the update endpoints too — so an oversized
  * request 413s before `updatePost`/the command gateway ever runs.
  */
-export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put(
     "/api/admin/v1/workspaces/:workspaceId/pages/:pageId",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),

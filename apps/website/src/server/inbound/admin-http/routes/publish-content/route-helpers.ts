@@ -25,9 +25,7 @@ export interface RouteRefusal {
  * @complexity O(1) — one `authorize()` call.
  */
 export async function authorizedPrincipalId(
-  res: Response,
-  deps: Pick<PublishContentRouteDeps, "authorize" | "workspaceId">,
-  permission: string
+  { res, deps, permission }: { res: Response; deps: Pick<PublishContentRouteDeps, "authorize" | "workspaceId">; permission: string }, _options: Record<string, never> = {}
 ): Promise<string | null> {
   const principal = getAuthedPrincipal(res);
   const allowed = await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId });
@@ -35,7 +33,7 @@ export async function authorizedPrincipalId(
 }
 
 /** A request body as a field bag; an absent body reads as empty. @complexity O(1). */
-export function bodyRecord(body: unknown): Record<string, unknown> {
+export function bodyRecord({ body }: { body: unknown }, _options: Record<string, never> = {}): Record<string, unknown> {
   return (body ?? {}) as Record<string, unknown>;
 }
 
@@ -47,7 +45,7 @@ export type MappedErrorClass = readonly [errorClass: abstract new (...args: neve
  * Anything not in `table` is a 500 with fixed text: a raw driver error's message is never echoed.
  * @complexity O(t) in the table length.
  */
-export function mappedErrorResponse(err: unknown, table: readonly MappedErrorClass[], options: AdminFailurePorts & {
+export function mappedErrorResponse({ err, table }: { err: unknown; table: readonly MappedErrorClass[] }, options: AdminFailurePorts & {
   message?: string; method?: string; route?: string; discloseDetails?: boolean;
 } = {}): RouteRefusal {
   for (const [errorClass, status, code] of table) {
@@ -78,7 +76,7 @@ export const INVALID_OVERWRITE_KEYS = Symbol("invalid-overwrite-keys");
  * caps cannot drift apart.
  * @complexity O(n) in the submitted key count.
  */
-export function readOverwriteEntityKeys(overwriteEntityKeys: unknown): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
+export function readOverwriteEntityKeys({ overwriteEntityKeys }: { overwriteEntityKeys: unknown }, _options: Record<string, never> = {}): readonly string[] | null | typeof INVALID_OVERWRITE_KEYS {
   if (overwriteEntityKeys === undefined || overwriteEntityKeys === null) return null;
   if (!Array.isArray(overwriteEntityKeys)) return INVALID_OVERWRITE_KEYS;
   if (overwriteEntityKeys.length > 1000) return INVALID_OVERWRITE_KEYS;
@@ -90,7 +88,7 @@ export function readOverwriteEntityKeys(overwriteEntityKeys: unknown): readonly 
 export const OVERWRITE_REFUSED = Symbol("overwrite-refused");
 
 /** A route's own "who may tick overwrite" rule; on `false` it has already sent its 403. */
-export type OverwriteRule = (res: Response, overwriteEntityKeys: readonly string[] | null) => boolean;
+export type OverwriteRule = (required: { res: Response; overwriteEntityKeys: readonly string[] | null }, optional?: Record<string, never>) => boolean;
 
 /**
  * Reads `overwriteEntityKeys` and applies the route's own "who may tick overwrite" rule.
@@ -98,11 +96,11 @@ export type OverwriteRule = (res: Response, overwriteEntityKeys: readonly string
  *   or the rule's own 403 has been sent.
  * @complexity O(n) in the submitted key count.
  */
-export function acceptOverwriteEntityKeys(res: Response, raw: unknown, mayOverwrite: OverwriteRule): readonly string[] | null | typeof OVERWRITE_REFUSED {
-  const keys = readOverwriteEntityKeys(raw);
+export function acceptOverwriteEntityKeys({ res, raw, mayOverwrite }: { res: Response; raw: unknown; mayOverwrite: OverwriteRule }, _options: Record<string, never> = {}): readonly string[] | null | typeof OVERWRITE_REFUSED {
+  const keys = readOverwriteEntityKeys({ overwriteEntityKeys: raw });
   if (keys === INVALID_OVERWRITE_KEYS) {
     res.status(400).json({ error: "'overwriteEntityKeys' must be an array of strings", code: "VALIDATION_ERROR" });
     return OVERWRITE_REFUSED;
   }
-  return mayOverwrite(res, keys) ? keys : OVERWRITE_REFUSED;
+  return mayOverwrite({ res, overwriteEntityKeys: keys }) ? keys : OVERWRITE_REFUSED;
 }

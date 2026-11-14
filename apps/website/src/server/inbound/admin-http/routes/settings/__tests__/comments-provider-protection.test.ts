@@ -44,9 +44,9 @@ async function fixture() {
   const deps = { workspaceId: WS, authorize, settingsReady: Promise.resolve(), settingsRepo, clock: comments.clock, idGen: comments.ids,
     principalRepo: comments.principals } as unknown as SettingsRouteDeps;
   const app = express();
-  registerAdminSettingsClearRoute(app, deps);
-  registerAdminSettingsResetRoute(app, deps);
-  registerAdminSettingsSetRoute(app, deps);
+  registerAdminSettingsClearRoute({ app, deps });
+  registerAdminSettingsResetRoute({ app, deps });
+  registerAdminSettingsSetRoute({ app, deps });
   return { settingsRepo, store, comments, deps,
     async request(method: "delete" | "post" | "put", path: string, body: unknown) {
       const { res, capture } = createCapturingResponse();

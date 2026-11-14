@@ -33,10 +33,10 @@ function fixture(t: TestContext) {
     res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session";
     res.locals.adminFailureTracker = { error: (input: unknown) => { reports.push(input); } }; next();
   });
-  registerPublishBackstopRoutes(app, portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  registerPublishBackstopRoutes({ app, deps: portFake<PublishContentRouteDeps>({ workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => ({ allowed: true, reason: "owner" }), contentKernel: kernel, siteBinding: { dir }, fileBlobIndex: new Map(),
     publishContentPeerRepo: { findById: async () => ({ baseUrl: "https://live.example" }) },
-  }));
+  }) });
   const plan = (files: string[]) => dispatchJsonRequest(app, "POST", `${BASE}/backstop`, { action: "plan", peerId: "peer", reason: "Emergency file repair", files });
   const undo = () => dispatchJsonRequest(app, "POST", `${BASE}/runs/run/undo-backstop`);
   const seedUndo = () => createBackstopAuditSqlitePort({ kernel }).save({ record: { id: "run", runId: "run", workspaceId: "ws", direction: "destination", actorId: "owner", destination: "live.example",

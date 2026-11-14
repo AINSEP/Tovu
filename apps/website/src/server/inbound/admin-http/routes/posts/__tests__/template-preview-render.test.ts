@@ -20,7 +20,7 @@ test("real extracted renderer serves an unpublished bare page and pending body w
 test("extracted rendering is byte-identical to the old route output for the same input", async () => {
   const { deps } = bareDeps();
   let handler: Function | undefined;
-  registerAdminPostTemplatePreviewRoute({ get: (_path: string, fn: Function) => { handler = fn; }, post: () => {} } as never, deps);
+  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, fn: Function) => { handler = fn; }, post: () => {} } as never, deps });
   let output = ''; let status = 200; const headers: Record<string, string> = {};
   const response = { locals: { principal: { id: 'p' } }, status: (value: number) => { status = value; return response; }, set: (key: string, value: string) => { headers[key] = value; return response; }, type: () => response, send: (value: string) => { output = value; return response; } };
   await handler!({ params: { workspaceId: 'w', postId: 'draft-1' }, query: { templateChoice: '' }, body: {} }, response);
@@ -154,7 +154,7 @@ test("TW2 themed preview preserves saved and pending bodies across format and pu
  *  `type().send()`, not `json()`), mirroring the byte-identical test above. */
 function previewHandler(deps: ReturnType<typeof bareDeps>["deps"]) {
   let handler: ((req: unknown, res: unknown) => Promise<void>) | undefined;
-  registerAdminPostTemplatePreviewRoute({ get: (_path: string, fn: typeof handler) => { handler = fn; }, post: () => {} } as never, deps);
+  registerAdminPostTemplatePreviewRoute({ app: { get: (_path: string, fn: typeof handler) => { handler = fn; }, post: () => {} } as never, deps });
   assert.ok(handler);
   const invoke = async (req: unknown) => {
     const out = { status: 200, text: '' };

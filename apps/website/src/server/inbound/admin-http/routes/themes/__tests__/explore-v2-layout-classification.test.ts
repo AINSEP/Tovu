@@ -49,8 +49,8 @@ function buildTestApp(t: TestContext): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileRenameRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileRenameRoute({ app, deps });
   return app;
 }
 

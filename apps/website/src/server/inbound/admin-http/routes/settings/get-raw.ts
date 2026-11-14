@@ -38,7 +38,7 @@ function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; 
  * missing/tombstoned definition 404s `DEFINITION_NOT_FOUND`, mirroring
  * `set.ts`/`clear.ts`'s identical mapping for the same error.
  */
-export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = (app, deps) => {
+export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   mountSettingsJsonRoute({ app, deps, method: "get", path: "/api/admin/v1/workspaces/:workspaceId/settings/raw",
     handle: async ({ request: req, principal, authorize }) => {
       await authorize({ permission: "settings.read.raw", entityType: "setting-value" });

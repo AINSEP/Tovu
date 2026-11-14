@@ -130,7 +130,7 @@ async function harness(
     res.locals.principal = { id: PRINCIPAL_ID };
     next();
   });
-  registerAdminPageUpdateHtmlRoute(app, deps);
+  registerAdminPageUpdateHtmlRoute({ app, deps });
 
   const server = createServer(app);
   server.listen(0);
@@ -376,7 +376,7 @@ async function realIdentityHarness(
     res.locals.principal = { id: principalId };
     next();
   });
-  registerAdminPageUpdateHtmlRoute(app, deps);
+  registerAdminPageUpdateHtmlRoute({ app, deps });
 
   const server = createServer(app);
   server.listen(0);

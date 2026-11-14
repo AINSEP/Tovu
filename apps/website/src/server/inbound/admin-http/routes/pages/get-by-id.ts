@@ -45,7 +45,7 @@ async function pagePluginEmbeds(required: { html: string; workspaceId: string; r
  * errors.spec.md §1/§4 requires `code` on every new endpoint's error response,
  * and names `ENTRY_NOT_FOUND` as exactly this route's not-found/kind-mismatch code.
  */
-export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/pages/:pageId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

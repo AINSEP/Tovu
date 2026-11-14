@@ -72,7 +72,7 @@ function buildApp(depsOverrides: Partial<ContentRouteDeps> = {}): express.Expres
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeRescanRoute(app, deps);
+  registerAdminThemeRescanRoute({ app, deps });
   return app;
 }
 

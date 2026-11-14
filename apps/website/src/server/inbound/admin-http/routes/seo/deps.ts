@@ -51,4 +51,4 @@ export type SeoRouteDeps = Pick<
   | "siteDisplayName"
 >;
 
-export type SeoRouteRegistrar = (app: Express, deps: SeoRouteDeps) => void;
+export type SeoRouteRegistrar = (required: { app: Express; deps: SeoRouteDeps }, optional?: Record<string, never>) => void;

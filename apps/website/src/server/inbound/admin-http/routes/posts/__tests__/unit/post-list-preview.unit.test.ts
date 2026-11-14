@@ -89,10 +89,10 @@ test("editor Preview route includes the draft listing and retains no-store and i
   const { deps, post, repo, writes } = postListPreviewDeps({ count: 25, slug: "writing" });
   type Handler = (req: unknown, res: unknown) => Promise<void>;
   const handlers: Record<string, Handler> = {};
-  registerAdminPostTemplatePreviewRoute({
+  registerAdminPostTemplatePreviewRoute({ app: {
     get: (_path: string, fn: Handler) => { handlers.get = fn; },
     post: (_path: string, _parser: unknown, fn: Handler) => { handlers.post = fn; },
-  } as never, deps);
+  } as never, deps });
   for (const method of ["get", "post"]) {
     const headers: Record<string, string> = {};
     let html = "";

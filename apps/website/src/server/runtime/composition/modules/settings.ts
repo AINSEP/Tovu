@@ -38,13 +38,13 @@ export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandl
   return {
     name: "settings",
     registerRoutes: (app) => {
-      registerAdminSettingsRegisterDefinitionsRoute(app, deps);
-      registerAdminSettingsGetEffectiveRoute(app, deps);
-      registerAdminSettingsGetRawRoute(app, deps);
-      registerAdminSettingsListDefinitionsRoute(app, deps);
-      registerAdminSettingsSetRoute(app, deps);
-      registerAdminSettingsClearRoute(app, deps);
-      registerAdminSettingsResetRoute(app, deps);
+      registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
+      registerAdminSettingsGetEffectiveRoute({ app, deps });
+      registerAdminSettingsGetRawRoute({ app, deps });
+      registerAdminSettingsListDefinitionsRoute({ app, deps });
+      registerAdminSettingsSetRoute({ app, deps });
+      registerAdminSettingsClearRoute({ app, deps });
+      registerAdminSettingsResetRoute({ app, deps });
       registerAdminSettingsEventsRoute(app, deps);
     },
   };

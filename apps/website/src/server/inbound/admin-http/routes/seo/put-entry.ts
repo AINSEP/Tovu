@@ -18,7 +18,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
-function seoPutEntryErrorResponse(err: unknown, options: AdminFailurePorts = {}): { status: number; body: { error: string; code: string } } {
+function seoPutEntryErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): { status: number; body: { error: string; code: string } } {
   if (err instanceof ToolInputError) return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
   if (err instanceof RecordVersionConflictError) return { status: 409, body: versionConflictBody({ error: err }) };
   const live = entityNotLiveResponse(err);
@@ -47,7 +47,7 @@ function seoPutEntryErrorResponse(err: unknown, options: AdminFailurePorts = {})
  * does the route-layer authorize-then-403 dance first, matching every sibling admin route's shape,
  * so a caller lacking the permission never reaches the chokepoint at all (fail-closed, INV-07-style).
  */
-export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -90,7 +90,7 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
       }, {});
       res.json({ data: withContentImageSource({ meta, rawPost: read.rawPost }) });
     } catch (err) {
-      const { status, body } = seoPutEntryErrorResponse(err, { tracker: res.locals?.adminFailureTracker });
+      const { status, body } = seoPutEntryErrorResponse({ err }, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

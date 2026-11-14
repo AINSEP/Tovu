@@ -12,7 +12,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * admin UI can show the final state without a re-fetch. Gated by
  * `admin.redirects.manage`.
  */
-export const registerAdminRedirectTombstoneRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectTombstoneRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/redirects/:id", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

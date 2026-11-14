@@ -126,7 +126,7 @@ function isJsonObject(value: unknown): value is JsonObject {
  * the saved-body render, never a 400/crash" contract this file's read-only-preview reasoning states
  * elsewhere, since this endpoint has nothing to reject a bad request FOR (it writes nothing).
  */
-function extractPendingBodyJson(body: unknown): JsonObject | undefined {
+function extractPendingBodyJson({ body }: { body: unknown }, _options: Record<string, never> = {}): JsonObject | undefined {
   if (!isJsonObject(body)) return undefined;
   const raw = body.bodyJson;
   if (isJsonObject(raw)) return raw;
@@ -151,7 +151,7 @@ function extractPendingBodyJson(body: unknown): JsonObject | undefined {
  * render, never a 400/crash" contract {@link extractPendingBodyJson} follows, since this endpoint
  * writes nothing and so has nothing to reject a bad request FOR.
  */
-function extractPendingBodyHtml(body: unknown): string | undefined {
+function extractPendingBodyHtml({ body }: { body: unknown }, _options: Record<string, never> = {}): string | undefined {
   if (!isJsonObject(body)) return undefined;
   const raw = body.bodyHtml;
   return typeof raw === "string" ? raw : undefined;
@@ -166,7 +166,7 @@ function extractPendingBodyHtml(body: unknown): string | undefined {
  *
  * @complexity O(1).
  */
-function resolveOverrideTemplateChoice(rawTemplateChoice: unknown): string | null {
+function resolveOverrideTemplateChoice({ rawTemplateChoice }: { rawTemplateChoice: unknown }, _options: Record<string, never> = {}): string | null {
   return rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
 }
 
@@ -176,7 +176,7 @@ function resolveOverrideTemplateChoice(rawTemplateChoice: unknown): string | nul
  *  `allow-same-origin`: with it, a preview's script could call admin APIs with the session cookie. */
 const PREVIEW_CSP = "sandbox allow-scripts allow-forms allow-popups";
 
-export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const handlePreviewRequest: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).type(PLAIN_TEXT).send("workspace was not found");
@@ -200,15 +200,15 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
         input: { workspaceId: deps.workspaceId, idOrSlug: String(req.params.postId ?? "") },
       });
 
-      const overrideTemplateChoice = resolveOverrideTemplateChoice(req.query.templateChoice);
+      const overrideTemplateChoice = resolveOverrideTemplateChoice({ rawTemplateChoice: req.query.templateChoice });
 
       // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
       // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
       // matched the request's `Content-Type`; a `GET` request never carries a body, so `req.body` is
       // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
       // existed" behavior this file's header promises for `GET`.
-      const pendingBodyJson = extractPendingBodyJson(req.body);
-      const pendingBodyHtml = extractPendingBodyHtml(req.body);
+      const pendingBodyJson = extractPendingBodyJson({ body: req.body });
+      const pendingBodyHtml = extractPendingBodyHtml({ body: req.body });
       const { html } = await renderPostPreview(deps, {
         post, templateChoice: overrideTemplateChoice,
         bodyJson: pendingBodyJson, bodyHtml: pendingBodyHtml,

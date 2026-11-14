@@ -38,16 +38,16 @@ export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle {
   return {
     name: "seo",
     registerRoutes: (app) => {
-      registerAdminSeoGetEntryRoute(app, deps);
-      registerAdminSeoPutEntryRoute(app, deps);
-      registerAdminSeoGetEntryAnalyzeRoute(app, deps);
-      registerAdminSeoGetSettingsRoute(app, deps);
-      registerAdminSeoPutSettingsRoute(app, deps);
-      registerAdminSeoPostSitemapRegenerateRoute(app, deps);
-      registerSeoSitemapRoute(app, deps);
-      registerSeoRobotsRoute(app, deps);
-      registerLlmsTxtRoute(app, deps);
-      registerFeedRoute(app, deps);
+      registerAdminSeoGetEntryRoute({ app, deps });
+      registerAdminSeoPutEntryRoute({ app, deps });
+      registerAdminSeoGetEntryAnalyzeRoute({ app, deps });
+      registerAdminSeoGetSettingsRoute({ app, deps });
+      registerAdminSeoPutSettingsRoute({ app, deps });
+      registerAdminSeoPostSitemapRegenerateRoute({ app, deps });
+      registerSeoSitemapRoute({ app, deps });
+      registerSeoRobotsRoute({ app, deps });
+      registerLlmsTxtRoute({ app, deps });
+      registerFeedRoute({ app, deps });
     },
   };
 }

@@ -154,7 +154,7 @@ function withEmbedWarnings(required: { post: ReturnType<typeof toAdminPostRespon
  *   the admin document or its APIs; that constant's doc says why. The published page is not sandboxed. A holder
  *   of `pages.edit_html` can still put script on the public site, and that is intended.
  */
-export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put(
     "/api/admin/v1/workspaces/:workspaceId/pages/:pageId/html",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),

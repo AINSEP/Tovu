@@ -25,7 +25,7 @@ async function buildFeedOnlyApp(depsOverrides: Partial<SeoRouteDeps>): Promise<e
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerFeedRoute(app, deps);
+  registerFeedRoute({ app, deps });
   return app;
 }
 

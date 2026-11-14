@@ -90,9 +90,9 @@ function buildTestApp(themesDir: string): express.Express {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeFilePutRoute(app, deps);
-  registerAdminThemeFileCopyRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
+  registerAdminThemeFilePutRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
   // Same-origin static mount every real deployment runs (server/app.ts), wired here so the write and
   // the serve happen through the identical two code paths a real request would take.
   registerThemeStaticAssets(app, { themeRoots: [path.join(themesDir, "static")] });

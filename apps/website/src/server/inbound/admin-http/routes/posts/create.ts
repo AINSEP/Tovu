@@ -62,7 +62,7 @@ function sendPostCreateError(res: Response, err: unknown): void {
  * enforces api.spec.md §4's documented 1 MiB route-layer body cap ahead of the handler, so an
  * oversized request 413s before `createPost`/the command gateway ever runs.
  */
-export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/posts",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),

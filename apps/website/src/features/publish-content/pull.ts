@@ -58,7 +58,7 @@ export async function pullAndStageFromPeer(
     ...peer,
     blobSink: deps.blobStore,
     workspaceId: deps.workspaceId,
-    computeStorageKey: sha256 => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
   }, { blobManifest: envelope.blobManifest });
   const staged = await stageBundle({
     // The common staging path computes expiry server-side and binds baselines to the authenticated

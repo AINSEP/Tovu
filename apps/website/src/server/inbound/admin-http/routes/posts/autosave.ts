@@ -141,7 +141,7 @@ function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFo
  * the recovery-banner check on editor mount. DELETE clears it unconditionally (`{ ok: true }`) —
  * called after a real Save/Publish succeeds, and on an explicit operator Discard.
  */
-export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
 
   app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {

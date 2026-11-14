@@ -84,7 +84,7 @@ test("L061 push pins mixed missing blobs and malformed probe fallback before sta
       if (request.url.endsWith("/bundles")) return response({ bodyText: '{"bundleId":"b"}' });
       return response({});
     } });
-    const result = await pushBundleToPeer({ ...deps, computeStorageKey: (sha) => sha, blobSource: {
+    const result = await pushBundleToPeer({ ...deps, computeStorageKey: ({ sha256: sha }: { sha256: string }, _options: Record<string, never> = {}) => sha, blobSource: {
       exists: async ({ sha256 }) => sha256 === "held", get: async () => new Uint8Array([1]),
     } }, { bundle });
     assert.deepEqual(result.blobsUploaded, Array.isArray(missing) ? ["held"] : []);
@@ -99,7 +99,7 @@ test("L061 pull cap counts missing fetches, skips held blobs and deduplicates be
   const sha = createHash("sha256").update(bytes).digest("hex");
   const deps = client({ reply: (request) => request.url.endsWith("/gone") ? response({ status: 404 }) : response({ bodyText: JSON.stringify({ dataBase64: bytes.toString("base64") }) }) });
   const written: string[] = [];
-  const result = await pullBlobsFromPeer({ ...deps, workspaceId: "local", maxBlobs: 2, computeStorageKey: (s) => s, blobSink: {
+  const result = await pullBlobsFromPeer({ ...deps, workspaceId: "local", maxBlobs: 2, computeStorageKey: ({ sha256: s }: { sha256: string }, _options: Record<string, never> = {}) => s, blobSink: {
     exists: async ({ storageKey }) => storageKey === "held",
     putIfAbsent: async ({ sha256 }) => { written.push(sha256); return { storageKey: sha256, written: true }; },
   } }, { blobManifest: ["held", "gone", "gone", sha, "deferred", "held"] });
@@ -111,7 +111,7 @@ test("L061 pull cap counts missing fetches, skips held blobs and deduplicates be
 test("L061 pull refuses malformed payloads and non-404 failures before any write", async () => {
   for (const reply of [response({ bodyText: "[]" }), response({}), response({ bodyText: '{"dataBase64":"garbage"}' }), response({ status: 500 })]) {
     const deps = client({ reply: () => reply });
-    await assert.rejects(pullBlobsFromPeer({ ...deps, workspaceId: "local", computeStorageKey: (s) => s, blobSink: {
+    await assert.rejects(pullBlobsFromPeer({ ...deps, workspaceId: "local", computeStorageKey: ({ sha256: s }: { sha256: string }, _options: Record<string, never> = {}) => s, blobSink: {
       exists: async () => false, putIfAbsent: async () => { assert.fail("must not write"); },
     } }, { blobManifest: ["a".repeat(64)] }), PublishContentPeerTransportError);
   }
@@ -238,7 +238,7 @@ test("L061 a repeated missing sha is probed, read and uploaded only once", async
   } });
   const probes: string[] = [];
   const reads: string[] = [];
-  const result = await pushBundleToPeer({ ...deps, computeStorageKey: sha => sha, blobSource: {
+  const result = await pushBundleToPeer({ ...deps, computeStorageKey: ({ sha256: sha }: { sha256: string }, _options: Record<string, never> = {}) => sha, blobSource: {
     exists: async ({ sha256 }) => { probes.push(sha256); return sha256 === "held"; },
     get: async ({ sha256 }) => { reads.push(sha256); return new Uint8Array([1]); },
   } }, { bundle });

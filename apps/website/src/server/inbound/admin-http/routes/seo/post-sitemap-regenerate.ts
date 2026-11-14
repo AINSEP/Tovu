@@ -5,7 +5,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /** POST force-rebuild the cached sitemap (SPEC-008 api.spec.md `SEO_POST_SITEMAP_REGENERATE`, tasks.md T047). */
-export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/seo/sitemap/regenerate", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

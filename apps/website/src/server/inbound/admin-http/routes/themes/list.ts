@@ -54,7 +54,7 @@ function sortThemesForList(themes: readonly DiscoveredTheme[]): DiscoveredTheme[
  * so each message is surfaced here as `{ code: null, file: null, message }`
  * rather than fabricating a code the validator never actually determined.
  */
-export const registerAdminThemesListRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminThemesListRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

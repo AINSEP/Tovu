@@ -33,7 +33,7 @@ function buildLlmsOnlyApp(depsOverrides: Partial<SeoRouteDeps>): express.Express
   deps.seoDeps = createSeoDeps({ deps }, {});
   deps.sitemapService = createSitemapService({ deps: deps.seoDeps }, {});
   const app = express();
-  registerLlmsTxtRoute(app, deps);
+  registerLlmsTxtRoute({ app, deps });
   return app;
 }
 
@@ -192,7 +192,7 @@ for (const description of ["Field notes from the garden.", undefined]) {
     const settings = await deps.seoDeps.settings.getSeoSettings({ workspaceId: deps.workspaceId });
     deps.seoDeps.settings.getSeoSettings = async () => ({ ...settings, defaultDescription: description });
     const app = express();
-    registerLlmsTxtRoute(app, deps);
+    registerLlmsTxtRoute({ app, deps });
     const url = await startTestServer(app, t);
     const response = await fetch(`${url}/llms.txt`);
     assert.equal(response.status, 200);

@@ -123,18 +123,18 @@ for (const broken of ["logger", "tracker"]) {
 }
 
 for (const [name, map] of Object.entries({
-  newsletter: newsletterErrorToResponse,
-  widgets: widgetErrorToResponse,
+  newsletter: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => newsletterErrorToResponse(err, options),
+  widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse(err, options),
   publishing: importErrorResponse,
-  peers: (error: unknown, options: Parameters<typeof importErrorResponse>[1]) => mappedErrorResponse(error, [], options),
-  installation: installErrorResponse,
+  peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => mappedErrorResponse({ err, table: [] }, options),
+  installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => installErrorResponse(err, options),
 })) {
   test(`${name}: the mapping fallback reports Error and non-Error exceptions without leaking details`, t => {
     const secret = "ghp_" + "x".repeat(36);
     const logs: unknown[][] = [], tracked: any[] = [];
     t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
     for (const error of [new Error(`private ${secret}`), `private ${secret}`, null]) {
-      const failure = map(error, { tracker: { error: (...args: unknown[]) => { tracked.push(args); } } });
+      const failure = map({ err: error }, { tracker: { error: (...args: unknown[]) => { tracked.push(args); } } });
       const body = failure.body as Record<string, unknown>;
       assert.equal(failure.status, 500);
       assert.equal(body.code, "INTERNAL_ERROR");

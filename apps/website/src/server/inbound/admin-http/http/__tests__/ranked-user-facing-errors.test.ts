@@ -13,10 +13,10 @@ import { sendValidationOrInternalError } from "../../routes/media/route-guards.j
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 
 const ranked = [
-  { register: registerAdminAssistantGetSettingsRoute, method: "GET", path: "assistant/settings", step: "assistant.settings.load", message: "Assistant settings could not be loaded." },
+  { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminAssistantGetSettingsRoute(app, deps), method: "GET", path: "assistant/settings", step: "assistant.settings.load", message: "Assistant settings could not be loaded." },
   { register: registerAdminPageListRoute, method: "GET", path: "pages", step: "pages.list", message: "Pages could not be loaded." },
   { register: registerAdminPageUpdateRoute, method: "PUT", path: "pages/p1", step: "pages.save", message: "The page could not be saved." },
-  { register: registerAdminMediaListRoute, method: "GET", path: "media", step: "media.list", message: "The media library could not be loaded." },
+  { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminMediaListRoute(app, deps), method: "GET", path: "media", step: "media.list", message: "The media library could not be loaded." },
   { register: registerAdminPostUpdateRoute, method: "PUT", path: "posts/p1", step: "posts.save", message: "The post could not be saved." },
 ];
 
@@ -26,10 +26,10 @@ for (const row of ranked) {
     const fail = async () => { throw new Error("CANARY_BACKEND password=CANARY_SECRET"); };
     const app = express();
     app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-    row.register(app, { workspaceId: "ws", authorize: fail, assistantSettingsReady: Promise.resolve(),
+    row.register({ app, deps: { workspaceId: "ws", authorize: fail, assistantSettingsReady: Promise.resolve(),
       clock: { nowIso: () => "2026-11-04T12:00:00Z", nowMs: () => 0 }, idGen: { newId: () => "id" },
       postRepo: { findById: fail, findBySlug: fail },
-    } as never);
+    } as never });
     const response = await dispatchJsonRequest(app, row.method, `/api/admin/v1/workspaces/ws/${row.path}`, {});
     assert.equal(response.status, 500);
     const body = response.body as any;
@@ -64,7 +64,7 @@ for (const [step, invoke] of [
 
 test("content.import: unexpected failure retains its concrete message with safe copyable evidence", t => {
   t.mock.method(console, "error", () => {});
-  const response = importErrorResponse(new Error("private backend"));
+  const response = importErrorResponse({ err: new Error("private backend") });
   assert.equal(response.status, 500);
   const body = response.body as any;
   assert.equal(body.error, `The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem. (error ${body.errorId})`);

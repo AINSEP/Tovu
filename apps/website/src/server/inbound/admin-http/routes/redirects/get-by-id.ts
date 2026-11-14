@@ -5,7 +5,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /** GET a single redirect rule by id (api.spec.md `GET_REDIRECT`). Gated by `admin.redirects.manage`. */
-export const registerAdminRedirectGetRoute: RedirectRouteRegistrar = (app, deps) => {
+export const registerAdminRedirectGetRoute: RedirectRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/redirects/:id", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

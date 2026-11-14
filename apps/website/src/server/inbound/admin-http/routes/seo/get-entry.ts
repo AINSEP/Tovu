@@ -10,7 +10,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * GET an entry's effective SEO meta (SPEC-008 api.spec.md `SEO_GET_ENTRY_META`, tasks.md T047).
  * Path deviation: workspace-scoped mount, matching every other admin route in this codebase.
  */
-export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

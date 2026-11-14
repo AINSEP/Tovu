@@ -96,7 +96,7 @@ function connectDeps(repo: PublishContentPeerRepoPort, provisioning: RecordingPr
     idGen: { newId: () => "peer-1" },
     // The grant half is already written by the time the peer row is saved, so these tests inject
     // the completed handshake result rather than standing up a fake destination server.
-    connectGrant: async (input: { baseUrl: string; entityTypes: readonly string[] }) => {
+    connectGrant: async (input: { baseUrl: string; entityTypes: readonly string[] }, _options: Record<string, never> = {}) => {
       provisioning.grantRequests.push(structuredClone(input));
       return {
       identity: { workspaceId: REMOTE_WORKSPACE, generation: 1 },

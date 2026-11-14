@@ -11,7 +11,7 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * GET /robots.txt — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_ROBOTS`, REQ-09,
  * tasks.md T046).
  */
-export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerSeoRobotsRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/robots.txt", async (req, res) => {
     try {
       await deps.seoReady;

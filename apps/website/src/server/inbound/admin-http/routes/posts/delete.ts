@@ -68,7 +68,7 @@ function sendPostDeleteError(res: Response, err: unknown): void {
  * of new endpoints — matching `pages/update.ts`'s disclosed treatment rather than
  * `posts/update.ts`'s message-only legacy shape.
  */
-export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/posts/:postId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

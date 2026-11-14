@@ -320,7 +320,7 @@ export function buildPublishContentRegistrations(
             repo: routeDeps.publishContentPeerRepo,
             clock: routeDeps.clock,
             idGen: routeDeps.idGen,
-            connectGrant: (connectInput) => connectDestination(trustDeps, connectInput),
+            connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination(trustDeps, connectInput),
             reverseGrant: () => disconnectDestination(trustDeps),
           },
           { workspaceId: routeDeps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }

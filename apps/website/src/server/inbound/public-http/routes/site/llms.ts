@@ -48,7 +48,7 @@ function renderLlmsTxt({ entries, title, description }: { entries: readonly Inde
   return `${lines.join("\n")}\n`;
 }
 
-export const registerLlmsTxtRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerLlmsTxtRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/llms.txt", async (req, res) => {
     try {
       await deps.seoReady;

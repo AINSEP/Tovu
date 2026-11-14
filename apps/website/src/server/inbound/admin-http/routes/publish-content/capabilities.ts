@@ -32,7 +32,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * nothing here has to special-case that absence. `peer-transport.ts`'s own probe reads a 404 as
  * "legacy `{post,page,media}`", the fixed set every pre-S-F1 destination accepted.
  */
-export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = (app, deps) => {
+export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/capabilities", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

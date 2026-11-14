@@ -29,10 +29,7 @@ import type { ContentRouteDeps } from "../content/deps.js";
  * @complexity O(1).
  */
 function buildPreviewPost(
-  post: PostRecord,
-  overrideTemplateChoice: string | null,
-  pendingBodyJson: JsonObject | undefined,
-  pendingBodyHtml: string | undefined
+  { post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml }: { post: PostRecord; overrideTemplateChoice: string | null; pendingBodyJson: JsonObject | undefined; pendingBodyHtml: string | undefined }, _options: Record<string, never> = {}
 ): PostRecord {
   return {
     ...post,
@@ -81,7 +78,12 @@ async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Prom
 
 /** The route preserves these state-conflict statuses; the tool publishes the actionable message. */
 export class TemplatePreviewRenderError extends Error {
-  constructor(readonly status: number, message: string) { super(message); this.name = "TemplatePreviewRenderError"; }
+  readonly status: number;
+  constructor({ status, message }: { status: number; message: string }) {
+    super(message);
+    this.status = status;
+    this.name = "TemplatePreviewRenderError";
+  }
 }
 export interface PostPreviewRenderInput {
   post: PostRecord;
@@ -137,7 +139,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   const pendingBodyHtml = input.bodyHtml;
   const pendingBodyHtmlOverride = post.bodyFormat === "html" ? pendingBodyHtml : undefined;
 
-  const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml);
+  const previewPost = buildPreviewPost({ post, overrideTemplateChoice, pendingBodyJson, pendingBodyHtml });
 
   // Bare-page preview (owner ruling 2026-09-23, S5) — checked BEFORE any theme resolution/409: a
   // bare Page renders identically regardless of theme, mirroring `renderBarePage`'s own placement
@@ -156,7 +158,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   });
   const resolved = resolveActiveTheme(deps, settings.activeThemeId);
   if (resolved === null) {
-    throw new TemplatePreviewRenderError(500, "no themes installed");
+    throw new TemplatePreviewRenderError({ status: 500, message: "no themes installed" });
   }
   // Producer 4 of the optional-theme design. The thing this route previews IS a theme file, so
   // with the theme deliberately off there is nothing coherent to render. Before this guard the
@@ -168,7 +170,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   // admin tool, not a public surface, so an explicit error is right here even though the public
   // site answers the same state by rendering unstyled.
   if (resolved === NO_THEME_ID) {
-    throw new TemplatePreviewRenderError(409, "this site has no active theme, so there is no template to preview — activate a theme to use the template picker");
+    throw new TemplatePreviewRenderError({ status: 409, message: "this site has no active theme, so there is no template to preview — activate a theme to use the template picker" });
   }
   const theme = resolved;
 

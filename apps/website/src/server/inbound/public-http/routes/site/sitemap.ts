@@ -11,7 +11,7 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * GET /sitemap.xml — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_SITEMAP`, REQ-08,
  * tasks.md T046). Registered ahead of the `/:slug` catch-all in `pages.ts`'s registration order.
  */
-export const registerSeoSitemapRoute: SeoRouteRegistrar = (app, deps) => {
+export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/sitemap.xml", async (req, res) => {
     try {
       await deps.seoReady;

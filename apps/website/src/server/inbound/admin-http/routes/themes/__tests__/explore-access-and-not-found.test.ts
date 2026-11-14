@@ -82,14 +82,14 @@ function buildTestApp(
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminThemeDetailRoute(app, deps);
-  registerAdminThemeFileGetRoute(app, deps);
-  registerAdminThemeFilePutRoute(app, deps);
-  registerAdminThemeFileResetRoute(app, deps);
-  registerAdminThemeFileCopyRoute(app, deps);
-  registerAdminThemeFileRenameRoute(app, deps);
-  registerAdminThemeFileDeleteRoute(app, deps);
-  registerAdminThemePagePublishRoute(app, deps);
+  registerAdminThemeDetailRoute({ app, deps });
+  registerAdminThemeFileGetRoute({ app, deps });
+  registerAdminThemeFilePutRoute({ app, deps });
+  registerAdminThemeFileResetRoute({ app, deps });
+  registerAdminThemeFileCopyRoute({ app, deps });
+  registerAdminThemeFileRenameRoute({ app, deps });
+  registerAdminThemeFileDeleteRoute({ app, deps });
+  registerAdminThemePagePublishRoute({ app, deps });
   return app;
 }
 

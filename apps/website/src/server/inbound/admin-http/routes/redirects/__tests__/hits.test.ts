@@ -55,7 +55,7 @@ function buildApp(depsOverrides: Partial<RedirectRouteDeps> = {}): express.Expre
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminRedirectHitsRoute(app, deps);
+  registerAdminRedirectHitsRoute({ app, deps });
   return app;
 }
 
