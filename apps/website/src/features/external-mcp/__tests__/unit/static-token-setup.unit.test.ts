@@ -18,7 +18,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 for (const transport of ["streamable_http", "stdio"]) test(`static ${transport} token has a human-only secret field`, () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "hosted", transport, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, true);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "hosted", transport, authMode: "static_env", accessTokenEnvName: "API_TOKEN" }, isUpdate: true });
   const token = fields.find(f => f.name === "accessToken");
   assert.deepEqual(token, { kind: "string", name: "accessToken", label: "Access token", secret: true, allowBlank: true, hint: "Leave blank to keep the stored token." });
   assert.equal(fields.some(f => f.name === "accessTokenEnvName"), transport === "stdio");
@@ -53,19 +53,19 @@ test("hosted static token entered through the form is sealed, used as bearer aut
 });
 
 for (const authMode of ["none", "oauth"]) test(`${authMode} auth never asks for a static token`, () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv", transport: "streamable_http", authMode }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv", transport: "streamable_http", authMode }, isUpdate: false });
   assert.equal(fields.some(field => field.name === "accessToken" || field.name === "accessTokenEnvName"), false);
 });
 
 test("an omitted auth mode uses the store's static-token default and a new token field has no prefill", () => {
-  const fields = buildExternalMcpSaveFormFields({ id: "srv", transport: "streamable_http" }, false);
+  const fields = buildExternalMcpSaveFormFields({ input: { id: "srv", transport: "streamable_http" }, isUpdate: false });
   assert.deepEqual(fields.find(field => field.name === "accessToken"), { kind: "string", name: "accessToken", label: "Access token", secret: true, allowBlank: true, hint: "Enter the API key or bearer token for this server." });
 });
 
 test("stdio token env-name hints preserve stored names unless explicitly changed", () => {
   const existing = { accessTokenEnvName: "STORED_TOKEN", args: [], allowedToolNames: [], writeAllowedToolNames: [], oauth: { scopes: [] } } as never;
-  assert.equal(mergeExternalMcpSavePrefill({ id: "srv", transport: "stdio" }, existing).accessTokenEnvName, "STORED_TOKEN");
-  assert.equal(mergeExternalMcpSavePrefill({ id: "srv", transport: "stdio", accessTokenEnvName: "NEW_TOKEN" }, existing).accessTokenEnvName, "NEW_TOKEN");
+  assert.equal(mergeExternalMcpSavePrefill({ input: { id: "srv", transport: "stdio" }, existing }).accessTokenEnvName, "STORED_TOKEN");
+  assert.equal(mergeExternalMcpSavePrefill({ input: { id: "srv", transport: "stdio", accessTokenEnvName: "NEW_TOKEN" }, existing }).accessTokenEnvName, "NEW_TOKEN");
 });
 
 for (const [env, message] of [

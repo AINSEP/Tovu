@@ -13,7 +13,7 @@ export { ExternalMcpSecretStoreUnconfiguredError };
 
 // The operator-editable MCP roster store moved to `@jini-ai/mcp/federation/hosted` (EXTRACT-S5 H1b, source
 // blob 23042de1). This path binds Tovu's credential policy, vault ports and settings path ONCE and keeps
-// every old export name and signature.
+// the existing export names.
 export { EXTERNAL_MCP_VAULT_VERSION, EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, applyExternalMcpAccess, parseArgs,
   parseAllowedToolNames, parseWriteAllowedToolNames, externalMcpRecordHasStoredToken, toResolvedFederatedConnections,
   parseOAuthScopes, hydrateExternalMcpOAuthPayload, deleteExternalMcpServer } from "@jini-ai/mcp/federation/hosted";
@@ -27,7 +27,7 @@ const externalMcpStorePorts: HostedMcpStorePorts = {
   reauthRequiredCode: "EXTERNAL_MCP_REAUTH_REQUIRED",
 };
 
-export function parseEnvBlock(text: string): Record<string, string> {
+export function parseEnvBlock({ text }: { text: string }, _optional = {}): Record<string, string> {
   return hosted.parseEnvBlock(text, externalMcpStorePorts);
 }
 
@@ -53,9 +53,7 @@ export async function openExternalMcpOAuthPayload(
 }
 
 export async function sealExternalMcpOAuthPayload(
-  deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
-  identity: { workspaceId: string; serverId: string },
-  payload: ExternalMcpSealedOAuthPayload,
+  { deps, identity, payload }: { deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">; identity: { workspaceId: string; serverId: string }; payload: ExternalMcpSealedOAuthPayload }, _optional = {},
 ): Promise<SealedExternalMcpOAuth> {
   return hosted.sealExternalMcpOAuthPayload({ sealer: deps.sealer, keyring: deps.keyring, ...externalMcpStorePorts }, identity, payload);
 }

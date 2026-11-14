@@ -101,10 +101,10 @@ export const contributeRedirectPublish = (): PublishContentContributor =>
     entityType: "redirect",
     coversTables: [REDIRECT_TABLES.redirects],
     permission: "admin.redirects.manage",
-    ports: (deps) => deps.ports.redirect,
+    ports: ({ deps }) => deps.ports.redirect,
     list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(withTitle),
     find: ({ ports: p, workspaceId, id }) => findByNaturalKey(p.repo, workspaceId, id),
-    idOf: (row) => redirectNaturalKey(row.matchType, row.fromPattern),
+    idOf: ({ row }) => redirectNaturalKey(row.matchType, row.fromPattern),
     include: (row) => row.status === "active",
     // `transferred` = what `CreateRedirectInput`/`UpdateRedirectInput` accept, plus `status` (always
     // "active" on a packed row). `provenance` fields cannot round-trip: `createdAt` comes from the

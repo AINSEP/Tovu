@@ -104,12 +104,12 @@ type SourceQuery = { workspaceId: string; cutoff: string; filter: MailActivityFi
 function sourceConditions(required: SourceQuery & { legacy: boolean }, _optional: Record<string, never> = {}): RawBuilder<unknown> {
   const { filter, legacy } = required;
   const alias = legacy ? "old" : "a";
-  const col = (name: string) => sql.ref(`${alias}.${name}`);
-  const where = [sql`${col("workspace_id")} = ${required.workspaceId}`, sql`${col("created_at")} >= ${required.cutoff}`];
-  if (filter.use) where.push(sql`${legacy ? legacyUse() : col("use_id")} = ${filter.use}`);
-  if (required.idempotencyKey) where.push(sql`${col("idempotency_key")} = ${required.idempotencyKey}`);
+  const col = ({ name }: { name: string }, _optional = {}) => sql.ref(`${alias}.${name}`);
+  const where = [sql`${col({ name: "workspace_id" })} = ${required.workspaceId}`, sql`${col({ name: "created_at" })} >= ${required.cutoff}`];
+  if (filter.use) where.push(sql`${legacy ? legacyUse() : col({ name: "use_id" })} = ${filter.use}`);
+  if (required.idempotencyKey) where.push(sql`${col({ name: "idempotency_key" })} = ${required.idempotencyKey}`);
   if (filter.recipient) where.push(recipientCondition({ ...required, recipient: filter.recipient }));
-  if (filter.before) where.push(sql`(${col("created_at")} < ${filter.before.createdAt} OR (${col("created_at")} = ${filter.before.createdAt} AND ${col(legacy ? "activity_id" : "id")} < ${filter.before.key}))`);
+  if (filter.before) where.push(sql`(${col({ name: "created_at" })} < ${filter.before.createdAt} OR (${col({ name: "created_at" })} = ${filter.before.createdAt} AND ${col({ name: legacy ? "activity_id" : "id" })} < ${filter.before.key}))`);
   return sql.join(where, sql` AND `);
 }
 

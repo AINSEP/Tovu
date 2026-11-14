@@ -1734,9 +1734,9 @@ async function composeSiteRouteDeps(
   // W-004) read/write against the SAME real tables, via the same `db` connection.
   const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });
-  const formDefinitionRepo = new SqliteFormDefinitionRepo(kernel);
+  const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });
   let formCollectionProviders = () => createFormCollectionRegistry({});
-  const formSubmissionRepo = new SqliteFormSubmissionRepo(kernel);
+  const formSubmissionRepo = new SqliteFormSubmissionRepo({ store: kernel });
   // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
   // the `ContentTaxonomyDeps` object below). Both `SqliteContentTypeRepo` instances would read the
   // same `content.db` either way (it is a stateless adapter over `db`), but one shared instance
@@ -2015,7 +2015,7 @@ async function composeSiteRouteDeps(
     delivery: { observe: createMailAttemptObserver({ db: kernel }), ledger: createMailSendLedgerRepo({ db: kernel }), suppression: createMailSuppressionRepo({ db: kernel }), capture: createMailCaptureRepo({ db: kernel, origin: originRegistry }) },
     readSenderEmail: async () => (await readMailSenderSetting({ settingsRepo, workspaceId })).email,
     readConfiguredSender: (required) => readMailSenderSetting({ settingsRepo, workspaceId: required.workspaceId }),
-  }, { durableOutboxReady: capabilityName => mailDurableOutboxReady(capabilityName),
+  }, { durableOutboxReady: required => mailDurableOutboxReady(required),
     setAgentPluginEnabled: input => setAgentPluginEnabled(input, { lifecycle: agentPluginLifecycle, notifyRosterChanged: notifyExternalMcpRosterChanged }) });
   // Email page phase 3: the provider's own sender-domain verdict and the test-mode read, each fresh.
   // SPEC-022's durable-outbox readiness, named once: the live mailer's purpose gate below and the

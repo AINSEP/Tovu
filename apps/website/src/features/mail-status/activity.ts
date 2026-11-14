@@ -80,7 +80,7 @@ export class MailActivityUnavailableError extends Error {
   }
 }
 
-const encode = (value: unknown): string => Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+const encode = ({ value }: { value: unknown }, _optional = {}): string => Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 function decode({ value }: { value: string }, _options: Record<string, never> = {}): unknown {
   try {
     return JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
@@ -148,9 +148,9 @@ export async function resolveMailActivityAccess(
   required: { deps: Pick<MailActivityDeps, "authorize" | "workspaceId">; principalId: string },
   optional: { requireFull?: boolean } = {},
 ): Promise<MailActivityAccess> {
-  const ask = (permission: string) => required.deps.authorize({ principalId: required.principalId, permission, workspaceId: required.deps.workspaceId, entityType: "mail" });
-  if ((await ask(MAIL_ACTIVITY_READ_PERMISSION)).allowed) return "full";
-  if (!optional.requireFull && (await ask(MAIL_STATUS_PERMISSION)).allowed) return "masked";
+  const ask = ({ permission }: { permission: string }, _optional = {}) => required.deps.authorize({ principalId: required.principalId, permission, workspaceId: required.deps.workspaceId, entityType: "mail" });
+  if ((await ask({ permission: MAIL_ACTIVITY_READ_PERMISSION })).allowed) return "full";
+  if (!optional.requireFull && (await ask({ permission: MAIL_STATUS_PERMISSION })).allowed) return "masked";
   const permission = optional.requireFull ? MAIL_ACTIVITY_READ_PERMISSION : `${MAIL_ACTIVITY_READ_PERMISSION} or ${MAIL_STATUS_PERMISSION}`;
   throw new MailActivityForbiddenError({ permission, message: `principal '${required.principalId}' is not authorized for '${permission}'` });
 }
@@ -158,7 +158,7 @@ export async function resolveMailActivityAccess(
 function toItem({ record, access }: { record: MailActivityRecord; access: MailActivityAccess }, _options = {}): MailActivityItem {
   const base = { use: record.use, outcome: record.outcome, lane: record.lane, providerId: record.providerId, errorCode: record.errorCode, createdAt: record.createdAt, updatedAt: record.updatedAt };
   if (access === "masked") return { recipient: maskRecipient({ address: record.recipient }), ...base };
-  return { id: encode([record.idempotencyKey, record.recipient]), recipient: record.recipient, ...(record.deliveryMode ? { deliveryMode: record.deliveryMode, originalRecipient: record.originalRecipient } : {}), providerMessageId: record.providerMessageId, message: record.message, ...base };
+  return { id: encode({ value: [record.idempotencyKey, record.recipient] }), recipient: record.recipient, ...(record.deliveryMode ? { deliveryMode: record.deliveryMode, originalRecipient: record.originalRecipient } : {}), providerMessageId: record.providerMessageId, message: record.message, ...base };
 }
 
 /** The next page's opaque cursor: the page's last timestamp, skipping every row already shown at it.
@@ -166,7 +166,7 @@ function toItem({ record, access }: { record: MailActivityRecord; access: MailAc
 export function nextMailCursor({ page }: { page: readonly { createdAt: string; cursorKey?: string; revision?: string }[] }, _options = {}): string {
   const last = page.at(-1);
   if (last === undefined) throw new Error('Mail activity page has no last row for its cursor');
-  return encode({ c: last.createdAt, k: last.cursorKey ?? last.revision });
+  return encode({ value: { c: last.createdAt, k: last.cursorKey ?? last.revision } });
 }
 
 function repo(deps: MailActivityDeps, _options: Record<string, never> = {}): MailActivityRepo {

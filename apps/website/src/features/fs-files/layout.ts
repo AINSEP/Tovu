@@ -154,6 +154,6 @@ export function resolveFsRoots(input: ResolveFsRootsOptional, _options = {}): Re
     // `getCustomFsRoot` is given the SAME resolved `siteDir` this call already computed for `site`,
     // rather than re-deriving it from `cwd`/`env` independently — the booted site stays selected,
     // matching `custom-root-store.ts`'s "no independent env parsing" design.
-    custom: workspaceId === undefined ? undefined : getCustomFsRoot(workspaceId, { siteDir }),
+    custom: workspaceId === undefined ? undefined : getCustomFsRoot({ workspaceId, optional: { siteDir } }),
   };
 }

@@ -344,7 +344,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     // Carried `termIds` sync through the taxonomy chokepoint.
     alsoAuthorizes: [TERM_SYNC_PERMISSION],
     dependsOn: POST_AND_PAGE_DEPENDS_ON,
-    ports: (deps) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
+    ports: ({ deps }) => deps.ports.post && { ...deps.ports.post, term: deps.ports.term },
     portsKey: "post",
     list: async ({ ports: p, workspaceId }, _optional = {}) => {
       const rows = (await p.repo.list({ workspaceId })).filter((row) => row.kind === kind && !isTrashed(row));

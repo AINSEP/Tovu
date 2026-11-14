@@ -61,7 +61,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     alsoAuthorizes: [TERM_SYNC_PERMISSION],
     // The owning type and assigned terms are checked at write time; media and relation ids resolve at render.
     dependsOn: ["content-type", "term"],
-    ports: (deps) => deps.ports["collection-entry"],
+    ports: ({ deps }) => deps.ports["collection-entry"],
     list: async ({ ports: p, workspaceId }) => {
       const rows = await p.entries.listByWorkspaceExcludingTypes({ workspaceId, excludeTypes: WIDGET_TYPES });
       return Promise.all(rows.map((row) => withTerms(p, { ...row, deletedAt: null })));

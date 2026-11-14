@@ -150,10 +150,10 @@ test("listFsFiles returns cleanly (never throws ELOOP) when the root contains a 
 
 test("isDeniedFsFileName matches every documented pattern", () => {
   for (const name of ["content.db", "chat.db-wal", "content.db-shm", ".env", ".env.local", "server.pem", "id_rsa.key", "cert.p12"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
   for (const name of ["manifest.json", "checklist.template.md", "styles.css", "readme.md"]) {
-    assert.equal(isDeniedFsFileName(name), false, `expected '${name}' to be allowed`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), false, `expected '${name}' to be allowed`);
   }
 });
 
@@ -161,17 +161,17 @@ test("isDeniedFsFileName matches every .env variant, not just the literal '.env'
   // `.env.bak-before-forbid-bash` is a real file in this repo today — the pattern must match the
   // FAMILY, not one hardcoded name.
   for (const name of [".env", ".env.local", ".env.example", ".env.bak-before-forbid-bash", ".env.production"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("environment.ts"), false, "a name merely containing 'env' must not match");
+  assert.equal(isDeniedFsFileName({ fileName: "environment.ts" }), false, "a name merely containing 'env' must not match");
 });
 
 test("isDeniedFsFileName matches .mcp.json and every .mcp.*.json variant — these carry a live JINI_DAEMON_TOKEN", () => {
   for (const name of [".mcp.json", ".mcp.jini-0d069eb1-604e-4c77-a154-a2ae09991f4b.json", ".mcp.jini-abc123.json"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
   for (const name of ["mcp.json", "package.json", ".mcpjson"]) {
-    assert.equal(isDeniedFsFileName(name), false, `expected '${name}' to be allowed`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), false, `expected '${name}' to be allowed`);
   }
 });
 
@@ -193,9 +193,9 @@ test("a .mcp.jini-*.json file is refused on read and excluded from listFsFiles",
 
 test("isDeniedFsFileName matches the certificate/keystore family", () => {
   for (const name of ["server.crt", "ca.cer", "site.cert", "app.pfx", "release.jks", "release.keystore", "key.jwk", "keys.jwks"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("notes.crtx"), false, "a name merely containing the extension as a substring must not match");
+  assert.equal(isDeniedFsFileName({ fileName: "notes.crtx" }), false, "a name merely containing the extension as a substring must not match");
 });
 
 test("a certificate-family file is refused on read and excluded from listFsFiles", () => {
@@ -207,9 +207,9 @@ test("a certificate-family file is refused on read and excluded from listFsFiles
 
 test("isDeniedFsFileName matches .npmrc/.netrc but not an unrelated file merely containing the name", () => {
   for (const name of [".npmrc", ".netrc"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("npmrc.txt"), false);
+  assert.equal(isDeniedFsFileName({ fileName: "npmrc.txt" }), false);
 });
 
 test(".npmrc is refused on read and excluded from listFsFiles", () => {
@@ -221,11 +221,11 @@ test(".npmrc is refused on read and excluded from listFsFiles", () => {
 
 test("isDeniedFsFileName matches the id_rsa/id_dsa/id_ecdsa/id_ed25519 family and its variants, but NEVER the .pub public half", () => {
   for (const name of ["id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "id_rsa_backup", "id_rsa2", "ID_RSA"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
   // The over-denying trap: a public key is not a secret and must stay readable.
   for (const name of ["id_rsa.pub", "id_dsa.pub", "id_ecdsa.pub", "id_ed25519.pub", "ID_RSA.PUB"]) {
-    assert.equal(isDeniedFsFileName(name), false, `expected '${name}' (a PUBLIC key) to be allowed`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), false, `expected '${name}' (a PUBLIC key) to be allowed`);
   }
 });
 
@@ -247,9 +247,9 @@ test("id_rsa is refused on read while id_rsa.pub reads cleanly", () => {
 
 test("isDeniedFsFileName matches credentials.json and the client_secret*.json family", () => {
   for (const name of ["credentials.json", "Credentials.JSON", "client_secret.json", "client_secret_123.apps.googleusercontent.com.json"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("client.json"), false);
+  assert.equal(isDeniedFsFileName({ fileName: "client.json" }), false);
 });
 
 test("credentials.json is refused on read and excluded from listFsFiles", () => {
@@ -311,9 +311,9 @@ test("a denied-pattern file is silently excluded from listFsFiles, not merely re
 test("isDeniedFsFileName matches any '*-key*.hex' site key basename, not just the literal generated filename", () => {
   // Copies and alternate key-file basenames stay denied outside the hidden key directory.
   for (const name of [LEGACY_SITE_KEY_FILENAME, "site-key.hex", "old-site-key-backup.hex", "ARCHIVE-KEY-2026.HEX", "other-key-copy.hex"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("site-key.txt"), false, "a name merely containing 'site-key' without the .hex extension must not match");
+  assert.equal(isDeniedFsFileName({ fileName: "site-key.txt" }), false, "a name merely containing 'site-key' without the .hex extension must not match");
 });
 
 test("a '*-key*.hex' site key file is refused on read and excluded from listFsFiles even outside a .tovu directory", () => {
@@ -367,9 +367,9 @@ test("a '.tovu' directory is never descended into or reported by listFsFiles", (
 
 test("isDeniedFsFileName matches the shell rc family that carries exported notarization/API creds", () => {
   for (const name of [".bash_profile", ".bashrc", ".bash_login", ".zshrc", ".zprofile", ".zshenv", ".zlogin", ".profile"]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsFileName("profile.ts"), false, "a name merely containing 'profile' must not match");
+  assert.equal(isDeniedFsFileName({ fileName: "profile.ts" }), false, "a name merely containing 'profile' must not match");
 });
 
 test(".bash_profile, .zshrc, and .profile are refused on read and excluded from listFsFiles", () => {
@@ -387,10 +387,10 @@ test(".bash_profile, .zshrc, and .profile are refused on read and excluded from 
 });
 
 test("isDeniedFsFileName matches '.credentials.json' (Claude's own OAuth store) without over-matching 'credentials.json'", () => {
-  assert.equal(isDeniedFsFileName(".credentials.json"), true, "expected '.credentials.json' to be denied");
+  assert.equal(isDeniedFsFileName({ fileName: ".credentials.json" }), true, "expected '.credentials.json' to be denied");
   // Already covered by the separate `credentials.json` (no leading dot) pattern above — asserted here
   // too so the two patterns are never accidentally collapsed into one.
-  assert.equal(isDeniedFsFileName("credentials.json"), true, "expected 'credentials.json' to remain denied");
+  assert.equal(isDeniedFsFileName({ fileName: "credentials.json" }), true, "expected 'credentials.json' to remain denied");
 });
 
 test(".claude/.credentials.json is refused on read and excluded from listFsFiles", () => {
@@ -408,10 +408,10 @@ test(".claude/.credentials.json is refused on read and excluded from listFsFiles
 
 test("isDeniedFsPathSegment matches 'secrets' case-insensitively and nothing else", () => {
   for (const name of ["secrets", "Secrets", "SECRETS"]) {
-    assert.equal(isDeniedFsPathSegment(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsPathSegment({ segmentName: name }), true, `expected '${name}' to be denied`);
   }
   for (const name of ["not-secrets-actually", "secret", "secrets-archive", "keys"]) {
-    assert.equal(isDeniedFsPathSegment(name), false, `expected '${name}' to be allowed`);
+    assert.equal(isDeniedFsPathSegment({ segmentName: name }), false, `expected '${name}' to be allowed`);
   }
 });
 
@@ -569,7 +569,7 @@ test("a Unicode case-fold spelling of a denied filename is refused before the fi
     () => readFsFile({ rootPath: root, relativePath: ".baſhrc" }),
     { message: "path '.baſhrc' matches a denied filename pattern and cannot be accessed" },
   );
-  assert.equal(isDeniedFsFileName("site-Key.hex"), true, "KELVIN SIGN spelling of the site key file");
+  assert.equal(isDeniedFsFileName({ fileName: "site-Key.hex" }), true, "KELVIN SIGN spelling of the site key file");
 });
 
 test("a Unicode case-fold spelling of a denied path segment is refused", () => {
@@ -587,10 +587,10 @@ test("Windows trailing-dot, trailing-space, and ::$DATA spellings of denied name
     { message: `path '.tovu./${LEGACY_SITE_KEY_FILENAME}' contains a denied path segment ('.tovu.') and cannot be accessed` },
   );
   for (const name of [".env.", ".env ", ".env::$DATA", `${LEGACY_SITE_KEY_FILENAME}.`, `${LEGACY_SITE_KEY_FILENAME}::$DATA`]) {
-    assert.equal(isDeniedFsFileName(name), true, `expected '${name}' to be denied`);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, `expected '${name}' to be denied`);
   }
-  assert.equal(isDeniedFsPathSegment(".tovu. "), true, "trailing dot and space together");
-  assert.equal(isDeniedFsFileName("notes.txt"), false, "an ordinary name must still pass");
+  assert.equal(isDeniedFsPathSegment({ segmentName: ".tovu. " }), true, "trailing dot and space together");
+  assert.equal(isDeniedFsFileName({ fileName: "notes.txt" }), false, "an ordinary name must still pass");
 });
 
 
@@ -599,11 +599,11 @@ test("storage-secret files and crashed-write variants are denied on read and omi
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const name of [".storage-secret.json", "..storage-secret.json.1234.abcdef.tmp", ".storage-secret.json.backup"]) {
     fs.writeFileSync(path.join(root, name), "sealed database credentials");
-    assert.equal(isDeniedFsFileName(name), true, name);
+    assert.equal(isDeniedFsFileName({ fileName: name }), true, name);
     assert.throws(() => readFsFile({ rootPath: root, relativePath: name }), /denied filename pattern/);
   }
   assert.deepEqual(listFsFiles({ rootPath: root }), { files: ["manifest.json", "references/checklist.template.md"], truncated: false });
-  assert.equal(isDeniedFsFileName("storage-secret.json"), false);
+  assert.equal(isDeniedFsFileName({ fileName: "storage-secret.json" }), false);
 });
 
 test("listing truncates beyond depth 12 and never enumerates the deeper directory", (t) => {

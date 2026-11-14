@@ -78,7 +78,7 @@ function stateOf(setup: Pick<MailFeedbackProviderSetup, "supported" | "signingSe
   return setup.lastVerifiedEvent ? "receiving" : "no_events_yet";
 }
 
-async function providerSetup(deps: MailFeedbackSetupDeps, provider: MailProviderConfiguration, context: { origin: string | null; saved: Map<string, string> }): Promise<MailFeedbackProviderSetup> {
+async function providerSetup({ deps, provider, context }: { deps: MailFeedbackSetupDeps; provider: MailProviderConfiguration; context: { origin: string | null; saved: Map<string, string> } }, _optional = {}): Promise<MailFeedbackProviderSetup> {
   const supported = provider.capabilities.feedback;
   const webhookPath = `/hooks/mail/${encodeURIComponent(provider.id)}`;
   const [current, previous] = mailWebhookSecretLabels({ providerLabel: provider.label });
@@ -101,5 +101,5 @@ export async function readMailFeedbackSetup(deps: MailFeedbackSetupDeps, _option
   const records = deps.customCredentialSetRepo ? await listCustomCredentials({ repo: deps.customCredentialSetRepo }, { workspaceId: deps.workspaceId }) : [];
   const saved = new Map(records.map((record) => [record.label, record.updatedAt] as const));
   const origin = await siteOrigin(deps);
-  return { available: true, providers: await Promise.all(active.map((provider) => providerSetup(deps, provider, { origin, saved }))) };
+  return { available: true, providers: await Promise.all(active.map((provider) => providerSetup({ deps, provider, context: { origin, saved } }))) };
 }

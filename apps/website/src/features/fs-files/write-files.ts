@@ -25,8 +25,8 @@ export class FsWriteInputError extends Error {
 export interface PreparedFileWrite { readonly path: string; readonly bytes: Buffer; readonly overwrite: boolean }
 
 const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
-const refuse = (message: string): never => { throw new FsWriteInputError({ message }); };
-const isSameOrInside = (path: string, dir: string) => path === dir || path.startsWith(dir.endsWith(sep) ? dir : dir + sep);
+const refuse = ({ message }: { message: string }, _optional = {}): never => { throw new FsWriteInputError({ message }); };
+const isSameOrInside = ({ path, dir }: { path: string; dir: string }, _optional = {}) => path === dir || path.startsWith(dir.endsWith(sep) ? dir : dir + sep);
 
 /**
  * The same rule Jini's `validateReadOnlyExtraDirs` enforces at launch (Tovu tests run against the
@@ -35,17 +35,17 @@ const isSameOrInside = (path: string, dir: string) => path === dir || path.start
  * @returns The folder's real path. @throws {FsWriteInputError} @complexity O(1) filesystem calls.
  */
 export function requirePickedFolder({ dir, siteDir }: { dir: string; siteDir: string }, { homeDir = homedir() }: { homeDir?: string } = {}): string {
-  if (!isAbsolute(dir) || lstatOrUndefined(dir)?.isSymbolicLink() !== false || !statSync(dir).isDirectory()) {
-    refuse("The picked folder must be an existing folder, not a symbolic link — pick it again from the chat composer");
+  if (!isAbsolute(dir) || lstatOrUndefined({ path: dir })?.isSymbolicLink() !== false || !statSync(dir).isDirectory()) {
+    refuse({ message: "The picked folder must be an existing folder, not a symbolic link — pick it again from the chat composer" });
   }
   const [real, site, home] = [dir, siteDir, homeDir].map((path) => realpathSync(path)) as [string, string, string];
-  if (isSameOrInside(home, real) || isSameOrInside(site, real) || isSameOrInside(real, site)) {
-    refuse("The picked folder must not contain your home folder or this site, nor lie inside the site");
+  if (isSameOrInside({ path: home, dir: real }) || isSameOrInside({ path: site, dir: real }) || isSameOrInside({ path: real, dir: site })) {
+    refuse({ message: "The picked folder must not contain your home folder or this site, nor lie inside the site" });
   }
   return real;
 }
 
-function lstatOrUndefined(path: string): ReturnType<typeof lstatSync> | undefined {
+function lstatOrUndefined({ path }: { path: string }, _optional = {}): ReturnType<typeof lstatSync> | undefined {
   try {
     return lstatSync(path);
   } catch (error) {
@@ -55,7 +55,7 @@ function lstatOrUndefined(path: string): ReturnType<typeof lstatSync> | undefine
 }
 
 /** One spelling per path on every OS: no `.`/`..`/empty segment, backslash, NUL, drive or root. O(p). */
-const isPlainRelativePath = (path: string, segments: readonly string[]) =>
+const isPlainRelativePath = ({ path, segments }: { path: string; segments: readonly string[] }, _optional = {}) =>
   !/[\\\0]|^[A-Za-z]:/.test(path) && !isAbsolute(path) && !segments.some((s) => s === "" || s === "." || s === "..");
 
 /**
@@ -66,17 +66,17 @@ const isPlainRelativePath = (path: string, segments: readonly string[]) =>
  */
 export function inspectWriteTarget({ folder, path }: { folder: string; path: string }, _optional = {}): { target: string; overwrite: boolean } {
   const segments = path.split("/");
-  if (!isPlainRelativePath(path, segments)) refuse(`${JSON.stringify(path)}: use a plain relative path inside the folder (no '..', '.', '\\', drive or leading '/')`);
+  if (!isPlainRelativePath({ path, segments })) refuse({ message: `${JSON.stringify(path)}: use a plain relative path inside the folder (no '..', '.', '\\', drive or leading '/')` });
   let target = "";
-  try { target = resolveFsFilePath({ rootPath: folder, relativePath: path }); } catch (error) { refuse(`${path}: ${(error as Error).message}`); }
+  try { target = resolveFsFilePath({ rootPath: folder, relativePath: path }); } catch (error) { refuse({ message: `${path}: ${(error as Error).message}` }); }
   let current = folder;
   for (const [index, segment] of segments.entries()) {
     current = join(current, segment);
-    const stat = lstatOrUndefined(current);
+    const stat = lstatOrUndefined({ path: current });
     if (stat === undefined) return { target, overwrite: false };
     const isLeaf = index === segments.length - 1;
     // lstat: a symlink is neither a file nor a directory, so this refuses every link.
-    if (isLeaf ? !stat.isFile() : !stat.isDirectory()) refuse(`${path}: '${segment}' cannot be written through`);
+    if (isLeaf ? !stat.isFile() : !stat.isDirectory()) refuse({ message: `${path}: '${segment}' cannot be written through` });
   }
   return { target, overwrite: true };
 }
@@ -84,9 +84,9 @@ export function inspectWriteTarget({ folder, path }: { folder: string; path: str
 /** Decodes one entry; base64 must be canonical so the card's size is the written size. */
 function decodeEntry(entry: unknown): { path: string; bytes: Buffer } {
   const { path, content, encoding = "utf8" } = (entry ?? {}) as Record<string, unknown>;
-  if (typeof path !== "string" || typeof content !== "string") return refuse("each file needs a string 'path' and 'content'");
+  if (typeof path !== "string" || typeof content !== "string") return refuse({ message: "each file needs a string 'path' and 'content'" });
   if (encoding === "utf8") return { path, bytes: Buffer.from(content, "utf8") };
-  if (encoding !== "base64" || !BASE64.test(content)) refuse(`${path}: encoding must be 'utf8', or 'base64' with valid base64 content`);
+  if (encoding !== "base64" || !BASE64.test(content)) refuse({ message: `${path}: encoding must be 'utf8', or 'base64' with valid base64 content` });
   return { path, bytes: Buffer.from(content, "base64") };
 }
 
@@ -96,12 +96,12 @@ function decodeEntry(entry: unknown): { path: string; bytes: Buffer } {
  * @throws {FsWriteInputError} On the first problem. @complexity O(n·depth) lstats + O(total bytes).
  */
 export function prepareFileWrites({ folder, files }: { folder: string; files: unknown }, _optional = {}): PreparedFileWrite[] {
-  if (!Array.isArray(files) || files.length === 0 || files.length > FS_WRITE_LIMITS.maxFiles) refuse(`'files' must list 1 to ${FS_WRITE_LIMITS.maxFiles} files; split a bigger change`);
+  if (!Array.isArray(files) || files.length === 0 || files.length > FS_WRITE_LIMITS.maxFiles) refuse({ message: `'files' must list 1 to ${FS_WRITE_LIMITS.maxFiles} files; split a bigger change` });
   const decoded = (files as unknown[]).map(decodeEntry);
   const seen = new Set(decoded.map(({ path }) => path.toLowerCase()));
-  if (seen.size !== decoded.length) refuse("a path is listed more than once");
-  if (decoded.some(({ bytes }) => bytes.length > FS_WRITE_LIMITS.maxFileBytes)) refuse("each file may be at most 2 MiB");
-  if (decoded.reduce((sum, { bytes }) => sum + bytes.length, 0) > FS_WRITE_LIMITS.maxTotalBytes) refuse("one call may write at most 10 MiB; split the change");
+  if (seen.size !== decoded.length) refuse({ message: "a path is listed more than once" });
+  if (decoded.some(({ bytes }) => bytes.length > FS_WRITE_LIMITS.maxFileBytes)) refuse({ message: "each file may be at most 2 MiB" });
+  if (decoded.reduce((sum, { bytes }) => sum + bytes.length, 0) > FS_WRITE_LIMITS.maxTotalBytes) refuse({ message: "one call may write at most 10 MiB; split the change" });
   return decoded.map(({ path, bytes }) => ({ path, bytes, overwrite: inspectWriteTarget({ folder, path }).overwrite }));
 }
 
@@ -109,7 +109,7 @@ export function prepareFileWrites({ folder, files }: { folder: string; files: un
  * target and renames it over, so a reader never sees half a file and a failure leaves no temp. */
 function writeOne({ folder, write }: { folder: string; write: PreparedFileWrite }): void {
   const { target, overwrite } = inspectWriteTarget({ folder, path: write.path });
-  if (overwrite !== write.overwrite) refuse(overwrite ? "a file appeared here since approval" : "the file was removed since approval");
+  if (overwrite !== write.overwrite) refuse({ message: overwrite ? "a file appeared here since approval" : "the file was removed since approval" });
   mkdirSync(dirname(target), { recursive: true });
   const temp = `${target}.${process.pid}.${Date.now()}.tmp`;
   try {

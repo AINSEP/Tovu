@@ -37,10 +37,10 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
     entityType: "content-type",
     coversTables: ["content_types"],
     permission: "admin.collections.manage",
-    ports: (deps) => deps.ports["content-type"],
+    ports: ({ deps }) => deps.ports["content-type"],
     list: ({ ports: p, workspaceId }) => p.repo.listByWorkspace({ workspaceId }),
     find: ({ ports: p, workspaceId, id: key }) => p.repo.findByKey({ workspaceId, key }),
-    idOf: (row) => row.key,
+    idOf: ({ row }) => row.key,
     include: (row) => row.status !== "tombstone" && !SEEDED_KEYS.has(row.key),
     fields: {
       key: "transferred",

@@ -197,19 +197,19 @@ test("a stdio server with no command is refused", async () => {
 
 test("a malformed env line is reported rather than silently dropped", () => {
   assert.throws(
-    () => parseEnvBlock("GITHUB_TOKEN=ok\nthis-line-has-no-equals"),
+    () => parseEnvBlock({ text: "GITHUB_TOKEN=ok\nthis-line-has-no-equals" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
   );
 });
 
 test("env parsing keeps values containing '=' and honours comments and blanks", () => {
-  const env = parseEnvBlock("# a comment\n\nDSN=postgres://u:p@h/db?x=1\n  SPACED = value  \n");
+  const env = parseEnvBlock({ text: "# a comment\n\nDSN=postgres://u:p@h/db?x=1\n  SPACED = value  \n" });
   assert.deepEqual(env, { DSN: "postgres://u:p@h/db?x=1", SPACED: "value" });
 });
 
 test("a duplicated env variable is refused rather than last-write-wins", () => {
   assert.throws(
-    () => parseEnvBlock("TOKEN=a\nTOKEN=b"),
+    () => parseEnvBlock({ text: "TOKEN=a\nTOKEN=b" }),
     (err: unknown) => err instanceof ExternalMcpValidationError,
   );
 });
@@ -784,7 +784,7 @@ test("a brand-new server saved with an empty write list gets no attribution at a
 test("more than 64 environment variables are refused", () => {
   const block = Array.from({ length: 65 }, (_, i) => `VAR_${i}=x`).join("\n");
   assert.throws(
-    () => parseEnvBlock(block),
+    () => parseEnvBlock({ text: block }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
   );
 });
@@ -1422,9 +1422,9 @@ test("static_env access token: leaving static_env drops it, and coming back with
 });
 
 test('TW3 JSON env preserves multiline values and rejects every invalid entry shape', () => {
-  assert.deepEqual(parseEnvBlock(JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' })), { TOKEN: 'first\nsecond', EMPTY: '' });
+  assert.deepEqual(parseEnvBlock({ text: JSON.stringify({ TOKEN: 'first\nsecond', EMPTY: '' }) }), { TOKEN: 'first\nsecond', EMPTY: '' });
   for (const input of ['{', '{"9NAME":"value"}', '{"NAME":2}', JSON.stringify({ NAME: 'bad\0value' }), JSON.stringify({ NAME: 'x'.repeat(8193) }), JSON.stringify(Object.fromEntries(Array.from({ length: 65 }, (_, n) => [`VAR_${n}`, 'value'])))]) {
-    assert.throws(() => parseEnvBlock(input), ExternalMcpValidationError);
+    assert.throws(() => parseEnvBlock({ text: input }), ExternalMcpValidationError);
   }
 });
 
@@ -1470,10 +1470,10 @@ test('TW3 hosted OAuth target validates tokens and preserves resolver failures',
 
 test('TW3 NAME=VALUE silently drops the __proto__ variable (reported, not fixed)', () => {
   const text = '__proto__=operator-value';
-  const parsed = parseEnvBlock(text);
+  const parsed = parseEnvBlock({ text });
   assert.equal(Object.hasOwn(parsed, '__proto__'), false);
   assert.deepEqual(Object.entries(parsed), []);
-  const json = parseEnvBlock('{"__proto__":"operator-value"}');
+  const json = parseEnvBlock({ text: '{"__proto__":"operator-value"}' });
   assert.equal(Object.hasOwn(json, '__proto__'), true);
   assert.equal(json.__proto__, 'operator-value');
 });

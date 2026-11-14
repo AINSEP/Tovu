@@ -51,7 +51,7 @@ const outputValidator = new Validator(OUTPUT_SCHEMA);
 export class ImageTransformError extends Error {
   constructor({ message }: { message: string }, _optional = {}) { super(message); this.name = "ImageTransformError"; }
 }
-const refuse = (message: string): never => { throw new ImageTransformError({ message }); };
+const refuse = ({ message }: { message: string }, _optional = {}): never => { throw new ImageTransformError({ message }); };
 
 /** Schema first (keys, enums, bounded numbers), then a path extension matching the format, so the
  * file opens as what it is. */
@@ -61,11 +61,11 @@ function normalizeOne(raw: unknown, index: number): ImageOutput {
   const validation = outputValidator.validate(o);
   if (!validation.valid) {
     const errors = validation.errors.map((error) => `${error.instanceLocation.replaceAll("/", ".")} ${error.error}`).join("; ");
-    refuse(`${at}: ${errors}`);
+    refuse({ message: `${at}: ${errors}` });
   }
   const format = o.format as ImageFormat;
   const extension = (o.path as string).split(".").pop();
-  if (extension === undefined || !(FORMATS[format] as readonly string[]).includes(extension.toLowerCase())) refuse(`${at}: ${format} needs a .${FORMATS[format][0]} extension on '${String(o.path)}'`);
+  if (extension === undefined || !(FORMATS[format] as readonly string[]).includes(extension.toLowerCase())) refuse({ message: `${at}: ${format} needs a .${FORMATS[format][0]} extension on '${String(o.path)}'` });
   return { ...o, format, stripMetadata: o.stripMetadata !== false, icoSizes: (o.icoSizes as number[] | undefined) ?? DEFAULT_ICO_SIZES } as ImageOutput;
 }
 
@@ -74,18 +74,18 @@ function normalizeOne(raw: unknown, index: number): ImageOutput {
  * format with a matching extension, bounded numbers. @throws {ImageTransformError} @complexity O(n).
  */
 export function normalizeOutputs({ outputs }: { outputs: unknown }, _optional = {}): ImageOutput[] {
-  if (!Array.isArray(outputs) || outputs.length === 0 || outputs.length > IMAGE_LIMITS.maxOutputs) refuse(`'outputs' must list 1 to ${IMAGE_LIMITS.maxOutputs} outputs`);
+  if (!Array.isArray(outputs) || outputs.length === 0 || outputs.length > IMAGE_LIMITS.maxOutputs) refuse({ message: `'outputs' must list 1 to ${IMAGE_LIMITS.maxOutputs} outputs` });
   const normalized = (outputs as unknown[]).map(normalizeOne);
-  if (new Set(normalized.map(({ path }) => path.toLowerCase())).size !== normalized.length) refuse("an output path is listed more than once");
+  if (new Set(normalized.map(({ path }) => path.toLowerCase())).size !== normalized.length) refuse({ message: "an output path is listed more than once" });
   return normalized;
 }
 
 /** Size, format and pixel caps on the source. Undecodable bytes become a caller-facing refusal. */
 async function checkSource({ source, limits, imageCodec }: { source: Buffer; limits: ImageLimits; imageCodec: ImageCodecPort }, _options = {}) {
-  if (source.length > limits.maxSourceBytes) refuse(`the source is larger than ${limits.maxSourceBytes} bytes`);
-  const meta = await imageCodec.inspect({ source }, limits).catch((error: Error) => refuse(`the source is not a supported image or exceeds the input pixel limit: ${error.message}`));
-  if (!SOURCE_FORMATS.has(meta.format ?? "")) refuse(`the source is not a supported image (it is ${meta.format})`);
-  if (meta.width * meta.height > limits.maxInputPixels) refuse(`the source has more than ${limits.maxInputPixels} pixels`);
+  if (source.length > limits.maxSourceBytes) refuse({ message: `the source is larger than ${limits.maxSourceBytes} bytes` });
+  const meta = await imageCodec.inspect({ source }, limits).catch((error: Error) => refuse({ message: `the source is not a supported image or exceeds the input pixel limit: ${error.message}` }));
+  if (!SOURCE_FORMATS.has(meta.format ?? "")) refuse({ message: `the source is not a supported image (it is ${meta.format})` });
+  if (meta.width * meta.height > limits.maxInputPixels) refuse({ message: `the source has more than ${limits.maxInputPixels} pixels` });
   return meta;
 }
 
@@ -97,7 +97,7 @@ export async function inspectImage({ source, imageCodec }: { source: Buffer; ima
 
 async function encode({ source, output: o, limits, imageCodec }: { source: Buffer; output: ImageOutput; limits: ImageLimits; imageCodec: ImageCodecPort }, _options = {}): Promise<RenderedImage> {
   const { bytes, width, height } = await imageCodec.encode({ source, ...o, format: o.format as Exclude<ImageFormat, "ico">, autoOrient: true, flatten: o.format === "jpeg" ? { background: o.background ?? "#ffffff" } : undefined }, limits);
-  if (Math.max(width, height) > limits.maxDimension) refuse(`${o.path}: output exceeds ${limits.maxDimension}px per side`);
+  if (Math.max(width, height) > limits.maxDimension) refuse({ message: `${o.path}: output exceeds ${limits.maxDimension}px per side` });
   return { path: o.path, format: o.format, width, height, bytes: Buffer.from(bytes) };
 }
 
@@ -137,7 +137,7 @@ function checkOutputSize({ output: o, width, height, maxSide }: { output: ImageO
   const rotated = [Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians)), Math.abs(height * Math.cos(radians)) + Math.abs(width * Math.sin(radians))];
   [width, height] = rotated as [number, number];
   [width, height] = resizedSides({ sides: [width, height], resize: o.resize });
-  if (Math.round(Math.max(width, height)) > maxSide) refuse(`${o.path}: output exceeds ${maxSide}px per side`);
+  if (Math.round(Math.max(width, height)) > maxSide) refuse({ message: `${o.path}: output exceeds ${maxSide}px per side` });
 }
 
 /** Predict resize bounds; padded/cover/fill sizes are explicit, outside preserves the aspect ratio. */
@@ -145,7 +145,7 @@ function resizedSides({ sides, resize }: { sides: [number, number]; resize: Imag
   if (!resize) return sides;
   const [width, height] = sides;
   const ratios = [resize.width === undefined ? undefined : resize.width / width, resize.height === undefined ? undefined : resize.height / height].filter((r): r is number => r !== undefined);
-  if (!ratios.length) refuse("resize needs width or height");
+  if (!ratios.length) refuse({ message: "resize needs width or height" });
   let scale = Math.min(...ratios);
   if (resize.fit === "outside") scale = Math.max(...ratios);
   if (resize.withoutEnlargement) scale = Math.min(1, scale);
@@ -164,7 +164,7 @@ export async function renderOutputs({ source, outputs, imageCodec }: { source: B
   for (const output of outputs) checkOutputSize({ output, width: meta.autoOrient.width, height: meta.autoOrient.height, maxSide: merged.maxDimension });
   const rendered: RenderedImage[] = [];
   for (const output of outputs) {
-    rendered.push(await renderOne({ source, output, limits: merged, imageCodec }).catch((error: Error) => refuse(error instanceof ImageTransformError ? error.message : `${output.path}: ${error.message}`)));
+    rendered.push(await renderOne({ source, output, limits: merged, imageCodec }).catch((error: Error) => refuse({ message: error instanceof ImageTransformError ? error.message : `${output.path}: ${error.message}` })));
   }
   return rendered;
 }

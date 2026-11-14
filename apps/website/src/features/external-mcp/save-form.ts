@@ -70,8 +70,7 @@ export interface ExternalMcpSaveInput {
  * @complexity O(1).
  */
 export function mergeExternalMcpSavePrefill(
-  input: ExternalMcpSaveInput,
-  existing: ExternalMcpServerView | undefined,
+  { input, existing }: { input: ExternalMcpSaveInput; existing: ExternalMcpServerView | undefined }, _optional = {},
 ): ExternalMcpSaveInput {
   if (!existing) return input;
   const prefill: ExternalMcpSaveInput = {
@@ -109,28 +108,28 @@ export function mergeExternalMcpSavePrefill(
 /** `{ value }` when `value` is present, an empty object otherwise — the shared shape every optional
  *  field spread in this file's field builders used to write inline as `value !== undefined ? {value}
  *  : {}`. Collapsing it into a call removes that ternary from every call site's own complexity count. */
-function fieldValue<T>(value: T | undefined): { value: T } | Record<string, never> {
+function fieldValue<T>({ value }: { value: T | undefined }, _optional = {}): { value: T } | Record<string, never> {
   return value !== undefined ? { value } : {};
 }
 
 function buildStdioTransportFields(input: ExternalMcpSaveInput): SecretCardField[] {
   return [
-    { kind: "string", name: "command", label: "Command", required: true, ...fieldValue(input.command), placeholder: "e.g. npx, node, /path/to/binary" },
-    { kind: "string", name: "args", label: "Args", ...fieldValue(input.args), placeholder: "space-separated" },
+    { kind: "string", name: "command", label: "Command", required: true, ...fieldValue({ value: input.command }), placeholder: "e.g. npx, node, /path/to/binary" },
+    { kind: "string", name: "args", label: "Args", ...fieldValue({ value: input.args }), placeholder: "space-separated" },
   ];
 }
 
 /** A credential stays exclusively in the human form, with blank update submissions preserving it.
  * @complexity O(1) for a fixed field list.
  */
-function buildStaticTokenFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SecretCardField[] {
+function buildStaticTokenFields({ input, isUpdate, isStdio }: { input: ExternalMcpSaveInput; isUpdate: boolean; isStdio: boolean }, _optional = {}): SecretCardField[] {
   return [
     { kind: "string", name: "accessToken", label: "Access token", ...SECRET_FORM_CARD_DEFINITIONS.external_mcp_save.secretField, allowBlank: true, hint: isUpdate ? "Leave blank to keep the stored token." : "Enter the API key or bearer token for this server." },
-    ...(isStdio ? [{ kind: "string" as const, name: "accessTokenEnvName", label: "Access token environment variable", ...fieldValue(input.accessTokenEnvName), hint: "The environment variable name the local command reads, e.g. API_TOKEN." }] : []),
+    ...(isStdio ? [{ kind: "string" as const, name: "accessTokenEnvName", label: "Access token environment variable", ...fieldValue({ value: input.accessTokenEnvName }), hint: "The environment variable name the local command reads, e.g. API_TOKEN." }] : []),
   ];
 }
 
-function buildEnvField(isUpdate: boolean): SecretCardField {
+function buildEnvField({ isUpdate }: { isUpdate: boolean }, _optional = {}): SecretCardField {
   return {
     kind: "string",
     name: "env",
@@ -156,13 +155,13 @@ function buildEnvField(isUpdate: boolean): SecretCardField {
  * reasoning, same wording as `apps/admin/src/features/settings/rules.ts`'s
  * `buildExternalMcpFieldSpecs`.
  */
-function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SecretCardField[] {
+function buildOAuthCoreFields({ input, isUpdate, isStdio }: { input: ExternalMcpSaveInput; isUpdate: boolean; isStdio: boolean }, _optional = {}): SecretCardField[] {
   return [
     {
       kind: "string",
       name: "oauthProviderId",
       label: "Provider ID",
-      ...fieldValue(input.oauthProviderId),
+      ...fieldValue({ value: input.oauthProviderId }),
       hint: isStdio
         ? "Leave blank to use your own endpoints below."
         : "Leave blank unless this server is a registered provider — a hosted server discovers its own endpoints.",
@@ -176,7 +175,7 @@ function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, is
         { value: "authorization_code", label: "Browser sign-in" },
         { value: "device_code", label: "Device code" },
       ],
-      ...fieldValue(input.oauthGrant),
+      ...fieldValue({ value: input.oauthGrant }),
       ...(isStdio ? {} : { hint: "Detected from the server unless overridden." }),
     },
     {
@@ -184,11 +183,11 @@ function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean, is
       name: "oauthClientId",
       label: "Client ID",
       required: isStdio,
-      ...fieldValue(input.oauthClientId),
+      ...fieldValue({ value: input.oauthClientId }),
       ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
     },
     { kind: "string", name: "oauthClientSecret", label: "Client secret", ...SECRET_FORM_CARD_DEFINITIONS.external_mcp_save.secretField, allowBlank: true, hint: isUpdate ? "Leave blank to keep the stored secret." : "Leave blank if this provider needs none (a public/PKCE client)." },
-    { kind: "string", name: "oauthScopes", label: "Scopes", ...fieldValue(input.oauthScopes), placeholder: "space- or comma-separated" },
+    { kind: "string", name: "oauthScopes", label: "Scopes", ...fieldValue({ value: input.oauthScopes }), placeholder: "space- or comma-separated" },
   ];
 }
 
@@ -198,7 +197,7 @@ function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SecretCardField {
     name: "oauthTokenEnvName",
     label: "Access token environment variable",
     required: true,
-    ...fieldValue(input.oauthTokenEnvName),
+    ...fieldValue({ value: input.oauthTokenEnvName }),
   };
 }
 
@@ -206,34 +205,34 @@ function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SecretCardField {
  *  discovery does not answer, not something to go and look up. See {@link buildOAuthCoreFields}. */
 const DISCOVERABLE_ENDPOINT_HINT = "Leave blank unless discovery against this server's URL fails.";
 
-function buildOAuthEndpointFields(input: ExternalMcpSaveInput, isStdio: boolean): SecretCardField[] {
+function buildOAuthEndpointFields({ input, isStdio }: { input: ExternalMcpSaveInput; isStdio: boolean }, _optional = {}): SecretCardField[] {
   return [
     {
       kind: "string",
       name: "oauthAuthorizationEndpoint",
       label: "Authorization endpoint",
-      ...fieldValue(input.oauthAuthorizationEndpoint),
+      ...fieldValue({ value: input.oauthAuthorizationEndpoint }),
       hint: isStdio ? "Needed for Browser sign-in, unless Provider ID is set." : DISCOVERABLE_ENDPOINT_HINT,
     },
     {
       kind: "string",
       name: "oauthTokenEndpoint",
       label: "Token endpoint",
-      ...fieldValue(input.oauthTokenEndpoint),
+      ...fieldValue({ value: input.oauthTokenEndpoint }),
       hint: isStdio ? "Needed unless Provider ID is set." : DISCOVERABLE_ENDPOINT_HINT,
     },
     {
       kind: "string",
       name: "oauthDeviceAuthorizationEndpoint",
       label: "Device authorization endpoint",
-      ...fieldValue(input.oauthDeviceAuthorizationEndpoint),
+      ...fieldValue({ value: input.oauthDeviceAuthorizationEndpoint }),
       hint: isStdio ? "Needed for Device code, unless Provider ID is set." : DISCOVERABLE_ENDPOINT_HINT,
     },
   ];
 }
 
-function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SecretCardField[] {
-  return [...buildOAuthCoreFields(input, isUpdate, isStdio), ...(isStdio ? [buildOAuthTokenEnvField(input)] : []), ...buildOAuthEndpointFields(input, isStdio)];
+function buildOAuthFields({ input, isUpdate, isStdio }: { input: ExternalMcpSaveInput; isUpdate: boolean; isStdio: boolean }, _optional = {}): SecretCardField[] {
+  return [...buildOAuthCoreFields({ input, isUpdate, isStdio }), ...(isStdio ? [buildOAuthTokenEnvField(input)] : []), ...buildOAuthEndpointFields({ input, isStdio })];
 }
 
 /**
@@ -244,17 +243,17 @@ function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdi
  *
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
-export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUpdate: boolean): SecretCardField[] {
+export function buildExternalMcpSaveFormFields({ input, isUpdate }: { input: ExternalMcpSaveInput; isUpdate: boolean }, _optional = {}): SecretCardField[] {
   const isStdio = input.transport !== "streamable_http";
   const isOAuth = input.authMode === "oauth";
 
   return [
     ...(isUpdate ? [] : [{ kind: "string" as const, name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." }]),
-    { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) },
-    ...(isStdio ? buildStdioTransportFields(input) : [{ kind: "string" as const, name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }]),
-    ...(isStdio ? [buildEnvField(isUpdate)] : []),
-    ...(input.authMode === "static_env" || input.authMode === undefined ? buildStaticTokenFields(input, isUpdate, isStdio) : []),
-    ...(isOAuth ? buildOAuthFields(input, isUpdate, isStdio) : []),
+    { kind: "string", name: "label", label: "Display name", ...fieldValue({ value: input.label }) },
+    ...(isStdio ? buildStdioTransportFields(input) : [{ kind: "string" as const, name: "url", label: "URL", required: true, ...fieldValue({ value: input.url }), placeholder: "https://…" }]),
+    ...(isStdio ? [buildEnvField({ isUpdate })] : []),
+    ...(input.authMode === "static_env" || input.authMode === undefined ? buildStaticTokenFields({ input, isUpdate, isStdio }) : []),
+    ...(isOAuth ? buildOAuthFields({ input, isUpdate, isStdio }) : []),
   ];
 }
 
@@ -301,7 +300,7 @@ export function buildExternalMcpSaveForm(input: {
       ...(save.transport === "streamable_http" ? [] : [{ label: "Local access", value: `Saving lets chats start ${save.command ?? "the command below"} on this computer as your OS user.` }]),
     ],
     submitLabel: isUpdate ? "Save changes" : "Add server",
-    fields: buildExternalMcpSaveFormFields(save, isUpdate),
+    fields: buildExternalMcpSaveFormFields({ input: save, isUpdate }),
     cancelLabel: "Cancel",
     app: { appName: "tovu-external-mcp-save", appVersion: "1" },
   };

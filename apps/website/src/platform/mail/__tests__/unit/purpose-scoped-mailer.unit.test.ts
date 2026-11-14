@@ -90,7 +90,7 @@ test("AC-16: a legacy transactional send without a lane defaults to notification
   let durableReady = false;
   const gated = wrapMailerWithPurposeGate({
     inner: mailer, mode: "production",
-    durableOutboxReady: (capability) => capability === "forms" && durableReady,
+    durableOutboxReady: ({ capabilityName: capability }) => capability === "forms" && durableReady,
   });
   const options: MailerSendOptions = {
     idempotencyKey: "legacy-1", workspaceId: "ws-1",
@@ -163,7 +163,7 @@ test("AC-20: notification-lane readiness is scoped to the sending capability", a
   const checked: string[] = [];
   const gated = wrapMailerWithPurposeGate({
     inner: mailer, mode: "production",
-    durableOutboxReady: (capability) => { checked.push(capability); return capability === "forms"; },
+    durableOutboxReady: ({ capabilityName: capability }) => { checked.push(capability); return capability === "forms"; },
   });
   const options: MailerSendOptions = {
     idempotencyKey: "k1", workspaceId: "ws-1",
@@ -248,7 +248,7 @@ test("sendBatch gates notification delivery and forwards permitted batches and c
   let durableReady = false;
   const gated = wrapMailerWithPurposeGate({
     inner: mailer, mode: "production",
-    durableOutboxReady: (capability) => capability === "forms" && durableReady,
+    durableOutboxReady: ({ capabilityName: capability }) => capability === "forms" && durableReady,
   });
   const messages = [FAKE_EMAIL, { ...FAKE_EMAIL, to: { email: "second@example.com" } }];
   const options: MailerSendOptions = {

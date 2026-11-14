@@ -18,7 +18,7 @@ const loaded = (descriptor: FormDestinationDescriptor, pluginId: string, module:
 
 test("a valid file parses, keeping only declared fields", () => {
   const external = { id: "relay", label: "Relay", module: "d/relay.mjs", receive: "external", credentialLabel: "Relay key", extra: true };
-  assert.deepEqual(parseFormDestinationsFile(file([cohosted, external, { id: "push", label: "Push", module: "push.mjs" }])), { ok: true, descriptors: [
+  assert.deepEqual(parseFormDestinationsFile({ raw: file([cohosted, external, { id: "push", label: "Push", module: "push.mjs" }]) }), { ok: true, descriptors: [
     cohosted, { id: "relay", label: "Relay", module: "d/relay.mjs", receive: "external", credentialLabel: "Relay key" }, { id: "push", label: "Push", module: "push.mjs" },
   ] });
 });
@@ -40,7 +40,7 @@ test("invalid files are refused with the field that is wrong", () => {
     [file([{ ...cohosted, credentialLabel: "" }]), "destinations[0].credentialLabel must be a non-empty string"],
     [file([cohosted, cohosted]), "destinations[1].id 'co' is declared twice"],
   ];
-  for (const [raw, reason] of cases) assert.deepEqual(parseFormDestinationsFile(raw), { ok: false, reason }, raw);
+  for (const [raw, reason] of cases) assert.deepEqual(parseFormDestinationsFile({ raw }), { ok: false, reason }, raw);
 });
 
 test("a module missing what its receive mode needs is dropped with the reason", () => {

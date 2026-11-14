@@ -59,8 +59,8 @@ function harness(): Harness {
     db,
     registry,
     trash,
-    definitions: new SqliteFormDefinitionRepo(db),
-    submissions: new SqliteFormSubmissionRepo(db),
+    definitions: new SqliteFormDefinitionRepo({ store: db }),
+    submissions: new SqliteFormSubmissionRepo({ store: db }),
   };
 }
 

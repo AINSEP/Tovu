@@ -102,10 +102,10 @@ test("skill install, list, bundled paths, toggle and removal use the booted A la
 test("filesystem custom root stays scoped to A and reflects live folder changes", () => withSites(async binding => {
   const input = { siteDir: binding.siteA, workspaceId };
   const folder = path.join(binding.siteA, "selected"); await mkdir(folder);
-  setCustomFsRoot(workspaceId, folder, { siteDir: binding.siteA });
+  setCustomFsRoot({ workspaceId, path: folder, optional: { siteDir: binding.siteA } });
   assert.equal(resolveFsRoots(input).site, binding.siteA);
   assert.equal(resolveFsRoots(input).custom, await realpath(folder));
-  setCustomFsRoot(workspaceId, null, { siteDir: binding.siteA });
+  setCustomFsRoot({ workspaceId, path: null, optional: { siteDir: binding.siteA } });
   assert.equal(resolveFsRoots(input).custom, undefined);
   await assert.rejects(readFile(path.join(binding.siteB, ".fs-custom-root.json")), { code: "ENOENT" });
 }));

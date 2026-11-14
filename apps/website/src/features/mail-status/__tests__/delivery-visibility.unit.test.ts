@@ -237,7 +237,7 @@ test("mailUseReadinessDepsFrom maps Newsletter's launch inputs like toNewsletter
 });
 
 test("the purpose-gate probe asks Jini's real gate and sends nothing", async () => {
-  const production = createMailPurposeGateProbe({ mode: "production", durableOutboxReady: (name) => name === "forms" });
+  const production = createMailPurposeGateProbe({ mode: "production", durableOutboxReady: ({ capabilityName: name }) => name === "forms" });
   assert.equal(await production({ capabilityName: "members", lane: "interactive" }), true);
   assert.equal(await production({ capabilityName: "newsletter", lane: "notification" }), false);
   assert.equal(await production({ capabilityName: "forms", lane: "notification" }), true);

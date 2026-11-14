@@ -261,7 +261,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     },
     // The existing factories borrow their connection; construction/get/history reads never write.
     workspaceRepo: new SqliteWorkspaceRepo(kernel), chatHistory: createChatStoreFactory(chat),
-    formDefinitionRepo: new SqliteFormDefinitionRepo(kernel), formSubmissionRepo: new SqliteFormSubmissionRepo(kernel),
+    formDefinitionRepo: new SqliteFormDefinitionRepo({ store: kernel }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: kernel }),
     // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
     // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
     formDeliveryStatus: { forSubmission: formDeliveryRepo.forSubmission.bind(formDeliveryRepo), recentUnfinished: formDeliveryRepo.recentUnfinished.bind(formDeliveryRepo) },

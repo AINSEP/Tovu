@@ -61,9 +61,9 @@ export async function pullFromFormDestination<R extends { readonly committedIds:
   const report = { destinationKey, pulled: 0, acknowledged: 0, hasMore: false, pages: [] as R[] };
   try {
     await pullPages({ report, maxPages, outOfTime: () => now() >= budgetEndsMs,
-      pullPage: (after) => pull.call(module, { kit, destination }, { after, limit }),
-      importPage: (items) => importPage({ items, destinationKey }),
-      acknowledge: (ids) => ack.call(module, { kit, destination, ids }) });
+      pullPage: ({ after }) => pull.call(module, { kit, destination }, { after, limit }),
+      importPage: ({ items }) => importPage({ items, destinationKey }),
+      acknowledge: ({ ids }) => ack.call(module, { kit, destination, ids }) });
   } catch (error) {
     throw pullStopped({ error, destination });
   }
@@ -77,20 +77,20 @@ async function pullPages<R extends { readonly committedIds: readonly string[] }>
   report: { pulled: number; acknowledged: number; hasMore: boolean; pages: R[] };
   maxPages: number;
   outOfTime: () => boolean;
-  pullPage: (after: number) => Promise<FormDestinationPage>;
-  importPage: (items: readonly RemoteFormSubmission[]) => Promise<R>;
-  acknowledge: (ids: readonly string[]) => Promise<{ readonly acknowledged: number }>;
+  pullPage: (required: { after: number }) => Promise<FormDestinationPage>;
+  importPage: (required: { items: readonly RemoteFormSubmission[] }) => Promise<R>;
+  acknowledge: (required: { ids: readonly string[] }) => Promise<{ readonly acknowledged: number }>;
 }): Promise<void> {
   const { report } = required;
   let after = 0;
   for (let page = 0; page < required.maxPages; page += 1) {
     // Out of time: the rows still waiting are the next pull's, exactly as when the page cap stops.
     if (required.outOfTime()) return;
-    const batch = await required.pullPage(after);
+    const batch = await required.pullPage({ after });
     report.hasMore = batch.hasMore;
     if (batch.items.length === 0) return;
     report.pulled += batch.items.length;
-    const imported = await required.importPage(batch.items);
+    const imported = await required.importPage({ items: batch.items });
     report.pages.push(imported);
     report.acknowledged += await acknowledgeCommitted({ acknowledge: required.acknowledge, committedIds: imported.committedIds });
     after = batch.nextAfter;
@@ -111,11 +111,11 @@ function boundedKit({ kit, now, deadlineMs }: { kit: FormDestinationKit; now: ()
 
 /** Acknowledges each committed id once; no request when nothing was committed. @complexity O(ids). */
 async function acknowledgeCommitted(
-  required: { acknowledge: (ids: readonly string[]) => Promise<{ readonly acknowledged: number }>; committedIds: readonly string[] },
+  required: { acknowledge: (required: { ids: readonly string[] }) => Promise<{ readonly acknowledged: number }>; committedIds: readonly string[] },
   _optional: Record<string, never> = {},
 ): Promise<number> {
   const ids = [...new Set(required.committedIds)];
-  return ids.length > 0 ? (await required.acknowledge(ids)).acknowledged : 0;
+  return ids.length > 0 ? (await required.acknowledge({ ids })).acknowledged : 0;
 }
 
 /** The person-facing stop error: names the address, never the key. @complexity O(message bytes). */

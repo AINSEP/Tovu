@@ -132,7 +132,7 @@ for (const fixture of APPLY_FIXTURES) {
         dir: "/themes/static/registry-theme", source: "site", tokens: {}, tokensLight: {}, templates: {},
         liquidTemplates: {}, handlebarsTemplates: {}, pages: {}, partials: {},
       } satisfies DiscoveredTheme);
-      const forms = new SqliteFormDefinitionRepo(site.db);
+      const forms = new SqliteFormDefinitionRepo({ store: site.db });
       const widget = { entries: site.entries, contentTypes: site.contentTypes, forms,
         entryRefs: new SqliteEntryRefsRepo({ store: site.db }), bindings: new SqliteWidgetRegionBindingRepo(site.db) };
       const deps = makeSite({ ...site.ports, form: { repo: forms }, widget, "widget-area": widget }, "registry");
