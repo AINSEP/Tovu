@@ -170,13 +170,13 @@
    `.jini-chat-pane__body` (the list is unpositioned) and escapes the list's overflow clip; centred on
    the transcript/composer seam, half of it lies on the composer's empty top padding. The seam is the
    controls' measured content height (Jini's `--jini-chat-controls-height`) plus their 14px bottom
-   padding; `- 16px` centres the 32px button on it. `z-index: 5` beats the controls' flex-item 4, or
+   padding; `- 20px` centres the 40px button on it. `z-index: 5` beats the controls' flex-item 4, or
    the composer paints over the lower half. `right: 26px` sits it in from the composer's rounded corner. */
 .admin-chat-dock .jini-chat-pane .jini-message-list__jump {
   position: absolute;
   left: auto;
   right: 26px;
-  bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 16px);
+  bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 20px);
   padding-right: 0;
   z-index: 5;
 }
@@ -191,8 +191,9 @@
    so it is still the button's accessible name. */
 .jini-chat-pane .jini-message-list__jump { justify-content: flex-end; padding-right: 12px; }
 .jini-chat-pane .jini-message-list__jump-btn {
-  width: 32px;
-  height: 32px;
+  /* 40px, matching the site chat's arrow and a comfortable tap target (owner 2026-11-13; was 32px). */
+  width: 40px;
+  height: 40px;
   padding: 0;
   gap: 0;
   justify-content: center;
