@@ -2,7 +2,7 @@
  * @file Task 7 of the publish-content (Publish Content) feature —
  * `ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4 task 7 / §5 risk #6.
  *
- * `executePublishContentImport` mirrors `features/database/migrate-forward/execute.ts`'s
+ * `executePublishContentImport` mirrors `@jini-ai/db/recovery/migrate-forward-execute`'s
  * `executeMigrateForward` shape exactly: refuse `costClass: 'unavailable'` BEFORE the gated-mutation
  * gateway's own `execute()` ever runs, so a mutation this instance cannot take a real restore point
  * for is refused with no attestation override (ADR-041 §2's "no attestation override" rule, reused
@@ -22,7 +22,7 @@
 /** Thrown when `costClass === 'unavailable'` — publish-content's own apply is refused with no
  *  bypass, mirroring `migrate-forward/execute.ts`'s `RestorePointUnavailableError` (each domain
  *  declares its own class rather than sharing one, the established precedent — see that file's own
- *  header and `features/database/restore-points.ts`'s sibling class of the same name). */
+ *  header and `@jini-ai/db/tools`'s sibling class of the same name). */
 export class RestorePointUnavailableError extends Error {
   constructor(message: string) {
     super(message);

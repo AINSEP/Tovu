@@ -2,12 +2,12 @@ import { bundledAgentPluginsDir } from "./site-paths.js";
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from '#src/features/agent-plugins/lifecycle';
-import { credentialCardsContribution, mergePluginCredentialCards } from '#src/features/agent-plugins/credential-cards';
+import { credentialCardsContribution, mergePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets/registry';
 import { parseSourceControlProvidersFile } from '#src/features/source-control/provider-registry';
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
 import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
-import { readProviderPluginLink } from '#src/features/agent-plugins/identity';
+import { readProviderPluginLink } from '@jini-ai/agent-plugins/lifecycle/host-tools';
 import type { LoadPluginCredentialCards } from "../../../features/custom-credentials/plugin-credential-card.js";
 import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
 

@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadDeployOpsRegistryFromSource } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
 import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
-import { parsePluginCredentialCards } from "../../../../apps/website/src/features/agent-plugins/credential-cards.ts";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 
 // render ships from @jini-ai/agent-plugins/render: read it where Tovu takes it from.
 const PLUGIN_DIR = agentPluginSourceDir({ pluginId: "render" });

@@ -7,6 +7,8 @@ export type {
   EmailAddress, EmailAttachment, MailerCapabilities, MailerFeedbackEvent,
   MailerSendResult, OutboundEmail,
   MailSuppressionRepoPort, MailSendDedupRepoPort,
+  SenderDomainVerification,
+  SenderDomainVerificationPort,
 } from "@jini-ai/platform/mail";
 export type { ConsoleMailerAdapter, InMemoryMailerAdapter, MailerPort, MailerSendOptions, MailTestApproval } from "./ports.js";
 export type { MailAdapterCreateContext, MailAdapterCredential, MailAdapterKit, MailAdapterModule } from "./adapter-module.js";
@@ -25,7 +27,6 @@ export type {
   MailStatusReport, MailProviderField, MailProviderSetup, MailProviderConfiguration,
   MailProviderConfigurationReport, MailProviderControl,
 } from "./mail-status.js";
-export type { SenderDomainVerification, SenderDomainVerificationPort } from "./sender-domain-verification.js";
 export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";
 export { toJiniMailer, toTovuMailer } from "./purpose-scoped-mailer.js";
-export { credentialSecrets, safeMailProviderText } from "./provider-error.js";
+export { credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";

@@ -1,7 +1,7 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import path from "node:path";
 
-import { reconcileInterruptedMigrationOnBoot } from "#src/features/database/boot/reconcile-interrupted-migration";
+import { reconcileInterruptedMigrationOnBoot } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import { explicitRootAgentPluginActivations, explicitRootSoonCatalog, listInstalledPlugins, seedBundledAgentPlugins } from "../../../features/agent-plugins/lifecycle.js";
 import { lockSoonAgentPlugins } from "#src/features/agent-plugins/soon-lock";
 import { SELECTED_AGENT_PLUGIN_PACKAGES } from "#src/features/agent-plugins/bundled-catalog";

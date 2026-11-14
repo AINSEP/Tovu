@@ -9,7 +9,7 @@ import { sql } from "kysely";
 
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS, migrateContentDatabase, runMigrations } from "../index.js";
 import { applyLegacyEntries, FROZEN_CHAIN, readFrozenChain } from "../legacy-sqlite.js";
 import { hasLedger } from "../runner.js";

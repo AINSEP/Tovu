@@ -80,7 +80,7 @@ import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
 import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
-import type { DurableRun, DurableRunHead, DurableRunPoll } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
 import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
 
 /** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */

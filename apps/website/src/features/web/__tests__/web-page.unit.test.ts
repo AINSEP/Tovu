@@ -7,7 +7,7 @@ import { createHttpClient } from "#src/platform/http/client";
 import { WEB_FETCH_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { HttpRequest, HttpResponse, PinnedPeer } from "#src/platform/http/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { htmlToMarkdown } from "../html-to-markdown.js";
+import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { WEB_FETCH_PER_HOST } from "../tool-registrations.js";
 import { fetchWebPage, readWebFetchInput, UNTRUSTED_NOTICE, WEB_FETCH_USER_AGENT, type WebFetchEvent, type WebFetchPorts } from "../web-page.js";
 

@@ -74,7 +74,7 @@ const PLAN_RESTORE_SCHEMA = {
   },
 } as const;
 
-/** `recovery_resolve_deep_link`'s input — mirrors `features/recovery/deep-link.ts`'s
+/** `recovery_resolve_deep_link`'s input — mirrors `@jini-ai/db/recovery/deep-link`'s
  * `DatabaseContextEnvelope` shape field-for-field. Every id inside is untrusted and re-looked-up
  * server-side on arrival (INV-04); nothing in this schema grants authority, it only carries display
  * continuity (ADR-041 §7). */

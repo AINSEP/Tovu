@@ -65,7 +65,7 @@
  */
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { ColumnDecl, ColumnType as PluginColumnType } from "#src/features/plugins/index";
+import type { ColumnDecl, ColumnType as PluginColumnType } from "@jini-ai/db/data-modules";
 import * as schema from "../schema.sqlite.js";
 
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
@@ -933,7 +933,7 @@ export const WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY = true as const;
 const MAX_IDENTIFIER_BYTES = 63;
 
 /**
- * PostgreSQL's `NAMEDATALEN - 1` identifier ceiling. `src/features/plugins/data-module.ts` already
+ * PostgreSQL's `NAMEDATALEN - 1` identifier ceiling. `@jini-ai/db/data-modules` already
  * enforces this same measured rule for plugin DDL identifiers (its own `assertIdentifierFits`,
  * module-private, longest live identifier measured at 42 bytes) — that function is not exported, so
  * this manifest carries its own copy of the identical rule rather than reaching across a deliberately

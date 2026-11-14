@@ -61,7 +61,7 @@ import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
  *
  * "`costClass: 'unavailable'` refuses, with no override" is enforced by `execute-import.ts`'s
  * `executePublishContentImport()`, which the `/execute` ROUTE calls to wrap `gatewayExecute()` —
- * mirroring `features/database/migrate-forward/execute.ts`'s identical split (the check happens
+ * mirroring `@jini-ai/db/recovery/migrate-forward-execute`'s identical split (the check happens
  * before `gateway.execute()`'s own authorize/token/plan-hash checks even run, not buried inside this
  * file's `executeMutation()`, which only runs after every one of those has already passed).
  */
@@ -74,7 +74,7 @@ export interface PublishContentDbOpsPort {
   captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
 }
 
-/** Narrow structural slice of `features/database/restore-points.ts#RestorePointSavePort` this file
+/** Narrow structural slice of `@jini-ai/db/tools#RestorePointSavePort` this file
  *  actually calls — declared locally for the identical decoupling reason as
  *  {@link PublishContentDbOpsPort} (and the same reason `buildMigrateForwardHooks` declares its
  *  own `restorePointsRepo` field type inline rather than importing the whole port). */

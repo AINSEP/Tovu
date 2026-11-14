@@ -30,7 +30,7 @@ import { startLoopbackAuthorizationReceiver, type OAuthHttpPorts } from "@jini-a
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
 import { createIssuedSignInCollector } from "../../agent-plugins/admin-surfaces/issued-sign-ins.js";
 import { createAdminSurfacePublicConfig, PUBLIC_CONFIG_REFUSED_MESSAGE } from "../../agent-plugins/admin-surfaces/public-config.js";
-import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "../../agent-plugins/executable-tools/host-capabilities.js";
+import { createAgentPluginToolCapabilities, createFrozenConnectionAccounts } from "@jini-ai/agent-plugins/connect/executable";
 import { createAdminSurfaceCapabilities } from "../../agent-plugins/admin-surfaces/capabilities.js";
 import { parseApiConnectionsFile } from "../contribution.js";
 import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connection.js";

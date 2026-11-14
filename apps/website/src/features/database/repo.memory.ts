@@ -1,7 +1,7 @@
 import type { LedgerReadPort, LedgerRow } from "./timeline.js";
-import type { CreateRestorePointRepoPort } from "../recovery/restore-points.js";
-import type { RestorePointListPort, RestorePointRecord } from "./restore-points.js";
-import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "./boot/reconcile-interrupted-migration.js";
+import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
+import type { RestorePointListPort, RestorePointRecord } from "@jini-ai/db/tools";
+import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration, SchemaStateSummary } from "./adapter.sqlite.js";
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
-import type { ToolAttemptAuditSink } from "../../features/tool-audit/types.js";
+import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import {
   appendToolCatalogAttempt,
   describeToolAuditDetail,

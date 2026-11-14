@@ -5,7 +5,7 @@ import path from "node:path";
 import test, { after } from "node:test";
 
 import { loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";
-import { parsePluginCredentialCards } from "../../credential-cards.js";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { bundledContributionSources } from "../../bundled-contribution-sources.js";
 import { parseMailAdaptersFile } from "../../mail-adapter-registry.js";
 import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";

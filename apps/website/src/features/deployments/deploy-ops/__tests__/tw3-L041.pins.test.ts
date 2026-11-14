@@ -4,7 +4,7 @@ import { parseDeployOpsFile } from "../registry.js";
 import { boundContext, runDeploy, waitForDeployOps, MAX_RESPONSE_CHARS } from "../run-ops.js";
 import { runSetSecret, runUnsetSecret, type SecretConfirm } from "../secrets.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
-import type { DeployOpsModule, DeployOpsStatus, DeployOpsDeployResult, DeployOpsSecretRead } from "../types.js";
+import type { DeployOpsModule, DeployOpsStatus, DeployOpsDeployResult, DeployOpsSecretRead } from "@jini-ai/devops/deploy";
 import { fixture, execution } from "./example-ops-fixture.js";
 
 const entry = { id: "example", label: "Example", module: "ops/main.mjs", hosts: ["api.example.test"] };

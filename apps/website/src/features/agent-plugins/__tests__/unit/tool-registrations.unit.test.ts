@@ -45,7 +45,7 @@ import {
 } from "../../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { UNTESTED_PLUGIN_GUIDANCE } from "../../identity.js";
+import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { composedBundledSourceRoot, selectedPluginSourceRoot } from "../fixtures/bundled-source-root.js";
 
 // The shipped bundle (Tovu's content plugins plus every selected package; supabase ships as

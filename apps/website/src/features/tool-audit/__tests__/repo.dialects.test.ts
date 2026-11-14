@@ -6,7 +6,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { MAX_VISITOR_ROWS_PER_WORKSPACE, SqlToolAttemptAuditSink } from "../repo.js";
 import { createInMemoryToolAttemptAuditSink } from "../repo.memory.js";
-import type { ToolAttemptEvent } from "../types.js";
+import type { ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 
 /** @file The tool-attempt audit sink's one Kysely body on SQLite and PGlite (storage plan §4). */
 

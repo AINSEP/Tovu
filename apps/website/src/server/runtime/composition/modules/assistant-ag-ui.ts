@@ -65,7 +65,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { AgentRunStatus } from "#src/platform/observability/index";
-import { redactedError } from "#src/platform/observability/report-error";
+import { redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";

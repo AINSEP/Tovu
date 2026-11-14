@@ -46,7 +46,7 @@ import { InternalError } from "./errors.js";
  *   `_plugin_migrations` (12), the comments plugin's comment and moderation-log tables, five
  *   `p_newsletter__*` (one holding a real list), `p_store__orders` and `p_store__products` (3 real
  *   products). None is declared in `schema.sqlite.ts` because none is created by a MIGRATION: they are
- *   raw SQL written at plugin-install time by `features/plugins/data-module.ts` (`p_{pluginId}__`
+ *   raw SQL written at plugin-install time by `@jini-ai/db/data-modules` (`p_{pluginId}__`
  *   tables plus `_plugin_migrations`), `plugin-identity.ts` and `migration-journal.ts`. Duplicating
  *   a client site with a store and a newsletter therefore produced a copy with zero products, zero
  *   orders and zero subscribers, a re-mintable plugin identity, and no DDL timeline —
@@ -115,7 +115,7 @@ import { InternalError } from "./errors.js";
  * `ai_chat_messages` and `assistant_agent_sessions`, both purged here themselves and both
  * `ON DELETE CASCADE`. Nothing kept can reference a purged row — Drizzle cannot declare a foreign
  * key to a table it has no `sqliteTable` representation for, and the plugin `dataModule` seam has
- * no foreign-key grammar at all (`features/plugins/data-module.ts`'s `IndexDecl` doc: referential
+ * no foreign-key grammar at all (`@jini-ai/db/data-modules`'s `IndexDecl` doc: referential
  * integrity there is "chokepoint-validated, not FK-enforced (v1)").
  *
  * @complexity O(k) SQL statements for k = {@link CHAT_TABLE_NAMES}'s length — a fixed three, never

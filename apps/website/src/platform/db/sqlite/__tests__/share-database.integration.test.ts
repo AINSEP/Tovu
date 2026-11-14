@@ -7,7 +7,7 @@ import Database from "better-sqlite3";
 import { SITE_CONSENT_DEFAULTS } from "#src/features/consent/config";
 import { computeBlobStorageKey, MediaValidationError } from "#src/features/media/index";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
-import { declareDataModule, type DataModuleDecl } from "#src/features/plugins/data-module";
+import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
 import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-manifest";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { listColumns, listTables } from "../../kernel/dialect.js";

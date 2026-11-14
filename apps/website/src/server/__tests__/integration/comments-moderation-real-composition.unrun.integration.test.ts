@@ -143,7 +143,7 @@ for (const dialect of SITE_DIALECTS) {
     // which body lands on which page.
     const first = await queue(site, "?limit=2");
     assert.equal(first.items.length, 2);
-    // The cursor is `${createdAt}::${id}` of the last row (platform/db/keyset-cursor.ts).
+    // The cursor is `${createdAt}::${id}` of the last row (@jini-ai/cms/core).
     assert.ok(first.nextCursor?.endsWith(`::${first.items[1].id}`), String(first.nextCursor));
     const second = await queue(site, `?limit=2&cursor=${encodeURIComponent(first.nextCursor ?? "")}`);
     assert.equal(second.items.length, 1);

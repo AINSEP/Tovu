@@ -1,7 +1,7 @@
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { createTovuAgentPluginLifecycle } from "./lifecycle.js";
 import { planAgentPluginUpdate, AgentPluginUpdateError, type AgentPluginMcpProvisioningPort } from "@jini-ai/agent-plugins/lifecycle";
-import { readInstalledAgentPluginIdentity } from "./identity.js";
+import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import type { PluginHostPort } from "../../contracts/headless/index.js";
 /**
  * @file `installUploadedAgentPlugin()` — the admin "Add a plugin" upload: one operator-supplied

@@ -4,6 +4,6 @@ import { NEWSLETTER_DATA_MODULE } from "../../../features/newsletter/data-module
 import { COMMENTS_DATA_MODULE } from "../../../features/comments/types.js";
 import { STORE_MANIFEST } from "../../../features/plugins/store/manifest.js";
 import { LIPAY_MANIFEST } from "../../../features/plugins/lipay/manifest.js";
-import type { DataModuleDecl } from "../../../features/plugins/data-module.js";
+import type { DataModuleDecl } from "@jini-ai/db/data-modules";
 
 export const FIRST_PARTY_DATA_MODULES: readonly DataModuleDecl[] = [STORE_MANIFEST, LIPAY_MANIFEST, NEWSLETTER_DATA_MODULE, COMMENTS_DATA_MODULE];

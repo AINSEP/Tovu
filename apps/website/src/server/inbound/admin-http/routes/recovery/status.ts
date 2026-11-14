@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/s
 import type { Express } from "express";
 
 import { isOperationInFlight } from "#src/contracts/core/operation-lock";
-import { resolveDegradedBanner } from "#src/features/recovery/ui/degraded-banners";
+import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 

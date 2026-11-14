@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createEarlySessionCapture, sessionIdFromRunEvent } from "../early-run-session.js";
 import { verifyAttemptChildDead } from "../attempt-process-identity.js";
-import type { DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 
 for (const [agentId, sessionId] of [["codex", "thread-123"], ["opencode", "session-456"]]) {

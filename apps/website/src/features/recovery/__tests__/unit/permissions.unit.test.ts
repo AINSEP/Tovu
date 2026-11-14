@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { confirmRestore, executeRestore } from "../../recovery-orchestrator.js";
-import { createRestorePoint } from "../../restore-points.js";
+import { createRestorePoint } from "@jini-ai/db/recovery/restore-point-create";
 import { buildRecoveryRegistrations } from "../../tool-registrations.js";
 import { buildRestoreHooks, toRecoveryResult } from "../../gated-hooks.js";
 import { confirm, execute } from "../../../../contracts/core/gated-mutations/gateway.js";

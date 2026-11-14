@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
-import { redactedError, reportErrorOnce, runWithErrorReportScope, type ErrorReportScope } from "../../report-error.js";
+import { redactedError, reportErrorOnce, runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 
 /** @file `reportErrorOnce`: one redacted report per error object, marking the current request scope. */
 

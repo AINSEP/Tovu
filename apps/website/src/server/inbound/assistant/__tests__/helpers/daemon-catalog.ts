@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import type { ToolRegistry } from "@jini-ai/core";
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
-import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";
+import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";
 

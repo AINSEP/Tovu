@@ -22,7 +22,8 @@
  * dependency-cruiser permits to import `src/platform/db/**` directly.
  */
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
+// Shared phases/events/append contract belong to the daemon; Tovu owns durable storage adapters.
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 
 /**
  * Per-workspace row cap.

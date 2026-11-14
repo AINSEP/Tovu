@@ -1,5 +1,5 @@
 import { createMailCatalog, type MailProviderCatalog } from "@jini-ai/agent-plugins/lifecycle/mail";
-import { createProviderMailer as createEngineProviderMailer } from "@jini-ai/platform/mail";
+import { createProviderMailer as createEngineProviderMailer, defaultMailProviderSetup } from "@jini-ai/platform/mail";
 import type { UUID } from "@jini-ai/core/primitives";
 import {
   createConsoleMailProvider,
@@ -16,7 +16,6 @@ import {
 } from "#src/features/custom-credentials/index";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
-import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";
 import type { MailProviderSetup } from "#src/platform/mail/index";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {

@@ -13,7 +13,7 @@ import { createIssuedTokenMemories, type LoadedAgentPluginTool, type AgentPlugin
 import type { AuthorizeFn } from '../../../../contracts/core/commands/index.js';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
-import type { AgentPluginConnectionAccess, AgentPluginConnectionTarget } from '../host-capabilities.js';
+import type { AgentPluginConnectionAccess, AgentPluginConnectionTarget } from '@jini-ai/agent-plugins/connect/executable';
 
 export const WORKSPACE = 'ws-1';
 export const PLUGIN = 'acme-office';

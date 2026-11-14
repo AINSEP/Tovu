@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AgentEvent } from "@jini-ai/chat/core";
-import { createDurableRecovery, EXHAUSTED_NOTICE, SAVED_WORK_NOTICE } from "../recover.js";
 import { CONCURRENT_RUN_REFUSAL_MESSAGE } from "../../agent-session-preset.js";
 import { createRunAcceptance } from "../accept.js";
-import { hasUnknownToolCall, UNKNOWN_MUTATION_ERROR } from "../continuation.js";
-import type { DurableRun, DurableRunStore, RecoveryPorts, RunProbe } from "../ports.js";
+import { hasUnknownToolCall, UNKNOWN_MUTATION_ERROR, createDurableRecovery, EXHAUSTED_NOTICE, SAVED_WORK_NOTICE } from "@jini-ai/chat/server/durable-runs";
+import type { DurableRun, DurableRunStore, RecoveryPorts, RunProbe } from "@jini-ai/chat/server/durable-runs";
 
 import { INCIDENT_PARTIAL } from "./incident.fixture.js";
 const TIME = 1_790_000_000_000;

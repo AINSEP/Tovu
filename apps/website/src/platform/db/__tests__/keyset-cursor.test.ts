@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { decodeKeysetCursor, encodeKeysetCursor } from "../keyset-cursor.js";
+import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/cms/core";
 
 /** @file The shared `${createdAt}::${id}` keyset cursor: a round trip, and every malformed shape refused. */
 

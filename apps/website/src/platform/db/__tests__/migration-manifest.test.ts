@@ -16,7 +16,7 @@ import ts from "typescript";
 import { getTableConfig, integer, real, sqliteTable } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
-import type { ColumnDecl } from "#src/features/plugins/data-module";
+import type { ColumnDecl } from "@jini-ai/db/data-modules";
 import {
   assertIdentifierFits,
   classifyAllCoreColumns,

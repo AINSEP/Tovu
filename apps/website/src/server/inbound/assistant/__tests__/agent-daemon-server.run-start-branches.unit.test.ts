@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";
-import type { DurableRun, DurableRunStore } from "#src/assistant/durable-runs/ports";
+import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import { CONCURRENT_RUN_REFUSAL_MESSAGE, createLiveRunTracker } from "../../../../assistant/agent-session-preset.js";
 import { captureDaemonRun } from "./helpers/daemon-source.js";

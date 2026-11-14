@@ -89,7 +89,7 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
 import type { AgentRunStatus } from "#src/platform/observability/index";
-import { redactedError } from "#src/platform/observability/report-error";
+import { redactedError } from "@jini-ai/diagnostics/observability/node";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";

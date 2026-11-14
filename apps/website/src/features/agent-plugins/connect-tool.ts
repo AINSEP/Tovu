@@ -18,7 +18,6 @@ import { readInstalledMcpServers, classifyAgentPluginMcpServerTrust } from "./ca
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "./lifecycle.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins, readTrustedPluginFile } from "./lifecycle.js";
-import { parsePluginCredentialCards } from "./credential-cards.js";
 import { isAgentPluginEnabled } from './activation-effects.js';
 import type { McpServerConfig } from "./mcp-metadata.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
@@ -27,6 +26,7 @@ import {
   agentPluginConnectAgentToolCatalogFor, agentPluginConnectDerivedRiskFor,
   type AgentPluginConnectDeps, type AgentPluginConnectHost, type AgentPluginConnectMessages, type AgentPluginConnectOptions, type AgentPluginConnectResult,
   type ResolvedAgentPluginForConnect,
+  parsePluginCredentialCards,
 } from "@jini-ai/agent-plugins/connect";
 export type { AgentPluginConnectOptions, AgentPluginConnectResult, ResolvedAgentPluginForConnect, AgentPluginConnectDeps, AgentPluginConnectHost, AgentPluginConnectMessages } from "@jini-ai/agent-plugins/connect";
 

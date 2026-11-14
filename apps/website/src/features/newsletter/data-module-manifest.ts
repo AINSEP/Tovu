@@ -2,7 +2,7 @@
  * @file Newsletter's `DataModuleDecl` for the 5 relational `p_newsletter__*` tables (ADR-PIPE-011
  * Decision §2/§3; state.spec.md §2).
  *
- * `declareDataModule()` (`src/features/plugins/data-module.ts`) now implements ADR-023's full
+ * `declareDataModule()` (`@jini-ai/db/data-modules`) now implements ADR-023's full
  * accepted T1-T8 safety mechanics (SPEC-032, 2026-07-16) — exclusive-lock-guarded DDL, a durable
  * crash-recovery phase journal with mandatory boot-time restore, disk-headroom preflight, tier
  * gating, and the namespace-adoption guard — closing the gap this comment used to warn about
@@ -18,7 +18,7 @@
  * `apps/website/src/features/plugins/store/manifest.ts` / `Jini packages/commerce/src/store/store-plugin.ts`'s `STORE_MANIFEST`/`activateStore` shape, which is
  * this repo's only other real caller of `declareDataModule()`.
  */
-import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "../plugins/index.js";
+import { type DataModuleDecl, type DataModuleStore, declareDataModule } from "@jini-ai/db/data-modules";
 
 export const NEWSLETTER_PLUGIN_ID = "newsletter";
 

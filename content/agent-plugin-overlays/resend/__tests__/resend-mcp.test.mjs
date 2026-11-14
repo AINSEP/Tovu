@@ -10,7 +10,7 @@ import { federatedCallConfirmationForAction } from "@jini-ai/mcp/federation";
 import { classifyAgentPluginMcpServerTrust } from "../../../../apps/website/src/features/agent-plugins/capability-projection.ts";
 import { planAgentPluginMcpFederation, provisionAgentPluginMcpServers } from "../../../../apps/website/src/features/agent-plugins/federate-mcp.ts";
 import { parseAgentPluginMcpConfig } from "../../../../apps/website/src/features/agent-plugins/mcp-metadata.ts";
-import { parsePluginCredentialCards } from "../../../../apps/website/src/features/agent-plugins/credential-cards.ts";
+import { parsePluginCredentialCards } from "@jini-ai/agent-plugins/connect";
 import { buildAgentPluginAccessTokenForm } from "../../../../apps/website/src/features/agent-plugins/connect-card-ui.ts";
 import { buildAgentPluginConnectRegistrations } from "../../../../apps/website/src/features/agent-plugins/tool-registrations.ts";
 import { saveAgentPluginToken } from "../../../../apps/website/src/features/agent-plugins/access-token-tool.ts";

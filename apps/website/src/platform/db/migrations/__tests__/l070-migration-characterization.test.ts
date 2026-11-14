@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
-import type { SchemaShape } from "../../kernel/schema-shape.js";
+import type { SchemaShape } from "@jini-ai/db/kernel";
 import { unifyVaultCredentials } from "../0013_unify_vault_credentials.js";
 import { compareShapes } from "../legacy-sqlite.js";
 import { vaultFixture, vaultStep } from "./secrets-vault.fixture.js";

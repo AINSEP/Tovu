@@ -1,6 +1,6 @@
 import { buildSiteProfile, toSiteProfileDeps, type SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import type { SiteFact } from "./contracts.js";
-import type { PluginMaturity } from "#src/features/agent-plugins/identity";
+import type { PluginMaturity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 
 /** Only read ports: live registries and host module status. No settings or credential values. */
 export interface SiteGuideFactsDeps extends SiteProfileSourceDeps {

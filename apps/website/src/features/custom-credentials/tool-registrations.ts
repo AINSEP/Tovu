@@ -50,8 +50,7 @@ import type { LoadSourceControlProviders } from "../source-control/provider-regi
 import { createCustomCredential, CustomCredentialNotFoundError, CustomCredentialSecretStoreUnconfiguredError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, resolveCustomCredentialByLabel, updateCustomCredential } from "./store.js";
 import type { CustomCredentialSetRepoPort } from "./types.js";
 import { validateWriteFilesInput } from "./write-files-validation.js";
-import type { CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts } from "./credential-tool-host.js";
-import type { CredentialToolOperations } from "./credential-tool-operations.js";
+import type { CustomCredentialSecretCards, CustomCredentialToolHost, CustomCredentialToolPorts, CredentialToolOperations } from "@jini-ai/integrations/credentialed-http/tools";
 import { tovuCredentialCardIdentity } from "./tovu-credential-card-identity.js";
 
 /**

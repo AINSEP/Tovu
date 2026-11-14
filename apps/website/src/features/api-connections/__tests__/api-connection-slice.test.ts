@@ -18,7 +18,7 @@ import express from "express";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
+import { deriveApiConnectionKey, CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "@jini-ai/integrations/api-connections";
 import type { OAuthHttpPorts } from "@jini-ai/oauth";
 
 import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
@@ -31,7 +31,6 @@ import { createOAuthFormDeliveryConnectionPort } from "../form-delivery-connecti
 import { createApiConnectionHost } from "../host.js";
 import { trackStartingBrowser, type StartingBrowser } from "./support/starting-browser.js";
 import { parseApiConnectionsFile } from "../contribution.js";
-import { CONNECTION_HOOK_UNDECLARED_ORIGIN_MESSAGE } from "../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "acme-office");

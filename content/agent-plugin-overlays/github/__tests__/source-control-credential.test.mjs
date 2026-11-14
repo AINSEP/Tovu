@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parseSourceControlProvidersFile, loadSourceControlProviderRegistryFromSource } from '../../../../apps/website/src/features/source-control/provider-registry.ts';
-import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import { parsePluginCredentialCards } from '@jini-ai/agent-plugins/connect';
 import { createSourceControlCredential, resolveDefaultForSourceControl } from '../../../../apps/website/src/features/source-control/store.ts';
 import { InMemorySourceControlCredentialSetRepo } from '../../../../apps/website/src/features/source-control/repo.memory.ts';
 import { InMemoryKeyring } from '../../../../apps/website/src/features/webhooks/keyring.memory.ts';

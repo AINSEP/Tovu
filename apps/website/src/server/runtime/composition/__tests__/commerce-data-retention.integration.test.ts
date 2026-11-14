@@ -16,7 +16,7 @@ import { workspaces, members, media } from "#src/platform/db/schema.sqlite";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { CONTENT_MIGRATIONS, runMigrations } from "#src/platform/db/migrations/index";
 import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "#src/platform/db/migrations/0011_drop_empty_core_commerce_tables";
-import { declareDataModule } from "#src/features/plugins/data-module";
+import { declareDataModule } from "@jini-ai/db/data-modules";
 import { LIPAY_MANIFEST } from "#src/features/plugins/lipay/manifest";
 import { STORE_MANIFEST } from "#src/features/plugins/store/manifest";
 import { buildBootModules } from "../../boot/bootstrap.js";

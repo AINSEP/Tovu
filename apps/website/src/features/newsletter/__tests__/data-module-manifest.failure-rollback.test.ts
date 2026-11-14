@@ -3,7 +3,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 /**
  * @file T010 🔴 REQUIRED, GATING (ADR-PIPE-011 Mitigations Required).
  *
- * `declareDataModule()` (`src/features/plugins/data-module.ts`) now implements ADR-023's full
+ * `declareDataModule()` (`@jini-ai/db/data-modules`) now implements ADR-023's full
  * accepted T1-T8 safety mechanics (SPEC-032) — this is no longer spike-quality code, though it
  * remains load-bearing for Newsletter's five real production tables and this test remains the
  * dedicated integration test forcing a mid-DDL failure against Newsletter's REAL 5-table manifest
@@ -25,7 +25,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule, type DataModuleDecl } from "../../plugins/data-module.js";
+import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
 import { installNewsletterDataModule, NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {

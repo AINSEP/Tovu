@@ -203,7 +203,7 @@ test("no stray -wal/-shm sidecar is left next to the finished copy", async () =>
  * read-only on 2026-09-06), so this fixture is the shape a real installed plugin actually leaves
  * behind rather than an invented approximation:
  *
- * - `_plugin_migrations` / `_plugin_identity` — `features/plugins/data-module.ts`'s `ensureJournal`
+ * - `_plugin_migrations` / `_plugin_identity` — `@jini-ai/db/data-modules`'s `ensureJournal`
  *   and `features/plugins/plugin-identity.ts`. Installed on every site that has ever installed a
  *   plugin; the owner's own site holds 12 and 3 rows respectively.
  * - `p_store__products` / `p_comments__comments` — one plugin's own business data, named

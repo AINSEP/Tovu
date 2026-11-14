@@ -7,7 +7,7 @@ import { sql } from "kysely";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { listTables } from "../../kernel/dialect.js";
 import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape, type SchemaShape } from "../../kernel/schema-shape.js";
+import { readSchemaShape, type SchemaShape } from "@jini-ai/db/kernel";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase, runMigrations } from "../index.js";
 import { LegacyHistoryError } from "../step.js";

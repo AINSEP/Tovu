@@ -8,7 +8,7 @@ import {
   RestorePointUnavailableError,
   ValidationError,
   type RestorePointCostClass,
-} from "#src/features/database/restore-points";
+} from "@jini-ai/db/tools";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
@@ -61,7 +61,7 @@ function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: numb
  * Pairs the narrow `findByIdempotencyKey` lookup with the same `list()` read the GET route already
  * serves, rather than widening `findByIdempotencyKey`'s own return shape — no change needed to
  * either concrete repo (`SqliteRestorePointsRepo`/`InMemoryRestorePointsRepo` already implement
- * both methods). Mirrors `features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup` for the
+ * both methods). Mirrors `@jini-ai/db/recovery/lookup-adapters`'s `RestorePointDeepLinkLookup` for the
  * identical accepted O(n) tradeoff (restore points are an operator-curated, low-volume list).
  *
  * Two concurrent requests sharing the same key can still both miss this lookup and both capture —

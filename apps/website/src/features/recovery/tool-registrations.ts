@@ -35,22 +35,22 @@ import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {
   MigrationRunsRepoPort,
   SiteStatusPort,
-} from "../database/boot/reconcile-interrupted-migration.js";
+} from "@jini-ai/db/recovery/reconcile-interrupted-migration";
 // `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
 // this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
 // sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
 // depends on Database, never the reverse" direction, not a new cross-domain edge.
 import type { LedgerAppendPort } from "../database/gated-hooks.js";
-import { listRestorePoints, type RestorePointListPort } from "../database/restore-points.js";
+import { listRestorePoints, type RestorePointListPort } from "@jini-ai/db/tools";
 import { recoveryAgentToolCatalog } from "./agent-tools.js";
 import {
   resolveDeepLinkContext,
   type DatabaseContextEnvelope,
   type DeepLinkRestorePointLookupPort,
-} from "./deep-link.js";
-import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure.js";
+} from "@jini-ai/db/recovery/deep-link";
+import { computeDisclosure, type DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import { confirmRestore, executeRestore, planRestore } from "./recovery-orchestrator.js";
-import { resolveDegradedBanner } from "./ui/degraded-banners.js";
+import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
@@ -91,7 +91,7 @@ export interface RecoveryToolDeps {
  * strongest of the guards: an unclassified id cannot be wired.
  */
 export const recoveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> listRestorePoints (features/database/restore-points.ts, the same repo Database's own list
+  // -> listRestorePoints (@jini-ai/db/tools, the same repo Database's own list
   //    tool reads): one read.
   ["backup_list_restore_points", "none"],
   // -> dbOps.getCapabilities(): pure, side-effect-free per its own doc comment.
@@ -405,7 +405,7 @@ export function buildRecoveryRegistrations(
  * `recoveryDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2).
  * Unlike `database` (tried and reverted earlier in this same batch — see
  * `features/database/tool-registrations.ts`'s trailing comment), Recovery's only imports of
- * `features/database` (`../database/boot/reconcile-interrupted-migration`, `../database/gated-hooks`)
+ * `features/database` (`@jini-ai/db/recovery/reconcile-interrupted-migration`, `../database/gated-hooks`)
  * are both `import type` — erased from the runtime-only graph `check:architecture` uses for module
  * cycles/SCC — so this domain does not carry `database`'s `db`-hub round-trip risk.
  */

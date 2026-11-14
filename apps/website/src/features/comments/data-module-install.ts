@@ -5,7 +5,7 @@
  * root, via the ADR-046 Phase 2 boot lifecycle) surfaces it as a startup failure rather than
  * silently continuing with missing tables.
  */
-import { declareDataModule, type DataModuleStore } from "../plugins/index.js";
+import { declareDataModule, type DataModuleStore } from "@jini-ai/db/data-modules";
 import { COMMENTS_DATA_MODULE } from "./types.js";
 
 export async function installCommentsDataModule(

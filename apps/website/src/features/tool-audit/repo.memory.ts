@@ -5,7 +5,7 @@
  * Architectural role:
  * `features/tool-audit` adapter. Depends only on this package's own `types.ts`.
  */
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "@jini-ai/daemon/tool-audit";
 
 export interface InMemoryToolAttemptAuditSink extends ToolAttemptAuditSink {
   /** Most recent retained events, in append order. Test-only read surface. */

@@ -23,7 +23,7 @@ import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js
 import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,
-} from "../../features/recovery/repo.memory.js";
+} from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps } from "../../contracts/core/gated-mutations/composition.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type DeliverResult } from "@jini-ai/daemon/surface-exchanges";
 import {

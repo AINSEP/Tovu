@@ -35,7 +35,7 @@ describe("skill-aware attachment routing", () => {
   });
 
   it.each(["tovu.plugin.json", "plugin.json", "README.md"])("uploads %s ZIPs as ordinary attachments, preserving options", async manifest => {
-    const { zipFolderFiles } = await import("../../InstallTabCard/folder-zip");
+    const { zipFolderFiles } = await import("@jini-ai/agent-plugins/folder-zip");
     const zip = await zipFolderFiles({ files: [new File(["{}"], manifest)], maxBytes: 1024 * 1024 });
     const attachments = [{ name: zip.name, path: "attachment:plugin123", kind: "file" as const }];
     const uploadAttachments = vi.fn(async () => attachments), proposeFiles = vi.fn(async () => {});
@@ -47,7 +47,7 @@ describe("skill-aware attachment routing", () => {
   });
 
   it("proposes a real skill ZIP and uploads other files in the same selection", async () => {
-    const { zipFolderFiles } = await import("../../InstallTabCard/folder-zip");
+    const { zipFolderFiles } = await import("@jini-ai/agent-plugins/folder-zip");
     const zip = await zipFolderFiles({ files: [new File(["skill"], "SKILL.md")], maxBytes: 1024 * 1024 });
     const note = new File(["note"], "note.txt");
     const uploadAttachments = vi.fn(async () => []), proposeFiles = vi.fn(async () => {});

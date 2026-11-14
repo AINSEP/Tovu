@@ -8,7 +8,7 @@ import {
   executeMigrateForward,
   MigrationAlreadyInFlightError,
   RestorePointUnavailableError,
-} from "#src/features/database/migrate-forward/execute";
+} from "@jini-ai/db/recovery/migrate-forward-execute";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

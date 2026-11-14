@@ -3,7 +3,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FOLDER_EMPTY } from "../folder-zip";
+import { FOLDER_EMPTY } from "@jini-ai/agent-plugins/folder-zip";
 import { FOLDER_TOO_MANY, useFolderUpload, type PickedFolderInput } from "../use-folder-upload.hooks";
 
 function picked(path: string, content = "x"): File {

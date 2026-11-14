@@ -7,7 +7,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { ComingSoonPanel } from "../../components/ComingSoonPanel";
+import { ComingSoonPanel } from "@jini-ai/ui/admin-widgets";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
 import { AlwaysAllowPanel } from "./AlwaysAllowPanel";
 import { Integrations } from "../integrations/Integrations";

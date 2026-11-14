@@ -2009,7 +2009,7 @@ export interface AdminSchemaState {
   runtime: AdminSchemaSnapshot | null;
 }
 
-/** Recovery (ADR-045) — mirrors `features/recovery/disclosure.ts`'s `DisclosureResult`. */
+/** Recovery (ADR-045) — mirrors `@jini-ai/db/recovery/disclosure`'s `DisclosureResult`. */
 export type CategoryCount = number | "unknown";
 
 export interface AdminDisclosureResult {

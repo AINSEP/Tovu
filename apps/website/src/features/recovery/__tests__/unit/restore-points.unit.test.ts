@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { type CreateRestorePointRepoPort, createRestorePoint } from "../../restore-points.js";
+import { type CreateRestorePointRepoPort, createRestorePoint } from "@jini-ai/db/recovery/restore-point-create";
 
 /**
  * @file REQ-05 (SPEC-019) — `createRestorePoint` as an ordinary `authorize()`-gated mutation,

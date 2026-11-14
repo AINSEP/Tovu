@@ -6,9 +6,9 @@ import { formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
-import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
-import type { CreateRestorePointRepoPort } from "#src/features/recovery/restore-points";
-import { decodeKeysetCursor, encodeKeysetCursor } from "../keyset-cursor.js";
+import type { BootLedgerPort, MigrationRunsRepoPort } from "@jini-ai/db/recovery/reconcile-interrupted-migration";
+import type { CreateRestorePointRepoPort } from "@jini-ai/db/recovery/restore-point-create";
+import { decodeKeysetCursor, encodeKeysetCursor } from "@jini-ai/cms/core";
 import { MIGRATION_RUN_TERMINAL_STATUSES } from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
 import type { JournalDatabase } from "../journal-kernel.js";

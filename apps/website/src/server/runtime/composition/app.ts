@@ -276,7 +276,7 @@ import {
   SqliteTermRepo,
 } from "#src/features/taxonomy/repo.sqlite";
 import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
-import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";

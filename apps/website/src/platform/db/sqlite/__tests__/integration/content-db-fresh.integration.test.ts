@@ -7,7 +7,7 @@ import test from "node:test";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { sqliteKernel } from "../../../kernel/drivers/sqlite.js";
-import { readSchemaShape } from "../../../kernel/schema-shape.js";
+import { readSchemaShape } from "@jini-ai/db/kernel";
 import { collectCoreTables } from "../../../migration/manifest.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../../../migrations/index.js";
 import { media, workspaces } from "../../../schema.sqlite.js";

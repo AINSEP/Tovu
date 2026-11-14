@@ -3,7 +3,7 @@
  *  are refused before anything is uploaded. */
 import { describe, expect, it } from "vitest";
 
-import { crc32, FOLDER_MAX_FILES, FolderZipError, zipFolderFiles } from "../InstallTabCard/folder-zip";
+import { crc32, FOLDER_MAX_FILES, FolderZipError, zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 
 function picked(path: string, content: BlobPart): File {
   const file = new File([content], path.split("/").pop()!);
