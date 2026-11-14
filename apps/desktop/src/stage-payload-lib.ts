@@ -675,7 +675,7 @@ function countFiles(dir: string): number {
  * bundle loaded by a `<script>` tag, not an app with client-side routing (`app.ts:1336-1338`).
  * Asserting the wrong marker would have hard-failed staging on a perfectly good build.
  */
-export const STAGED_SHELLS: (StalenessShell & { sourceDirs?: string[]; sourceFiles?: string[] })[] = [
+export const STAGED_SHELLS: (StalenessShell & { sourceDirs?: string[]; sourceFiles?: string[]; requiredFiles?: string[]; missingMeans?: string })[] = [
   {
     relative: path.join("apps", "admin", "dist"),
     marker: "index.html",
@@ -691,7 +691,14 @@ export const STAGED_SHELLS: (StalenessShell & { sourceDirs?: string[]; sourceFil
   {
     relative: path.join("apps", "site-chat", "dist"),
     marker: "site-assistant.js",
-    buildWith: "cd apps/site-chat && npx vite build",
+    // Three vite configs make this dist (main widget, lazy loader, vanilla widget); a bare
+    // `npx vite build` runs only the first. `build:local` runs all three without the
+    // linked-Jini guard (see the admin entry's note), and `requiredFiles` refuses a partial build:
+    // the page renderer (site-chat-markup.ts) needs loader + widget js + css or emits no bubble.
+    // Desktop 0.1.31 shipped exactly that partial build (2026-11-13).
+    buildWith: "cd apps/site-chat && npm run build:local",
+    requiredFiles: ["site-assistant.css", "site-assistant-loader.js", "site-assistant-vanilla.js", "site-assistant-vanilla.css"],
+    missingMeans: "no site would show its chat bubble",
     sourceDirs: [path.join("apps", "site-chat", "src")],
     sourceFiles: [path.join("apps", "site-chat", PACKAGE_JSON)],
   },

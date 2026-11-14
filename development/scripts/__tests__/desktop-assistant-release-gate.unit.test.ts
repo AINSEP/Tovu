@@ -32,3 +32,13 @@ test('the autonomous release chain stops at a draft without adding a prerelease 
   assert.match(commands, /gh release create .*--draft/);
   assert.doesNotMatch(commands, /--prerelease|--latest=false|gh release edit/);
 });
+
+// 2026-11-13: a bare `npx vite build` in apps/site-chat runs only the main config and ships no
+// site-assistant-loader.js or vanilla bundle, so packaged sites showed no chat bubble.
+test('every site-chat build in the release workflow runs the full npm build (all three vite configs)', () => {
+  const lines = Object.values(workflow.jobs).flatMap((job: any) => job.steps ?? [])
+    .flatMap((step: any) => String(step.run ?? '').split('\n'))
+    .filter((line: string) => line.includes('apps/site-chat'));
+  assert.ok(lines.length >= 3, 'expected the gate, matrix and Windows builds to build site-chat');
+  for (const line of lines) assert.match(line, /\(cd apps\/site-chat && npm ci && npm run build\)/, line);
+});
