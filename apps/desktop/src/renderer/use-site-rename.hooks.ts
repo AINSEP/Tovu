@@ -13,7 +13,7 @@
  * stacking, which is also what the operator means by clicking it.
  *
  * `canSubmitRename`, `renameSubmission`, and `describeRenameFailure` are pulled out as plain
- * functions — same reason `folder-drop.ts` was pulled out of `App.hooks.ts`: this package has no
+ * functions: this package has no
  * React renderer at all (no jsdom, no testing-library, no react-test-renderer), so a decision left
  * inside `useSiteRename`'s body is untestable without one. Each takes exactly what it needs as an
  * argument rather than closing over hook state, so `submitRename` below is reduced to calling them

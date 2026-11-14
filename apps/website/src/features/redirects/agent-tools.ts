@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { MAX_IMPORT_BATCH_SIZE, MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "@jini-ai/cms/redirects";
 import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES } from "@jini-ai/cms/redirects";
 
@@ -46,20 +47,14 @@ const MANAGE_REDIRECTS_PERMISSION = "admin.redirects.manage" as const;
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  /**
-   * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
-   * tool lacking one). Optional, matching `features/database/agent-tools.ts`'s convention for a
-   * domain entry that IS deliberately excluded and so carries no schema at all — every entry in
-   * this domain's own catalog is wired, so every entry here declares one.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
+ * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+ * tool lacking one). Optional, matching `features/database/agent-tools.ts`'s convention for a
+ * domain entry that IS deliberately excluded and so carries no schema at all — every entry in
+ * this domain's own catalog is wired, so every entry here declares one.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 const REDIRECT_ID_PROPERTY = {
   type: "string",

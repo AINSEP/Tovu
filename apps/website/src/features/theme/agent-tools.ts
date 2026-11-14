@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state";
@@ -94,19 +95,13 @@ const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  /**
-   * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
-   * tool lacking one). Optional to match the shared structural type; every entry in THIS catalog
-   * carries one, because every entry in this catalog is wired.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
+ * (`Jini packages/core/src/registration-kit.ts`'s `buildDomainRegistrations`, which refuses to wire any
+ * tool lacking one). Optional to match the shared structural type; every entry in THIS catalog
+ * carries one, because every entry in this catalog is wired.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /**
  * The permission gating reads in this domain. Reused rather than invented: `theme.set` is what

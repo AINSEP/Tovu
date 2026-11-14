@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file SPEC-019 C-307 / REQ-23-REQ-25 / INV-06 — Recovery's agent-tool catalog (ADR-045
  * "Rejected alternatives": "Letting an agent hold a direct restore lever" — rejected, ADR-041 §6).
@@ -35,21 +36,14 @@ const BACKUP_READ_PERMISSION = "backup.read" as const;
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
+export type { AgentToolActorClassRule } from "@jini-ai/core";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Optional,
-   * matching `Jini packages/cms/src/content-types/agent-tools.ts`'s convention.
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Optional,
+ * matching `Jini packages/cms/src/content-types/agent-tools.ts`'s convention.
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** No arguments — shared by every parameterless read tool in this catalog. */
 const NO_INPUT_SCHEMA = {

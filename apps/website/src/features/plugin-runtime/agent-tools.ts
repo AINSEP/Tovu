@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file SPEC-005 (ADR-005-ARCH) — the Plugins domain's agent-tool catalog, instantiating SPEC-016
  * REQ-22's naming/callability convention (the same shape `forms/agent-tools.ts`,
@@ -105,22 +106,15 @@
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
-export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
+export type { AgentToolActorClassRule } from "@jini-ai/core";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Required, not
-   * optional — both entries in this catalog are wired, so there is no unwired entry whose input
-   * shape is undesigned (mirrors `Jini packages/user-management/src/server/agent-tools.ts`'s reasoning for the same choice).
-   */
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one). Required, not
+ * optional — both entries in this catalog are wired, so there is no unwired entry whose input
+ * shape is undesigned (mirrors `Jini packages/user-management/src/server/agent-tools.ts`'s reasoning for the same choice).
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; inputSchema: Readonly<Record<string, unknown>> };
 
 /** No arguments — `content_read.plugin` takes none. */
 const NO_INPUT_SCHEMA = {

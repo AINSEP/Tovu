@@ -1,5 +1,5 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, optionalNumber, requireInputRecord, requireString, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildComponentCatalogQuery } from "./component-catalog-query.js";
 
@@ -52,14 +52,6 @@ export const DESCRIBE_COMPONENT_TOOL_ID = "describe_component";
  *  documented one from silently drifting apart. */
 const SEARCH_LIMIT_MAX = 25;
 const SEARCH_LIMIT_DEFAULT = 10;
-
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 /** Descriptions and schemas deliberately match `@jini-ai/mcp`'s `component-catalog-tools.ts` word
  *  for word: a model that has learned either surface's contract must not have to relearn a second

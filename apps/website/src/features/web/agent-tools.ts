@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { DEFAULT_MAX_CHARS, MAX_MAX_CHARS, MAX_URL_LENGTH, WEB_FETCH_FORMATS } from "./web-page.js";
 
 /**
@@ -12,13 +13,7 @@ import { DEFAULT_MAX_CHARS, MAX_MAX_CHARS, MAX_URL_LENGTH, WEB_FETCH_FORMATS } f
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** Visibility floor and gate: any admin who may use the assistant may read public pages through it.
  *  Reused rather than invented — what `site_describe_capabilities` and `assistant_admin_screen_link` use. */

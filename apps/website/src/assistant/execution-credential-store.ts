@@ -1,9 +1,9 @@
 import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
 import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
-import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
-import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "./assistant-vault.js";
-import { credentialViewFields, credentialWriteFields } from './credential-store-fields.js';
+import type { CredentialTokenHint } from "../contracts/core/credential-token.js";
+import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault, writeAssistantVault } from "./assistant-vault.js";
+import { credentialViewFields } from './credential-store-fields.js';
 
 /** The admin session principal owns this feature contract. Jini owns vault persistence and
  * JSON sealing. Omitted keys preserve envelopes; clearing retains settings. Legacy AAD is opened
@@ -149,21 +149,15 @@ function assertValidSetExecutionCredentialInput(input: SetExecutionCredentialInp
  * @complexity Constant singleton/identity reads and one CAS write, O(payload size) sealing. */
 export async function setExecutionCredential(deps: ExecutionCredentialWriteDeps, input: SetExecutionCredentialInput): Promise<AdminExecutionCredentialView> {
   assertValidSetExecutionCredentialInput(input);
-  const repo = assistantVaultRepo({ repo: deps.repo });
-  const context = assistantVaultContext({ ...input, kind: "personal-execution" });
-  const existing = await repo.findOne!(context);
-  const vault = createAssistantVault({ ...deps, repo, context }, { onSealFailure: error => {
-    throw new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${error instanceof Error ? error.message : String(error)}`);
-  } });
-  const prepared = await vault.prepare({ ...context, ...credentialWriteFields({ existing, apiKey: input.apiKey }),
-    provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
-    meta: { ...existing?.meta, ...executionMetadata({ input, meta: existing?.meta ?? {} }) },
+  const { record, tokenHint } = await writeAssistantVault({
+    deps, context: assistantVaultContext({ ...input, kind: "personal-execution" }), apiKey: input.apiKey,
+    unconfigured: ({ detail }) => new ExecutionCredentialSecretStoreUnconfiguredError(`admin execution credential secret store is unconfigured: ${detail}`),
+    settings: ({ existing }) => ({
+      provider: input.providerId !== undefined ? input.providerId : existing?.provider ?? null,
+      meta: { ...existing?.meta, ...executionMetadata({ input, meta: existing?.meta ?? {} }) },
+    }),
   });
-  const saved = await repo.put({ record: prepared, expectedRevision: existing?.revision ?? null });
-  let tokenHint: CredentialTokenHint | null;
-  if (input.apiKey !== undefined) tokenHint = credentialTokenHint({ token: input.apiKey });
-  else tokenHint = (await readAssistantVault({ repo, context, sealer: deps.sealer }, { record: saved })).tokenHint;
-  return toView({ record: saved, tokenHint });
+  return toView({ record, tokenHint });
 }
 
 /** Clears the envelope through the compatibility port; settings and scope remain intact. */

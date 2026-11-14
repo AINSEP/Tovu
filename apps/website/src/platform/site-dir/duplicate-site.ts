@@ -7,7 +7,7 @@ import path from "node:path";
 import { duplicateContentDb } from "./duplicate-content-db.js";
 import { duplicatePgliteStore } from "./duplicate-pglite-store.js";
 import { InternalError, SiteDirInvalidError, ValidationError } from "./errors.js";
-import { cleanupAndRethrow, resolveSiteName, validateInitTarget } from "./init-site.js";
+import { cleanupFailedSite, externalContentDbDir, resolveSiteName, validateInitTarget, type SiteCreateProgress } from "./init-site.js";
 import {
   CHAT_ATTACHMENTS_ENTRY_NAME,
   isPortableSiteEntry,
@@ -204,8 +204,8 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
   const siteId = randomUUID(); // NEW identity — never copied from sourceMeta.siteId.
   const createdAt = new Date().toISOString();
   const paths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
-  const externalDbDir = storage.kind === "sqlite" && !paths.contentDbPath.startsWith(target + path.sep) ? path.dirname(paths.contentDbPath) : undefined;
-  const progress: DuplicateProgress = { wroteAnything: false, createdExternalDbDir: false };
+  const externalDbDir = externalContentDbDir({ target, storage, contentDbPath: paths.contentDbPath });
+  const progress: SiteCreateProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
     writeDuplicateFolder({ source, target, resolvedName, sourceConfig, progress });
@@ -218,18 +218,11 @@ export async function duplicateSite(required: DuplicateSiteRequired, { workspace
 
     return { siteId, dir: target };
   } catch (err) {
-    if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
-    return cleanupAndRethrow({ err, target, wroteAnything: progress.wroteAnything });
+    return cleanupFailedSite({ err, target, externalDbDir, progress });
   }
 }
 
 type DuplicableStorage = Exclude<SiteStorage, { kind: "postgres" }>;
-
-/** CIC U-003 cleanup facts for a duplicate (see `initSite`'s own cleanup design). */
-interface DuplicateProgress {
-  wroteAnything: boolean;
-  createdExternalDbDir: boolean;
-}
 
 /** @throws {ValidationError} a source stored on Postgres — nothing created. */
 function duplicableStorage(stored: SiteMetaJson["storage"]): DuplicableStorage {
@@ -249,7 +242,7 @@ function duplicableStorage(stored: SiteMetaJson["storage"]): DuplicableStorage {
 /** Write portable entries and the new site's config, preserving its source timezone.
  * Raises `progress.wroteAnything` before each write. @complexity O(source bytes) time, O(1) extra space. */
 function writeDuplicateFolder({ source, target, resolvedName, sourceConfig, progress }: {
-  source: string; target: string; resolvedName: string; sourceConfig: ConfigJson; progress: DuplicateProgress;
+  source: string; target: string; resolvedName: string; sourceConfig: ConfigJson; progress: SiteCreateProgress;
 }, _options = {}): void {
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target);
@@ -293,7 +286,7 @@ function writeDuplicateFolder({ source, target, resolvedName, sourceConfig, prog
  */
 async function copySiteDatabase(
   { source, target, storage, contentDbPath, externalDbDir, workspace }: { source: string; target: string; storage: DuplicableStorage; contentDbPath: string; externalDbDir: string | undefined; workspace: SitesWorkspace },
-  progress: DuplicateProgress,
+  progress: SiteCreateProgress,
 ): Promise<void> {
   if (storage.kind === "pglite") {
     // Same outcome on PGlite: a consistent dump of the data dir, AI chat emptied, title pin reset.

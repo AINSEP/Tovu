@@ -5,7 +5,7 @@
  * `use-workspace-chat-pane.hooks.render.test.ts` and `WorkspaceChatPane.render.test.ts`; the last
  * test here is a source-text guard that the component holds no React state of its own.
  *
- * Drop events use the same plain-object stand-ins `folder-drop.test.ts` uses: nothing under test
+ * Drop events use plain-object stand-ins: nothing under test
  * reads a real DOM property, only `kind`, `webkitGetAsEntry`, `isDirectory`, `items` and `files`.
  */
 import assert from 'node:assert/strict';

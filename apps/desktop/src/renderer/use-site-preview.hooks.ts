@@ -12,8 +12,7 @@
  * exactly that case. React's dependency-array comparison (`Object.is`) already does the right thing
  * here for free; the only discipline this file owes is not "improving" it into a `>` comparison.
  *
- * `previewFetchPlan` and `nextPreviewUrl` are pulled out as plain functions — same reason
- * `folder-drop.ts` was pulled out of `App.hooks.ts`: this package has no React renderer at all (no
+ * `previewFetchPlan` and `nextPreviewUrl` are pulled out as plain functions: this package has no React renderer at all (no
  * jsdom, no testing-library, no react-test-renderer), so a decision left inside a `useEffect` body
  * is untestable without one. Between them they cover every decision the effect makes; the ONE thing
  * that stays inline is the `[id, previewVersion]` dependency array itself, because a dependency

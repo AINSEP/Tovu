@@ -1,5 +1,5 @@
 /** Public entry read contracts and vocabulary; no repositories or registration wiring. */
-import type { EntryRecord, EntryStatus } from "@jini-ai/cms/entries";
+import type { EntryRecord } from "@jini-ai/cms/entries";
 
 
 /** Every collection-list presentation `theme/entry-list-render.ts` renders. `accordion` (an FAQ
@@ -17,30 +17,8 @@ export function isCollectionListLayout(value: unknown): value is CollectionListL
 export const COLLECTION_LIST_FAQ_PAGE = "faq-page";
 export type CollectionListStructuredData = typeof COLLECTION_LIST_FAQ_PAGE;
 
-/**
- * Review fix 3b (`2026-09-23-review-E4-R1-report.md`): the legacy (no-`collection`) Recent
- * Entries path used to run `EntryListPort.listByWorkspace` bounded to the registered clamp and
- * only THEN filter {@link SYSTEM_CONTENT_TYPES} rows out — so a batch of system rows newer than
- * real content could fill the limited query result and crowd out (or fully replace) the real
- * entries the widget should show. This port excludes those types INSIDE the query instead, so the
- * `limit` only ever counts rows that could actually be shown. It is a new, local port (not a
- * change to `@jini-ai/cms`'s `EntryListPort`) — both entry repos (`repo.sqlite.ts`,
- * `trash-aware-memory-repo.ts`) implement it structurally, the same pattern
- * {@link EntryDisplayListPort} already established for C2.
- */
-export interface EntryListExcludingTypesPort {
-  /** @returns non-trashed entries whose `type` is NOT one of `excludeTypes`, matching `status`
-   * (when given), ordered by `orderBy`/`orderDirection`, bounded to `limit` — the exclusion is
-   * applied before `limit`, never after. */
-  listByWorkspaceExcludingTypes(params: {
-    readonly workspaceId: string;
-    readonly excludeTypes: readonly string[];
-    readonly status?: EntryStatus;
-    readonly orderBy?: "updatedAt";
-    readonly orderDirection?: "asc" | "desc";
-    readonly limit?: number;
-  }): Promise<EntryRecord[]>;
-}
+/** Exclusion is applied before `limit` so system rows cannot crowd out visible entries. */
+export type { EntryListExcludingTypesPort } from "@jini-ai/cms/widgets/resolvers";
 
 /** An entry plus its Trash marker, as the Trash's record-store adapter sees it. */
 export type TrashableEntryRecord = EntryRecord & { deletedAt: string | null };

@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file The Members agent-tool catalog (ADR-030/ADR-PIPE-013), instantiating SPEC-016 REQ-22's
  * naming/callability convention for this domain — the same shape `forms/agent-tools.ts` and
@@ -56,20 +57,13 @@ const DURABLE_MUTATION = "mutates-durable-state" as const;
 
 export type AgentToolSideEffect = "none" | typeof DURABLE_MUTATION | "mints-token";
 
-export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
+export type { AgentToolActorClassRule } from "@jini-ai/core";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  actorClassRule?: AgentToolActorClassRule;
-  /**
-   * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
-   * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
-   */
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+/**
+ * JSON Schema for this tool's `input`, published to the model via `ToolDescriptor.inputSchema`
+ * (`assistant/tool-registrations.ts`, which refuses to wire any tool lacking one).
+ */
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /** A member's id, as returned by `content_read.member` (the single card `members_list` and
  *  `members_get_by_id` collapsed into on 2026-09-08 — it dispatches on `memberId`'s presence). */

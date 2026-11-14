@@ -133,6 +133,20 @@ export function cleanupAndRethrow({ err, target, wroteAnything }: { err: unknown
   throw new InternalError({ message: `initSite: failed while creating ${target}: ${(err as Error).message}` });
 }
 
+/** The directory of a SQLite content DB placed outside the new site folder, which cleanup must
+ * remove separately; `undefined` when the DB lives inside the folder or storage is not SQLite.
+ * @complexity O(path length). */
+export function externalContentDbDir({ target, storage, contentDbPath }: { target: string; storage: { kind: string }; contentDbPath: string }, _optional: Record<string, never> = {}): string | undefined {
+  return storage.kind === "sqlite" && !contentDbPath.startsWith(target + path.sep) ? path.dirname(contentDbPath) : undefined;
+}
+
+/** Undoes a partly created site (the external DB dir only if this run created it), then rethrows.
+ * @complexity O(entries removed) for filesystem cleanup. */
+export function cleanupFailedSite({ err, target, externalDbDir, progress }: { err: unknown; target: string; externalDbDir: string | undefined; progress: SiteCreateProgress }, _optional: Record<string, never> = {}): never {
+  if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
+  return cleanupAndRethrow({ err, target, wroteAnything: progress.wroteAnything });
+}
+
 /**
  * BR-01 step 2 (EC-01/EC-02/AC-04): target must be absent, or an empty directory, with an existing
  * parent.
@@ -212,16 +226,15 @@ export async function initSite(required: InitSiteRequired, options: InitSiteOpti
   const siteId = randomUUID();
   const workspace = options.workspace ?? createSitesWorkspace({});
   const dbPaths = resolveSiteDatabasePaths({ dir: target, siteId }, { workspace, placement: workspace.config({}).databases });
-  const externalDbDir = storage.kind === "sqlite" && !dbPaths.contentDbPath.startsWith(target + path.sep) ? path.dirname(dbPaths.contentDbPath) : undefined;
+  const externalDbDir = externalContentDbDir({ target, storage, contentDbPath: dbPaths.contentDbPath });
   const site: NewSite = { deps, target, siteId, createdAt: new Date().toISOString(), resolvedName, storage, postgres, template, seed, adminPassword, dbPath: dbPaths.contentDbPath, externalDbDir };
-  const progress: InitProgress = { wroteAnything: false, createdExternalDbDir: false };
+  const progress: SiteCreateProgress = { wroteAnything: false, createdExternalDbDir: false };
 
   try {
     await createSiteContents({ site, options, progress });
     return { siteId, dir: target };
   } catch (err) {
-    if (externalDbDir && progress.createdExternalDbDir) fs.rmSync(externalDbDir, { recursive: true, force: true });
-    return cleanupAndRethrow({ err, target, wroteAnything: progress.wroteAnything });
+    return cleanupFailedSite({ err, target, externalDbDir, progress });
   }
 }
 
@@ -252,8 +265,8 @@ interface NewSite {
   externalDbDir: string | undefined;
 }
 
-/** CIC U-003 cleanup facts, each set only AFTER the write it records actually succeeded. */
-interface InitProgress {
+/** CIC U-003 cleanup facts shared by `initSite` and `duplicateSite`, set only after the recorded write succeeded. */
+export interface SiteCreateProgress {
   wroteAnything: boolean;
   createdExternalDbDir: boolean;
 }
@@ -271,7 +284,7 @@ function assertVerifiedImportInput(required: InitSiteRequired, { verifiedRestore
  * the caller's cleanup removes only what this call created.
  * @complexity Bounded per fs/db operation count plus one stock-themes copy (see `initSite`).
  */
-async function createSiteContents({ site, options, progress }: { site: NewSite; options: InitSiteOptions; progress: InitProgress }, _optional = {}): Promise<void> {
+async function createSiteContents({ site, options, progress }: { site: NewSite; options: InitSiteOptions; progress: SiteCreateProgress }, _optional = {}): Promise<void> {
   const { target, siteId, externalDbDir } = site;
   // Step 3b: a Postgres database must be empty, checked before anything is created or sealed.
   await assertPostgresTargetEmpty({ postgres: site.postgres });
@@ -308,7 +321,7 @@ async function createSiteContents({ site, options, progress }: { site: NewSite; 
 }
 
 /** Step 4 (target + placeholder subdirectories) and step 4b (seeded themes). */
-function createSiteFolders({ target, resolvedName }: Pick<NewSite, "target" | "resolvedName">, progress: InitProgress): void {
+function createSiteFolders({ target, resolvedName }: Pick<NewSite, "target" | "resolvedName">, progress: SiteCreateProgress): void {
   // Step 4: directory + subdirectory creation.
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target);
@@ -328,7 +341,7 @@ function createSiteFolders({ target, resolvedName }: Pick<NewSite, "target" | "r
 
 /** Steps 6-7 for SQLite: create (or, for a verified import, restore) content.db, migrate it, repair and seed its owner. */
 async function createSqliteSiteStore(
-  { site, options, progress }: { site: NewSite; options: Pick<InitSiteOptions, "verifiedRestore">; progress: InitProgress },
+  { site, options, progress }: { site: NewSite; options: Pick<InitSiteOptions, "verifiedRestore">; progress: SiteCreateProgress },
   _optional = {},
 ): Promise<void> {
   const { deps, target, siteId, seed, adminPassword, dbPath, externalDbDir } = site;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLogin as useJiniLogin } from "@jini-ai/user-management/react";
+import { useLogin as useJiniLogin, type LoginController as JiniLoginController } from "@jini-ai/user-management/react";
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 import { ApiError } from "@/lib/api";
 
@@ -30,16 +30,8 @@ export interface LoginDependencies {
   port: LoginPort;
 }
 
-export interface LoginController {
-  mfa?: { pendingToken: string; code: string; setCode: (code: string) => void; cancel: () => void };
-  username: string;
-  setUsername: (username: string) => void;
-  password: string;
-  setPassword: (password: string) => void;
-  error: string | null;
+export interface LoginController extends JiniLoginController {
   failure?: UserFacingError | null;
-  busy: boolean;
-  submit: (e: React.FormEvent) => Promise<void>;
 }
 
 /** Keep safe server refusals, correlate unexpected failures without copying a submitted proof.

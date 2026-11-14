@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 
 import type { SecretSealerPort } from "#src/features/webhooks/ports";
 import { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
@@ -70,10 +70,7 @@ export async function sealPendingAgentPluginTokensForNewSite(
 /** Writes the file 0600 via a temp file and rename, so a rewrite never leaves it half-written and
  *  never inherits a wider mode from the file it replaces. */
 function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void {
-  const target = path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
-  const temp = path.join(siteDir, `.${PENDING_AGENT_PLUGIN_TOKENS_FILENAME}.${process.pid}.${randomUUID()}.tmp`);
-  fs.writeFileSync(temp, JSON.stringify(file, null, 2), { mode: 0o600 });
-  fs.renameSync(temp, target);
+  writeJsonFileAtomic({ filePath: path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), data: file, fs: createNodeAtomicFilesystem({}, {}) }, { mode: 0o600 });
 }
 
 /**

@@ -3,8 +3,7 @@
  *
  * Every DECISION the hook makes is a plain function it calls rather than logic inlined in its own
  * body — `isValidSiteName`, `canSubmitRename`, `renameSubmission`, `describeRenameFailure` — pulled
- * out for exactly the reason `folder-drop.ts` was pulled out of `App.hooks.ts` (see that file's own
- * header): so real behaviour is testable without a renderer. These tests call the functions
+ * out so real behaviour is testable without a renderer. These tests call the functions
  * directly with real inputs and assert exact outputs. The submit flow (saving, failure, retry,
  * success) is rendered from the real hook in `use-site-rename.hooks.render.test.ts`.
  */

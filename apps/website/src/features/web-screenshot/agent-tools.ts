@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
 import { DEFAULT_WAIT_MS, MAX_FULL_PAGE_HEIGHT_PX, MAX_URL_LENGTH, MAX_WAIT_MS, VIEWPORT_NAMES, WEB_SCREENSHOT_TOOL_ID } from "./web-screenshot.js";
 
@@ -11,13 +12,7 @@ import { DEFAULT_WAIT_MS, MAX_FULL_PAGE_HEIGHT_PX, MAX_URL_LENGTH, MAX_WAIT_MS, 
  * literal allowlist (`modules/site-assistant.ts`), so a catalog tool never reaches it.
  */
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect; inputSchema: Readonly<Record<string, unknown>> };
 
 /** Same gate as `web_fetch_page`: any admin who may use the assistant may look at public pages through it. */
 export const WEB_SCREENSHOT_PERMISSION = "admin.assistant.use";

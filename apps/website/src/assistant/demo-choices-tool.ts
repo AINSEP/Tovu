@@ -1,7 +1,8 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildFormSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { buildDomainRegistrations, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import { buildUIToolResult } from "./mcp-ui.js";
 import {
@@ -53,15 +54,6 @@ import {
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
 export const DEMO_CHOICES_TOOL_ID = "assistant_demo_choices";
-
-/** Mirrors each domain's own local catalog interface — see `features/post/agent-tools.ts:120`. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 export const demoChoicesAgentToolCatalog: AgentToolDefinition[] = [
   {

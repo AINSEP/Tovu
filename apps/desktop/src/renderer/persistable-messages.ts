@@ -9,8 +9,7 @@
  * deliberately, so it can be exercised directly under `node --test` with no build step. `App.hooks.ts`
  * itself pulls in enough of the renderer's own module graph (via its usual `./foo.js` imports) that
  * Node's type stripping cannot resolve it standalone; `App.hooks.test.ts` (colocated in this same
- * directory) imports this module directly and exercises it that way, and `folder-drop.test.ts`'s own
- * header describes why a pure renderer function generally gets pulled out this way for testing.
+ * directory) imports this module directly and exercises it that way.
  */
 import { isTerminalRunStatus, type ChatMessage } from '@jini-ai/chat/core';
 

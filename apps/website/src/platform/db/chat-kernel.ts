@@ -1,4 +1,4 @@
-import type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqlite";
+import type { ChatDatabase as JiniChatDatabase } from "@jini-ai/chat/store/runtime";
 export type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqlite";
 
 // Dedicated db entries keep migrations driver-free; sqliteKernel memoizes the same host client
@@ -36,27 +36,8 @@ export type AssistantConversationToolApprovalsTable = {
   granted_at: string;
 };
 
-export type ChatDatabase = {
-  ai_chats: AiChatsTable;
-  ai_chat_messages: AiChatMessagesTable;
-  assistant_agent_sessions: AssistantAgentSessionsTable;
+export type ChatDatabase = JiniChatDatabase & {
   assistant_conversation_tool_approvals: AssistantConversationToolApprovalsTable;
-  assistant_run_attempts: {
-    message_id: string;
-    engine: string;
-    accepted_json: string;
-    recovery_count: number;
-    recovery_deadline: number | null;
-    recovery_elapsed_ms: number;
-    attempt_started_at: number;
-    last_progress_at: number;
-    cancel_reason: string | null;
-    session_id: string | null;
-    session_confirmed: number;
-    child_pid: number | null;
-    child_started_at: string | null;
-    attempt_base_json: string;
-  };
 };
 
 export type ChatKernel = StorageKernel<ChatDatabase>;

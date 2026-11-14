@@ -30,7 +30,8 @@ import {
   saveCampaign,
   type CampaignWriteServiceDeps,
 } from "./campaign-write-service.js";
-import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
+import { issueConfirmationToken } from "./confirmation.js";
+import { buildConfirmationDeps, buildSendPipelineDeps, buildSubscriptionsDeps } from "./deps-builders.js";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
@@ -58,7 +59,6 @@ import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline.js";
 import {
   saveSubscription,
   unsubscribeSubscription,
-  type SubscriptionsDeps,
   type UnsubscribeSubscriptionDeps,
 } from "./subscriptions.js";
 import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
@@ -121,33 +121,6 @@ function toListsDeps(deps: NewsletterToolDeps): ListsDeps {
   return { listRepo: deps.newsletterListRepo, clock: deps.clock, ids: deps.idGen };
 }
 
-/** Assembles `confirmation.ts`'s deps bundle — the local twin of `toCampaignWriteServiceDeps` above. */
-function toConfirmationDeps(deps: NewsletterToolDeps): ConfirmationDeps {
-  return {
-    tokenRepo: deps.newsletterConfirmationTokenRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    mailer: deps.mailer,
-    consentCapability: deps.membersConsentCapability,
-    originRegistry: deps.originRegistry,
-    clock: deps.clock,
-    ids: deps.idGen,
-    senderIdentity: deps.mailSenderIdentity,
-  };
-}
-
-/** Assembles `subscriptions.ts`'s deps bundle (nests `toConfirmationDeps` — `saveSubscription`
- * triggers `issueConfirmationToken`) — the local twin of `toCampaignWriteServiceDeps` above. */
-function toSubscriptionsDeps(deps: NewsletterToolDeps): SubscriptionsDeps {
-  return {
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    listRepo: deps.newsletterListRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    confirmationDeps: toConfirmationDeps(deps),
-    clock: deps.clock,
-    ids: deps.idGen,
-  };
-}
-
 /** Assembles `subscriptions.ts`'s `unsubscribeSubscription` deps bundle — the local twin of
  * `toCampaignWriteServiceDeps` above. */
 function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSubscriptionDeps {
@@ -164,25 +137,7 @@ function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSub
  * fail-closed behavior. Runtime composition still has no sending toggle or consent binding.
  */
 export function toNewsletterSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
-  return {
-    campaignRepo: deps.newsletterCampaignRepo,
-    subscriptionRepo: deps.newsletterSubscriptionRepo,
-    audienceSnapshotRepo: deps.newsletterAudienceSnapshotRepo,
-    sendRepo: deps.newsletterSendRepo,
-    subscriberDirectory: deps.newsletterSubscriberDirectory,
-    hooks: deps.newsletterHooks,
-    mailer: deps.mailer,
-    launchGateDeps: {
-      isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false),
-      consentCapability: deps.membersConsentCapability,
-      originRegistry: deps.originRegistry,
-      mailer: deps.mailer,
-    },
-    outbox: deps.outbox,
-    bus: deps.bus,
-    clock: deps.clock,
-    ids: deps.idGen,
-  };
+  return buildSendPipelineDeps({ deps, isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false) });
 }
 
 /**
@@ -321,7 +276,7 @@ async function resendPendingSubscriptionConfirmation(
     if (signal.aborted) return { confirmed: false, reason: "abandoned", delivered: false, mailDeliveryAvailable: true };
     if (contact) {
       await issueConfirmationToken({
-        deps: toConfirmationDeps(deps),
+        deps: buildConfirmationDeps({ deps }),
         input: { workspaceId: deps.workspaceId, subscriptionId: subscription.id, recipientEmail: contact.email },
       });
     }
@@ -499,7 +454,7 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps, _surfaces
       const source = typeof input.source === "string" ? (input.source as SubscriptionRow["source"]) : "admin";
       ctx.signal.throwIfAborted();
       const { subscription } = await saveSubscription({
-        deps: toSubscriptionsDeps(deps),
+        deps: buildSubscriptionsDeps({ deps }),
         input: { workspaceId: deps.workspaceId, listId, subscriberId: requireString({ input, key: "subscriberId" }), source },
       });
       return { subscription: toSubscriptionToolView(subscription) };

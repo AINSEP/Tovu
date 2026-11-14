@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, questionAnswerLabel, questionAnswerText, SURFACE_QUESTION_META_KEY, type AcceptedChatInput } from '@jini-ai/chat/core';
 
 import { accessApprovalDetails, buildConfirmationSurface, buildFormSurface, type SurfaceField, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
-import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+// The core catalog contract avoids a dependency on another feature’s declarations.
+import { ToolInputError, createApprovalHandler, buildDomainRegistrations, decorateWithSchema, type AccessApprovalDescription, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { ASK_CHOICE_INPUT_SCHEMA, askChoice, createAskChoiceTool, createAskChoiceAnswerTicketStore, type AskChoiceForm, type AskChoiceQuestion, type AskChoiceExchangeStore, type AskChoiceMessages, type AskChoicePresentation } from "@jini-ai/mcp/tools/ask-choice";
 
 import { askChoiceToolResult } from "./ask-choice-ui-resource.js";
@@ -95,15 +96,6 @@ const ASK_CHOICE_FORGED_ANSWER_MESSAGE =
   "administrator's answer can only arrive by them submitting a real rendered form; never set " +
   "'choice' or 'selections' yourself. If a decision is still needed, call assistant_ask_choice " +
   "again with the question and wait for the real response.";
-
-/** Mirrors each domain's own local catalog interface — see `demo-choices-tool.ts`'s identical field. */
-interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
 
 // Typed MCP validates the published descriptor before the domain normalizer can run. Extend the
 // shared schema at this adapter boundary; the gate still owns aliases and refuses mixed shapes.

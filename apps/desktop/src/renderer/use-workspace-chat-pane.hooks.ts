@@ -30,7 +30,7 @@ import {
   type ConversationDeleteConfirmationState,
   type UseRunnerConversations,
 } from './App.hooks.js';
-import { folderPathsFromDataTransfer } from './folder-drop.js';
+import { folderPathsFromDataTransfer } from '@jini-ai/ui/core';
 
 /**
  * The picker's model/reasoning choice reaches the transport through `runContext`, not through
@@ -59,8 +59,7 @@ export interface FolderDropEvent {
  *
  * Capture phase, deliberately not a bubble-phase `onDrop`: this has to see the raw event BEFORE
  * `ChatPane`'s own drop handler (buried in its tree, attached in the bubble phase) would expand a
- * dropped folder into synthesized leaf files via the `FileSystemEntry` API — see
- * `folderPathsFromDataTransfer`'s doc for why that expansion loses the folder's own path.
+ * dropped folder into synthesized leaf files via the `FileSystemEntry` API.
  *
  * Unlike an earlier version of this handler, a recovered folder path now `preventDefault`s AND
  * `stopPropagation`s instead of passing the event through: letting `ChatPane` see it is exactly
@@ -86,7 +85,8 @@ export function captureFolderDrop(
   composerHandle: RefObject<Pick<ChatPaneComposerHandle, 'insertText'> | null>,
 ): void {
   if (getPathForFile === undefined) return;
-  const folders = folderPathsFromDataTransfer(event.dataTransfer, getPathForFile);
+  // Electron's webUtils.getPathForFile returns '' for synthesized Files, so read the raw drop first.
+  const folders = folderPathsFromDataTransfer(event.dataTransfer, { getPathForFile });
   if (folders.length === 0) return;
   event.preventDefault();
   event.stopPropagation();

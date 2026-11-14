@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 /**
  * @file The Sites domain's agent-tool catalog, instantiating SPEC-016 REQ-22's
  * naming/callability convention (the same local `AgentToolDefinition`/`AgentToolSideEffect` shape
@@ -23,13 +24,7 @@
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
 /**
  * Reused rather than invented: `system.write` is exactly what the admin Sites HTTP route already

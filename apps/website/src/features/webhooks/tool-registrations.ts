@@ -115,7 +115,7 @@ function toSubscriptionToolView(subscription: WebhookSubscriptionRecord, lastDel
     updatedAt: subscription.updatedAt,
     disabledAt: subscription.disabledAt,
     version: subscription.version,
-    lastDelivery: lastDelivery ? toDeliveryToolView(lastDelivery) : null,
+    lastDelivery: lastDelivery ? toWebhookDeliveryView({ delivery: lastDelivery }) : null,
   };
 }
 
@@ -123,7 +123,7 @@ const WEBHOOKS_DELETE_TOOL_ID = "webhooks_delete_subscription";
 
 /** Model-facing delivery view — drops `workspaceId` (redundant: every call is already scoped to
  * the caller's own workspace). */
-function toDeliveryToolView(delivery: WebhookDeliveryRecord) {
+export function toWebhookDeliveryView({ delivery }: { delivery: WebhookDeliveryRecord }, _optional: Record<string, never> = {}) {
   return {
     id: delivery.id,
     subscriptionId: delivery.subscriptionId,
@@ -230,7 +230,7 @@ export function buildWebhooksRegistrations(
         limit: clampDeliveriesLimit(optionalNumber({ input, key: "limit" })),
       });
       const newestFirst = [...deliveries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      return { deliveries: newestFirst.map(toDeliveryToolView) };
+      return { deliveries: newestFirst.map((delivery) => toWebhookDeliveryView({ delivery })) };
     },
 
     webhooks_create_subscription: async (ctx) => {

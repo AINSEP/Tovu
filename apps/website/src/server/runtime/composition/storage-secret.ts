@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
@@ -76,10 +76,7 @@ export async function writeSealedConnectionString(
   const { sealer, keyring } = { ...siteSecretSealer(required.siteDir), ...optional };
   const sealed = await sealer.seal({ plaintext: required.connectionString, key: await keyring.activeKey(), aad: STORAGE_SECRET_AAD });
   const file: StorageSecretFile = { version: 1, sealed };
-  const target = path.join(required.siteDir, STORAGE_SECRET_FILENAME);
-  const temp = path.join(required.siteDir, `.${STORAGE_SECRET_FILENAME}.${process.pid}.${randomUUID()}.tmp`);
-  fs.writeFileSync(temp, JSON.stringify(file, null, 2), { mode: 0o600 });
-  fs.renameSync(temp, target);
+  writeJsonFileAtomic({ filePath: path.join(required.siteDir, STORAGE_SECRET_FILENAME), data: file, fs: createNodeAtomicFilesystem({}, {}) }, { mode: 0o600 });
 }
 
 /**

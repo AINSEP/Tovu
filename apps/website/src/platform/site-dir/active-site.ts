@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readEnvLine, upsertEnvLine } from "@jini-ai/platform/fs";
 
 import { writeFileAtomic } from "./atomic-write.js";
+
+// These narrow transforms use the first unquoted KEY= line; Node interprets the actual .env at boot.
+export { readEnvLine, upsertEnvLine };
 
 /**
  * @file Admin "Sites" screen backend, activate half (2026-09-04 sites-switcher decision,
@@ -53,33 +57,6 @@ function resolveEnvFilePath(optional: ActiveSiteEnvOptional): string {
   return path.join(optional.cwd ?? process.cwd(), ".env");
 }
 
-/**
- * Upsert one `KEY=value` line into `.env`-shaped text, preserving every other line verbatim
- * (content AND order) — a matching `KEY=` prefix is replaced in place; a missing key is appended.
- * Pure text transform, no fs access, so it is trivially testable without a real file.
- *
- * @complexity O(n) in the source text's own line count — bounded by how large a developer's own
- *   `.env` file is, never by caller-controlled request input.
- */
-export function upsertEnvLine({ source, key, value }: { source: string; key: string; value: string }, _optional = {}): string {
-  const lines = source.length === 0 ? [] : source.split("\n");
-  // A trailing blank line is `split("\n")`'s own artifact of the source's final "\n" (e.g.
-  // `"A\n".split("\n")` -> `["A", ""]`), not real content — drop it up front so both branches
-  // below always rejoin from the same real-line list, then this function's own single trailing
-  // "\n" is the only one ever added back.
-  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-
-  const prefix = `${key}=`;
-  const index = lines.findIndex((line) => line.startsWith(prefix));
-  const newLine = `${prefix}${value}`;
-  if (index === -1) {
-    lines.push(newLine);
-  } else {
-    lines[index] = newLine;
-  }
-  return `${lines.join("\n")}\n`;
-}
-
 export interface PersistActiveSiteRequired {
   /** The site's folder name under `sites/` (`SiteListEntry.name` — never the display name or the
    *  absolute `dir`), matching `resolveSiteRoot()`'s own `TOVU_SITE` contract (`site-root.ts`:
@@ -115,31 +92,8 @@ export function persistActiveSite(required: PersistActiveSiteRequired, optional:
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     existing = "";
   }
+  // The shared transform removes split's trailing blank artifact and writes one final newline.
   writeFileAtomic({ filePath: envFilePath, content: upsertEnvLine({ source: existing, key: "TOVU_SITE", value: required.name }) }, {});
-}
-
-/**
- * Read one `KEY=value` line out of `.env`-shaped text — the inverse of {@link upsertEnvLine}, and
- * deliberately just as narrow: the FIRST matching line wins (same line `upsertEnvLine` would
- * replace, so a write-then-read round trip always agrees), the value is returned verbatim with only
- * surrounding whitespace trimmed, and no `export ` prefix, quoting, or interpolation is understood.
- *
- * That narrowness is the point: this is not a `.env` parser and must never grow into one — Node's
- * own `process.loadEnvFile` is what actually interprets this file at boot, and a second, subtly
- * different interpretation living here would report a value the next boot does not use. The one
- * key this is ever asked for (`TOVU_SITE`) is written by {@link persistActiveSite} in exactly the
- * unquoted `KEY=value` form this reads.
- *
- * Pure text transform, no fs access.
- *
- * @returns The value, or `null` when no line starts with `KEY=`.
- * @complexity O(n) in the source text's own line count — bounded by the developer's own `.env`
- *   size, never by caller-controlled request input.
- */
-export function readEnvLine({ source, key }: { source: string; key: string }, _optional = {}): string | null {
-  const prefix = `${key}=`;
-  const match = source.split("\n").find((line) => line.startsWith(prefix));
-  return match === undefined ? null : match.slice(prefix.length).trim();
 }
 
 /**
