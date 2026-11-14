@@ -28,7 +28,7 @@ export interface VoiceInputTranscriptionResult {
 /** The bridge `preload-speech.cts` exposes via `contextBridge.exposeInMainWorld("tovuVoice", ...)`. */
 export interface VoiceInputPort {
   isAvailable(): Promise<VoiceInputAvailability>;
-  transcribe(samples: Float32Array | number[], sampleRate: number): Promise<VoiceInputTranscriptionResult>;
+  transcribe(required: { samples: Float32Array | number[]; sampleRate: number }, optional?: {}): Promise<VoiceInputTranscriptionResult>;
 }
 
 declare global {

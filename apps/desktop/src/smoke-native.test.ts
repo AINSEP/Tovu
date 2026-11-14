@@ -46,7 +46,7 @@ test("the generated script executes each staged package and reports its individu
         mkdirSync(folder, { recursive: true });
         writeFileSync(path.join(folder, "index.js"), name === failing ? `throw Error('fixture ${name} failure');` : source);
       }
-      const child = spawnSync(process.execPath, ["-e", buildSmokeScript(modules)], { cwd: root, encoding: "utf8", timeout: 5000 });
+      const child = spawnSync(process.execPath, ["-e", buildSmokeScript({ nodeModulesDir: modules })], { cwd: root, encoding: "utf8", timeout: 5000 });
       assert.equal(child.error, undefined);
       assert.equal(child.status, failing === null ? 0 : 1, child.stderr);
       const expected: Record<string, unknown> = { betterSqlite3: { ok: true }, sharp: { ok: true }, argon2: { ok: true } };
@@ -67,7 +67,7 @@ test("the generated script preserves hostile require paths exactly without execu
     console: { log: (value: string) => output.push(value), error: (value: string) => { throw new Error(value); } },
     process: { exit: (code: number) => exits.push(code) },
   });
-  await vm.runInContext(buildSmokeScript(directory), context);
+  await vm.runInContext(buildSmokeScript({ nodeModulesDir: directory }), context);
   assert.deepEqual(required, [path.join(directory, "better-sqlite3"), path.join(directory, "sharp"), path.join(directory, "argon2")]);
   assert.equal(context.injected, undefined);
   assert.deepEqual(exits, [1]);
@@ -80,7 +80,7 @@ test("the generated script preserves hostile require paths exactly without execu
 // --- resolveSmokeTargets: pure path resolution from an already-listed directory -----------------
 
 test("resolves a mac-prefixed *.app layout (e.g. release/mac-arm64/Tovu.app)", () => {
-  const targets = resolveSmokeTargets("/release", ["mac-arm64", "mac-arm64.blockmap"]);
+  const targets = resolveSmokeTargets({ platformDir: "/release", entryNames: ["mac-arm64", "mac-arm64.blockmap"] });
   assert.equal(targets.executablePath, path.join("/release", "mac-arm64", "Tovu.app", "Contents", "MacOS", "Tovu"));
   assert.equal(
     targets.nodeModulesDir,
@@ -89,12 +89,12 @@ test("resolves a mac-prefixed *.app layout (e.g. release/mac-arm64/Tovu.app)", (
 });
 
 test("resolves a plain 'mac' output directory the same way as 'mac-arm64'", () => {
-  const targets = resolveSmokeTargets("/release", ["mac"]);
+  const targets = resolveSmokeTargets({ platformDir: "/release", entryNames: ["mac"] });
   assert.equal(targets.executablePath, path.join("/release", "mac", "Tovu.app", "Contents", "MacOS", "Tovu"));
 });
 
 test("resolves a win-unpacked layout when no mac-prefixed directory is present", () => {
-  const targets = resolveSmokeTargets("/release", ["win-unpacked", "builder-effective-config.yaml"]);
+  const targets = resolveSmokeTargets({ platformDir: "/release", entryNames: ["win-unpacked", "builder-effective-config.yaml"] });
   assert.equal(targets.executablePath, path.join("/release", "win-unpacked", "Tovu.exe"));
   assert.equal(
     targets.nodeModulesDir,
@@ -105,13 +105,13 @@ test("resolves a win-unpacked layout when no mac-prefixed directory is present",
 test("a mac-prefixed directory takes precedence over win-unpacked when both are present", () => {
   // Never happens in the real CI matrix (one OS per runner), but the choice must be deterministic
   // rather than dependent on directory-listing order.
-  const targets = resolveSmokeTargets("/release", ["win-unpacked", "mac-x64"]);
+  const targets = resolveSmokeTargets({ platformDir: "/release", entryNames: ["win-unpacked", "mac-x64"] });
   assert.equal(targets.executablePath, path.join("/release", "mac-x64", "Tovu.app", "Contents", "MacOS", "Tovu"));
 });
 
 test("throws a clear error when neither layout is found under platformDir", () => {
   assert.throws(
-    () => resolveSmokeTargets("/release", ["builder-debug.yml", "some-other-dir"]),
+    () => resolveSmokeTargets({ platformDir: "/release", entryNames: ["builder-debug.yml", "some-other-dir"] }),
     /no mac.* or win-unpacked.* layout found under \/release/,
   );
 });
@@ -120,7 +120,7 @@ test("an entry merely starting with 'mac' as a substring elsewhere is not mistak
   // Guards the prefix match itself: `startsWith("mac")` on the raw entry name, not a substring
   // search, so an unrelated leftover directory sharing a "mac" substring never triggers a wrong
   // resolution path silently.
-  assert.throws(() => resolveSmokeTargets("/release", ["not-macos-related"]), /no mac.* or win-unpacked.* layout found/);
+  assert.throws(() => resolveSmokeTargets({ platformDir: "/release", entryNames: ["not-macos-related"] }), /no mac.* or win-unpacked.* layout found/);
 });
 
 // --- parseSmokeOutput: pure result parsing, no spawn ---------------------------------------------
@@ -131,7 +131,7 @@ test("all three checks ok -> overall ok true", () => {
     sharp: { ok: true },
     argon2: { ok: true },
   });
-  const result = parseSmokeOutput(stdout);
+  const result = parseSmokeOutput({ stdout });
   assert.equal(result.ok, true);
   assert.equal(result.betterSqlite3.ok, true);
   assert.equal(result.sharp.ok, true);
@@ -144,7 +144,7 @@ test("any single check failing makes the overall result false, and the failing c
     sharp: { ok: false, error: "libvips not found" },
     argon2: { ok: true },
   });
-  const result = parseSmokeOutput(stdout);
+  const result = parseSmokeOutput({ stdout });
   assert.equal(result.ok, false);
   assert.equal(result.sharp.ok, false);
   assert.equal(result.sharp.error, "libvips not found");
@@ -152,9 +152,9 @@ test("any single check failing makes the overall result false, and the failing c
 });
 
 test("malformed JSON is a parse failure, not a silent pass -- a safe stdout excerpt is included for diagnosis", () => {
-  assert.throws(() => parseSmokeOutput("not json at all"), /could not parse smoke output as JSON/);
+  assert.throws(() => parseSmokeOutput({ stdout: "not json at all" }), /could not parse smoke output as JSON/);
   try {
-    parseSmokeOutput("not json at all");
+    parseSmokeOutput({ stdout: "not json at all" });
     assert.fail("expected a throw");
   } catch (error) {
     assert.match((error as Error).message, /not json at all/);
@@ -162,19 +162,19 @@ test("malformed JSON is a parse failure, not a silent pass -- a safe stdout exce
 });
 
 test("empty stdout (process crashed before printing) is a parse failure", () => {
-  assert.throws(() => parseSmokeOutput(""), /could not parse smoke output as JSON/);
+  assert.throws(() => parseSmokeOutput({ stdout: "" }), /could not parse smoke output as JSON/);
 });
 
 test("a missing check key (e.g. the child process died between checks) is treated as a failure, not skipped", () => {
   const stdout = JSON.stringify({ betterSqlite3: { ok: true }, sharp: { ok: true } }); // argon2 absent
-  const result = parseSmokeOutput(stdout);
+  const result = parseSmokeOutput({ stdout });
   assert.equal(result.ok, false);
   assert.equal(result.argon2.ok, false);
   assert.match(result.argon2.error ?? "", /missing/);
 });
 
 test("JSON that parses but is not an object (e.g. a bare number or array) is treated as every check missing, not a crash", () => {
-  const result = parseSmokeOutput("42");
+  const result = parseSmokeOutput({ stdout: "42" });
   assert.equal(result.ok, false);
   assert.equal(result.betterSqlite3.ok, false);
   assert.equal(result.sharp.ok, false);
@@ -184,7 +184,7 @@ test("JSON that parses but is not an object (e.g. a bare number or array) is tre
 // --- buildSmokeScript: pure string generation -- syntax-checked, never executed -------------------
 
 test("embeds the resolved node_modules dir as a JSON-quoted absolute require path for each package", () => {
-  const script = buildSmokeScript("/release/mac-arm64/Tovu.app/Contents/Resources/tovu/node_modules");
+  const script = buildSmokeScript({ nodeModulesDir: "/release/mac-arm64/Tovu.app/Contents/Resources/tovu/node_modules" });
   for (const pkg of ["better-sqlite3", "sharp", "argon2"]) {
     const expectedRequire = JSON.stringify(path.join("/release/mac-arm64/Tovu.app/Contents/Resources/tovu/node_modules", pkg));
     assert.ok(script.includes(expectedRequire), `script must require ${pkg} from the resolved node_modules dir`);
@@ -193,7 +193,7 @@ test("embeds the resolved node_modules dir as a JSON-quoted absolute require pat
 
 test("a node_modules dir containing a quote or backslash is embedded safely (JSON.stringify escaping), not string-concatenated raw", () => {
   const dodgy = String.raw`C:\Program Files\Tovu"; process.exit(0); //`;
-  const script = buildSmokeScript(dodgy);
+  const script = buildSmokeScript({ nodeModulesDir: dodgy });
   // `new Function` only PARSES the body; the top-level IIFE inside is never invoked because the
   // returned function is never called. A syntax error here means the embedding broke out of the
   // string literal it was meant to stay inside.
@@ -201,7 +201,7 @@ test("a node_modules dir containing a quote or backslash is embedded safely (JSO
 });
 
 test("the generated script is syntactically valid JavaScript (constructible, never invoked)", () => {
-  const script = buildSmokeScript("/some/node_modules");
+  const script = buildSmokeScript({ nodeModulesDir: "/some/node_modules" });
   assert.doesNotThrow(() => new Function(script));
 });
 
@@ -216,7 +216,7 @@ test("desktop main's source module graph resolves without the test-only TypeScri
   });
   assert.ifError(loaded.error);
   assert.equal(loaded.status, 0, `Desktop main import graph failed:\n${loaded.stdout}\n${loaded.stderr}`);
-  assert.deepEqual(parseEntryLoadOutput(loaded.stdout), { ok: true, unresolved: [] });
+  assert.deepEqual(parseEntryLoadOutput({ stdout: loaded.stdout }), { ok: true, unresolved: [] });
 });
 
 for (const entry of ['platform/site-dir/sites-home', 'contracts/core/assistant-native-fallbacks']) {
@@ -275,7 +275,7 @@ for (const fixture of [
         cwd: tmpdir(), encoding: "utf8", timeout: 5_000, env: { ...process.env, NODE_OPTIONS: "" },
       });
       assert.ifError(child.error);
-      return { child, result: parseEntryLoadOutput(child.stdout) };
+      return { child, result: parseEntryLoadOutput({ stdout: child.stdout }) };
     };
     const broken = run();
     assert.equal(broken.child.status, 1, broken.child.stdout + broken.child.stderr);
@@ -327,19 +327,19 @@ test("the entry-load script reports every unresolvable static import without eva
     write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; export default [app, value];`);
     const failing = run();
     assert.equal(failing.status, 1, failing.stderr);
-    const failed = parseEntryLoadOutput(failing.stdout);
+    const failed = parseEntryLoadOutput({ stdout: failing.stdout });
     assert.equal(failed.ok, false);
     assert.equal(failed.unresolved.length, 1);
     assert.match(failed.unresolved[0]!, /^absent-peer \(from file:.*present\/index\.js\): ERR_MODULE_NOT_FOUND$/);
     write("app.asar/node_modules/present/index.js", `export const value = 1;`);
     const passing = run();
     assert.equal(passing.status, 0, passing.stderr);
-    assert.deepEqual(parseEntryLoadOutput(passing.stdout), { ok: true, unresolved: [] });
+    assert.deepEqual(parseEntryLoadOutput({ stdout: passing.stdout }), { ok: true, unresolved: [] });
     assert.equal(existsSync(marker), false, "no entry body may run");
     for (const root of ["app.asar", "tovu"]) {
       const bridge = `${root}/node_modules/@jini-ai/mcp/dist/bin/serve.js`;
       write(bridge, 'import "missing-bridge-peer";');
-      const brokenBridge = parseEntryLoadOutput(run().stdout);
+      const brokenBridge = parseEntryLoadOutput({ stdout: run().stdout });
       assert.equal(brokenBridge.ok, false);
       assert.equal(brokenBridge.unresolved.length, 1);
       assert.match(brokenBridge.unresolved[0]!, /^missing-bridge-peer \(from file:.*serve\.js\): ERR_MODULE_NOT_FOUND$/);
@@ -348,19 +348,19 @@ test("the entry-load script reports every unresolvable static import without eva
     // desktop 0.1.27 CI: the packaged main imports desktop-mcp-http.ts itself, so the module is already
     // cached when it is checked as its own entry. Already loaded is loaded, not "nothing loaded".
     write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; import "./src/desktop-mcp-http.ts"; export default [app, value];`);
-    assert.deepEqual(parseEntryLoadOutput(run().stdout), { ok: true, unresolved: [] });
+    assert.deepEqual(parseEntryLoadOutput({ stdout: run().stdout }), { ok: true, unresolved: [] });
     rmSync(path.join(resources, "tovu/dist/cli.mjs"));
-    assert.match(parseEntryLoadOutput(run().stdout).unresolved.join("\n"), /cli\.mjs: nothing loaded/);
+    assert.match(parseEntryLoadOutput({ stdout: run().stdout }).unresolved.join("\n"), /cli\.mjs: nothing loaded/);
     rmSync(path.join(resources, "app.asar/package.json"));
-    assert.match(parseEntryLoadOutput(run().stdout).unresolved[0]!, /package\.json/);
+    assert.match(parseEntryLoadOutput({ stdout: run().stdout }).unresolved[0]!, /package\.json/);
   } finally { rmSync(resources, { recursive: true, force: true }); }
 });
 
 test("entry-load output that is not JSON throws; any other shape fails", () => {
-  assert.throws(() => parseEntryLoadOutput(""), /could not parse entry-load output as JSON/);
-  assert.deepEqual(parseEntryLoadOutput("null"), { ok: false, unresolved: ["malformed entry-load output"] });
-  assert.deepEqual(parseEntryLoadOutput(JSON.stringify({ ok: true })), { ok: false, unresolved: ["malformed entry-load output"] });
-  assert.deepEqual(parseEntryLoadOutput(JSON.stringify({ ok: false, unresolved: [] })), { ok: false, unresolved: [] });
+  assert.throws(() => parseEntryLoadOutput({ stdout: "" }), /could not parse entry-load output as JSON/);
+  assert.deepEqual(parseEntryLoadOutput({ stdout: "null" }), { ok: false, unresolved: ["malformed entry-load output"] });
+  assert.deepEqual(parseEntryLoadOutput({ stdout: JSON.stringify({ ok: true }) }), { ok: false, unresolved: ["malformed entry-load output"] });
+  assert.deepEqual(parseEntryLoadOutput({ stdout: JSON.stringify({ ok: false, unresolved: [] }) }), { ok: false, unresolved: [] });
 });
 
 
@@ -369,7 +369,7 @@ test("native smoke malformed JSON and module errors expose only bounded redacted
   const homePath = path.join(homedir(), "private/addon.node");
   const detail = `native load failed ${secrets.join(" ")} ${homePath}\n` + "safe detail ".repeat(1000);
   for (const parse of [parseSmokeOutput, parseEntryLoadOutput]) {
-    assert.throws(() => parse(detail), (error: Error) => {
+    assert.throws(() => parse({ stdout: detail }), (error: Error) => {
       assert.match(error.message, /could not parse.*native load failed/s);
       for (const secret of secrets) assert.ok(!error.message.includes(secret));
       assert.ok(!error.message.includes(homePath));
@@ -377,13 +377,13 @@ test("native smoke malformed JSON and module errors expose only bounded redacted
       return true;
     });
   }
-  const failed = parseSmokeOutput(JSON.stringify({ betterSqlite3: { ok: false, error: detail } }));
+  const failed = parseSmokeOutput({ stdout: JSON.stringify({ betterSqlite3: { ok: false, error: detail } }) });
   assert.equal(failed.ok, false);
   assert.match(failed.betterSqlite3.error!, /native load failed/);
   for (const secret of secrets) assert.ok(!JSON.stringify(failed).includes(secret));
   assert.ok(!JSON.stringify(failed).includes(homePath));
   assert.ok(failed.betterSqlite3.error!.length <= 2_000);
-  const entries = parseEntryLoadOutput(JSON.stringify({ ok: false, unresolved: [detail] }));
+  const entries = parseEntryLoadOutput({ stdout: JSON.stringify({ ok: false, unresolved: [detail] }) });
   for (const secret of secrets) assert.ok(!JSON.stringify(entries).includes(secret));
   assert.ok(!JSON.stringify(entries).includes(homePath));
   assert.ok(entries.unresolved[0]!.length <= 2_000);

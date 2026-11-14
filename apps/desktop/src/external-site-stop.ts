@@ -173,8 +173,8 @@ export function readProcessStartMs(
 }
 
 export const NODE_PORTS: ExternalStopPorts = {
-  readCommand: ({ pid }) => readProcessCommand(pid),
-  readParentPid: ({ pid }) => readProcessParentPid(pid),
+  readCommand: ({ pid }) => readProcessCommand({ pid }),
+  readParentPid: ({ pid }) => readProcessParentPid({ pid }),
   readStartMs: ({ pid }) => readProcessStartMs({ pid }),
   kill: ({ pid, signal }) => { process.kill(pid, signal); },
   sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)),

@@ -27,7 +27,7 @@ import { smokePackagedChatCli, withInterruptSignal } from "../src/smoke-packaged
 const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(desktopRoot, "../..");
 
-process.exitCode = await withInterruptSignal({ events: process }, signal => smokePackagedChatCli({
+process.exitCode = await withInterruptSignal({ events: process, run: signal => smokePackagedChatCli({
   desktopRoot, scratchRoot: path.join(repoRoot, "ADS-memory/.local-artifacts"),
   argv: process.argv.slice(2), platform: process.platform, pid: process.pid, env: process.env, signal,
   fs: { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile }, userInfo,
@@ -35,4 +35,4 @@ process.exitCode = await withInterruptSignal({ events: process }, signal => smok
   processes: { collectProcessTreePids, listProcessSnapshots, stopProcesses },
   allocatePort, buildServeEnv, startTovuServer, initSiteDir, resolveSmokeTargets, withIsolatedSmokeTargets,
   stdout: process.stdout, stderr: process.stderr,
-}));
+}) });

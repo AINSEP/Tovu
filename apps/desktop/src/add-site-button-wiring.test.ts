@@ -93,7 +93,7 @@ function registerRealHandlers(pickedPath: string | null) {
     openSites: new Map(),
     serializer: { run: ({ fn }: { key: string; fn: () => unknown }) => fn() },
     projectsPath,
-    registryPath: registryDirPath(userDataDir),
+    registryPath: registryDirPath({ userDataDir }),
     repoRoot: "/repo",
     statePath: path.join(userDataDir, "desktop-state.json"),
     cliMode: "source",

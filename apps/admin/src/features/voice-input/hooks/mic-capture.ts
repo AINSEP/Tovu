@@ -94,7 +94,7 @@ export function createMicPushToTalkCapture(voicePort: VoiceInputPort): PushToTal
     processor = null;
     chunks = [];
 
-    const result = await voicePort.transcribe(recordedSamples, sampleRate);
+    const result = await voicePort.transcribe({ samples: recordedSamples, sampleRate });
     return result.text;
   }
 

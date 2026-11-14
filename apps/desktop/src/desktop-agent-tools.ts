@@ -91,7 +91,7 @@ function sharedDesktopTools(context: ToolContext): ToolRegistration[] {
     },
     policy: OPERATOR_POLICY,
     handler: async ({ input }: ToolExecutionContext) => {
-      const result = await runSitesMcpTool(name, (input ?? {}) as Record<string, unknown>, context);
+      const result = await runSitesMcpTool({ name, args: (input ?? {}) as Record<string, unknown>, context });
       return { text: result.content.map((part) => part.text).join("\n"), structured: result.structuredContent, isError: result.isError === true };
     },
   }));

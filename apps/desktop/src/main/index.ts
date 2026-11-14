@@ -390,7 +390,7 @@ const openSites = createSiteSupervisor<OpenSite>({
     // already gone, so the row is now a lie that `reconcileOrphans` would spend a `ps` call on.
     // Narrowed by pid: this instance's own file can also hold a still-draining earlier child's row
     // for this same site (D-07).
-    recordSiteClosed(registryDirPath(app.getPath("userData")), siteDir, { pid: entry.server.pid });
+    recordSiteClosed({ registryDir: registryDirPath({ userDataDir: app.getPath("userData") }), siteDir }, { pid: entry.server.pid });
     if (quitPhase !== "idle") return;
     if (entry.window) recoveringSiteWindows.set(siteDir, entry.window);
     siteLifecycle?.onServerExit({ siteDir, exit, server: entry.server }, {});
@@ -556,7 +556,7 @@ const desktopMcpHttp = createDesktopMcpHttpRuntime({ context: {
  *  see `site-backend.ts`. Shared by own-server windows and sites-home tabs. */
 const desktopAgentService = createDesktopAgentService({
   repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode(),
-  registryPath: agentServiceRegistryPath({ registryDir: registryDirPath(app.getPath("userData")) }, {}),
+  registryPath: agentServiceRegistryPath({ registryDir: registryDirPath({ userDataDir: app.getPath("userData") }) }, {}),
 }, {});
 const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   agentService: desktopAgentService,
@@ -570,7 +570,7 @@ const siteBackend = createSiteBackend<TovuServerHandle>({ ports: {
   startServer: (input) => startTovuServer({ ...input,
     isPackaged: app.isPackaged, productTelemetry: productState.product.launch, repoRoot: PAYLOAD_ROOT }),
   baseToolchainEnv: NODE_TOOLCHAIN_ENV,
-  recordSiteOpened: ({ registryPath, row }) => recordSiteOpened(registryPath, row),
+  recordSiteOpened: ({ registryPath, row }) => recordSiteOpened({ registryDir: registryPath, row }),
   now: Date.now,
   armOwnerSignIn: ({ partition, adminUrl, capability }) => armDesktopOwnerSignIn({ session: session.fromPartition(partition), adminUrl, capability }),
   ensureSession: ({ partition, adminUrl, redeem }) => ensureSiteSession({ net, session: session.fromPartition(partition), adminUrl, redeem }),
@@ -602,7 +602,7 @@ const livePreviewGuests = createLivePreviewGuests<BrowserWindow, WebContents>({
 });
 const captureSitePreview = createSitePreviewCapture({ ports: {
   liveGuest: input => livePreviewGuests.liveGuest(input),
-  writePreview: ({ siteDir, png }) => writePreview(app.getPath("userData"), siteDir, png),
+  writePreview: ({ siteDir, png }) => writePreview({ userDataDir: app.getPath("userData"), siteDir, bytes: png }),
   warn: ({ message }) => console.warn(message),
 } });
 const sitePreviewScheduler = createSitePreviewScheduler<ReturnType<typeof setTimeout>>({ ports: {
@@ -619,7 +619,7 @@ async function openSiteWindow({ siteDir, ctx }: { siteDir: string; ctx: SiteOpen
     startSiteBackend: ({ siteDir: dir, ctx: openCtx }, openOptions = {}) => siteBackend.startSiteBackend({ siteDir: dir, ctx: openCtx }, openOptions),
     sitePartition, readSiteName,
     createWindow: ({ url, title, partition }) => createWindow({ url }, { title, partition }),
-    recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => recordSiteClosed(registryPath, dir, { pid }),
+    recordSiteClosed: ({ registryPath, siteDir: dir, pid }) => recordSiteClosed({ registryDir: registryPath, siteDir: dir }, { pid }),
     siteThemePreviews, sitePreviewScheduler,
     endSiteSession: ({ partition, adminUrl }) => endSiteSession({ net, session: session.fromPartition(partition), adminUrl }),
     trackTeardown: ({ promise }) => pendingTeardowns.track({ promise }),
@@ -748,13 +748,13 @@ function reconcileOrphansOnBoot(): Promise<void> {
   // Not awaited: a killed import's leftovers are no reason to hold up the launch.
   void Promise.resolve().then(() => tidyInterruptedImports({ appData: sharedSites.config({}).appData, repoRoot: PAYLOAD_ROOT, cliMode: resolveCliMode() }))
     .catch((error: unknown) => console.warn("tovu desktop: could not check for interrupted imports:", error));
-  return reconcileOrphansOnBootIn({ registryPath: registryDirPath(app.getPath("userData")), reconcileOrphans: ({ registryPath }) => reconcileOrphans(registryPath), log: ({ message }) => console.log(message) });
+  return reconcileOrphansOnBootIn({ registryPath: registryDirPath({ userDataDir: app.getPath("userData") }), reconcileOrphans: ({ registryPath }) => reconcileOrphans({ registryDir: registryPath }), log: ({ message }) => console.log(message) });
 }
 
 /** Boot mode 2 — own server — see `own-server-boot.ts`. */
 async function bootOwnServerMode(): Promise<void> {
   registerProjectLifecycle(buildProjectDeps(sitesHomeCtx()));
-  const ctx: SiteOpenCtx = { cliMode: resolveCliMode(), statePath: stateFilePath(app.getPath("userData")), registryPath: registryDirPath(app.getPath("userData")) };
+  const ctx: SiteOpenCtx = { cliMode: resolveCliMode(), statePath: stateFilePath(app.getPath("userData")), registryPath: registryDirPath({ userDataDir: app.getPath("userData") }) };
   await bootOwnServerModeIn({ ctx, ports: { sitesConfigWarning: () => sharedSites.config({}).warning, warn: ({ message }) => console.warn(message),
     refreshAppMenu, resolveStartupSiteDirs, selftest: SELFTEST,
     installSelftestTracker: ({ expectedCount }) => { selftestTracker = buildSelftestTracker({ expectedCount }); },
@@ -878,7 +878,7 @@ function sitesHomeCtx() {
   return {
     cliMode: resolveCliMode(),
     statePath: stateFilePath(app.getPath("userData")),
-    registryPath: registryDirPath(app.getPath("userData")),
+    registryPath: registryDirPath({ userDataDir: app.getPath("userData") }),
     projectsPath: sitesFilePath({ userDataDir: app.getPath("userData") }),
   };
 }
@@ -927,9 +927,9 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     // site every other consumer resolves it from — an independently-resolved userData here
     // would write E2E previews into the real operator's profile (see `site-preview-store.ts`'s
     // own header, and `applyUserDataDir`'s doc on `TOVU_DESKTOP_USER_DATA_DIR`).
-    readPreviewVersion: ({ siteDir }: { siteDir: string }) => readPreviewVersion(app.getPath("userData"), siteDir),
-    readPreviewDataUrl: ({ id }: { id: string }) => readPreviewDataUrl(app.getPath("userData"), id),
-    deletePreview: ({ id }: { id: string }) => deletePreview(app.getPath("userData"), id),
+    readPreviewVersion: ({ siteDir }: { siteDir: string }) => readPreviewVersion({ userDataDir: app.getPath("userData"), siteDir }),
+    readPreviewDataUrl: ({ id }: { id: string }) => readPreviewDataUrl({ userDataDir: app.getPath("userData"), siteDir: id }),
+    deletePreview: ({ id }: { id: string }) => deletePreview({ userDataDir: app.getPath("userData"), siteDir: id }),
     cancelPreviewCapture: ({ siteDir }: { siteDir: string }, _optional = {}) => {
       sitePreviewScheduler.cancel({ siteDir }, {});
       siteThemePreviews.stop({ siteDir }, {});
@@ -986,7 +986,7 @@ function startSitesHomeDiscovery(projectDeps: ProjectDeps): void {
     // Hygiene runs after discovery settles, so it sees the fullest tracked list; cleanup,
     // never correctness. See sweepSitePreviewsOnBoot's own doc.
     sweep: () => sweepSitePreviewsOnBootIn({ projectsPath: projectDeps.ctx.projectsPath, readTrackedSites,
-      sweepOrphanedPreviews: ({ trackedDirs }) => sweepOrphanedPreviews(app.getPath("userData"), trackedDirs), warn: ({ message }) => console.warn(message) }),
+      sweepOrphanedPreviews: ({ trackedDirs }) => sweepOrphanedPreviews({ userDataDir: app.getPath("userData"), trackedSiteDirs: trackedDirs }), warn: ({ message }) => console.warn(message) }),
   });
 }
 

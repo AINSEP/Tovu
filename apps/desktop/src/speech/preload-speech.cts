@@ -40,7 +40,7 @@
  * relative requires fail immediately. Bundle Jini's bridge rather than loading the package at
  * runtime, and never import the main-process speech-ipc.ts/native-transcriber dependency tree.
  * preload-speech.test.ts checks the deployed bundle's sole electron require, admin-only file
- * capability, channel names and positional sample payloads in a recording VM. Real Electron
+ * capability, channel names and sample payloads in a recording VM. Real Electron
  * contextBridge isolation and microphone permission prompts still need the owner smoke check.
  */
 import electron = require("electron");
@@ -57,8 +57,8 @@ const speech = createSpeechBridge({
 });
 contextBridge.exposeInMainWorld("tovuVoice", {
   isAvailable: () => speech.isAvailable(),
-  /** Convert the host renderer's positional call; preserve sample identity and native IPC order. */
-  transcribe: (samples: Float32Array | readonly number[], sampleRate: number) =>
+  /** Preserve sample identity and native IPC order across the host renderer's bridge. */
+  transcribe: ({ samples, sampleRate }: { samples: Float32Array | readonly number[]; sampleRate: number }, _optional = {}) =>
     speech.transcribe({ samples, sampleRate }),
 });
 /** File paths are a host capability granted only to the admin document. */

@@ -95,7 +95,7 @@ test("a deliberate delete withdraws the watch — stopping a server is not a cra
   server.die(null, "SIGTERM");
 
   assert.deepEqual(reported, []);
-  assert.equal(store.lastExitOf("/sites/a"), null);
+  assert.equal(store.lastExitOf({ siteDir: "/sites/a" }), null);
 });
 
 test("a replaced entry's old child dying never evicts the new one", () => {
@@ -120,16 +120,16 @@ test("lastExitOf explains a crash, and is cleared by both a restart and a delete
   const first = fakeServer();
   store.set("/sites/a", { server: first });
   first.die(3, null);
-  assert.deepEqual(store.lastExitOf("/sites/a"), { code: 3, signal: null });
+  assert.deepEqual(store.lastExitOf({ siteDir: "/sites/a" }), { code: 3, signal: null });
 
   store.set("/sites/a", { server: fakeServer() });
-  assert.equal(store.lastExitOf("/sites/a"), null, "a restarted site's old crash is not a current fact");
+  assert.equal(store.lastExitOf({ siteDir: "/sites/a" }), null, "a restarted site's old crash is not a current fact");
 
   const third = fakeServer();
   store.set("/sites/b", { server: third });
   third.die(3, null);
   store.delete("/sites/b");
-  assert.equal(store.lastExitOf("/sites/b"), null, "a forgotten site's old crash is not a current fact");
+  assert.equal(store.lastExitOf({ siteDir: "/sites/b" }), null, "a forgotten site's old crash is not a current fact");
 });
 
 test("an exit that already happened before the entry was stored is still seen", () => {

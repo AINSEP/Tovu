@@ -93,7 +93,7 @@ interface GateContext {
   session: ChatSession;
 }
 
-const errorCode = (error: unknown) => (error as NodeJS.ErrnoException).code;
+const errorCode = ({ error }: { error: unknown }, _optional = {}) => (error as NodeJS.ErrnoException).code;
 
 /** Atomic mkdir interoperates with the machine's shell-based test runners; never steal a lock. */
 async function acquireLock(deps: ChatGateDeps): Promise<() => Promise<void>> {
@@ -104,7 +104,7 @@ async function acquireLock(deps: ChatGateDeps): Promise<() => Promise<void>> {
     deps.signal.throwIfAborted();
     try { await deps.fs.mkdir(lockPath); break; }
     catch (error) {
-      if (errorCode(error) !== "EEXIST") throw error;
+      if (errorCode({ error }) !== "EEXIST") throw error;
       await deps.delay(1_000, undefined, { signal: deps.signal });
     }
   }
@@ -114,18 +114,18 @@ async function acquireLock(deps: ChatGateDeps): Promise<() => Promise<void>> {
 }
 
 /** Check the whole POSIX group, including descendants surviving an early server exit. */
-function groupAlive(deps: ChatGateDeps, pid: number): boolean {
+function groupAlive({ deps, pid }: { deps: ChatGateDeps; pid: number }, _optional = {}): boolean {
   try { deps.kill(-pid, 0); return true; }
   catch (error) {
-    if (errorCode(error) === "ESRCH") return false;
+    if (errorCode({ error }) === "ESRCH") return false;
     // macOS answers EPERM for a group whose members are all zombies (0.1.18's gate run hit it), so
     // ask ps whether any live member is left instead of failing the teardown.
-    if (errorCode(error) === "EPERM") return liveGroupMember(deps, pid);
+    if (errorCode({ error }) === "EPERM") return liveGroupMember({ deps, pgid: pid });
     throw error;
   }
 }
 
-function liveGroupMember(deps: ChatGateDeps, pgid: number): boolean {
+function liveGroupMember({ deps, pgid }: { deps: ChatGateDeps; pgid: number }, _optional = {}): boolean {
   const ps = deps.spawnSync("ps", ["-axo", "pgid=,stat="], { encoding: "utf8" });
   if (ps.status !== 0) throw new PackagedChatSmokeError("Could not list processes to verify teardown.");
   return ps.stdout.split("\n").some(line => {
@@ -135,23 +135,23 @@ function liveGroupMember(deps: ChatGateDeps, pgid: number): boolean {
 }
 
 /** The daemon owns a separate process group. Its private scratch registry survives parent death. */
-async function findDaemonRoot(deps: ChatGateDeps, snapshots: ProcessSnapshot[], siteDir: string):
+async function findDaemonRoot({ deps, snapshots, siteDir }: { deps: ChatGateDeps; snapshots: ProcessSnapshot[]; siteDir: string }, _optional = {}):
   Promise<{ pid?: number; registryFailed: boolean }> {
   try {
     const registry = JSON.parse(await deps.fs.readFile(path.join(siteDir, "ops/assistant-daemon.json"), "utf8")) as { pid: number };
     const daemon = snapshots.find(item => item.pid === registry.pid);
     const isDaemon = daemon && /(?:^|[ /])agent-daemon-server\.js(?:\s|$)/.test(daemon.command);
     return { pid: isDaemon ? daemon.pid : undefined, registryFailed: false };
-  } catch (error) { return { registryFailed: errorCode(error) !== "ENOENT" }; }
+  } catch (error) { return { registryFailed: errorCode({ error }) !== "ENOENT" }; }
 }
 
 /** SIGTERM, then SIGKILL, each followed by a bounded wait for the whole group to exit. */
-async function signalGroupUntilGone(deps: ChatGateDeps, pid: number): Promise<void> {
+async function signalGroupUntilGone({ deps, pid }: { deps: ChatGateDeps; pid: number }, _optional = {}): Promise<void> {
   for (const signal of ["SIGTERM", "SIGKILL"] as const) {
-    if (!groupAlive(deps, pid)) return;
+    if (!groupAlive({ deps, pid })) return;
     signalPackagedChatGroup({ pid, signal, kill: deps.kill });
     for (let attempt = 0; attempt < 50; attempt++) {
-      if (!groupAlive(deps, pid)) return;
+      if (!groupAlive({ deps, pid })) return;
       await deps.delay(100);
     }
   }
@@ -159,12 +159,12 @@ async function signalGroupUntilGone(deps: ChatGateDeps, pid: number): Promise<vo
 }
 
 /** SIGTERM permits the server's own daemon/CLI drain; SIGKILL is a bounded final backstop. */
-async function stopGroup(deps: ChatGateDeps, pid: number, siteDir: string): Promise<void> {
+async function stopGroup({ deps, pid, siteDir }: { deps: ChatGateDeps; pid: number; siteDir: string }, _optional = {}): Promise<void> {
   const snapshots = await deps.processes.listProcessSnapshots();
-  const daemon = await findDaemonRoot(deps, snapshots, siteDir);
+  const daemon = await findDaemonRoot({ deps, snapshots, siteDir });
   const pids = deps.processes.collectProcessTreePids(snapshots, daemon.pid === undefined ? [pid] : [pid, daemon.pid]);
   try {
-    await signalGroupUntilGone(deps, pid);
+    await signalGroupUntilGone({ deps, pid });
   } finally {
     const stopped = await deps.processes.stopProcesses(pids);
     if (daemon.registryFailed || stopped.remainingPids.length || !snapshots.some(item => item.pid === deps.pid)) {
@@ -189,15 +189,15 @@ async function resolveGateTargets(deps: ChatGateDeps): Promise<SmokeTargets> {
   // resolveSmokeTargets expects the parent of mac*; accept an individual mac* directory as well
   // so a release folder containing both CPU builds never silently tests the wrong one.
   const entries = await deps.fs.readdir(platformDir);
-  if (entries.includes("Tovu.app")) return deps.resolveSmokeTargets(path.dirname(platformDir), [path.basename(platformDir)]);
+  if (entries.includes("Tovu.app")) return deps.resolveSmokeTargets({ platformDir: path.dirname(platformDir), entryNames: [path.basename(platformDir)] });
   if (entries.filter(entry => entry.startsWith("mac")).length > 1) {
     throw new PackagedChatSmokeError("Choose a single native mac* output with --platform-dir.");
   }
-  return deps.resolveSmokeTargets(platformDir, entries);
+  return deps.resolveSmokeTargets({ platformDir, entryNames: entries });
 }
 
 /** A scratch HOME for every Tovu/CLI write; on macOS it borrows only the user's Keychains. */
-async function prepareGateHome(deps: ChatGateDeps, directory: string): Promise<NodeJS.ProcessEnv> {
+async function prepareGateHome({ deps, directory }: { deps: ChatGateDeps; directory: string }, _optional = {}): Promise<NodeJS.ProcessEnv> {
   // withIsolatedSmokeTargets removes this profile with the copied app after all children stop.
   const homeDir = path.join(directory, "home");
   await deps.fs.mkdir(path.join(homeDir, "Documents"), { recursive: true });
@@ -218,7 +218,7 @@ async function prepareGateHome(deps: ChatGateDeps, directory: string): Promise<N
 }
 
 /** One authenticated request; any status but `expected` is a fixed, body-free diagnostic. */
-async function request(ctx: GateContext, route: string, { method = "GET", body, expected = 200 }: {
+async function request({ ctx, route }: { ctx: GateContext; route: string }, { method = "GET", body, expected = 200 }: {
   method?: string; body?: unknown; expected?: number;
 } = {}): Promise<Response> {
   const { session } = ctx;
@@ -247,9 +247,9 @@ async function waitForClaudeModel(ctx: GateContext): Promise<string | undefined>
   return undefined;
 }
 
-async function waitForRunSuccess(ctx: GateContext, runId: string): Promise<string> {
+async function waitForRunSuccess({ ctx, runId }: { ctx: GateContext; runId: string }, _optional = {}): Promise<string> {
   while (true) {
-    const status = await (await request(ctx, `/api/runs/${encodeURIComponent(runId)}`)).json() as { run: { state: string } };
+    const status = await (await request({ ctx, route: `/api/runs/${encodeURIComponent(runId)}` })).json() as { run: { state: string } };
     if (status.run.state === "succeeded") return runId;
     if (["failed", "cancelled"].includes(status.run.state)) throw new PackagedChatSmokeError("The packaged Claude run failed or was canceled.");
     await ctx.deps.delay(500, undefined, { signal: ctx.session.requestSignal });
@@ -257,7 +257,7 @@ async function waitForRunSuccess(ctx: GateContext, runId: string): Promise<strin
 }
 
 /** Read with the shipped Electron ABI and shipped SQLite, never the checkout's native module. */
-function readEvidence(ctx: GateContext, siteDir: string, runId: string): PackagedChatEvidence | null {
+function readEvidence({ ctx, siteDir, runId }: { ctx: GateContext; siteDir: string; runId: string }, _optional = {}): PackagedChatEvidence | null {
   const script = `const Database = require(${JSON.stringify(path.join(ctx.targets.nodeModulesDir, "better-sqlite3"))});
       const db = new Database(${JSON.stringify(path.join(siteDir, "data.nosync/chat.db"))}, { readonly: true });
       try { console.log(JSON.stringify(db.prepare(\`SELECT m.run_id, m.run_status, m.content,
@@ -274,7 +274,7 @@ function readEvidence(ctx: GateContext, siteDir: string, runId: string): Package
 }
 
 /** Boot the shipped server against a fresh scratch site; partial-start children are torn down here. */
-async function startServer(ctx: GateContext, siteDir: string): Promise<{ stop(): Promise<void> }> {
+async function startServer({ ctx, siteDir }: { ctx: GateContext; siteDir: string }, _optional = {}): Promise<{ stop(): Promise<void> }> {
   const { deps, targets, session } = ctx;
   const payloadRoot = path.dirname(targets.nodeModulesDir);
   // serve's public contract rejects 0. Use the shell's existing free-port allocator.
@@ -293,7 +293,7 @@ async function startServer(ctx: GateContext, siteDir: string): Promise<{ stop():
         return child;
       },
     });
-    if (childPid !== undefined) await stopGroup(deps, childPid, siteDir);
+    if (childPid !== undefined) await stopGroup({ deps, pid: childPid, siteDir });
     childPid = undefined;
     const server = await deps.startTovuServer({ repoRoot: payloadRoot, siteDir, port, cliMode: "compiled",
       emitBootToken: true, baseEnv: plan.env, mirror: { stdout: silentStream(), stderr: silentStream() },
@@ -309,11 +309,11 @@ async function startServer(ctx: GateContext, siteDir: string): Promise<{ stop():
     session.bootToken = server.bootToken;
     return { async stop() {
       // Parent exit alone proves nothing about the detached daemon and its CLI children.
-      await stopGroup(deps, server.pid, siteDir);
+      await stopGroup({ deps, pid: server.pid, siteDir });
       await server.stop();
     } };
   } catch (error) {
-    if (childPid !== undefined) await stopGroup(deps, childPid, siteDir);
+    if (childPid !== undefined) await stopGroup({ deps, pid: childPid, siteDir });
     throw error;
   }
 }
@@ -324,26 +324,26 @@ async function chat(ctx: GateContext): Promise<string> {
   const deadline = new AbortController();
   session.runTimer = deps.setTimeout(() => deadline.abort(), 180_000);
   session.requestSignal = AbortSignal.any([deps.signal, deadline.signal]);
-  const auth = await request(ctx, "/api/admin/v1/auth/boot-session", { method: "POST", body: { token: session.bootToken } });
+  const auth = await request({ ctx, route: "/api/admin/v1/auth/boot-session" }, { method: "POST", body: { token: session.bootToken } });
   session.cookie = auth.headers.getSetCookie().map(item => item.split(";")[0]).join("; ");
   await auth.body?.cancel();
   if (!session.cookie) throw new PackagedChatSmokeError("Boot-session redemption set no session cookie.");
   const model = await waitForClaudeModel(ctx);
   if (!model) throw new PackagedChatSmokeError("Packaged Claude discovery did not become ready.");
-  const conversation = await (await request(ctx, "/api/assistant/chats", { method: "POST", body: {}, expected: 201 })).json() as { conversation: { id: string } };
+  const conversation = await (await request({ ctx, route: "/api/assistant/chats" }, { method: "POST", body: {}, expected: 201 })).json() as { conversation: { id: string } };
   const contextRef = JSON.stringify({ prompt: PACKAGED_CHAT_PROMPT, model,
     conversationId: conversation.conversation.id, assistantMessageId: deps.randomUUID(),
     userMessage: { id: deps.randomUUID(), role: "user", content: PACKAGED_CHAT_PROMPT, createdAt: Date.now() } });
-  const accepted = await (await request(ctx, "/api/runs", { method: "POST", expected: 201,
+  const accepted = await (await request({ ctx, route: "/api/runs" }, { method: "POST", expected: 201,
     body: { agentId: "claude", contextRef } })).json() as { run: { id: string } };
-  return waitForRunSuccess(ctx, accepted.run.id);
+  return waitForRunSuccess({ ctx, runId: accepted.run.id });
 }
 
 /** The durable finalizer settles asynchronously after the daemon publishes its terminal state. */
-async function settledEvidence(ctx: GateContext, siteDir: string, runId: string) {
+async function settledEvidence({ ctx, siteDir, runId }: { ctx: GateContext; siteDir: string; runId: string }, _optional = {}) {
   for (let attempt = 0; attempt < 20; attempt++) {
     ctx.session.requestSignal.throwIfAborted();
-    const row = readEvidence(ctx, siteDir, runId);
+    const row = readEvidence({ ctx, siteDir, runId });
     if (row && !["queued", "running"].includes(row.run_status)) {
       const daemonLog = await ctx.deps.fs.readFile(path.join(siteDir, "ops/logs/daemon.log"), "utf8");
       return { row, daemonLog };
@@ -354,23 +354,23 @@ async function settledEvidence(ctx: GateContext, siteDir: string, runId: string)
 }
 
 /** The plugin package store writes read-only directories, which rm alone cannot empty. */
-async function removeSite(deps: ChatGateDeps, siteDir: string): Promise<void> {
+async function removeSite({ deps, siteDir }: { deps: ChatGateDeps; siteDir: string }, _optional = {}): Promise<void> {
   const chmod = deps.spawnSync("chmod", ["-R", "u+w", siteDir], { encoding: "utf8" });
   if (chmod.status !== 0) throw new PackagedChatSmokeError("Could not make the temporary site writable.");
   await deps.fs.rm(siteDir, { recursive: true, force: true });
 }
 
 /** One full gate inside the isolated copy of the packaged app at `directory`. */
-async function runGate(deps: ChatGateDeps, targets: SmokeTargets, directory: string): Promise<void> {
-  const ctx: GateContext = { deps, targets, gateEnv: await prepareGateHome(deps, directory),
+async function runGate({ deps, targets, directory }: { deps: ChatGateDeps; targets: SmokeTargets; directory: string }, _optional = {}): Promise<void> {
+  const ctx: GateContext = { deps, targets, gateEnv: await prepareGateHome({ deps, directory }),
     session: { origin: "", bootToken: "", cookie: "", requestSignal: deps.signal } };
   const ports: PackagedChatSmokePorts = {
     acquireLock: () => acquireLock(deps),
     createSite: () => deps.fs.mkdtemp(path.join(directory, "packaged-chat-")),
-    start: (siteDir) => startServer(ctx, siteDir),
+    start: ({ siteDir }, _optional = {}) => startServer({ ctx, siteDir }),
     chat: () => chat(ctx),
-    evidence: (siteDir, runId) => settledEvidence(ctx, siteDir, runId),
-    removeSite: (siteDir) => removeSite(deps, siteDir),
+    evidence: ({ siteDir, runId }, _optional = {}) => settledEvidence({ ctx, siteDir, runId }),
+    removeSite: ({ siteDir }, _optional = {}) => removeSite({ deps, siteDir }),
   };
   try {
     await runPackagedChatSmoke({ ports });
@@ -379,7 +379,7 @@ async function runGate(deps: ChatGateDeps, targets: SmokeTargets, directory: str
 }
 
 /** Only our fixed diagnostics are safe to print. Upstream errors may contain raw child output. */
-function safeDiagnostic(item: unknown): string {
+function safeDiagnostic({ item }: { item: unknown }, _optional = {}): string {
   return item instanceof PackagedChatSmokeError || item instanceof PackagedGateIsolationError
     ? item.message
     : "Gate or teardown failed; no draft may be created.";
@@ -394,11 +394,11 @@ function safeDiagnostic(item: unknown): string {
 export async function smokePackagedChatCli(deps: ChatGateDeps): Promise<0 | 1> {
   try {
     const targets = await resolveGateTargets(deps);
-    await deps.withIsolatedSmokeTargets({ targets, run: ({ targets: isolated, directory }, _options = {}) => runGate(deps, isolated, directory) });
+    await deps.withIsolatedSmokeTargets({ targets, run: ({ targets: isolated, directory }, _options = {}) => runGate({ deps, targets: isolated, directory }) });
     return 0;
   } catch (error) {
     const errors: unknown[] = error instanceof AggregateError ? error.errors : [error];
-    for (const item of errors) deps.stderr.write(`smoke-packaged-chat: ${safeDiagnostic(item)}\n`);
+    for (const item of errors) deps.stderr.write(`smoke-packaged-chat: ${safeDiagnostic({ item })}\n`);
     return 1;
   }
 }
@@ -409,8 +409,8 @@ export async function smokePackagedChatCli(deps: ChatGateDeps): Promise<0 | 1> {
  * @param input.events the `process`-shaped emitter the signals arrive on.
  */
 export async function withInterruptSignal<T>(
-  { events }: { events: { on(event: NodeJS.Signals, listener: () => void): unknown; off(event: NodeJS.Signals, listener: () => void): unknown } },
-  run: (signal: AbortSignal) => Promise<T>,
+  { events, run }: { events: { on(event: NodeJS.Signals, listener: () => void): unknown; off(event: NodeJS.Signals, listener: () => void): unknown }; run: (signal: AbortSignal) => Promise<T> },
+  _optional = {},
 ): Promise<T> {
   const controller = new AbortController();
   const interrupt = () => controller.abort();

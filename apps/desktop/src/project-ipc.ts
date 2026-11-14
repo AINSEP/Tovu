@@ -266,15 +266,15 @@ interface OpenSites {
   set(siteDir: string, entry: OpenSiteEntry): unknown;
   has(siteDir: string): boolean;
   delete(siteDir: string): boolean;
-  lastExitOf?(siteDir: string): ServerExitLike | null;
+  lastExitOf?({ siteDir }: { siteDir: string }, optional?: {}): ServerExitLike | null;
 }
 
 /** `deps.transitions` — `site-transitions.ts`'s store, as the two readers here need it. Structural
  *  rather than an import of its own type, for the same reason {@link OpenSites} is a duck type:
  *  this file's handlers stay callable from plain `node --test` against a two-line fake. */
 interface SiteTransitionsLike {
-  get(siteDir: string): "starting" | "stopping" | null;
-  during<T>(siteDir: string, transition: "starting" | "stopping", body: () => Promise<T>): Promise<T>;
+  get({ siteDir }: { siteDir: string }, optional?: {}): "starting" | "stopping" | null;
+  during<T>({ siteDir, transition, body }: { siteDir: string; transition: "starting" | "stopping"; body: () => Promise<T> }, optional?: {}): Promise<T>;
 }
 
 /** A crash-safety registry row, as {@link liveForeignServers} needs it — mirrors
@@ -392,7 +392,7 @@ interface AddSitePointerLike {
  * @complexity O(1).
  */
 function describeLastExit(openSites: OpenSites, siteDir: string): string | null {
-  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf(siteDir) : null;
+  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf({ siteDir }) : null;
   if (exit === null) return null;
   if (exit.signal !== null && exit.signal !== undefined) return `The site's server was stopped by ${exit.signal}.`;
   return `The site's server exited (code ${exit.code}).`;
@@ -476,7 +476,7 @@ export function siteRecordLifecycle(
   // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
-  const lifecycle = siteLifecycle(running, transitions?.get(siteDir) ?? sharedStarting);
+  const lifecycle = siteLifecycle(running, transitions?.get({ siteDir }) ?? sharedStarting);
   return { sharedPort, lifecycle };
 }
 
@@ -571,7 +571,7 @@ function handleList(
 ) {
   importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
   const file = readProjectsFile({ projectsPath: deps.projectsPath });
-  if (deps.relocationGate && !deps.relocationGate.shouldRun(file)) return recordsWithRememberedNames({ rows: file.rows, deps });
+  if (deps.relocationGate && !deps.relocationGate.shouldRun({ file })) return recordsWithRememberedNames({ rows: file.rows, deps });
   try {
     relocateMovedSites({ projectsPath: deps.projectsPath }, { searchRoots: deps.siteFolders?.read({}).roots ?? deps.siteScanRoots ?? [], classifySiteDir: deps.classifySiteDir });
   } catch (error) {
@@ -642,7 +642,7 @@ async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "c
     throw new Error(`${siteDir} is not a complete Tovu site (${kind}). Pick the folder that holds this website.`);
   }
   // The old row was repointed onto, or merged into, this exact siteDir above.
-  const row = repointTrackedSite(deps.projectsPath, id, siteDir).find((entry) => entry.siteDir === siteDir);
+  const row = repointTrackedSite({ projectsPath: deps.projectsPath, fromDir: id, toDir: siteDir }).find((entry) => entry.siteDir === siteDir);
   if (!row) throw new Error(`Located site ${siteDir} is missing from tracked projects.`);
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true });
   return buildSiteRecord(row, deps);
@@ -987,7 +987,7 @@ function unreadableRegistryMessage(unreadable: string[]): string {
  *   zero or one).
  */
 function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registryPath" | "isLiveServeRow">, siteDir: string, ownPid: number | undefined): RegistryRow[] {
-  const registry = deps.readRegistry(deps.registryPath);
+  const registry = deps.readRegistry({ registryDir: deps.registryPath });
   if (registry.unreadable.length > 0) throw new Error(unreadableRegistryMessage(registry.unreadable));
   return registry.sites.filter((row) => row.siteDir === siteDir && row.pid !== ownPid && deps.isLiveServeRow(row));
 }
@@ -1111,7 +1111,7 @@ function closeStoppedProject(
   deps.openSites.delete(id);
   // By pid: `recordSiteOpened` can leave a still-draining earlier child's row for this same site dir,
   // and a close by site dir alone would drop that one too (D-07).
-  deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+  deps.recordSiteClosed({ registryDir: deps.registryPath, siteDir: id }, { pid: openEntry.server.pid });
   // A sites-home-opened (embedded-tab) entry has no `window` at all — see `openSiteServer` in
   // `main.ts` — so this is optional, not a missing null check.
   const window = openEntry.window;
@@ -1458,7 +1458,7 @@ async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites"
   const teardown = openEntry.server.stop().then(() => {
     // By pid, never by site dir alone: a live SIBLING app instance can hold its own row for this same
     // site, and a close by site dir would take that one too (D-07). A failed Stop keeps this row.
-    deps.recordSiteClosed(deps.registryPath, id, { pid: openEntry.server.pid });
+    deps.recordSiteClosed({ registryDir: deps.registryPath, siteDir: id }, { pid: openEntry.server.pid });
   }, error => {
     // Stop could not confirm exit. Keep this live child supervised so Keep running can retain
     // its normal memory and crash recovery, rather than losing it from the lifecycle entirely.
@@ -1485,7 +1485,7 @@ function markTransition<T>(
   transition: "starting" | "stopping",
   body: () => Promise<T>,
 ): Promise<T> {
-  return transitions === undefined ? body() : transitions.during(siteDir, transition, body);
+  return transitions === undefined ? body() : transitions.during({ siteDir, transition, body });
 }
 
 /**
@@ -1937,8 +1937,8 @@ interface ProjectIpcDeps<TCtx = unknown> {
    * test that is not exercising a transition.
    */
   transitions?: SiteTransitionsLike;
-  recordSiteClosed: (registryPath: string, siteDir: string, options?: { pid?: number }) => void;
-  readRegistry: (registryPath: string) => { sites: RegistryRow[]; unreadable: string[] };
+  recordSiteClosed: (required: { registryDir: string; siteDir: string }, options?: { pid?: number }) => void;
+  readRegistry: (required: { registryDir: string }, optional?: {}) => { sites: RegistryRow[]; unreadable: string[] };
   isLiveServeRow: (row: RegistryRow) => boolean;
   siteScanRoots: string[];
   /** Profile-bound, read fresh at boot and Rescan; optional for older hosts and handler fakes. */

@@ -32,9 +32,9 @@ test("the sites-home deps object carries the three preview operations, bound to 
   const end = rest.search(/\n\s*};\n/);
   const depsBlock = end === -1 ? rest : rest.slice(0, end);
 
-  assert.match(depsBlock, /readPreviewVersion: \(\{ siteDir \}: \{ siteDir: string \}\) => readPreviewVersion\(app\.getPath\("userData"\), siteDir\)/);
-  assert.match(depsBlock, /readPreviewDataUrl: \(\{ id \}: \{ id: string \}\) => readPreviewDataUrl\(app\.getPath\("userData"\), id\)/);
-  assert.match(depsBlock, /deletePreview: \(\{ id \}: \{ id: string \}\) => deletePreview\(app\.getPath\("userData"\), id\)/);
+  assert.match(depsBlock, /readPreviewVersion: \(\{ siteDir \}: \{ siteDir: string \}\) => readPreviewVersion\(\{ userDataDir: app\.getPath\("userData"\), siteDir \}\)/);
+  assert.match(depsBlock, /readPreviewDataUrl: \(\{ id \}: \{ id: string \}\) => readPreviewDataUrl\(\{ userDataDir: app\.getPath\("userData"\), siteDir: id \}\)/);
+  assert.match(depsBlock, /deletePreview: \(\{ id \}: \{ id: string \}\) => deletePreview\(\{ userDataDir: app\.getPath\("userData"\), siteDir: id \}\)/);
 });
 
 test("boot discovery leaves the home window free and sweeps only after the scan settles", async () => {

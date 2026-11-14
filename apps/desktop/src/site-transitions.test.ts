@@ -27,15 +27,15 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void; reje
 }
 
 test("a site with nothing in flight reports no transition", () => {
-  assert.equal(createSiteTransitions().get("/sites/a"), null);
+  assert.equal(createSiteTransitions().get({ siteDir: "/sites/a" }), null);
 });
 
 test("the mark is readable WHILE the body runs — the whole point of the store", async () => {
   const transitions = createSiteTransitions();
   const gate = deferred<string>();
 
-  const running = transitions.during("/sites/a", "starting", () => gate.promise);
-  assert.equal(transitions.get("/sites/a"), "starting");
+  const running = transitions.during({ siteDir: "/sites/a", transition: "starting", body: () => gate.promise });
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), "starting");
 
   gate.resolve("booted");
   assert.equal(await running, "booted");
@@ -43,31 +43,31 @@ test("the mark is readable WHILE the body runs — the whole point of the store"
 
 test("during() resolves with the body's own value, not a wrapper", async () => {
   const transitions = createSiteTransitions();
-  assert.deepEqual(await transitions.during("/sites/a", "stopping", async () => ({ port: 4000 })), { port: 4000 });
+  assert.deepEqual(await transitions.during({ siteDir: "/sites/a", transition: "stopping", body: async () => ({ port: 4000 }) }), { port: 4000 });
 });
 
 test("the mark is cleared once the body resolves", async () => {
   const transitions = createSiteTransitions();
-  await transitions.during("/sites/a", "starting", async () => undefined);
-  assert.equal(transitions.get("/sites/a"), null);
+  await transitions.during({ siteDir: "/sites/a", transition: "starting", body: async () => undefined });
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), null);
 });
 
 test("the mark is cleared when the body REJECTS — a failed start must not leave a card starting forever", async () => {
   const transitions = createSiteTransitions();
   await assert.rejects(
-    transitions.during("/sites/a", "starting", async () => {
+    transitions.during({ siteDir: "/sites/a", transition: "starting", body: async () => {
       throw new Error("tovu serve failed: PORT_IN_USE");
-    }),
+    } }),
     /PORT_IN_USE/,
   );
-  assert.equal(transitions.get("/sites/a"), null);
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), null);
 });
 
 test("the rejection is re-thrown, not swallowed into a resolved promise", async () => {
   const transitions = createSiteTransitions();
   const thrown = new Error("boom");
   await assert.rejects(
-    transitions.during("/sites/a", "stopping", () => Promise.reject(thrown)),
+    transitions.during({ siteDir: "/sites/a", transition: "stopping", body: () => Promise.reject(thrown) }),
     (error: unknown) => {
       assert.equal(error, thrown, "the caller must receive the body's own error object");
       return true;
@@ -79,8 +79,8 @@ test("stopping and starting are reported as themselves, not as one 'busy'", asyn
   const transitions = createSiteTransitions();
   const gate = deferred<void>();
 
-  const running = transitions.during("/sites/a", "stopping", () => gate.promise);
-  assert.equal(transitions.get("/sites/a"), "stopping");
+  const running = transitions.during({ siteDir: "/sites/a", transition: "stopping", body: () => gate.promise });
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), "stopping");
 
   gate.resolve();
   await running;
@@ -90,8 +90,8 @@ test("one site's transition says nothing about another's", async () => {
   const transitions = createSiteTransitions();
   const gate = deferred<void>();
 
-  const running = transitions.during("/sites/a", "starting", () => gate.promise);
-  assert.equal(transitions.get("/sites/b"), null);
+  const running = transitions.during({ siteDir: "/sites/a", transition: "starting", body: () => gate.promise });
+  assert.equal(transitions.get({ siteDir: "/sites/b" }), null);
 
   gate.resolve();
   await running;
@@ -105,26 +105,26 @@ test("an earlier transition's unwind never clears a LATER one's mark for the sam
   const first = deferred<void>();
   const second = deferred<void>();
 
-  const firstRun = transitions.during("/sites/a", "starting", () => first.promise);
-  const secondRun = transitions.during("/sites/a", "stopping", () => second.promise);
-  assert.equal(transitions.get("/sites/a"), "stopping", "the later transition owns the mark");
+  const firstRun = transitions.during({ siteDir: "/sites/a", transition: "starting", body: () => first.promise });
+  const secondRun = transitions.during({ siteDir: "/sites/a", transition: "stopping", body: () => second.promise });
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), "stopping", "the later transition owns the mark");
 
   first.resolve();
   await firstRun;
-  assert.equal(transitions.get("/sites/a"), "stopping", "the earlier unwind must leave the later mark alone");
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), "stopping", "the earlier unwind must leave the later mark alone");
 
   second.resolve();
   await secondRun;
-  assert.equal(transitions.get("/sites/a"), null);
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), null);
 });
 
 test("a site can transition again after a previous one finished", async () => {
   const transitions = createSiteTransitions();
-  await transitions.during("/sites/a", "starting", async () => undefined);
+  await transitions.during({ siteDir: "/sites/a", transition: "starting", body: async () => undefined });
   const gate = deferred<void>();
-  const running = transitions.during("/sites/a", "stopping", () => gate.promise);
-  assert.equal(transitions.get("/sites/a"), "stopping");
+  const running = transitions.during({ siteDir: "/sites/a", transition: "stopping", body: () => gate.promise });
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), "stopping");
   gate.resolve();
   await running;
-  assert.equal(transitions.get("/sites/a"), null);
+  assert.equal(transitions.get({ siteDir: "/sites/a" }), null);
 });

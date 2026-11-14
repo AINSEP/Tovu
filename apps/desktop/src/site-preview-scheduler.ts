@@ -15,7 +15,7 @@ export function createSitePreviewScheduler<Timer>(
 ) {
   const attempts = new Map<string, { timer?: Timer }>();
 
-  async function fire(siteDir: string, attempt: { timer?: Timer }): Promise<void> {
+  async function fire({ siteDir, attempt }: { siteDir: string; attempt: { timer?: Timer } }, _optional = {}): Promise<void> {
     if (attempts.get(siteDir) !== attempt) return;
     attempt.timer = undefined;
     const target = ports.current({ siteDir }, {});
@@ -36,7 +36,7 @@ export function createSitePreviewScheduler<Timer>(
       const attempt: { timer?: Timer } = {};
       // Coalesce one visit's readiness events; the next public visit may refresh even after success.
       attempts.set(siteDir, attempt);
-      attempt.timer = ports.schedule({ work: () => { void fire(siteDir, attempt); }, delayMs: debounceMs }, {});
+      attempt.timer = ports.schedule({ work: () => { void fire({ siteDir, attempt }); }, delayMs: debounceMs }, {});
     },
     cancel({ siteDir }: { siteDir: string }, _optional = {}): void {
       const attempt = attempts.get(siteDir);

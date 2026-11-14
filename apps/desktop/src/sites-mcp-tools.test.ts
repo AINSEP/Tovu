@@ -88,7 +88,7 @@ test("list_sites reports the tracked sites and whether each folder still exists"
   trackSite({ projectsPath: context.projectsPath, siteDir: present }, { origin: SITE_ORIGIN.adopted });
   trackSite({ projectsPath: context.projectsPath, siteDir: "/gone/missing-site" }, { origin: SITE_ORIGIN.adopted });
 
-  const result = await runSitesMcpTool("list_sites", {}, context);
+  const result = await runSitesMcpTool({ name: "list_sites", args: {}, context });
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.count, 2);
@@ -106,7 +106,7 @@ test("add_site_pointer tracks a real site as adopted", async () => {
   const { context } = fakeContext();
   const siteDir = siteFixture();
 
-  const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir }, context });
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.siteDir, siteDir);
@@ -118,7 +118,7 @@ test("add_site_pointer REFUSES an empty folder, writes no row, and initializes n
   const siteDir = path.join(tempDir(), "fresh");
   fs.mkdirSync(siteDir);
 
-  const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir }, context });
 
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.code, "SITE_DIR_EMPTY");
@@ -136,8 +136,8 @@ test("add_site_pointer REFUSES an incomplete site and an occupied folder", async
   fs.mkdirSync(occupied);
   fs.writeFileSync(path.join(occupied, "taxes.pdf"), "x");
 
-  const first = await runSitesMcpTool("add_site_pointer", { siteDir: incomplete }, context);
-  const second = await runSitesMcpTool("add_site_pointer", { siteDir: occupied }, context);
+  const first = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir: incomplete }, context });
+  const second = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir: occupied }, context });
 
   assert.equal(first.structuredContent.code, "SITE_DIR_INCOMPLETE");
   assert.equal(second.structuredContent.code, "SITE_DIR_OCCUPIED");
@@ -153,7 +153,7 @@ test("add_site_pointer REFUSES a relative path rather than resolving it somewher
   // A model has no idea what the agent daemon's cwd is, so a relative path can only ever be a
   // mistake. Pinned because the fix is one line (`cwd: path.sep`) and its absence would be invisible
   // — the call would succeed on some machines and point at a stranger's folder on others.
-  const result = await runSitesMcpTool("add_site_pointer", { siteDir: path.basename(siteDir) }, context);
+  const result = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir: path.basename(siteDir) }, context });
 
   assert.equal(result.isError, true);
   assert.deepEqual(readTrackedSites({ projectsPath: context.projectsPath }), []);
@@ -163,7 +163,7 @@ test("add_site_pointer rejects a missing or non-string siteDir with a correctabl
   const { context } = fakeContext();
 
   for (const args of [{}, { siteDir: "" }, { siteDir: 42 }, { siteDir: null }]) {
-    const result = await runSitesMcpTool("add_site_pointer", args, context);
+    const result = await runSitesMcpTool({ name: "add_site_pointer", args, context });
     assert.equal(result.isError, true, `accepted ${JSON.stringify(args)}`);
     assert.match(result.content[0]!.text, /'siteDir' is required/);
   }
@@ -174,7 +174,7 @@ test("a tools/call with no arguments object at all is treated as empty arguments
   // An MCP client may omit `arguments` entirely; the server forwards it as `undefined`.
   const { context } = fakeContext();
 
-  const result = await runSitesMcpTool("add_site_pointer", undefined, context);
+  const result = await runSitesMcpTool({ name: "add_site_pointer", args: undefined, context });
 
   assert.equal(result.isError, true);
   assert.match(result.content[0]!.text, /'siteDir' is required/);
@@ -184,9 +184,9 @@ test("a tools/call with no arguments object at all is treated as empty arguments
 test("add_site_pointer reports an already-tracked site without claiming it added one", async () => {
   const { context } = fakeContext();
   const siteDir = siteFixture();
-  await runSitesMcpTool("add_site_pointer", { siteDir }, context);
+  await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir }, context });
 
-  const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir }, context });
 
   assert.equal(result.structuredContent.alreadyTracked, true);
   assert.match(result.content[0]!.text, /was already in your websites/);
@@ -199,7 +199,7 @@ test("add_site_pointer tells the operator when it brings back a website they had
   trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
   untrackSite({ projectsPath: context.projectsPath, siteDir });
 
-  const result = await runSitesMcpTool("add_site_pointer", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "add_site_pointer", args: { siteDir }, context });
 
   assert.equal(result.isError, undefined);
   assert.equal(result.structuredContent.alreadyTracked, false);
@@ -213,7 +213,7 @@ test("reveal_site_folder opens a tracked site's folder", async () => {
   const siteDir = siteFixture();
   trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
-  const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
 
   assert.equal(result.isError, undefined);
   assert.deepEqual(revealed, [siteDir]);
@@ -223,7 +223,7 @@ test("reveal_site_folder REFUSES a path the app is not tracking and never reache
   const { context, revealed } = fakeContext();
   const untracked = siteFixture("not-mine");
 
-  const result = await runSitesMcpTool("reveal_site_folder", { siteDir: untracked }, context);
+  const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir: untracked }, context });
 
   assert.equal(result.isError, true);
   assert.match(result.content[0]!.text, /is not one of this app's websites/);
@@ -236,7 +236,7 @@ test("reveal_site_folder refuses a sensitive path a model might invent", async (
   const { context, revealed } = fakeContext();
 
   for (const siteDir of ["/etc", "/Users", "/", path.join(os.homedir(), ".ssh")]) {
-    const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
+    const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
     assert.equal(result.isError, true, `opened ${siteDir}`);
   }
   assert.deepEqual(revealed, []);
@@ -254,7 +254,7 @@ test("reveal_site_folder surfaces a file-manager failure as a readable tool erro
   };
   trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
-  const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
 
   assert.equal(result.isError, true);
   // The cause is passed through, not flattened into "it failed" — the model has to be able to tell
@@ -275,7 +275,7 @@ test("a handler that rejects with a non-Error value still yields a readable tool
   };
   trackSite({ projectsPath: context.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
-  const result = await runSitesMcpTool("reveal_site_folder", { siteDir }, context);
+  const result = await runSitesMcpTool({ name: "reveal_site_folder", args: { siteDir }, context });
 
   assert.equal(result.isError, true);
   assert.equal(result.content[0]!.text, "The Tovu desktop app could not complete 'reveal_site_folder': file manager unavailable");
@@ -284,7 +284,7 @@ test("a handler that rejects with a non-Error value still yields a readable tool
 test("an unknown tool name is an error RESULT naming the real tools, not a thrown protocol error", async () => {
   const { context } = fakeContext();
 
-  const result = await runSitesMcpTool("delete_everything", {}, context);
+  const result = await runSitesMcpTool({ name: "delete_everything", args: {}, context });
 
   assert.equal(result.isError, true);
   assert.match(result.content[0]!.text, /Unknown tool 'delete_everything'/);

@@ -827,7 +827,7 @@ test("the crash-safety row is dropped only AFTER the child is really gone, and b
   const order: string[] = [];
   let release = () => {};
   const draining = new Promise<void>((resolve) => { release = resolve; });
-  const deps = baseDeps({ recordSiteClosed: (_registryPath, siteDir, options) => order.push(`closed:${siteDir}:${options?.pid}`) });
+  const deps = baseDeps({ recordSiteClosed: ({ siteDir }, options) => order.push(`closed:${siteDir}:${options?.pid}`) });
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { await draining; order.push("stopped"); } } });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
@@ -960,7 +960,7 @@ function externalLeaseFixture(t: { after: (fn: () => void) => void }) {
   const externalSites: NonNullable<ProjectIpcDeps["externalSites"]> = {
     launcherOf: ({ lease: seen }) => { calls.push(`launcherOf:${seen.token === lease.record.token}`); return "npm-run-dev"; },
     stop: async ({ lease: seen, readLease }) => {
-      calls.push(`stop:${seen.token === lease.record.token}:${readLease()?.token === lease.record.token}:${transitions.get(site)}`);
+      calls.push(`stop:${seen.token === lease.record.token}:${readLease()?.token === lease.record.token}:${transitions.get({ siteDir: site })}`);
       release();
     },
   };
@@ -984,7 +984,7 @@ test("Stop on a site npm run dev serves goes through externalSites, reads stoppi
 test("Stop withdraws this window's own attachment BEFORE signalling the external owner", async (t) => {
   const { site, deps, calls } = externalLeaseFixture(t);
   const closed: unknown[] = [];
-  deps.recordSiteClosed = (_registry, siteDir, options) => { closed.push([siteDir, options?.pid]); };
+  deps.recordSiteClosed = ({ siteDir }, options) => { closed.push([siteDir, options?.pid]); };
   deps.openSites.set(site, { server: { external: true, pid: 999, port: 4555, origin: "http://localhost:4555", stop: async () => { calls.push("detach"); } } });
   await handleStop(site, deps);
   assert.deepEqual(calls.filter((call) => !call.startsWith("launcherOf")).map((call) => call.split(":")[0]), ["detach", "stop"]);
@@ -1483,9 +1483,9 @@ test("registerSiteIpcHandlers registers the rescan channel and it returns the fr
 /** Registry state as a second app instance would have left it: a row for `siteDir` under a pid this
  *  process is not holding, in that instance's own file. */
 function seedForeignRegistryRow(deps: Pick<ProjectIpcDeps, "registryPath">, siteDir: string, pid = 999_001): void {
-  writeRegistry(instanceFilePath(deps.registryPath, "424242-f0f0f0f0"), {
+  writeRegistry({ filePath: instanceFilePath({ registryDir: deps.registryPath }, { instanceId: "424242-f0f0f0f0" }), state: {
     sites: [{ siteDir, port: 41234, workspaceId: "ws-foreign", pid, updatedAt: Date.now() }],
-  });
+  } });
 }
 
 test("handleDelete refuses to erase a directory a SECOND app instance still has open", async () => {
@@ -1553,7 +1553,7 @@ test("handleDelete refuses to erase while a registry file is unreadable — its 
   const siteDir = writeSite(path.join(tempDir(), "site-unknown"), "site-unknown", { "content.db": "real bytes" });
   const deps = baseDeps({ isLiveServeRow: () => true });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-unknown" });
-  const torn = instanceFilePath(deps.registryPath, "424242-f0f0f0f0");
+  const torn = instanceFilePath({ registryDir: deps.registryPath }, { instanceId: "424242-f0f0f0f0" });
   fs.mkdirSync(deps.registryPath, { recursive: true });
   fs.writeFileSync(torn, '{\n  "sites": [\n    { "siteDir": ');
 
@@ -2039,13 +2039,13 @@ test("explicit card transitions override shared startup and current local livene
   const transitions = createSiteTransitions();
   const input = { siteDir: "/alpha", openEntry: { server: { port: 3456 } }, transitions,
     sharedRunning: { pid: 10, token: "shared", started: "2026-10-17T00:00:00.000Z", app: "Web", scheme: "http" as const, port: 0 } };
-  await transitions.during("/alpha", "stopping", async () => {
+  await transitions.during({ siteDir: "/alpha", transition: "stopping", body: async () => {
     assert.deepEqual(siteRecordLifecycle(input), { sharedPort: 0, lifecycle: { status: "stopping", desiredState: "stopped" } });
     assert.equal(siteRecordLifecycle({ ...input, siteDir: "/beta" }).lifecycle.status, "starting");
-  });
-  await transitions.during("/alpha", "starting", async () => {
+  } });
+  await transitions.during({ siteDir: "/alpha", transition: "starting", body: async () => {
     assert.deepEqual(siteRecordLifecycle({ ...input, sharedRunning: null }), { sharedPort: 0, lifecycle: { status: "starting", desiredState: "running" } });
-  });
+  } });
 });
 
 test("shared discovery imports new paths while preserving local creation authority and migration state", (t) => {

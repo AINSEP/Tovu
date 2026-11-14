@@ -171,7 +171,7 @@ async function setTheme({ win, theme }: { win: Page; theme: string }, _options =
  * stops here rather than clicking Start on a card it cannot name. */
 async function requireSeededCard({ win, expectedSiteName }: { win: Page; expectedSiteName: string }, _options = {}): Promise<CardState> {
   const idle = await cardState(win);
-  const seen = flat(idle);
+  const seen = flat({ state: idle });
   check({ name: 'CARD_SEEDED', ok: idle !== null, detail: `card rendered, status ${seen.status}` });
   check(
     { name: 'CARD_IS_SEEDED_SITE',
@@ -208,8 +208,8 @@ async function verifyIdleCard({ win, expectedSiteName }: { win: Page; expectedSi
     ok: !idle.trashOnCard,
     detail: `a standalone .card__delete exists on the card outside the ⋮ menu (${idle.trashOnCard})` },
   );
-  checkLayout(layoutClaims(idle));
-  const label = flat(idle).label;
+  checkLayout(layoutClaims({ state: idle }));
+  const label = flat({ state: idle }).label;
   check({ name: 'POWER_OFFERS_START', ok: label === 'Start', detail: `power button reads "${label}"` });
   const startStyle = await powerMatchesCreate(win);
   check(
@@ -224,7 +224,7 @@ async function verifyIdleCard({ win, expectedSiteName }: { win: Page; expectedSi
  *  the button is disabled while it lasts. */
 async function clickPowerExpectingTransition({ win, checkName, label, verb }: { win: Page; checkName: string; label: string; verb: string }, _options = {}): Promise<void> {
   await win.click('.card__power');
-  const mid = flat(await cardState(win));
+  const mid = flat({ state: await cardState(win) });
   check(
     { name: checkName,
     ok: mid.label === label && mid.disabled === true,
@@ -239,12 +239,12 @@ async function verifyStarted(win: Page): Promise<void> {
   await shot({ win, name: 'light-starting' });
 
   const runningState = await waitForStatus({ win, want: 'Running', timeoutMs: 90_000 });
-  const running = flat(runningState);
+  const running = flat({ state: runningState });
   check({ name: 'STARTED', ok: running.status === 'Running', detail: `status after start: ${running.status}` });
   check({ name: 'POWER_OFFERS_STOP', ok: running.label === 'Stop', detail: `power button reads "${running.label}"` });
   // Re-read with the WIDER label in place: "Stop" is a bigger box than "Start", and a column that
   // only lines up around the narrow one is not right-aligned, it is coincidental.
-  const runningLayout = layoutClaims(runningState);
+  const runningLayout = layoutClaims({ state: runningState });
   check(
     { name: 'LAYOUT_HOLDS_WITH_STOP',
     ok: allLayoutClaimsHold(runningLayout),
@@ -258,7 +258,7 @@ async function verifyStopped(win: Page): Promise<void> {
   await clickPowerExpectingTransition({ win, checkName: 'STOP_SAYS_STOPPING', label: 'Stopping…', verb: 'stop' });
   await shot({ win, name: 'light-stopping' });
 
-  const stopped = flat(await waitForStatus({ win, want: 'Stopped', timeoutMs: 30_000 }));
+  const stopped = flat({ state: await waitForStatus({ win, want: 'Stopped', timeoutMs: 30_000 }) });
   check({ name: 'STOPPED', ok: stopped.status === 'Stopped', detail: `status after stop: ${stopped.status}` });
   check({ name: 'POWER_BACK_TO_START', ok: stopped.label === 'Start', detail: `power button reads "${stopped.label}"` });
   // The port is reassigned on every start, so a stopped card must not keep showing the one it had.
@@ -353,13 +353,13 @@ async function verifyMenu(win: Page): Promise<void> {
 async function verifyDark(win: Page): Promise<void> {
   await setTheme({ win, theme: 'dark' });
   const darkState = await cardState(win);
-  const dark = flat(darkState);
+  const dark = flat({ state: darkState });
   check(
     { name: 'DARK_ALWAYS_VISIBLE',
     ok: dark.menuVisible === true && dark.trashOnCard === false && dark.hasPower === true,
     detail: `dark mode: ⋮ ${dark.menuVisible}, top-level trash present ${dark.trashOnCard}, power "${dark.label}"` },
   );
-  const darkLayout = layoutClaims(darkState);
+  const darkLayout = layoutClaims({ state: darkState });
   check({ name: 'DARK_LAYOUT_HOLDS', ok: allLayoutClaimsHold(darkLayout), detail: `dark mode — ${darkLayout.onNameRow.why}` });
   await shot({ win, name: 'dark-stopped' });
   await win.click('.card__menubutton');
@@ -367,11 +367,11 @@ async function verifyDark(win: Page): Promise<void> {
   await shot({ win, name: 'dark-menu-open' });
   await closeMenu(win);
   await win.click('.card__power');
-  const darkRunning = flat(await waitForStatus({ win, want: 'Running', timeoutMs: 90_000 }));
+  const darkRunning = flat({ state: await waitForStatus({ win, want: 'Running', timeoutMs: 90_000 }) });
   check({ name: 'DARK_STARTED', ok: darkRunning.status === 'Running', detail: `dark mode status after start: ${darkRunning.status}` });
   await shot({ win, name: 'dark-running' });
   await win.click('.card__power');
-  const darkStopped = flat(await waitForStatus({ win, want: 'Stopped', timeoutMs: 30_000 }));
+  const darkStopped = flat({ state: await waitForStatus({ win, want: 'Stopped', timeoutMs: 30_000 }) });
   check({ name: 'DARK_STOPPED', ok: darkStopped.status === 'Stopped', detail: `dark mode status after stop: ${darkStopped.status}` });
   await shot({ win, name: 'dark-stopped-again' });
 }

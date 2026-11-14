@@ -139,23 +139,23 @@ interface ServeIdentityRow {
 
 /** @returns the registry DIRECTORY inside Electron's per-user `userData` directory — the value every
  *  `registryDir` parameter below takes. */
-function registryDirPath(userDataDir: string): string {
+function registryDirPath({ userDataDir }: { userDataDir: string }, _optional = {}): string {
   return path.join(userDataDir, REGISTRY_DIR_NAME);
 }
 
 /** @returns where pre-2026-09-20 builds kept their single shared file: beside `registryDir`. */
-function legacyRegistryFilePath(registryDir: string): string {
+function legacyRegistryFilePath({ registryDir }: { registryDir: string }, _optional = {}): string {
   return path.join(path.dirname(registryDir), LEGACY_REGISTRY_FILE_NAME);
 }
 
 /** @returns one instance's own file inside `registryDir` — this process's unless a test names another. */
-function instanceFilePath(registryDir: string, instanceId: string = OWN_INSTANCE_ID): string {
+function instanceFilePath({ registryDir }: { registryDir: string }, { instanceId = OWN_INSTANCE_ID }: { instanceId?: string } = {}): string {
   return path.join(registryDir, `${instanceId}.json`);
 }
 
 /** Whether a parsed row has the two fields every reader keys on. Other fields are trusted as written.
  *  @complexity O(1). */
-function isUsableRow(row: unknown): boolean {
+function isUsableRow({ row }: { row: unknown }, _optional = {}): boolean {
   return typeof row === "object" && row !== null && typeof (row as RawSiteProcessRow).siteDir === "string" && typeof (row as RawSiteProcessRow).pid === "number";
 }
 
@@ -165,12 +165,12 @@ function isUsableRow(row: unknown): boolean {
  * {@link RegistryFileRead}. Launch is still never blocked: callers decide what unreadable means.
  * @complexity O(n) in file size.
  */
-function readRegistryFile(filePath: string): RegistryFileRead {
+function readRegistryFile({ filePath }: { filePath: string }, _optional = {}): RegistryFileRead {
   const read = readJsonFile({ filePath });
   if (read.state !== "ok") return read.state === "missing" ? { state: "missing" } : { state: "unreadable" };
   const sites = (read.value as { sites?: unknown } | null)?.sites;
   if (!Array.isArray(sites)) return { state: "unreadable" };
-  return { state: "ok", sites: sites.filter(isUsableRow) as SiteProcessRow[] };
+  return { state: "ok", sites: sites.filter((row) => isUsableRow({ row })) as SiteProcessRow[] };
 }
 
 /**
@@ -179,7 +179,7 @@ function readRegistryFile(filePath: string): RegistryFileRead {
  *   unknown, which each caller must treat as such rather than as "none".
  * @complexity O(n) in directory entries.
  */
-function listInstanceFiles(registryDir: string): InstanceFile[] | null {
+function listInstanceFiles({ registryDir }: { registryDir: string }, _optional = {}): InstanceFile[] | null {
   let names: string[];
   try {
     names = fs.readdirSync(registryDir);
@@ -200,11 +200,11 @@ function listInstanceFiles(registryDir: string): InstanceFile[] | null {
  * its owner is gone, so it is correctly skipped. An unreadable one is listed in `unreadable` instead.
  * @complexity O(total file size) across every instance file.
  */
-function readRegistry(registryDir: string): RegistrySnapshot {
-  const files = listInstanceFiles(registryDir);
+function readRegistry({ registryDir }: { registryDir: string }, _optional = {}): RegistrySnapshot {
+  const files = listInstanceFiles({ registryDir });
   const snapshot: RegistrySnapshot = { sites: [], unreadable: files === null ? [registryDir] : [] };
-  for (const filePath of [...(files ?? []).map((file) => file.filePath), legacyRegistryFilePath(registryDir)]) {
-    const read = readRegistryFile(filePath);
+  for (const filePath of [...(files ?? []).map((file) => file.filePath), legacyRegistryFilePath({ registryDir })]) {
+    const read = readRegistryFile({ filePath });
     if (read.state === "ok") snapshot.sites.push(...read.sites);
     if (read.state === "unreadable") snapshot.unreadable.push(filePath);
   }
@@ -249,7 +249,7 @@ const REGISTRY_QUARANTINE_NOTICE: QuarantineNotice = {
  * {@link reconcileInstanceFile} removes a dead owner's.
  * @complexity O(n) in row count.
  */
-function writeRegistry(filePath: string, state: WritableSiteProcessRegistry): void {
+function writeRegistry({ filePath, state }: { filePath: string; state: WritableSiteProcessRegistry }, _optional = {}): void {
   writeJsonFileAtomic({ filePath, value: state });
 }
 
@@ -265,8 +265,8 @@ function writeRegistry(filePath: string, state: WritableSiteProcessRegistry): vo
  * @returns the rows, or `null` when the unreadable file could not be moved aside: do not write.
  * @complexity O(n) in file size.
  */
-function readOwnRowsForUpdate(filePath: string, quarantine: typeof quarantineUnreadableFile = quarantineUnreadableFile): SiteProcessRow[] | null {
-  const read = readRegistryFile(filePath);
+function readOwnRowsForUpdate({ filePath }: { filePath: string }, { quarantine = quarantineUnreadableFile }: { quarantine?: typeof quarantineUnreadableFile } = {}): SiteProcessRow[] | null {
+  const read = readRegistryFile({ filePath });
   if (read.state === "ok") return read.sites;
   if (read.state === "missing") return [];
   return quarantine({ filePath, notice: REGISTRY_QUARANTINE_NOTICE }) ? [] : null;
@@ -301,13 +301,13 @@ interface RecordSiteOpenedOptions {
  *   predicate. Defaults to {@link isLiveServeRow}, which really asks the OS.
  * @complexity O(n) in row count, times one `ps` call per same-`siteDir` row (in practice zero or one).
  */
-function recordSiteOpened(registryDir: string, row: SiteProcessRow, options: RecordSiteOpenedOptions = {}): void {
+function recordSiteOpened({ registryDir, row }: { registryDir: string; row: SiteProcessRow }, options: RecordSiteOpenedOptions = {}): void {
   const isLiveRow = options.isLiveRow ?? isLiveServeRow;
-  const filePath = instanceFilePath(registryDir, options.instanceId);
-  const sites = readOwnRowsForUpdate(filePath);
+  const filePath = instanceFilePath({ registryDir }, { instanceId: options.instanceId });
+  const sites = readOwnRowsForUpdate({ filePath });
   if (sites === null) return;
   const retained = sites.filter((existing) => existing.siteDir !== row.siteDir || isLiveRow(existing));
-  writeRegistry(filePath, { sites: [row, ...retained] });
+  writeRegistry({ filePath, state: { sites: [row, ...retained] } });
 }
 
 /**
@@ -316,8 +316,8 @@ function recordSiteOpened(registryDir: string, row: SiteProcessRow, options: Rec
  * @complexity O(1) beyond one `ps` call.
  */
 function isLiveServeRow(row: ServeIdentityRow): boolean {
-  if (!isProcessAlive(row.pid)) return false;
-  return isServeProcessForSite(readProcessCommand(row.pid) ?? "", row);
+  if (!isProcessAlive({ pid: row.pid })) return false;
+  return isServeProcessForSite({ commandLine: readProcessCommand({ pid: row.pid }) ?? "", row });
 }
 
 /** {@link recordSiteClosed}'s own options. */
@@ -343,12 +343,12 @@ interface RecordSiteClosedOptions {
  *   changed meaning silently.
  * @complexity O(n) in row count.
  */
-function recordSiteClosed(registryDir: string, siteDir: string, options: RecordSiteClosedOptions = {}): void {
-  const filePath = instanceFilePath(registryDir, options.instanceId);
-  const sites = readOwnRowsForUpdate(filePath, options.quarantine);
+function recordSiteClosed({ registryDir, siteDir }: { registryDir: string; siteDir: string }, options: RecordSiteClosedOptions = {}): void {
+  const filePath = instanceFilePath({ registryDir }, { instanceId: options.instanceId });
+  const sites = readOwnRowsForUpdate({ filePath }, { quarantine: options.quarantine });
   if (sites === null) return;
   const isDoomed = (existing: SiteProcessRow) => existing.siteDir === siteDir && (options.pid === undefined || existing.pid === options.pid);
-  writeRegistry(filePath, { sites: sites.filter((existing) => !isDoomed(existing)) });
+  writeRegistry({ filePath, state: { sites: sites.filter((existing) => !isDoomed(existing)) } });
 }
 
 /**
@@ -357,7 +357,7 @@ function recordSiteClosed(registryDir: string, siteDir: string, options: RecordS
  * `isProcessAlive` makes.
  * @complexity O(1).
  */
-function isProcessAlive(pid: number): boolean {
+function isProcessAlive({ pid }: { pid: number }, _optional = {}): boolean {
   try {
     process.kill(pid, 0);
     return true;
@@ -368,11 +368,11 @@ function isProcessAlive(pid: number): boolean {
 
 /** Options for the two `ps` readers; `runPs` runs `ps` with the given argv-only column args (test seam). */
 interface PsOptions {
-  runPs?: (args: string[]) => string;
+  runPs?: (required: { args: string[] }, optional?: {}) => string;
 }
 
 /** The real `ps`, stdout as text; throws when `ps` exits non-zero (a gone pid). @complexity O(1). */
-function runPsArgvOnly(args: string[]): string {
+function runPsArgvOnly({ args }: { args: string[] }, _optional = {}): string {
   const command = resolveOnPath({ bin: 'ps' });
   if (command === null) throw new Error('ps executable is unavailable.');
   return execFileSync(command, args, { encoding: "utf8" });
@@ -389,16 +389,16 @@ function runPsArgvOnly(args: string[]): string {
  * than erroring — the same fallback a genuinely-gone pid takes — so orphan reaping is a documented
  * no-op on Windows v1: a leak (an orphan is left running), never a crash or a wrongful kill.
  *
- * @param platform test seam; defaults to the real `process.platform`. Production never passes this.
+ * @param options.platform test seam; defaults to the real `process.platform`. Production never passes this.
  * @param options.runPs test seam for the `ps` call itself; defaults to the real `ps`.
  * @returns the command line, or `null` once the pid is gone (a race between {@link isProcessAlive}
  *   and this call, or the row's pid was never real) — or unconditionally on win32.
  * @complexity O(1); one subprocess call, skipped entirely on win32.
  */
-function readProcessCommand(pid: number, platform: NodeJS.Platform = process.platform, { runPs = runPsArgvOnly }: PsOptions = {}): string | null {
+function readProcessCommand({ pid }: { pid: number }, { platform = process.platform, runPs = runPsArgvOnly }: PsOptions & { platform?: NodeJS.Platform } = {}): string | null {
   if (platform === "win32") return null;
   try {
-    const output = runPs(["-o", "command=", "-p", String(pid)]);
+    const output = runPs({ args: ["-o", "command=", "-p", String(pid)] });
     return output.trim() || null;
   } catch {
     return null;
@@ -413,16 +413,16 @@ function readProcessCommand(pid: number, platform: NodeJS.Platform = process.pla
  * same reason (plan item W9): every caller of this function already treats `null` as "cannot tell,"
  * which is the correct answer on a platform this cannot check.
  *
- * @param platform test seam; defaults to the real `process.platform`. Production never passes this.
+ * @param options.platform test seam; defaults to the real `process.platform`. Production never passes this.
  * @param options.runPs test seam for the `ps` call itself; defaults to the real `ps`.
  * @returns the parent pid, or `null` once the pid is gone or `ps` prints something unparseable — or
  *   unconditionally on win32.
  * @complexity O(1); one subprocess call, skipped entirely on win32.
  */
-function readProcessParentPid(pid: number, platform: NodeJS.Platform = process.platform, { runPs = runPsArgvOnly }: PsOptions = {}): number | null {
+function readProcessParentPid({ pid }: { pid: number }, { platform = process.platform, runPs = runPsArgvOnly }: PsOptions & { platform?: NodeJS.Platform } = {}): number | null {
   if (platform === "win32") return null;
   try {
-    const parsed = Number.parseInt(runPs(["-o", "ppid=", "-p", String(pid)]).trim(), 10);
+    const parsed = Number.parseInt(runPs({ args: ["-o", "ppid=", "-p", String(pid)] }).trim(), 10);
     return Number.isNaN(parsed) ? null : parsed;
   } catch {
     return null;
@@ -454,8 +454,8 @@ function readProcessParentPid(pid: number, platform: NodeJS.Platform = process.p
  *
  * @complexity O(1) beyond {@link readProcessParentPid}'s own subprocess call.
  */
-function isOrphanedProcess(pid: number): boolean {
-  return readProcessParentPid(pid) === 1;
+function isOrphanedProcess({ pid }: { pid: number }, _optional = {}): boolean {
+  return readProcessParentPid({ pid }) === 1;
 }
 
 /**
@@ -464,14 +464,14 @@ function isOrphanedProcess(pid: number): boolean {
  * because a number in a persisted row happens to still name a running process.
  * @complexity O(n) in command-line length.
  */
-function isServeProcessForSite(commandLine: string, row: Pick<ServeIdentityRow, "siteDir" | "port">): boolean {
+function isServeProcessForSite({ commandLine, row }: { commandLine: string; row: Pick<ServeIdentityRow, "siteDir" | "port"> }, _optional = {}): boolean {
   const siteDir = row.siteDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(?:^|\\s)${siteDir}(?=\\s|$)`).test(commandLine)
     && new RegExp(`(?:^|\\s)--port\\s+${row.port}(?=\\s|$)`).test(commandLine);
 }
 
 /** @complexity O(1); the caller bounds how many times this is awaited. */
-function sleep(ms: number): Promise<void> {
+function sleep({ ms }: { ms: number }, _optional = {}): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -486,7 +486,7 @@ function sleep(ms: number): Promise<void> {
  *
  * @complexity O((graceMs + DEFAULT_TERMINATE_GRACE_MS) / TERMINATE_POLL_MS) — bounded polls.
  */
-async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_TERMINATE_GRACE_MS): Promise<void> {
+async function terminateOrphan({ row }: { row: ServeIdentityRow }, { graceMs = DEFAULT_TERMINATE_GRACE_MS }: { graceMs?: number } = {}): Promise<void> {
   try {
     process.kill(row.pid, "SIGTERM");
   } catch {
@@ -495,8 +495,8 @@ async function terminateOrphan(row: ServeIdentityRow, graceMs: number = DEFAULT_
 
   const deadline = Date.now() + graceMs;
   while (Date.now() < deadline) {
-    if (!isProcessAlive(row.pid)) return;
-    await sleep(TERMINATE_POLL_MS);
+    if (!isProcessAlive({ pid: row.pid })) return;
+    await sleep({ ms: TERMINATE_POLL_MS });
   }
 
   await finishOrphanTermination({ row });
@@ -508,15 +508,15 @@ async function finishOrphanTermination(
   { row }: { row: ServeIdentityRow },
   _optional: Record<string, never> = {},
 ): Promise<void> {
-  if (isProcessAlive(row.pid) && isServeProcessForSite(readProcessCommand(row.pid) ?? "", row)) {
+  if (isProcessAlive({ pid: row.pid }) && isServeProcessForSite({ commandLine: readProcessCommand({ pid: row.pid }) ?? "", row })) {
     try {
       process.kill(row.pid, "SIGKILL");
     } catch {
       return; // already gone
     }
     const killDeadline = Date.now() + DEFAULT_TERMINATE_GRACE_MS;
-    while (isProcessAlive(row.pid) && Date.now() < killDeadline) {
-      await sleep(TERMINATE_POLL_MS);
+    while (isProcessAlive({ pid: row.pid }) && Date.now() < killDeadline) {
+      await sleep({ ms: TERMINATE_POLL_MS });
     }
   }
 }
@@ -546,9 +546,9 @@ async function finishOrphanTermination(
  * @complexity O(n) in persisted row count across all files; each row's own cost is
  *   `terminateOrphan`'s bounded poll.
  */
-async function reconcileOrphans(registryDir: string, options: { instanceId?: string } = {}): Promise<SiteProcessRow[]> {
+async function reconcileOrphans({ registryDir }: { registryDir: string }, options: { instanceId?: string } = {}): Promise<SiteProcessRow[]> {
   const ownInstanceId = options.instanceId ?? OWN_INSTANCE_ID;
-  const files = listInstanceFiles(registryDir);
+  const files = listInstanceFiles({ registryDir });
   if (files === null) console.error(`tovu desktop: could not list ${registryDir}; orphans recorded there are not reconciled this boot.`);
 
   const reconciled: SiteProcessRow[] = [];
@@ -556,7 +556,7 @@ async function reconcileOrphans(registryDir: string, options: { instanceId?: str
     if (file.instanceId === ownInstanceId) continue;
     reconciled.push(...(await reconcileInstanceFile(file)));
   }
-  reconciled.push(...(await reconcileLegacyFile(legacyRegistryFilePath(registryDir))));
+  reconciled.push(...(await reconcileLegacyFile({ legacyPath: legacyRegistryFilePath({ registryDir }) })));
   return reconciled;
 }
 
@@ -566,12 +566,12 @@ async function reconcileOrphans(registryDir: string, options: { instanceId?: str
  * @returns the rows terminated.
  * @complexity O(n) in `sites`; each orphan's cost is `terminateOrphan`'s bounded poll.
  */
-async function reconcileRows(sites: SiteProcessRow[]): Promise<SiteProcessRow[]> {
+async function reconcileRows({ sites }: { sites: SiteProcessRow[] }, _optional = {}): Promise<SiteProcessRow[]> {
   const reconciled: SiteProcessRow[] = [];
   for (const row of sites) {
-    if (!isProcessAlive(row.pid) || !isServeProcessForSite(readProcessCommand(row.pid) ?? "", row) || !isOrphanedProcess(row.pid)) continue;
+    if (!isProcessAlive({ pid: row.pid }) || !isServeProcessForSite({ commandLine: readProcessCommand({ pid: row.pid }) ?? "", row }) || !isOrphanedProcess({ pid: row.pid })) continue;
     reconciled.push(row);
-    await terminateOrphan(row);
+    await terminateOrphan({ row });
   }
   return reconciled;
 }
@@ -583,14 +583,14 @@ async function reconcileRows(sites: SiteProcessRow[]): Promise<SiteProcessRow[]>
  * @complexity see {@link reconcileRows}.
  */
 async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow[]> {
-  const ownerGone = !isProcessAlive(file.ownerPid);
-  const read = readRegistryFile(file.filePath);
+  const ownerGone = !isProcessAlive({ pid: file.ownerPid });
+  const read = readRegistryFile({ filePath: file.filePath });
   if (read.state === "unreadable") {
     if (ownerGone) quarantineUnreadableFile({ filePath: file.filePath, notice: REGISTRY_QUARANTINE_NOTICE });
     else console.error(`tovu desktop: site-process registry file ${file.filePath} is unreadable; its owner (pid ${file.ownerPid}) is still running, so it is left untouched.`);
     return [];
   }
-  const reconciled = read.state === "ok" ? await reconcileRows(read.sites) : [];
+  const reconciled = read.state === "ok" ? await reconcileRows({ sites: read.sites }) : [];
   if (ownerGone) {
     // A dangling link still owns a directory entry; Node 24.2's rmSync leaves it behind.
     if (fs.lstatSync(file.filePath, { throwIfNoEntry: false })?.isSymbolicLink()) fs.unlinkSync(file.filePath);
@@ -606,13 +606,13 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
  * older build — is moved aside so its bytes survive and it stops tripping readers.
  * @complexity see {@link reconcileRows}.
  */
-async function reconcileLegacyFile(legacyPath: string): Promise<SiteProcessRow[]> {
-  const read = readRegistryFile(legacyPath);
+async function reconcileLegacyFile({ legacyPath }: { legacyPath: string }, _optional = {}): Promise<SiteProcessRow[]> {
+  const read = readRegistryFile({ filePath: legacyPath });
   if (read.state === "unreadable") {
     quarantineUnreadableFile({ filePath: legacyPath, notice: REGISTRY_QUARANTINE_NOTICE });
     return [];
   }
-  return read.state === "ok" ? reconcileRows(read.sites) : [];
+  return read.state === "ok" ? reconcileRows({ sites: read.sites }) : [];
 }
 
 export {

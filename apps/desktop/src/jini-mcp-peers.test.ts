@@ -50,8 +50,8 @@ function packagedJiniDirectories({ hostDirectory }: { hostDirectory: string }): 
     seen.add(directory);
     const manifest = JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"));
     if (manifest.name?.startsWith("@jini-ai/")) jini.push(directory);
-    for (const dependency of declaredDependencies(directory).filter((name) => !isExcluded(name))) {
-      const resolved = findPackageDir(directory, dependency);
+    for (const dependency of declaredDependencies({ packageDir: directory }).filter((name) => !isExcluded({ name }))) {
+      const resolved = findPackageDir({ fromDir: directory, depName: dependency });
       assert.ok(resolved, `${directory} cannot resolve packaged dependency ${dependency}`);
       queue.push(resolved);
     }
@@ -94,7 +94,7 @@ test('the packaged desktop can load its shared agent daemon supervisor without t
   const lock = JSON.parse(fs.readFileSync(path.join(directory, 'package-lock.json'), 'utf8'));
   assert.ok(manifest.dependencies['@jini-ai/sidecar']);
   assert.equal(lock.packages[''].dependencies['@jini-ai/sidecar'], manifest.dependencies['@jini-ai/sidecar']);
-  const sidecar = findPackageDir(directory, '@jini-ai/sidecar');
+  const sidecar = findPackageDir({ fromDir: directory, depName: '@jini-ai/sidecar' });
   assert.ok(sidecar, 'the desktop must resolve its daemon supervisor without the site payload');
   const sidecarManifest = JSON.parse(fs.readFileSync(path.join(sidecar, 'package.json'), 'utf8'));
   assert.equal(lock.packages['node_modules/@jini-ai/sidecar'].version, sidecarManifest.version);
@@ -139,7 +139,7 @@ test('desktop terminal opt-in enters the required packaged dependency closure wi
   const desktop = path.join(REPO_ROOT, 'apps/desktop');
   const manifest = JSON.parse(fs.readFileSync(path.join(desktop, 'package.json'), 'utf8'));
   assert.equal(manifest.dependencies['node-pty'], '^1.1.0', 'an optional daemon peer is not selected for shipping');
-  assert.ok(declaredDependencies(desktop).includes('node-pty'));
+  assert.ok(declaredDependencies({ packageDir: desktop }).includes('node-pty'));
   const config = load(fs.readFileSync(path.join(desktop, 'electron-builder.yml'), 'utf8')) as {
     asarUnpack: string[];
   };

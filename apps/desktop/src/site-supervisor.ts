@@ -62,7 +62,7 @@ interface SiteSupervisor<E extends SiteEntry> {
   has(siteDir: string): boolean;
   values(): MapIterator<E>;
   readonly size: number;
-  lastExitOf(siteDir: string): ServerExit | null;
+  lastExitOf({ siteDir }: { siteDir: string }, optional?: {}): ServerExit | null;
 }
 
 /**
@@ -95,7 +95,7 @@ function createSiteSupervisor<E extends SiteEntry>(deps: SiteSupervisorDeps<E>):
    *
    * @complexity O(1).
    */
-  function handleExit(siteDir: string, entry: E, exit: ServerExit): void {
+  function handleExit({ siteDir, entry, exit }: { siteDir: string; entry: E; exit: ServerExit }, _optional = {}): void {
     if (live.get(siteDir) !== entry) return;
     live.delete(siteDir);
     exits.set(siteDir, exit);
@@ -118,7 +118,7 @@ function createSiteSupervisor<E extends SiteEntry>(deps: SiteSupervisorDeps<E>):
       // A previous crash at this path is no longer the current answer about it.
       exits.delete(siteDir);
       if (typeof entry?.server?.onExit === "function") {
-        entry.server.onExit({ listener: (exit) => handleExit(siteDir, entry, exit) });
+        entry.server.onExit({ listener: (exit) => handleExit({ siteDir, entry, exit }) });
       }
       return this;
     },
@@ -166,7 +166,7 @@ function createSiteSupervisor<E extends SiteEntry>(deps: SiteSupervisorDeps<E>):
      * @returns `{code, signal}`, or `null` when this site has not died unattended.
      * @complexity O(1).
      */
-    lastExitOf(siteDir: string): ServerExit | null {
+    lastExitOf({ siteDir }: { siteDir: string }, _optional = {}): ServerExit | null {
       return exits.get(siteDir) ?? null;
     },
   };

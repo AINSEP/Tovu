@@ -78,7 +78,7 @@ function locateTargets({ platformDir, ports }: { platformDir: string; ports: Smo
 
   let targets: SmokeTargets;
   try {
-    targets = resolveSmokeTargets(platformDir, entryNames);
+    targets = resolveSmokeTargets({ platformDir, entryNames });
   } catch (error) {
     fail({ message: (error as Error).message });
   }
@@ -96,7 +96,7 @@ function locateTargets({ platformDir, ports }: { platformDir: string; ports: Smo
  * Rejects spawn failures, signals and nonzero exits; the final script sink redacts failure details. */
 function spawnSmoke(targets: SmokeTargets, ports: SmokeNativePorts): string {
   ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: `smoke-native: running against ${targets.executablePath}` }) }, { maxLength: 2_000 }) + "\n");
-  const script = buildSmokeScript(targets.nodeModulesDir);
+  const script = buildSmokeScript({ nodeModulesDir: targets.nodeModulesDir });
   const spawned = ports.spawn(targets.executablePath, ["-e", script], {
     env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
     cwd: path.dirname(targets.executablePath),
@@ -118,7 +118,7 @@ async function runGate({ targets, directory, ports }: { targets: SmokeTargets; d
 
   let result: ReturnType<typeof parseSmokeOutput>;
   try {
-    result = parseSmokeOutput(stdout);
+    result = parseSmokeOutput({ stdout });
   } catch (error) {
     fail({ message: (error as Error).message });
   }
@@ -162,7 +162,7 @@ function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void
   const stdout = spawnEntryLoad(targets, ports);
   let result: ReturnType<typeof parseEntryLoadOutput>;
   try {
-    result = parseEntryLoadOutput(stdout);
+    result = parseEntryLoadOutput({ stdout });
   } catch (error) {
     fail({ message: (error as Error).message });
   }

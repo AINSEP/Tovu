@@ -9,7 +9,7 @@ import { IDLE_SITE_SLEEP, IDLE_SITE_SLEEP_CHANNELS, idleSiteSleepChoice, type Id
 export function readIdleSiteSleepMinutes({ preferencePath }: { preferencePath: string }, { warn = console.warn }: { warn?: (message: string) => void } = {}): IdleSiteSleepMinutes {
   const read = readJsonFile({ filePath: preferencePath });
   if (read.state === 'missing') return IDLE_SITE_SLEEP.fallback;
-  const value = read.state === 'ok' ? objectSettings(read.value).idleSiteSleepMinutes : undefined;
+  const value = read.state === 'ok' ? objectSettings({ value: read.value }).idleSiteSleepMinutes : undefined;
   const saved = idleSiteSleepChoice({ value });
   if (saved !== undefined) return saved;
   if (read.state === 'unreadable' || value !== undefined) warn('tovu desktop: invalid idleSiteSleepMinutes; using 10');
@@ -25,7 +25,7 @@ export function writeIdleSiteSleepMinutes({ preferencePath, idleSiteSleepMinutes
   if (saved === undefined) throw new Error('INVALID_IDLE_SITE_SLEEP_MINUTES');
   withFileLock({ filePath: preferencePath, critical: () => {
     if (readJsonFile({ filePath: preferencePath }).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
-    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt(preferencePath), idleSiteSleepMinutes: saved } });
+    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt({ preferencePath }), idleSiteSleepMinutes: saved } });
   } });
   return saved;
 }
@@ -60,13 +60,13 @@ export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferenceP
   };
 }
 
-function settingsAt(preferencePath: string): Record<string, unknown> {
+function settingsAt({ preferencePath }: { preferencePath: string }, _optional = {}): Record<string, unknown> {
   const read = readJsonFile({ filePath: preferencePath });
   const value = read.state === 'ok' ? read.value : null;
-  return objectSettings(value);
+  return objectSettings({ value });
 }
 
-function objectSettings(value: unknown): Record<string, unknown> {
+function objectSettings({ value }: { value: unknown }, _optional = {}): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
@@ -76,7 +76,7 @@ export function readMaximumLiveSiteViews({ preferencePath }: { preferencePath: s
   const read = readJsonFile({ filePath: preferencePath });
   if (read.state === 'missing') return fallback;
   if (read.state === 'unreadable') { warn(`tovu desktop: unreadable maximumLiveSiteViews; using ${fallback}`); return fallback; }
-  const settings = objectSettings(read.value);
+  const settings = objectSettings({ value: read.value });
   if (settings !== read.value) { warn(`tovu desktop: invalid preferences object; using ${fallback} live site views`); return fallback; }
   const value = settings.maximumLiveSiteViews;
   if (value === undefined) return fallback;
@@ -97,14 +97,14 @@ export function writeMaximumLiveSiteViews({ preferencePath, maximumLiveSiteViews
   const saved = clampLiveSiteViews({ value: maximumLiveSiteViews });
   withFileLock({ filePath: preferencePath, critical: () => {
     if (readJsonFile({ filePath: preferencePath }).state === 'unreadable') throw new Error('DESKTOP_PREFERENCES_UNREADABLE');
-    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt(preferencePath), maximumLiveSiteViews: saved } });
+    writeJsonFileAtomic({ filePath: preferencePath, value: { ...settingsAt({ preferencePath }), maximumLiveSiteViews: saved } });
   } });
   return saved;
 }
 
 type RadioItem = { id: string; checked: boolean };
 const VIEW_COUNTS = Array.from({ length: LIVE_SITE_VIEWS.max - LIVE_SITE_VIEWS.min + 1 }, (_, index) => LIVE_SITE_VIEWS.min + index);
-const radioId = (value: number) => `maximum-live-site-views-${value}`;
+const radioId = ({ value }: { value: number }, _optional = {}) => `maximum-live-site-views-${value}`;
 
 /** Electron's `Menu` statics, narrowed to finding the installed menu's radios by id. */
 export interface RadioMenuPort {
@@ -116,7 +116,7 @@ export interface RadioMenuPort {
 export function refreshMaximumLiveSiteViewsMenu({ menu, maximumLiveSiteViews }: { menu: RadioMenuPort; maximumLiveSiteViews: number }, _options = {}): void {
   const installed = menu.getApplicationMenu();
   for (const value of VIEW_COUNTS) {
-    const radio = installed?.getMenuItemById(radioId(value));
+    const radio = installed?.getMenuItemById(radioId({ value }));
     if (radio) radio.checked = value === maximumLiveSiteViews;
   }
 }
@@ -133,11 +133,11 @@ export function maximumLiveSiteViewsMenu({ maximumLiveSiteViews, setMaximum, onE
 }, _options = {}) {
   let saved = maximumLiveSiteViews;
   const submenu: ViewRadioItem[] = VIEW_COUNTS.map(value => ({
-    id: radioId(value), label: String(value), type: 'radio' as const, checked: value === saved,
+    id: radioId({ value }), label: String(value), type: 'radio' as const, checked: value === saved,
     click(item: { checked: boolean; menu?: { items: RadioItem[] } }) {
       try { setMaximum({ maximumLiveSiteViews: value }); saved = value; }
       catch (error) {
-        for (const radio of item.menu?.items ?? submenu) radio.checked = radio.id === radioId(saved);
+        for (const radio of item.menu?.items ?? submenu) radio.checked = radio.id === radioId({ value: saved });
         item.checked = value === saved;
         onError({ error });
       }

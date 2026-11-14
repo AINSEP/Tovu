@@ -93,7 +93,7 @@ function harness(fx: Fixture, overrides: { steps?: Partial<StageSteps>; ports?: 
     stageBundledNpm: (input) => { record("npm", input); return { fileCount: 1962, bytes: 5 * MB }; },
     ensurePtyHelpersExecutable: (input) => { record("pty", input); return [path.join(input.ptyDir, "prebuilds/darwin-arm64/spawn-helper")]; },
     diskBytes: () => 10 * MB,
-    newestMtime: (abs) => (abs.endsWith(".html") || abs.endsWith(".js") ? 200 : 100),
+    newestMtime: ({ abs }) => (abs.endsWith(".html") || abs.endsWith(".js") ? 200 : 100),
     ...overrides.steps,
   };
   const ports: StagePorts = {
@@ -196,12 +196,12 @@ test("restaging wipes the previous payload and preserves an already staged packa
   const { run, calls } = harness(fx, {
     steps: {
       stageTransitiveDependencies({ outDir }) {
-        stageDir(path.join(fx.repo, "node_modules/better-sqlite3"), path.join(outDir, "node_modules/better-sqlite3"), true);
+        stageDir({ src: path.join(fx.repo, "node_modules/better-sqlite3"), dest: path.join(outDir, "node_modules/better-sqlite3"), dropNestedModules: true });
         return 1;
       },
       stagePayloadFiles(input) {
         stagePayloadFiles(input);
-        stageDir(path.join(fx.repo, "node_modules", "@jini-ai", "platform"), path.join(input.outDir, "node_modules", "@jini-ai", "platform"), false);
+        stageDir({ src: path.join(fx.repo, "node_modules", "@jini-ai", "platform"), dest: path.join(input.outDir, "node_modules", "@jini-ai", "platform"), dropNestedModules: false });
       },
     },
     ports: { env: { npm_execpath: "/npm/bin/npm-cli.js" }, host: { execPath: "/bin/node", platform: "linux", arch: "x64" } },
@@ -246,7 +246,7 @@ test("a shell built before its own newest source edit is refused, from source di
   const fx = fixture();
   t.after(fx.cleanup);
   const asked: string[] = [];
-  const newestMtime = (stale: string) => (abs: string) => { asked.push(abs); return abs.startsWith(stale) ? 300 : 100; };
+  const newestMtime = (stale: string) => ({ abs }: { abs: string }) => { asked.push(abs); return abs.startsWith(stale) ? 300 : 100; };
   refusal(harness(fx, { steps: { newestMtime: newestMtime(path.join(fx.repo, "apps/admin/src")) } }).run, /apps[/\\]admin/);
   assert.ok(asked.includes(path.join(fx.repo, "apps/admin/package.json")));
   refusal(harness(fx, { steps: { newestMtime: newestMtime(path.join(fx.repo, "apps/site-chat/package.json")) } }).run, /apps[/\\]site-chat/);
@@ -262,7 +262,7 @@ test("a shell entry with no declared source lists is only checked for existence"
   const { run } = harness(fx, {
     ports: { shells: [...STAGED_SHELLS, extra] },
     steps: {
-      newestMtime: (abs) => { asked.push(abs); return 100; },
+      newestMtime: ({ abs }) => { asked.push(abs); return 100; },
       stagePayloadFiles(input) {
         stagePayloadFiles(input);
         realFs.cpSync(path.join(fx.repo, extra.relative), path.join(input.outDir, extra.relative), { recursive: true });
