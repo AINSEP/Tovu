@@ -12,6 +12,13 @@ export interface PagesPort {
    * `expectedVersion` (2026-09-18, multi-author hardening) — mirrors `posts-list-port.hooks.ts`'s
    * identical member exactly (Pages and Posts share this one route). `togglePagePublish`
    * (`use-pages.hooks.ts`) always sends it.
+   *
+   * `expectedVersion` (2026-09-07) is the optimistic-concurrency basis, NOT a field of the page:
+   * the `AdminPost.version` this editor loaded, which the server compares and rejects with
+   * `409 VERSION_CONFLICT` when a newer save has superseded it. Same optional, purely additive
+   * extension `PostEditorPort` already declares — one shared kind-blind route (`PUT /posts/:id`)
+   * serves both editors. Omitting it is exactly the last-write-wins behavior this method has always
+   * had; `usePageEditor` always sends it once the row has loaded.
    */
   updatePost(
     required: {

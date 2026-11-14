@@ -588,7 +588,7 @@ export function sourceControlCredentialsLoadErrorMessage({ locale, error }: { lo
 
 /**
  * One row's save-error banner. Also carries a rejected VALIDATION failure's `detail` text, routed
- * here by `classifySourceControlCredentialSubmitError` (`rules.ts`) instead of the generic
+ * here by `classifyCredentialSubmitError` (`lib/credential-submit-error.ts`) instead of the generic
  * `describeApiError` fallback — same shape `publishCredentialSaveErrorMessage` uses.
  */
 const SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {

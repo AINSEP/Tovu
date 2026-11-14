@@ -1,35 +1,26 @@
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../../lib/admin-post-list-sort";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  DEFAULT_POST_SORT,
   postSlugFollowsTitle,
   postSlugForTitle,
   buildPostAutosaveDraft,
   buildPostRowMenuHandleMap,
-  isAutosaveDraftStale,
-  postAutosaveBannerMessage,
   postAutosaveStaleBasisMessage,
   postVersionConflictMessage,
-  readPostVersionConflict,
   resolvePostPreviewBranches,
-  comparePostsByStatus,
-  comparePostsBySlug,
-  comparePostsByTitle,
-  comparePostsByUpdated,
   droppedUri,
   handleImageDrop,
-  postColumnSortLabel,
   postRowMenuItems,
   readFileAsDataUrl,
   titleNodeText,
   toolbarBtnClass,
-  updatedColumnSortLabel,
   withTitleNode,
 } from "../rules";
-import { ApiError, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /** Identity translator — same convention `pages/__tests__/rules.unit.test.ts` uses for its
- *  `pageColumnSortLabel`/`updatedPageColumnSortLabel` tests: asserts against the English key
+ *  `columnSortLabel`/`updatedColumnSortLabel` tests: asserts against the English key
  *  template (with `{columnName}` substituted) rather than a real locale's copy. */
 const identityT = (key: string): string => key;
 
@@ -210,18 +201,18 @@ describe("toolbarBtnClass", () => {
  * here, independent of any table, is each column's own comparator direction and its accessible-name
  * phrasing — the two things `DataTable` cannot supply generically and still asks this module for.
  */
-describe("comparePostsByUpdated", () => {
+describe("compareAdminPostsByUpdated", () => {
   const oldest = post({ id: "p-old", updatedAt: "2026-01-01T00:00:00.000Z" });
   const middle = post({ id: "p-mid", updatedAt: "2026-06-01T00:00:00.000Z" });
   const newest = post({ id: "p-new", updatedAt: "2026-08-10T00:00:00.000Z" });
 
   it("ascending order (DataTable's ' asc') sorts least-recently-updated first", () => {
-    const result = [middle, oldest, newest].sort(comparePostsByUpdated);
+    const result = [middle, oldest, newest].sort(compareAdminPostsByUpdated);
     expect(result.map((p) => p.id)).toEqual(["p-old", "p-mid", "p-new"]);
   });
 
   it("negating it (DataTable's 'desc') sorts most-recently-updated first", () => {
-    const result = [middle, oldest, newest].sort((a, b) => -comparePostsByUpdated(a, b));
+    const result = [middle, oldest, newest].sort((a, b) => -compareAdminPostsByUpdated(a, b));
     expect(result.map((p) => p.id)).toEqual(["p-new", "p-mid", "p-old"]);
   });
 });
@@ -250,30 +241,30 @@ describe("updatedColumnSortLabel", () => {
   });
 });
 
-describe("comparePostsByTitle / comparePostsBySlug", () => {
+describe("compareAdminPostsByTitle / compareAdminPostsBySlug", () => {
   const a = post({ id: "p-a", title: "Alpha", slug: "charlie" });
   const b = post({ id: "p-b", title: "Bravo", slug: "bravo" });
   const c = post({ id: "p-c", title: "Charlie", slug: "alpha" });
 
   for (const [name, fn] of [
-    ["comparePostsByTitle", comparePostsByTitle],
-    ["comparePostsBySlug", comparePostsBySlug],
+    ["compareAdminPostsByTitle", compareAdminPostsByTitle],
+    ["compareAdminPostsBySlug", compareAdminPostsBySlug],
   ] as const) {
     describe(name, () => {
       it("sorts A-to-Z ascending", () => {
         const result = [c, a, b].sort(fn);
-        expect(result.map((p) => p.id)).toEqual(name === "comparePostsBySlug" ? ["p-c", "p-b", "p-a"] : ["p-a", "p-b", "p-c"]);
+        expect(result.map((p) => p.id)).toEqual(name === "compareAdminPostsBySlug" ? ["p-c", "p-b", "p-a"] : ["p-a", "p-b", "p-c"]);
       });
 
       it("negating it sorts Z-to-A", () => {
         const result = [c, a, b].sort((x, y) => -fn(x, y));
-        expect(result.map((p) => p.id)).toEqual(name === "comparePostsBySlug" ? ["p-a", "p-b", "p-c"] : ["p-c", "p-b", "p-a"]);
+        expect(result.map((p) => p.id)).toEqual(name === "compareAdminPostsBySlug" ? ["p-a", "p-b", "p-c"] : ["p-c", "p-b", "p-a"]);
       });
     });
   }
 });
 
-describe("comparePostsByStatus", () => {
+describe("compareAdminPostsByStatus", () => {
   // Exactly two posts with different statuses — `status` only has two possible values
   // ("draft" | "published"), so a third row would necessarily tie with one of these and the
   // resulting order among ties would depend on `Array#sort`'s stability rather than on this
@@ -282,44 +273,44 @@ describe("comparePostsByStatus", () => {
   const published = post({ id: "p-published", status: "published" });
 
   it("ascending sorts draft before published (alphabetical, which happens to equal domain order)", () => {
-    expect([published, draft].sort(comparePostsByStatus).map((p) => p.id)).toEqual(["p-draft", "p-published"]);
+    expect([published, draft].sort(compareAdminPostsByStatus).map((p) => p.id)).toEqual(["p-draft", "p-published"]);
   });
 
   it("negating it sorts published before draft", () => {
-    expect([draft, published].sort((a, b) => -comparePostsByStatus(a, b)).map((p) => p.id)).toEqual([
+    expect([draft, published].sort((a, b) => -compareAdminPostsByStatus(a, b)).map((p) => p.id)).toEqual([
       "p-published",
       "p-draft",
     ]);
   });
 });
 
-describe("DEFAULT_POST_SORT", () => {
+describe("DEFAULT_ADMIN_POST_SORT", () => {
   it("is Updated, newest-first — unchanged from the pre-existing Updated-only default", () => {
-    expect(DEFAULT_POST_SORT).toEqual({ column: "updated", direction: "desc" });
+    expect(DEFAULT_ADMIN_POST_SORT).toEqual({ column: "updated", direction: "desc" });
   });
 });
 
-describe("postColumnSortLabel", () => {
+describe("columnSortLabel", () => {
   it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
-    const label = postColumnSortLabel({ t: identityT, columnName: "Title", direction: null });
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: null });
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
-    const label = postColumnSortLabel({ t: identityT, columnName: "Title", direction: "asc" });
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: "asc" });
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
   it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
-    const label = postColumnSortLabel({ t: identityT, columnName: "Title", direction: "desc" });
+    const label = columnSortLabel({ t: identityT, columnName: "Title", direction: "desc" });
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    expect(new Set([postColumnSortLabel({ t: identityT, columnName: "Title", direction: null }), postColumnSortLabel({ t: identityT, columnName: "Title", direction: "asc" }), postColumnSortLabel({ t: identityT, columnName: "Title", direction: "desc" })]).size).toBe(3);
+    expect(new Set([columnSortLabel({ t: identityT, columnName: "Title", direction: null }), columnSortLabel({ t: identityT, columnName: "Title", direction: "asc" }), columnSortLabel({ t: identityT, columnName: "Title", direction: "desc" })]).size).toBe(3);
   });
 });
 
@@ -745,71 +736,7 @@ describe("buildPostAutosaveDraft", () => {
   });
 });
 
-describe("isAutosaveDraftStale", () => {
-  it("is false when the draft's baseVersion still matches the row's current version", () => {
-    expect(isAutosaveDraftStale({ draftBaseVersion: 3, currentVersion: 3 })).toBe(false);
-  });
-
-  it("is true once a real save has moved the row's version past the draft's basis", () => {
-    expect(isAutosaveDraftStale({ draftBaseVersion: 3, currentVersion: 4 })).toBe(true);
-  });
-});
-
-describe("postAutosaveBannerMessage", () => {
-  const NOW = new Date("2026-09-06T00:10:00.000Z").getTime();
-
-  it("a fresh draft reads 'Unsaved changes from N minutes ago'", () => {
-    expect(postAutosaveBannerMessage({ savedAt: "2026-09-06T00:05:00.000Z", nowMs: NOW, stale: false })).toBe(
-      "Unsaved changes from 5 minutes ago"
-    );
-  });
-
-  it("a stale draft names the newer save explicitly instead of implying it is current", () => {
-    expect(postAutosaveBannerMessage({ savedAt: "2026-09-06T00:05:00.000Z", nowMs: NOW, stale: true })).toBe(
-      "Unsaved changes from before a newer save (captured 5 minutes ago)"
-    );
-  });
-});
-
-describe("readPostVersionConflict / postVersionConflictMessage", () => {
-  /**
-   * The trap this whole pair exists for: `PUT /posts/:id` returns 409 for BOTH a slug-uniqueness
-   * collision and a stale version, from the same `PostConflictError` hierarchy. Only the version
-   * one carries `code: "VERSION_CONFLICT"`, so a status-only check would send an operator into the
-   * "someone else saved" flow for a duplicate slug — and, worse, tell them their edit is safe to
-   * force through.
-   */
-  it("does NOT classify a slug-uniqueness 409 (same status, no code) as a version conflict", () => {
-    const slugConflict = new ApiError({ message: "slug 'taken' already exists", status: 409 });
-    expect(readPostVersionConflict({ e: slugConflict, attemptedStatus: undefined })).toBeNull();
-  });
-
-  it("classifies a 409 VERSION_CONFLICT, carrying both versions and the attempted status", () => {
-    const err = new ApiError({ message: "post 'p1' was modified by another save (expected version 3, current version 4)", status: 409 }, { code: "VERSION_CONFLICT", body: {
-      details: { expectedVersion: 3, currentVersion: 4 },
-    } });
-    expect(readPostVersionConflict({ e: err, attemptedStatus: "published" })).toEqual({
-      expectedVersion: 3,
-      currentVersion: 4,
-      attemptedStatus: "published",
-    });
-  });
-
-  it("still reports a conflict when the server sent the code but no details bag", () => {
-    const err = new ApiError({ message: "stale", status: 409 }, { code: "VERSION_CONFLICT" });
-    expect(readPostVersionConflict({ e: err, attemptedStatus: undefined })).toEqual({
-      expectedVersion: null,
-      currentVersion: null,
-      attemptedStatus: undefined,
-    });
-  });
-
-  it("ignores the code on a non-409 status, and any non-ApiError", () => {
-    expect(readPostVersionConflict({ e: new ApiError({ message: "nope", status: 500 }, { code: "VERSION_CONFLICT" }), attemptedStatus: undefined })).toBeNull();
-    expect(readPostVersionConflict({ e: new Error("network down"), attemptedStatus: undefined })).toBeNull();
-    expect(readPostVersionConflict({ e: "not an error at all", attemptedStatus: undefined })).toBeNull();
-  });
-
+describe("postVersionConflictMessage", () => {
   it("says the work is unsaved AND still present, naming both versions", () => {
     expect(postVersionConflictMessage({ expectedVersion: 3, currentVersion: 4, attemptedStatus: undefined })).toBe(
       "Someone else saved this while you were editing — you were working from version 3, and version 4 is now stored. " +

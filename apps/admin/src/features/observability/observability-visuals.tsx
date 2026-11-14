@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 /**
  * @file The Observability screen's own icon set — inline SVGs, no icon dependency. Same rationale
  * `features/plugins/agent-plugins-visuals.tsx`, `database/database-visuals.tsx`, and
@@ -6,17 +7,8 @@
  * rendering to a sibling feature another agent owns.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px grid, 1.5 stroke, and round joins
- *  every other `*-visuals.tsx` set in this admin uses, so every icon row reads as one family. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 export interface IconProps {
   size?: number;

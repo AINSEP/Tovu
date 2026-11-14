@@ -1,17 +1,14 @@
 import { derivePostSlugBase, isAutomaticPostSlug } from "../../../../website/src/features/post/slug";
-import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
 import { type AdminPost } from "../../lib/api";
-import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { formatRelativeMinutesAgo } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "./posts-i18n";
 
 /**
@@ -116,26 +113,6 @@ export function buildPostAutosaveDraft(
   };
 }
 
-/** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —
- *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
- *  Mirrors `features/pages/rules.ts`'s identical predicate (kept feature-local rather than shared,
- *  same "no cross-feature import" boundary every other rule in this file already respects). */
-export function isAutosaveDraftStale({ draftBaseVersion, currentVersion }: { draftBaseVersion: number; currentVersion: number }, _options: Record<string, never> = {}): boolean {
-  return draftBaseVersion !== currentVersion;
-}
-
-/**
- * The recovery banner's own message. NOT run through `t()`, deliberately: like
- * `formatSaveSuccessMessage`/`formatSaveErrorMessage` (`use-post-editor.hooks.ts`) just above it in
- * this file's sibling, this is a fully computed, interpolated sentence — this codebase's existing
- * dynamic-message convention leaves those untranslated rather than half-templating them through the
- * static `POSTS_DICT[locale][key]` lookup, which has no interpolation mechanism at all.
- */
-export function postAutosaveBannerMessage({ savedAt, nowMs, stale }: { savedAt: string; nowMs: number; stale: boolean }, _options: Record<string, never> = {}): string {
-  const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
-  return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
-}
-
 /**
  * The server's machine-readable `code` for "the version you were editing has been superseded"
  * (`server/inbound/admin-http/routes/posts/update.ts`'s `sendPostUpdateError`). Named here rather
@@ -146,45 +123,13 @@ export function postAutosaveBannerMessage({ savedAt, nowMs, stale }: { savedAt: 
  */
 export const POST_VERSION_CONFLICT_CODE = VERSION_CONFLICT_CODE;
 
-/** A rejected save whose basis version had already been superseded — {@link readPostVersionConflict}'s
+/** A rejected save whose basis version had already been superseded — {@link readVersionConflict}'s
  *  output, and the editor's own conflict state. */
-export interface PostSaveConflict {
-  /** The version the editor believed it was editing. `null` only if the server omitted it. */
-  expectedVersion: number | null;
-  /** The version actually stored now — what the other operator's save produced. `null` only if the
-   *  server omitted it. */
-  currentVersion: number | null;
-  /** The `statusOverride` the rejected save was attempting, carried so an explicit retry re-runs the
-   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
-  attemptedStatus: "draft" | "published" | undefined;
-}
+export type PostSaveConflict = SaveConflict;
 
 /**
- * Classifies a caught save error: the version conflict, or `null` for everything else (including the
- * slug-uniqueness 409, which is the same status from the same error class and must NOT take this
- * branch — that is the trap this function exists to close).
- *
- * Reads both versions out of the response `details` rather than parsing the message prose, and
- * tolerates their absence (`null`) rather than throwing: an older server that returns the code
- * without the detail bag must still produce a conflict the editor reacts to, since misreading a
- * conflict as an ordinary error is what loses an operator's work.
- *
- * @complexity Time/space: O(1).
- */
-export function readPostVersionConflict({ e, attemptedStatus }: { e: unknown; attemptedStatus: "draft" | "published" | undefined }, _options: Record<string, never> = {}
-): PostSaveConflict | null {
-  if (!isVersionConflict(e)) return null;
-  const details = (e.body?.details ?? {}) as Record<string, unknown>;
-  return {
-    expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,
-    currentVersion: typeof details.currentVersion === "number" ? details.currentVersion : null,
-    attemptedStatus,
-  };
-}
-
-/**
- * The conflict banner's own message. NOT run through `t()`, for the same reason
- * {@link postAutosaveBannerMessage} just above is not — see that function's doc.
+ * The conflict banner's own message is not run through `t()`; like the former feature-local
+ * recovery message, it is a computed, interpolated sentence rather than a static dictionary key.
  *
  * States the two things an operator has to know and cannot infer: that their work was NOT saved but
  * is still in front of them, and that saving again overwrites the other person rather than merging.
@@ -399,89 +344,6 @@ export const CODE_LANGUAGE_OPTIONS: readonly ToolbarSelectOption[] = [
   { label: "YAML", value: "yaml" },
   { label: "Markdown", value: "markdown" },
 ];
-
-// ---------------------------------------------------------------------------
-// Column sort (2026-08-10, Updated only; generalized to Title/Slug/Status 2026-09-02; migrated onto
-// `DataTable`'s own shared sort mechanism 2026-09-02) — `Posts.tsx` used to hand-roll its own sort
-// dispatcher, header-click transition, caret glyph, and accessible-name plumbing because `DataTable`
-// had nowhere to put any of that (see that component's own file header, `@jini-ai/admin`). Now that
-// `DataTable` owns all of it generically via `DataTableColumn.sort`/`DataTableProps.sort`/
-// `onSortChange`, only the genuinely domain-specific pieces stay here: each column's ascending
-// comparator, the Updated column's non-default starting direction, and every column's
-// accessible-name phrasing. One active column at a time — the owner did not ask for multi-column
-// sort, and `DataTable` itself enforces that.
-// ---------------------------------------------------------------------------
-
-/** The Posts list's default sort on first load — unchanged from the pre-existing Updated-only
- *  behavior (newest first) now that Title/Slug/Status are sortable too, so adding them does not
- *  itself change what an operator sees before ever clicking a header. */
-export const DEFAULT_POST_SORT: DataTableSortState = { column: "updated", direction: "desc" };
-
-/** `status` is exactly `"draft" | "published"` (`post.ts`), so plain alphabetical order already
- *  equals domain order — no custom rank table needed. Ascending-only, matching
- *  `DataTableColumnSort.compare`'s own contract: `DataTable` negates this for `"desc"` rather than
- *  this module taking a direction parameter itself. */
-export function comparePostsByTitle(a: AdminPost, b: AdminPost): number {
-  return a.title.localeCompare(b.title);
-}
-
-/** @see comparePostsByTitle — same contract, compared on `slug` instead of `title`. */
-export function comparePostsBySlug(a: AdminPost, b: AdminPost): number {
-  return a.slug.localeCompare(b.slug);
-}
-
-/** @see comparePostsByTitle — same contract, compared on `status` instead of `title`. */
-export function comparePostsByStatus(a: AdminPost, b: AdminPost): number {
-  return a.status.localeCompare(b.status);
-}
-
-/**
- * Ascending order = oldest-first; `DataTable` negates it for `"desc"` (newest-first), which is also
- * this column's own starting direction (its `defaultDirection` in `Posts.tsx`'s column definition) —
- * an operator's first click on "Updated" has always meant "show me the newest," unlike the other
- * three columns' natural A-to-Z first read.
- *
- * Note for callers: the server's `listPosts` has no `ORDER BY` today (confirmed against
- * `PostSqliteRepo.list` — a plain `select().from(posts).where(...)`), so rows arrive in table scan
- * order, not `updatedAt` order. This comparator is what actually produces "most recent first" rather
- * than that already being true of the input. `Date.parse`, not a string compare — `updatedAt` is
- * ISO-8601 **text** with no schema guarantee against a future non-`Z` UTC-offset value, which
- * string-sorts wrong against `Z`-form values.
- */
-export function comparePostsByUpdated(a: AdminPost, b: AdminPost): number {
-  return Date.parse(a.updatedAt) - Date.parse(b.updatedAt);
-}
-
-/**
- * The accessible name for a lexicographic column's (Title/Slug/Status) sort control, in every state
- * `DataTable` can ask for — states the CURRENT state and what activating the control does next,
- * rather than relying on the visual caret alone (`DataTable` marks that `aria-hidden`). `direction`
- * is `null` when a different column is currently active — `DataTable` resolves that itself, so
- * unlike the pre-existing hand-rolled version this needs no `PostSortState`/column comparison here.
- *
- * `columnName` is supplied by the caller (`Posts.tsx`), translated the same way that screen
- * translates the header text — mirrors `pages/rules.ts`'s `pageColumnSortLabel` exactly (a browser
- * sweep, 2026-09-22, found this function returning a plain untranslated template while its `pages`
- * twin already called `t()`).
- *
- * @complexity Time/space: O(1).
- */
-export function postColumnSortLabel({ t, columnName, direction }: { t: Translate; columnName: string; direction: DataTableSortDirection | null }, _options: Record<string, never> = {}): string {
-  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", () => columnName);
-  return direction === "asc"
-    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", () => columnName)
-    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", () => columnName);
-}
-
-/** Same contract as {@link postColumnSortLabel}, phrased in the Updated column's own "newest"/
- *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `pages/rules.ts`'s
- *  `updatedPageColumnSortLabel` verbatim. */
-export function updatedColumnSortLabel({ t, direction }: { t: Translate; direction: DataTableSortDirection | null }, _options: Record<string, never> = {}): string {
-  if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
-  return direction === "desc"
-    ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
-    : t("Sorted by updated date, oldest first. Activate to sort newest first.");
-}
 
 /**
  * Drag-and-drop image support for a URL dragged in from elsewhere (e.g. an image dragged out of

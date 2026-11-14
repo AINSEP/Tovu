@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
@@ -37,22 +38,8 @@ import { navigate } from "../../lib/router";
  * duplicated here.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px/1.5-stroke/round-join set
- *  `deployment-visuals.tsx` and Jini's `seo/react/components/SeoIcons.tsx` use, so every tab row in this admin reads as one
- *  family. Local rather than imported across a feature boundary (`features/deployment/index.ts` is
- *  that feature's public surface and does not export it, and this app ships no shared icon module —
- *  `App.tsx`'s sidebar glyphs and `SettingsUi.tsx`'s tab icons are inline SVG for the same reason).
- *  `aria-hidden`, because each sits directly beside the text label that already says the same
- *  thing. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts (the admin's shared layer replaced the per-feature copies this comment used to justify; App.tsx sidebar glyphs and SettingsUi.tsx tab icons remain inline SVG).
+
 
 /** Roles — a person, i.e. the thing a role is assigned TO. */
 export function RolesIcon({ size = 16 }: { size?: number }) {

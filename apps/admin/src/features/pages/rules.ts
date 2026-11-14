@@ -1,4 +1,3 @@
-import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
@@ -10,8 +9,7 @@ import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
-import { formatRelativeMinutesAgo } from "@jini-ai/ui/panel-kit";
-import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
+import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 export type PageEditorView = "preview" | "html" | "interactive";
@@ -386,27 +384,12 @@ export function buildPageAutosaveDraft(
   return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };
 }
 
-/** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —
- *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
- *  Drives the recovery banner's "from N minutes ago" vs "from before a newer save" wording. */
-export function isAutosaveDraftStale({ draftBaseVersion, currentVersion }: { draftBaseVersion: number; currentVersion: number }, _options = {}): boolean {
-  return draftBaseVersion !== currentVersion;
-}
-
-/** The recovery banner's own message — pulled out of `PageEditor.tsx` so the component stays markup
- *  only (`use-page-editor.hooks.ts`'s file header's own rule). `nowMs` is threaded through rather
- *  than read internally, same reasoning `formatRelativeMinutesAgo` itself documents. */
-export function pageAutosaveBannerMessage({ savedAt, nowMs, stale }: { savedAt: string; nowMs: number; stale: boolean }, _options = {}): string {
-  const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
-  return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
-}
-
 /**
  * The stale-basis notice's own message — the BACKGROUND-autosave counterpart of the recovery
- * banner's {@link pageAutosaveBannerMessage} just above, and the reason `staleBasis` exists on the
- * shared autosave hook at all. Kept feature-local and character-identical to
- * `features/posts/rules.ts`'s `postAutosaveStaleBasisMessage`, the same "no cross-feature import"
- * boundary {@link isAutosaveDraftStale} already documents for itself.
+ * banner's shared `standingDraftRecoveryMessage`, and the reason `staleBasis` exists on
+ * the shared autosave hook at all. Kept feature-local and character-identical to
+ * `features/posts/rules.ts`'s `postAutosaveStaleBasisMessage`, respecting the no-cross-feature-import
+ * boundary (`lib/` hosts the shared pieces).
  *
  * Says the four things an operator cannot infer from a screen that otherwise looks completely
  * normal: that someone else saved, that autosaving has consequently STOPPED (a running editor that
@@ -437,47 +420,15 @@ export function pageAutosaveStaleBasisMessage(t: Translate, staleBasis: Standing
  *
  * A feature-local name for `lib/version-conflict.ts`'s shared `VERSION_CONFLICT_CODE`, which
  * `features/posts/rules.ts`'s `POST_VERSION_CONFLICT_CODE` aliases too. The shared one lives in
- * `lib/`, so the no-cross-feature-import boundary {@link isAutosaveDraftStale} documents still holds.
+ * `lib/`, so the no-cross-feature-import boundary (`lib/` hosts the shared pieces) still holds.
  * Pages and Posts share one server route (`PUT /posts/:id`, kind-blind), so the two names describe
  * the same wire value on purpose.
  */
 export const PAGE_VERSION_CONFLICT_CODE = VERSION_CONFLICT_CODE;
 
-/** A rejected save whose basis version had already been superseded — {@link readPageVersionConflict}'s
+/** A rejected save whose basis version had already been superseded — {@link readVersionConflict}'s
  *  output, and the editor's own conflict state. Mirrors `posts/rules.ts`'s `PostSaveConflict`. */
-export interface PageSaveConflict {
-  /** The version the editor believed it was editing. `null` only if the server omitted it. */
-  expectedVersion: number | null;
-  /** The version actually stored now — what the other operator's save produced. `null` only if the
-   *  server omitted it. */
-  currentVersion: number | null;
-  /** The `nextStatus` the rejected save was attempting, carried so an explicit retry re-runs the
-   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
-  attemptedStatus: "draft" | "published" | undefined;
-}
-
-/**
- * Classifies a caught save error: the version conflict, or `null` for everything else (including
- * the slug-uniqueness 409, which is the same status from the same error class and must NOT take
- * this branch — that is the trap this function exists to close).
- *
- * Reads both versions out of the response `details` rather than parsing the message prose, and
- * tolerates their absence (`null`) rather than throwing: an older server that returns the code
- * without the detail bag must still produce a conflict the editor reacts to, since misreading a
- * conflict as an ordinary error is what loses an operator's work.
- *
- * @complexity Time/space: O(1).
- */
-export function readPageVersionConflict({ e, attemptedStatus }: { e: unknown; attemptedStatus: "draft" | "published" | undefined }, _options = {}
-): PageSaveConflict | null {
-  if (!isVersionConflict(e)) return null;
-  const details = (e.body?.details ?? {}) as Record<string, unknown>;
-  return {
-    expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,
-    currentVersion: typeof details.currentVersion === "number" ? details.currentVersion : null,
-    attemptedStatus,
-  };
-}
+export type PageSaveConflict = SaveConflict;
 
 /**
  * The conflict banner's own message. NOT run through `t()`, for the same reason
@@ -660,74 +611,4 @@ export function pageDirtyGuardBaseline({ page, savedHtml, savedTemplateChoice }:
 ): { title: string; slug: string; status: AdminPost["status"]; html: string; templateChoice: string | null } | null {
   if (!page) return null;
   return { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice };
-}
-
-// ---------------------------------------------------------------------------
-// Column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own column-sort block exactly, same
-// "twin screens" convention as the rest of this file (this file's own header). "My Pages" had no
-// sort code at all before this pass; migrated onto `DataTable`'s own shared sort mechanism the same
-// day this landed, so it never shipped its own hand-rolled dispatcher/caret/next-state logic — see
-// `posts/rules.ts`'s identical section for the full rationale. Only the domain-specific pieces live
-// here: each column's ascending comparator, the Updated column's non-default starting direction, and
-// every column's accessible-name phrasing.
-// ---------------------------------------------------------------------------
-
-/** The Pages list's default sort on first load — Updated, newest first, matching `posts/rules.ts`'s
- *  own `DEFAULT_POST_SORT` so switching between the two screens shows a consistent starting order. */
-export const DEFAULT_PAGE_SORT: DataTableSortState = { column: "updated", direction: "desc" };
-
-/** `status` is exactly `"draft" | "published"` (`post.ts`), so plain alphabetical order already
- *  equals domain order — no custom rank table needed. Ascending-only, matching
- *  `DataTableColumnSort.compare`'s own contract: `DataTable` negates this for `"desc"`. */
-export function comparePagesByTitle(a: AdminPost, b: AdminPost): number {
-  return a.title.localeCompare(b.title);
-}
-
-/** @see comparePagesByTitle — same contract, compared on `slug` instead of `title`. */
-export function comparePagesBySlug(a: AdminPost, b: AdminPost): number {
-  return a.slug.localeCompare(b.slug);
-}
-
-/** @see comparePagesByTitle — same contract, compared on `status` instead of `title`. */
-export function comparePagesByStatus(a: AdminPost, b: AdminPost): number {
-  return a.status.localeCompare(b.status);
-}
-
-/**
- * Ascending order = oldest-first; `DataTable` negates it for `"desc"` (newest-first), which is also
- * this column's own starting direction (its `defaultDirection` in `Pages.tsx`'s column definition) —
- * same reasoning as `posts/rules.ts`'s `comparePostsByUpdated`. `Date.parse`, not a string compare —
- * `updatedAt` is ISO-8601 **text** with no schema guarantee against a future non-`Z` UTC-offset
- * value, which string-sorts wrong against `Z`-form values.
- */
-export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
-  return Date.parse(a.updatedAt) - Date.parse(b.updatedAt);
-}
-
-/**
- * The accessible name for a lexicographic column's (Title/Slug/Status) sort control, in every state
- * `DataTable` can ask for — mirrors `posts/rules.ts`'s `postColumnSortLabel` verbatim. `direction` is
- * `null` when a different column is currently active — `DataTable` resolves that itself.
- *
- * `columnName` is a fixed English label supplied by the caller (`Pages.tsx`), not the translated
- * header text — matching this feature's pre-existing precedent of hardcoded English regardless of
- * admin locale.
- *
- * @complexity Time/space: O(1).
- */
-export function pageColumnSortLabel({ t, columnName, direction }: { t: Translate; columnName: string; direction: DataTableSortDirection | null }, _options = {}): string {
-  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", () => columnName);
-  return direction === "asc"
-    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", () => columnName)
-    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", () => columnName);
-}
-
-/** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/
- *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `posts/rules.ts`'s
- *  `updatedColumnSortLabel` verbatim. */
-export function updatedPageColumnSortLabel({ t, direction }: { t: Translate; direction: DataTableSortDirection | null }, _options = {}): string {
-  if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
-  return direction === "desc"
-    ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
-    : t("Sorted by updated date, oldest first. Activate to sort newest first.");
 }

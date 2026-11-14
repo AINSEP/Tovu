@@ -1,4 +1,4 @@
-import { forwardRef, useRef } from "react";
+import { forwardRef, useRef, type RefObject } from "react";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -109,6 +109,32 @@ function OtherCredentialPlaceholderRow({ store, t: translate }: { store: OtherCr
   );
 }
 
+function OtherCredentialRemoveButton({ row, translate, dialogRef }: { row: OtherCredentialRowState; translate: Translate; dialogRef: RefObject<HTMLDialogElement | null> }) {
+  return (
+    <>
+      <button
+        type="button"
+        className="btn-danger"
+        onClick={() => dialogRef.current?.showModal()}
+        // `aria-label`: a store can hold more than one configured item (this file's own
+        // `handleSuffix` doc comment above names `media-provider` as an example), and every row
+        // renders unconditionally — no accordion, no menu — so two configured items under the
+        // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
+        // `row.name` is this row's own display name, already visible in its heading.
+        aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
+        {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
+      >
+        {translate(REMOVE_FROM_TOVU)}
+      </button>
+      {row.error ? (
+        <p className="save-error" role="alert">
+          {row.error}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** Configured, but this store does not support inline Replace (`external-mcp`
  *  — see `rules.ts`'s `OtherCredentialStoreInfo.supportsReplace` doc for why) — just the value fact,
  *  Remove, and the deep link, no disclosure to expand. Remove asks first, through the same
@@ -132,25 +158,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
       </div>
       <div className="access-tokens-row-actions">
         <DeepLink store={row.store} handleSuffix={rowHandleBase({ row })} t={translate} />
-        <button
-          type="button"
-          className="btn-danger"
-          onClick={() => dialogRef.current?.showModal()}
-          // `aria-label`: a store can hold more than one configured item (this file's own
-          // `handleSuffix` doc comment above names `media-provider` as an example), and every row
-          // renders unconditionally — no accordion, no menu — so two configured items under the
-          // same store put two identically-labeled "Remove from Tovu" buttons on screen at once.
-          // `row.name` is this row's own display name, already visible in its heading.
-          aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
-          {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
-        >
-          {translate(REMOVE_FROM_TOVU)}
-        </button>
-        {row.error ? (
-          <p className="save-error" role="alert">
-            {row.error}
-          </p>
-        ) : null}
+        <OtherCredentialRemoveButton row={row} translate={translate} dialogRef={dialogRef} />
       </div>
       <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />
     </div>
@@ -200,22 +208,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
         </div>
         <div className="access-tokens-row-actions access-tokens-row-actions-top">
           <DeepLink store={row.store} handleSuffix={rowHandleBase({ row })} t={translate} />
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={() => dialogRef.current?.showModal()}
-            // Same multi-item-per-store ambiguity as `OtherCredentialStaticRow`'s identical button
-            // above.
-            aria-label={`${translate(REMOVE_FROM_TOVU)} — ${row.name}`}
-            {...agentHandle({ handle: `security-other-credentials-remove-${rowHandleBase({ row })}` }, { role: "button", label: `Remove ${row.name} from Tovu` })}
-          >
-            {translate(REMOVE_FROM_TOVU)}
-          </button>
-          {row.error ? (
-            <p className="save-error" role="alert">
-              {row.error}
-            </p>
-          ) : null}
+          <OtherCredentialRemoveButton row={row} translate={translate} dialogRef={dialogRef} />
         </div>
       </div>
       <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />

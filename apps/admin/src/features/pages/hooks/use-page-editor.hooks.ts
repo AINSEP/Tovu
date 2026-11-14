@@ -1,3 +1,4 @@
+import { readVersionConflict } from "../../../lib/version-conflict";
 import { useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
@@ -43,7 +44,6 @@ import {
   pageUnchangedSaveMessage,
   PAGES_RESOURCE,
   pageRefreshMayHaveUnsavedEdits,
-  readPageVersionConflict,
   type PageSaveConflict,
   type PageSavePlan,
 } from "../rules";
@@ -590,7 +590,7 @@ function applyPartialSave(
  *  The version conflict is NOT folded into the generic error line either. The two need opposite
  *  reactions from the operator (a slug collision or a network blip: fix it and press Save again;
  *  this: pressing Save again replaces somebody's page), and the whole point of the route's distinct
- *  `code` is that the client no longer has to guess which it got — see `readPageVersionConflict`. */
+ *  `code` is that the client no longer has to guess which it got — see `readVersionConflict`. */
 function applySaveFailure(
   { e, attemptedStatus, form, setters, t, locale }: {
     e: unknown;
@@ -614,7 +614,7 @@ function applySaveFailure(
     setters.setError(pagePartialSaveMessage({ t, locale, reason: e.reason }));
     return;
   }
-  const conflict = readPageVersionConflict({ e, attemptedStatus });
+  const conflict = readVersionConflict({ error: e, attemptedStatus });
   if (conflict) {
     setters.setSaveConflict(conflict);
     return;

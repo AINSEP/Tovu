@@ -1,3 +1,4 @@
+import { readVersionConflict } from "../../../lib/version-conflict";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -45,7 +46,6 @@ import {
   localDateTimeInputToIso,
   handleImageDrop,
   readFileAsDataUrl,
-  readPostVersionConflict,
   titleNodeText,
   withTitleNode,
   type PostSaveConflict,
@@ -1181,7 +1181,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     // reactions from the operator (a slug collision or a network blip: fix it and press Save
     // again; this: pressing Save again erases somebody's document), and the whole point of the
     // route's distinct `code` is that the client no longer has to guess which it got.
-    const conflict = readPostVersionConflict({ e: e, attemptedStatus: statusOverride });
+    const conflict = readVersionConflict({ error: e, attemptedStatus: statusOverride });
     if (conflict) {
       setSaveConflict(conflict);
       return;

@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 
@@ -17,19 +18,8 @@ import { MEDIA_TABS, resolveActiveTab, type MediaTabId, type MediaTabsController
  * where the buttons are drawn from.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px/1.5-stroke/round-join set
- *  `Roles.hooks.tsx`, `source-control-visuals.tsx` and `deployment-visuals.tsx` each define
- *  locally, so every tab row in this admin reads as one family. `aria-hidden`, because each sits
- *  directly beside the text label that already says the same thing. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes and the aria-hidden reason: components/line-icon.ts.
+
 
 /** All — a four-tile grid, i.e. the whole library at once. */
 export function AllMediaIcon({ size = 16 }: { size?: number }) {

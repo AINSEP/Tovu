@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import { ICON_PATH_DATA } from "@jini-ai/ui";
 /**
  * @file This screen's own small icon set — one inline SVG, no icon dependency. Same rationale
@@ -10,17 +11,8 @@ import { ICON_PATH_DATA } from "@jini-ai/ui";
  * reader, not information).
  */
 
-/** Shared attributes for a decorative line icon — same 24px grid, 1.5 stroke, round joins as the
- *  other `*-visuals.tsx` sets, so this glyph reads as the same family as the rest of the admin. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 /** All sites — a folder: every site here is a directory under `sites/`, which is also the
  *  identifier every card leads with. Tab-row icon (2026-09-06, the same icon-beside-label idiom

@@ -1,5 +1,5 @@
+import type { CredentialSubmitFailure } from "../../lib/credential-submit-error";
 import {
-  ApiError,
   type AdminDeploymentEnvVarStatus,
   type AdminDeploymentOverview,
   type AdminExportRunSnapshot,
@@ -113,29 +113,7 @@ export function withPromotedDefault<T extends { id: string; providerId: string; 
  *  `t()`" convention this file's own header states. `"generic"` is the catch-all every other kind
  *  falls back to (an unreachable server, an unexpected 500, …), handled by the caller's own
  *  `describeApiError`-wrapped template rather than by this function. */
-export type PublishCredentialSubmitFailure = { kind: "duplicate-label" } | { kind: "validation"; detail: string } | { kind: "generic" };
-
-/**
- * Classifies a rejected `createCredential`/`updateCredential` call. Checks BOTH `e.code` and
- * `e.message` for the two known markers (`DUPLICATE_LABEL`, `VALIDATION`) rather than only one:
- * this app's usual server shape is `{ error: <human message>, code: <MACHINE_CODE> }` (see
- * `workspace/rules.ts`'s own `describeApiError` override for the precedent), but the dispatched API
- * contract for this route writes `409 -> { error: "DUPLICATE_LABEL" }` and
- * `400 -> { error: "VALIDATION", detail }` with no separate `code` field at all — `request()`
- * (`lib/api.ts`) puts `body.error` into `e.message` and `body.code` into `e.code`, so whichever
- * shape the concurrently-built backend actually sends, one of the two carries the marker.
- * @complexity O(1).
- */
-export function classifyPublishCredentialSubmitError({ e }: { e: unknown }, _options = {}): PublishCredentialSubmitFailure {
-  if (!(e instanceof ApiError)) return { kind: "generic" };
-  const marker = e.code ?? e.message;
-  if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };
-  if (marker === "VALIDATION") {
-    const detail = typeof e.body?.detail === "string" ? e.body.detail : e.message;
-    return { kind: "validation", detail };
-  }
-  return { kind: "generic" };
-}
+export type PublishCredentialSubmitFailure = CredentialSubmitFailure;
 
 /** The descriptor for `id`, or `undefined` while the list loads or when the id is not listed.
  *  @complexity O(t) in the (small) target count. */

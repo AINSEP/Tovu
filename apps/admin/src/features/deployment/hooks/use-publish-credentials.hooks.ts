@@ -1,3 +1,4 @@
+import { classifyCredentialSubmitError } from "../../../lib/credential-submit-error";
 import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
 
@@ -23,7 +24,6 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,
-  classifyPublishCredentialSubmitError,
   credentialFormReadyToSave,
   credentialsForProvider,
   defaultCredentialForProvider,
@@ -229,7 +229,7 @@ function rowFormStateFor(states: Readonly<Record<string, RowFormState>>, provide
 /** Translates a rejected create/update into the exact string {@link usePublishCredentials}'s `save`
  *  stores as that row's `error` — pulled out of `save` for the same complexity-budget reason
  *  `StaticSiteTab.tsx`'s per-provider field split documents one file over. Layers
- *  `classifyPublishCredentialSubmitError`'s (`rules.ts`) specific cases over the shared
+ *  `classifyCredentialSubmitError`'s (`lib/credential-submit-error.ts`) specific cases over the shared
  *  `describeApiError` base case, same "check specific codes first, fall through to the shared base"
  *  convention `lib/api.ts`'s own `describeApiError` doc recommends every screen follow. The
  *  duplicate-label case reads oddly translated verbatim from the server ("a credential labeled...")
@@ -238,7 +238,7 @@ function rowFormStateFor(states: Readonly<Record<string, RowFormState>>, provide
  *  existing row's id once one exists) and can only fire on a genuine write race.
  *  @complexity O(1). */
 function publishCredentialSubmitErrorMessage({ err, t, locale }: { err: unknown; t: Translate; locale: string }, _options = {}): string {
-  const classified = classifyPublishCredentialSubmitError({ e: err });
+  const classified = classifyCredentialSubmitError({ error: err });
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return publishCredentialSaveErrorMessage({ locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
   return publishCredentialSaveErrorMessage({ locale, error: describeApiError({ e: err, fallback: t("Unknown error") }) });

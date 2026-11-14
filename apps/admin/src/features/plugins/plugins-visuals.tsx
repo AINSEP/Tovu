@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import { Icon } from "@jini-ai/ui";
 /**
  * @file The `.tovu-plugin` Plugins screen's icon adapters. Exact repeated shapes come from
@@ -10,18 +11,8 @@ import { Icon } from "@jini-ai/ui";
  * the same generic package glyph rather than a guessed category with no evidence behind it.
  */
 
-/** Shared attributes for a decorative line icon — the same 24px grid, 1.5 stroke, and round joins
- *  `agent-plugins-visuals.tsx`'s own `LINE_ICON` uses, so this screen's icons read as the same
- *  family as the rest of this admin without importing the constant itself. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 export interface IconProps {
   size?: number;

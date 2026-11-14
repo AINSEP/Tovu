@@ -1,3 +1,4 @@
+import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../lib/admin-post-list-sort";
 import { createPagesTabSelect } from "./Pages.hooks";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
@@ -16,13 +17,6 @@ import {
   pageRowMenuItems,
   pagePublicPath,
   pageAdminPath,
-  comparePagesByTitle,
-  comparePagesBySlug,
-  comparePagesByStatus,
-  comparePagesByUpdated,
-  pageColumnSortLabel,
-  updatedPageColumnSortLabel,
-  DEFAULT_PAGE_SORT,
 } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
@@ -141,7 +135,7 @@ export function Pages(props: PagesProps) {
   // Same "My Pages" sort state as `Posts.tsx`'s `sort` (2026-09-02, multi-column sort pass; migrated
   // onto `DataTable`'s own shared sort mechanism the same day) — one active column at a time, local
   // chrome state per the same owner ruling above, passed straight through as `sort`/`onSortChange`.
-  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_PAGE_SORT);
+  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_ADMIN_POST_SORT);
 
   const selectTab = createPagesTabSelect({ setActiveTab });
 
@@ -205,8 +199,8 @@ export function Pages(props: PagesProps) {
                 // Sortable headers (2026-09-02, ported from `Posts.tsx`'s identical block; migrated
                 // onto `DataTable`'s own shared sort mechanism the same day) — `DataTable` now
                 // renders the button, caret, and `aria-sort` itself from this descriptor; only the
-                // domain-specific comparator and label wording stay here (`rules.ts`).
-                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel({ t, columnName: t("Title"), direction }) },
+                // domain-specific comparator and label wording live in `lib/admin-post-list-sort.ts`.
+                sort: { compare: compareAdminPostsByTitle, label: (direction) => columnSortLabel({ t, columnName: t("Title"), direction }) },
                 // The admin editor route (`panels.tsx`'s `/:slug` pattern) is one path segment, so a
                 // Page holding the root slug `"/"` (`pagePublicPath`'s own doc) can't be expressed in
                 // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
@@ -224,7 +218,7 @@ export function Pages(props: PagesProps) {
               {
                 key: "slug",
                 header: "Slug",
-                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel({ t, columnName: t("Slug"), direction }) },
+                sort: { compare: compareAdminPostsBySlug, label: (direction) => columnSortLabel({ t, columnName: t("Slug"), direction }) },
                 // The public site link and its visible text both go through `pagePublicPath` so the
                 // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
                 // link nowhere real for that one page.
@@ -242,7 +236,7 @@ export function Pages(props: PagesProps) {
               {
                 key: "status",
                 header: t("Status"),
-                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel({ t, columnName: t("Status"), direction }) },
+                sort: { compare: compareAdminPostsByStatus, label: (direction) => columnSortLabel({ t, columnName: t("Status"), direction }) },
                 cell: (page) => <span className={`status status-${page.status}`}><ServerLabel value={page.status} /></span>,
               },
               {
@@ -250,7 +244,7 @@ export function Pages(props: PagesProps) {
                 header: t("Updated"),
                 // "desc" (newest first) is this column's own starting direction, unlike the other
                 // three's ascending default — unchanged from the pre-existing Updated-only feature.
-                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: (direction) => updatedPageColumnSortLabel({ t, direction }) },
+                sort: { compare: compareAdminPostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel({ t, direction }) },
                 cell: (page) => formatTimestamp({ iso: page.updatedAt }, { timeZone: "local" }),
               },
               {

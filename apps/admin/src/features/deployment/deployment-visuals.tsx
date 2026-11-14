@@ -1,3 +1,4 @@
+import { LINE_ICON } from "../../components/line-icon";
 import { Icon } from "@jini-ai/ui";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { DeploymentCapability } from "./rules";
@@ -20,17 +21,8 @@ import type { DeploymentCapability } from "./rules";
  * (`kole-jain-uiux-concepts`: "size icons to match the related text line height").
  */
 
-/** Shared attributes for a decorative line icon — 24px grid, 1.5 stroke, round joins, matching the
- *  sidebar's own glyph set so these read as the same family rather than a borrowed set. */
-const LINE_ICON = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+// Line-icon attributes: components/line-icon.ts.
+
 
 /** Overview — a small dashboard grid, i.e. a summary of several facts at a glance. Added for the
  *  Deployment tab row's own icon set (owner request) — the four tabs beside it already had a glyph

@@ -72,6 +72,13 @@ function attrsOrDefaults({ attrs }: { attrs: AdminMenuItemAttrs | undefined }, _
   };
 }
 
+interface MenuItemFieldProps {
+  item: AdminMenuItem;
+  path: number[];
+  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
+  t: Translate;
+}
+
 /**
  * The target-kind-specific field(s) — URL/Route/Entry each show one input, Term shows two.
  * Extracted out of `ItemRow`'s four `item.target.kind === "…" ? (...) : null` blocks (its entire
@@ -86,12 +93,7 @@ export function MenuItemTargetFields({
   path,
   onChange,
   t,
-}: {
-  item: AdminMenuItem;
-  path: number[];
-  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
-  t: Translate;
-}) {
+}: MenuItemFieldProps) {
   switch (item.target.kind) {
     case "url":
       return (
@@ -167,12 +169,7 @@ export function MenuItemAttrsFields({
   path,
   onChange,
   t,
-}: {
-  item: AdminMenuItem;
-  path: number[];
-  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
-  t: Translate;
-}) {
+}: MenuItemFieldProps) {
   const attrs = attrsOrDefaults({ attrs: item.attrs });
 
   return (
@@ -224,15 +221,11 @@ export function MenuItemAttrsFields({
   );
 }
 
-function ItemRow(props: {
+function ItemRow(props: MenuItemFieldProps & {
   pages?: readonly MenuPageChoice[];
-  item: AdminMenuItem;
-  path: number[];
-  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
   onRemove: (path: number[]) => void;
   onAddChild: (path: number[]) => void;
   onMove: (path: number[], direction: -1 | 1) => void;
-  t: Translate;
 }) {
   const { item, path, onChange, onRemove, onAddChild, onMove, t, pages } = props;
   const { handleRemoveClick } = useMenuItemRemove({ item: item, path: path, onRemove: onRemove });

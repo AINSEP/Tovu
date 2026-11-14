@@ -60,41 +60,39 @@ interface FieldControlProps {
   setFieldValidity: (fieldName: string, valid: boolean) => void;
 }
 
-function TextFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
-  return (
-    <input
-      id={inputId}
-      value={typeof value === "string" ? value : ""}
-      onChange={(e) => onChange(e.target.value)}
-      {...agentHandleProps}
-    />
-  );
+function makeNumberFieldControl(required: { step: string | undefined }, _optional: Record<string, never> = {}) {
+  return function NumberFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
+    return (
+      <input
+        id={inputId}
+        type="number"
+        step={required.step}
+        value={typeof value === "number" ? value : ""}
+        onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+        {...agentHandleProps}
+      />
+    );
+  };
 }
 
-function IntegerFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
-  return (
-    <input
-      id={inputId}
-      type="number"
-      step="1"
-      value={typeof value === "number" ? value : ""}
-      onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-      {...agentHandleProps}
-    />
-  );
+function makeStringFieldControl(required: { type: "datetime-local" | undefined }, _optional: Record<string, never> = {}) {
+  return function StringFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
+    return (
+      <input
+        id={inputId}
+        type={required.type}
+        value={typeof value === "string" ? value : ""}
+        onChange={(e) => onChange(e.target.value)}
+        {...agentHandleProps}
+      />
+    );
+  };
 }
 
-function RealFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
-  return (
-    <input
-      id={inputId}
-      type="number"
-      value={typeof value === "number" ? value : ""}
-      onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-      {...agentHandleProps}
-    />
-  );
-}
+const TextFieldControl = makeStringFieldControl({ type: undefined });
+const DatetimeFieldControl = makeStringFieldControl({ type: "datetime-local" });
+const IntegerFieldControl = makeNumberFieldControl({ step: "1" });
+const RealFieldControl = makeNumberFieldControl({ step: undefined });
 
 function BooleanFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
   return (
@@ -103,18 +101,6 @@ function BooleanFieldControl({ inputId, value, onChange, agentHandleProps }: Fie
       type="checkbox"
       checked={value === true}
       onChange={(e) => onChange(e.target.checked)}
-      {...agentHandleProps}
-    />
-  );
-}
-
-function DatetimeFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
-  return (
-    <input
-      id={inputId}
-      type="datetime-local"
-      value={typeof value === "string" ? value : ""}
-      onChange={(e) => onChange(e.target.value)}
       {...agentHandleProps}
     />
   );

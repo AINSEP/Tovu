@@ -1,3 +1,4 @@
+import { classifyCredentialSubmitError } from "../../../lib/credential-submit-error";
 import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -10,7 +11,6 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
   buildSourceControlConnectionInput,
-  classifySourceControlCredentialSubmitError,
   defaultSourceControlCredentialForProvider,
   sourceControlCredentialRowReadyToSave,
   sourceControlProviders,
@@ -102,7 +102,7 @@ function blankRowFormState(): RowFormState {
  *  `use-publish-credentials.hooks.ts`'s own `publishCredentialSubmitErrorMessage` documents.
  *  @complexity O(1). */
 function sourceControlCredentialSubmitErrorMessage({ err, t, locale }: { err: unknown; t: Translate; locale: string }, _optional = {}): string {
-  const classified = classifySourceControlCredentialSubmitError({ e: err });
+  const classified = classifyCredentialSubmitError({ error: err });
   if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return sourceControlCredentialSaveErrorMessage({ locale: locale, error: translateCredentialMessage({ message: classified.detail, locale }) });
   return sourceControlCredentialSaveErrorMessage({ locale: locale, error: describeApiError({ e: err, fallback: t("unknown error") }) });
