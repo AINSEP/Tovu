@@ -7,6 +7,7 @@ import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/i
 import type { ProviderConfigSource } from "#src/server/runtime/composition/provider-config-source";
 import { declaredProviderSettingFields, saveProviderSettings } from "#src/server/runtime/composition/provider-settings-save";
 import type { PluginsRouteDeps } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file `PLUGIN_PROVIDER_SETTINGS` — `GET`/`PUT /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/provider-settings`
@@ -76,7 +77,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
 
 /** Shared guard: workspace, principal permission, plugin with declared settings, a configured store. */
 async function resolveCard({ req, res, deps, permission }: { req: Request; res: Response; deps: ProviderSettingsRouteDeps; permission: string }) {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return undefined; }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
   const principal = getAuthedPrincipal(res);
   if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId }))) return undefined;
   const pluginId = String(req.params.pluginId ?? "");
@@ -130,7 +131,7 @@ async function isOwnerSession({ res, deps, principalId }: { res: Response; deps:
 function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDeps): void {
   app.put("/api/admin/v1/workspaces/:workspaceId/project-keys/:keyId/use", async (req, res) => {
     try {
-      if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       const principal = getAuthedPrincipal(res);
       if (!await isOwnerSession({ res, deps, principalId: principal.id })) return;
       if (!deps.projectKeys) { res.status(503).json({ error: "This site has no project key store." }); return; }

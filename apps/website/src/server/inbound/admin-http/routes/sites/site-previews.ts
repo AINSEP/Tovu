@@ -7,6 +7,7 @@ import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { SITE_PREVIEW_CONTENT_TYPE, type SitePreviewService, type SitePreviewTarget } from "#src/features/sites/index";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 const PREFIX = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 
@@ -58,7 +59,7 @@ export interface SitePreviewRouteDeps extends Pick<RouteDeps, "workspaceId" | "a
  */
 export function registerSitePreviewRoutes({ app, deps }: { app: Express; deps: SitePreviewRouteDeps }, _optional = {}): void {
   app.get(`${PREFIX}/:name/preview`, async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,

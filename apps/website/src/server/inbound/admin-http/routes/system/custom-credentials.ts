@@ -20,6 +20,8 @@ import {
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Admin Access Tokens page's "Add custom provider" CRUD backend.
@@ -139,25 +141,10 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
    *  performs first — mirrors `source-control-credentials.ts`'s own `rejectUnlessAuthorized`.
    *  Returns `true` and has already written the response iff the caller should stop. */
   async function rejectUnlessAuthorized(req: Request, res: Response): Promise<boolean> {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return true;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
     const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: PERMISSION,
-      workspaceId: deps.workspaceId,
-      entityType: ENTITY_TYPE,
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for '${PERMISSION}' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: PERMISSION, reason: authResult.reason },
-      });
-      return true;
-    }
+    const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: ENTITY_TYPE };
+    if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
     return false;
   }
 

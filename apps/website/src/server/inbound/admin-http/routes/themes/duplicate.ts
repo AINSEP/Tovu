@@ -3,6 +3,8 @@ import { DuplicateThemeError, duplicateDiscoveredTheme, requestThemePreviewRefre
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { bodyRecord } from "./explore.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /** HTTP status per refusal: an unknown source is a 404, a taken id a 409, everything else bad input. */
 const DUPLICATE_ERROR_STATUS: Record<DuplicateThemeErrorCode, number> = {
@@ -41,27 +43,12 @@ function duplicateInput({ body, sourceThemeId }: { body: unknown; sourceThemeId:
  */
 export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/duplicate", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "theme.edit",
-        workspaceId: deps.workspaceId,
-        entityType: "theme",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'theme.edit' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "theme.edit", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "theme.edit", workspaceId: deps.workspaceId, entityType: "theme" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { sourceThemeId, newName, newId } = duplicateInput({ body: req.body, sourceThemeId: req.params.themeId });
       const { result, theme } = duplicateDiscoveredTheme(

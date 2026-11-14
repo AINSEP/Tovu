@@ -6,6 +6,7 @@ import { createPolicy } from "@jini-ai/user-management/server";
 import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's `name`/`description` POST fields, read off an untyped body in one place.
  *  @complexity O(1). */
@@ -36,10 +37,7 @@ function sendPolicyCreateError(res: Response, err: unknown): void {
  */
 export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/policies", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);

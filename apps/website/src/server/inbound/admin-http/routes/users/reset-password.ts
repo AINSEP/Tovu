@@ -7,6 +7,7 @@ import { resetUserPassword } from "@jini-ai/user-management/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UserInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. Exported for direct-invoke
  *  coverage: `assertUserAccountAction` deliberately exempts `reset-password` from its self-target
@@ -52,10 +53,7 @@ export function sendResetPasswordError(res: Response, err: unknown): void {
  */
 export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);

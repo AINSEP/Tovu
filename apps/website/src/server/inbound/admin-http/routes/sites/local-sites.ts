@@ -6,6 +6,7 @@ import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { resolveSiteSwitchBase } from "#src/features/sites/index";
 import { LocalSiteError, type LocalSiteSupervisorPort, trashSite, restoreSite, permanentlyDeleteTrashedSite, siteTrashName } from "#src/platform/site-dir/index";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 export interface LocalSitesRouteDeps extends Pick<RouteDeps, "workspaceId" | "authorize" | "siteBinding"> {
   localSiteSupervisor?: LocalSiteSupervisorPort;
@@ -27,7 +28,7 @@ function respondToLifecycleError({ res, error }: { res: Response; error: unknown
 
 function lifecycleHandler(deps: LocalSitesRouteDeps, action: (req: Request, base: string, supervisor: LocalSiteSupervisorPort) => Promise<unknown>) {
   return async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: deps.isSiteSwitcherEnabled() });
     if (!gate.ok) { res.status(gate.code === "SITE_SWITCHING_DISABLED" ? 403 : 409).json(gate); return; }
     try {

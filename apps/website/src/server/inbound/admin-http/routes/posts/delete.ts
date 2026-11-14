@@ -14,6 +14,7 @@ import {
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendPostDeleteError(res: Response, err: unknown): void {
@@ -69,10 +70,7 @@ function sendPostDeleteError(res: Response, err: unknown): void {
  */
 export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/posts/:postId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const rawParam = String(req.params.postId ?? "");
     // Admin URLs use the slug when one resolves (2026-08-10) — same resolve-up-front rationale as

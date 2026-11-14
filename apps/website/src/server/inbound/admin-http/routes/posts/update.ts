@@ -25,6 +25,7 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's seven writable PUT fields, read off an untyped body in one place.
  *  Return type is pinned to `UpdatePostInput` itself (minus the id fields the
@@ -135,10 +136,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
     "/api/admin/v1/workspaces/:workspaceId/posts/:postId",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const rawParam = String(req.params.postId ?? "");
       // Admin URLs use the slug when one resolves (2026-08-10) — resolve to the real stable id up

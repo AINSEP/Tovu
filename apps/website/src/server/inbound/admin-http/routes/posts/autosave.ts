@@ -8,6 +8,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 import { asyncRoute } from "../../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Standing-draft autosave for Posts AND Pages (2026-09-06 dispatch) — one route file, kind-
@@ -144,10 +145,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
   const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
 
   app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
     let parsed: ReturnType<typeof parseAutosaveBody>;
@@ -179,10 +177,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
   } }));
 
   app.get(path, asyncRoute({ handler: async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
     try {
@@ -195,10 +190,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (app, deps)
   } }));
 
   app.delete(path, asyncRoute({ handler: async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     if (!(await allowedToWrite(deps, res))) return;
 
     try {

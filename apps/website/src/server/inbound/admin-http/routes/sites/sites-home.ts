@@ -9,6 +9,7 @@ import { isSiteSwitcherEnabled, type SitesWorkspace } from "#src/platform/site-d
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
 import { DirectoryUserConfigRefusal, validateDirectoryUserConfig } from "@jini-ai/platform/fs";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type SettingsDeps = {
   workspaceId: UUID;
@@ -17,7 +18,7 @@ type SettingsDeps = {
 };
 
 function admitSettingsRequest({ req, res, deps }: { req: Request; res: Response; deps: SettingsDeps }, _options = {}): boolean {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return false; }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return false;
   if (!(deps.isSiteSwitcherEnabled ?? isSiteSwitcherEnabled)()) { res.status(403).json({ error: "Local sites management is disabled." }); return false; }
   return true;
 }

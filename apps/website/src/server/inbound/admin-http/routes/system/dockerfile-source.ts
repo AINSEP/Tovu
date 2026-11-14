@@ -8,6 +8,8 @@ import {
 } from "#src/features/deployments/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 export type { DockerfileSourceSnapshot };
 // Re-exported for callers/tests that import the read function from this route file's previous
@@ -77,27 +79,12 @@ function toResponseBody(snapshot: DockerfileSourceSnapshot): { exists: boolean; 
 
 export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDockerfileSourceDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.read",
-        workspaceId: deps.workspaceId,
-        entityType: "dockerfile-source",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.read", workspaceId: deps.workspaceId, entityType: "dockerfile-source" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const snapshot = readDockerfileSource();
       res.setHeader("ETag", snapshot.etag);
@@ -108,27 +95,12 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
   });
 
   app.put("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.write",
-        workspaceId: deps.workspaceId,
-        entityType: "dockerfile-source",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.write' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.write", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "dockerfile-source" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // Precondition check BEFORE body parsing — an `If-Match` header is a precondition on the
       // REQUEST, distinct from whether the BODY it guards happens to be well-formed. Checking it

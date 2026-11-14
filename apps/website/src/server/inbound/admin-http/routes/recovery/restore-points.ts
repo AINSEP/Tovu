@@ -4,6 +4,7 @@ import type { Express } from "express";
 import { listRestorePoints } from "@jini-ai/db/tools";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file design-spec.md §4.2/§4.8 — `GET /api/admin/v1/recovery/restore-points` (Recovery's own
@@ -17,20 +18,8 @@ export function registerAdminRecoveryRestorePointsListRoute(app: Express, deps: 
   app.get("/api/admin/v1/recovery/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.read",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "backup.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "backup.read", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await listRestorePoints({ repo: deps.restorePointsRepo });
       res.json(result);

@@ -9,6 +9,7 @@ import type { MemberAccessResolver } from "#src/features/members/index";
 import { toContentPostResponse } from "#src/server/inbound/public-http/http/content/posts";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 
 

@@ -17,6 +17,7 @@ import {
 } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file The `widgets.place` / `widgets.create` / `widgets.remove` / `widgets.diagnose` AI tool
@@ -186,10 +187,7 @@ function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["f
  * `widgets.create` (REQ-35, AC-25): this call never creates a new instance. */
 const registerPlaceTool: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/place", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
     const target = readTarget(body);
     if (!target || typeof body.widgetInstanceId !== "string") {
@@ -211,10 +209,7 @@ const registerPlaceTool: RouteRegistrar = (app, deps) => {
  * `widgets.place` (REQ-35, AC-25). */
 const registerCreateTool: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/create", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
     const parsed = parseCreateToolInput(body);
     if (!parsed) {
@@ -259,10 +254,7 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
  * itself (that's `widgets.delete`/`.delete.force` via the ordinary CRUD routes). */
 const registerRemoveTool: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/remove", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
     const target = readTarget(body);
     if (!target || typeof body.placementId !== "string") {
@@ -286,10 +278,7 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
  * is already a queryable, first-class state, not new detection logic to build"). */
 const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
       if (!principal) return;

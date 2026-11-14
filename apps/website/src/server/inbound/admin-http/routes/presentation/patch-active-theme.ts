@@ -8,6 +8,8 @@ import { findStoredTheme, validThemeIds, writableThemeIds, requestThemePreviewRe
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * PATCH the active theme.
@@ -49,27 +51,12 @@ function presentationPatchErrorResponse(err: unknown, options: AdminFailurePorts
 
 export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "theme.set",
-        workspaceId: deps.workspaceId,
-        entityType: "presentation",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "theme.set", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await setActiveTheme({
         deps: {

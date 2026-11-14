@@ -3,6 +3,7 @@ import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { userAccountProtection } from "#src/features/identity/delete-user-service";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET users — list a workspace's human (`kind='user'`) principals for the
@@ -22,10 +23,7 @@ import { userAccountProtection } from "#src/features/identity/delete-user-servic
  */
 export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

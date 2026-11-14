@@ -2,6 +2,7 @@ import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 import { bindWidgetArea } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * POST bind a new region by key (SPEC-043 REQ-11/13), `widgets.place`-gated. `bindWidgetArea`
@@ -12,10 +13,7 @@ import type { RouteRegistrar } from "#src/server/routes/types";
  */
 export const registerAdminWidgetRegionBindRoute: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/regions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = req.body ?? {};
     if (typeof body.regionKey !== "string" || body.regionKey.trim() === "") {

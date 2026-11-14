@@ -3,6 +3,8 @@ import { filterVisibleTrashItems, trashDaysRemaining, TRASH_READ_PERMISSION } fr
 import type { TrashItem } from "@jini-ai/cms/trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteDeps, type TrashRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * GET one page of the Trash.
@@ -15,26 +17,12 @@ import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteDeps, type
  */
 export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/trash", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: TRASH_READ_PERMISSION,
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${TRASH_READ_PERMISSION}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: TRASH_READ_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: TRASH_READ_PERMISSION, workspaceId: deps.workspaceId };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const now = deps.clock.nowIso();
       const page = await deps.trash.list({

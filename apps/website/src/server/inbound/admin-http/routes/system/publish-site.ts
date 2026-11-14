@@ -26,8 +26,8 @@ import type {
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
-const WORKSPACE_NOT_FOUND = "workspace was not found";
 const SITE_PUBLISH_ENTITY = "site-publish";
 
 /**
@@ -241,10 +241,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -322,10 +319,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -344,10 +338,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/preview", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
@@ -399,10 +390,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
   // Listing is read-only: execution still goes through the system.publish-gated POST above.
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/destinations", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const authorized = await authorizeOrRespond(res, deps.authorize, {
@@ -435,10 +423,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
   // Ids, labels, config field specs, the saved-credential form's field specs and the translations of
   // that text (`i18n`) only: a module path, a vendor id or a refusal reason stays server-side.
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish-targets", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: WORKSPACE_NOT_FOUND });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

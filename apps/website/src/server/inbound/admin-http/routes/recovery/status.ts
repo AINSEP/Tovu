@@ -5,6 +5,7 @@ import { isOperationInFlight } from "#src/contracts/core/operation-lock";
 import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file design-spec.md §4.2/§4.4/§4.8 — `GET /api/admin/v1/recovery/status` (the capability/status
@@ -34,20 +35,8 @@ export function registerAdminRecoveryStatusRoute(app: Express, deps: DatabaseRec
   app.get("/api/admin/v1/recovery/status", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.read",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "backup.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "backup.read", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const capabilities = await deps.dbOps.getCapabilities();
       const siteStatus = await deps.siteStatusRepo.get(deps.workspaceId);

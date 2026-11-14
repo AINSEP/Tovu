@@ -4,6 +4,7 @@ import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inb
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WidgetTypeKey } from "@jini-ai/cms/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's validated POST body shape, or `null` when `widgetType`/`title` failed validation.
  *  `widgetType` is cast, not validated, against the real `WidgetTypeKey` union here —
@@ -34,10 +35,7 @@ function parseWidgetCreateBody(rawBody: unknown): {
  */
 export const registerAdminWidgetCreateRoute: RouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const parsedBody = parseWidgetCreateBody(req.body);
     if (!parsedBody) {

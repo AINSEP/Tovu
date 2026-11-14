@@ -7,6 +7,7 @@ import { installSkill, setSkillEnabled, uninstallSkill, SkillInputError } from "
 import { loadInstalledSkillToolSources, buildSkillToolRegistrations } from "#src/features/skills/tool-registrations";
 import type { SkillsRouteRegistrar } from "./deps.js";
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): fields is Record<string, unknown> & { files: { path: string; contentBase64: string }[] } {
   return Array.isArray(fields.files) && fields.files.every(f => {
@@ -35,7 +36,7 @@ export const registerSkillsManagementRoutes = (
 ): void => {
   const base = "/api/admin/v1/workspaces/:workspaceId/skills";
   const guarded = (work: (req: Request, res: Response) => Promise<void>) => async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId })) return;

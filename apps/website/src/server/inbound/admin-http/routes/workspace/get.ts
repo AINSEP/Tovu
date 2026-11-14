@@ -3,6 +3,7 @@ import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/wo
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET workspaces/:workspaceId — SPEC-044 REQ-03. `:workspaceId` must equal the caller's own
@@ -13,10 +14,7 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
  */
 export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

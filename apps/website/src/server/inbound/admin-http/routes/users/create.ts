@@ -8,6 +8,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UsernameInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
 import { asyncRoute } from "../../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's three body fields, read off an untyped body in one place.
  *  @complexity O(1). */
@@ -75,10 +76,7 @@ async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: stri
  */
 export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users", asyncRoute({ handler: async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const body = parseUserCreateBody(req.body);
     try {

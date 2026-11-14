@@ -11,6 +11,8 @@ import { registerAdminThemePreviewRoute } from "../themes/preview.js";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 function activeThemeResponseFields(
   { themes, settings, kind }: {
@@ -55,10 +57,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
   // cannot be mounted apart.
   registerAdminThemePreviewRoute({ app, deps });
   app.get("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const kind = req.query.kind;
@@ -67,20 +66,8 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         return;
       }
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "theme.set",
-        workspaceId: deps.workspaceId,
-        entityType: "presentation",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'theme.set' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "theme.set", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       // **Deliberately NOT the write allowlist.** This list is echoed straight back to the client as
       // `AdminPresentation.availableThemeIds` and is what the admin's theme picker renders one card

@@ -4,6 +4,8 @@ import type { Express } from "express";
 import { restartAssistantDaemon as restartAssistantDaemonReal, type RestartAssistantDaemonResult } from "#src/server/runtime/lifecycle/daemon-supervisor";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 
 /**
  * @file Admin "Restart assistant" action — `POST /api/admin/v1/workspaces/:workspaceId/system/
@@ -53,27 +55,12 @@ export function registerAdminAssistantDaemonRoutes(app: Express, deps: AdminAssi
   const restartAssistantDaemon = deps.restartAssistantDaemon ?? restartAssistantDaemonReal;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "system.write",
-        workspaceId: deps.workspaceId,
-        entityType: "assistant-daemon",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.write' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.write", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "assistant-daemon" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = restartAssistantDaemon();
       if (!result.ok) {

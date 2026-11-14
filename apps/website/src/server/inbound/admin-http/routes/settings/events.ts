@@ -78,6 +78,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express, Request, Response } from "express";
 import type { SettingsRouteDeps } from "./deps.js";
 import { asyncRoute } from "../../../shared/async-route.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type IntervalHandle = ReturnType<typeof setInterval>;
 
@@ -162,10 +163,7 @@ function resolveFeedTimers(feedTimers: FeedTimers | undefined): Required<FeedTim
  */
 async function admitSubscriber(required: { req: Request; res: Response; deps: SettingsEventsDeps }): Promise<Admission | null> {
   const { req, res, deps } = required;
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return null;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
 
   let principal: { id: string };
   try {

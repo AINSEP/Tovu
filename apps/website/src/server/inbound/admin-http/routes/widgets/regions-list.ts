@@ -1,6 +1,7 @@
 import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "#src/server/inbound/admin-http/http/widgets";
 import type { RouteRegistrar } from "#src/server/routes/types";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * GET every currently-bound widget region (SPEC-043 REQ-11/12), `widgets.read`-gated — backs
@@ -12,10 +13,7 @@ import type { RouteRegistrar } from "#src/server/routes/types";
  */
 export const registerAdminWidgetRegionsListRoute: RouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/regions", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
