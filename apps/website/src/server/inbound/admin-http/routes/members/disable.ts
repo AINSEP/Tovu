@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
@@ -22,10 +23,7 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = (app, routeDeps) 
   const deps = routeDeps as MembersRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/members/:memberId/disable", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const memberId = String(req.params.memberId ?? "");
 

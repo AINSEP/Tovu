@@ -1,3 +1,4 @@
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
@@ -17,20 +18,8 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
   app.put("/api/admin/v1/content-types/:key/fields", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.collections.manage",
-        workspaceId: deps.workspaceId,
-        entityType: "content-type",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "admin.collections.manage", workspaceId: deps.workspaceId, entityType: "content-type" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const body = req.body ?? {};
       if (typeof body.expectedVersion !== "number") {

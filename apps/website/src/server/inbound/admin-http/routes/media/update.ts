@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
@@ -94,28 +96,12 @@ function mapMediaUpdateError(err: unknown, options: AdminFailurePorts = {}): Med
  */
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "media.update",
-        workspaceId: deps.workspaceId,
-        entityType: "media",
-        entityId: String(req.params.mediaId ?? ""),
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'media.update' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "media.update", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "media.update", workspaceId: deps.workspaceId, entityType: "media", entityId: String(req.params.mediaId ?? "") };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { media } = await updateMediaMetadata({
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },

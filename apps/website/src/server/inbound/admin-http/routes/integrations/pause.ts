@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request } from "express";
 
@@ -29,10 +30,7 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause",
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-        res.status(404).json({ error: "workspace was not found" });
-        return;
-      }
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const paused = resolvePausedFlag(req);
       const subscriptionId = String(req.params.subscriptionId ?? "");

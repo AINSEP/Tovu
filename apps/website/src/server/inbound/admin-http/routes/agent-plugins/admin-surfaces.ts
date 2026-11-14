@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
@@ -61,10 +62,7 @@ function sourceFor(deps: AgentPluginsRouteDeps): AdminSurfaceSource {
 
 /** Workspace check + permission; `false` when a response was already sent. @complexity O(1) + authorize. */
 async function admit(req: Request, res: Response, deps: AgentPluginsRouteDeps, permission: string): Promise<boolean> {
-  if (String(req.params.workspaceId) !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return false;
-  }
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return false;
   return authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId });
 }
 

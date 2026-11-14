@@ -24,9 +24,9 @@ import {
   authorizedPrincipalId,
   bodyRecord,
   OVERWRITE_REFUSED,
-  rejectForeignWorkspace,
   sendRefusal,
 } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { buildBackstopPreview } from "#src/features/publish-content/backstop-preview";
 import type { PackedEntity } from "#src/features/publish-content/type-registry";
 import { readBackstopMetadata } from "#src/features/publish-content/backstop-service";
@@ -151,7 +151,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
   }
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/plan", async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const bundleId = req.body?.bundleId;
@@ -184,7 +184,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/confirm", async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const { planId, planHash } = bodyRecord(req.body);
@@ -215,7 +215,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
   });
 
   app.post("/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute", async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const body = bodyRecord(req.body);
@@ -281,7 +281,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/runs/:runId", async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId(res, deps, "publish_content.read")) === null) return;
 

@@ -11,7 +11,8 @@ import { rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-li
 import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publish-backstop-ports";
 
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { authorizedPrincipalId, bodyRecord, rejectForeignWorkspace, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { authorizedPrincipalId, bodyRecord, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 6 of the publish-content (Publish Content) feature —
@@ -191,7 +192,7 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
     "/api/admin/v1/workspaces/:workspaceId/publish-content/bundles",
     rejectOversizedJsonBody({ maxBytes: PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+      if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
         const principalId = await authorizedPrincipalId(res, deps, "publish_content.apply");

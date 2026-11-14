@@ -1,3 +1,4 @@
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from "express";
 import { randomUUID } from "node:crypto";
@@ -115,20 +116,8 @@ export function registerAdminDatabaseRestorePointsListRoute(app: Express, deps: 
   app.get("/api/admin/v1/database/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "database.read",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'database.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "database.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "database.read", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const result = await listRestorePoints({ repo: deps.restorePointsRepo });
       res.json(result);
@@ -153,20 +142,8 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
   app.post("/api/admin/v1/database/restore-points", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.create",
-        workspaceId: deps.workspaceId,
-        entityType: "restore-point",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'backup.create' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "backup.create", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "backup.create", workspaceId: deps.workspaceId, entityType: "restore-point" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const { trigger, costAck, idempotencyKey } = parseRestorePointCreateBody(req.body);
 

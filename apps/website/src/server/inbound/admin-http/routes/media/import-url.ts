@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Quick wins A: an admin adapter over the same guarded fetch and upload pipeline as the tool. */
 import type { Express } from "express";
@@ -40,10 +41,7 @@ export function registerAdminMediaImportUrlRoute(
 ): void {
   const { app, deps } = required;
   app.post("/api/admin/v1/workspaces/:workspaceId/media/import-url", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const auth = await deps.authorize({ principalId: principal.id, permission: "media.upload", workspaceId: deps.workspaceId, entityType: "media" });

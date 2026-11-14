@@ -18,7 +18,8 @@ import { resolvePublishDestinationCredential } from "#src/features/publish-conte
 import { pushBundleToPeer, confirmPeerImport, executePeerImport, type PeerCallDeps } from "#src/features/publish-content/peer-transport";
 import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { bodyRecord, rejectForeignWorkspace, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { bodyRecord, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { respondWithError } from "./peer-transport.js";
 
 /** Whether `actorId` may send by hand: the `publish.backstop` permission AND the owner or a
@@ -234,7 +235,7 @@ async function handleUndoRequest(req: Request, res: Response, deps: PublishConte
 export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app, deps) => {
   const base = "/api/admin/v1/workspaces/:workspaceId/publish-content";
   app.get(`${base}/backstop/status`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if (!(await backstopActorId(res, deps))) return;
       const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
@@ -242,7 +243,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "Manual publishing availability could not be read." }); }
   });
   app.get(`${base}/runs/:runId/backstop`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if (!(await backstopActorId(res, deps))) return;
       const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
@@ -253,7 +254,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "This send could not be read." }); }
   });
   app.post(`${base}/backstop`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       await handleBackstopRequest(req, res, deps);
     } catch (error) {
@@ -263,7 +264,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
   });
 
   app.get(`${base}/backstop/gaps`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       const allowed = await deps.authorize({ principalId: principal.id, permission: "publish_content.read", workspaceId: deps.workspaceId });
@@ -274,7 +275,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
   });
 
   app.post(`${base}/runs/:runId/undo-backstop`, async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       await handleUndoRequest(req, res, deps);
     } catch (error) {

@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -38,10 +39,7 @@ import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bind
  */
 export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/agent-plugins", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

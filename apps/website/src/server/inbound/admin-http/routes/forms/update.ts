@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import type { FormAuthoring } from "@jini-ai/cms/forms";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
@@ -71,10 +72,7 @@ async function resolveFormUpdateResult(
  */
 export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const formId = String(req.params.formId ?? "");
     const body = (req.body ?? {}) as Record<string, unknown>;

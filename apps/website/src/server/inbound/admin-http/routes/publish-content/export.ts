@@ -7,7 +7,7 @@ import { CONTENT_HASH_VERSION } from "#src/features/publish-content/content-hash
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { packAuthorizedEntities } from "#src/features/publish-content/export-bundle";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
-import { rejectForeignWorkspace } from "./route-helpers.js";
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 4 of the publish-content (Publish Content) feature —
@@ -89,7 +89,7 @@ async function streamExportBundle(res: Response, deps: PublishContentRouteDeps, 
 
 export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/publish-content/export", async (req, res) => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);

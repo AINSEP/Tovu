@@ -1,6 +1,6 @@
 import type { PeerCallDeps } from "#src/features/publish-content/peer-transport";
 import { planPublishToPeer } from "#src/features/publish-content/push-plan";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 import { pullAndStageFromPeer } from "#src/features/publish-content/pull";
 // Pull ordering/identity rationale: features/publish-content/pull.ts; this route stops at staging.
@@ -31,12 +31,10 @@ import {
   bodyRecord,
   mappedErrorResponse,
   OVERWRITE_REFUSED,
-  rejectForeignWorkspace,
-  routeParam,
   sendRefusal,
   type MappedErrorClass,
-  type RouteParamsRequest,
 } from "./route-helpers.js";
+import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —
@@ -246,8 +244,8 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
   /** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
    *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
    *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
-  const guard = async (req: RouteParamsRequest, res: Response): Promise<string | null> => {
-    if (rejectForeignWorkspace(req, res, deps.workspaceId)) return null;
+  const guard = async (req: Pick<Request, "params">, res: Response): Promise<string | null> => {
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
     return authorizedPrincipalId(res, deps, "publish_content.apply");
   };
 
@@ -274,7 +272,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const overwriteEntityKeys = acceptOverwriteEntityKeys(res, bodyRecord(req.body).overwriteEntityKeys, mayOverwrite);
       if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const peer = await openPeer(deps, routeParam(req, "peerId"));
+      const peer = await openPeer(deps, readRouteParam({ req, name: "peerId" }));
       res.json(await planPublishToPeer({
         deps: { ...deps, publishContentDeps: toPublishContentDeps(deps) },
         peer,
@@ -296,7 +294,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
         return;
       }
 
-      const peer = await openPeer(deps, routeParam(req, "peerId"));
+      const peer = await openPeer(deps, readRouteParam({ req, name: "peerId" }));
       res.json(await confirmPeerImport(peer, { planId, planHash }));
     } catch (err) {
       respondWithError(res, err);
@@ -317,7 +315,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       const overwriteEntityKeys = acceptOverwriteEntityKeys(res, body.overwriteEntityKeys, mayOverwrite);
       if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      const peer = await openPeer(deps, routeParam(req, "peerId"));
+      const peer = await openPeer(deps, readRouteParam({ req, name: "peerId" }));
       res.json(
         await executePeerImport(peer, {
           bundleId,
@@ -336,7 +334,7 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       if (principalId === null) return;
 
       res.status(201).json(await pullAndStageFromPeer(deps, {
-        peerId: routeParam(req, "peerId"),
+        peerId: readRouteParam({ req, name: "peerId" }),
         principalId,
       }));
     } catch (err) {

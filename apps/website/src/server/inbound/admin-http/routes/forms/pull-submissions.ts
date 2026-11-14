@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
@@ -42,18 +44,11 @@ async function respondWithPullReport(
  */
 export const registerAdminFormsPullSubmissionsRoute: FormsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/forms/submissions/pull", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({ principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: "form_submission" });
-      if (!authResult.allowed) {
-        res.status(403).json({ error: `principal '${principal.id}' is not authorized for '${PERMISSION}' (${authResult.reason})`, code: "FORBIDDEN",
-          details: { permission: PERMISSION, reason: authResult.reason } });
-        return;
-      }
+      const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: "form_submission" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
       const parsed = parseTargetId(req.body);
       if (!parsed.ok) {
         res.status(400).json({ error: "targetId must be a hosting target id of 1-64 characters, or omitted to pull from every published site", code: "FORMS_FIELD_VALIDATION_ERROR",

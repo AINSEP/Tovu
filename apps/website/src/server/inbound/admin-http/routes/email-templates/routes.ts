@@ -1,3 +1,4 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request, Response } from "express";
 
@@ -72,10 +73,7 @@ function body(req: Request): Record<string, unknown> {
 /** Workspace check, then authorization BEFORE any body validation, then the operation. */
 function route(deps: ContentRouteDeps, permission: string, handler: Handler, status = 200) {
   return async (req: Request, res: Response) => {
-    if (String(req.params.workspaceId) !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId }))) return;

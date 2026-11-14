@@ -1,3 +1,4 @@
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
@@ -39,20 +40,8 @@ export function registerAdminDatabaseSchemaStateRoute(app: Express, deps: Databa
   app.get("/api/admin/v1/database/schema-state", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "database.read",
-        workspaceId: deps.workspaceId,
-        entityType: "database-schema",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'database.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "database.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "database.read", workspaceId: deps.workspaceId, entityType: "database-schema" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const schemaState = await deps.databaseIntrospection.getSchemaState();
       res.json(schemaState);

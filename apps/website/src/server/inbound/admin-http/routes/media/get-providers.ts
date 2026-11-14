@@ -1,3 +1,5 @@
+import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
+import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getMediaProviderCredentials } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -17,27 +19,12 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  */
 export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media/providers", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).json({ error: "workspace was not found" });
-      return;
-    }
+    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "media.read",
-        workspaceId: deps.workspaceId,
-        entityType: "media",
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'media.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "media.read", reason: authResult.reason },
-        });
-        return;
-      }
+      const params = { principalId: principal.id, permission: "media.read", workspaceId: deps.workspaceId, entityType: "media" };
+      if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const providers = await getMediaProviderCredentials(
         { repo: deps.mediaProviderCredentialRepo, sealer: deps.siteAssistantSecretSealer },
