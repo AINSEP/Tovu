@@ -88,7 +88,7 @@ export function SettingsControl({
           <div className="settings__sep" role="separator" />
           <div className="settings__row">
             <span className="settings__label" id="settings-theme-label">Theme</span>
-            <ThemeControl value={theme} onChange={chooseTheme} />
+            <ThemeControl value={theme} onChange={(next) => chooseTheme({ next })} />
           </div>
           <LoadedSitesRow setting={loadedSites} />
           <IdleSiteSleepRow setting={idleSiteSleep} />

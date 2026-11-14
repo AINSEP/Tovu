@@ -154,19 +154,19 @@ export function App({
   const openImportPage = createOpenImportPage({ clearAddError, liveImport, startImporting });
   useImportHandoff({ busy: liveImport.importing, prefill: liveImport.setAddress, open: openImportPage });
 
-  const { expanded, toggleExpanded } = useExpanded(showSiteTab);
+  const { expanded, toggleExpanded } = useExpanded({ showSiteTab });
   const { onSitesHome, selectedTab, guestTarget, tabNotice } = appPresentation({
     showSiteTab, showSitesHome, appearanceOpen, activeTab, visibleWorkspaceId, addNotice,
   });
   // The visible project tab's guest when one is on screen, else the Projects screen itself — see
   // `use-find-in-page.hooks.ts`'s own header for why the target routing lives there, not here.
-  const find = useFindInPage(guestTarget);
+  const find = useFindInPage({ activeGuestId: guestTarget });
   // Same routing, for Cmd+Plus / Cmd+- / Cmd+0 — see `use-zoom.hooks.ts`'s own header.
-  const zoom = useZoom(guestTarget);
+  const zoom = useZoom({ activeGuestId: guestTarget });
   // Expanded mode's whole visible effect. See `expanded-mode.ts` for why this is a plain function
   // rather than three conditions inlined into the JSX below.
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
-  useRunnerNavigation(setActiveId, setActiveTab);
+  useRunnerNavigation({ setActiveId, setActiveTab });
   const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
   const runningCount = countRunningSites(projects);
   const active = findSection({ id: activeId });
@@ -195,7 +195,7 @@ export function App({
           activeTab={selectedTab}
           onSelectSitesHome={() => { setActiveTab(null); hideImporting(); }}
           onSelectTab={(id) => { setActiveTab(id); hideImporting(); }}
-          onCloseTab={tabClose.requestClose}
+          onCloseTab={(id) => tabClose.requestClose({ id })}
           importTab={importTabProps({ open: importTabOpen, selected: showImportPage, onSelect: startImporting, onClose: stopImporting })}
         />
       )}
@@ -219,8 +219,8 @@ export function App({
           loadError={loadError}
           projects={projects}
           onCreateWebsite={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'create_website' } }); openCreateWebsite(); }}
-          onOpenProject={(id) => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }); openProjectTab(id); }}
-          onDeleteProject={handleDelete}
+          onOpenProject={(id) => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_admin' } }); openProjectTab({ id }); }}
+          onDeleteProject={(id) => handleDelete({ id })}
           onSiteUpdated={applySiteRecord}
           onRescan={rescan}
           rescanning={rescanning}

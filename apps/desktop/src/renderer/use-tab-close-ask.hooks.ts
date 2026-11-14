@@ -51,7 +51,7 @@ export function tabCloseCopy(
 export function useTabCloseAsk(
   { projects, closeTab, onSiteUpdated }: {
     projects: readonly SiteRecord[];
-    closeTab: (id: string) => void;
+    closeTab: (input: { id: string }) => void;
     onSiteUpdated: (record: SiteRecord) => void;
   },
   { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'startSite' | 'stopSite' | 'keepSiteRunning'> } = {},
@@ -68,10 +68,10 @@ export function useTabCloseAsk(
     return () => document.removeEventListener('keydown', onEscape, true);
   }, [askingId, stopping]);
 
-  const requestClose = (id: string) => {
+  const requestClose = ({ id }: { id: string }, _options: Record<string, never> = {}) => {
     const project = projects.find((candidate) => candidate.id === id);
     if (!project || !tabCloseAsksToStop({ project })) {
-      closeTab(id);
+      closeTab({ id });
       return;
     }
     setRequest({ id, stopping: false, error: null });
@@ -85,7 +85,7 @@ export function useTabCloseAsk(
       const bridge = getBridge();
       if (!bridge?.keepSiteRunning) throw new Error('Could not keep the site running: the desktop connection is unavailable. The tab is still open.');
       await bridge.keepSiteRunning({ id: request.id });
-      closeTab(request.id);
+      closeTab({ id: request.id });
       setRequest(current => current === pending ? null : current);
     } catch (failure) {
       const error = failure instanceof Error ? failure.message : String(failure);
@@ -97,13 +97,13 @@ export function useTabCloseAsk(
     if (request === null || request.stopping) return;
     const pending = { ...request, stopping: true, error: null };
     setRequest(pending);
-    const result = await performPowerAction('stop', request.id, getBridge());
+    const result = await performPowerAction({ action: 'stop', id: request.id, bridge: getBridge() });
     if (result.error !== undefined) {
       setRequest(current => current === pending ? { ...pending, stopping: false, error: result.error } : current);
       return;
     }
     onSiteUpdated(result.record);
-    closeTab(request.id);
+    closeTab({ id: request.id });
     // An answer belongs to its request, even if another tab has opened a newer prompt.
     setRequest(current => current === pending ? null : current);
   };

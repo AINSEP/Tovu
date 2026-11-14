@@ -107,7 +107,7 @@ test("registered list joins current server state and returns fresh names on cons
   assert.equal(listed[0].status, "running");
   assert.equal(listed[0].port, 4321);
   assert.equal(listed[0].previewVersion, 7);
-  writeSiteName(id, "Changed since the last poll");
+  writeSiteName({ siteDir: id, rawName: "Changed since the last poll" });
   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list })[0].displayName, "Changed since the last poll");
 });
 
@@ -174,7 +174,7 @@ test("registered asynchronous discovery uses the injected worker port and respec
   let finish!: (found: string[]) => void;
   f.deps.discoverSites = () => new Promise((resolve) => { finish = resolve; });
   const cardAdmissions: string[] = [];
-  f.deps.classifySiteDir = (dir) => { cardAdmissions.push(dir); return classifySiteDirSafely(dir); };
+  f.deps.classifySiteDir = ({ dir }) => { cardAdmissions.push(dir); return classifySiteDirSafely({ dir }); };
   f.deps.recentSiteDirs = () => assert.fail("the worker reads recent folders off-thread");
   const pending = f.invoke({ channel: SITE_IPC_CHANNELS.rescan });
   assert.deepEqual(readTrackedSites(f.deps.projectsPath), []);

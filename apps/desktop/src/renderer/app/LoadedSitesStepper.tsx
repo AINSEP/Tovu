@@ -19,7 +19,7 @@ export function LoadedSitesStepper({ setting, labelledBy }: { setting: LoadedSit
   const tipId = `${labelledBy}-tip`;
   return (
     <div className="stepper jini-tooltip" role="group" aria-labelledby={labelledBy} data-tooltip={LOADED_SITES_TIP} data-tooltip-placement="bottom">
-      <button type="button" className="stepper__step" tabIndex={-1} aria-label="Fewer loaded sites" disabled={value <= MIN} onClick={() => save(value - 1)}>
+      <button type="button" className="stepper__step" tabIndex={-1} aria-label="Fewer loaded sites" disabled={value <= MIN} onClick={() => save({ next: value - 1 })}>
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6h7" /></svg>
       </button>
       <input
@@ -40,7 +40,7 @@ export function LoadedSitesStepper({ setting, labelledBy }: { setting: LoadedSit
         onBlur={() => setDraft(null)}
         onKeyDown={onKeyDown}
       />
-      <button type="button" className="stepper__step" tabIndex={-1} aria-label="More loaded sites" disabled={value >= MAX} onClick={() => save(value + 1)}>
+      <button type="button" className="stepper__step" tabIndex={-1} aria-label="More loaded sites" disabled={value >= MAX} onClick={() => save({ next: value + 1 })}>
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6h7M6 2.5v7" /></svg>
       </button>
       <span id={tipId} className="visually-hidden">{LOADED_SITES_TIP}</span>

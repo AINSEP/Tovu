@@ -50,7 +50,7 @@ function titleCase(pluginId: string): string {
  * The line under "is ready" for tokens given with the create, or `null` when none were.
  * @complexity O(n) in the plugin ids.
  */
-export function createdTokensNote(record: Pick<CreatedSiteRecord, 'agentPluginTokens'> | null): string | null {
+export function createdTokensNote({ record }: { record: Pick<CreatedSiteRecord, 'agentPluginTokens'> | null }, _options: Record<string, never> = {}): string | null {
   const tokens = record?.agentPluginTokens;
   if (!tokens || tokens.pluginIds.length === 0) return null;
   const names = tokens.pluginIds.map(titleCase).join(', ');

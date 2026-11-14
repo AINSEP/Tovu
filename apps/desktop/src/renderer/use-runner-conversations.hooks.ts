@@ -61,14 +61,21 @@ export function useRunnerConversations(
 ): UseRunnerConversations {
   const bridge = useMemo(() => getBridge(), [getBridge]);
   const controller = useMemo(() => createRunnerConversationController({ bridge }), [bridge]);
-  const state = useSyncExternalStore(controller.subscribe, controller.getState);
+  const subscribe = useCallback((listener: () => void) => controller.subscribe({ listener }), [controller]);
+  const state = useSyncExternalStore(subscribe, controller.getState);
 
   useEffect(() => {
     void controller.refresh();
   }, [controller]);
 
-  const { select, create, remove, rename, onMessagesChange } = controller;
-  return { ...state, select, create, remove, rename, onMessagesChange };
+  const actions = useMemo(() => ({
+    select: (id: string) => controller.select({ id }),
+    create: controller.create,
+    remove: (id: string) => controller.remove({ id }),
+    rename: (id: string, title: string) => controller.rename({ id, title }),
+    onMessagesChange: (messages: ChatMessage[]) => controller.onMessagesChange({ messages }),
+  }), [controller]);
+  return { ...state, ...actions };
 }
 
 export interface ConversationDeleteConfirmationState {

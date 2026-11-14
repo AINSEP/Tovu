@@ -20,7 +20,7 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
   const source = fs.readFileSync(new URL('./app/SettingsControl.tsx', import.meta.url), 'utf8');
   let menuOpen = true;
   const settings = { open: false, databases: 'appData', show() { this.open = true; } };
-  const component = sourceFunction(source, 'SettingsControl', {
+  const component = sourceFunction({ source, name: 'SettingsControl' }, { bindings: {
     useDismissibleDropdown: () => ({ open: menuOpen, setOpen: (value: boolean) => { menuOpen = value; }, containerRef: {} }),
     useSiteStorageSettings: () => settings, navAvailability: () => ({}),
     settingsControlHandlers: () => ({ toggleOpen() {}, chooseTheme() {}, openAppearancePage() {} }),
@@ -30,13 +30,13 @@ test('closing the settings dropdown leaves the sites dialog and its placement dr
     useMenuKeyboard: () => ({ menuRef: {}, triggerRef: {}, onMenuKeyDown() {} }),
     useUpdateCheck: () => ({ available: false, checking: false, async checkForUpdates() {} }),
     SitesFoldersDialog: ({ settings: state }: any) => state.open ? createElement('div', { role: 'dialog', 'data-placement': state.databases }) : null,
-  });
+  } });
   const props = { theme: 'system', onThemeChange() {}, onOpenAppearance() {} };
-  const initial = elements(component(props));
+  const initial = elements({ node: component(props) });
   const label = (node: any) => [node.props.children].flat().find((child: any) => child?.props?.className === 'settings__label')?.props.children;
   initial.find((node) => node.props.role === 'menuitem' && label(node) === 'Sites settings…').props.onClick();
   assert.equal(menuOpen, false);
-  const next = elements(component(props));
+  const next = elements({ node: component(props) });
   assert.equal(next.some((node) => node.props.role === 'menu'), false);
   assert.equal(next.find((node) => node.props.role === 'dialog')?.props['data-placement'], 'appData');
 });

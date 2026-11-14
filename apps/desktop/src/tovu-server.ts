@@ -818,7 +818,7 @@ interface ExitOutcome {
 
 /** What {@link createExitSignal} returns. */
 interface ExitSignal {
-  onExit(listener: (exit: ExitOutcome) => void): void;
+  onExit(input: { listener: (exit: ExitOutcome) => void }): void;
 }
 
 /**
@@ -837,7 +837,7 @@ interface ExitSignal {
  * here, immediately after `spawn` and before any `await`, means there is no instant at which an
  * exit can go unrecorded.
  *
- * @returns `{ onExit }` — `onExit(listener)` calls `listener({code, signal})` when the child exits,
+ * @returns `{ onExit }` — `onExit({ listener })` calls `listener({code, signal})` when the child exits,
  *   or immediately if it already has. Listeners fire once each and are then dropped.
  * @complexity O(1) per registration; O(n) in registered listeners at exit time.
  */
@@ -851,7 +851,7 @@ function createExitSignal(child: SpawnedChild): ExitSignal {
   });
 
   return {
-    onExit(listener) {
+    onExit({ listener }) {
       if (exit !== null) {
         listener(exit);
         return;
@@ -1035,7 +1035,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
       if (!agentBinding || !(await agentBinding.stopIfIdle({}, {}))) return false;
       return await new Promise(resolve => {
         const timer = setTimeout(() => resolve(false), stopGraceMs * 2);
-        exitSignal.onExit(exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); });
+        exitSignal.onExit({ listener: exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); } });
       });
     } catch { return false; }
   }

@@ -1095,7 +1095,7 @@ test("startTovuServer's handle reports the child's exit AFTER boot, which is the
   const handle = await started;
 
   const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
-  handle.onExit((exit) => seen.push(exit));
+  handle.onExit({ listener: (exit) => seen.push(exit) });
   child.emit("exit", 1, null);
 
   assert.deepEqual(seen, [{ code: 1, signal: null }]);
@@ -1119,7 +1119,7 @@ test("startTovuServer's onExit replays an exit that already happened before the 
 
   child.emit("exit", null, "SIGKILL");
   const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
-  handle.onExit((exit) => seen.push(exit));
+  handle.onExit({ listener: (exit) => seen.push(exit) });
 
   assert.deepEqual(seen, [{ code: null, signal: "SIGKILL" }]);
 });

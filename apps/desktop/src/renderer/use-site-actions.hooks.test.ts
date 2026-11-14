@@ -75,14 +75,14 @@ async function withBridge(
 test('with no desktop bridge at all, the action resolves an operator-facing refusal, without throwing', async () => {
   await withBridge(undefined, async () => {
     const actions = useSiteActions();
-    assert.equal(await actions.openInBrowser('site-1'), 'The desktop bridge is unavailable.');
+    assert.equal(await actions.openInBrowser({ id: 'site-1' }), 'The desktop bridge is unavailable.');
   });
 });
 
 test('openInBrowser calls bridge.openSiteExternal with the PUBLIC site view, not the admin', async () => {
   await withBridge({}, async (calls) => {
     const actions = useSiteActions();
-    assert.equal(await actions.openInBrowser('site-7'), null);
+    assert.equal(await actions.openInBrowser({ id: 'site-7' }), null);
     // `view: 'site'` is load-bearing: a card has no "current surface" the way the workspace bar's
     // own open-in-browser does, and "open in browser" from a card means the PUBLIC website.
     assert.deepEqual(calls.openSiteExternal, [{ siteId: 'site-7', view: 'site' }]);
@@ -92,13 +92,13 @@ test('openInBrowser calls bridge.openSiteExternal with the PUBLIC site view, not
 test('openInBrowser surfaces a rejected Error message verbatim', async () => {
   await withBridge({ openSiteExternal: () => Promise.reject(new Error('no default browser registered')) }, async () => {
     const actions = useSiteActions();
-    assert.equal(await actions.openInBrowser('site-1'), 'no default browser registered');
+    assert.equal(await actions.openInBrowser({ id: 'site-1' }), 'no default browser registered');
   });
 });
 
 test('a non-Error rejection is coerced with String(), not left as [object Object]', async () => {
   await withBridge({ openSiteExternal: () => Promise.reject('offline') }, async () => {
     const actions = useSiteActions();
-    assert.equal(await actions.openInBrowser('site-1'), 'offline');
+    assert.equal(await actions.openInBrowser({ id: 'site-1' }), 'offline');
   });
 });

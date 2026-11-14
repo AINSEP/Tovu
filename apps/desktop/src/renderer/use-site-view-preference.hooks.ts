@@ -30,5 +30,5 @@ export function useSiteViewPreference({ getBridge }: {
     });
     return () => { active = false; off?.(); };
   }, [getBridge, ordering]);
-  return { value, setValue: (next: number) => { ordering.changed = true; setValue(next); } };
+  return { value, setValue: ({ next }: { next: number }) => { ordering.changed = true; setValue(next); } };
 }

@@ -176,7 +176,7 @@ function baseDeps<O extends Partial<ProjectIpcDeps>>(
     readPreviewVersion: () => null,
     readPreviewDataUrl: () => null,
     deletePreview: () => {},
-    classifySiteDir: (siteDir) => siteDir.startsWith("/sites/") ? "site" : classifySiteDirSafely(siteDir),
+    classifySiteDir: ({ dir: siteDir }) => siteDir.startsWith("/sites/") ? "site" : classifySiteDirSafely({ dir: siteDir }),
     recordSiteClosed: () => {},
     // The REAL registry reader and identity proof, pointed at a per-test temp path that does not
     // exist yet — so every test that is not about a sibling app instance sees an empty registry and
@@ -267,7 +267,7 @@ test("a crashed project is reported stopped, with a statusDetail saying why", as
   const row = { siteDir: "/sites/a", createdAt: "2026-01-01T00:00:00.000Z" };
 
   let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
-  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
+  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => { died = listener; } } });
   assert.equal(buildSiteRecord(row, deps).status, "running");
 
   died!({ code: 1, signal: null });
@@ -288,7 +288,7 @@ test("a project that was simply never started has no statusDetail to report", ()
 test("a killed project reports its signal rather than an exit code", () => {
   const deps = baseDeps({ openSites: createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} }) });
   let died: ((exit: { code: number | null; signal: string | null }) => void) | undefined;
-  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => { died = listener; } } });
+  deps.openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => { died = listener; } } });
   died!({ code: null, signal: "SIGKILL" });
   assert.equal(buildSiteRecord({ siteDir: "/sites/a", createdAt: "2026-01-01" }, deps).statusDetail, "The site's server was stopped by SIGKILL.");
 });
@@ -806,7 +806,7 @@ test("the entry is dropped BEFORE the stop is awaited, so a deliberate stop is n
     server: {
       port: 4321,
       pid: 777,
-      onExit: (listener) => listeners.push(listener),
+      onExit: ({ listener }) => listeners.push(listener),
       // What a real `stopChild` does: the child exits, and its `exit` listener fires, DURING the stop.
       stop: async () => { for (const listener of listeners) listener({ code: null, signal: "SIGTERM" }); },
     },
@@ -907,8 +907,8 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
   let spawned = 0;
   deps.openSiteServer = async () => { spawned++; };
   const source = fs.readFileSync(path.join(__dirname, "renderer", "use-site-workspace.hooks.ts"), "utf8");
-  const siteSurfaceUrl = sourceFunction(source, "siteSurfaceUrl", { sitePortPresentation });
-  const prepareExternalWorkspace = sourceFunction(source, "prepareExternalWorkspace", { siteSurfaceUrl });
+  const siteSurfaceUrl = sourceFunction({ source, name: "siteSurfaceUrl" }, { bindings: { sitePortPresentation } });
+  const prepareExternalWorkspace = sourceFunction({ source, name: "prepareExternalWorkspace" }, { bindings: { siteSurfaceUrl } });
 
   const stopping = handleStop(alpha, deps);
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -1057,7 +1057,7 @@ test("a mid-transition card shows no stale crash reason from a previous exit", a
   const openSites = createSiteSupervisor<SupervisorEntry>({ onUnexpectedExit: () => {} });
   const listeners: Array<(exit: { code: number | null; signal: string | null }) => void> = [];
   const deps = baseDeps({ openSites, transitions });
-  openSites.set("/sites/a", { server: { port: 4321, onExit: (listener) => listeners.push(listener) } });
+  openSites.set("/sites/a", { server: { port: 4321, onExit: ({ listener }) => listeners.push(listener) } });
   for (const listener of listeners) listener({ code: 1, signal: null });
   trackSite(deps.projectsPath, "/sites/a");
   assert.match(first(handleList(deps)).statusDetail ?? "", /exited \(code 1\)/, "the crash IS reported while settled");
@@ -1956,7 +1956,7 @@ test('D-10: Rename refuses duplicate before calling its write port and allows it
   const names = new Map([[own, 'Bakery'], [other, 'bakery 2']]);
   const deps = renameDeps({
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => names.get(dir)!,
-    writeSiteName: (dir: string, name: string) => { writes += 1; names.set(dir, name.trim()); return name.trim(); },
+    writeSiteName: ({ siteDir: dir, rawName }: { siteDir: string; rawName: unknown }) => { const name = rawName as string; writes += 1; names.set(dir, name.trim()); return name.trim(); },
   });
   trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
   trackSite(deps.projectsPath, other, SITE_ORIGIN.adopted);
@@ -2179,7 +2179,7 @@ test("D-10: Rename also refuses the remembered name of a tracked site whose fold
   let writes = 0;
   const deps = renameDeps({
     readSiteName: ({ siteDir: dir }: { siteDir: string }) => (dir === own ? 'Own' : assert.fail(`a missing folder's name is never read from disk: ${dir}`)),
-    writeSiteName: (_dir: string, name: string) => { writes += 1; return name.trim(); },
+    writeSiteName: ({ rawName }: { siteDir: string; rawName: unknown }) => { writes += 1; return (rawName as string).trim(); },
   });
   trackSite(deps.projectsPath, own, SITE_ORIGIN.adopted);
   trackSite(deps.projectsPath, missing, SITE_ORIGIN.adopted);
@@ -2293,7 +2293,7 @@ function b2LifecycleHarness(t: { after(fn: () => void): void }) {
     const server = {
       pid: nextPid++, port: 4000 + nextPid, external: false,
       outputTail: () => 'safe redacted output [REDACTED]',
-      onExit: (fn: typeof listeners[number]) => { listeners.push(fn); },
+      onExit: ({ listener }: { listener: typeof listeners[number] }) => { listeners.push(listener); },
       stop: async () => { server.die(0); },
       stopIfIdle: async (): Promise<boolean> => false,
       die(code = 1) { if (exited) return; exited = true; for (const fn of listeners) fn({ code, signal: null }); },

@@ -51,12 +51,12 @@ test('useImportDrop: leaving the page clears the light, and a busy page ignores 
 
 test('useImportDrop: the drop zone\'s own picker routes a .zip by its real path and refuses anything else', (t) => {
   const { hook, seen } = setup(t);
-  act(() => hook.current().onPicked([file('a.tovu.zip')]));
-  act(() => hook.current().onPicked([file('a.zip'), file('b.zip')]));
+  act(() => hook.current().onPicked({ files: [file('a.tovu.zip')] }));
+  act(() => hook.current().onPicked({ files: [file('a.zip'), file('b.zip')] }));
   assert.equal(seen[0], 'archive:/x/a.tovu.zip');
   assert.match(seen[1]!, /^refused:.*one website at a time/);
   const busy = setup(t, true);
-  act(() => busy.hook.current().onPicked([file('a.zip')]));
+  act(() => busy.hook.current().onPicked({ files: [file('a.zip')] }));
   assert.deepEqual(busy.seen, []);
 });
 

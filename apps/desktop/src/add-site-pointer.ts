@@ -135,7 +135,7 @@ function normalizeSiteDirPath({ rawSiteDir, cwd }: { rawSiteDir: string; cwd: st
 /** Injectable classifier — deliberately a bare `string` return, not the closed verdict union
  *  `classifySiteDirSafely` itself returns: {@link refusalFor}'s whole point is to stay correct
  *  against a FUTURE verdict nobody has mapped yet, and a test proves exactly that. */
-type SiteDirClassifierFn = (dir: string) => string;
+type SiteDirClassifierFn = (input: { dir: string }) => string;
 
 /** Input to {@link addSitePointer}. */
 interface AddSitePointerInput {
@@ -184,7 +184,7 @@ function addSitePointer(input: AddSitePointerInput, options: SiteIdentityOptions
   const classify = input.classifySiteDir ?? classifySiteDirSafely;
   const siteDir = normalizeSiteDirPath({ rawSiteDir: input.siteDir, cwd: input.cwd ?? process.cwd() });
 
-  const kind = classify(siteDir);
+  const kind = classify({ dir: siteDir });
   if (kind !== "site") throw refusalFor({ kind, dir: siteDir });
   ensureIndependentSiteIdentity({ siteDir }, options);
 

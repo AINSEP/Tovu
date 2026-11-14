@@ -22,9 +22,7 @@ import type { RunnerSectionId } from '../contracts/sections.js';
  * product question, not a refactor.
  */
 export function useRunnerNavigation(
-  setActiveId: Dispatch<SetStateAction<RunnerSectionId>>,
-  setActiveTab: Dispatch<SetStateAction<string | null>>,
-  { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'onNavigate'> } = {},
+  { setActiveId, setActiveTab }: { setActiveId: Dispatch<SetStateAction<RunnerSectionId>>; setActiveTab: Dispatch<SetStateAction<string | null>> }, { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'onNavigate'> } = {},
 ): void {
   useEffect(() => {
     const bridge = getBridge();

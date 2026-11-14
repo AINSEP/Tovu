@@ -32,7 +32,7 @@ function fakeSiteDir(): string {
 }
 
 function tempStatePath(): string {
-  return stateFilePath(tempDir());
+  return stateFilePath({ userDataDir: tempDir() });
 }
 
 /** A `tovu init` child that exits with `code`, having written `output` to stderr. */
@@ -62,18 +62,18 @@ function fakeRepoRoot(): string {
 }
 
 test("classifySiteDir calls a folder with a config.json a site", () => {
-  assert.equal(classifySiteDir(fakeSiteDir()), "site");
+  assert.equal(classifySiteDir({ dir: fakeSiteDir() }), "site");
 });
 
 test("classifySiteDir calls an absent or empty folder empty", () => {
-  assert.equal(classifySiteDir(path.join(tempDir(), "does-not-exist")), "empty");
-  assert.equal(classifySiteDir(tempDir()), "empty");
+  assert.equal(classifySiteDir({ dir: path.join(tempDir(), "does-not-exist") }), "empty");
+  assert.equal(classifySiteDir({ dir: tempDir() }), "empty");
 });
 
 test("classifySiteDir calls a folder of unrelated files occupied", () => {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "taxes.pdf"), "");
-  assert.equal(classifySiteDir(dir), "occupied");
+  assert.equal(classifySiteDir({ dir }), "occupied");
 });
 
 test("classifySiteDir calls a folder with only config.json incomplete, not a site", () => {
@@ -81,50 +81,50 @@ test("classifySiteDir calls a folder with only config.json incomplete, not a sit
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "fixture" }));
   // Real, populated data (like `sites/tovu-com`) — non-empty, but still missing `.site-meta.json`.
   fs.writeFileSync(path.join(dir, "content.db"), "");
-  assert.equal(classifySiteDir(dir), "incomplete");
+  assert.equal(classifySiteDir({ dir }), "incomplete");
 });
 
 test("classifySiteDir calls a folder with only .site-meta.json incomplete too", () => {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "fixture" }));
-  assert.equal(classifySiteDir(dir), "incomplete");
+  assert.equal(classifySiteDir({ dir }), "incomplete");
 });
 
 test("resolveDevFallback reports nothing to try when there is no devFallbackDir at all", () => {
-  assert.deepEqual(resolveDevFallback(undefined), { useDir: null, rejected: null });
+  assert.deepEqual(resolveDevFallback({ devFallbackDir: undefined }), { useDir: null, rejected: null });
 });
 
 test("resolveDevFallback returns useDir directly for a real site, with no rejected reason", () => {
   const dir = fakeSiteDir();
-  assert.deepEqual(resolveDevFallback(dir), { useDir: dir, rejected: null });
+  assert.deepEqual(resolveDevFallback({ devFallbackDir: dir }), { useDir: dir, rejected: null });
 });
 
 test("resolveDevFallback rejects a non-site folder and names which marker file(s) are missing", () => {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "half" }));
-  assert.deepEqual(resolveDevFallback(dir), { useDir: null, rejected: { dir, kind: "incomplete", missing: [".site-meta.json"] } });
+  assert.deepEqual(resolveDevFallback({ devFallbackDir: dir }), { useDir: null, rejected: { dir, kind: "incomplete", missing: [".site-meta.json"] } });
 });
 
 test("readDesktopState treats a missing or corrupt state file as empty rather than failing", () => {
-  assert.deepEqual(readDesktopState(tempStatePath()), { recentSiteDirs: [] });
+  assert.deepEqual(readDesktopState({ statePath: tempStatePath() }), { recentSiteDirs: [] });
   const corrupt = tempStatePath();
   fs.mkdirSync(path.dirname(corrupt), { recursive: true });
   fs.writeFileSync(corrupt, "{ truncated");
-  assert.deepEqual(readDesktopState(corrupt), { recentSiteDirs: [] });
+  assert.deepEqual(readDesktopState({ statePath: corrupt }), { recentSiteDirs: [] });
 });
 
 test("rememberSiteDir puts the newest folder first and de-duplicates", () => {
   const statePath = tempStatePath();
-  rememberSiteDir(statePath, "/a");
-  rememberSiteDir(statePath, "/b");
-  rememberSiteDir(statePath, "/a");
-  assert.deepEqual(readDesktopState(statePath).recentSiteDirs, ["/a", "/b"]);
+  rememberSiteDir({ statePath, dir: "/a" });
+  rememberSiteDir({ statePath, dir: "/b" });
+  rememberSiteDir({ statePath, dir: "/a" });
+  assert.deepEqual(readDesktopState({ statePath }).recentSiteDirs, ["/a", "/b"]);
 });
 
 test("rememberSiteDir caps the list", () => {
   const statePath = tempStatePath();
-  for (let i = 0; i < MAX_RECENT_SITE_DIRS + 5; i += 1) rememberSiteDir(statePath, `/site-${i}`);
-  const recent = readDesktopState(statePath).recentSiteDirs;
+  for (let i = 0; i < MAX_RECENT_SITE_DIRS + 5; i += 1) rememberSiteDir({ statePath, dir: `/site-${i}` });
+  const recent = readDesktopState({ statePath }).recentSiteDirs;
   assert.equal(recent.length, MAX_RECENT_SITE_DIRS);
   assert.equal(recent[0], `/site-${MAX_RECENT_SITE_DIRS + 4}`);
 });
@@ -132,9 +132,9 @@ test("rememberSiteDir caps the list", () => {
 test("existingRecentSiteDirs drops folders that were moved or deleted since they were remembered", () => {
   const statePath = tempStatePath();
   const alive = fakeSiteDir();
-  rememberSiteDir(statePath, "/gone/for/good");
-  rememberSiteDir(statePath, alive);
-  assert.deepEqual(existingRecentSiteDirs(statePath), [alive]);
+  rememberSiteDir({ statePath, dir: "/gone/for/good" });
+  rememberSiteDir({ statePath, dir: alive });
+  assert.deepEqual(existingRecentSiteDirs({ statePath }), [alive]);
 });
 
 test("resolveSiteDir lets TOVU_DESKTOP_SITE_DIR win over everything, without asking", async () => {
@@ -211,8 +211,8 @@ test("resolveSiteDir reuses the most recent remembered site, so the user is aske
   const statePath = tempStatePath();
   const first = fakeSiteDir();
   const second = fakeSiteDir();
-  rememberSiteDir(statePath, first);
-  rememberSiteDir(statePath, second);
+  rememberSiteDir({ statePath, dir: first });
+  rememberSiteDir({ statePath, dir: second });
 
   const dir = await resolveSiteDir({
     statePath,
@@ -321,7 +321,7 @@ test("resolveSiteDir remembers what the user picked, so the next launch does not
   const statePath = tempStatePath();
   const picked = fakeSiteDir();
   await resolveSiteDir({ statePath, repoRoot: fakeRepoRoot(), pickDir: () => picked });
-  assert.deepEqual(readDesktopState(statePath).recentSiteDirs, [picked]);
+  assert.deepEqual(readDesktopState({ statePath }).recentSiteDirs, [picked]);
 });
 
 test("resolveSiteDir reports a cancelled picker as a cancellation, not a failure", async () => {
@@ -550,7 +550,7 @@ test("initSiteDir creates a complete blank site with the requested name through 
     TOVU_SITES_HOME: path.join(parent, "sites"), TOVU_SITE_ROOTS: "" };
   await initSiteDir({ repoRoot, dir: target, name: "Created By Test", cliMode: "source", baseEnv: fixtureEnv });
 
-  assert.equal(classifySiteDir(target), "site");
+  assert.equal(classifySiteDir({ dir: target }), "site");
   const { siteId } = JSON.parse(fs.readFileSync(path.join(target, ".site-meta.json"), "utf8"));
   // The shared workspace owns DB placement (data.nosync or app-data), not the desktop shell.
   const workspace = createSitesWorkspace({}, { homeDir: parent, env: fixtureEnv, cwd: repoRoot });
@@ -575,13 +575,13 @@ test("classifySiteDirSafely answers 'unreadable' where classifySiteDir throws, a
   const notADirectory = path.join(base, "a-plain-file");
   fs.writeFileSync(notADirectory, "x");
 
-  assert.throws(() => classifySiteDir(notADirectory), { code: "ENOTDIR" }, "the picker path must keep throwing — an operator who chose this folder needs the error");
-  assert.equal(classifySiteDirSafely(notADirectory), "unreadable");
+  assert.throws(() => classifySiteDir({ dir: notADirectory }), { code: "ENOTDIR" }, "the picker path must keep throwing — an operator who chose this folder needs the error");
+  assert.equal(classifySiteDirSafely({ dir: notADirectory }), "unreadable");
 
   const site = fakeSiteDir();
   const empty = tempDir();
-  assert.equal(classifySiteDirSafely(site), classifySiteDir(site));
-  assert.equal(classifySiteDirSafely(empty), classifySiteDir(empty));
+  assert.equal(classifySiteDirSafely({ dir: site }), classifySiteDir({ dir: site }));
+  assert.equal(classifySiteDirSafely({ dir: empty }), classifySiteDir({ dir: empty }));
 });
 
 test("existingRecentSiteDirs skips a remembered path that is now a FILE instead of aborting", () => {
@@ -593,10 +593,10 @@ test("existingRecentSiteDirs skips a remembered path that is now a FILE instead 
   const replacedByAFile = path.join(tempDir(), "was-a-site-now-a-file");
   fs.writeFileSync(replacedByAFile, "the operator replaced their site folder with a file");
 
-  rememberSiteDir(statePath, replacedByAFile);
-  rememberSiteDir(statePath, alive);
+  rememberSiteDir({ statePath, dir: replacedByAFile });
+  rememberSiteDir({ statePath, dir: alive });
 
-  assert.deepEqual(existingRecentSiteDirs(statePath), [alive]);
+  assert.deepEqual(existingRecentSiteDirs({ statePath }), [alive]);
 });
 
 test("resolveDevFallback reports an unreadable candidate as rejected rather than throwing", () => {
@@ -605,7 +605,7 @@ test("resolveDevFallback reports an unreadable candidate as rejected rather than
   const notADirectory = path.join(tempDir(), "sites-tovu-com-is-a-file-now");
   fs.writeFileSync(notADirectory, "x");
 
-  const resolved = resolveDevFallback(notADirectory);
+  const resolved = resolveDevFallback({ devFallbackDir: notADirectory });
 
   assert.equal(resolved.useDir, null);
   assert.equal(resolved.rejected!.kind, "unreadable");
@@ -636,13 +636,13 @@ test("rememberSiteDir over a torn recent-sites file moves the damaged bytes asid
   const torn = writeTornState(statePath);
   const errors = t.mock.method(console, "error", () => {});
 
-  assert.deepEqual(rememberSiteDir(statePath, "/sites/new"), ["/sites/new"]);
+  assert.deepEqual(rememberSiteDir({ statePath, dir: "/sites/new" }), ["/sites/new"]);
   t.mock.restoreAll();
 
   const aside = asideCopies(statePath);
   assert.equal(aside.length, 1);
   assert.equal(fs.readFileSync(aside[0]!, "utf8"), torn, "the damaged bytes survive, byte for byte");
-  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/new"] });
+  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/new"] });
   assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [
     `tovu desktop: recent-sites list ${statePath} was unreadable (torn or corrupt). Moved it aside to ${aside[0]}; the recently opened sites it listed are only in that copy now.`,
   ]);
@@ -656,7 +656,7 @@ test("a torn recent-sites file that cannot be moved aside is left untouched, and
     throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
   });
 
-  assert.deepEqual(rememberSiteDir(statePath, "/sites/new"), ["/sites/new"]);
+  assert.deepEqual(rememberSiteDir({ statePath, dir: "/sites/new" }), ["/sites/new"]);
   t.mock.restoreAll();
 
   assert.equal(fs.readFileSync(statePath, "utf8"), torn);
@@ -668,7 +668,7 @@ test("a torn recent-sites file that cannot be moved aside is left untouched, and
 
 test("a recent-sites write that dies partway leaves the previous file whole", (t) => {
   const statePath = tempStatePath();
-  rememberSiteDir(statePath, "/sites/a");
+  rememberSiteDir({ statePath, dir: "/sites/a" });
   const before = fs.readFileSync(statePath, "utf8");
   const realWrite = fs.writeFileSync;
   const crash = t.mock.method(fs, "writeFileSync", (target: fs.PathOrFileDescriptor, data: string) => {
@@ -676,28 +676,28 @@ test("a recent-sites write that dies partway leaves the previous file whole", (t
     throw new Error("simulated crash mid-write");
   });
 
-  assert.throws(() => rememberSiteDir(statePath, "/sites/b"), /simulated crash mid-write/);
+  assert.throws(() => rememberSiteDir({ statePath, dir: "/sites/b" }), /simulated crash mid-write/);
   crash.mock.restore();
 
   assert.equal(crash.mock.callCount(), 1);
   assert.equal(fs.readFileSync(statePath, "utf8"), before);
-  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/a"] });
+  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/a"] });
 });
 
 test("a crash between the recent-sites temp write and the rename leaves the previous file whole", (t) => {
   const statePath = tempStatePath();
-  rememberSiteDir(statePath, "/sites/a");
+  rememberSiteDir({ statePath, dir: "/sites/a" });
   const before = fs.readFileSync(statePath, "utf8");
   const crash = t.mock.method(fs, "renameSync", () => {
     throw new Error("simulated crash before rename");
   });
 
-  assert.throws(() => rememberSiteDir(statePath, "/sites/b"), /simulated crash before rename/);
+  assert.throws(() => rememberSiteDir({ statePath, dir: "/sites/b" }), /simulated crash before rename/);
   crash.mock.restore();
 
   assert.equal(crash.mock.callCount(), 1);
   assert.equal(fs.readFileSync(statePath, "utf8"), before);
-  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/a"] });
+  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/a"] });
 });
 
 
@@ -705,14 +705,14 @@ test("deskfx M1: corrupt markers are refused while legacy null metadata remains 
   const dir = fakeSiteDir();
   try {
     fs.writeFileSync(path.join(dir, "config.json"), "{broken");
-    assert.equal(classifySiteDirSafely(dir), "incomplete");
+    assert.equal(classifySiteDirSafely({ dir }), "incomplete");
     fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "Valid" }));
     fs.writeFileSync(path.join(dir, ".site-meta.json"), "null");
-    assert.equal(classifySiteDirSafely(dir), "site");
+    assert.equal(classifySiteDirSafely({ dir }), "site");
     fs.writeFileSync(path.join(dir, ".site-meta.json"), "[]");
-    assert.equal(classifySiteDirSafely(dir), "incomplete");
+    assert.equal(classifySiteDirSafely({ dir }), "incomplete");
     fs.rmSync(path.join(dir, ".site-meta.json")); fs.mkdirSync(path.join(dir, ".site-meta.json"));
-    assert.equal(classifySiteDirSafely(dir), "incomplete");
+    assert.equal(classifySiteDirSafely({ dir }), "incomplete");
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -733,13 +733,13 @@ test("with shared settings, remembering a folder imports the old MRU once and re
     // An MRU written before shared settings: imported, but never opened through the catalog.
     fs.writeFileSync(statePath, JSON.stringify({ recentSiteDirs: [legacy, older] }));
 
-    const afterFirst = rememberSiteDir(statePath, first, { workspace });
+    const afterFirst = rememberSiteDir({ statePath, dir: first }, { workspace });
     assert.equal(afterFirst[0], first, "an opened site outranks ones only imported");
     assert.deepEqual([...afterFirst.slice(1)].sort(), [legacy, older].sort());
     await new Promise((resolve) => setTimeout(resolve, 5));
-    const afterSecond = rememberSiteDir(statePath, second, { workspace });
+    const afterSecond = rememberSiteDir({ statePath, dir: second }, { workspace });
     assert.deepEqual(afterSecond.slice(0, 2), [second, first], "most recently opened first");
-    assert.deepEqual(existingRecentSiteDirs(statePath, { workspace }), afterSecond);
+    assert.deepEqual(existingRecentSiteDirs({ statePath }, { workspace }), afterSecond);
     assert.equal(fs.readFileSync(statePath, "utf8"), JSON.stringify({ recentSiteDirs: [legacy, older] }), "the legacy MRU file is never rewritten");
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

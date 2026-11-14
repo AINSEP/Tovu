@@ -199,7 +199,7 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
       for (const timer of timers) clearInterval(timer);
       timers.clear();
     },
-    onExit(listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void) {
+    onExit({ listener }: { listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void }) {
       let reported = false;
       const timer = setInterval(() => {
         if (stopped || reported) return;

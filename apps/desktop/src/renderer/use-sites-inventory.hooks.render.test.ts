@@ -25,7 +25,7 @@ test('useSitesPolling: loads, re-polls on each tick, reports a failed poll, and 
   const bridge = { listSites: () => responses.shift()! };
   const ticks: (() => void)[] = [];
   let stopped = 0;
-  const startInterval = (tick: () => void, periodMs: number) => { assert.equal(periodMs, 4000); ticks.push(tick); return () => { stopped++; }; };
+  const startInterval = ({ tick, periodMs }: { tick: () => void; periodMs: number }) => { assert.equal(periodMs, 4000); ticks.push(tick); return () => { stopped++; }; };
   const getBridge = () => bridge;
   responses.push(Promise.resolve([site('a')]));
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
@@ -57,7 +57,7 @@ test('useSitesPolling: a lookup that changes drops every result the previous one
   const newBridge = { listSites: () => fresh.promise };
   const ticks: (() => void)[] = [];
   const stops: number[] = [];
-  const startInterval = (tick: () => void) => { ticks.push(tick); const index = ticks.length; return () => stops.push(index); };
+  const startInterval = ({ tick }: { tick: () => void }) => { ticks.push(tick); const index = ticks.length; return () => stops.push(index); };
   let getBridge: () => { listSites: () => Promise<readonly SiteRecord[]> } = () => oldBridge;
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
   ticks[0]!();
@@ -83,7 +83,7 @@ test('useSitesPolling: a poll that started before a local write is dropped, and 
   const responses = [Promise.resolve([site('a')]), inFlight.promise, Promise.resolve([site('a'), site('server')])];
   const getBridge = () => ({ listSites: () => responses.shift()! });
   let tick!: () => void;
-  const startInterval = (callback: () => void) => { tick = callback; return () => {}; };
+  const startInterval = ({ tick: callback }: { tick: () => void }) => { tick = callback; return () => {}; };
   const hook = renderHook(t, () => useSitesPolling({}, { getBridge, startInterval }));
   await settle();
   act(() => tick());

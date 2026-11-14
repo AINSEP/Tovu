@@ -16,7 +16,7 @@ export interface SiteMutationsState {
   openCreateWebsite: () => void;
   /** Resolves with the new site's record (the Import page opens its tab), or nothing when cancelled. */
   handleCreate: (input: CreateSiteInput) => Promise<SiteRecord | undefined>;
-  handleDelete: (id: string) => Promise<void>;
+  handleDelete: (input: { id: string }) => Promise<void>;
   /** Cancel's handler, not `stopCreating` directly — see `cancelCreate` below for why the two
    *  differ. */
   cancelCreate: () => void;
@@ -54,7 +54,7 @@ export interface SiteMutationsState {
  */
 export function useProjectMutations(deps: {
   setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
-  closeProjectTab: (id: string) => void;
+  closeProjectTab: (input: { id: string }) => void;
   stopCreating: () => void;
   startCreating: () => void;
   projects?: readonly SiteRecord[];
@@ -112,7 +112,7 @@ export function useProjectMutations(deps: {
     setCreateFormKey((key) => key + 1);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async ({ id }: { id: string }, _options: Record<string, never> = {}) => {
     const bridge = getBridge();
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to delete a website.');
@@ -122,7 +122,7 @@ export function useProjectMutations(deps: {
     // against would otherwise sit there looking untouched for up to four seconds. Its tab goes
     // too — a tab pointing at a deleted project has nothing left to render.
     deps.setProjects((current) => current.filter((project) => project.id !== id));
-    deps.closeProjectTab(id);
+    deps.closeProjectTab({ id });
   };
 
   return { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey };

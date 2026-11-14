@@ -88,7 +88,7 @@ function bootHarness({ launch, argv = ["electron", "."], isPackaged = false, env
       calls.push("memory");
       return { tick: async () => {}, dispose: () => calls.push("dispose:memory") };
     },
-    schedule: (_tick, ms, visibility) => { scheduled.push({ ms, visibility }); return () => {}; },
+    schedule: ({ periodMs: ms }, { doc: visibility } = {}) => { scheduled.push({ ms, visibility }); return () => {}; },
   };
   return { args, options, calls, bootInputs, memoryInputs, ipcPredicates, scheduled, exportInputs, app, product, state, errors };
 }

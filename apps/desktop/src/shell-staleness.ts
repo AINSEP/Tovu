@@ -39,7 +39,7 @@ export interface StalenessShell {
  *
  * @complexity O(1).
  */
-export function isBundleInput(relPath: string): boolean {
+export function isBundleInput({ relPath }: { relPath: string }, _options: Record<string, never> = {}): boolean {
   const normalized = relPath.split("\\").join("/");
   if (normalized.includes("/__tests__/") || normalized.startsWith("__tests__/")) return false;
   if (normalized.includes("/__measurements__/")) return false;
@@ -55,13 +55,13 @@ export function isBundleInput(relPath: string): boolean {
  * risk, which is why `stage-payload.ts` derives `sourceAt` from the shell's own declared
  * `sourceDirs`, and why a missing declaration is a config bug rather than a soft pass.
  *
- * @param builtAt mtime (ms) of the shell's marker file.
- * @param sourceAt newest mtime (ms) anywhere in that shell's own source tree.
- * @param shell `{ relative, marker, buildWith }`.
+ * @param input.builtAt mtime (ms) of the shell's marker file.
+ * @param input.sourceAt newest mtime (ms) anywhere in that shell's own source tree.
+ * @param input.shell `{ relative, marker, buildWith }`.
  * @returns the failure message, or `null`.
  * @complexity O(1).
  */
-export function shellStalenessFailure(builtAt: number, sourceAt: number, shell: StalenessShell): string | null {
+export function shellStalenessFailure({ builtAt, sourceAt, shell }: { builtAt: number; sourceAt: number; shell: StalenessShell }, _options: Record<string, never> = {}): string | null {
   if (builtAt === 0 || sourceAt === 0) return null;
   if (builtAt >= sourceAt) return null;
 

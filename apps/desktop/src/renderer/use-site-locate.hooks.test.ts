@@ -63,7 +63,7 @@ test('the locate hook shows pending/error state and delivers the found record wi
   let latest!: ReturnType<typeof useSiteLocate>;
   const delivered: unknown[] = [];
   const onLocated = (record: SiteRecord, previousId: string) => delivered.push([record, previousId]);
-  function Probe() { latest = useSiteLocate(onLocated); return null; }
+  function Probe() { latest = useSiteLocate({}, { onLocated }); return null; }
   const root = createRoot(dom.window.document.getElementById('root')!);
   t.after(() => {
     act(() => root.unmount());

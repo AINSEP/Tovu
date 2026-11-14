@@ -22,8 +22,8 @@ function memoryStorage(seed: string | null = null) {
   const writes: string[] = [];
   let value = seed;
   const storage: SiteListStorage = {
-    getItem: (key) => (key === SITE_LIST_STORAGE_KEY ? value : null),
-    setItem: (key, next) => { assert.equal(key, SITE_LIST_STORAGE_KEY); value = next; writes.push(next); },
+    getItem: ({ key }) => (key === SITE_LIST_STORAGE_KEY ? value : null),
+    setItem: ({ key, value: next }) => { assert.equal(key, SITE_LIST_STORAGE_KEY); value = next; writes.push(next); },
   };
   return { storage, writes };
 }
@@ -61,7 +61,7 @@ test('a write saves JSON under the one key, and denied storage does not throw', 
 test('the hook starts from storage, reads it once, and a change updates the screen and storage', (t) => {
   const memory = memoryStorage(JSON.stringify(CHOSEN));
   let reads = 0;
-  const counted: SiteListStorage = { ...memory.storage, getItem: (key) => { reads += 1; return memory.storage.getItem(key); } };
+  const counted: SiteListStorage = { ...memory.storage, getItem: ({ key }) => { reads += 1; return memory.storage.getItem({ key }); } };
   const hook = renderHook(t, () => useSiteListPrefs(counted));
   assert.deepEqual(hook.current().prefs, CHOSEN);
   hook.rerender();

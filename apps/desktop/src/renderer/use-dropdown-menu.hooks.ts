@@ -118,7 +118,7 @@ export interface SettingsControlHandlers {
   /** The gear button: flips the dropdown, unless the control is disabled. */
   toggleOpen: () => void;
   /** A theme pill: applies the theme, then closes the dropdown. */
-  chooseTheme: (next: ThemePreference) => void;
+  chooseTheme: (input: { next: ThemePreference }) => void;
   /** The "Appearance" link: closes the dropdown, then opens the page. */
   openAppearancePage: () => void;
 }
@@ -143,7 +143,7 @@ export function settingsControlHandlers(input: {
       if (input.disabled) return;
       input.setOpen((current) => !current);
     },
-    chooseTheme: (next) => {
+    chooseTheme: ({ next }) => {
       input.onThemeChange(next);
       input.setOpen(false);
     },

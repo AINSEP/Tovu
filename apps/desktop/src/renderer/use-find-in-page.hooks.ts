@@ -164,20 +164,20 @@ export function resolveFindTarget(input: {
  * `top` target needs the selection clear: a guest searches its own document, which this one's
  * selection has no bearing on.
  *
- * @param options.findNext Electron's own meaning, not the button's: `true` begins a NEW session
+ * @param input.options.findNext Electron's own meaning, not the button's: `true` begins a NEW session
  *   (pass it for a query CHANGE), `false` is a follow-up within the current one (pass it for
  *   Enter/Shift+Enter). See this file's own header.
- * @param selection this window's own selection; defaults to the live one, so no call site can
+ * @param options.selection this window's own selection; defaults to the live one, so no call site can
  *   forget it. Tests pass a fake to assert it is cleared BEFORE the search, which is the whole
  *   point — a selection still standing when Chromium reads it is the bug.
  * @complexity O(1) beyond Chromium's own search cost.
  */
 export function runFind(
-  target: FindTarget,
-  bridge: FindBridge | undefined,
-  text: string,
-  options: { forward: boolean; findNext: boolean },
-  selection: AnchorSelection | null = liveAnchorSelection(),
+  { target, bridge, text, options }: {
+    target: FindTarget; bridge: FindBridge | undefined; text: string;
+    options: { forward: boolean; findNext: boolean };
+  },
+  { selection = liveAnchorSelection() }: { selection?: AnchorSelection | null } = {},
 ): void {
   // Cleared before EITHER target's search, and only when one is actually issued. For `top` it is
   // this frame's own search anchor (below). For a guest it is insurance that costs nothing:
@@ -233,7 +233,7 @@ export function runFind(
  *
  * @complexity O(1).
  */
-export function restoreFindInputFocus(input: { blur(): void; focus(): void } | null, restoring: { current: boolean } = { current: false }): void {
+export function restoreFindInputFocus({ input }: { input: { blur(): void; focus(): void } | null }, { restoring = { current: false } }: { restoring?: { current: boolean } } = {}): void {
   if (!input) return;
   restoring.current = true;
   try {
@@ -303,7 +303,7 @@ export function shouldKeepReclaimingFindFocus(input: {
  *
  * @complexity O(1).
  */
-export function shouldCloseOnGuestChange(previousGuestId: string | null, activeGuestId: string | null, open: boolean): boolean {
+export function shouldCloseOnGuestChange({ previousGuestId, activeGuestId, open }: { previousGuestId: string | null; activeGuestId: string | null; open: boolean }, _options: Record<string, never> = {}): boolean {
   return open && previousGuestId !== activeGuestId;
 }
 
@@ -313,7 +313,7 @@ export function shouldCloseOnGuestChange(previousGuestId: string | null, activeG
  *
  * @complexity O(1).
  */
-export function stopFind(target: FindTarget, bridge: FindBridge | undefined): void {
+export function stopFind({ target, bridge }: { target: FindTarget; bridge: FindBridge | undefined }, _options: Record<string, never> = {}): void {
   if (target.kind === 'guest') {
     try {
       target.element.stopFindInPage('clearSelection');
@@ -328,7 +328,7 @@ export function stopFind(target: FindTarget, bridge: FindBridge | undefined): vo
 /** The bar's own counter text: `"<ordinal> of <total>"`, or `"No results"` once a query has
  *  actually returned zero matches — never shown for an empty query, which has no `result` yet
  *  (see `findBarReducer`'s `set-query`). */
-export function formatMatchCount(result: FindInPageResult | null): string {
+export function formatMatchCount({ result }: { result: FindInPageResult | null }, _options: Record<string, never> = {}): string {
   if (result === null) return '';
   if (result.matches === 0) return 'No results';
   return `${result.activeMatchOrdinal} of ${result.matches}`;
@@ -343,26 +343,29 @@ export function formatMatchCount(result: FindInPageResult | null): string {
  * `found-in-page` never fires (see this file's header). A guest target subscribes to BOTH, because
  * which one reports is Chromium's choice and not observable from here.
  *
- * @param handlers.onResult every reported result, whichever source carried it.
- * @param handlers.onReported called first, for EVERY reported result whichever source carried
+ * @param input.handlers.onResult every reported result, whichever source carried it.
+ * @param input.handlers.onReported called first, for EVERY reported result whichever source carried
  *   it — Chromium moves keyboard focus for a guest match exactly as it does for a top-level one
  *   (`ClearFocusedElement`/`SetFocusedFrame`), so both sources need the same restore. See
  *   {@link restoreFindInputFocus}.
  * @complexity O(1); at most two listeners, both removed by the returned cleanup.
  */
 export function subscribeToFindResults(
-  target: FindTarget,
-  bridge: FindBridge | undefined,
-  handlers: { onResult: (result: FindInPageResult) => void; onReported: () => void },
+  { target, bridge, handlers }: {
+    target: FindTarget;
+    bridge: FindBridge | undefined;
+    handlers: { onResult: (input: { result: FindInPageResult }) => void; onReported: () => void };
+  },
+  _options: Record<string, never> = {},
 ): () => void {
   const unsubscribeWindow = bridge?.onFindResult((result) => {
     handlers.onReported();
-    handlers.onResult(result);
+    handlers.onResult({ result });
   });
   if (target.kind !== 'guest') return () => unsubscribeWindow?.();
   const onFound = (event: WebviewFoundInPageEvent) => {
     handlers.onReported();
-    handlers.onResult(event.result);
+    handlers.onResult({ result: event.result });
   };
   target.element.addEventListener('found-in-page', onFound);
   return () => {
@@ -378,7 +381,7 @@ export interface FindInPage {
   /** Text for the counter — see {@link formatMatchCount}. */
   countLabel: string;
   inputRef: (node: HTMLInputElement | null) => void;
-  setQuery: (text: string) => void;
+  setQuery: (input: { text: string }) => void;
   next: () => void;
   previous: () => void;
   close: () => void;
@@ -395,17 +398,17 @@ export interface FindInPage {
  */
 export interface FindFocusClock extends FindQueryClock {
   now: () => number;
-  requestFrame: (callback: () => void) => number;
-  cancelFrame: (frame: number) => void;
+  requestFrame: (input: { callback: () => void }) => number;
+  cancelFrame: (input: { frame: number }) => void;
 }
 
 /** The window's own `performance`, animation-frame and timer functions. @complexity O(1). */
 export const liveFindClock: FindFocusClock = {
   now: () => performance.now(),
-  requestFrame: (callback) => requestAnimationFrame(callback),
-  cancelFrame: (frame) => cancelAnimationFrame(frame),
-  schedule: (callback, delay) => setTimeout(callback, delay),
-  cancel: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
+  requestFrame: ({ callback }) => requestAnimationFrame(callback),
+  cancelFrame: ({ frame }) => cancelAnimationFrame(frame),
+  schedule: ({ callback, delay }) => setTimeout(callback, delay),
+  cancel: ({ timer }) => clearTimeout(timer as ReturnType<typeof setTimeout>),
 };
 
 /** Optional ports for {@link useFindInPage}; production passes none. */
@@ -420,13 +423,12 @@ export interface FindInPagePorts {
  * The find bar's whole state machine: open/close, the query, the live target, and the result
  * whichever target reports.
  *
- * @param activeGuestId the visible project tab's id, or `null` when the Projects screen itself is
+ * @param input.activeGuestId the visible project tab's id, or `null` when the Projects screen itself is
  *   on screen (`App`'s `showSiteTab ? visibleWorkspaceId : null`).
  * @complexity O(1) per action, beyond `runFind`/`stopFind`'s own cost.
  */
 export function useFindInPage(
-  activeGuestId: string | null,
-  { bridge = runnerInventoryBridge(), clock = liveFindClock }: FindInPagePorts = {},
+  { activeGuestId }: { activeGuestId: string | null }, { bridge = runnerInventoryBridge(), clock = liveFindClock }: FindInPagePorts = {},
 ): FindInPage {
   const [state, dispatch] = useReducer(findBarReducer, initialFindBarState);
   // A ref, not state: registering a guest must never itself trigger a render — every mounted tab
@@ -466,7 +468,7 @@ export function useFindInPage(
   // through this instead of calling `runFind` directly.
   const cancelReclaimFrame = useCallback(() => {
     if (reclaimFrame.current !== null) {
-      clock.cancelFrame(reclaimFrame.current);
+      clock.cancelFrame({ frame: reclaimFrame.current });
       reclaimFrame.current = null;
     }
   }, [clock]);
@@ -485,19 +487,19 @@ export function useFindInPage(
         composing: composing.current,
       });
       if (!keepGoing) return;
-      restoreFindInputFocus(inputElement.current, restoringFocus);
-      reclaimFrame.current = clock.requestFrame(tick);
+      restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
+      reclaimFrame.current = clock.requestFrame({ callback: tick });
     };
-    reclaimFrame.current = clock.requestFrame(tick);
+    reclaimFrame.current = clock.requestFrame({ callback: tick });
   }, [cancelReclaimFrame, clock]);
 
   const issueFind = useCallback(
     (text: string, options: { forward: boolean; findNext: boolean }) => {
       lastFindAt.current = clock.now();
       awaitingReport.current = true;
-      runFind(target, bridge, text, options);
+      runFind({ target, bridge, text, options });
       // Reclaim immediately for a typed query as well as on subsequent frames/results.
-      if (options.findNext && !composing.current) restoreFindInputFocus(inputElement.current, restoringFocus);
+      if (options.findNext && !composing.current) restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
       // Only for a NEW session (a typed character): Enter/Shift+Enter's step must not be disturbed
       // mid-flight. Each reclaim's focus() puts the input's caret back as this frame's selection, and
       // a follow-up find that reads it anchors on the find bar instead of the previous match (see
@@ -511,7 +513,7 @@ export function useFindInPage(
 
   const clearReclaimTimer = useCallback(() => {
     if (reclaimTimer.current !== null) {
-      clock.cancel(reclaimTimer.current);
+      clock.cancel({ timer: reclaimTimer.current });
       reclaimTimer.current = null;
     }
   }, [clock]);
@@ -531,7 +533,7 @@ export function useFindInPage(
     // routing keys into the guest, and on a re-summon the input is already this document's
     // activeElement — a bare focus() is then a no-op the browser never hears about. See
     // {@link restoreFindInputFocus}.
-    restoreFindInputFocus(inputElement.current, restoringFocus);
+    restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
     inputElement.current?.select();
   }, [state.open, state.focusNonce]);
 
@@ -539,13 +541,13 @@ export function useFindInPage(
   // query never subscribes at all (see the early return), matching `runFind`'s own stop-not-search.
   useEffect(() => {
     if (!state.open || state.query === '') return undefined;
-    return subscribeToFindResults(target, bridge, {
+    return subscribeToFindResults({ target, bridge, handlers: {
       onReported: () => {
         awaitingReport.current = false;
-        if (!composing.current) restoreFindInputFocus(inputElement.current, restoringFocus);
+        if (!composing.current) restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
       },
-      onResult: (result) => dispatch({ type: 'result', result }),
-    });
+      onResult: ({ result }) => dispatch({ type: 'result', result }),
+    } });
     // `target` is a fresh object every render (`resolveFindTarget` builds one), so this depends on
     // its STABLE identity components instead — the guest map is a ref (never itself a dependency
     // trigger) and `activeGuestId` is what actually changes which entry it names.
@@ -561,7 +563,7 @@ export function useFindInPage(
     if (state.query === '') {
       awaitingReport.current = false;
       cancelReclaimFrame();
-      stopFind(target, bridge);
+      stopFind({ target, bridge });
       return undefined;
     }
     const run = () => {
@@ -584,9 +586,9 @@ export function useFindInPage(
   // the NEW surface.
   const previousGuestIdRef = useRef(activeGuestId);
   useEffect(() => {
-    if (shouldCloseOnGuestChange(previousGuestIdRef.current, activeGuestId, state.open)) {
+    if (shouldCloseOnGuestChange({ previousGuestId: previousGuestIdRef.current, activeGuestId, open: state.open })) {
       const outgoing = resolveFindTarget({ activeGuestId: previousGuestIdRef.current, guests, bridge });
-      stopFind(outgoing, bridge);
+      stopFind({ target: outgoing, bridge });
       dispatch({ type: 'close' });
     }
     previousGuestIdRef.current = activeGuestId;
@@ -608,14 +610,14 @@ export function useFindInPage(
       const onBlur = () => {
         if (restoringFocus.current) return;
         clearReclaimTimer();
-        reclaimTimer.current = clock.schedule(() => {
+        reclaimTimer.current = clock.schedule({ callback: () => {
           reclaimTimer.current = null;
           // Re-reads `inputElement.current`, not the closed-over `node`: the bar may have closed
           // (and unmounted the input) by the time this deferred callback runs.
           if (shouldReclaimFindFocus({ open: inputElement.current !== null, lastFindAt: lastFindAt.current, now: clock.now() })) {
-            restoreFindInputFocus(inputElement.current, restoringFocus);
+            restoreFindInputFocus({ input: inputElement.current }, { restoring: restoringFocus });
           }
-        }, 0);
+        }, delay: 0 });
       };
       const onCompositionStart = () => {
         composing.current = true;
@@ -660,7 +662,7 @@ export function useFindInPage(
     clearReclaimTimer();
     cancelReclaimFrame();
     awaitingReport.current = false;
-    stopFind(target, bridge);
+    stopFind({ target, bridge });
     dispatch({ type: 'close' });
   };
 
@@ -668,9 +670,9 @@ export function useFindInPage(
     open: state.open,
     query: state.query,
     result: state.result,
-    countLabel: formatMatchCount(state.result),
+    countLabel: formatMatchCount({ result: state.result }),
     inputRef,
-    setQuery: (text) => dispatch({ type: 'set-query', query: text }),
+    setQuery: ({ text }) => dispatch({ type: 'set-query', query: text }),
     // Follow-up requests within the current session — `findNext: false` — never a new one.
     next: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: true, findNext: false }); },
     previous: () => { if (!queryScheduler.flush()) issueFind(state.query, { forward: false, findNext: false }); },
@@ -687,7 +689,7 @@ export function useFindInPage(
  * not change for a mounted tab's own instance — so this is not a fresh function every render, which
  * would otherwise make React detach and reattach the ref on every commit for no reason.
  *
- * @param extra an optional third registration, called last, for a feature with its own per-guest
+ * @param options.extra an optional third registration, called last, for a feature with its own per-guest
  *   registry — `use-zoom.hooks.ts`'s `registerGuest`, wrapped by its caller as
  *   `(node) => zoom.registerGuest(projectId, node)`. Not typed against `FindableGuest`: a second
  *   feature's own narrower `Pick<HTMLWebViewElement, ...>` is a different type from this file's,
@@ -696,10 +698,7 @@ export function useFindInPage(
  * @complexity O(1).
  */
 export function useComposedGuestRef(
-  guestRef: (node: HTMLWebViewElement | null) => void,
-  registerGuest: (projectId: string, element: FindableGuest | null) => void,
-  projectId: string,
-  extra?: (node: HTMLWebViewElement | null) => void,
+  { guestRef, registerGuest, projectId }: { guestRef: (node: HTMLWebViewElement | null) => void; registerGuest: (projectId: string, element: FindableGuest | null) => void; projectId: string }, { extra }: { extra?: (node: HTMLWebViewElement | null) => void } = {},
 ): (node: HTMLWebViewElement | null) => void {
   return useCallback(
     (node: HTMLWebViewElement | null) => {

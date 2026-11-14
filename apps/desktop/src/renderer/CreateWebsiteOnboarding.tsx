@@ -199,7 +199,7 @@ function ConnectServicesSection({ pluginTokens }: { pluginTokens: CreateSitePlug
 
 /**
  * `useForm` is the form hook itself, defaulted to the real one — the function, never its result
- * (a default of `useCreateWebsiteForm(onCreate)` would run only when the prop is omitted, making
+ * (a default of `useCreateWebsiteForm({ onCreate })` would run only when the prop is omitted, making
  * hook order depend on the caller).
  *
  * This is the highest-value injection point in the renderer. The form has a wide state space —
@@ -255,7 +255,7 @@ export function CreateWebsiteOnboarding({
     isSubmitting,
     formError,
     handleSubmit,
-  } = useForm(pluginTokens.withTokens(onCreate));
+  } = useForm({ onCreate: pluginTokens.withTokens(onCreate) });
   const destinationHint = useDestination({ name });
   const { showErrorFooter } = createWebsiteOnboardingPolicy({ formError });
 

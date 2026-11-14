@@ -63,14 +63,14 @@ test('host visibility scheduling pauses memory sampling while inactive and dispo
     monitor: { get: async () => { reads++; return snapshot; } }, tracker: createNoopTracker({}),
     readConsent: () => ({ crashes: true, usage: true, installationId: 'FAKE_INSTALL' }),
     desktopPid: 1, rendererPids: () => new Set([2]), heapUsedBytes: () => 0, uptime: () => 0,
-  }, { schedule: ({ tick, ms }) => startVisibleInterval(tick, ms, {
+  }, { schedule: ({ tick, ms }) => startVisibleInterval({ tick, periodMs: ms }, { doc: {
     get visibilityState() { return visible ? 'visible' : 'hidden'; },
     addEventListener: (_type, listener) => { listeners.add(listener); },
     removeEventListener: (_type, listener) => { assert.equal(listeners.delete(listener), true); },
-  }, {
-    setInterval: (callback, ms) => { timers.set(1, callback); cadence = ms; return 1; },
-    clearInterval: handle => { assert.equal(handle, 1); assert.equal(timers.delete(1), true); },
-  }) });
+  }, timers: {
+    setInterval: ({ callback, ms }) => { timers.set(1, callback); cadence = ms; return 1; },
+    clearInterval: ({ handle }) => { assert.equal(handle, 1); assert.equal(timers.delete(1), true); },
+  } }) });
   assert.equal(timers.size, 0);
   assert.equal(reads, 0);
   setVisible(true);

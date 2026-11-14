@@ -60,7 +60,7 @@ test('a disabled Settings gear never opens its dropdown', () => {
 
 test('picking a theme applies it FIRST, then closes the dropdown', () => {
   const { calls, handlers } = recordingSettings(false);
-  handlers.chooseTheme('dark');
+  handlers.chooseTheme({ next: 'dark' });
   assert.deepEqual(calls, ['theme:dark', 'open:false']);
 });
 
@@ -72,7 +72,7 @@ test('the Appearance link closes the dropdown FIRST, then opens the page', () =>
 
 test('a disabled control still runs its dropdown entries (they are unreachable, not guarded)', () => {
   const { calls, handlers } = recordingSettings(true);
-  handlers.chooseTheme('light');
+  handlers.chooseTheme({ next: 'light' });
   handlers.openAppearancePage();
   assert.deepEqual(calls, ['theme:light', 'open:false', 'open:false', 'appearance']);
 });

@@ -270,7 +270,7 @@ function failIfShellIsStale(repoRoot: string, shell: ShellEntry, { steps }: Stag
   for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime(path.join(repoRoot, dir)));
   for (const file of shell.sourceFiles ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime(path.join(repoRoot, file)));
 
-  const failure = shellStalenessFailure(builtAt, sourceAt, shell);
+  const failure = shellStalenessFailure({ builtAt, sourceAt, shell });
   if (failure) fail(failure);
 }
 

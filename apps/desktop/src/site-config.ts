@@ -47,12 +47,12 @@ const NAME_MAX_LENGTH = 200;
  * approximation of it — one source of truth for "is this a legal site name", checked on both sides
  * of the wire. Trims first, like `validateConfig` does: `"   "` is empty, not length 3.
  *
- * @param raw the operator's untrimmed input.
+ * @param input.raw the operator's untrimmed input.
  * @returns the trimmed name, or `null` for a non-string, an empty/whitespace-only one, or one
  *   longer than 200 characters after trimming.
  * @complexity O(n) in the input length.
  */
-export function normalizeSiteName(raw: unknown): string | null {
+export function normalizeSiteName({ raw }: { raw: unknown }, _options: Record<string, never> = {}): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();
   if (trimmed.length === 0 || trimmed.length > NAME_MAX_LENGTH) return null;
@@ -68,7 +68,7 @@ export function normalizeSiteName(raw: unknown): string | null {
  *
  * @complexity O(n) in file size, bounded by {@link MAX_CONFIG_BYTES}.
  */
-function readSiteConfig(siteDir: string): Record<string, unknown> | null {
+function readSiteConfig({ siteDir }: { siteDir: string }, _options: Record<string, never> = {}): Record<string, unknown> | null {
   const filePath = path.join(siteDir, CONFIG_FILE_NAME);
   try {
     if (fs.statSync(filePath).size > MAX_CONFIG_BYTES) return null;
@@ -94,15 +94,15 @@ function readSiteConfig(siteDir: string): Record<string, unknown> | null {
  * never half of either. The temp name carries the pid so two instances renaming two different sites
  * cannot collide on it.
  *
- * @param siteDir the site's install directory. The caller has already established it IS a site.
- * @param rawName the operator's untrimmed input.
+ * @param input.siteDir the site's install directory. The caller has already established it IS a site.
+ * @param input.rawName the operator's untrimmed input.
  * @returns the trimmed name that was written.
  * @throws {Error} operator-facing, when the name is invalid or `config.json` cannot be read or
  *   written. The name check runs BEFORE anything is written, so a refusal leaves the file untouched.
  * @complexity O(n) in file size — one read, one write, one rename.
  */
-export function writeSiteName(siteDir: string, rawName: unknown): string {
-  const name = normalizeSiteName(rawName);
+export function writeSiteName({ siteDir, rawName }: { siteDir: string; rawName: unknown }, _options: Record<string, never> = {}): string {
+  const name = normalizeSiteName({ raw: rawName });
   if (name === null) {
     throw new Error(
       `A site name must be 1 to ${NAME_MAX_LENGTH} characters once surrounding spaces are removed. ` +
@@ -110,7 +110,7 @@ export function writeSiteName(siteDir: string, rawName: unknown): string {
     );
   }
 
-  const config = readSiteConfig(siteDir);
+  const config = readSiteConfig({ siteDir });
   if (config === null) {
     throw new Error(
       `${path.join(siteDir, CONFIG_FILE_NAME)} could not be read as a site config, so there is ` +
@@ -144,7 +144,7 @@ export function writeSiteName(siteDir: string, rawName: unknown): string {
  * @complexity O(n) marker bytes, each bounded to 64 KiB.
  */
 export function readCatalogSite({ siteDir }: { siteDir: string }, _options = {}): { name: string; siteId?: string } {
-  const name = normalizeSiteName(readSiteConfig(siteDir)?.name);
+  const name = normalizeSiteName({ raw: readSiteConfig({ siteDir })?.name });
   const marker = path.join(siteDir, ".site-meta.json");
   if (name === null || fs.statSync(marker).size > MAX_CONFIG_BYTES) throw new Error("Invalid site markers");
   const meta = JSON.parse(fs.readFileSync(marker, "utf8")) as { siteId?: unknown } | null;

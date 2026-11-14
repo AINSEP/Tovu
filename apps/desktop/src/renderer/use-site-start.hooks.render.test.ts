@@ -14,7 +14,7 @@ import { useSiteStart } from './use-site-start.hooks.js';
 test('Start without a desktop connection never shows Starting, including before the promise settles', async (t) => {
   const rendered: boolean[] = [];
   const hook = renderHook(t, () => {
-    const value = useSiteStart(site('a'), undefined, { getBridge: () => undefined });
+    const value = useSiteStart({ project: site('a') }, { getBridge: () => undefined });
     rendered.push(value.starting);
     return value;
   });
@@ -31,7 +31,7 @@ test("useSiteStart: success hands main's record on and resolves true; a missing 
   const running = site('a', { status: 'running', port: 4321 });
   const pending = deferred<SiteRecord>();
   let getBridge: () => Pick<RunnerInventoryBridge, 'startSite'> | undefined = () => ({ startSite: () => pending.promise });
-  const hook = renderHook(t, () => useSiteStart(site('a'), (record) => applied.push(record), { getBridge }));
+  const hook = renderHook(t, () => useSiteStart({ project: site('a') }, { onSiteUpdated: (record) => applied.push(record), getBridge }));
   let started!: Promise<boolean>;
   act(() => { started = hook.current().start(); });
   assert.equal(hook.current().starting, true);
@@ -46,7 +46,7 @@ test("useSiteStart: success hands main's record on and resolves true; a missing 
   assert.equal(hook.current().error, 'Tovu desktop connection required to start a website.');
 
   getBridge = () => ({ startSite: () => Promise.reject(new Error('port 4321 is taken')) });
-  const quiet = renderHook(t, () => useSiteStart(site('b'), undefined, { getBridge }));
+  const quiet = renderHook(t, () => useSiteStart({ project: site('b') }, { getBridge }));
   assert.equal(await act(() => quiet.current().start()), false);
   assert.equal(quiet.current().error, 'port 4321 is taken');
   assert.equal(quiet.current().starting, false);
@@ -57,7 +57,7 @@ test('useSiteStart: a retry clears the previous error, and a success without onS
   const outcomes = [() => Promise.reject(new Error('port 4321 is taken')), () => Promise.resolve(site('a', { status: 'running' }))];
   const ids: string[] = [];
   const getBridge = () => ({ startSite: (id: string) => { ids.push(id); return outcomes.shift()!(); } });
-  const hook = renderHook(t, () => useSiteStart(site('/sites/a'), undefined, { getBridge }));
+  const hook = renderHook(t, () => useSiteStart({ project: site('/sites/a') }, { getBridge }));
   assert.equal(await act(() => hook.current().start()), false);
   assert.equal(hook.current().error, 'port 4321 is taken');
   assert.equal(await act(() => hook.current().start()), true);

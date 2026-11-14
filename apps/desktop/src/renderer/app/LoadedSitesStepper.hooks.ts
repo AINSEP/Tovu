@@ -22,7 +22,7 @@ export function useLoadedSitesStepper({ setting }: { setting: LoadedSitesSetting
     const next = loadedSitesFromText({ text });
     if (next === null) { setDraft(''); return; }
     setDraft(null);
-    save(next);
+    save({ next });
   };
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const next = keyTarget({ key: event.key, value });
@@ -31,7 +31,7 @@ export function useLoadedSitesStepper({ setting }: { setting: LoadedSitesSetting
     event.preventDefault();
     event.stopPropagation();
     setDraft(null);
-    save(next);
+    save({ next });
   };
   return { draft, setDraft, value, save, onChange, onKeyDown };
 }

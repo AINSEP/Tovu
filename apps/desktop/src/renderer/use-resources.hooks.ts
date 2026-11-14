@@ -12,15 +12,15 @@ export interface ResourcesPorts {
     addEventListener: (event: 'visibilitychange', listener: () => void) => void;
     removeEventListener: (event: 'visibilitychange', listener: () => void) => void;
   };
-  setTimer: (run: () => void, delay: number) => number;
-  clearTimer: (id: number) => void;
+  setTimer: (input: { run: () => void; delay: number }) => number;
+  clearTimer: (input: { id: number }) => void;
 }
 
 const browserPorts: ResourcesPorts = {
   getBridge: runnerInventoryBridge,
   get document() { return document; },
-  setTimer: (run, delay) => window.setTimeout(run, delay),
-  clearTimer: (id) => window.clearTimeout(id),
+  setTimer: ({ run, delay }) => window.setTimeout(run, delay),
+  clearTimer: ({ id }) => window.clearTimeout(id),
 };
 
 /** A visibility change invalidates a pending reading; retry it before the next normal cadence. */
@@ -53,7 +53,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
 
     /** Clear the scheduled read before hiding, refreshing or disposing this effect. */
     function clearTimer() {
-      if (timer !== undefined) ports.clearTimer(timer);
+      if (timer !== undefined) ports.clearTimer({ id: timer });
       timer = undefined;
     }
 
@@ -80,7 +80,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
       if (!active || ports.document.hidden) return;
       const currentVisibility = version === visibilityVersion;
       if (currentVisibility) setSnapshot(next);
-      timer = ports.setTimer(() => { void poll(); }, pollDelay({ currentVisibility, snapshot: next }));
+      timer = ports.setTimer({ run: () => { void poll(); }, delay: pollDelay({ currentVisibility, snapshot: next }) });
     }
 
     /** A hidden document owns no timer. Returning to it asks main for a fresh/cached snapshot. */

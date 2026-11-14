@@ -64,7 +64,7 @@ export function MainContent({
               removed rather than kept as copy no operator can read. */}
           <span className="creation-notice__text">
             <strong>{lastCreated.displayName}</strong> is ready — open it to start its own server.
-            {createdTokensNote(lastCreated) ? <> {createdTokensNote(lastCreated)}</> : null}
+            {createdTokensNote({ record: lastCreated }) ? <> {createdTokensNote({ record: lastCreated })}</> : null}
           </span>
         </p>
       )}

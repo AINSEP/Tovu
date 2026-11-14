@@ -136,11 +136,11 @@ function actionsFor(input: {
 // ---------------------------------------------------------------------------------------------
 
 test('a guest that is not attached yet reads as no history rather than throwing', () => {
-  assert.deepEqual(readHistory(fakeGuest({ notReady: true, canGoBack: true }).guest), {
+  assert.deepEqual(readHistory({ guest: fakeGuest({ notReady: true, canGoBack: true }).guest }), {
     canGoBack: false,
     canGoForward: false,
   });
-  assert.deepEqual(readHistory(null), { canGoBack: false, canGoForward: false });
+  assert.deepEqual(readHistory({ guest: null }), { canGoBack: false, canGoForward: false });
 });
 
 test('did-navigate re-reads canGoBack/canGoForward from the guest and reports the new url', () => {
@@ -208,27 +208,27 @@ test('the reducer stores what a navigation reported, and a new guest node starts
 
 test('Back calls goBack only when the guest can go back', () => {
   const able = fakeGuest({ canGoBack: true });
-  assert.equal(stepHistory(able.guest, 'back'), true);
+  assert.equal(stepHistory({ guest: able.guest, command: 'back' }), true);
   assert.deepEqual(able.calls, ['goBack']);
 
   const unable = fakeGuest({ canGoBack: false, canGoForward: true });
-  assert.equal(stepHistory(unable.guest, 'back'), false);
+  assert.equal(stepHistory({ guest: unable.guest, command: 'back' }), false);
   assert.deepEqual(unable.calls, []);
 });
 
 test('Forward calls goForward only when the guest can go forward', () => {
   const able = fakeGuest({ canGoForward: true });
-  assert.equal(stepHistory(able.guest, 'forward'), true);
+  assert.equal(stepHistory({ guest: able.guest, command: 'forward' }), true);
   assert.deepEqual(able.calls, ['goForward']);
 
   const unable = fakeGuest({ canGoBack: true, canGoForward: false });
-  assert.equal(stepHistory(unable.guest, 'forward'), false);
+  assert.equal(stepHistory({ guest: unable.guest, command: 'forward' }), false);
   assert.deepEqual(unable.calls, []);
 });
 
 test('Back and Forward are no-ops with no guest mounted or a guest not attached yet', () => {
-  assert.equal(stepHistory(null, 'back'), false);
-  assert.equal(stepHistory(fakeGuest({ notReady: true, canGoForward: true }).guest, 'forward'), false);
+  assert.equal(stepHistory({ guest: null, command: 'back' }), false);
+  assert.equal(stepHistory({ guest: fakeGuest({ notReady: true, canGoForward: true }).guest, command: 'forward' }), false);
 });
 
 test('the toolbar actions route goBack/goForward to the guest', () => {
@@ -298,11 +298,11 @@ test('the recovery panel retry always remounts, and a remount changes the <webvi
 // ---------------------------------------------------------------------------------------------
 
 test('surfaceOfUrl reads the admin from its path and everything else as the site', () => {
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin/'), 'admin');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin'), 'admin');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/admin/posts?id=1'), 'admin');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/'), 'site');
-  assert.equal(surfaceOfUrl('http://127.0.0.1:4100/administrators'), 'site');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/admin/' }), 'admin');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/admin' }), 'admin');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/admin/posts?id=1' }), 'admin');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/' }), 'site');
+  assert.equal(surfaceOfUrl({ url: 'http://127.0.0.1:4100/administrators' }), 'site');
   assert.equal(siteSurfaceUrl({ port: 4100, view: 'admin' }), 'http://127.0.0.1:4100/admin/');
   assert.equal(siteSurfaceUrl({ port: 4100, view: 'site' }), 'http://127.0.0.1:4100/');
 });
@@ -321,7 +321,7 @@ test('choosing the surface already on screen does nothing', () => {
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'site' as const, liveUrl: 'http://127.0.0.1:4100/admin/posts' };
-  actionsFor({ guest: fake.guest, state, dispatch }).selectView('admin');
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView({ option: 'admin' });
   assert.deepEqual(dispatched, []);
   assert.deepEqual(fake.calls, []);
 });
@@ -329,7 +329,7 @@ test('choosing the surface already on screen does nothing', () => {
 test('choosing a surface other than the requested one changes src', () => {
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
-  actionsFor({ guest: fake.guest, dispatch }).selectView('site');
+  actionsFor({ guest: fake.guest, dispatch }).selectView({ option: 'site' });
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'site' }]);
   assert.deepEqual(fake.calls, [], 'the src change is the navigation; nothing imperative runs');
 });
@@ -340,7 +340,7 @@ test('after Back crossed to the other surface, choosing the requested one loads 
   const fake = fakeGuest({ abortLoad: true });
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'admin' as const, liveUrl: 'http://127.0.0.1:4100/about' };
-  actionsFor({ guest: fake.guest, state, dispatch }).selectView('admin');
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView({ option: 'admin' });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(fake.calls, ['loadURL http://127.0.0.1:4100/admin/']);
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'admin' }, { type: 'soft-load' }]);
@@ -349,7 +349,7 @@ test('after Back crossed to the other surface, choosing the requested one loads 
 test('that imperative load falls back to a remount when the guest cannot take it', () => {
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'admin' as const, liveUrl: 'http://127.0.0.1:4100/about' };
-  actionsFor({ guest: null, state, dispatch }).selectView('admin');
+  actionsFor({ guest: null, state, dispatch }).selectView({ option: 'admin' });
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'admin' }, { type: 'remount' }]);
 });
 
@@ -386,7 +386,7 @@ test('on a restored guest the view toggle loads the other surface imperatively, 
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
   const state = { ...initialSiteWorkspaceState, view: 'admin' as const, restoreUrl: 'http://127.0.0.1:4100/admin/posts', liveUrl: 'http://127.0.0.1:4100/admin/posts' };
-  actionsFor({ guest: fake.guest, state, dispatch }).selectView('site');
+  actionsFor({ guest: fake.guest, state, dispatch }).selectView({ option: 'site' });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(fake.calls, ['loadURL http://127.0.0.1:4100/']);
   assert.deepEqual(dispatched, [{ type: 'select-view', view: 'site' }, { type: 'soft-load' }]);
@@ -472,8 +472,8 @@ test('history steps and navigation listener setup/teardown contain every detache
     goBack: () => { throw new Error('detached'); }, goForward: () => { throw new Error('detached'); },
     addEventListener: () => { throw new Error('detached'); }, removeEventListener: () => { throw new Error('detached'); },
   } as unknown as WorkspaceGuest;
-  assert.doesNotThrow(() => stepHistory(guest, 'back'));
-  assert.doesNotThrow(() => stepHistory(guest, 'forward'));
+  assert.doesNotThrow(() => stepHistory({ guest, command: 'back' }));
+  assert.doesNotThrow(() => stepHistory({ guest, command: 'forward' }));
   let dispose = () => {};
   assert.doesNotThrow(() => { dispose = trackGuestNavigation(guest, () => {}); });
   assert.doesNotThrow(dispose);

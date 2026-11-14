@@ -26,8 +26,8 @@ function fixture() {
       addEventListener: (_event, listener) => { listeners.add(listener); },
       removeEventListener: (_event, listener) => { listeners.delete(listener); },
     },
-    setTimer: (run, delay) => { const id = ++nextTimer; timers.set(id, { run, delay }); return id; },
-    clearTimer: (id) => { timers.delete(id); },
+    setTimer: ({ run, delay }) => { const id = ++nextTimer; timers.set(id, { run, delay }); return id; },
+    clearTimer: ({ id }) => { timers.delete(id); },
   };
   return { ports, requests, timers, listeners,
     setRead: (next: typeof read) => { read = next; },

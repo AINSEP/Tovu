@@ -14,8 +14,8 @@ export interface ProjectTabsState {
   setActiveTab: Dispatch<SetStateAction<string | null>>;
   /** `adminPage` sends the tab's admin to that page (the "Import site" entry); without it an
    *  already-open tab stays wherever it is. */
-  openProjectTab: (id: string, options?: { adminPage?: SiteAdminPage }) => void;
-  closeProjectTab: (id: string) => void;
+  openProjectTab: (input: { id: string }, options?: { adminPage?: SiteAdminPage }) => void;
+  closeProjectTab: (input: { id: string }) => void;
   /** The admin page each tab was opened on, by project id. Absent = the admin's root. */
   adminPages: Readonly<Record<string, SiteAdminPage>>;
 }
@@ -48,14 +48,14 @@ export function useProjectTabs(
     });
   }, [getBridge, openTabs]);
 
-  const openProjectTab = (id: string, options: { adminPage?: SiteAdminPage } = {}) => {
+  const openProjectTab = ({ id }: { id: string }, options: { adminPage?: SiteAdminPage } = {}) => {
     setOpenTabs((current) => (current.includes(id) ? current : [...current, id]));
     setActiveTab(id);
     const { adminPage } = options;
     if (adminPage) setAdminPages((current) => (sameAdminPage({ a: current[id], b: adminPage }) ? current : { ...current, [id]: adminPage }));
   };
 
-  const closeProjectTab = (id: string) => {
+  const closeProjectTab = ({ id }: { id: string }, _options: Record<string, never> = {}) => {
     // Resolve from the current tab order before removing the closed tab.
     setActiveTab((current) => tabAfterClose({ tabs: openTabs, active: current, closing: id }));
     setOpenTabs((current) => current.filter((tabId) => tabId !== id));

@@ -82,7 +82,7 @@ type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
 
 /** Injected classifier shape every function below takes instead of importing `site-dir-store.ts`.
  *  `"unreadable"` is `classifySiteDirSafely`'s extra verdict, which every caller here treats as "not a site". */
-type ClassifySiteDirFn = (dir: string) => SiteClassification | "unreadable";
+type ClassifySiteDirFn = (input: { dir: string }) => SiteClassification | "unreadable";
 
 /** One row as {@link readTrackedSites} returns it. `siteId` is set only per {@link buildTrackedRow}'s doc.
  *  `relocationId` is how the row finds its folder again after a move — `site-relocation.ts` owns it,
@@ -631,7 +631,7 @@ function isDiscoverableSite(dir: string, classifySiteDir: ClassifySiteDirFn): bo
 }
 
 /**
- * `classifySiteDir(dir) === "site"`, with a throw counted as "no".
+ * `classifySiteDir({ dir }) === "site"`, with a throw counted as "no".
  *
  * Separate from {@link isDiscoverableSite} because the two callers need different amounts of it.
  * A scan over candidates it found itself must also survive `statSync` (D-01, and the arm the old
@@ -643,7 +643,7 @@ function isDiscoverableSite(dir: string, classifySiteDir: ClassifySiteDirFn): bo
  */
 function classifiesAsSite(dir: string, classifySiteDir: ClassifySiteDirFn): boolean {
   try {
-    return classifySiteDir(dir) === "site";
+    return classifySiteDir({ dir }) === "site";
   } catch {
     return false;
   }

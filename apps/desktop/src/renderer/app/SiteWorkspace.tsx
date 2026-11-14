@@ -58,7 +58,7 @@ export function SiteWorkspaces({
           key={project.id}
           project={project}
           hidden={!workspaceOnScreen({ inSites, projectId: project.id, visibleWorkspaceId })}
-          live={live.isLive(project.id)}
+          live={live.isLive({ id: project.id })}
           parked={live.parked[project.id]}
           registerLiveGuest={live.registerGuest}
           expanded={expanded}
@@ -132,17 +132,17 @@ function SiteWorkspace({
   // Everything this tab remembers and every action its bar takes: which surface it asked for, where
   // its guest is, its history, and Reload that keeps that history. Per tab, never lifted into `App`.
   // `did-fail-load` (`failed`/`stalled`) still comes from `useWebviewLoadFailure`, inside it.
-  const workspace = useSiteWorkspace(project, hidden, { adminPage, parked });
+  const workspace = useSiteWorkspace({ project, hidden }, { adminPage, parked });
   // `guestRef` is a CALLBACK ref, not a ref object, and that distinction is the whole of D-03: the
   // hooks' listeners have to attach when the guest actually mounts, and this tab mounts it
   // conditionally (`running && !workspace.failed` below). See `useWebviewLoadFailure`'s own doc.
   // Composed with the find bar's and the zoom feature's own registration so ONE ref does all three
   // — see `useComposedGuestRef`. The live-views probe reads the same node (`useLiveViews`).
   const { guestRef } = workspace;
-  const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id, (node) => {
+  const combinedGuestRef = useComposedGuestRef({ guestRef, registerGuest, projectId: project.id }, { extra: (node) => {
     registerZoomGuest(project.id, node);
     registerLiveGuest(project.id, node);
-  });
+  } });
   const running = workspace.running;
 
   const startPanel = running ? (
@@ -212,7 +212,7 @@ function SiteWorkspace({
               type="button"
               key={option}
               className={`workspace__view ${option === workspace.surface ? 'is-on' : ''}`}
-              onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: option === 'admin' ? 'open_admin' : 'open_preview' } }); workspace.selectView(option); }}
+              onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: option === 'admin' ? 'open_admin' : 'open_preview' } }); workspace.selectView({ option }); }}
               aria-pressed={option === workspace.surface}
             >
               {option === 'admin' ? 'Admin' : 'Site'}

@@ -65,7 +65,7 @@ function fixture(t: TestContext, platform: "darwin" | "win32") {
     return dir;
   };
   const listed = () => discoverSiteDirs({ scanRoots: workspace.roots({}), knownDirs: workspace.registry({}).list({}).map((row) => row.path),
-    classifySiteDir: (dir) => fs.existsSync(path.join(dir, ".site-meta.json")) ? "site" : "empty",
+    classifySiteDir: ({ dir }) => fs.existsSync(path.join(dir, ".site-meta.json")) ? "site" : "empty",
   }, { homeDir, sitesHome: home });
   return { homeDir, options, workspace, home, nested, projectsPath, site, migrate, listed, calls: () => calls };
 }

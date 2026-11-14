@@ -479,7 +479,7 @@ export function pruneNativePrebuilds({ outDir, targets }: { outDir: string; targ
  *  @complexity O(1). */
 function isWalkable(entry: Dirent): boolean {
   if (entry.name === NODE_MODULES || entry.name.startsWith(".")) return false;
-  return isBundleInput(entry.isDirectory() ? `${entry.name}/` : entry.name);
+  return isBundleInput({ relPath: entry.isDirectory() ? `${entry.name}/` : entry.name });
 }
 
 /** Newest mtime under a directory tree, or 0 if it does not exist.
@@ -487,7 +487,7 @@ function isWalkable(entry: Dirent): boolean {
 export function newestMtime(abs: string): number {
   if (!existsSync(abs)) return 0;
   const stat = statSync(abs);
-  if (!stat.isDirectory()) return isBundleInput(abs) ? stat.mtimeMs : 0;
+  if (!stat.isDirectory()) return isBundleInput({ relPath: abs }) ? stat.mtimeMs : 0;
   let newest = 0;
   for (const entry of readdirSync(abs, { withFileTypes: true })) {
     if (isWalkable(entry)) newest = Math.max(newest, newestMtime(path.join(abs, entry.name)));

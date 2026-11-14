@@ -10,20 +10,20 @@ import { useProjectTabs } from './use-project-tabs.hooks.js';
 
 test('useProjectTabs: opening adds once and selects, remembers an admin page, and closing picks a neighbour', (t) => {
   const hook = renderHook(t, () => useProjectTabs());
-  act(() => hook.current().openProjectTab('a'));
-  act(() => hook.current().openProjectTab('b', { adminPage: { page: 'import' } }));
-  act(() => hook.current().openProjectTab('c'));
-  act(() => hook.current().openProjectTab('a'));
+  act(() => hook.current().openProjectTab({ id: 'a' }));
+  act(() => hook.current().openProjectTab({ id: 'b' }, { adminPage: { page: 'import' } }));
+  act(() => hook.current().openProjectTab({ id: 'c' }));
+  act(() => hook.current().openProjectTab({ id: 'a' }));
   assert.deepEqual(hook.current().openTabs, ['a', 'b', 'c']);
   assert.equal(hook.current().activeTab, 'a');
   const pages = hook.current().adminPages;
   assert.deepEqual(pages, { b: { page: 'import' } });
-  act(() => hook.current().openProjectTab('b', { adminPage: { page: 'import' } }));
+  act(() => hook.current().openProjectTab({ id: 'b' }, { adminPage: { page: 'import' } }));
   assert.equal(hook.current().adminPages, pages, 'reopening on the same page keeps the same record');
-  act(() => hook.current().closeProjectTab('c'));
+  act(() => hook.current().closeProjectTab({ id: 'c' }));
   assert.equal(hook.current().adminPages, pages, 'closing a tab with no page leaves the pages untouched');
   assert.equal(hook.current().activeTab, 'b', 'reopening b selected it');
-  act(() => hook.current().closeProjectTab('b'));
+  act(() => hook.current().closeProjectTab({ id: 'b' }));
   assert.deepEqual(hook.current().openTabs, ['a']);
   assert.equal(hook.current().activeTab, 'a');
   assert.deepEqual(hook.current().adminPages, {});
@@ -31,30 +31,30 @@ test('useProjectTabs: opening adds once and selects, remembers an admin page, an
 
 test('useProjectTabs: closing a tab that is not selected keeps the selection where it is', (t) => {
   const hook = renderHook(t, () => useProjectTabs());
-  act(() => hook.current().openProjectTab('a'));
-  act(() => hook.current().openProjectTab('b'));
-  act(() => hook.current().closeProjectTab('a'));
+  act(() => hook.current().openProjectTab({ id: 'a' }));
+  act(() => hook.current().openProjectTab({ id: 'b' }));
+  act(() => hook.current().closeProjectTab({ id: 'a' }));
   assert.deepEqual([hook.current().openTabs, hook.current().activeTab], [['b'], 'b']);
-  act(() => hook.current().closeProjectTab('b'));
+  act(() => hook.current().closeProjectTab({ id: 'b' }));
   assert.deepEqual([hook.current().openTabs, hook.current().activeTab], [[], null], 'the last tab closed returns to the sites home tab');
 });
 
 test('useProjectTabs: closing the selected middle tab selects its right neighbour, then the left one when none is to its right', (t) => {
   const hook = renderHook(t, () => useProjectTabs());
-  for (const id of ['a', 'b', 'c']) act(() => hook.current().openProjectTab(id));
+  for (const id of ['a', 'b', 'c']) act(() => hook.current().openProjectTab({ id: id }));
   act(() => hook.current().setActiveTab('b'));
-  act(() => hook.current().closeProjectTab('b'));
+  act(() => hook.current().closeProjectTab({ id: 'b' }));
   assert.deepEqual([hook.current().openTabs, hook.current().activeTab], [['a', 'c'], 'c']);
-  act(() => hook.current().closeProjectTab('c'));
+  act(() => hook.current().closeProjectTab({ id: 'c' }));
   assert.deepEqual([hook.current().openTabs, hook.current().activeTab], [['a'], 'a']);
 });
 
 test('useProjectTabs: reopening a tab without a page keeps the admin page it was sent to', (t) => {
   const hook = renderHook(t, () => useProjectTabs());
-  act(() => hook.current().openProjectTab('a', { adminPage: { page: 'import' } }));
-  act(() => hook.current().openProjectTab('b'));
+  act(() => hook.current().openProjectTab({ id: 'a' }, { adminPage: { page: 'import' } }));
+  act(() => hook.current().openProjectTab({ id: 'b' }));
   assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: { page: 'import' } }, 'b']);
-  act(() => hook.current().openProjectTab('a'));
+  act(() => hook.current().openProjectTab({ id: 'a' }));
   assert.deepEqual([hook.current().adminPages, hook.current().activeTab], [{ a: { page: 'import' } }, 'a'], 'reopening without a page keeps where the tab was sent');
 });
 
@@ -62,10 +62,10 @@ test('useProjectTabs reports complete open lists initially and after changes, in
   const reports: string[][] = [];
   const getBridge = () => ({ reportOpenSiteTabs: async ({ siteIds }: { siteIds: readonly string[] }) => { reports.push([...siteIds]); } });
   const hook = renderHook(t, () => useProjectTabs({}, { getBridge }));
-  act(() => hook.current().openProjectTab('a'));
-  act(() => hook.current().openProjectTab('b'));
+  act(() => hook.current().openProjectTab({ id: 'a' }));
+  act(() => hook.current().openProjectTab({ id: 'b' }));
   act(() => hook.current().setActiveTab(null));
-  act(() => hook.current().openProjectTab('a'));
-  act(() => hook.current().closeProjectTab('a'));
+  act(() => hook.current().openProjectTab({ id: 'a' }));
+  act(() => hook.current().closeProjectTab({ id: 'a' }));
   assert.deepEqual(reports, [[], ['a'], ['a', 'b'], ['b']]);
 });

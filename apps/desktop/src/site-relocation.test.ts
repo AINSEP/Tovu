@@ -317,14 +317,14 @@ test("stalecard: recomputing inside the registry lock preserves a twin adopted a
   const unrelated = makeSite(path.join(root, "other"), { siteId: "other" });
   const file = projectsFile([{ siteDir: stale, createdAt: CREATED, relocationId: "same" }]);
   let changed = false;
-  const classifySiteDir = (dir: string) => {
+  const classifySiteDir = ({ dir }: { dir: string }) => {
     if (!changed) {
       changed = true;
       // A second caller's adoption lands between the unlocked read and the locked re-read.
       trackSite(file, target, "adopted");
       trackSite(file, unrelated, "adopted");
     }
-    return classifySiteDirSafely(dir);
+    return classifySiteDirSafely({ dir });
   };
   assert.deepEqual(relocateMovedSites({ projectsPath: file }, { classifySiteDir }), { moved: [], merged: [stale] });
   assert.deepEqual(readTrackedSites(file).map((row) => row.siteDir), [target, unrelated]);
@@ -337,13 +337,13 @@ test("relocateMovedSites writes nothing when another instance healed the file be
   const newDir = makeSite(path.join(root, "tovu-dev"), { siteKeyId: "key-1" });
   let raced = false;
   const reports: string[] = [];
-  const classifySiteDir = (dir: string) => {
+  const classifySiteDir = ({ dir }: { dir: string }) => {
     if (!raced) {
       raced = true;
       // The other instance's whole pass lands after this one's unlocked plan has already read the file.
       relocateMovedSites({ projectsPath: file }, { report: () => {} });
     }
-    return classifySiteDirSafely(dir);
+    return classifySiteDirSafely({ dir });
   };
   const beforeRace = fs.readFileSync(file, "utf8");
 

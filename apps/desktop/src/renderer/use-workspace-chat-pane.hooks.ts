@@ -73,17 +73,15 @@ export interface FolderDropEvent {
  * `createLocalAttachmentUploader`), so that case is a real staged attachment, not an unhandled
  * drop — exactly the folder/file distinction this handler exists to preserve.
  *
- * @param event the drop, narrowed to the three members read.
- * @param getPathForFile the bridge's path lookup; `undefined` without a desktop bridge, which
+ * @param input.event the drop, narrowed to the three members read.
+ * @param input.getPathForFile the bridge's path lookup; `undefined` without a desktop bridge, which
  *   leaves every drop to `ChatPane`.
- * @param composerHandle populated by `ChatPane` once mounted. A folder drop while it is still
+ * @param input.composerHandle populated by `ChatPane` once mounted. A folder drop while it is still
  *   `null` is swallowed all the same, and nothing is inserted.
  * @complexity O(n) in the number of dragged items (`folderPathsFromDataTransfer`).
  */
 export function captureFolderDrop(
-  event: FolderDropEvent,
-  getPathForFile: ((file: File) => string) | undefined,
-  composerHandle: RefObject<Pick<ChatPaneComposerHandle, 'insertText'> | null>,
+  { event, getPathForFile, composerHandle }: { event: FolderDropEvent; getPathForFile: ((file: File) => string) | undefined; composerHandle: RefObject<Pick<ChatPaneComposerHandle, 'insertText'> | null> }, _options: Record<string, never> = {},
 ): void {
   if (getPathForFile === undefined) return;
   const folders = folderPathsFromDataTransfer(event.dataTransfer, getPathForFile);
@@ -167,7 +165,7 @@ export function useWorkspaceChatPane(
   // seam `captureFolderDrop` uses to write a dropped folder's path into the draft as text.
   const composerHandle = useRef<ChatPaneComposerHandle | null>(null);
   const onDropCapture = useCallback(
-    (event: DragEvent<HTMLElement>) => captureFolderDrop(event, getPathForFile, composerHandle),
+    (event: DragEvent<HTMLElement>) => captureFolderDrop({ event, getPathForFile, composerHandle }),
     [getPathForFile],
   );
 

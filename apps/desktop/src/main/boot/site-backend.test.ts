@@ -14,7 +14,7 @@ function fakeServer(overrides: Partial<FakeServer> = {}): FakeServer {
   const exitListeners: (() => void)[] = [];
   return {
     label: "spawned", adminUrl: "http://127.0.0.1:4100/admin/", port: 4100, workspaceId: "ws-own", pid: 77,
-    bootToken: "token-1", exitListeners, onExit: (listener) => { exitListeners.push(listener); }, ...overrides,
+    bootToken: "token-1", exitListeners, onExit: ({ listener }) => { exitListeners.push(listener); }, ...overrides,
   };
 }
 

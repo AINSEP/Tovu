@@ -192,7 +192,7 @@ export function ResourcesPanel({ projects, snapshot, onSiteUpdated, onClose,
   useTrap({ containerRef });
   // The shared trap captures the opener first; then enter this panel on its first action.
   useEffect(() => { containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); }, []);
-  const power = usePower(onSiteUpdated);
+  const power = usePower({}, { onSiteUpdated });
   const groups = resourceGroups({ projects, snapshot, statusOf: power.statusOf });
   const errors = projects.map((site) => power.errorOf(site.id)).filter(Boolean).join(' · ');
   const onStop = createResourceStop({ projects, power });

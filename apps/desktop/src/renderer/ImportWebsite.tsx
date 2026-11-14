@@ -98,7 +98,7 @@ function ImportPage({
             {/* The buttons sit in the zone's dashed box beside the shared zone rather than inside its
                 own element: that element is itself a button, and a button cannot hold another. */}
             <div className={`import-zone ${dragging ? 'is-dragging' : ''}`}>
-              <FileDropzone accept=".zip,application/zip" prompt="Drop a folder or .tovu.zip here" onFiles={onPicked} />
+              <FileDropzone accept=".zip,application/zip" prompt="Drop a folder or .tovu.zip here" onFiles={(files) => onPicked({ files })} />
               <div className="import-actions">
                 <button type="button" className="button button--contrast" onClick={() => void onChooseFolder()} disabled={busy}>
                   {adding ? 'Adding…' : 'Choose folder…'}

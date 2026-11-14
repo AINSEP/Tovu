@@ -47,7 +47,8 @@ fs.writeFileSync = (target, data, ...rest) => {
   return realWriteFileSync(target, data, ...rest);
 };
 const store = await import(pathToFileURL(modulePath).href);
-store[exportName](filePath, value);
+if (exportName === "rememberSiteDir") store[exportName]({ statePath: filePath, dir: value });
+else store[exportName](filePath, value);
 `;
 
 function tempDir(): string {
@@ -130,11 +131,11 @@ test("desktop-projects.json: a project another process adds while this one is wr
 });
 
 test("desktop-state.json: a recent site another process remembers while this one is writing is not lost", async () => {
-  const statePath = stateFilePath(tempDir());
+  const statePath = stateFilePath({ userDataDir: tempDir() });
 
   await whileAnotherProcessWrites({ moduleFile: "site-dir-store.ts", exportName: "rememberSiteDir", filePath: statePath, value: "/sites/child" }, () => {
-    rememberSiteDir(statePath, "/sites/parent");
+    rememberSiteDir({ statePath, dir: "/sites/parent" });
   });
 
-  assert.deepEqual(readDesktopState(statePath), { recentSiteDirs: ["/sites/parent", "/sites/child"] });
+  assert.deepEqual(readDesktopState({ statePath }), { recentSiteDirs: ["/sites/parent", "/sites/child"] });
 });

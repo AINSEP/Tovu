@@ -25,7 +25,7 @@ test('Loaded sites keeps a newer menu preference when the initial read arrives l
   });
   function Setting() {
     const setting = useLoadedSites({}, { getBridge });
-    return createElement('button', { onClick: () => setting.save(1) }, String(setting.value));
+    return createElement('button', { onClick: () => setting.save({ next: 1 }) }, String(setting.value));
   }
   const view = mount({ t, element: createElement(Setting) });
   await act(async () => { changed(4); });

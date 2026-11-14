@@ -91,7 +91,7 @@ export function buildSelftestTracker({ expectedCount, log, logError, setExitCode
   setExitCode: (required: { code: number }) => void;
   quit: () => void;
 }, _optional = {}): SelftestTracker {
-  return createSelftestTracker(expectedCount, {
+  return createSelftestTracker({ expectedCount, callbacks: {
     onWindowLoaded: ({ url, title }) => {
       log({ message: `tovu desktop: loaded ${url}` });
       log({ message: `tovu desktop: title=${JSON.stringify(title)}` });
@@ -101,5 +101,5 @@ export function buildSelftestTracker({ expectedCount, log, logError, setExitCode
       setExitCode({ code: 1 });
     },
     onAllSettled: () => quit(),
-  });
+  } });
 }

@@ -27,7 +27,7 @@ function context(t: { after: (fn: () => void) => void }, rows: { siteDir: string
   const projectsPath = path.join(dir, 'projects.json');
   fs.writeFileSync(projectsPath, JSON.stringify({ projects: rows, dismissed: [] }));
   const revealed: string[] = [];
-  return { revealed, ctx: { projectsPath, revealPath: async ({ target }: { target: string }) => { revealed.push(target); }, classifySiteDir: (dir: string) => (present.has(dir) ? 'site' : 'empty') as never } };
+  return { revealed, ctx: { projectsPath, revealPath: async ({ target }: { target: string }) => { revealed.push(target); }, classifySiteDir: ({ dir }: { dir: string }) => (present.has(dir) ? 'site' : 'empty') as never } };
 }
 const errorText = (result: Awaited<ReturnType<typeof runSitesMcpTool>>) => { assert.equal(result.isError, true); return result.content[0]?.text; };
 

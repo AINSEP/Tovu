@@ -18,13 +18,13 @@ export interface VisibilitySource {
 
 /** The two timer functions this uses, injectable for tests. */
 export interface IntervalTimers {
-  setInterval(callback: () => void, ms: number): unknown;
-  clearInterval(handle: unknown): void;
+  setInterval(input: { callback: () => void; ms: number }): unknown;
+  clearInterval(input: { handle: unknown }): void;
 }
 
 const WINDOW_TIMERS: IntervalTimers = {
-  setInterval: (callback, ms) => globalThis.setInterval(callback, ms),
-  clearInterval: (handle) => globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval>),
+  setInterval: ({ callback, ms }) => globalThis.setInterval(callback, ms),
+  clearInterval: ({ handle }) => globalThis.clearInterval(handle as ReturnType<typeof globalThis.setInterval>),
 };
 
 /**
@@ -35,17 +35,14 @@ const WINDOW_TIMERS: IntervalTimers = {
  * @complexity O(1) per visibility change.
  */
 export function startVisibleInterval(
-  tick: () => void,
-  periodMs: number,
-  doc: VisibilitySource = (globalThis as unknown as { document: VisibilitySource }).document,
-  timers: IntervalTimers = WINDOW_TIMERS,
+  { tick, periodMs }: { tick: () => void; periodMs: number }, { doc = (globalThis as unknown as { document: VisibilitySource }).document, timers = WINDOW_TIMERS }: { doc?: VisibilitySource; timers?: IntervalTimers } = {},
 ): () => void {
   let handle: unknown = null;
   const run = () => {
-    if (handle === null) handle = timers.setInterval(tick, periodMs);
+    if (handle === null) handle = timers.setInterval({ callback: tick, ms: periodMs });
   };
   const halt = () => {
-    if (handle !== null) timers.clearInterval(handle);
+    if (handle !== null) timers.clearInterval({ handle });
     handle = null;
   };
   const onVisibility = () => {

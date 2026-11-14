@@ -22,7 +22,7 @@ export function useSitesPolling(
   {
     getBridge = runnerInventoryBridge,
     startInterval = startVisibleInterval,
-  }: { getBridge?: BridgeLookup<'listSites'>; startInterval?: (tick: () => void, periodMs: number) => () => void } = {},
+  }: { getBridge?: BridgeLookup<'listSites'>; startInterval?: typeof startVisibleInterval } = {},
 ): {
   projects: readonly SiteRecord[];
   setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
@@ -66,7 +66,7 @@ export function useSitesPolling(
     };
 
     void load();
-    const stop = startInterval(() => void load(), 4000);
+    const stop = startInterval({ tick: () => void load(), periodMs: 4000 });
     return () => {
       cancelled = true;
       stop();
