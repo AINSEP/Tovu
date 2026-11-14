@@ -13,7 +13,7 @@ const TIME = 1_790_000_000_000;
 function harness(kernel: ChatKernel) {
   const ledger = createChatRunLedger({ store: kernel });
   const store = ledger.durable!;
-  const history = createChatStoreFactory(kernel)({ kind: "user", workspaceId: "ws", userId: "admin" });
+  const history = createChatStoreFactory({ store: kernel })({ kind: "user", workspaceId: "ws", userId: "admin" });
   async function accept(messageId = "answer", runId = "old") {
     if (!await history.get({ id: "chat" })) await history.create({ id: "chat" });
     return (await store.accept({ principalId: "admin", workspaceId: "ws", conversationId: "chat", messageId, runId, now: TIME,

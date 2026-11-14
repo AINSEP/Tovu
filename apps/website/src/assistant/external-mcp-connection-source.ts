@@ -99,7 +99,7 @@ export function createStoredExternalMcpConnectionSource(
         return toResolvedFederatedConnections(configs, await pluginReadOnlyNames({ deps, configs, resolvePluginReads }));
       } catch (error) {
         console.warn(
-          `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${errorDetail(error)}`,
+          `${deps.log} mcp-federation: the stored external-MCP roster could not be read, continuing without it — ${errorDetail({ error: error })}`,
         );
         configFailures = [];
         return [];
@@ -176,14 +176,14 @@ async function pluginReadOnlyNames({ deps, configs, resolvePluginReads }: {
       }));
     } catch (error) {
       // Classification fails closed without dropping unrelated, otherwise usable connections.
-      console.warn(`${deps.log} mcp-federation: plugin read declarations for '${config.serverId}' unavailable — ${errorDetail(error)}`);
+      console.warn(`${deps.log} mcp-federation: plugin read declarations for '${config.serverId}' unavailable — ${errorDetail({ error: error })}`);
     }
   }
   return readOnlyNames;
 }
 
 /** A thrown value's message for a diagnostic line. */
-function errorDetail(error: unknown): string {
+function errorDetail({ error }: { error: unknown }, _optional = {}): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -231,7 +231,7 @@ export function buildExternalMcpFederationDeps(inputs: {
     workspaceId: inputs.workspaceId,
     assertConnectionUsable,
     ...(oauth
-      ? { onAuthFailed: (connectionId: string, error: McpAuthFailedError) => oauth.reportAuthFailure(connectionId, error) }
+      ? { onAuthFailed: ({ connectionId, error }: { connectionId: string; error: McpAuthFailedError }) => oauth.reportAuthFailure(connectionId, error) }
       : {}),
     ...(surfaceExchanges
       ? {

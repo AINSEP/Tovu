@@ -47,7 +47,7 @@ export { SURFACE_TYPED_ANSWER_REFUSAL as MCP_UI_TYPED_ANSWER_REFUSAL } from '@ji
  * @complexity O(1) — a `Set` lookup.
  * @overallScore 100
  */
-export function isMcpUiToolCallAllowed(toolName: string): boolean {
+export function isMcpUiToolCallAllowed({ toolName }: { toolName: string }, _optional = {}): boolean {
   return MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName);
 }
 
@@ -67,7 +67,7 @@ export function isMcpUiToolCallAllowed(toolName: string): boolean {
  *
  * @complexity O(1).
  */
-export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: boolean, { typedAnswer = false }: { typedAnswer?: boolean } = {}): boolean {
+export function isMcpUiToolCallPermitted({ toolName, answersAnExchange }: { toolName: string; answersAnExchange: boolean }, { typedAnswer = false }: { typedAnswer?: boolean } = {}): boolean {
   // Only choice cards accept composer text. A typed marker cannot authorize a secret submission,
   // even when the caller also supplies a valid exchange id.
   // Form secrets must reach a parked handler, never a fresh tool execution or its input audit.

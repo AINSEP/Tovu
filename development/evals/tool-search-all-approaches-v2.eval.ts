@@ -139,7 +139,7 @@ function run(): void {
     // (`sourceForToolId(d.id)`), and every retired Tier-1 read id now lives under the `content_read.*`
     // prefix rather than its old domain — resolving `want` from the raw retired id would compare
     // against a domain bucket that no longer exists.
-    const want = sourceForToolId(currentToolIdFor(c.expect));
+    const want = sourceForToolId(currentToolIdFor({ toolId: c.expect }));
     if (searchToolCatalog({ db: domDb, query: c.query }, { limit: 5 })[0]?.id === want) domTop1++;
   }
   console.log(`\n  Hierarchical domain routing (different unit — DOMAIN top-1, over ${byDomain.size} domains)`);

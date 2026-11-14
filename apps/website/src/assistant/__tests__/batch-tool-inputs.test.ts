@@ -214,7 +214,7 @@ test("the real composition: every default batchable tool publishes items with it
   const tools = resolveBatchableTools({ registrations: raw });
   assert.ok(tools.length > 150, `expected default-on batching, got ${tools.length} tools`);
   for (const { toolId, maxItems = DEFAULT_MAX_BATCH_ITEMS } of tools) {
-    const schema = byId.get(currentToolIdFor(toolId))?.descriptor.inputSchema as { properties?: Record<string, { type?: string; maxItems?: number }> } | undefined;
+    const schema = byId.get(currentToolIdFor({ toolId: toolId }))?.descriptor.inputSchema as { properties?: Record<string, { type?: string; maxItems?: number }> } | undefined;
     assert.ok(schema, `expected '${toolId}' in the production catalog`);
     assert.equal(schema.properties?.items?.type, "array", `${toolId} must accept items`);
     if (byId.has(toolId)) assert.equal(schema.properties?.items?.maxItems, maxItems, `${toolId}'s cap`);

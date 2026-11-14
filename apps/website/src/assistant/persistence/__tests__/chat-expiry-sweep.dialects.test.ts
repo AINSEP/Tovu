@@ -22,7 +22,7 @@ const ADMIN: ChatOwnerScope = { scopeId: "ws", ownerKind: "user", ownerId: "alic
 
 function stores(kernel: ChatKernel) {
   const now = () => T0;
-  return { kernel, guest: createChatHistoryStore(kernel, GUEST, now), admin: createChatHistoryStore(kernel, ADMIN, now) };
+  return { kernel, guest: createChatHistoryStore({ kernel: kernel, scope: GUEST }, { now: now }), admin: createChatHistoryStore({ kernel: kernel, scope: ADMIN }, { now: now }) };
 }
 
 async function messageCount(kernel: ChatKernel, conversationId: string): Promise<number> {
@@ -69,11 +69,11 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
       if (result !== null && typeof result === "object" && "numDeletedRows" in result) batches.push(Number(result.numDeletedRows));
       return result;
     } };
-    assert.equal(await sweepExpiredChats(counted, T0), 501);
+    assert.equal(await sweepExpiredChats({ store: counted }, { now: T0 }), 501);
     assert.deepEqual(batches, [500, 1], "each real package DELETE must remain bounded");
     assert.deepEqual((await admin.list()).map(c => c.id), ["retained"]);
     assert.deepEqual(await kernel.run(db => db.selectFrom("ai_chats").select("id").execute()), [{ id: "retained" }]);
-    assert.equal(await sweepExpiredChats(kernel, T0), 0);
+    assert.equal(await sweepExpiredChats({ store: kernel }, { now: T0 }), 0);
   });
 
   test("deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats", async () => {
@@ -93,7 +93,7 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
     await guest.create({ id: "fresh", expiresAt: T0 + 60_000 });
     await admin.create({ id: "forever" });
 
-    assert.equal(await sweepExpiredChats(kernel, T0), 2);
+    assert.equal(await sweepExpiredChats({ store: kernel }, { now: T0 }), 2);
 
     assert.equal(await guest.get({ id: "expired" }), null);
     assert.equal(await messageCount(kernel, "expired"), 0);
@@ -111,15 +111,15 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
   test("a chat expiring exactly now is swept; a second pass deletes nothing", async () => {
     const { kernel, guest } = make();
     await guest.create({ id: "edge", expiresAt: T0 });
-    assert.equal(await sweepExpiredChats(kernel, T0), 1);
-    assert.equal(await sweepExpiredChats(kernel, T0), 0);
+    assert.equal(await sweepExpiredChats({ store: kernel }, { now: T0 }), 1);
+    assert.equal(await sweepExpiredChats({ store: kernel }, { now: T0 }), 0);
   });
 
   test("startChatExpirySweep sweeps at start and stops cleanly", async () => {
     const { kernel, guest } = make();
     await guest.create({ id: "expired", expiresAt: T0 - 1 });
     const errors: unknown[] = [];
-    const stop = startChatExpirySweep(kernel, { now: () => T0, intervalMs: 60_000, onError: (e) => errors.push(e) });
+    const stop = startChatExpirySweep({ store: kernel }, { now: () => T0, intervalMs: 60_000, onError: (e) => errors.push(e) });
     try {
       for (let i = 0; i < 50 && (await guest.get({ id: "expired" })) !== null; i++) await new Promise((r) => setImmediate(r));
       assert.equal(await guest.get({ id: "expired" }), null);
@@ -134,7 +134,7 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
     await guest.create({ id: "expired", expiresAt: T0 - 1 });
     let release!: () => void;
     const held = heldUntil(kernel, new Promise<void>((r) => (release = r)));
-    const stop = startChatExpirySweep(held, { now: () => T0, intervalMs: 60_000 });
+    const stop = startChatExpirySweep({ store: held }, { now: () => T0, intervalMs: 60_000 });
     let stopped = false;
     const stopping = stop().then(() => (stopped = true));
     for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
@@ -172,7 +172,7 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
         }
       },
     };
-    const stop = startChatExpirySweep(counting, { now: () => T0, intervalMs: 5 });
+    const stop = startChatExpirySweep({ store: counting }, { now: () => T0, intervalMs: 5 });
     try {
       assert.equal(passes, 1, "the boot pass starts immediately");
       interval.tick();
@@ -214,7 +214,7 @@ describeEachChatDialect("chat expiry sweep", stores, (make) => {
         finally { finishRecovery(); }
       },
     };
-    const stop = startChatExpirySweep(failingOnce, {
+    const stop = startChatExpirySweep({ store: failingOnce }, {
       now: () => T0, intervalMs: 5,
       onError: (error) => { errors.push(error); reportError(); },
     });

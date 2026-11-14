@@ -62,7 +62,7 @@ function surface() {
 }
 
 async function rankedIds(query: string, limit = 5): Promise<SearchHit[]> {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, { name: "search_tools", input: { query, limit } });
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "search_tools", input: { query, limit } } });
   const payload = result as { content: string; isError?: boolean };
   assert.ok(!payload.isError, `search_tools returned an error for "${query}": ${payload.content}`);
   return (JSON.parse(payload.content) as { hits: SearchHit[] }).hits;
@@ -82,7 +82,7 @@ test("the surface under test is the real, fully-installed catalog — not a skel
 });
 
 test("search_agent_plugin_local IS registered in the real catalog and describable via describe_tool", async () => {
-  const result = await surface().executeMetaTool(PRINCIPAL, RUN, { name: "describe_tool", input: { id: "search_agent_plugin_local" } });
+  const result = await surface().executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "describe_tool", input: { id: "search_agent_plugin_local" } } });
   const payload = result as { content: string; isError?: boolean };
   assert.ok(!payload.isError, `describe_tool errored for search_agent_plugin_local: ${payload.content}`);
 
@@ -106,7 +106,7 @@ test("search_agent_plugin_local lists installed plugins when query is omitted, f
   const tool = s.registry.list({}).find((entry) => entry.id === "search_agent_plugin_local");
   assert.ok(tool);
   for (const input of [{}, { items: [{}] }]) {
-    const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: tool.id, input } });
+    const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "execute_delegated_tool", input: { toolId: tool.id, input } } });
     const payload = result as { content: string; isError?: boolean };
     assert.notEqual(payload.isError, true, payload.content);
     if ("items" in input) {

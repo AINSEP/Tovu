@@ -131,7 +131,7 @@ test("buildExternalMcpFederationDeps wires onAuthFailed to oauth.reportAuthFailu
 
   assert.equal(typeof deps.onAuthFailed, "function");
   const authError = new Error("401");
-  await assert.rejects(() => deps.onAuthFailed?.("server-1", authError as never) ?? Promise.resolve(), authError);
+  await assert.rejects(() => deps.onAuthFailed?.({ connectionId: "server-1", error: authError as never }) ?? Promise.resolve(), authError);
   assert.deepEqual(calls, [{ connectionId: "server-1", error: authError }]);
 });
 

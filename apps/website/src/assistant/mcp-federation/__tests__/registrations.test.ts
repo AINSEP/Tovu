@@ -254,7 +254,7 @@ test("onAuthFailed runs on a live McpAuthFailedError, naming the connection, and
   const translated = new Error("supabase is disconnected: its authorization expired or was revoked. Do not retry this tool.");
   const deps = {
     ...base.deps,
-    onAuthFailed: async (connectionId: string, error: McpAuthFailedError): Promise<never> => {
+    onAuthFailed: async ({ connectionId, error }: { connectionId: string; error: McpAuthFailedError }): Promise<never> => {
       seen.push({ connectionId, error });
       throw translated;
     },
@@ -278,7 +278,7 @@ test("onAuthFailed does NOT run for an ordinary transport failure — only an au
   const base = fakeDeps();
   const deps = {
     ...base.deps,
-    onAuthFailed: async (connectionId: string): Promise<never> => {
+    onAuthFailed: async ({ connectionId }: { connectionId: string }): Promise<never> => {
       seen.push(connectionId);
       throw new Error("must not be reached");
     },
@@ -652,7 +652,7 @@ function fakeRegistry(seed: string[] = []): ToolRegistry & { registered: ToolReg
 
 function collectingLogger() {
   const messages: string[] = [];
-  return { messages, logger: { info: (m: string) => messages.push(`info:${m}`), warn: (m: string) => messages.push(`warn:${m}`) } };
+  return { messages, logger: { info: ({ message }: { message: string }) => messages.push(`info:${message}`), warn: ({ message }: { message: string }) => messages.push(`warn:${message}`) } };
 }
 
 test("with no configuration, the daemon boots exactly as it did before federation existed", async () => {

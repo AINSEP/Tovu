@@ -130,7 +130,7 @@ test("toJiniFederationDeps hands a live auth failure to onAuthFailed, whose erro
   const error = new McpAuthFailedError({ message: "401 from remote" });
   const seen: Array<[string, McpAuthFailedError]> = [];
   const jini = toJiniFederationDeps({ deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "matched" }),
-    onAuthFailed: async (connectionId, failure) => { seen.push([connectionId, failure]); throw new Error("reauthorize conn"); } } });
+    onAuthFailed: async ({ connectionId, error }) => { seen.push([connectionId, error]); throw new Error("reauthorize conn"); } } });
   await assert.rejects(jini.onAuthFailed!({ connectionId: "conn", error }), { message: "reauthorize conn" });
   assert.deepEqual(seen, [["conn", error]]);
 });

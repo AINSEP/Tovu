@@ -46,5 +46,5 @@ test('existing extension approval families keep their classes (pinned before G7)
 });
 
 test('the MCP-UI callback never starts a fresh execution of a plugin tool (pinned before G7)', () => {
-  assert.equal(isMcpUiToolCallPermitted('p_acme_office__append_rows', false), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: 'p_acme_office__append_rows', answersAnExchange: false }), false);
 });

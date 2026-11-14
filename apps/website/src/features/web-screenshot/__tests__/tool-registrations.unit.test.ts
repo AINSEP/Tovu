@@ -119,10 +119,10 @@ test("BYOK path: execute_delegated_tool hands the provider image content blocks,
     seoDeps: { dispatch: async () => { throw new Error("SEO is outside this fixture"); } },
   } as unknown as ByokToolSurfaceDeps;
   const surface = createByokToolSurface(routeDeps, { installExtensions: false, contributions });
-  const result = await surface.executeMetaTool({ id: PRINCIPAL_ID }, { id: "run-byok-shot" }, {
+  const result = await surface.executeMetaTool({ principal: { id: PRINCIPAL_ID }, run: { id: "run-byok-shot" }, call: {
     name: "execute_delegated_tool",
     input: { toolId: WEB_SCREENSHOT_TOOL_ID, input: { url: "https://example.com/", viewport: "desktop" } },
-  });
+  } });
   assert.equal(result.isError, undefined, JSON.stringify(result).slice(0, 300));
   assert.ok(Array.isArray(result.content), `expected content blocks; got ${typeof result.content}`);
   const blocks = result.content as Block[];

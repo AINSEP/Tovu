@@ -136,7 +136,7 @@ export function validateDemoA2uiMessage({ message }: { message: unknown }, _opti
  * `demo-choices-tool.ts#describeSelections`'s sibling `answer.status !== "received"` branch:
  * ADR-055 Decision 6 treats "no answer" as a result the model can read, not an exception.
  */
-function noAnswerResult(reason: "expired" | "abandoned"): Record<string, unknown> {
+function noAnswerResult({ reason }: { reason: "expired" | "abandoned" }, _optional = {}): Record<string, unknown> {
   return {
     completed: false,
     reason,
@@ -150,9 +150,9 @@ function noAnswerResult(reason: "expired" | "abandoned"): Record<string, unknown
 /**
  * Builds this tool's registration unconditionally; the owner policy is in `demo-choices-tool.ts`.
  *
- * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
+ * @param required._routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
- * @param surfaces - Supplies the exchange store. Must be the same instance
+ * @param required.surfaces - Supplies the exchange store. Must be the same instance
  * `registerA2uiActionsRoute` was mounted with, or a clicked action reaches nothing.
  * @returns A single registration.
  * @complexity O(1) at build time; the handler itself is O(1) per turn plus the two round trips it
@@ -160,8 +160,8 @@ function noAnswerResult(reason: "expired" | "abandoned"): Record<string, unknown
  * @overallScore 100
  */
 export function buildDemoA2uiRegistrations(
-  _routeDeps: unknown,
-  surfaces: AssistantSurfaceDeps,
+  { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
+  _optional = {},
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
     [DEMO_A2UI_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
@@ -223,7 +223,7 @@ export function buildDemoA2uiRegistrations(
         });
 
         const first = await exchange.receive({});
-        if (first.status !== "received") return noAnswerResult(first.status);
+        if (first.status !== "received") return noAnswerResult({ reason: first.status });
         const firstAction = readActionPayload(first.params);
         const firstStep: RoundTripStep = firstAction
           ? { name: firstAction.name, context: firstAction.context }
@@ -258,7 +258,7 @@ export function buildDemoA2uiRegistrations(
         });
 
         const second = await exchange.receive({});
-        if (second.status !== "received") return noAnswerResult(second.status);
+        if (second.status !== "received") return noAnswerResult({ reason: second.status });
         const secondAction = readActionPayload(second.params);
         const secondStep: RoundTripStep = secondAction
           ? { name: secondAction.name, context: secondAction.context }

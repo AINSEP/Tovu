@@ -88,7 +88,7 @@ export function createLiveModelDiscovery(
   }, { ttlMs });
   return {
     async getLiveClaudeModels(key) {
-      const stored = await resolveExecutionCredential({ repo, sealer }, key);
+      const stored = await resolveExecutionCredential({ deps: { repo, sealer }, input: key });
       if (!stored || stored.protocol !== "anthropic" || !stored.apiKey.trim()) return null;
       const baseUrl = stored.baseUrl ?? VENDOR_API_BASE_URLS.anthropic;
       const credentialFingerprint = createHash("sha256").update(stored.apiKey).digest("hex");

@@ -18,8 +18,8 @@ const contributions = {
 };
 
 test("both protected settings card callbacks are accepted by the human reply route", () => {
-  assert.equal(isMcpUiToolCallPermitted("settings_set_value", true), true);
-  assert.equal(isMcpUiToolCallPermitted("settings_clear_value", true), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "settings_set_value", answersAnExchange: true }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "settings_clear_value", answersAnExchange: true }), true);
 });
 
 test("settings writes and reads rank in the real catalog for owner questions", async () => {

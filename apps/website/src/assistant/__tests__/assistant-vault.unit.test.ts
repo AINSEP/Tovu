@@ -79,7 +79,7 @@ test("createAssistantVault hands crypto failures to onSealFailure", async () => 
   const keyring = new ThrowingKeyring();
   const seen: unknown[] = [];
   const vault = createAssistantVault({ repo: new InMemoryVaultRepo({}), context: SITE, keyring, sealer: new AesGcmSecretSealer(keyring), clock },
-    { onSealFailure: error => { seen.push(error); throw new Error("site key unconfigured"); } });
+    { onSealFailure: ({ error }) => { seen.push(error); throw new Error("site key unconfigured"); } });
   await assert.rejects(vault.put({ ...SITE, expectedRevision: null, provider: "google", label: "", meta: {}, payload: { apiKey: API_KEY } }),
     { message: "site key unconfigured" });
   assert.deepEqual(seen, ["keyring offline"]);

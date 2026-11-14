@@ -490,7 +490,7 @@ function readAllowedMcpUiCallback({ body, res }: {
   // open card, never be executed.
   const typedAnswer = isTypedSurfaceAnswer(params);
   const answersAnExchange = (typeof exchangeId === "string" && exchangeId.length > 0) || typedAnswer;
-  if (!isMcpUiToolCallPermitted(toolName, answersAnExchange, { typedAnswer })) {
+  if (!isMcpUiToolCallPermitted({ toolName: toolName, answersAnExchange: answersAnExchange }, { typedAnswer })) {
     res.status(403).json({ error: typedAnswer ? MCP_UI_TYPED_ANSWER_REFUSAL : `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
     return;
   }

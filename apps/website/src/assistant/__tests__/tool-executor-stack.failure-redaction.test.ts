@@ -291,7 +291,7 @@ test("READ-ONLY: the recovery remedy-refusal message on a completed result is by
   const refusal = refuseNonReadOnlyDispatch({ principal: readOnlyPrincipal, toolId: "ro_probe_write", registry });
   assert.ok(refusal, "PREMISE: the remedy must actually be refused for a read-only principal");
   assert.equal(result.status, "completed", "the original read still completed — only the remedy is refused");
-  assert.equal(result.error, readOnlyRemedyRefusalMessage(refusal), "the refusal message must be the exact, untouched text — never redacted");
+  assert.equal(result.error, readOnlyRemedyRefusalMessage({ refusal: refusal }), "the refusal message must be the exact, untouched text — never redacted");
   assert.equal(result.error,
     'this call failed and its automatic recovery was NOT attempted: tool "ro_probe_write" is not registered as read-only — this execution was started through a read-only gateway and may run only tools whose registration declares readOnly; call it through execute_delegated_tool instead. The failure reported alongside this message is unchanged — nothing was written. Retry through execute_delegated_tool if the write is intended.',
   );
@@ -339,7 +339,7 @@ test("BYOK: execute_delegated_tool's error carries the SAME ID as the default [t
   const s = createByokToolSurface(fakeByokRouteDeps());
   registerThrowingTool(s.registry as unknown as ToolRegistry, "throws_secret_byok");
 
-  const result = await s.executeMetaTool(PRINCIPAL, RUN, { name: "execute_delegated_tool", input: { toolId: "throws_secret_byok", input: {} } });
+  const result = await s.executeMetaTool({ principal: PRINCIPAL, run: RUN, call: { name: "execute_delegated_tool", input: { toolId: "throws_secret_byok", input: {} } } });
 
   assert.equal(result.isError, true);
   assert.ok(typeof result.content === "string", "execute_delegated_tool's error reply is plain text");

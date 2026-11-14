@@ -63,7 +63,7 @@ function buildCrcTable(): Uint32Array {
 const CRC_TABLE = buildCrcTable();
 
 /** PNG's chunk CRC: computed over the chunk's `type` + `data` bytes, per the spec — never over `length`. */
-function crc32(bytes: Buffer): number {
+function crc32({ bytes }: { bytes: Buffer }, _optional = {}): number {
   let crc = 0xffffffff;
   for (let i = 0; i < bytes.length; i++) {
     crc = (CRC_TABLE[(crc ^ bytes[i]!) & 0xff]! ^ (crc >>> 8)) >>> 0;
@@ -72,25 +72,25 @@ function crc32(bytes: Buffer): number {
 }
 
 /** One length-prefixed, CRC-suffixed PNG chunk: `length(4) + type(4) + data(n) + crc(4)`. */
-function chunk(type: string, data: Buffer): Buffer {
+function chunk({ type, data }: { type: string; data: Buffer }, _optional = {}): Buffer {
   const typeBytes = Buffer.from(type, "ascii");
   const length = Buffer.alloc(4);
   length.writeUInt32BE(data.length, 0);
   const crcInput = Buffer.concat([typeBytes, data]);
   const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(crcInput), 0);
+  crc.writeUInt32BE(crc32({ bytes: crcInput }), 0);
   return Buffer.concat([length, typeBytes, data, crc]);
 }
 
 /** @throws {Error} `"renderSolidColorPng: {label} must be a positive integer, got {value}"` for a non-integer or non-positive dimension. */
-function assertPositiveInteger(value: number, label: string): void {
+function assertPositiveInteger({ value, label }: { value: number; label: string }, _optional = {}): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`renderSolidColorPng: ${label} must be a positive integer, got ${value}`);
   }
 }
 
 /** @throws {Error} `"renderSolidColorPng: color.{channel} must be an integer between 0 and 255, got {value}"` for an out-of-range channel. */
-function assertChannel(value: number, channel: string): void {
+function assertChannel({ value, channel }: { value: number; channel: string }, _optional = {}): void {
   if (!Number.isInteger(value) || value < 0 || value > 255) {
     throw new Error(`renderSolidColorPng: color.${channel} must be an integer between 0 and 255, got ${value}`);
   }
@@ -108,11 +108,11 @@ export function renderSolidColorPng(options: RenderSolidColorPngOptions = {}): B
   const width = options.width ?? DEFAULT_WIDTH;
   const height = options.height ?? DEFAULT_HEIGHT;
   const color = options.color ?? DEFAULT_COLOR;
-  assertPositiveInteger(width, "width");
-  assertPositiveInteger(height, "height");
-  assertChannel(color.r, "r");
-  assertChannel(color.g, "g");
-  assertChannel(color.b, "b");
+  assertPositiveInteger({ value: width, label: "width" });
+  assertPositiveInteger({ value: height, label: "height" });
+  assertChannel({ value: color.r, channel: "r" });
+  assertChannel({ value: color.g, channel: "g" });
+  assertChannel({ value: color.b, channel: "b" });
 
   // One filter byte (0 = "None") plus 3 bytes/pixel per scanline — PNG's raw, pre-deflate layout for
   // 8-bit truecolor (colorType 2, no alpha).
@@ -140,5 +140,5 @@ export function renderSolidColorPng(options: RenderSolidColorPngOptions = {}): B
 
   const idat = deflateSync(raw);
 
-  return Buffer.concat([PNG_SIGNATURE, chunk("IHDR", ihdr), chunk("IDAT", idat), chunk("IEND", Buffer.alloc(0))]);
+  return Buffer.concat([PNG_SIGNATURE, chunk({ type: "IHDR", data: ihdr }), chunk({ type: "IDAT", data: idat }), chunk({ type: "IEND", data: Buffer.alloc(0) })]);
 }

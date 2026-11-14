@@ -154,8 +154,8 @@ export async function resolveProbeCredential(
         // One sealing capability app-wide — `siteAssistantSecretSealer` is the same sealer
         // `assistant-byok.ts` and `live-model-cache.ts` open this row with. See
         // `routes/types.ts`'s `adminExecutionCredentialRepo` doc.
-        { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-        { workspaceId: deps.workspaceId, principalId: String(input.principalId ?? "") }
+        { deps: { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+        input: { workspaceId: deps.workspaceId, principalId: String(input.principalId ?? "") } }
       ),
       input.requestedBaseUrl,
       "admin execution credential"

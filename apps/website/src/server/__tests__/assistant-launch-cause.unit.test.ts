@@ -8,7 +8,7 @@ import { createAssistantRunFinalizer, type RunDaemonClient } from '../runtime/co
 test('a recovery launch rejection survives storage reload and the daemon replay', async () => {
   const db = openChatDb(':memory:');
   const ledger = createChatRunLedger({ store: db });
-  const history = createChatStoreFactory(db)({ kind: 'user', workspaceId: 'ws', userId: 'admin' });
+  const history = createChatStoreFactory({ store: db })({ kind: 'user', workspaceId: 'ws', userId: 'admin' });
   const now = 1_790_000_000_000;
   await history.create({ id: 'chat' });
   const accepted = (await ledger.durable!.accept({ principalId: 'admin', workspaceId: 'ws',

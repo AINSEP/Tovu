@@ -357,7 +357,7 @@ test("theme_write_file: missing theme error tells the agent to create it first w
     principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, toolId: "theme_write_file",
     input: { themeId: "apple", path: "styles.css", content: "body{color:red}" },
   });
-  const result = mapToolExecutionResult(outcome, "theme_write_file");
+  const result = mapToolExecutionResult({ result: outcome, toolId: "theme_write_file" });
 
   assert.equal(outcome.status, "failed");
   assert.equal(outcome.errorKind, "validation");

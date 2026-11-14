@@ -147,7 +147,7 @@ export function buildToolCatalogQuery(
       refresh();
       const entry = snapshot.query.describe({ id });
       if (entry) return entry;
-      const currentId = currentToolIdFor(id);
+      const currentId = currentToolIdFor({ toolId: id });
       // A retired id is guidance only: never publish a schema/callable for an unregistered alias.
       if (currentId !== id && snapshot.query.describe({ id: currentId })) {
         return { id, source: sourceForToolId(id), description: `${id} was renamed to ${currentId}. Describe ${currentId} for its inputs, then call that exact id.`, targetToolIds: [currentId] };

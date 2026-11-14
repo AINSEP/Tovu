@@ -33,7 +33,7 @@ function scoreManifest(manifest: InteractiveComponentManifest, terms: readonly s
   return terms.reduce((score, term) => (haystack.includes(term) ? score + 1 : score), 0);
 }
 
-function toSearchHit(manifest: InteractiveComponentManifest, score: number): ComponentCatalogSearchHit {
+function toSearchHit({ manifest, score }: { manifest: InteractiveComponentManifest; score: number }, _optional = {}): ComponentCatalogSearchHit {
   return {
     id: manifest.id,
     provider: manifest.provider,
@@ -102,7 +102,7 @@ export function buildComponentCatalogQuery(
         .filter(({ score }) => score > 0)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
-        .map(({ manifest, score }) => toSearchHit(manifest, score));
+        .map(({ manifest, score }) => toSearchHit({ manifest: manifest, score: score }));
     },
     describe({ id }) {
       const manifest = getManifests().find((candidate) => candidate.id === id);

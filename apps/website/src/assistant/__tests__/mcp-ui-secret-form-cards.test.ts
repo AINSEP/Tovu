@@ -13,12 +13,12 @@ test("every secret card requires an exchange, including cards added to the field
     .map(([toolId]) => toolId);
   assert.deepEqual([...SECRET_FORM_TOOL_IDS].sort(), expected.sort());
   for (const toolId of expected) {
-    assert.equal(isMcpUiToolCallAllowed(toolId), true, toolId);
-    assert.equal(isMcpUiToolCallPermitted(toolId, false), false, toolId);
-    assert.equal(isMcpUiToolCallPermitted(toolId, true), true, toolId);
+    assert.equal(isMcpUiToolCallAllowed({ toolName: toolId }), true, toolId);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: toolId, answersAnExchange: false }), false, toolId);
+    assert.equal(isMcpUiToolCallPermitted({ toolName: toolId, answersAnExchange: true }), true, toolId);
   }
-  assert.equal(isMcpUiToolCallPermitted("content_post_search", false), true);
-  assert.equal(isMcpUiToolCallPermitted("unknown_secret_card", true), false);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "content_post_search", answersAnExchange: false }), true);
+  assert.equal(isMcpUiToolCallPermitted({ toolName: "unknown_secret_card", answersAnExchange: true }), false);
 });
 
 const SRC_ROOT = path.resolve(import.meta.dirname, "../..");
@@ -104,7 +104,7 @@ test("all production secret forms use the card definitions that drive the exchan
     for (const toolId of scan.used) {
       used.add(toolId);
       assert.equal(SECRET_FORM_TOOL_IDS.has(toolId), true, `${file}: unregistered secret card ${toolId}`);
-      assert.equal(isMcpUiToolCallPermitted(toolId, false), false, toolId);
+      assert.equal(isMcpUiToolCallPermitted({ toolName: toolId, answersAnExchange: false }), false, toolId);
     }
   }
   assert.deepEqual(violations, []);

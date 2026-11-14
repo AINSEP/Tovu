@@ -111,8 +111,8 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   const presetRegistry = params.presetRegistry ?? createFederatedMcpPresetRegistry({});
   const attach = params.attach ?? attachFederatedMcpTools;
   const logger: FederationLogger = {
-    info: (message) => console.log(`${params.log} ${message}`),
-    warn: (message) => console.warn(`${params.log} ${message}`),
+    info: ({ message }) => console.log(`${params.log} ${message}`),
+    warn: ({ message }) => console.warn(`${params.log} ${message}`),
   };
 
   let mergedReports: AttachFederatedToolsResultReports = [];
@@ -165,7 +165,7 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
         && emptyGrantIds.has(entry.connectionId))
         .map(entry => entry.connectionId) });
     } catch (error) {
-      logger.warn(`mcp-federation: boot pass failed, continuing without federated tools — ${messageOf(error)}`);
+      logger.warn({ message: `mcp-federation: boot pass failed, continuing without federated tools — ${messageOf({ error: error })}` });
     } finally {
       startedFlag = true;
     }
@@ -221,6 +221,6 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
 /** Local copy of `bootstrap.ts`'s private helper of the same name — not shared because that file
  *  exports nothing for this one purpose, and this is a one-line reduction, not a policy this module
  *  needs to stay byte-identical with. */
-function messageOf(error: unknown): string {
+function messageOf({ error }: { error: unknown }, _optional = {}): string {
   return error instanceof Error ? error.message : String(error);
 }

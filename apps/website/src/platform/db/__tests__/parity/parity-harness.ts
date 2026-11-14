@@ -30,8 +30,9 @@ import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/
  * @file Query-parity harness (DBMERGE-PLAN §2b/§2d). The pre-vault stores and repos are gone from
  * the tree, so ONE scripted transcript runs against either code generation: `loadParityModules`
  * imports the same stores and repos from a source root (the working tree, or a `git archive` of
- * the last pre-vault commit for the one-time golden capture). Store and repo names and signatures
- * did not change across 0012, which is what makes a single transcript possible. Repo paths moved
+ * the last pre-vault commit for the one-time golden capture). Store and repo names stayed stable
+ * across 0012. The archived execution-credential resolver is adapted to the current argument shape
+ * below so the same transcript still covers both versions. Repo paths moved
  * to their domains in 2a0c60acb; the archived pre-vault source retains platform/db/repos. Sealed bytes
  * legitimately change (0012 copies, the boot re-seal rewrites), so the transcript records the
  * consumer projection: views, decrypted plaintext, hints, order, and error classes.
@@ -49,10 +50,16 @@ export const GOLDEN_PATH = join(import.meta.dirname, "__fixtures__/vault-parity.
 export async function loadParityModules(root: string): Promise<ParityModules> {
   const load = (path: string) => import(pathToFileURL(join(root, path)).href);
   const loadRepo = (relative: string) => load(root === CURRENT_SRC ? relative : `platform/db/repos/${basename(relative)}`);
+  const site = await load("assistant/site-credential-store.ts");
+  const exec = await load("assistant/execution-credential-store.ts");
   return {
     current: root === CURRENT_SRC,
-    site: await load("assistant/site-credential-store.ts"),
-    exec: await load("assistant/execution-credential-store.ts"),
+    site,
+    exec: root === CURRENT_SRC ? exec : {
+      ...exec,
+      resolveExecutionCredential: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (error: unknown) => void } = {}) =>
+        exec.resolveExecutionCredential(deps, input, onDecryptFailure),
+    },
     media: await load("features/media/provider-credential-store.ts"),
     custom: await load("features/custom-credentials/store.ts"),
     peers: await load("features/publish-content/peers.ts"),
@@ -311,7 +318,7 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
   for (const [workspaceId, principalId] of [["ws", "p"], ["ws", "p2"], ["ws2", "q"], ["ws2", "p"]]) {
     const at = (name: string) => `${name}@${workspaceId}/${principalId}`;
     t[at("exec.get")] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId, principalId }));
-    t[at("exec.resolve")] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId, principalId }));
+    t[at("exec.resolve")] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId, principalId } }));
   }
   return t;
 }
@@ -438,9 +445,9 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["assistant.4.site-delete"] = await outcome(() => mods.site.deleteSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
     t["assistant.5.site-get"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));
     t["assistant.6.exec-set"] = await outcome(() => mods.exec.setExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2", model: "next-model" }));
-    t["assistant.7.exec-resolve"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2" }));
+    t["assistant.7.exec-resolve"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: ws, principalId: "p2" } }));
     t["assistant.8.exec-delete"] = await outcome(() => mods.exec.deleteExecutionCredential(d.exec, { workspaceId: ws, principalId: "p2" }));
-    t["assistant.9.exec-other-untouched"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: ws, principalId: "p" }));
+    t["assistant.9.exec-other-untouched"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: ws, principalId: "p" } }));
   }
   return t;
 }
@@ -480,8 +487,8 @@ export async function cascadeTranscript(mods: ParityModules, ctx: ParityContext)
   t["purge.1.user-p2"] = await outcome(() => purge.purgeUser({ workspaceId: "ws", principalId: "p2",
     buildEvent: (input: unknown) => ({ id: "purge-event", name: "identity.user.deleted", occurredAt: stamp, aggregateId: "p2",
       workspaceId: "ws", actorId: "parity", payload: { principalId: "p2", removed: mods.current ? (input as { removed: unknown }).removed : input } }) }));
-  t["purge.2.p2-key"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p2" }));
-  t["purge.3.p-key-kept"] = await outcome(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
+  t["purge.2.p2-key"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p2" } }));
+  t["purge.3.p-key-kept"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p" } }));
   t["principal.1.delete-p"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM principals WHERE id = 'p'`));
   t["principal.2.p-key"] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
   t["principal.3.mcp"] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));

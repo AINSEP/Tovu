@@ -24,10 +24,10 @@ export interface ExternalMcpToolApprovalRepoPort {
   delete(input: { workspaceId: UUID; serverId: string; toolName: string }): Promise<boolean>;
 }
 
-/** Legacy SQL grant ABI is adapted once at the package boundary. */
+/** The conversation grant key and timestamp are passed together at each boundary. */
 export interface ConversationToolApprovalStore {
   has(key: ConversationToolApprovalKey): Promise<boolean>;
   /** Person/identity grant shared across existing chats; used only for native escalations. */
   hasIdentity?(key: Omit<ConversationToolApprovalKey, "conversationId">): Promise<boolean>;
-  grant(key: ConversationToolApprovalKey, grantedAt: string): Promise<void>;
+  grant(required: { key: ConversationToolApprovalKey; grantedAt: string }, optional?: Record<string, never>): Promise<void>;
 }

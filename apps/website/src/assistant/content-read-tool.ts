@@ -62,7 +62,7 @@ interface ListLookup {
 }
 
 /** The common case: one array whose items carry the id at `idField`. */
-function lookupIn(idProperty: string, itemsKey: string, idField = "id"): ListLookup {
+function lookupIn({ idProperty, itemsKey }: { idProperty: string; itemsKey: string }, { idField = "id" }: { idField?: string } = {}): ListLookup {
   return { idProperty, sources: [{ itemsKey, idPath: [idField] }] };
 }
 
@@ -73,29 +73,29 @@ function lookupIn(idProperty: string, itemsKey: string, idField = "id"): ListLoo
  * `THEME_READ_PERMISSION` = `"theme.set"` — copied here as the literal value those constants hold).
  */
 const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
-  { resource: "backup_restore_point", permission: "backup.read", list: { toolId: "backup_list_restore_points" }, listLookup: lookupIn("restorePointId", "items") },
-  { resource: "collection_content_type", permission: "admin.collections.read", list: { toolId: "collections_content_type_list" }, listLookup: lookupIn("key", "contentTypes", "key") },
-  { resource: "collection_entry", permission: "admin.collections.read", list: { toolId: "collections_entry_list" }, listLookup: lookupIn("id", "items") },
+  { resource: "backup_restore_point", permission: "backup.read", list: { toolId: "backup_list_restore_points" }, listLookup: lookupIn({ idProperty: "restorePointId", itemsKey: "items" }) },
+  { resource: "collection_content_type", permission: "admin.collections.read", list: { toolId: "collections_content_type_list" }, listLookup: lookupIn({ idProperty: "key", itemsKey: "contentTypes" }, { idField: "key" }) },
+  { resource: "collection_entry", permission: "admin.collections.read", list: { toolId: "collections_entry_list" }, listLookup: lookupIn({ idProperty: "id", itemsKey: "items" }) },
   { resource: "comment", permission: "comments.read", get: { toolId: "comments_get_comment", idProperty: "commentId" } },
   { resource: "comment_moderation_queue", permission: "comments.read", list: { toolId: "comments_list_moderation_queue" } },
   { resource: "content_post", permission: "content.read", get: { toolId: "content_post_get", idProperty: "id" }, list: { toolId: "content_post_list" } },
-  { resource: "custom_credential", permission: "custom-credentials.read", list: { toolId: "custom_credential_list" }, listLookup: lookupIn("label", "credentials", "label") },
+  { resource: "custom_credential", permission: "custom-credentials.read", list: { toolId: "custom_credential_list" }, listLookup: lookupIn({ idProperty: "label", itemsKey: "credentials" }, { idField: "label" }) },
   { resource: "database_pending_migration", permission: "database.read", list: { toolId: "database_list_pending_migrations" } },
   { resource: "database_restore_point", permission: "database.read", list: { toolId: "database_list_restore_points" } },
-  { resource: "external_mcp", permission: "admin.integrations.manage", list: { toolId: "external_mcp_list" }, listLookup: lookupIn("id", "servers", "serverId") },
-  { resource: "form_definition", permission: "admin.forms.manage", list: { toolId: "forms_list_definitions" }, listLookup: lookupIn("formId", "definitions") },
-  { resource: "identity_policy", permission: "role.manage", list: { toolId: "identity_policy_list" }, listLookup: lookupIn("policyId", "policies") },
-  { resource: "identity_role", permission: "role.manage", list: { toolId: "identity_role_list" }, listLookup: lookupIn("roleId", "roles") },
+  { resource: "external_mcp", permission: "admin.integrations.manage", list: { toolId: "external_mcp_list" }, listLookup: lookupIn({ idProperty: "id", itemsKey: "servers" }, { idField: "serverId" }) },
+  { resource: "form_definition", permission: "admin.forms.manage", list: { toolId: "forms_list_definitions" }, listLookup: lookupIn({ idProperty: "formId", itemsKey: "definitions" }) },
+  { resource: "identity_policy", permission: "role.manage", list: { toolId: "identity_policy_list" }, listLookup: lookupIn({ idProperty: "policyId", itemsKey: "policies" }) },
+  { resource: "identity_role", permission: "role.manage", list: { toolId: "identity_role_list" }, listLookup: lookupIn({ idProperty: "roleId", itemsKey: "roles" }) },
   {
     resource: "identity_user",
     permission: "user.manage",
     orPermission: "member.manage",
     list: { toolId: "identity_user_list" },
     // identity_user_list caps at 200 and reports `truncated`; a miss past the cap says so.
-    listLookup: lookupIn("principalId", "users", "principalId"),
+    listLookup: lookupIn({ idProperty: "principalId", itemsKey: "users" }, { idField: "principalId" }),
   },
   // MOVE: media_list_assets returns the complete workspace media set, including trashed assets.
-  { resource: "media_asset", permission: "media.read", list: { toolId: "media_list_assets" }, listLookup: lookupIn("mediaId", "media") },
+  { resource: "media_asset", permission: "media.read", list: { toolId: "media_list_assets" }, listLookup: lookupIn({ idProperty: "mediaId", itemsKey: "media" }) },
   { resource: "member", permission: "member.manage", get: { toolId: "members_get_by_id", idProperty: "memberId" }, list: { toolId: "members_list" } },
   { resource: "menu", permission: "admin.menus.read", get: { toolId: "menus_get_menu", idProperty: "menuId" }, list: { toolId: "menus_list_menus" } },
   {
@@ -123,9 +123,9 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
   { resource: "site", permission: "system.read", get: { toolId: "sites_get_site", idProperty: "name" }, list: { toolId: "sites_list" } },
   { resource: "term", permission: "admin.taxonomy.manage", get: { toolId: "taxonomy_get_term", idProperty: "termId" } },
   { resource: "taxonomy", permission: "admin.taxonomy.manage", list: { toolId: "taxonomy_list" }, listLookup: { idProperty: "taxonomyId", sources: [{ itemsKey: "items", idPath: ["taxonomy", "id"] }] } },
-  { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" }, listLookup: { ...lookupIn("themeId", "themes"), contextKeys: ["activeThemeId"] } },
-  { resource: "theme_page_publication", permission: "theme.set", list: { toolId: "theme_list_page_publications" }, listLookup: lookupIn("page", "pages", "page") },
-  { resource: "webhook_subscription", permission: "admin.integrations.manage", list: { toolId: "webhooks_list_subscriptions" }, listLookup: lookupIn("subscriptionId", "subscriptions") },
+  { resource: "theme", permission: "theme.set", list: { toolId: "theme_list" }, listLookup: { ...lookupIn({ idProperty: "themeId", itemsKey: "themes" }), contextKeys: ["activeThemeId"] } },
+  { resource: "theme_page_publication", permission: "theme.set", list: { toolId: "theme_list_page_publications" }, listLookup: lookupIn({ idProperty: "page", itemsKey: "pages" }, { idField: "page" }) },
+  { resource: "webhook_subscription", permission: "admin.integrations.manage", list: { toolId: "webhooks_list_subscriptions" }, listLookup: lookupIn({ idProperty: "subscriptionId", itemsKey: "subscriptions" }) },
   {
     resource: "widget_instance",
     permission: "widgets.read",
@@ -139,7 +139,7 @@ const CONTENT_READ_CARDS: readonly ContentReadCard[] = [
 ];
 
 /** `content_read.<resource>` — the card id a caller/model actually names. */
-function contentReadToolId(resource: string): string {
+function contentReadToolId({ resource }: { resource: string }, _optional = {}): string {
   return `content_read.${resource}`;
 }
 
@@ -167,7 +167,7 @@ function contentReadToolId(resource: string): string {
  */
 export const RETIRED_READ_TOOL_TO_CARD: ReadonlyMap<string, string> = new Map(
   CONTENT_READ_CARDS.flatMap((card) => {
-    const cardId = contentReadToolId(card.resource);
+    const cardId = contentReadToolId({ resource: card.resource });
     return [card.get?.toolId, card.list?.toolId]
       .filter((memberId): memberId is string => memberId !== undefined)
       .map((memberId) => [memberId, cardId] as const);
@@ -187,7 +187,7 @@ const RENAMED_CARD_IDS: ReadonlyMap<string, string> = new Map([
  *
  * @complexity O(1).
  */
-export function currentToolIdFor(toolId: string): string {
+export function currentToolIdFor({ toolId }: { toolId: string }, _optional = {}): string {
   return RENAMED_CARD_IDS.get(toolId) ?? RETIRED_READ_TOOL_TO_CARD.get(toolId) ?? toolId;
 }
 
@@ -197,11 +197,11 @@ const REPEATED_CARD_ID_PATTERN = /(content_read\.[a-z_]+)(?:\s*(?:[,/]|\s(?:or|a
 
 /** Applies `rewriteText` to every string `description` in a JSON schema.
  *  @complexity O(n) in the schema size. */
-function rewriteSchemaDescriptions(value: unknown, rewriteText: (text: string) => string): unknown {
-  if (Array.isArray(value)) return value.map((child) => rewriteSchemaDescriptions(child, rewriteText));
+function rewriteSchemaDescriptions({ value, rewriteText }: { value: unknown; rewriteText: (required: { text: string }) => string }, _optional = {}): unknown {
+  if (Array.isArray(value)) return value.map((child) => rewriteSchemaDescriptions({ value: child, rewriteText: rewriteText }));
   if (typeof value !== "object" || value === null) return value;
   return Object.fromEntries(
-    Object.entries(value).map(([key, child]) => [key, key === "description" && typeof child === "string" ? rewriteText(child) : rewriteSchemaDescriptions(child, rewriteText)]),
+    Object.entries(value).map(([key, child]) => [key, key === "description" && typeof child === "string" ? rewriteText({ text: child }) : rewriteSchemaDescriptions({ value: child, rewriteText: rewriteText })]),
   );
 }
 
@@ -226,15 +226,15 @@ export function createRetiredReadToolIdRewriter(required: { retiredIds: Readonly
   if (required.retiredIds.size === 0) return (registration) => registration;
   // Whole words only: `\b` stops `content_post_get` matching inside a longer id.
   const retiredIdPattern = new RegExp(`\\b(${[...required.retiredIds].join("|")})\\b`, "g");
-  const rewriteText = (text: string): string => {
+  const rewriteText = ({ text }: { text: string }, _optional = {}): string => {
     const markerAt = text.indexOf(KEYWORD_MARKER);
     const plain = markerAt === -1 ? text : text.slice(0, markerAt);
     const tail = markerAt === -1 ? "" : text.slice(markerAt);
-    return plain.replace(retiredIdPattern, (id) => currentToolIdFor(id)).replace(REPEATED_CARD_ID_PATTERN, "$1") + tail;
+    return plain.replace(retiredIdPattern, (id) => currentToolIdFor({ toolId: id })).replace(REPEATED_CARD_ID_PATTERN, "$1") + tail;
   };
   return (registration) => {
-    const description = registration.descriptor.description === undefined ? undefined : rewriteText(registration.descriptor.description);
-    const inputSchema = rewriteSchemaDescriptions(registration.descriptor.inputSchema, rewriteText) as typeof registration.descriptor.inputSchema;
+    const description = registration.descriptor.description === undefined ? undefined : rewriteText({ text: registration.descriptor.description });
+    const inputSchema = rewriteSchemaDescriptions({ value: registration.descriptor.inputSchema, rewriteText: rewriteText }) as typeof registration.descriptor.inputSchema;
     if (description === registration.descriptor.description && JSON.stringify(inputSchema) === JSON.stringify(registration.descriptor.inputSchema)) return registration;
     return { ...registration, descriptor: { ...registration.descriptor, description, inputSchema } };
   };
@@ -279,7 +279,7 @@ function cardIsAvailable(byId: ReadonlyMap<string, ToolRegistration>, card: Cont
  * narrow test composition.
  * @complexity O(1) against the pre-indexed map the caller builds once.
  */
-function sourceRegistration(byId: ReadonlyMap<string, ToolRegistration>, toolId: string): ToolRegistration {
+function sourceRegistration({ byId, toolId }: { byId: ReadonlyMap<string, ToolRegistration>; toolId: string }, _optional = {}): ToolRegistration {
   const found = byId.get(toolId);
   if (!found) {
     throw new Error(`content-read-tool.ts: internal error — '${toolId}' passed cardIsAvailable but is missing from byId`);
@@ -314,7 +314,7 @@ function dispatchByIdPresence(
 }
 
 /** The value at `path` inside `item`, or `undefined` when any step is not a record. */
-function valueAtPath(item: unknown, path: readonly string[]): unknown {
+function valueAtPath({ item, path }: { item: unknown; path: readonly string[] }, _optional = {}): unknown {
   let current: unknown = item;
   for (const key of path) {
     const candidate = { value: current };
@@ -341,7 +341,7 @@ function valueAtPath(item: unknown, path: readonly string[]): unknown {
  */
 function lookupInList(required: { resource: string; listToolId: string; lookup: ListLookup; list: ToolHandler }, _options = {}): ToolHandler {
   const { resource, listToolId, lookup, list } = required;
-  const cardId = contentReadToolId(resource);
+  const cardId = contentReadToolId({ resource: resource });
   return async (ctx) => {
     const input = requireInputRecord({ input: ctx.input });
     const id = requireString({ input, key: lookup.idProperty });
@@ -356,7 +356,7 @@ function lookupInList(required: { resource: string; listToolId: string; lookup: 
       if (!Array.isArray(items)) {
         throw new Error(`content-read-tool.ts: '${listToolId}' result has no '${source.itemsKey}' array — the ${cardId} lookup is out of date`);
       }
-      const matchingItems = items.filter((item) => valueAtPath(item, source.idPath) === id);
+      const matchingItems = items.filter((item) => valueAtPath({ item: item, path: source.idPath }) === id);
       filtered[source.itemsKey] = matchingItems;
       matches += matchingItems.length;
     }
@@ -388,7 +388,7 @@ function listLookupIdSchema(required: { resource: string; lookup: ListLookup; li
       [lookup.idProperty]: {
         type: "string",
         minLength: 1,
-        description: `Fetch the one ${resource.replace(/_/g, " ")} with this id, as ${contentReadToolId(resource)} lists it.`,
+        description: `Fetch the one ${resource.replace(/_/g, " ")} with this id, as ${contentReadToolId({ resource: resource })} lists it.`,
       },
     },
   };
@@ -418,7 +418,7 @@ function cardDescription(
   { id, memberIds, byId, idDescription }: { id: string; memberIds: readonly string[]; byId: ReadonlyMap<string, ToolRegistration>; idDescription: string },
   _optional: Record<string, never> = {},
 ): string {
-  const prose = [...memberIds.map((id) => sourceRegistration(byId, id).descriptor.description), idDescription,
+  const prose = [...memberIds.map((id) => sourceRegistration({ byId: byId, toolId: id }).descriptor.description), idDescription,
     "content_read is a namespace, not a tool; call this exact tool id without a resource argument."].filter(Boolean).join(" ");
   const plain = `${id}: ${prose}`;
   const tail = memberIds
@@ -529,9 +529,7 @@ function canonicalCardDispatch(
  * @complexity O(p) in combined property count.
  */
 function unionInputSchema(
-  getSchema: Readonly<Record<string, unknown>>,
-  listSchema: Readonly<Record<string, unknown>>,
-  idProperty: string,
+  { getSchema, listSchema, idProperty }: { getSchema: Readonly<Record<string, unknown>>; listSchema: Readonly<Record<string, unknown>>; idProperty: string }, _optional = {},
 ): Readonly<Record<string, unknown>> {
   const getProps = (getSchema.properties as Record<string, unknown> | undefined) ?? {};
   const listProps = (listSchema.properties as Record<string, unknown> | undefined) ?? {};
@@ -593,7 +591,7 @@ export function deriveContentReadRegistrations(sourceRegistrations: readonly Too
   for (const card of CONTENT_READ_CARDS) {
     if (!cardIsAvailable(byId, card)) continue;
 
-    const id = contentReadToolId(card.resource);
+    const id = contentReadToolId({ resource: card.resource });
     const { memberIds, handler, inputSchema, normalizeInput } = canonicalCardDispatch({ card, byId });
 
     for (const memberId of memberIds) retiredIds.add(memberId);
@@ -642,12 +640,12 @@ function cardDispatch({ card, byId }: { card: ContentReadCard; byId: ReadonlyMap
   } else if (card.get && card.list) {
     return pairedCardDispatch({ card, get: card.get, list: card.list, byId });
   } else if (card.get) {
-    const getReg = sourceRegistration(byId, card.get.toolId);
+    const getReg = sourceRegistration({ byId: byId, toolId: card.get.toolId });
     memberIds.push(card.get.toolId);
     handler = getReg.handler;
     inputSchema = registrationInputSchema({ registration: getReg });
   } else if (card.list) {
-    const listReg = sourceRegistration(byId, card.list.toolId);
+    const listReg = sourceRegistration({ byId: byId, toolId: card.list.toolId });
     memberIds.push(card.list.toolId);
     handler = listReg.handler;
     inputSchema = registrationInputSchema({ registration: listReg });
@@ -665,16 +663,16 @@ function pairedCardDispatch({ card, get, list, byId }: {
   if (!get.idProperty) {
     throw new Error(`content-read-tool.ts: card '${card.resource}' declares both get and list but no idProperty on get`);
   }
-  const getReg = sourceRegistration(byId, get.toolId);
-  const listReg = sourceRegistration(byId, list.toolId);
+  const getReg = sourceRegistration({ byId: byId, toolId: get.toolId });
+  const listReg = sourceRegistration({ byId: byId, toolId: list.toolId });
   const getSchema = registrationInputSchema({ registration: getReg });
   const handler = dispatchByIdPresence({ idProperty: get.idProperty, get: getReg.handler, list: listReg.handler }, {
     batchGet: Object.hasOwn((getSchema.properties as Readonly<Record<string, unknown>> | undefined) ?? EMPTY_SCHEMA, "items"),
   });
   const inputSchema = unionInputSchema(
-    getSchema,
-    registrationInputSchema({ registration: listReg }),
-    get.idProperty,
+    { getSchema: getSchema,
+    listSchema: registrationInputSchema({ registration: listReg }),
+    idProperty: get.idProperty },
   );
   return { memberIds: [get.toolId, list.toolId], handler, inputSchema };
 }
@@ -687,13 +685,13 @@ function lookupCardDispatch({ card, list, lookup, byId }: {
   card: ContentReadCard; list: NonNullable<ContentReadCard["list"]>; lookup: ListLookup;
   byId: ReadonlyMap<string, ToolRegistration>;
 }, _options = {}) {
-  const listReg = sourceRegistration(byId, list.toolId);
+  const listReg = sourceRegistration({ byId: byId, toolId: list.toolId });
   const get = lookupInList({ resource: card.resource, listToolId: list.toolId, lookup, list: listReg.handler });
   const handler = dispatchByIdPresence({ idProperty: lookup.idProperty, get, list: listReg.handler });
   const inputSchema = unionInputSchema(
-    listLookupIdSchema({ resource: card.resource, lookup, listSchema: registrationInputSchema({ registration: listReg }) }),
-    registrationInputSchema({ registration: listReg }),
-    lookup.idProperty,
+    { getSchema: listLookupIdSchema({ resource: card.resource, lookup, listSchema: registrationInputSchema({ registration: listReg }) }),
+    listSchema: registrationInputSchema({ registration: listReg }),
+    idProperty: lookup.idProperty },
   );
   return { memberIds: [list.toolId], handler, inputSchema };
 }

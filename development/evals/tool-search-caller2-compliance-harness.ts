@@ -229,7 +229,7 @@ async function main(): Promise<void> {
   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principalByRunId.get(runId) }, {});
   const agentExecutor = createAgentExecutor(
     { lifecycle },
-    { mcpJsonInjection: resolveMcpJsonInjection(DAEMON_URL, (runId) => runCredentials.mint({ runId }, {})), promptAugmenter },
+    { mcpJsonInjection: resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: (runId) => runCredentials.mint({ runId }, {}) }), promptAugmenter },
   );
 
   // Trimmed copy of agent-daemon-server.ts's onStarted — same contract, minus attachment/frontend-

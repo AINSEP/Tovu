@@ -77,7 +77,7 @@ test("packaged resolver script calls the real resolver and entry builder with is
   assert.ok(script.includes(JSON.stringify(resourcesDir)));
   assert.ok(script.includes(JSON.stringify(executablePath)));
   assert.ok(script.includes('"dist/src/assistant/mcp-injection.js"'));
-  assert.ok(script.includes('resolveMcpJsonInjection("http://127.0.0.1:9", () => "smoke"'));
+  assert.ok(script.includes('resolveMcpJsonInjection({ daemonUrl: "http://127.0.0.1:9", mintRunCredential: () => "smoke" }'));
   assert.ok(script.includes('electronVersion: "smoke", env: {}'));
   assert.ok(script.includes('createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")'));
   assert.ok(script.includes('buildMcpJsonServerEntry({ runId: "release-smoke", options }, { credential: "smoke" })'));

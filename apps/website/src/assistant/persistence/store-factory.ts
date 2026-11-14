@@ -17,13 +17,13 @@ import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-sco
 /**
  * Chat history backed by the host's own chat database.
  *
- * @param store the chat kernel, or the open `chat.db` handle (`openChatDb`, which creates the
+ * @param required.store the chat kernel, or the open `chat.db` handle (`openChatDb`, which creates the
  *   tables) whose kernel to use. The store and its run ledger share that one kernel.
  */
-export function createChatStoreFactory(store: ChatKernel | SqliteConnectionSource): ChatStoreFactory {
+export function createChatStoreFactory({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}): ChatStoreFactory {
   const kernel = chatKernel(store);
   const ledger = createChatRunLedger({ store: kernel });
-  return (principal) => createTenantScopedChatStore(kernel, principal, ledger);
+  return (principal) => createTenantScopedChatStore({ db: kernel, principal: principal }, { ledger: ledger });
 }
 
 /**
@@ -50,14 +50,14 @@ export function createInMemoryChatHistory(): { chatHistory: ChatStoreFactory; ch
   const chatRunLedger: ChatRunLedger = {
     hasActiveRuns: async () => db ? createChatRunLedger({ store: db }).hasActiveRuns({}, {}) : false,
     get durable() { return createChatRunLedger({ store: open() }).durable; },
-    unlessSettled: (run, write) => createChatRunLedger({ store: open() }).unlessSettled(run, write),
+    unlessSettled: (required, optional) => createChatRunLedger({ store: open() }).unlessSettled(required, optional),
     settle: (settlement) => createChatRunLedger({ store: open() }).settle(settlement),
     checkpoint: (progress, optional) => createChatRunLedger({ store: open() }).checkpoint(progress, optional),
     // A database nobody has opened yet holds no stuck rows, so boot-time reconcile does not open it.
     reconcileInterrupted: async (required, optional) => (db ? createChatRunLedger({ store: db }).reconcileInterrupted(required, optional) : 0),
   };
   return {
-    chatHistory: (principal) => createTenantScopedChatStore(open(), principal, chatRunLedger),
+    chatHistory: (principal) => createTenantScopedChatStore({ db: open(), principal: principal }, { ledger: chatRunLedger }),
     chatRunLedger,
   };
 }

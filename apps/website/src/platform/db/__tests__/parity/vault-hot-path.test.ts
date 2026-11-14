@@ -49,7 +49,7 @@ for (const dialect of PARITY_DIALECTS) {
     });
 
     test("personal execution key on every assistant turn: one indexed read", async () => {
-      const statements = await measure(() => mods.exec.resolveExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
+      const statements = await measure(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p" } }));
       assert.equal(statements.length, 1, statements.map(s => s.sql).join("\n"));
       await assertIndexed(fixture.kernel, statements);
     });

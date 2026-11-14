@@ -90,16 +90,13 @@ export interface ByokToolSurface {
    *  input (an unknown id, a malformed argument): those come back as `isError` content the model can
    *  read and retry against.
    *
-   * @param emitSurface - Forwarded verbatim into `ToolExecutor.execute`'s own optional 6th argument
+   * @param optional.emitSurface - Forwarded verbatim into `ToolExecutor.execute`'s surface emitter
    * (see that method's doc). Omit for a caller with no live response to emit into; a tool that reads
    * `ctx.emitSurface` (today: only `content_post_delete`) fails closed rather than parking when it is
    * absent — see that handler's own doc for why no fallback exists. */
   readonly executeMetaTool: (
-    principal: Principal,
-    run: RunRef,
-    call: { readonly name: string; readonly input: unknown },
-    signal?: AbortSignal,
-    emitSurface?: SurfaceEmitter,
+    required: { readonly principal: Principal; readonly run: RunRef; readonly call: { readonly name: string; readonly input: unknown } },
+    optional?: { readonly signal?: AbortSignal; readonly emitSurface?: SurfaceEmitter },
   ) => Promise<ByokMetaToolResult>;
   /**
    * Resolves once the installed-extension-tools pass (`installed-extension-tools.ts` — Agent
@@ -143,7 +140,7 @@ export interface ByokToolSurface {
    * immediately, with no timer started, when `federation` is `undefined` — nothing is connecting, so
    * the turn route must not append its "still connecting" note.
    */
-  readonly awaitFederation: (timeoutMs: number) => Promise<{ readonly settled: boolean }>;
+  readonly awaitFederation: (required: { timeoutMs: number }, optional?: Record<string, never>) => Promise<{ readonly settled: boolean }>;
   /**
    * The agent daemon's view of this surface over the tool RPC (ADR-070, `assistant-tool-exec.ts`).
    * `executor` is {@link ByokToolSurface.executor}, each call run the way `executeMetaTool` runs one:
@@ -295,15 +292,12 @@ function searchInputError({ args }: { args: Record<string, unknown> }, _options 
 /** `search_tools` branch of {@link createByokToolSurface}'s `executeMetaTool` dispatcher — split out
  *  purely to keep that function's complexity under the shop ceiling. */
 function runSearchTools(
-  catalog: ToolCatalogQuery,
-  registry: Pick<ToolRegistry, "list">,
-  args: Record<string, unknown>,
-  audit: MetaToolCatalogAudit | undefined,
+  { catalog, registry, args, audit }: { catalog: ToolCatalogQuery; registry: Pick<ToolRegistry, "list">; args: Record<string, unknown>; audit: MetaToolCatalogAudit | undefined }, _optional = {},
 ): ByokMetaToolResult {
   const inputError = searchInputError({ args });
-  if (inputError) return err(inputError);
+  if (inputError) return err({ content: inputError });
   const query = typeof args.query === "string" ? args.query.trim() : "";
-  if (query.length === 0) return err("'query' is required and must be a non-empty string.");
+  if (query.length === 0) return err({ content: "'query' is required and must be a non-empty string." });
   const rawLimit = args.limit ?? args.max_results;
   // Clamp rather than reject: `limit` is an optimization hint, not part of what the caller is
   // asking for, so an out-of-range one should not cost a whole turn to correct.
@@ -322,9 +316,9 @@ function runSearchTools(
     } }, {});
   }
   if (hits.length === 0) {
-    return ok({ hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list({}).length} tools.` });
+    return ok({ output: { hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list({}).length} tools.` } });
   }
-  return ok({ hits });
+  return ok({ output: { hits } });
 }
 
 /** `describe_tool` branch — see {@link runSearchTools}'s doc for why this is split out.
@@ -337,7 +331,7 @@ function runDescribeTool(
   { exposure }: { exposure?: ToolExposure },
 ): ByokMetaToolResult {
   const id = typeof args.id === "string" ? args.id.trim() : "";
-  if (id.length === 0) return err("'id' is required and must be a non-empty string.");
+  if (id.length === 0) return err({ content: "'id' is required and must be a non-empty string." });
   const entry = catalog.describe({ id });
   if (audit) {
     appendToolCatalogAttempt({ sink: audit.sink, event: {
@@ -348,32 +342,27 @@ function runDescribeTool(
       detail: describeToolAuditDetail({ id: id, entry: entry }, {}),
     } }, {});
   }
-  if (!entry) return err(`No tool with id "${id}". Use search_tools to find a valid id.`);
-  if (!exposure) return ok(entry);
+  if (!entry) return err({ content: `No tool with id "${id}". Use search_tools to find a valid id.` });
+  if (!exposure) return ok({ output: entry });
   const promotion = exposure.promote({ toolIds: [id] });
   const published = promotion.snapshot.tools.find(tool => tool.descriptor.id === id);
-  return ok({ ...entry, callableName: published?.wireName, exposureSkipped: promotion.skipped });
+  return ok({ output: { ...entry, callableName: published?.wireName, exposureSkipped: promotion.skipped } });
 }
 
 /** `execute_delegated_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
 async function runExecuteDelegatedTool(
-  executor: ToolExecutor,
-  principal: Principal,
-  run: RunRef,
-  args: Record<string, unknown>,
-  signal: AbortSignal | undefined,
-  emitSurface: SurfaceEmitter | undefined,
+  { executor, principal, run, args, signal, emitSurface }: { executor: ToolExecutor; principal: Principal; run: RunRef; args: Record<string, unknown>; signal: AbortSignal | undefined; emitSurface: SurfaceEmitter | undefined }, _optional = {},
 ): Promise<ByokMetaToolResult> {
   const toolId = typeof args.toolId === "string" ? args.toolId.trim() : "";
-  if (toolId.length === 0) return err("'toolId' is required and must be a non-empty string.");
-  const resolvedInput = resolveDelegatedInput(args.input);
-  if (!resolvedInput.ok) return err(resolvedInput.message);
+  if (toolId.length === 0) return err({ content: "'toolId' is required and must be a non-empty string." });
+  const resolvedInput = resolveDelegatedInput({ raw: args.input });
+  if (!resolvedInput.ok) return err({ content: resolvedInput.message });
 
   try {
     // Omitted input is valid for no-input tools. Match the MCP gateway's empty object at
     // the executor boundary so the shared object normalizer can still run before policy.
     const result = await executor.execute({ principal: principal, run: run, toolId: toolId, input: resolvedInput.input ?? {} }, { signal: signal, emitSurface: emitSurface });
-    return mapToolExecutionResult(result, toolId);
+    return mapToolExecutionResult({ result: result, toolId: toolId });
   } catch (error) {
     // `ToolExecutor.execute` THROWS on an id it does not know (`unknown tool "<id>"`) rather than
     // returning a status for it. That was unreachable while the model could only name tools from
@@ -381,7 +370,7 @@ async function runExecuteDelegatedTool(
     // hallucinated or misremembered id is now an ordinary, expected event — and an uncaught throw
     // here would abort the entire turn's stream instead of costing one recoverable tool call.
     const message = error instanceof Error ? error.message : String(error);
-    return err(`${message}. Use search_tools to find a valid tool id.`);
+    return err({ content: `${message}. Use search_tools to find a valid tool id.` });
   }
 }
 
@@ -402,12 +391,12 @@ async function runTypedTool(
 ): Promise<ByokMetaToolResult> {
   const tools = exposure.getSnapshot({}).tools;
   const published = tools.find(tool => tool.wireName === call.name || tool.descriptor.id === call.name);
-  if (!published) return err(`"${call.name}" is not exposed in this turn. Use describe_tool first, or execute_delegated_tool.`);
+  if (!published) return err({ content: `"${call.name}" is not exposed in this turn. Use describe_tool first, or execute_delegated_tool.` });
   const toolId = published.descriptor.id;
   const descriptor = registry.list({}).find(tool => tool.id === toolId);
-  if (!descriptor || !catalog.describe({ id: toolId })) return err(`Tool "${toolId}" is no longer available to this caller.`);
+  if (!descriptor || !catalog.describe({ id: toolId })) return err({ content: `Tool "${toolId}" is no longer available to this caller.` });
   const caller = isReadOnlyTool({ descriptor }) ? constrainPrincipalToReadOnlyTools({ principal }) : principal;
-  return runExecuteDelegatedTool(executor, caller, run, { toolId, input: call.input }, signal, emitSurface);
+  return runExecuteDelegatedTool({ executor: executor, principal: caller, run: run, args: { toolId, input: call.input }, signal: signal, emitSurface: emitSurface });
 }
 
 /** Everything {@link createByokToolSurface} needs from its caller — every `AssistantToolRegistryDeps`
@@ -534,8 +523,8 @@ function attachSurfaceExtensions(
   if (options.installExtensions === false) return undefined;
   const { registry, deps, routeDeps, surfaceExchanges, connectionSource, onAdmitted } = required;
   return attachAssistantToolExtensions(
-    registry,
-    {
+    { registry: registry,
+    deps: {
       ...deps,
       // Executable Agent Plugin tools that ask before acting use this surface's cards.
       surfaces: { surfaceExchanges },
@@ -561,7 +550,7 @@ function attachSurfaceExtensions(
         ...(options.federationConnect ? { connect: options.federationConnect } : {}),
       },
     },
-    "[assistant-byok]",
+    log: "[assistant-byok]" },
   );
 }
 
@@ -717,7 +706,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
    * built and possibly already searched by the time federation's lazy boot pass resolves, so
    * nothing else would ever pick up what it admitted.
    */
-  async function awaitFederation(timeoutMs: number): Promise<{ readonly settled: boolean }> {
+  async function awaitFederation({ timeoutMs }: { timeoutMs: number }, _optional = {}): Promise<{ readonly settled: boolean }> {
     if (!federation) return { settled: true };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const outcome = await Promise.race([
@@ -738,12 +727,8 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
   }
 
   async function executeMetaTool(
-    principal: Principal,
-    run: RunRef,
-    call: { readonly name: string; readonly input: unknown },
-    signal?: AbortSignal,
-    emitSurface?: SurfaceEmitter,
-    exposure?: ToolExposure,
+    { principal, run, call }: { principal: Principal; run: RunRef; call: { readonly name: string; readonly input: unknown } },
+    { signal, emitSurface, exposure }: { signal?: AbortSignal; emitSurface?: SurfaceEmitter; exposure?: ToolExposure } = {},
   ): Promise<ByokMetaToolResult> {
     await syncInstalled();
     const args = isRecord(call.input) ? call.input : {};
@@ -753,8 +738,8 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
       // own prior turn) can try to call it directly as a tool name, since the meta-set is the only
       // thing it was actually offered. Say so, rather than returning a bare "unknown tool".
       return err(
-        `"${call.name}" is not a callable tool here. This site exposes only ${[...META_TOOL_IDS].join(", ")}. ` +
-          `To run "${call.name}", call execute_delegated_tool with toolId: "${call.name}".`,
+        { content: `"${call.name}" is not a callable tool here. This site exposes only ${[...META_TOOL_IDS].join(", ")}. ` +
+          `To run "${call.name}", call execute_delegated_tool with toolId: "${call.name}".` },
       );
     }
 
@@ -769,9 +754,9 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
 
     return deleteScope.fresh({ principalId: principal.id, run: () => {
       const visibleCatalog = filterReadOnlyToolCatalog({ principal, registry: visibleRegistry, catalog: deleteScope.catalog({ catalog }) });
-      if (call.name === "search_tools") return runSearchTools(visibleCatalog, visibleRegistry, args, catalogAudit);
+      if (call.name === "search_tools") return runSearchTools({ catalog: visibleCatalog, registry: visibleRegistry, args: args, audit: catalogAudit });
       if (call.name === "describe_tool") return runDescribeTool({ catalog: visibleCatalog, args, audit: catalogAudit }, { exposure });
-      if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
+      if (call.name === "execute_delegated_tool") return runExecuteDelegatedTool({ executor: executor, principal: principal, run: run, args: args, signal: signal, emitSurface: emitSurface });
       return runTypedTool({ exposure: exposure!, catalog: visibleCatalog, registry: visibleRegistry, executor, principal, run, call }, { signal, emitSurface });
     } });
   }
@@ -791,7 +776,7 @@ export function createByokToolSurface(routeDeps: ByokToolSurfaceDeps, options: B
     const exposure = createToolExposure({ registry: visibleRegistry }, { ...limits, reservedNames: [...META_TOOL_IDS] });
     return {
       getToolSnapshot: () => [...META_TOOL_DESCRIPTORS, ...exposure.getSnapshot({}).tools.map(({ descriptor, wireName }) => ({ ...descriptor, wireName }))],
-      executeTool: (call, { signal, emitSurface } = {}) => executeMetaTool(principal, run, call, signal, emitSurface, exposure),
+      executeTool: (call, { signal, emitSurface } = {}) => executeMetaTool({ principal: principal, run: run, call: call }, { signal: signal, emitSurface: emitSurface, exposure: exposure }),
     };
   }
 

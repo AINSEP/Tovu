@@ -108,8 +108,8 @@ function assertSnapshotMatchesEnv({ env, snapshot }: { env: NodeJS.ProcessEnv; s
 function retainedRepositories({ client }: { client?: SiteDbClient }, _options = {}): RetainedRepositories {
   if (!client) return { settingsRepo: new InMemorySettingsRepo(), agentSessions: createInMemoryAgentSessionStore(),
     conversationToolApprovals: createInMemoryConversationToolApprovalStore(), toolAttemptAuditSink: createInMemoryToolAttemptAuditSink({}) };
-  return { settingsRepo: new SqlSettingsRepo(client.content), agentSessions: createSqliteAgentSessionStore(client.chat),
-    conversationToolApprovals: createSqliteConversationToolApprovalStore(client.chat), toolAttemptAuditSink: new SqlToolAttemptAuditSink(client.content) };
+  return { settingsRepo: new SqlSettingsRepo(client.content), agentSessions: createSqliteAgentSessionStore({ store: client.chat }),
+    conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: client.chat }), toolAttemptAuditSink: new SqlToolAttemptAuditSink(client.content) };
 }
 
 /** Open the selected driver only for a persistent site. This leaf never owns server boot work.

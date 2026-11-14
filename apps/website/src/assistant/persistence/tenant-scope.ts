@@ -45,7 +45,7 @@ export const GUEST_CHAT_TTL_MS = 2 * 24 * 60 * 60 * 1000;
  * and this runs on every request to the public assistant, where a deliberately slow hash would be
  * a self-inflicted denial of service.
  */
-export function hashSessionKey(sessionKey: string): string {
+export function hashSessionKey({ sessionKey }: { sessionKey: string }, _optional = {}): string {
   return createHash("sha256").update(sessionKey).digest("hex");
 }
 
@@ -85,24 +85,22 @@ export type ChatStoreFactory = (principal: ChatPrincipal) => ChatHistoryStore;
  * Retention — the one operation that legitimately spans owners — lives in its own module
  * (`chat-expiry-sweep.ts`), not an escape hatch here.
  *
- * @param db the chat kernel, or Tovu's open `chat.db` handle (`openChatDb`) whose kernel to use.
+ * @param required.db the chat kernel, or Tovu's open `chat.db` handle (`openChatDb`) whose kernel to use.
  *   The store writes through it and never opens a database of its own.
- * @param ledger the run ledger; it must sit on the same kernel, so `appendMessage`'s write joins
+ * @param optional.ledger the run ledger; it must sit on the same kernel, so `appendMessage`'s write joins
  *   the ledger's transaction.
  * @complexity O(1); the returned store's methods are a few indexed queries each.
  */
 export function createTenantScopedChatStore(
-  db: ChatKernel | SqliteConnectionSource,
-  principal: ChatPrincipal,
-  ledger: ChatRunLedger = createChatRunLedger({ store: db }),
+  { db, principal }: { db: ChatKernel | SqliteConnectionSource; principal: ChatPrincipal }, { ledger = createChatRunLedger({ store: db }) }: { ledger?: ChatRunLedger } = {},
 ): ChatHistoryStore {
   return createRunGuardedChatStore({
     isDaemonRunId: ({ runId }) => isDaemonRunId(runId),
-    store: createChatHistoryStore(chatKernel(db), {
+    store: createChatHistoryStore({ kernel: chatKernel(db), scope: {
       scopeId: principal.workspaceId, ownerKind: principal.kind,
-      ownerId: principal.kind === "user" ? principal.userId : hashSessionKey(principal.sessionKey),
-    }),
-    ledger: { ...ledger, unlessSettled: ({ run, write }) => ledger.unlessSettled(run, write) },
+      ownerId: principal.kind === "user" ? principal.userId : hashSessionKey({ sessionKey: principal.sessionKey }),
+    } }),
+    ledger,
   }, {});
 }
 
@@ -114,6 +112,6 @@ export function createTenantScopedChatStore(
  * expires because it is personal data belonging to someone who never created an account, and
  * keeping it indefinitely is a liability with no matching benefit.
  */
-export function chatExpiryFor(principal: ChatPrincipal, now: number = Date.now()): number | undefined {
+export function chatExpiryFor({ principal }: { principal: ChatPrincipal }, { now = Date.now() }: { now?: number } = {}): number | undefined {
   return principal.kind === "guest" ? now + GUEST_CHAT_TTL_MS : undefined;
 }

@@ -269,6 +269,6 @@ async function resolveSavedCredential(deps: RouteDeps, baseUrl: string, cookie: 
   const me = await get(baseUrl, "/api/admin/v1/auth/me", cookie);
   assert.equal(me.status, 200);
   const { user } = await me.json() as { user: { id: string } };
-  return resolveExecutionCredential({ repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId, principalId: user.id });
+  return resolveExecutionCredential({ deps: { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+    input: { workspaceId: deps.workspaceId, principalId: user.id } });
 }

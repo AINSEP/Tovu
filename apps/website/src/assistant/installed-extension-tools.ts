@@ -102,9 +102,7 @@ export interface AssistantToolExtensions {
  * @overallScore 100
  */
 export function attachAssistantToolExtensions(
-  registry: ToolRegistry,
-  deps: AttachAssistantToolExtensionsDeps,
-  log: string,
+  { registry, deps, log }: { registry: ToolRegistry; deps: AttachAssistantToolExtensionsDeps; log: string }, _optional = {},
 ): AssistantToolExtensions {
   // Extension ids come from installed data, so check the factory's explicit behavior metadata
   // at the registration boundary too. A new family cannot silently bypass the native guard.

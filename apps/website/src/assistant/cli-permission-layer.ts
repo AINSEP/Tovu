@@ -25,13 +25,13 @@ export function patchCliPermissionLayer(required: {
   // userMcpDefaultOn marks a site-level save made since personal MCP defaulted on (2026-11-10),
   // so its userMcp false is the owner's choice; older saves read false as unset.
   if (!agentId) return { ...raw, enabled: defaults.enabled, capabilities: { ...defaults.capabilities }, userMcpDefaultOn: true };
-  const byAgent = objectValue(raw.byAgent);
-  const previous = objectValue(byAgent[agentId]);
+  const byAgent = objectValue({ value: raw.byAgent });
+  const previous = objectValue({ value: byAgent[agentId] });
   return { ...raw, enabled: raw.enabled ?? defaults.enabled, capabilities: raw.capabilities ?? { ...defaults.capabilities },
     byAgent: { ...byAgent, [agentId]: { ...previous, ...(enabled === undefined ? {} : { enabled }),
-      capabilities: { ...objectValue(previous.capabilities), ...capabilities } } } };
+      capabilities: { ...objectValue({ value: previous.capabilities }), ...capabilities } } } };
 }
 
-function objectValue(value: JsonValue | undefined): Record<string, JsonValue> {
+function objectValue({ value }: { value: JsonValue | undefined }, _optional = {}): Record<string, JsonValue> {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }

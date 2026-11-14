@@ -22,13 +22,13 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 /** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
  * so a future structured logger is a parameter change rather than an edit. */
 export interface FederationLogger {
-  info(message: string): void;
-  warn(message: string): void;
+  info(required: { message: string }, optional?: Record<string, never>): void;
+  warn(required: { message: string }, optional?: Record<string, never>): void;
 }
 
 const consoleLogger: FederationLogger = {
-  info: (message) => console.log(`[agent-daemon] ${message}`),
-  warn: (message) => console.warn(`[agent-daemon] ${message}`),
+  info: ({ message }) => console.log(`[agent-daemon] ${message}`),
+  warn: ({ message }) => console.warn(`[agent-daemon] ${message}`),
 };
 
 export interface AttachFederatedToolsResult {
@@ -204,9 +204,9 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
     extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
     env: params.env ?? process.env,
     logger: {
-      info: ({ message }) => logger.info(message),
-      warn: ({ message }) => logger.warn(message),
-      error: ({ message }) => logger.warn(message),
+      info: ({ message }) => logger.info({ message }),
+      warn: ({ message }) => logger.warn({ message }),
+      error: ({ message }) => logger.warn({ message }),
     },
   });
   return result;
@@ -227,7 +227,7 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
 export function resolveRegisteredPresets({ env, logger, registry }: {
   env: NodeJS.ProcessEnv; logger: FederationLogger; registry: FederatedMcpPresetRegistry;
 }, _optional: Record<string, never> = {}): ResolvedFederatedConnection[] {
-  return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn(message) } });
+  return resolveFederatedMcpPresets({ env, registry, logger: { warn: ({ message }) => logger.warn({ message }) } });
 }
 
 /** Bind Tovu's client identity, presentation and optional host channel to Jini's bounded factory.
@@ -243,7 +243,7 @@ export function createDefaultConnect({ resolver }: { resolver: McpStdioLaunchRes
   const connect = createJiniConnect({ resolver, clientInfo: TOVU_MCP_CLIENT_INFO,
     messages: tovuFederationMessages, bearerToken,
   }, {
-    logger: { warn: ({ message }) => logger.warn(message) },
+    logger: { warn: ({ message }) => logger.warn({ message }) },
     ...(spawnChannel ? { spawnChannel: ({ resolved }: { resolved: ResolvedStdioLaunch }) => spawnChannel(resolved) } : {}),
   });
   return connection => connect({ connection });

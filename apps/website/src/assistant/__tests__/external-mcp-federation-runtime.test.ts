@@ -44,7 +44,7 @@ test("roster change before first chat admits on the server", async t => {
   await notifyExternalMcpRosterChanged();
   assert.equal(surface.federation?.started, true);
   assert.equal(connects, 1);
-  const described = await surface.executeMetaTool({ id: "owner" }, { id: "run" }, { name: "describe_tool", input: { id: "mcp__hosted__echo" } });
+  const described = await surface.executeMetaTool({ principal: { id: "owner" }, run: { id: "run" }, call: { name: "describe_tool", input: { id: "mcp__hosted__echo" } } });
   assert.notEqual(described.isError, true, JSON.stringify(described));
   assert.match(JSON.stringify(described), /mcp__hosted__echo/);
 });

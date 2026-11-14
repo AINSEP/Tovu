@@ -839,7 +839,7 @@ test("external_mcp_oauth_poll_device: only the 'connected' transition notifies r
   resetExternalMcpRosterChangeListenersForTests();
   t.after(() => resetExternalMcpRosterChangeListenersForTests());
   let notified = 0;
-  onExternalMcpRosterChanged("test-runtime", () => { notified += 1; });
+  onExternalMcpRosterChanged({ key: "test-runtime", listener: () => { notified += 1; } });
   const statuses = ["pending", "connected"] as const;
   let polls = 0;
   const oauth: Pick<ExternalMcpOAuthService, "pollDeviceAuthorization"> = {

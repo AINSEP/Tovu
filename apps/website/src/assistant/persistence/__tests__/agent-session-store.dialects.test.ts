@@ -12,7 +12,7 @@ import { seedChat } from "./chat-seed.js";
 
 describeEachChatDialect(
   "agent session store",
-  (kernel) => ({ kernel, store: createSqliteAgentSessionStore(kernel) }),
+  (kernel) => ({ kernel, store: createSqliteAgentSessionStore({ store: kernel }) }),
   (make, dialect) => {
     test("get is null until set; set round-trips and overwrites; clear removes", async () => {
       const { kernel, store } = make();

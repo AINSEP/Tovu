@@ -30,7 +30,7 @@ async function start(f: Awaited<ReturnType<typeof planned>>, overwriteEntityKeys
   assert.notEqual(match, null);
   const exchangeId = match![1]!;
   const answer = (decision: "confirm" | "cancel", principalId = OWNER) => {
-    assert.equal(isMcpUiToolCallPermitted(ID, true), true, "production callback admits the confirm card");
+    assert.equal(isMcpUiToolCallPermitted({ toolName: ID, answersAnExchange: true }), true, "production callback admits the confirm card");
     return surfaceExchanges.deliver({ exchangeId, principalId, params: { decision } }, { toolId: ID });
   };
   return { html, pending, answer, controller, surfaceExchanges };

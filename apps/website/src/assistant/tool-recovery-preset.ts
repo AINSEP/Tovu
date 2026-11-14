@@ -79,7 +79,7 @@ const recoveryPorts = {
   recoveryToolId: TOOL_FAILURE_RECOVERY_TOOL_ID,
   containsSecret: ({ text }: { text: string }) => redactUserText({ text }).secretRedacted,
   assertCredentialFreeField, readOnlyMessages: tovuReadOnlyToolMessages,
-  formatReadOnlyRemedyRefusal: ({ refusal }: { refusal: string }) => readOnlyRemedyRefusalMessage(refusal),
+  formatReadOnlyRemedyRefusal: ({ refusal }: { refusal: string }) => readOnlyRemedyRefusalMessage({ refusal: refusal }),
   buildRecoveryForm: buildRecoveryFormResource,
 };
 export function withToolFailureRecovery(required: { inner: ToolExecutor; surfaceExchanges: SurfaceExchangeStore; registry: Pick<ToolRegistry, "list"> }, optional = {}): ToolExecutor {

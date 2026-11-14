@@ -110,7 +110,7 @@ const CUSTOM_INSTRUCTIONS_OVERLAY_HEADER =
  * @complexity O(n) in the length of `customInstructions` — one trim, one length check.
  * @overallScore 100
  */
-export function formatCustomInstructionsOverlay(customInstructions: string): string | null {
+export function formatCustomInstructionsOverlay({ customInstructions }: { customInstructions: string }, _optional = {}): string | null {
   const trimmed = customInstructions.trim();
   return trimmed.length === 0 ? null : `${CUSTOM_INSTRUCTIONS_OVERLAY_HEADER}\n\n${trimmed}`;
 }
@@ -149,7 +149,7 @@ export function createCustomInstructionsCache(
       latest = await resolveCustomInstructions(deps, input);
     },
     readOverlay() {
-      return formatCustomInstructionsOverlay(latest);
+      return formatCustomInstructionsOverlay({ customInstructions: latest });
     },
   };
 }

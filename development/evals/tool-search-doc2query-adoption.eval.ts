@@ -248,7 +248,7 @@ function run(): void {
     for (const { c } of missed) {
       const got = rank(c).slice(0, 5);
       console.log(`    "${c.query}"`);
-      console.log(`       want    ${c.expect}   [registered: ${registered.has(currentToolIdFor(c.expect)) ? "YES — callable, just not surfaced" : "NO — genuinely absent"}]`);
+      console.log(`       want    ${c.expect}   [registered: ${registered.has(currentToolIdFor({ toolId: c.expect })) ? "YES — callable, just not surfaced" : "NO — genuinely absent"}]`);
       console.log(`       got     ${got.join(", ")}`);
     }
   };

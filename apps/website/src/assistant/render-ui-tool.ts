@@ -75,14 +75,14 @@ const RENDER_REJECTION_GRACE_MS = 4000;
 /** Resolves with the next inbound message, or `null` if none arrives within `graceMs`. The loser
  * of the race is not cancelled — `exchange.close()` (this handler's own `finally`) resolves any
  * still-pending `receive()` with `{status: "abandoned"}` moments later, which nothing here reads. */
-function receiveRejectionWithGrace(exchange: SurfaceExchange, graceMs: number): Promise<SurfaceMessage | null> {
+function receiveRejectionWithGrace({ exchange, graceMs }: { exchange: SurfaceExchange; graceMs: number }, _optional = {}): Promise<SurfaceMessage | null> {
   return Promise.race([exchange.receive({}), new Promise<null>((resolve) => setTimeout(() => resolve(null), graceMs))]);
 }
 
 /** `ack.params.message` is whatever `a2ui-actions-route.ts` delivered — the browser's relayed
  * `RendererToAgentMessage`. Only its `error` shape means "refused"; an `action`/`functionResponse`
  * can never arrive here (this tool renders once and never asks a question a click would answer). */
-function rejectionMessageOf(ack: SurfaceMessage | null): string | undefined {
+function rejectionMessageOf({ ack }: { ack: SurfaceMessage | null }, _optional = {}): string | undefined {
   if (ack?.status !== "received") return undefined;
   const inbound = ack.params["message"];
   if (typeof inbound !== "object" || inbound === null || !("error" in inbound)) return undefined;
@@ -91,8 +91,7 @@ function rejectionMessageOf(ack: SurfaceMessage | null): string | undefined {
 }
 
 export function buildRenderUiRegistrations(
-  _routeDeps: unknown,
-  surfaces: AssistantSurfaceDeps,
+  { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
   /** Test-only seam: production callers never pass this, so `RENDER_REJECTION_GRACE_MS` always
    * applies for real; a test that needs to prove the grace period itself elapses (rather than
    * exercising the fast, message-arrives-immediately path) can shrink it instead of taking a real
@@ -132,7 +131,7 @@ export function buildRenderUiRegistrations(
         const updated = await emitA2ui({ version: "v1.0", updateComponents: { surfaceId, components: components as never } });
         if (!updated.ok) return { rendered: false, reason: "schema-rejected", detail: updated.reason };
 
-        const rejection = rejectionMessageOf(await receiveRejectionWithGrace(exchange, rejectionGraceMs));
+        const rejection = rejectionMessageOf({ ack: await receiveRejectionWithGrace({ exchange: exchange, graceMs: rejectionGraceMs }) });
         if (rejection) {
           return {
             rendered: false,

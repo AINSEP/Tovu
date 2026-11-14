@@ -31,7 +31,7 @@ for (const missing of ["run-id", "durable-store"] as const) {
   test(`serving boot cancels a row with no ${missing} once and keeps its saved answer`, async () => {
     const db = openChatDb(":memory:");
     const ledger = createChatRunLedger({ store: db });
-    const store = createChatStoreFactory(db)(principal);
+    const store = createChatStoreFactory({ store: db })(principal);
     const events = [{ kind: "text" as const, text: "Saved partial" }];
     try {
       await store.create({ id: "c1" });
@@ -58,7 +58,7 @@ for (const missing of ["run-id", "durable-store"] as const) {
 test("a missing daemon attempt without durable recovery settles canceled instead of stranding its row", async () => {
   const db = openChatDb(":memory:");
   const ledger = createChatRunLedger({ store: db });
-  const store = createChatStoreFactory(db)(principal);
+  const store = createChatStoreFactory({ store: db })(principal);
   try {
     await store.create({ id: "c1" });
     const message = { ...stub, content: "Saved partial", events: [{ kind: "text" as const, text: "Saved partial" }] };
@@ -79,7 +79,7 @@ test("a missing daemon attempt without durable recovery settles canceled instead
 for (const [reason, expectedLaunches] of [["HTTP 400: invalid_request_error", 0], ["HTTP 503: overloaded", 1]] as const) {
   test(`a failed stream uses the shared retryability policy: ${reason}`, async () => {
     const db = openChatDb(":memory:");
-    const store = createChatStoreFactory(db)(principal);
+    const store = createChatStoreFactory({ store: db })(principal);
     let launches = 0;
     try {
       await store.create({ id: "c1" });
@@ -114,7 +114,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
   let terminalWritten = false;
   let checkpointCalls = 0;
   const ledger = createChatRunLedger({ store: db });
-  const store = createChatStoreFactory(db)(principal);
+  const store = createChatStoreFactory({ store: db })(principal);
   await store.create({ id: "c1" });
   await store.appendMessage({ conversationId: "c1", message: stub });
   const finalizer = createAssistantRunFinalizer({
@@ -173,7 +173,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
     db.close();
     db = openChatDb(path);
     assert.equal(await createChatRunLedger({ store: db }).reconcileInterrupted({ now: 3000 }), 0);
-    const reopened = (await createChatStoreFactory(db)(principal).messages({ conversationId: "c1" }))[0]!;
+    const reopened = (await createChatStoreFactory({ store: db })(principal).messages({ conversationId: "c1" }))[0]!;
     assert.equal(reopened.runStatus, "succeeded");
     assert.equal(reopened.content, "Finished answer");
     assert.deepEqual(reopened.events, [{ kind: "text", text: "Finished answer" }]);
@@ -192,7 +192,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
 
 test("an authentication failure keeps its partial answer and never launches a continuation", async () => {
   const db = openChatDb(":memory:");
-  const store = createChatStoreFactory(db)(principal);
+  const store = createChatStoreFactory({ store: db })(principal);
   await store.create({ id: "c1" });
   await store.appendMessage({ conversationId: "c1", message: stub });
   let launches = 0;
@@ -218,7 +218,7 @@ test("an authentication failure keeps its partial answer and never launches a co
 
 test("a request-bound run retains its ordinary browser terminal status", async () => {
   const db = openChatDb(":memory:");
-  const store = createChatStoreFactory(db)(principal);
+  const store = createChatStoreFactory({ store: db })(principal);
   const ledger = createChatRunLedger({ store: db });
   const byokStub = { ...stub, runId: "byok:run-1" };
   try {
@@ -240,7 +240,7 @@ test("a request-bound run retains its ordinary browser terminal status", async (
 
 test("a browser-first restart save of a daemon run stays running, and the finalizer's proof settles it canceled, never failed", async () => {
   const db = openChatDb(":memory:");
-  const store = createChatStoreFactory(db)(principal);
+  const store = createChatStoreFactory({ store: db })(principal);
   const ledger = createChatRunLedger({ store: db });
   try {
     await store.create({ id: "c1" });
@@ -265,7 +265,7 @@ test("a browser-first restart save of a daemon run stays running, and the finali
 
 test("an unknown daemon terminal snapshot cannot create a server-owned message", async () => {
   const db = openChatDb(":memory:");
-  const store = createChatStoreFactory(db)(principal);
+  const store = createChatStoreFactory({ store: db })(principal);
   try {
     await store.create({ id: "c1" });
     const events = [{ kind: "status" as const, label: notice.label, detail: "The CLI reported a real error." }];

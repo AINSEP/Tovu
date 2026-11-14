@@ -3,7 +3,7 @@ import type { ExternalMcpOperations } from "#src/features/external-mcp/operation
 
 /** Live in-process accounting. The federation transport owns remote errors and their tracing. */
 export interface ServerAdmissionsReader {
-  readonly awaitFederation?: (timeoutMs: number) => Promise<{ readonly settled: boolean }>;
+  readonly awaitFederation?: (required: { timeoutMs: number }, optional?: Record<string, never>) => Promise<{ readonly settled: boolean }>;
   readonly readAdmissions?: () => Promise<{ readonly connections: unknown; readonly configFailures?: unknown }>;
 }
 
@@ -26,7 +26,7 @@ export async function readServerAdmissions(
 ): ReturnType<ExternalMcpOperations["admissions"]> {
   if (!awaitFederation || !readAdmissions) return unavailable();
   try {
-    if (!(await awaitFederation(5_000)).settled) return unavailable();
+    if (!(await awaitFederation({ timeoutMs: 5_000 })).settled) return unavailable();
     const report = await readAdmissions();
     if (!Array.isArray(report.connections)) return unavailable();
     if (report.configFailures !== undefined && !Array.isArray(report.configFailures)) return unavailable();

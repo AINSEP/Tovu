@@ -22,7 +22,7 @@ describe("createChatStoreFactory", () => {
     db.pragma("foreign_keys = ON");
     db.exec(CHAT_HISTORY_DDL);
 
-    const factory = createChatStoreFactory(db);
+    const factory = createChatStoreFactory({ store: db });
     const principal: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "u1" };
     const store = factory(principal);
 
@@ -38,7 +38,7 @@ describe("createChatStoreFactory", () => {
     db.pragma("foreign_keys = ON");
     db.exec(CHAT_HISTORY_DDL);
 
-    const factory = createChatStoreFactory(db);
+    const factory = createChatStoreFactory({ store: db });
     const alice: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "alice" };
     const bob: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "bob" };
 

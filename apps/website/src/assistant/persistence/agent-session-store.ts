@@ -31,7 +31,7 @@ import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
  * by the borrowed kernel's transport; never calls the rich legacy agent_sessions API.
  * Uses assistant_agent_sessions, with its existing FK cascade and overwrite/clear semantics.
  */
-export function createSqliteAgentSessionStore(store: ChatKernel | SqliteConnectionSource): AgentSessionStore {
+export function createSqliteAgentSessionStore({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}): AgentSessionStore {
   const kernel = chatKernel(store);
   switch (kernel.transport) {
     case "better-sqlite3": return createSqliteSessions({ kernel });

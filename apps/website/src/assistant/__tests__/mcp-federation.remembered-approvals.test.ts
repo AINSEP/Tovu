@@ -260,7 +260,7 @@ test("G3 remembered: delivery ignores existing matching chat and Always allow gr
   await stores.always.upsert({ workspaceId: WORKSPACE_ID, serverId: CONFIG.connectionId, toolName: tool.name,
     fingerprint, grantedByPrincipalId: PRINCIPAL_ID, grantedAt: "2026-10-01T00:00:00.000Z" });
   const key = { conversationId: "chat-a", principalId: PRINCIPAL_ID, connectionId: CONFIG.connectionId, toolName: tool.name, fingerprint };
-  await stores.chat.grant(key, "2026-10-01T00:00:00.000Z");
+  await stores.chat.grant({ key: key, grantedAt: "2026-10-01T00:00:00.000Z" });
   assert.equal(await stores.chat.has(key), true);
   assert.equal((await stores.always.listByWorkspaceId(WORKSPACE_ID)).length, 1);
   const h = harness(stores);
@@ -396,13 +396,13 @@ test("G3 remembered: Allow for this chat survives a restart — it is kept in ch
       .prepare(`INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES (?, ?, 'user', ?, 0, 0)`)
       .run("chat-a", WORKSPACE_ID, PRINCIPAL_ID);
     const always = new InMemoryExternalMcpToolApprovalRepo();
-    const before = harness({ always, chat: createSqliteConversationToolApprovalStore(first) });
+    const before = harness({ always, chat: createSqliteConversationToolApprovalStore({ store: first }) });
     await callAndAnswer(before, "assistant_set_instructions", { decision: "confirm", choice: "chat" }, { conversation: "chat-a" });
     first.close();
 
     // A fresh process: a new handle on the same file, new stores, a new registry.
     const second = openChatDb(path);
-    const after = harness({ always, chat: createSqliteConversationToolApprovalStore(second) });
+    const after = harness({ always, chat: createSqliteConversationToolApprovalStore({ store: second }) });
     assert.equal(await runsWithoutCard(after, "assistant_set_instructions", { conversation: "chat-a" }), true);
     assert.equal(await runsWithoutCard(after, "assistant_set_instructions", { conversation: "chat-b" }), false);
 
@@ -420,7 +420,7 @@ test("G3 remembered: a chat the store cannot record in (not in ai_chats) still r
   const dir = mkdtempSync(join(tmpdir(), "g3-chat-approvals-"));
   try {
     const db = openChatDb(join(dir, "chat.db"));
-    const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat: createSqliteConversationToolApprovalStore(db) });
+    const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat: createSqliteConversationToolApprovalStore({ store: db }) });
     await callAndAnswer(h, "assistant_set_instructions", { decision: "confirm", choice: "chat" }, { conversation: "chat-missing" });
     assert.equal(h.sent.length, 1);
     assert.equal(await runsWithoutCard(h, "assistant_set_instructions", { conversation: "chat-missing" }), false);
@@ -585,7 +585,7 @@ test("G3 remembered: an Allow for this chat is stamped with the injected approva
   const granted: string[] = [];
   const memory = createInMemoryConversationToolApprovalStore();
   const chat: ConversationToolApprovalStore = { has: (key) => memory.has(key),
-    grant: async (key, grantedAt) => { granted.push(grantedAt); await memory.grant(key, grantedAt); } };
+    grant: async ({ key, grantedAt }) => { granted.push(grantedAt); await memory.grant({ key, grantedAt }); } };
   const h = harness({ always: new InMemoryExternalMcpToolApprovalRepo(), chat }, { approvals: { now: () => new Date("2026-03-04T05:06:07.000Z") } });
   await callAndAnswer(h, "assistant_set_instructions", { decision: "confirm", choice: "chat" });
   assert.deepEqual(granted, ["2026-03-04T05:06:07.000Z"]);

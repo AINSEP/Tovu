@@ -66,7 +66,7 @@ test("federation.start() does not read the roster until installed-extension regi
     },
   }) as unknown as AttachAssistantToolExtensionsDeps;
 
-  const extensions = attachAssistantToolExtensions(fakeRegistry(), deps, "[order-test]");
+  const extensions = attachAssistantToolExtensions({ registry: fakeRegistry(), deps: deps, log: "[order-test]" });
   const started = extensions.federation.start();
   // The agent-plugin and skill families read disk first, so wait for the capability family to be
   // mid-flight (the last installed-extension step) before asserting federation has not moved.
@@ -110,7 +110,7 @@ test("an injected federation connect is the one the boot pass uses for each reso
     },
   }) as unknown as AttachAssistantToolExtensionsDeps;
 
-  const extensions = attachAssistantToolExtensions(fakeRegistry(), deps, "[connect-test]");
+  const extensions = attachAssistantToolExtensions({ registry: fakeRegistry(), deps: deps, log: "[connect-test]" });
   await extensions.installed;
   await extensions.federation.start();
   assert.deepEqual(connected, ["conn-injected"]);

@@ -130,12 +130,12 @@ test("resolveCustomInstructions fails open ('') when settingsReady rejects, rath
 // ---------------------------------------------------------------------------
 
 test("formatCustomInstructionsOverlay returns null for empty or whitespace-only text", () => {
-  assert.equal(formatCustomInstructionsOverlay(""), null);
-  assert.equal(formatCustomInstructionsOverlay("   \n\t "), null);
+  assert.equal(formatCustomInstructionsOverlay({ customInstructions: "" }), null);
+  assert.equal(formatCustomInstructionsOverlay({ customInstructions: "   \n\t " }), null);
 });
 
 test("formatCustomInstructionsOverlay wraps non-empty, trimmed text in the overlay header", () => {
-  const overlay = formatCustomInstructionsOverlay("  Always respond in pirate slang.  ");
+  const overlay = formatCustomInstructionsOverlay({ customInstructions: "  Always respond in pirate slang.  " });
   assert.ok(overlay !== null);
   assert.ok(overlay.includes("Always respond in pirate slang."));
   assert.ok(!overlay.startsWith(" "), "leading whitespace from the stored value must be trimmed");

@@ -30,9 +30,9 @@ function stores(kernel: ChatKernel) {
   const now = clock();
   return {
     kernel,
-    alice: createChatHistoryStore(kernel, ALICE, now),
-    bob: createChatHistoryStore(kernel, BOB, now),
-    of: (scope: ChatOwnerScope) => createChatHistoryStore(kernel, scope, now),
+    alice: createChatHistoryStore({ kernel: kernel, scope: ALICE }, { now: now }),
+    bob: createChatHistoryStore({ kernel: kernel, scope: BOB }, { now: now }),
+    of: (scope: ChatOwnerScope) => createChatHistoryStore({ kernel: kernel, scope: scope }, { now: now }),
   };
 }
 

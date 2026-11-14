@@ -24,11 +24,11 @@ export function toJiniToolApprovalRepo({ repo, workspaceId }: {
   };
 }
 
-/** Adapt the existing two-scalar SQL grant method without changing persisted key bytes. */
+/** Adapt the host store without changing persisted key bytes. */
 export function toJiniConversationApprovalStore({ store }: {
   store: ConversationToolApprovalStore;
 }, _optional: Record<string, never> = {}): SharedConversationStore {
-  return { has: key => store.has(key), ...(store.hasIdentity ? { hasIdentity: key => store.hasIdentity!(key) } : {}), grant: ({ key, grantedAt }) => store.grant(key, grantedAt) };
+  return { has: key => store.has(key), ...(store.hasIdentity ? { hasIdentity: key => store.hasIdentity!(key) } : {}), grant: ({ key, grantedAt }) => store.grant({ key, grantedAt }) };
 }
 
 /** DB-less host composition: workspace ids become Jini's opaque scope; no local map is forked. */
@@ -60,5 +60,5 @@ export class InMemoryExternalMcpToolApprovalRepo implements ExternalMcpToolAppro
 /** Preserve the host's existing factory/SQL ABI while Jini owns conversation/principal isolation. */
 export function createInMemoryConversationToolApprovalStore(): ConversationToolApprovalStore {
   const store = createSharedMemoryStore({});
-  return { has: key => store.has(key), hasIdentity: key => store.hasIdentity!(key), grant: (key, grantedAt) => store.grant({ key, grantedAt }) };
+  return { has: key => store.has(key), hasIdentity: key => store.hasIdentity!(key), grant: ({ key, grantedAt }) => store.grant({ key, grantedAt }) };
 }
