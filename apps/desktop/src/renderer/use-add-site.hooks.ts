@@ -44,7 +44,7 @@ export function useAddSite({ setProjects }: { setProjects: Dispatch<SetStateActi
   { onAlreadyTracked, onAdded, getBridge = runnerInventoryBridge }: {
     onAlreadyTracked?: (id: string) => void;
     /** Every added site, new or already tracked: the Import page opens its tab. */
-    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
+    onAdded?: (required: { added: SiteRecord & { alreadyTracked?: boolean } }, options?: {}) => void;
     /** Reads this window's preload bridge at click time (absent outside a real desktop window). */
     getBridge?: () => Pick<RunnerInventoryBridge, 'addSite' | 'addDroppedSite'> | undefined;
   } = {},
@@ -105,12 +105,12 @@ function showAddedSite(
     setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>;
     setAddError: (message: string | null) => void;
     setAddNotice: (notice: { siteId: string; message: string } | null) => void;
-    onAdded?: (added: SiteRecord & { alreadyTracked?: boolean }) => void;
+    onAdded?: (required: { added: SiteRecord & { alreadyTracked?: boolean } }, options?: {}) => void;
     onAlreadyTracked?: (id: string) => void;
   },
 ): void {
   setProjects((current) => mergeAddedSite(current, added));
-  onAdded?.(added);
+  onAdded?.({ added });
   const message = addedSiteMessage({ added });
   setAddError(message);
   setAddNotice(message ? { siteId: added.id, message } : null);

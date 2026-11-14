@@ -4,15 +4,15 @@ import test from 'node:test';
 import { startImportedSite } from './use-start-imported.hooks.js';
 import { site } from './app-render-harness.js';
 
-const imported = { ...site('new'), displayName: 'Shop', status: 'stopped' as const };
+const imported = { ...site({ id: 'new' }), displayName: 'Shop', status: 'stopped' as const };
 
 test('a new import is started and main\'s refreshed record is applied, with no toast', async () => {
   const applied: string[] = [];
   const started: string[] = [];
-  const running = { ...site('new'), status: 'running' as const };
+  const running = { ...site({ id: 'new' }), status: 'running' as const };
   const toast = await startImportedSite(
     { site: imported, applyRecord: (record) => applied.push(record.status) },
-    { getBridge: () => ({ startSite: async (id: string) => { started.push(id); return running; } }) },
+    { getBridge: () => ({ startSite: async ({ id }: { id: string }, _options = {}) => { started.push(id); return running; } }) },
   );
   assert.equal(toast, undefined);
   assert.deepEqual(started, ['new']);
@@ -38,7 +38,7 @@ test('a missing desktop connection is a failed start, not a throw', async () => 
 
 test('a folder already on the list, or already running, is left as it was', async () => {
   const started: string[] = [];
-  const bridge = { startSite: async (id: string) => { started.push(id); return site(id); } };
+  const bridge = { startSite: async ({ id }: { id: string }, _options = {}) => { started.push(id); return site({ id }); } };
   assert.equal(await startImportedSite({ site: { ...imported, alreadyTracked: true }, applyRecord: () => {} }, { getBridge: () => bridge }), undefined);
   assert.equal(await startImportedSite({ site: { ...imported, status: 'running' }, applyRecord: () => {} }, { getBridge: () => bridge }), undefined);
   assert.deepEqual(started, []);

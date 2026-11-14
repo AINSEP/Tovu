@@ -21,7 +21,7 @@ export function ptyHelperPaths({ ptyDir }: { ptyDir: string }): string[] {
 }
 
 /** Whether `mode` lacks any of the user/group/other execute bits. */
-export function lacksExecuteBits(mode: number): boolean {
+export function lacksExecuteBits({ mode }: { mode: number }, _options = {}): boolean {
   return (mode & 0o111) !== 0o111;
 }
 
@@ -32,11 +32,11 @@ export function lacksExecuteBits(mode: number): boolean {
  * Windows packages too, Windows cannot hold POSIX modes (`chmod` cannot set them), and conpty never
  * execs spawn-helper.
  *
- * @param resourcesDirs - packaged `Resources` dirs (each holds `app.asar` and `app.asar.unpacked`).
+ * @param required.resourcesDirs - packaged `Resources` dirs (each holds `app.asar` and `app.asar.unpacked`).
  * @returns one line per failure; empty when every dir passes.
  * @complexity O(d * p) for d dirs and p prebuild platforms.
  */
-export function packagedPtyHelperFailures(resourcesDirs: string[]): string[] {
+export function packagedPtyHelperFailures({ resourcesDirs }: { resourcesDirs: string[] }, _options = {}): string[] {
   return resourcesDirs.flatMap((dir) => {
     if (!dir.endsWith(path.join("Contents", "Resources"))) return [];
     const ptyDir = path.join(dir, "app.asar.unpacked", "node_modules", "node-pty");
@@ -44,7 +44,7 @@ export function packagedPtyHelperFailures(resourcesDirs: string[]): string[] {
     if (helpers.length === 0) return [`no node-pty spawn-helper under ${ptyDir}`];
     return helpers.flatMap((file) => {
       const mode = statSync(file).mode;
-      return lacksExecuteBits(mode) ? [`${file} (mode ${(mode & 0o777).toString(8)})`] : [];
+      return lacksExecuteBits({ mode }) ? [`${file} (mode ${(mode & 0o777).toString(8)})`] : [];
     });
   });
 }

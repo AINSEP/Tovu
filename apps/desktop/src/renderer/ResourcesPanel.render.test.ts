@@ -166,7 +166,7 @@ test('panel Stop reaches the existing stop API once, applies main record and sho
   let fail = false;
   const bridge = {
     startSite: async () => { assert.fail('resource panel cannot start a site'); },
-    stopSite: (id: string) => { calls.push(id); return fail ? Promise.reject(new Error('Stop failed.')) : new Promise<SiteRecord>((resolve) => { finish = resolve; }); },
+    stopSite: ({ id }: { id: string }, _options = {}) => { calls.push(id); return fail ? Promise.reject(new Error('Stop failed.')) : new Promise<SiteRecord>((resolve) => { finish = resolve; }); },
   };
   const usePower: typeof useSitePower = (onUpdated) => useSitePower(onUpdated, { getBridge: () => bridge });
   const { host } = mount(t, createElement(ResourcesPanel, {

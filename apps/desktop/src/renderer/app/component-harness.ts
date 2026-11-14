@@ -24,12 +24,12 @@ export interface TestContext {
 export interface Mounted {
   container: HTMLElement;
   render: (next: ReactElement) => void;
-  all: (selector: string) => HTMLElement[];
-  byLabel: (label: string) => HTMLElement | null;
-  byText: (text: string, selector?: string) => HTMLElement | undefined;
+  all: (required: { selector: string }, options?: {}) => HTMLElement[];
+  byLabel: (required: { label: string }, options?: {}) => HTMLElement | null;
+  byText: (required: { text: string }, options?: { selector?: string }) => HTMLElement | undefined;
   text: () => string;
-  click: (el: Element | null | undefined) => Promise<void>;
-  type: (input: HTMLInputElement, value: string) => Promise<void>;
+  click: (required: { el: Element | null | undefined }, options?: {}) => Promise<void>;
+  type: (required: { input: HTMLInputElement; value: string }, options?: {}) => Promise<void>;
 }
 
 /**
@@ -43,20 +43,20 @@ export function mount({ t, element }: { t: TestContext; element: ReactElement },
   t.after(() => { act(() => root.unmount()); container.remove(); });
   const render = (next: ReactElement) => act(() => root.render(next));
   render(element);
-  const all = (selector: string) => [...container.querySelectorAll<HTMLElement>(selector)];
+  const all = ({ selector }: { selector: string }, _options = {}) => [...container.querySelectorAll<HTMLElement>(selector)];
   return {
     container,
     render,
     all,
-    byLabel: (label) => container.querySelector<HTMLElement>(`[aria-label="${label}"]`),
-    byText: (text, selector = 'button') => all(selector).find((el) => el.textContent?.trim() === text),
+    byLabel: ({ label }, _options = {}) => container.querySelector<HTMLElement>(`[aria-label="${label}"]`),
+    byText: ({ text }, { selector = 'button' } = {}) => all({ selector }).find((el) => el.textContent?.trim() === text),
     text: () => container.textContent ?? '',
-    async click(el) {
+    async click({ el }, _options = {}) {
       assert.ok(el, 'element to click is on screen');
       await act(async () => { el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); });
       await settle();
     },
-    async type(input, value) {
+    async type({ input, value }, _options = {}) {
       await act(async () => {
         const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')?.set;
         if (!setter) throw new Error('test input value setter is missing from the DOM');
@@ -91,7 +91,7 @@ export function useFakeFolders(): SiteFoldersSettings {
  */
 export function fakeSiteSettings(_input = {}, _options = {}): { useSiteSettings: typeof useSiteStorageSettings; shown: () => number } {
   let shown = 0;
-  const useSiteSettings: typeof useSiteStorageSettings = (required, options) => ({
+  const useSiteSettings: typeof useSiteStorageSettings = (required, options = {}) => ({
     ...useSiteStorageSettings(required, { ...options, useFolders: useFakeFolders }),
     show: () => { shown++; },
   });
@@ -102,7 +102,7 @@ export function fakeSiteSettings(_input = {}, _options = {}): { useSiteSettings:
 export function recordTelemetry({ t }: { t: TestContext }, _options = {}): unknown[] {
   const previous = dom.window.tovuTelemetry;
   const payloads: unknown[] = [];
-  dom.window.tovuTelemetry = { report: (payload: unknown) => { payloads.push(payload); } };
+  dom.window.tovuTelemetry = { report: ({ payload }: { payload: unknown }, _options = {}) => { payloads.push(payload); } };
   t.after(() => { dom.window.tovuTelemetry = previous; });
   return payloads;
 }

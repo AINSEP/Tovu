@@ -58,7 +58,7 @@ const speech = createSpeechBridge({
 contextBridge.exposeInMainWorld("tovuVoice", {
   isAvailable: () => speech.isAvailable(),
   /** Preserve sample identity and native IPC order across the host renderer's bridge. */
-  transcribe: ({ samples, sampleRate }: { samples: Float32Array | readonly number[]; sampleRate: number }, _optional = {}) =>
+  transcribe: ({ samples, sampleRate }: { samples: Float32Array | readonly number[]; sampleRate: number }, _options = {}) =>
     speech.transcribe({ samples, sampleRate }),
 });
 /** File paths are a host capability granted only to the admin document. */

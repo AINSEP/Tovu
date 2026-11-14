@@ -25,7 +25,7 @@ function harness(t: Parameters<typeof renderHook>[0], { projects = [site()], sto
   const stops: string[] = [];
   const hook = renderHook(t, () => useTabCloseAsk(
     { projects, closeTab: (id) => closed.push(id), onSiteUpdated: (record) => updated.push(record) },
-    { getBridge: () => ({ keepSiteRunning: async ({ id }: { id: string }) => { keptRunning.push(id); await keepSiteRunning(); }, startSite: async () => site(), stopSite: (id: string) => { stops.push(id); return stopSite(id); } }) },
+    { getBridge: () => ({ keepSiteRunning: async ({ id }: { id: string }) => { keptRunning.push(id); await keepSiteRunning(); }, startSite: async () => site(), stopSite: ({ id }: { id: string }, _options = {}) => { stops.push(id); return stopSite(id); } }) },
   ));
   return { hook, closed, updated, stops, keptRunning };
 }

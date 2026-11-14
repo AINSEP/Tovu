@@ -98,7 +98,7 @@ test('no status produces a label that contradicts its action', () => {
 test("'start' calls startSite and reports main's own record back", async () => {
   const calls: string[] = [];
   const result = await performPowerAction('start', '/sites/a', {
-    startSite: async (id) => {
+    startSite: async ({ id }, _options = {}) => {
       calls.push(`start:${id}`);
       return RECORD;
     },
@@ -113,7 +113,7 @@ test("'stop' calls stopSite, never startSite", async () => {
   const calls: string[] = [];
   const result = await performPowerAction('stop', '/sites/b', {
     startSite: async () => assert.fail('startSite must not be called for a stop'),
-    stopSite: async (id) => {
+    stopSite: async ({ id }, _options = {}) => {
       calls.push(`stop:${id}`);
       return RECORD;
     },
@@ -255,9 +255,9 @@ test('codeSpans renders backticked text as code and drops empty parts', () => {
 });
 
 test('the Stop confirm is its own card overlay; delete still wins a tie', () => {
-  assert.equal(cardOverlay('/a', null, null, '/a'), 'stop');
-  assert.equal(cardOverlay('/a', '/a', null, '/a'), 'confirm');
-  assert.equal(cardOverlay('/a', null, '/a', '/a'), 'stop');
-  assert.equal(cardOverlay('/a', null, null, '/b'), null);
-  assert.equal(cardOverlay('/a', null, '/a'), 'rename');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: null }, { confirmingStopId: '/a' }), 'stop');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: '/a', renamingId: null }, { confirmingStopId: '/a' }), 'confirm');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: '/a' }, { confirmingStopId: '/a' }), 'stop');
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: null }, { confirmingStopId: '/b' }), null);
+  assert.equal(cardOverlay({ id: '/a', pendingDeleteId: null, renamingId: '/a' }), 'rename');
 });

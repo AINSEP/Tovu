@@ -42,37 +42,37 @@ test('TopNav: a failed version load shows no version and puts the error on the b
 
 test('TopNav: Websites reads as current only while the sites home is on screen', async (t) => {
   const home = await renderNav(t);
-  assert.equal(home.byLabel('Websites')?.getAttribute('aria-current'), 'page');
-  assert.ok(home.byLabel('Websites')?.classList.contains('is-active'));
+  assert.equal(home.byLabel({ label: 'Websites' })?.getAttribute('aria-current'), 'page');
+  assert.ok(home.byLabel({ label: 'Websites' })?.classList.contains('is-active'));
   const inTab = await renderNav(t, { onSitesHome: false });
-  assert.equal(inTab.all('[aria-current="page"]').length, 0, 'with a site tab in view no section is current');
+  assert.equal(inTab.all({ selector: '[aria-current="page"]' }).length, 0, 'with a site tab in view no section is current');
 });
 
 test('TopNav: the running badge appears on Websites only, and only when a site is running', async (t) => {
   const idle = await renderNav(t);
   assert.equal(idle.container.querySelector('.topnav__count'), null);
   const busy = await renderNav(t, { runningCount: 3 });
-  const badges = busy.all('.topnav__count');
+  const badges = busy.all({ selector: '.topnav__count' });
   assert.equal(badges.length, 1);
   assert.equal(badges[0]?.textContent, '3');
-  assert.ok(busy.byLabel('Websites')?.contains(badges[0]!));
+  assert.ok(busy.byLabel({ label: 'Websites' })?.contains(badges[0]!));
 });
 
 test('TopNav: Websites selects its section; unbuilt sections are inert but keep their tooltip', async (t) => {
   const view = await renderNav(t);
-  await view.click(view.byLabel('Websites'));
+  await view.click({ el: view.byLabel({ label: 'Websites' }) });
   assert.deepEqual(view.selected, ['projects']);
-  const disabled = view.all('.topnav__link--disabled');
+  const disabled = view.all({ selector: '.topnav__link--disabled' });
   assert.ok(disabled.length > 0, 'at least one section is not built yet');
   for (const link of disabled) {
     assert.equal(link.getAttribute('aria-disabled'), 'true');
     assert.equal(link.getAttribute('tabindex'), '-1');
     assert.equal(link.hasAttribute('disabled'), false, 'never the native attribute, which would kill the tooltip');
     assert.match(link.getAttribute('data-tip') ?? '', /Coming soon/);
-    await view.click(link);
+    await view.click({ el: link });
   }
   assert.deepEqual(view.selected, ['projects'], 'clicking an unbuilt section selects nothing');
-  const websites = view.byLabel('Websites')!;
+  const websites = view.byLabel({ label: 'Websites' })!;
   assert.equal(websites.hasAttribute('aria-disabled'), false);
   assert.equal(websites.hasAttribute('tabindex'), false);
 });
@@ -86,7 +86,7 @@ test('TopNav: every section but Websites is disabled, Marketplace included', asy
   // The generic `section.id !== 'projects'` rule is what grays Marketplace out. If someone rewrites
   // it as an allowlist or adds an `id === 'marketplace' ? false :` carve-out, this must fail.
   const view = await renderNav(t);
-  const disabled = view.all('.topnav__link--disabled').map((link) => link.getAttribute('aria-label'));
+  const disabled = view.all({ selector: '.topnav__link--disabled' }).map((link) => link.getAttribute('aria-label'));
   assert.deepEqual(disabled, visibleSections().filter(({ id }) => id !== 'projects').map(({ label }) => label));
   assert.ok(disabled.includes('Marketplace'));
 });

@@ -280,7 +280,7 @@ function twoSourceFakes() {
     onFindToggle: () => () => {},
     findInPage: async () => {},
     stopFindInPage: async () => {},
-    onFindResult: (listener) => {
+    onFindResult: ({ listener }, _options = {}) => {
       windowListeners.add(listener);
       return () => void windowListeners.delete(listener);
     },

@@ -15,7 +15,7 @@ const fileItem = (isDirectory: boolean) => ({ kind: 'file', webkitGetAsEntry: ()
 function setup(t: { after: (fn: () => void) => void }, busy = false) {
   const seen: string[] = [];
   const hook = renderHook(t, () => useImportDrop(
-    { busy, onFolder: (p) => seen.push(`folder:${p}`), onArchive: (p) => seen.push(`archive:${p}`), onRefused: (m) => seen.push(`refused:${m}`) },
+    { busy, onFolder: ({ path }, _options = {}) => seen.push(`folder:${path}`), onArchive: ({ path }, _options = {}) => seen.push(`archive:${path}`), onRefused: (m) => seen.push(`refused:${m}`) },
     { getPathForFile: (f) => `/x/${f.name}` },
   ));
   return { hook, seen };

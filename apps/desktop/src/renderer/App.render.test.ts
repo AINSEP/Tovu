@@ -25,18 +25,18 @@ after(closeHost);
 test('Phase 3 actual shell screens and Create website button send only catalog IDs', async t => {
   const previous = window.tovuTelemetry;
   const payloads: unknown[] = [];
-  window.tovuTelemetry = { report: payload => { payloads.push(payload); } };
+  window.tovuTelemetry = { report: ({ payload }, _options = {}) => { payloads.push(payload); } };
   t.after(() => { window.tovuTelemetry = previous; });
   const app = await renderApp(t);
   assert.deepEqual(payloads, [{ kind: 'screen', id: 'projects' }]);
-  await app.click(app.all('button').find(button => button.textContent?.includes('Create website')));
+  await app.click({ el: app.all({ selector: 'button' }).find(button => button.textContent?.includes('Create website')) });
   assert.deepEqual(payloads, [{ kind: 'screen', id: 'projects' }, { kind: 'action', id: 'create_website' }, { kind: 'screen', id: 'create_website' }]);
 });
 
 test('App: the header chip and running card display the same resource snapshot', async (t) => {
   const metrics = { rssBytes: 250_000_000, cpuPercent: null, memoryWarning: false, cpuWarning: false };
   const app = await renderApp(t, {
-    listSites: async () => [site('a', { status: 'running', port: 4100 })],
+    listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })],
     getResources: async () => ({
       status: 'available', sampledAt: 1, pollIntervalMs: 60_000, totalMemoryBytes: 8_000_000_000, approximate: true,
       total: metrics, app: { ...metrics, siteId: null, processes: [] },
@@ -51,14 +51,14 @@ test('App: the header chip and running card display the same resource snapshot',
 
 test('App: a stopped site\'s tab offers Start and shows the boot wait with the button disabled', async (t) => {
   const app = await renderApp(t, {
-    listSites: async () => [site('a'), site('b', { status: 'blocked' })],
+    listSites: async () => [site({ id: 'a' }), site({ id: 'b' }, { fields: { status: 'blocked' } })],
     startSite: () => new Promise<SiteRecord>(() => {}),
   });
   await openFirstSite(app);
   assert.ok(app.container.querySelector('[role="tablist"]'), 'a tab strip appears with the first open tab');
   const panel = app.container.querySelector('.workspace:not(.is-hidden) .workspace__idle')!;
   assert.ok(panel, 'a stopped site shows the start panel');
-  await app.click(app.byText('Start site'));
+  await app.click({ el: app.byText({ text: 'Start site' }) });
   assert.match(app.text(), /Starting the server\. This can take up to a minute\./);
   assert.ok(app.container.querySelector('.workspace__idle .spinner'));
 
@@ -69,18 +69,18 @@ test('App: an empty Projects screen explains the header actions, and the header 
   const app = await renderApp(t);
   assert.match(app.text(), /No websites yet\. Use Create website/);
   assert.equal(app.container.querySelector('.topnav__version')?.textContent, '1.2.3');
-  assert.ok(app.byText('Import'), 'Import is there with no site at all');
-  await app.click(app.byLabel('Rescan'));
-  await app.click(app.byText('Import'));
+  assert.ok(app.byText({ text: 'Import' }), 'Import is there with no site at all');
+  await app.click({ el: app.byLabel({ label: 'Rescan' }) });
+  await app.click({ el: app.byText({ text: 'Import' }) });
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
-  await app.click(app.byText('Choose folder…'));
+  await app.click({ el: app.byText({ text: 'Choose folder…' }) });
   assert.deepEqual(app.calls, ['rescan', 'add']);
-  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && tab.textContent !== 'Websites'), 'the added site opens in its own tab');
-  await app.click(app.byLabel('Websites'));
-  await app.click(app.all('button').find((b) => b.textContent?.includes('Create website')));
+  assert.ok(app.all({ selector: '[role="tab"]' }).some((tab) => tab.getAttribute('aria-selected') === 'true' && tab.textContent !== 'Websites'), 'the added site opens in its own tab');
+  await app.click({ el: app.byLabel({ label: 'Websites' }) });
+  await app.click({ el: app.all({ selector: 'button' }).find((b) => b.textContent?.includes('Create website')) });
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Create a website');
   assert.equal(app.container.querySelector('.create-website-host')?.getAttribute('aria-hidden'), 'false');
-  assert.equal(app.byLabel('Rescan'), null, 'the header tools give way to the form');
+  assert.equal(app.byLabel({ label: 'Rescan' }), null, 'the header tools give way to the form');
 });
 
 test('App: loading, a failed list, a failed rescan and a refused add each read as their own message', async (t) => {
@@ -93,73 +93,73 @@ test('App: loading, a failed list, a failed rescan and a refused add each read a
   assert.match(failed.text(), /Couldn't load projects\./);
 
   const refused = await renderApp(t, {
-    listSites: async () => [site('a')],
+    listSites: async () => [site({ id: 'a' })],
     rescanSites: () => Promise.reject(new Error('scan root unreadable')),
     addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')),
   });
-  await refused.click(refused.byLabel('Rescan'));
+  await refused.click({ el: refused.byLabel({ label: 'Rescan' }) });
   assert.match(refused.text(), /scan root unreadable/);
-  await refused.click(refused.byText('Import'));
-  await refused.click(refused.byText('Choose folder…'));
+  await refused.click({ el: refused.byText({ text: 'Import' }) });
+  await refused.click({ el: refused.byText({ text: 'Choose folder…' }) });
   assert.match(refused.container.querySelector('.onboarding__error')?.textContent ?? '', /That folder is not a Tovu site\./);
-  assert.ok(refused.byText('Copy details'), 'the details can be copied');
+  assert.ok(refused.byText({ text: 'Copy details' }), 'the details can be copied');
   assert.equal(refused.container.querySelector('.main__title')?.textContent, 'Import a website', 'the person stays on the page');
 });
 
 test('App: the nav badges running sites, inert links do nothing, and an agent navigate shows the unbuilt section', async (t) => {
-  const app = await renderApp(t, { listSites: async () => [site('a', { status: 'running', port: 4100 }), site('b')] });
-  const projectsLink = app.byLabel('Websites')!;
+  const app = await renderApp(t, { listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } }), site({ id: 'b' })] });
+  const projectsLink = app.byLabel({ label: 'Websites' })!;
   assert.equal(projectsLink.querySelector('.topnav__count')?.textContent, '1');
   assert.equal(projectsLink.getAttribute('aria-current'), 'page');
-  const inert = app.all('.topnav__link--disabled')[0]!;
-  await app.click(inert);
+  const inert = app.all({ selector: '.topnav__link--disabled' })[0]!;
+  await app.click({ el: inert });
   assert.equal(projectsLink.getAttribute('aria-current'), 'page', 'a disabled section link is inert');
   await act(async () => { for (const listener of app.listeners.navigate) listener('agents' as RunnerSectionId); });
   await settle();
   assert.match(app.text(), /isn’t built yet/);
-  assert.equal(app.byLabel('Rescan'), null, 'the Projects tools belong to Projects only');
-  await app.click(app.byLabel('Websites'));
+  assert.equal(app.byLabel({ label: 'Rescan' }), null, 'the Projects tools belong to Projects only');
+  await app.click({ el: app.byLabel({ label: 'Websites' }) });
 });
 
 test('App: closing a running site\'s tab asks; Keep running leaves it running, Stop stops it, and a stopped site just closes', async (t) => {
   const stops: string[] = [];
   const app = await renderApp(t, {
-    listSites: async () => [site('a', { status: 'running', port: 4100 })],
-    stopSite: async (id: string) => { stops.push(id); return site(id, { status: 'stopped' }); },
+    listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })],
+    stopSite: async ({ id }: { id: string }, _options = {}) => { stops.push(id); return site({ id }, { fields: { status: 'stopped' } }); },
   });
   const ask = () => app.container.querySelector('[role="alertdialog"]');
   const button = (label: string) => [...(ask()?.querySelectorAll('button') ?? [])].find(item => item.textContent === label);
 
   await openFirstSite(app);
-  await app.click(app.byLabel('Close Site a'));
+  await app.click({ el: app.byLabel({ label: 'Close Site a' }) });
   assert.equal(ask()?.getAttribute('aria-label'), 'Stop Site a too?');
-  assert.equal(app.all('[role="tab"]').length, 2, 'the tab waits for the answer');
+  assert.equal(app.all({ selector: '[role="tab"]' }).length, 2, 'the tab waits for the answer');
 
-  await app.click(button('Cancel'));
+  await app.click({ el: button('Cancel') });
   assert.equal(ask(), null);
-  assert.equal(app.all('[role="tab"]').length, 2, 'Cancel keeps the tab');
+  assert.equal(app.all({ selector: '[role="tab"]' }).length, 2, 'Cancel keeps the tab');
 
-  await app.click(app.byLabel('Close Site a'));
-  await app.click(button('Keep running'));
+  await app.click({ el: app.byLabel({ label: 'Close Site a' }) });
+  await app.click({ el: button('Keep running') });
   assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null, 'the tab is gone');
   assert.deepEqual(app.calls.filter(call => call.startsWith('keep-running:')), ['keep-running:a']);
   assert.deepEqual(stops, [], 'Keep running stops nothing');
 
   await openFirstSite(app);
-  await app.click(app.byLabel('Close Site a'));
-  await app.click(button('Stop'));
+  await app.click({ el: app.byLabel({ label: 'Close Site a' }) });
+  await app.click({ el: button('Stop') });
   assert.deepEqual(stops, ['a']);
   assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null);
 
   await openFirstSite(app);
-  await app.click(app.byLabel('Close Site a'));
+  await app.click({ el: app.byLabel({ label: 'Close Site a' }) });
   assert.equal(ask(), null, 'the stopped site has nothing to ask');
   assert.equal(app.container.querySelector('[aria-label="Close Site a"]'), null);
 });
 
 test('T3: navigating away from Websites and back preserves the open admin webview', async (t) => {
   const app = await renderApp(t, {
-    listSites: async () => [site('a', { status: 'running', port: 4100 })],
+    listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })],
   });
   await openFirstSite(app);
   const guest = app.container.querySelector('webview');
@@ -168,8 +168,8 @@ test('T3: navigating away from Websites and back preserves the open admin webvie
   await act(async () => { for (const listener of app.listeners.navigate) listener('agents' as RunnerSectionId); });
   await settle();
   const guestWhileAway = app.container.querySelector('webview');
-  await app.click(app.byLabel('Websites'));
-  await app.click(app.all('[role="tab"]').find(tab => tab.textContent?.includes('Site a')));
+  await app.click({ el: app.byLabel({ label: 'Websites' }) });
+  await app.click({ el: app.all({ selector: '[role="tab"]' }).find(tab => tab.textContent?.includes('Site a')) });
 
   assert.equal(app.container.querySelector('webview'), guest,
     'returning to the site must reuse its browsing context, preserving routes and unsaved forms');
@@ -178,27 +178,27 @@ test('T3: navigating away from Websites and back preserves the open admin webvie
 
 test('App: the Settings menu opens, moves with the arrows, picks a theme, opens Sites settings and Appearance', async (t) => {
   const app = await renderApp(t);
-  const gear = app.byLabel('Settings')!;
-  await app.click(gear);
+  const gear = app.byLabel({ label: 'Settings' })!;
+  await app.click({ el: gear });
   const menu = app.container.querySelector('[role="menu"]')!;
   assert.ok(menu);
   assert.equal(document.activeElement?.textContent?.trim(), 'Sites settings…');
   app.key(menu, { key: 'ArrowDown' });
   assert.equal(document.activeElement?.textContent?.trim(), 'Appearance');
-  const radios = app.all('[role="menuitemradio"]');
+  const radios = app.all({ selector: '[role="menuitemradio"]' });
   assert.deepEqual(radios.map((r) => r.getAttribute('aria-label')), ['Light', 'System', 'Dark']);
-  await app.click(app.byLabel('Dark'));
+  await app.click({ el: app.byLabel({ label: 'Dark' }) });
   assert.equal(app.container.querySelector('[role="menu"]'), null, 'choosing a theme closes the menu');
   assert.equal(localStorage.getItem([...Array(localStorage.length).keys()].map((i) => localStorage.key(i)!).find((k) => k.includes('theme')) ?? ''), 'dark');
-  await app.click(gear);
-  assert.equal(app.byLabel('Dark')?.getAttribute('aria-checked'), 'true');
-  await app.click(app.byText('Sites settings…'));
+  await app.click({ el: gear });
+  assert.equal(app.byLabel({ label: 'Dark' })?.getAttribute('aria-checked'), 'true');
+  await app.click({ el: app.byText({ text: 'Sites settings…' }) });
   assert.equal(app.settingsShown(), 1);
   assert.equal(app.container.querySelector('[role="menu"]'), null);
-  await app.click(gear);
-  await app.click(app.all('[role="menuitem"]').find((b) => b.textContent?.includes('Appearance')));
+  await app.click({ el: gear });
+  await app.click({ el: app.all({ selector: '[role="menuitem"]' }).find((b) => b.textContent?.includes('Appearance')) });
   assert.match(app.text(), /Nothing here yet beyond the theme toggle/);
-  await app.click(app.byText('← Back'));
+  await app.click({ el: app.byText({ text: '← Back' }) });
   assert.match(app.text(), /No websites yet/);
 });
 
@@ -206,33 +206,33 @@ test('App: Check for updates… reads Checking… until main answers, then close
   let answer!: () => void;
   let checks = 0;
   const app = await renderApp(t, { checkForUpdates: () => { checks++; return new Promise<void>((resolve) => { answer = resolve; }); } });
-  const gear = app.byLabel('Settings')!;
-  await app.click(gear);
-  const row = () => app.all('[role="menuitem"]').find((b) => /updates…|Checking…/.test(b.textContent ?? ''));
+  const gear = app.byLabel({ label: 'Settings' })!;
+  await app.click({ el: gear });
+  const row = () => app.all({ selector: '[role="menuitem"]' }).find((b) => /updates…|Checking…/.test(b.textContent ?? ''));
   assert.equal(row()?.textContent?.trim(), 'Check for updates…');
-  await app.click(row());
+  await app.click({ el: row() });
   assert.equal(row()?.textContent?.trim(), 'Checking…', 'the menu stays open while main checks');
   assert.equal(row()?.getAttribute('aria-disabled'), 'true');
-  await app.click(row());
+  await app.click({ el: row() });
   assert.equal(checks, 1, 'a second click while checking starts no second check');
   await act(async () => { answer(); });
   await settle();
   assert.equal(app.container.querySelector('[role="menu"]'), null, 'main has shown its notice; the menu closes');
-  await app.click(gear);
+  await app.click({ el: gear });
   assert.equal(row()?.textContent?.trim(), 'Check for updates…');
 });
 
 test('App: without checkForUpdates on the bridge the Settings menu has no update row', async (t) => {
   const app = await renderApp(t, { checkForUpdates: undefined });
-  await app.click(app.byLabel('Settings'));
-  assert.equal(app.all('[role="menuitem"]').some((b) => b.textContent?.includes('Check for updates')), false);
+  await app.click({ el: app.byLabel({ label: 'Settings' }) });
+  assert.equal(app.all({ selector: '[role="menuitem"]' }).some((b) => b.textContent?.includes('Check for updates')), false);
 });
 
 test('App: a created site\'s notice says it is ready with its token outcome, and Cancel returns to the grid', async (t) => {
-  const results = [{ ...site('n1') }, { ...site('n2'), agentPluginTokens: { status: 'saved', pluginIds: ['github'] } }] as CreatedSiteRecord[];
+  const results = [{ ...site({ id: 'n1' }) }, { ...site({ id: 'n2' }), agentPluginTokens: { status: 'saved', pluginIds: ['github'] } }] as CreatedSiteRecord[];
   const app = await renderApp(t, { createSite: async () => results.shift()! });
   const create = async () => {
-    await app.click(app.all('button').find((b) => b.textContent?.includes('Create website')));
+    await app.click({ el: app.all({ selector: 'button' }).find((b) => b.textContent?.includes('Create website')) });
     const name = app.container.querySelector<HTMLInputElement>('.create-website-host input[type="text"], .create-website-host input:not([type])')!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(name, 'New site');
@@ -247,40 +247,40 @@ test('App: a created site\'s notice says it is ready with its token outcome, and
   assert.equal(notice(), 'Site n1 is ready — open it to start its own server.');
   await create();
   assert.match(notice(), /^Site n2 is ready — open it to start its own server\. \S/, 'the token outcome follows the sentence');
-  await app.click(app.all('button').find((b) => b.textContent?.includes('Create website')));
+  await app.click({ el: app.all({ selector: 'button' }).find((b) => b.textContent?.includes('Create website')) });
   assert.equal(app.container.querySelector('.creation-notice'), null, 'opening the form again clears the notice');
-  await app.click(app.all('.create-website-host button').find((b) => /^cancel$/i.test(b.textContent?.trim() ?? '')));
+  await app.click({ el: app.all({ selector: '.create-website-host button' }).find((b) => /^cancel$/i.test(b.textContent?.trim() ?? '')) });
   assert.equal(app.container.querySelector('.create-website-host')?.getAttribute('aria-hidden'), 'true');
 });
 
 
 
 test('App: a site tab\'s bar toggles views, opens the browser, expands the window, and Escape collapses it', async (t) => {
-  const app = await renderApp(t, { listSites: async () => [site('a', { status: 'running', port: 4100 })] });
+  const app = await renderApp(t, { listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })] });
   await openFirstSite(app);
   const bar = app.container.querySelector('.workspace:not(.is-hidden) .workspace__bar')!;
-  assert.equal(app.byText('Admin')?.getAttribute('aria-pressed'), 'true');
-  await app.click(app.byText('Site'));
-  assert.equal(app.byText('Site')?.getAttribute('aria-pressed'), 'true');
-  await app.click(app.byText('Open in browser'));
+  assert.equal(app.byText({ text: 'Admin' })?.getAttribute('aria-pressed'), 'true');
+  await app.click({ el: app.byText({ text: 'Site' }) });
+  assert.equal(app.byText({ text: 'Site' })?.getAttribute('aria-pressed'), 'true');
+  await app.click({ el: app.byText({ text: 'Open in browser' }) });
   assert.ok(app.calls.some((call) => call.startsWith('external:a')));
   const expand = bar.querySelector('[aria-label="Expand to full window"]')!;
-  await app.click(expand);
+  await app.click({ el: expand });
   assert.equal(app.container.querySelector('.topnav'), null, 'expanded mode hides the top nav');
-  assert.ok(app.byLabel('Exit full window'));
+  assert.ok(app.byLabel({ label: 'Exit full window' }));
   await act(async () => { window.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape' })); });
   assert.ok(app.container.querySelector('.topnav'));
-  for (const label of ['Back', 'Forward', 'Reload']) assert.ok(app.byLabel(label), `${label} is on the bar`);
-  await app.click(app.byLabel('Reload'));
-  await app.click(app.all('[role="tab"]').find((tab) => tab.textContent === 'All'));
+  for (const label of ['Back', 'Forward', 'Reload']) assert.ok(app.byLabel({ label }), `${label} is on the bar`);
+  await app.click({ el: app.byLabel({ label: 'Reload' }) });
+  await app.click({ el: app.all({ selector: '[role="tab"]' }).find((tab) => tab.textContent === 'All') });
   assert.equal(app.container.querySelector('.workspace:not(.is-hidden)'), null);
-  await app.click(app.all('[role="tab"]').find((tab) => tab.textContent?.includes('Site a')));
+  await app.click({ el: app.all({ selector: '[role="tab"]' }).find((tab) => tab.textContent?.includes('Site a')) });
   assert.ok(app.container.querySelector('.workspace:not(.is-hidden)'), 'selecting the tab shows its workspace again');
 });
 
 test('App: a guest that fails to load is replaced by a retry panel, and a slow one gets an overlay after 8 s', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const app = await renderApp(t, { listSites: async () => [site('a', { status: 'running', port: 4100 })] });
+  const app = await renderApp(t, { listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } })] });
   await openFirstSite(app);
   act(() => t.mock.timers.tick(8000));
   await settle();
@@ -291,14 +291,14 @@ test('App: a guest that fails to load is replaced by a retry panel, and a slow o
   await settle();
   assert.equal(app.container.querySelector('webview'), null);
   assert.match(app.text(), /isn't answering on port 4100\. It may still be running, but stuck\./);
-  await app.click(app.byText('Start site'));
+  await app.click({ el: app.byText({ text: 'Start site' }) });
   assert.ok(app.calls.includes('start:a'));
 });
 
 test('App: a site attached to another app\'s server says it is connecting, then shows why the attach failed', async (t) => {
   const starts: ((reason: unknown) => void)[] = [];
   const app = await renderApp(t, {
-    listSites: async () => [site('a', { externalUrl: 'http://127.0.0.1:5173/admin/' })],
+    listSites: async () => [site({ id: 'a' }, { fields: { externalUrl: 'http://127.0.0.1:5173/admin/' } })],
     startSite: () => new Promise<SiteRecord>((_resolve, reject) => { starts.push(reject); }),
   });
   await openFirstSite(app);
@@ -306,7 +306,7 @@ test('App: a site attached to another app\'s server says it is connecting, then 
   await act(async () => { starts.shift()!(new Error('port 5173 is taken')); });
   await settle();
   assert.match(app.container.querySelector('.workspace__idle .empty__body')?.textContent ?? '', /port 5173 is taken/);
-  await app.click(app.byText('Start site'));
+  await app.click({ el: app.byText({ text: 'Start site' }) });
   await act(async () => { for (const reject of starts.splice(0)) reject(new Error('port 5173 is taken')); });
   await settle();
   assert.ok(app.container.querySelector('.workspace__error'), 'a failed start explains itself under the button');
@@ -321,7 +321,7 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
   await act(async () => { for (const listener of app.listeners.find) listener(); });
   const input = app.container.querySelector<HTMLInputElement>('.findbar__input')!;
   assert.ok(input);
-  assert.equal(app.byLabel('Next match')?.hasAttribute('disabled'), true, 'nothing typed, nothing to step through');
+  assert.equal(app.byLabel({ label: 'Next match' })?.hasAttribute('disabled'), true, 'nothing typed, nothing to step through');
   await act(async () => {
     Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(input, 'tovu');
     input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
@@ -337,23 +337,23 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
   assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: false }], 'a later Enter steps forward within the search');
   app.key(input, { key: 'a' });
   assert.deepEqual(issued(), [], 'any other key finds nothing');
-  await app.click(app.byLabel('Next match'));
+  await app.click({ el: app.byLabel({ label: 'Next match' }) });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: false }]);
-  await app.click(app.byLabel('Previous match'));
+  await app.click({ el: app.byLabel({ label: 'Previous match' }) });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: false, findNext: false }]);
   app.key(input, { key: 'Escape' });
   await settle();
   assert.equal(app.container.querySelector('.findbar'), null);
   await act(async () => { for (const listener of app.listeners.find) listener(); });
-  await app.click(app.byLabel('Close find bar'));
+  await app.click({ el: app.byLabel({ label: 'Close find bar' }) });
   assert.equal(app.container.querySelector('.findbar'), null);
 });
 
 test('App: re-adding a tracked site opens its tab with the notice, and an overflowing strip shows scroll arrows', async (t) => {
-  const tracked = site('a');
-  const app = await renderApp(t, { listSites: async () => [tracked, site('b')], addSite: async () => ({ ...tracked, alreadyTracked: true }) });
-  await app.click(app.byText('Import'));
-  await app.click(app.byText('Choose folder…'));
+  const tracked = site({ id: 'a' });
+  const app = await renderApp(t, { listSites: async () => [tracked, site({ id: 'b' })], addSite: async () => ({ ...tracked, alreadyTracked: true }) });
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  await app.click({ el: app.byText({ text: 'Choose folder…' }) });
   assert.match(app.container.querySelector('main > .projects-feedback')?.textContent ?? '', /Site a is already in your list\./);
   const strip = app.container.querySelector<HTMLElement>('[role="tablist"]')!;
   const scrolled: number[] = [];
@@ -362,8 +362,8 @@ test('App: re-adding a tracked site opens its tab with the notice, and an overfl
   });
   strip.scrollBy = ((options: ScrollToOptions) => { scrolled.push(options.left ?? 0); }) as typeof strip.scrollBy;
   await act(async () => { strip.dispatchEvent(new dom.window.Event('scroll')); });
-  await app.click(app.byLabel('Scroll tabs left'));
-  await app.click(app.byLabel('Scroll tabs right'));
+  await app.click({ el: app.byLabel({ label: 'Scroll tabs left' }) });
+  await app.click({ el: app.byLabel({ label: 'Scroll tabs right' }) });
   assert.deepEqual(scrolled, [-200, 200]);
   app.key(strip, { key: 'ArrowRight' });
 });
@@ -371,10 +371,10 @@ test('App: re-adding a tracked site opens its tab with the notice, and an overfl
 test('App: Import never opens or starts a site, whether sites exist or not', async (t) => {
   const starts: string[] = [];
   const app = await renderApp(t, {
-    listSites: async () => [site('a', { status: 'running', port: 4100 }), site('b')],
-    startSite: async (id: string) => { starts.push(id); return site(id, { status: 'running', port: 4101 }); },
+    listSites: async () => [site({ id: 'a' }, { fields: { status: 'running', port: 4100 } }), site({ id: 'b' })],
+    startSite: async ({ id }: { id: string }, _options = {}) => { starts.push(id); return site({ id }, { fields: { status: 'running', port: 4101 } }); },
   });
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   // Import is a temporary tab beside All (owner, 2026-11-10); no SITE tab opens until an import succeeds.
   assert.deepEqual(tabLabels(app), ['All', 'Import'], 'only All and the Import tab; no site tab was opened');
   assert.equal(app.container.querySelector('webview'), null, 'no site guest was loaded');
@@ -393,11 +393,11 @@ async function typeAddress(app: Awaited<ReturnType<typeof renderApp>>, value: st
 
 test('App: an old address error does not hide the error of the folder just tried', async (t) => {
   const app = await renderApp(t, { addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')) });
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   await typeAddress(app, 'not an address');
-  await app.click(app.byText('Import as a new site'));
+  await app.click({ el: app.byText({ text: 'Import as a new site' }) });
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /full website address/);
-  await app.click(app.byText('Choose folder…'));
+  await app.click({ el: app.byText({ text: 'Choose folder…' }) });
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That folder is not a Tovu site\./);
 });
 
@@ -405,13 +405,13 @@ test('App: a chosen .tovu.zip opens the new site, starts it by itself, and shows
   const asked: unknown[] = [];
   const started: string[] = [];
   const app = await renderApp(t, {
-    importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site('new', { displayName: 'Portable' }), warnings: ['Plugin kept switched off.'] }; },
-    startSite: async (id: string) => { started.push(id); return site(id, { displayName: 'Portable', status: 'running', port: 4100 }); },
+    importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site({ id: 'new' }, { fields: { displayName: 'Portable' } }), warnings: ['Plugin kept switched off.'] }; },
+    startSite: async ({ id }: { id: string }, _options = {}) => { started.push(id); return site({ id }, { fields: { displayName: 'Portable', status: 'running', port: 4100 } }); },
   } as never);
-  await app.click(app.byText('Import'));
-  await app.click(app.byText('Choose file…'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  await app.click({ el: app.byText({ text: 'Choose file…' }) });
   assert.deepEqual(asked, [{ pick: true }]);
-  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site opens in its own tab');
+  assert.ok(app.all({ selector: '[role="tab"]' }).some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site opens in its own tab');
   assert.match(app.text(), /New website created: Portable/);
   assert.match(app.text(), /Plugin kept switched off\./);
   assert.deepEqual(started, ['new'], 'the import starts the site; the person never presses Start site');
@@ -421,16 +421,16 @@ test('App: a refused archive says why in plain words, makes no tab and stays on 
   const app = await renderApp(t, {
     importSiteArchive: () => Promise.reject(new Error("Error invoking remote method 'x': That file is not a usable .tovu.zip. No website was created.")),
   } as never);
-  await app.click(app.byText('Import'));
-  await app.click(app.byText('Choose file…'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  await app.click({ el: app.byText({ text: 'Choose file…' }) });
   assert.match(app.container.querySelector('.onboarding__error')?.textContent ?? '', /That file is not a usable \.tovu\.zip/);
   assert.deepEqual(tabLabels(app), ['All', 'Import'], 'no site tab; the Import tab stays');
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
 });
 
 /** The tab strip's tab names, in order. */
-const tabLabels = (app: Awaited<ReturnType<typeof renderApp>>) => app.all('[role="tab"]').map((tab) => tab.textContent?.trim());
-const tabNamed = (app: Awaited<ReturnType<typeof renderApp>>, name: string) => app.all('[role="tab"]').find((tab) => tab.textContent?.trim() === name);
+const tabLabels = (app: Awaited<ReturnType<typeof renderApp>>) => app.all({ selector: '[role="tab"]' }).map((tab) => tab.textContent?.trim());
+const tabNamed = (app: Awaited<ReturnType<typeof renderApp>>, name: string) => app.all({ selector: '[role="tab"]' }).find((tab) => tab.textContent?.trim() === name);
 
 /** The Create page stays mounted behind the Import page and has its own Cancel and back link, so look only inside the Import page. */
 const inImportPage = (app: Awaited<ReturnType<typeof renderApp>>, label: string) =>
@@ -443,38 +443,38 @@ test('App: Cancel during an archive import stops it, opens nothing and stays on 
     importSiteArchive: () => new Promise((resolve) => { finish = resolve; }),
     cancelSiteImport: async () => { cancels += 1; finish(null); },
   } as never);
-  await app.click(app.byText('Import'));
-  await app.click(app.byText('Choose file…'));
-  await app.click(inImportPage(app, 'Cancel'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  await app.click({ el: app.byText({ text: 'Choose file…' }) });
+  await app.click({ el: inImportPage(app, 'Cancel') });
   assert.equal(cancels, 1);
   assert.deepEqual(tabLabels(app), ['All', 'Import'], 'no site tab; the Import tab stays');
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Import a website');
-  assert.equal(app.byText('Choose file…')?.hasAttribute('disabled'), false, 'ready to try again');
+  assert.equal(app.byText({ text: 'Choose file…' })?.hasAttribute('disabled'), false, 'ready to try again');
 });
 
 test('App: an import that fails after the person left the page reaches them as a toast', async (t) => {
   let fail!: (error: Error) => void;
   const app = await renderApp(t, { importSiteArchive: () => new Promise((_resolve, reject) => { fail = reject; }) } as never);
-  await app.click(app.byText('Import'));
-  await app.click(app.byText('Choose file…'));
-  await app.click(tabNamed(app, 'All'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  await app.click({ el: app.byText({ text: 'Choose file…' }) });
+  await app.click({ el: tabNamed(app, 'All') });
   assert.notEqual(app.container.querySelector('.main__title')?.textContent, 'Import a website');
   fail(new Error('The import took too long and was stopped. No website was created.'));
   await settle();
   assert.match(app.text(), /took too long and was stopped/);
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   assert.equal(app.container.querySelector('.onboarding__error'), null, 'already told; the page opens clean');
 });
 
 test('App: Import is a temporary tab right after All; Cancel or its close button shuts it, and success turns it into the new site\'s tab', async (t) => {
   const app = await renderApp(t, {
-    listSites: async () => [site('a')],
-    importSiteArchive: async () => ({ ...site('new', { displayName: 'Portable' }), warnings: [] }),
+    listSites: async () => [site({ id: 'a' })],
+    importSiteArchive: async () => ({ ...site({ id: 'new' }, { fields: { displayName: 'Portable' } }), warnings: [] }),
     // The import starts its site; main answers with the same site, so its name stays Portable.
-    startSite: async (id: string) => site(id, { displayName: 'Portable', status: 'running', port: 4100 }),
+    startSite: async ({ id }: { id: string }, _options = {}) => site({ id }, { fields: { displayName: 'Portable', status: 'running', port: 4100 } }),
   } as never);
   const title = () => app.container.querySelector('.main__title')?.textContent;
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   assert.deepEqual(tabLabels(app), ['All', 'Import']);
   assert.equal(title(), 'Import a website');
   // Scoped to the Import page: the hidden Create form stays mounted and has its own back link.
@@ -482,49 +482,49 @@ test('App: Import is a temporary tab right after All; Cancel or its close button
   const importPage = app.container.querySelector('section[aria-label="Import a website"]');
   assert.ok(importPage, 'the Import page is shown');
   assert.equal(importPage.querySelector('.back-link')?.outerHTML ?? null, null, 'the tab is the way back; no back link');
-  await app.click(inImportPage(app, 'Cancel'));
+  await app.click({ el: inImportPage(app, 'Cancel') });
   assert.deepEqual(tabLabels(app), ['All'], 'Cancel closes the tab');
-  await app.click(app.byText('Import'));
-  await app.click(app.byLabel('Close Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
+  await app.click({ el: app.byLabel({ label: 'Close Import' }) });
   assert.deepEqual(tabLabels(app), ['All'], 'its close button closes it');
   assert.notEqual(title(), 'Import a website');
 
   await openFirstSite(app);
-  await app.click(tabNamed(app, 'All'));
-  await app.click(app.byText('Import'));
+  await app.click({ el: tabNamed(app, 'All') });
+  await app.click({ el: app.byText({ text: 'Import' }) });
   assert.deepEqual(tabLabels(app).slice(0, 2), ['All', 'Import'], 'right after All, before the open site');
-  await app.click(tabNamed(app, 'All'));
+  await app.click({ el: tabNamed(app, 'All') });
   assert.notEqual(title(), 'Import a website', 'All shows the grid');
   assert.deepEqual(tabLabels(app).slice(0, 2), ['All', 'Import'], 'and the Import tab waits beside it');
-  await app.click(tabNamed(app, 'Import'));
-  await app.click(app.all('[role="tab"]').find((tab) => /Site a/.test(tab.textContent ?? '')));
-  await app.click(app.byLabel('Close Site a'));
+  await app.click({ el: tabNamed(app, 'Import') });
+  await app.click({ el: app.all({ selector: '[role="tab"]' }).find((tab) => /Site a/.test(tab.textContent ?? '')) });
+  await app.click({ el: app.byLabel({ label: 'Close Site a' }) });
   assert.notEqual(title(), 'Import a website', 'a site tab put Import behind; closing that site lands on All');
-  await app.click(tabNamed(app, 'Import'));
+  await app.click({ el: tabNamed(app, 'Import') });
   assert.equal(title(), 'Import a website');
 
-  await app.click(app.byText('Choose file…'));
+  await app.click({ el: app.byText({ text: 'Choose file…' }) });
   const labels = tabLabels(app);
   assert.equal(labels.includes('Import'), false, 'the Import tab gives way to the new site\'s tab');
   // A message on purpose: a falsy assert.ok without one makes Node rebuild it from this file's source.
-  assert.ok(app.all('[role="tab"]').some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site\'s tab is selected');
+  assert.ok(app.all({ selector: '[role="tab"]' }).some((tab) => tab.getAttribute('aria-selected') === 'true' && /Portable/.test(tab.textContent ?? '')), 'the new site\'s tab is selected');
 });
 
 test('App: a live import starts its new site, shows Starting, then opens the admin Import page', async t => {
   const started: string[] = [];
   let finish!: (record: SiteRecord) => void;
   const app = await renderApp(t, {
-    createSite: async () => site('live'),
-    startSite: id => { started.push(id); return new Promise<SiteRecord>(resolve => { finish = resolve; }); },
+    createSite: async () => site({ id: 'live' }),
+    startSite: ({ id }, _options = {}) => { started.push(id); return new Promise<SiteRecord>(resolve => { finish = resolve; }); },
   });
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   await typeAddress(app, 'https://example.com/about');
-  await app.click(app.byText('Import as a new site'));
+  await app.click({ el: app.byText({ text: 'Import as a new site' }) });
   assert.deepEqual(started, ['live']);
-  assert.ok(app.all('[role="tab"]').some(tab => tab.getAttribute('aria-selected') === 'true' && tab.textContent?.includes('Site live')));
+  assert.ok(app.all({ selector: '[role="tab"]' }).some(tab => tab.getAttribute('aria-selected') === 'true' && tab.textContent?.includes('Site live')));
   assert.match(app.text(), /Starting/);
   assert.equal(app.container.querySelector('webview'), null);
-  await act(async () => { finish(site('live', { status: 'running', port: 4101 })); });
+  await act(async () => { finish(site({ id: 'live' }, { fields: { status: 'running', port: 4101 } })); });
   await settle();
   assert.equal(app.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2Fabout');
   assert.deepEqual(started, ['live']);
@@ -533,12 +533,12 @@ test('App: a live import starts its new site, shows Starting, then opens the adm
 test('App: a live import whose new site is already running opens Import without starting it again', async t => {
   const started: string[] = [];
   const app = await renderApp(t, {
-    createSite: async () => site('live', { status: 'running', port: 4101 }),
-    startSite: async id => { started.push(id); return site(id); },
+    createSite: async () => site({ id: 'live' }, { fields: { status: 'running', port: 4101 } }),
+    startSite: async ({ id }, _options = {}) => { started.push(id); return site({ id }); },
   });
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   await typeAddress(app, 'https://example.com/');
-  await app.click(app.byText('Import as a new site'));
+  await app.click({ el: app.byText({ text: 'Import as a new site' }) });
   assert.deepEqual(started, []);
   assert.equal(app.container.querySelector('webview')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/import-export?tab=import&liveImport=https%3A%2F%2Fexample.com%2F');
 });
@@ -547,18 +547,18 @@ test('App: a share link goes to the archive importer, a live address to Create',
   const asked: unknown[] = [];
   const created: string[] = [];
   const app = await renderApp(t, {
-    importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site('shared'), warnings: [] }; },
-    createSite: async (input: { displayName: string }) => { created.push(input.displayName); return site('live', { displayName: input.displayName }); },
+    importSiteArchive: async (source: unknown) => { asked.push(source); return { ...site({ id: 'shared' }), warnings: [] }; },
+    createSite: async (input: { displayName: string }) => { created.push(input.displayName); return site({ id: 'live' }, { fields: { displayName: input.displayName } }); },
   } as never);
-  await app.click(app.byText('Import'));
+  await app.click({ el: app.byText({ text: 'Import' }) });
   await typeAddress(app, 'https://files.example.com/shop.tovu.zip');
-  await app.click(app.byText('Import as a new site'));
+  await app.click({ el: app.byText({ text: 'Import as a new site' }) });
   assert.deepEqual(asked, [{ url: 'https://files.example.com/shop.tovu.zip' }]);
   assert.deepEqual(created, [], 'a share link makes no site through Create');
 });
 
 test('App: the web admin\'s "Open Import in Tovu" leaves a site\'s tab for the Import tab, with the address typed in (owner, 2026-11-10)', async (t) => {
-  const app = await renderApp(t, { listSites: async () => [site('a')] } as never);
+  const app = await renderApp(t, { listSites: async () => [site({ id: 'a' })] } as never);
   await openFirstSite(app);
   assert.equal(app.listeners.openImport.size, 1, 'App listens for the hand-off');
   await act(async () => { for (const listener of app.listeners.openImport) listener({ address: 'example.com/about' }); });

@@ -20,7 +20,7 @@ function setup(failSetup = false, rejectTranscription = false) {
   const getUserMedia = vi.fn(async () => stream);
   vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
   vi.stubGlobal("AudioContext", class { constructor() { return context; } });
-  const transcribe = vi.fn(async ({ samples, sampleRate }: { samples: Float32Array | number[]; sampleRate: number }) => {
+  const transcribe = vi.fn(async ({ samples, sampleRate }: { samples: Float32Array | number[]; sampleRate: number }, _options = {}) => {
     for (const track of tracks) expect(track.stop).toHaveBeenCalledTimes(1);
     expect(context.close).toHaveBeenCalledTimes(1);
     if (rejectTranscription) throw new Error("transcription failed");

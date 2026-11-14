@@ -22,7 +22,7 @@ function useNavigationShell(getBridge: () => Pick<RunnerInventoryBridge, 'onNavi
 
 test('useRunnerNavigation: an agent navigate moves the section and returns to the sites home tab, then detaches', (t) => {
   const listeners = new Set<(section: RunnerSectionId) => void>();
-  const getBridge = () => ({ onNavigate: (listener: (section: RunnerSectionId) => void) => { listeners.add(listener); return () => listeners.delete(listener); } });
+  const getBridge = () => ({ onNavigate: ({ listener }: { listener: (section: RunnerSectionId) => void }, _options = {}) => { listeners.add(listener); return () => listeners.delete(listener); } });
   const hook = renderHook(t, () => useNavigationShell(getBridge));
   act(() => hook.current().tabs.openProjectTab('a'));
   act(() => hook.current().nav.startCreating());
@@ -37,7 +37,7 @@ test('useRunnerNavigation: an agent navigate moves the section and returns to th
 
 test('useRunnerNavigation: an agent navigate leaves the Appearance page open over the new section', (t) => {
   const listeners = new Set<(section: RunnerSectionId) => void>();
-  const getBridge = () => ({ onNavigate: (listener: (section: RunnerSectionId) => void) => { listeners.add(listener); return () => listeners.delete(listener); } });
+  const getBridge = () => ({ onNavigate: ({ listener }: { listener: (section: RunnerSectionId) => void }, _options = {}) => { listeners.add(listener); return () => listeners.delete(listener); } });
   const hook = renderHook(t, () => useNavigationShell(getBridge));
   act(() => hook.current().nav.openAppearance());
   act(() => { for (const listener of listeners) listener('agents' as RunnerSectionId); });

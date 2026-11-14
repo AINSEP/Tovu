@@ -56,7 +56,7 @@ export function useImportWebsite(
     createSite: (input: { displayName: string }) => Promise<SiteRecord | undefined>;
     openSite: (input: { site: SiteRecord; adminPage: SiteAdminPage }) => void;
     /** A .tovu.zip or share link became this site. */
-    onArchiveImported: (site: ImportedSiteRecord) => void;
+    onArchiveImported: (required: { site: ImportedSiteRecord }, options?: {}) => void;
     onFailureWhileClosed: (toast: { message: string; note?: string }) => void;
   },
   { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'importSiteArchive' | 'cancelSiteImport'> } = {},
@@ -107,7 +107,7 @@ export function useImportWebsite(
       const imported = await bridge.importSiteArchive(source);
       if (imported === null) return;
       setAddressState('');
-      onArchiveImported(imported);
+      onArchiveImported({ site: imported });
     } catch (error) {
       reportRunFailure(importFailure({ error, fallback: ARCHIVE_FAILED }));
     } finally {
@@ -182,7 +182,7 @@ export function useCopyDetails(
 export function createOpenImported({ openProjectTab, stopImporting }: {
   openProjectTab: import('./use-project-tabs.hooks.js').ProjectTabsState['openProjectTab']; stopImporting: () => void;
 }, _options = {}) {
-  return (id: string, adminPage?: import('./import-site-entry.js').SiteAdminPage) => { openProjectTab(id, { adminPage }); stopImporting(); };
+  return ({ id }: { id: string }, { adminPage }: { adminPage?: import('./import-site-entry.js').SiteAdminPage } = {}) => { openProjectTab(id, { adminPage }); stopImporting(); };
 }
 
 // The Import button, and the web admin's "Open Import in Tovu" (owner, 2026-11-10), which may

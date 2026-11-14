@@ -43,7 +43,7 @@ test('a themes-only stale card without relocation proof cannot Start', async (t)
     readPreviewVersion: () => null, serializer: createKeyedSerializer(), ctx: {},
     openSiteServer: async () => assert.fail('an invalid folder must never spawn a site') };
   assert.equal(handleList(deps)[0]!.folderMissing, true);
-  await assert.rejects(handleStart(stale, deps), /Folder moved or not a site/);
+  await assert.rejects(handleStart({ id: stale, deps }), /Folder moved or not a site/);
 });
 
 test('desktop launch without NODE_ENV retains owner re-entry capability after logout', () => {

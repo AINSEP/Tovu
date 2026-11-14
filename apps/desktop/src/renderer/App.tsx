@@ -143,12 +143,12 @@ export function App({
   const openImported = createOpenImported({ openProjectTab, stopImporting });
   const startImported = useStartImported({ applyRecord: applySiteRecord, showToast: siteToast.showToast });
   const { adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjects }, {
-    onAdded: (added) => { siteToast.announceAdded(added); openImported(added.id); startImported(added); },
+    onAdded: ({ added }, _options = {}) => { siteToast.announceAdded(added); openImported({ id: added.id }); startImported(added); },
   });
   const liveImport = useImportWebsite({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
-    openSite: ({ site, adminPage }) => { openImported(site.id, adminPage); startImported(site); },
-    onArchiveImported: (site) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported(site.id); startImported(site); },
+    openSite: ({ site, adminPage }) => { openImported({ id: site.id }, { adminPage }); startImported(site); },
+    onArchiveImported: ({ site }, _options = {}) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported({ id: site.id }); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });
   const openImportPage = createOpenImportPage({ clearAddError, liveImport, startImporting });

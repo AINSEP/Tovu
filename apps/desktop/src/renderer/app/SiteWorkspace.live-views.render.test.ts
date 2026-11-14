@@ -20,7 +20,7 @@ import type { RunnerInventoryBridge } from '../runner-api.js';
 after(closeHost);
 
 const IDS = ['a', 'b', 'c', 'd', 'e'] as const;
-const running = (id: string, index: number) => site(id, { status: 'running', port: 4101 + index });
+const running = (id: string, index: number) => site({ id }, { fields: { status: 'running', port: 4101 + index } });
 const SITES: readonly SiteRecord[] = IDS.map(running);
 
 type Reply = { release: boolean; url?: string; x?: number; y?: number; innerY?: number };
@@ -54,7 +54,7 @@ async function renderTabs(t: TestContext, { openSites = SITES, bridge = {} }: { 
   });
   const view = mount({ t, element: element() });
   await settle();
-  const mounted = () => view.all('webview').map((guest) => guest.getAttribute('partition')!.replace('persist:', '')).sort();
+  const mounted = () => view.all({ selector: 'webview' }).map((guest) => guest.getAttribute('partition')!.replace('persist:', '')).sort();
   const guestOf = (id: string) => view.container.querySelector<HTMLElement>(`webview[partition="persist:${id}"]`);
   const show = async (next: Partial<typeof props>) => { props = { ...props, ...next }; view.render(element()); await settle(); };
   const visit = (id: string) => show({ visibleWorkspaceId: id, inSites: true });
@@ -69,7 +69,7 @@ test('live views: five visited clean tabs keep at most two guests, the two most 
     assert.ok(view.mounted().length <= 2, `after visiting ${id}: ${view.mounted().join(', ')}`);
   }
   assert.deepEqual(view.mounted(), ['d', 'e']);
-  assert.equal(view.all('section.workspace').length, 5, 'every workspace, released or not, keeps its bar');
+  assert.equal(view.all({ selector: 'section.workspace' }).length, 5, 'every workspace, released or not, keeps its bar');
   assert.deepEqual(view.scripts.map(([id]) => id), ['a', 'b', 'c'], 'each release asked the least recently focused guest first');
 });
 
@@ -126,7 +126,7 @@ test('live views: the menu\'s limit is read from the bridge, and a change applie
   let changed: ((maximum: number) => void) | undefined;
   const view = await renderTabs(t, { bridge: {
     getMaximumLiveSiteViews: async () => 3,
-    onMaximumLiveSiteViewsChanged: (listener) => { changed = listener; return () => { changed = undefined; }; },
+    onMaximumLiveSiteViewsChanged: ({ listener }, _options = {}) => { changed = listener; return () => { changed = undefined; }; },
   } });
   for (const id of IDS.slice(1)) await view.visit(id);
   assert.deepEqual(view.mounted(), ['c', 'd', 'e']);

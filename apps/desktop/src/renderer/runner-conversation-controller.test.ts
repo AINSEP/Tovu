@@ -45,9 +45,9 @@ function fakeStore() {
   const save = pendingCalls<SaveConversationMessageInput, void>();
   const bridge: RunnerConversationBridge = {
     listConversations: () => list.call(undefined),
-    loadConversationMessages: (id) => load.call(id),
+    loadConversationMessages: ({ conversationId: id }, _options = {}) => load.call(id),
     createConversation: () => create.call(undefined),
-    deleteConversation: (id) => del.call(id),
+    deleteConversation: ({ id }, _options = {}) => del.call(id),
     renameConversation: (input) => rename.call(input),
     saveConversationMessage: (input) => save.call(input),
   };

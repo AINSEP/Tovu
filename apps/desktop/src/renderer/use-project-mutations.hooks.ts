@@ -117,7 +117,7 @@ export function useProjectMutations(deps: {
     if (bridge === undefined) {
       throw new Error('Runner desktop connection required to delete a website.');
     }
-    await bridge.deleteSite(id);
+    await bridge.deleteSite({ id });
     // Dropped locally rather than left to the 4s poll: the card the operator just confirmed
     // against would otherwise sit there looking untouched for up to four seconds. Its tab goes
     // too — a tab pointing at a deleted project has nothing left to render.

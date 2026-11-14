@@ -649,7 +649,7 @@ export function stageBundledNpm({ npmSrc, outDir }: StageBundledNpmInput): Stage
  * @complexity O(p) in prebuild directories.
  */
 export function ensurePtyHelpersExecutable({ ptyDir }: { ptyDir: string }): string[] {
-  const changed = ptyHelperPaths({ ptyDir }).filter((file) => lacksExecuteBits(statSync(file).mode));
+  const changed = ptyHelperPaths({ ptyDir }).filter((file) => lacksExecuteBits({ mode: statSync(file).mode }));
   for (const file of changed) chmodSync(file, statSync(file).mode | 0o755);
   return changed;
 }

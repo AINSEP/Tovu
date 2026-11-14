@@ -33,11 +33,11 @@ export type SiteStartResult = { record: SiteRecord; error?: undefined } | { reco
  */
 export async function performSiteStart(
   id: string,
-  bridge: { startSite: (id: string) => Promise<SiteRecord> } | undefined,
+  bridge: { startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined,
 ): Promise<SiteStartResult> {
   if (bridge === undefined) return { error: 'Tovu desktop connection required to start a website.' };
   try {
-    return { record: await bridge.startSite(id) };
+    return { record: await bridge.startSite({ id }) };
   } catch (err) {
     return { error: siteOperationError({ error: err, operation: 'start' }) };
   }

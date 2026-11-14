@@ -86,7 +86,7 @@ export function captureFolderDrop(
   composerHandle: RefObject<Pick<ChatPaneComposerHandle, 'insertText'> | null>,
 ): void {
   if (getPathForFile === undefined) return;
-  const folders = folderPathsFromDataTransfer(event.dataTransfer, getPathForFile);
+  const folders = folderPathsFromDataTransfer({ dataTransfer: event.dataTransfer, getPathForFile });
   if (folders.length === 0) return;
   event.preventDefault();
   event.stopPropagation();

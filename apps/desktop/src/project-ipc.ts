@@ -95,7 +95,7 @@ export interface SitePresence<Sender extends PresenceSender = PresenceSender> {
  */
 export function createSitePresence<Sender extends PresenceSender>(
   { allowed, trackedIds }: { allowed: (sender: Sender) => boolean; trackedIds: () => ReadonlySet<string> },
-  { hasSiteWindow = () => false, onRelease = () => {} }: { hasSiteWindow?: (siteId: string) => boolean; onRelease?: () => void } = {},
+  { hasSiteWindow = () => false, onRelease = () => {} }: { hasSiteWindow?: (required: { siteId: string }, options?: {}) => boolean; onRelease?: () => void } = {},
 ): SitePresence<Sender> {
   const owners = new Map<Sender, { siteIds: Set<string>; release: () => void }>();
   const release = (sender: Sender) => {
@@ -120,7 +120,7 @@ export function createSitePresence<Sender extends PresenceSender>(
   };
   return {
     replace,
-    has: ({ siteId }) => hasSiteWindow(siteId) || [...owners.values()].some(owner => owner.siteIds.has(siteId)),
+    has: ({ siteId }) => hasSiteWindow({ siteId }) || [...owners.values()].some(owner => owner.siteIds.has(siteId)),
     dispose: () => { for (const sender of owners.keys()) release(sender); },
   };
 }
@@ -148,7 +148,7 @@ interface SiteRow {
 
 /** {@link mayEraseSiteDirectory}'s own (unexported) first-parameter type, extracted structurally
  *  rather than by name — see {@link SiteRow}'s own doc on why a `SiteRow` needs a cast to reach it. */
-type MayEraseRowLike = Parameters<typeof mayEraseSiteDirectory>[0];
+type MayEraseRowLike = Parameters<typeof mayEraseSiteDirectory>[0]["row"];
 
 /** How a site's server exited. Mirrors `site-supervisor.ts`'s own `ServerExit` structurally rather
  *  than importing it — this file's `openSites` contract is a plain duck type on purpose (see
@@ -391,7 +391,7 @@ interface AddSitePointerLike {
  *
  * @complexity O(1).
  */
-function describeLastExit(openSites: OpenSites, siteDir: string): string | null {
+function describeLastExit({ openSites, siteDir }: { openSites: OpenSites; siteDir: string }, _options = {}): string | null {
   const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf({ siteDir }) : null;
   if (exit === null) return null;
   if (exit.signal !== null && exit.signal !== undefined) return `The site's server was stopped by ${exit.signal}.`;
@@ -412,7 +412,7 @@ function describeLastExit(openSites: OpenSites, siteDir: string): string | null 
  *
  * @complexity O(1).
  */
-function siteLifecycle(running: boolean, transition: "starting" | "stopping" | null) {
+function siteLifecycle({ running, transition }: { running: boolean; transition: "starting" | "stopping" | null }, _options = {}) {
   if (transition === "starting") return { status: "starting" as const, desiredState: "running" as const };
   if (transition === "stopping") return { status: "stopping" as const, desiredState: "stopped" as const };
   if (running) return { status: "running" as const, desiredState: "running" as const };
@@ -426,14 +426,14 @@ function siteRecordPresentation({ lifecycle, sharedRunning, siteDir, deps }: {
   const runtime = deps.siteRuntime?.get(siteDir);
   if (lifecycle.status === "stopped" && runtime?.status) return { status: runtime.status,
     desiredState: runtime.status === "starting" ? "running" as const : "stopped" as const, detail: runtime.detail ?? null };
-  return { ...lifecycle, detail: siteStatusDetail(sharedRunning, lifecycle.status, deps.openSites, siteDir) };
+  return { ...lifecycle, detail: siteStatusDetail({ sharedRunning, status: lifecycle.status, openSites: deps.openSites, siteDir }) };
 }
 
 type SiteRecordDeps = Pick<ProjectIpcDeps, "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "externalSites">>;
 type SharedRunning = ReturnType<ReturnType<SitesWorkspace["running"]>["read"]> | undefined;
 
 /** The admin URL of a server this window does not own: an external one it attached to, or the other app's. */
-function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: SharedRunning, status: string): string | undefined {
+function siteExternalUrl({ openEntry, sharedRunning, status }: { openEntry: OpenSiteEntry | undefined; sharedRunning: SharedRunning; status: string }, _options = {}): string | undefined {
   // The lease stays live during drain. Advertising it here makes a mounted tab queue Start
   // behind this Stop through its external-workspace attachment effect.
   if (status === "stopping") return undefined;
@@ -442,24 +442,24 @@ function siteExternalUrl(openEntry: OpenSiteEntry | undefined, sharedRunning: Sh
 }
 
 /** Which app runs the site, or the last exit of a settled stop; see the `statusDetail` field below. */
-function siteStatusDetail(sharedRunning: SharedRunning, status: string, openSites: OpenSites, siteDir: string): string | null {
+function siteStatusDetail({ sharedRunning, status, openSites, siteDir }: { sharedRunning: SharedRunning; status: string; openSites: OpenSites; siteDir: string }, _options = {}): string | null {
   if (sharedRunning) {
     const detail = sharedRunning.port > 0 ? `port ${sharedRunning.port}` : "starting";
     return `Running in ${sharedRunning.app} (${detail})`;
   }
-  return status === "stopped" ? describeLastExit(openSites, siteDir) : null;
+  return status === "stopped" ? describeLastExit({ openSites, siteDir }) : null;
 }
 
 /**
  * Only for a site this window can stop although another process serves it; absent, the card
  * offers no Stop for it at all. See `external-site-stop.ts`.
  */
-function siteExternalLauncher(externalUrl: string | undefined, sharedRunning: SharedRunning, externalSites: SiteRecordDeps["externalSites"]) {
+function siteExternalLauncher({ externalUrl, sharedRunning, externalSites }: { externalUrl: string | undefined; sharedRunning: SharedRunning; externalSites: SiteRecordDeps["externalSites"] }, _options = {}) {
   return externalUrl && sharedRunning ? externalSites?.launcherOf({ lease: sharedRunning }) ?? undefined : undefined;
 }
 
 /** The card name: an alias, the config's name, or (config gone) the last known name. */
-function siteDisplayName(row: SiteRow, validSite: boolean, readSiteName: (required: { siteDir: string }) => string): string {
+function siteDisplayName({ row, validSite, readSiteName }: { row: SiteRow; validSite: boolean; readSiteName: (required: { siteDir: string }) => string }, _options = {}): string {
   return row.displayNameAlias ?? (validSite ? readSiteName({ siteDir: row.siteDir }) : row.displayName ?? path.basename(row.siteDir));
 }
 
@@ -476,7 +476,7 @@ export function siteRecordLifecycle(
   // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
-  const lifecycle = siteLifecycle(running, transitions?.get({ siteDir }) ?? sharedStarting);
+  const lifecycle = siteLifecycle({ running, transition: transitions?.get({ siteDir }) ?? sharedStarting });
   return { sharedPort, lifecycle };
 }
 
@@ -495,17 +495,17 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
   const sharedRunning: SharedRunning = deps.sharedSites?.running({ path: row.siteDir }).read({});
   const { sharedPort, lifecycle } = siteRecordLifecycle({ siteDir: row.siteDir, openEntry, sharedRunning, transitions: deps.transitions });
   const presentation = siteRecordPresentation({ lifecycle, sharedRunning, siteDir: row.siteDir, deps });
-  const externalUrl = siteExternalUrl(openEntry, sharedRunning, presentation.status);
+  const externalUrl = siteExternalUrl({ openEntry, sharedRunning, status: presentation.status });
   return {
     id: row.siteDir,
     slug: path.basename(row.siteDir),
     // The config may be gone even when a themes-only folder remains; keep the last known name.
-    displayName: siteDisplayName(row, validSite, deps.readSiteName),
+    displayName: siteDisplayName({ row, validSite, readSiteName: deps.readSiteName }),
     installDir: row.siteDir,
     port: openEntry?.server.port ?? sharedPort,
     runningApp: sharedRunning?.app,
     externalUrl,
-    externalLauncher: siteExternalLauncher(externalUrl, sharedRunning, deps.externalSites),
+    externalLauncher: siteExternalLauncher({ externalUrl, sharedRunning, externalSites: deps.externalSites }),
     // Independent of `running` — a project's partition is a pure function of its own directory
     // (`desktop-auth.ts`'s `sitePartition`), not of whether a server currently answers on it. The
     // embedded-tab renderer needs it either way: `SiteWorkspace`'s `<webview>` sets it up front,
@@ -529,7 +529,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     // Computed by the SAME function `handleDelete` obeys, never re-derived from `origin` in the
     // renderer — a UI that decided this for itself could drift from the rule main actually enforces
     // and label a button with a consequence that will not happen. See `project-delete-guard.ts`.
-    deleteErasesFiles: mayEraseSiteDirectory(row as unknown as MayEraseRowLike, { repoRoot: deps.repoRoot }),
+    deleteErasesFiles: mayEraseSiteDirectory({ row: row as unknown as MayEraseRowLike, options: { repoRoot: deps.repoRoot } }),
     // A version token, never the image — see `SiteRecord.previewVersion`'s own doc on why this
     // record (polled every 4s) must never carry a payload. `null` for a site with no capture yet,
     // which is every site's ordinary state until it has been opened once.
@@ -626,7 +626,7 @@ function recordsWithRememberedNames(
  *   Tovu site, or `id` is not tracked.
  * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes.
  */
-async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime">) {
+async function handleLocate({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> }, _options = {}) {
   const picked = await deps.dialog.showOpenDialog({
     title: "Locate your Tovu website's folder",
     message: `Pick the folder that now holds the website that was at ${id}. Nothing in it will be changed.`,
@@ -776,7 +776,7 @@ function recordCreatedSite(
   // this app can honestly say "the site at this path is one I made" — every later reader is looking
   // at a path, and a path is not an identity. See `project-delete-guard.ts`'s test 3.
   // `null` when the folder has no readable identity: the row is then recorded without one, the fail-closed direction.
-  const siteId = readSiteIdentity(siteDir);
+  const siteId = readSiteIdentity({ siteDir });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId });
   if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" });
   // Remember the created site's parent beyond MRU eviction/card
@@ -946,7 +946,7 @@ async function handleImportArchive(
  *
  * @complexity O(n) in foreign row count.
  */
-function foreignServerMessage(siteDir: string, foreign: Array<{ pid: number }>): string {
+function foreignServerMessage({ siteDir, foreign }: { siteDir: string; foreign: Array<{ pid: number }> }, _options = {}): string {
   const pids = foreign.map((row) => row.pid).join(", ");
   return (
     `Another copy of Tovu still has this site open (process ${pids}). Close that window first. ` +
@@ -960,7 +960,7 @@ function foreignServerMessage(siteDir: string, foreign: Array<{ pid: number }>):
  *
  * @complexity O(n) in unreadable path count.
  */
-function unreadableRegistryMessage(unreadable: string[]): string {
+function unreadableRegistryMessage({ unreadable }: { unreadable: string[] }, _options = {}): string {
   return `Could not read ${unreadable.join(", ")}, so Tovu cannot tell whether another copy of Tovu still has this site open. Nothing was deleted. Restart Tovu and try again.`;
 }
 
@@ -982,13 +982,13 @@ function unreadableRegistryMessage(unreadable: string[]): string {
  * long — the next boot moves a dead instance's unreadable file aside, and a live one's own next
  * write does the same (`site-process-registry.ts`'s `quarantineUnreadableFile`).
  *
- * @param ownPid this instance's own child's pid, excluded — its row is not foreign.
+ * @param required.ownPid this instance's own child's pid, excluded — its row is not foreign.
  * @complexity O(n) in registry rows, times one `ps` call per row matching `siteDir` (in practice
  *   zero or one).
  */
-function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registryPath" | "isLiveServeRow">, siteDir: string, ownPid: number | undefined): RegistryRow[] {
+function liveForeignServers({ deps, siteDir, ownPid }: { deps: Pick<ProjectIpcDeps, "readRegistry" | "registryPath" | "isLiveServeRow">; siteDir: string; ownPid: number | undefined }, _options = {}): RegistryRow[] {
   const registry = deps.readRegistry({ registryDir: deps.registryPath });
-  if (registry.unreadable.length > 0) throw new Error(unreadableRegistryMessage(registry.unreadable));
+  if (registry.unreadable.length > 0) throw new Error(unreadableRegistryMessage({ unreadable: registry.unreadable }));
   return registry.sites.filter((row) => row.siteDir === siteDir && row.pid !== ownPid && deps.isLiveServeRow(row));
 }
 
@@ -1028,8 +1028,8 @@ function liveForeignServers(deps: Pick<ProjectIpcDeps, "readRegistry" | "registr
  * @complexity O(1) beyond `fs.rm`'s own cost over the site directory's contents, plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites">): Promise<void> {
-  await deps.serializer.run({ key: id, fn: () => deleteProject(id, deps) });
+async function handleDelete({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites"> }, _options = {}): Promise<void> {
+  await deps.serializer.run({ key: id, fn: () => deleteProject({ id, deps }) });
 }
 
 /**
@@ -1038,12 +1038,12 @@ async function handleDelete(id: string, deps: Pick<ProjectIpcDeps, "serializer" 
  *
  * @complexity see {@link handleDelete}.
  */
-async function deleteProject(id: string, deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites">): Promise<void> {
+async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "cancelPreviewCapture" | "repoRoot" | "readRegistry" | "registryPath" | "isLiveServeRow" | "recordSiteClosed" | "deletePreview" | "removeSiteTree" | "sharedSites"> }, _options = {}): Promise<void> {
   const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
   if (row === undefined) return;
 
   const openEntry = deps.openSites.get(id);
-  const erasesFiles = mayEraseSiteDirectory(row as unknown as MayEraseRowLike, { repoRoot: deps.repoRoot });
+  const erasesFiles = mayEraseSiteDirectory({ row: row as unknown as MayEraseRowLike, options: { repoRoot: deps.repoRoot } });
 
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
@@ -1090,8 +1090,8 @@ function assertNoOtherServer(
   const ownPid = openEntry?.server.pid;
   const shared = deps.sharedSites?.running({ path: id }).read({});
   if (shared && (shared.pid !== ownPid || openEntry?.server.external)) throw new Error(`Running in ${shared.app} (port ${shared.port}). Stop it in that app before deleting.`);
-  const foreign = liveForeignServers(deps, id, ownPid);
-  if (foreign.length > 0) throw new Error(foreignServerMessage(id, foreign));
+  const foreign = liveForeignServers({ deps, siteDir: id, ownPid });
+  if (foreign.length > 0) throw new Error(foreignServerMessage({ siteDir: id, foreign }));
 }
 
 /** Drop an erased site from the shared catalog; a failure only warns, the folder is already gone.
@@ -1157,7 +1157,7 @@ async function eraseProjectDirectory(
  */
 function identityHasChanged(row: SiteRow): boolean {
   if (typeof row.siteId !== "string" || row.siteId === "") return false;
-  return readSiteIdentity(row.siteDir) !== row.siteId;
+  return readSiteIdentity({ siteDir: row.siteDir }) !== row.siteId;
 }
 
 /**
@@ -1298,7 +1298,7 @@ async function handleOpenExternal(input: OpenSiteSurfaceInput, deps: Pick<Projec
  *   never been opened, not an error to surface.
  * @complexity O(1) beyond `readPreviewDataUrl`'s own cost.
  */
-function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDataUrl">) {
+function handleGetPreview({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "readPreviewDataUrl"> }, _options = {}) {
   return deps.readPreviewDataUrl({ id });
 }
 
@@ -1330,7 +1330,7 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes, beyond
  *   `openSiteServer` and any already-queued operation on the same site.
  */
-async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "startAllowed">>) {
+async function handleStart<TCtx>({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir" | "startAllowed">> }, _options = {}) {
   return await deps.serializer.run({ key: id, fn: async () => {
     const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -1340,7 +1340,7 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
     if ((deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
     ensureIndependentSiteIdentity({ siteDir: row.siteDir }, { workspace: deps.sharedSites });
     if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [row.siteDir], createdBy: "Desktop", allowRelocation: true });
-    await markTransition(deps.transitions, id, "starting", () => explainMissingSiteDir(id, deps.openSiteServer({ siteDir: id, ctx: deps.ctx })));
+    await markTransition({ transitions: deps.transitions, siteDir: id, transition: "starting", body: () => explainMissingSiteDir({ siteDir: id, starting: deps.openSiteServer({ siteDir: id, ctx: deps.ctx }) }) });
     return buildSiteRecord(row, deps);
   } });
 }
@@ -1352,7 +1352,7 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
  * looking for a config file rather than for the folder. Checked only after serve has refused, so a
  * start that succeeds pays nothing, and every other failure passes through untouched.
  */
-async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>): Promise<void> {
+async function explainMissingSiteDir({ siteDir, starting }: { siteDir: string; starting: Promise<unknown> }, _options = {}): Promise<void> {
   try {
     await starting;
   } catch (error) {
@@ -1405,7 +1405,7 @@ async function explainMissingSiteDir(siteDir: string, starting: Promise<unknown>
  * @complexity O(1) beyond `server.stop()`'s own drain (bounded by grace plus exit wait), plus however long
  *   an already-queued operation on the same site takes to settle.
  */
-async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites">) {
+async function handleStop({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "serializer" | "projectsPath" | "openSites" | "cancelPreviewCapture" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "registryPath" | "recordSiteClosed" | "transitions" | "sharedSites" | "siteRuntime" | "pendingTeardowns" | "externalSites"> }, _options = {}) {
   return await deps.serializer.run({ key: id, fn: async () => {
     const row = readTrackedSites({ projectsPath: deps.projectsPath }).find((entry) => entry.siteDir === id);
     if (row === undefined) {
@@ -1415,11 +1415,11 @@ async function handleStop(id: string, deps: Pick<ProjectIpcDeps, "serializer" | 
     const openEntry = deps.openSites.get(id);
     const externalSites = deps.externalSites;
     if (running && (!openEntry || openEntry.server.external) && externalSites) {
-      await markTransition(deps.transitions, id, "stopping", () => stopExternalServer({ id, lease: running, externalSites, deps }));
+      await markTransition({ transitions: deps.transitions, siteDir: id, transition: "stopping", body: () => stopExternalServer({ id, lease: running, externalSites, deps }) });
       return buildSiteRecord(row, deps);
     }
     if (running && !openEntry) throw new Error(`Running in ${running.app} (port ${running.port}). Stop it in that app.`);
-    await markTransition(deps.transitions, id, "stopping", () => stopSiteServer(id, deps));
+    await markTransition({ transitions: deps.transitions, siteDir: id, transition: "stopping", body: () => stopSiteServer({ id, deps }) });
     return buildSiteRecord(row, deps);
   } });
 }
@@ -1438,7 +1438,7 @@ async function stopExternalServer(
   },
   _options = {},
 ): Promise<void> {
-  await stopSiteServer(id, deps);
+  await stopSiteServer({ id, deps });
   await externalSites.stop({ lease, readLease: () => deps.sharedSites?.running({ path: id }).read({}) });
 }
 
@@ -1449,7 +1449,7 @@ async function stopExternalServer(
  *
  * @complexity see {@link handleStop}.
  */
-async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites" | "cancelPreviewCapture" | "registryPath" | "recordSiteClosed" | "pendingTeardowns">): Promise<void> {
+async function stopSiteServer({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps, "openSites" | "cancelPreviewCapture" | "registryPath" | "recordSiteClosed" | "pendingTeardowns"> }, _options = {}): Promise<void> {
   deps.cancelPreviewCapture?.({ siteDir: id }, {});
   const openEntry = deps.openSites.get(id);
   if (openEntry === undefined) return;
@@ -1479,11 +1479,7 @@ async function stopSiteServer(id: string, deps: Pick<ProjectIpcDeps, "openSites"
  *
  * @complexity O(1) beyond `body`'s own cost.
  */
-function markTransition<T>(
-  transitions: SiteTransitionsLike | undefined,
-  siteDir: string,
-  transition: "starting" | "stopping",
-  body: () => Promise<T>,
+function markTransition<T>({ transitions, siteDir, transition, body }: { transitions: SiteTransitionsLike | undefined; siteDir: string; transition: "starting" | "stopping"; body: () => Promise<T> }, _options = {}
 ): Promise<T> {
   return transitions === undefined ? body() : transitions.during({ siteDir, transition, body });
 }
@@ -1658,7 +1654,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
     const failures = state.failures;
     state.cancelRetry = undefined;
     try {
-      const record = await handleStart(siteDir, { ...deps, siteRuntime: states, startAllowed: allowed });
+      const record = await handleStart({ id: siteDir, deps: { ...deps, siteRuntime: states, startAllowed: allowed } });
       await finishStart({ siteDir, state, failures, allowed });
       return record;
     } catch (error) {
@@ -1674,7 +1670,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   async function finishStart({ siteDir, state, failures, allowed }: {
     siteDir: string; state: SiteRuntime; failures: number; allowed: () => boolean;
   }, _options = {}): Promise<void> {
-    if (disposed) { await handleStop(siteDir, deps); return; }
+    if (disposed) { await handleStop({ id: siteDir, deps }); return; }
     if (!allowed() || state.failures !== failures) return;
     if (deps.openSites.has(siteDir)) await deps.onServerRestarted?.({ siteDir });
     state.status = undefined; state.detail = undefined;
@@ -1783,7 +1779,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   let keptAwake = false;
   const presence = createSitePresence({ allowed: deps.isPresenceShell ?? (() => false),
     trackedIds: () => new Set(readTrackedSites({ projectsPath: deps.projectsPath }).map(row => row.siteDir)),
-  }, { hasSiteWindow: siteId => keptAwake || Boolean(states.get(siteId)?.keepAwake) || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
+  }, { hasSiteWindow: ({ siteId }, _options = {}) => keptAwake || Boolean(states.get(siteId)?.keepAwake) || Boolean(deps.openSites.get(siteId)?.window), onRelease: notePresence });
   deps.ipcMain.handle(SITE_PRESENCE_CHANNEL, ({ sender }, input: { siteIds?: unknown } | undefined) => {
     notePresence();
     presence.replace({ sender, siteIds: input?.siteIds });
@@ -1805,7 +1801,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.create, (_event, input) => handleCreate(input, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.delete, (_event, id) => {
     cancel({ siteDir: id, forget: true });
-    return handleDelete(id, deps);
+    return handleDelete({ id, deps });
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.start, (_event, id) => {
@@ -1814,7 +1810,7 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.stop, (_event, id) => {
     cancel({ siteDir: id });
-    return handleStop(id, { ...deps, siteRuntime: states });
+    return handleStop({ id, deps: { ...deps, siteRuntime: states } });
   });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.keepRunning, ({ sender }, input: { id?: unknown } | undefined) => {
     if (sender.isDestroyed() || !deps.isPresenceShell?.(sender)) throw new Error('Keep running is only available from the desktop window.');
@@ -1860,8 +1856,8 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
   deps.ipcMain.handle(SITE_IPC_CHANNELS.addSite, (_event, input) => handleAddSite({ ...deps, siteRuntime: states }, input ?? {}));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.importArchive, (_event, input) => handleImportArchive(input, { ...deps, siteRuntime: states }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.cancelImport, () => deps.stopRunningImports({}, { reason: "cancel" }));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview(id, deps));
-  deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate(id, { ...deps, siteRuntime: states }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.preview, (_event, id) => handleGetPreview({ id, deps }));
+  deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate({ id, deps: { ...deps, siteRuntime: states } }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.tokenSignInPlugins, () => handleTokenSignInPlugins(deps));
   return { ...presence, keepAwake: () => { keptAwake = true; }, onServerExit, manualStart, cancel,
     onBootFailure({ siteDir, error }, _options = {}) {

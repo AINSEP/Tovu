@@ -425,7 +425,7 @@ function fakeHistoryBridge() {
   const subscribers: Array<(command: SiteHistoryCommand) => void> = [];
   let unsubscribed = 0;
   const bridge = {
-    onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => {
+    onSiteHistory: ({ listener }: { listener: (command: SiteHistoryCommand) => void }, _options = {}) => {
       subscribers.push(listener);
       return () => {
         unsubscribed += 1;
@@ -490,7 +490,7 @@ test('shared running websites retain their HTTPS origin for both admin and publi
 test('a foreign workspace waits for main to attach before using its URL', async () => {
   const project = { id: '/outside/site', externalUrl: 'https://localhost:3456/admin/' };
   const calls: string[] = [];
-  const bridge = { startSite: async (id: string) => { calls.push(id); return { ...project, port: 3456, status: 'running' } as import('../contracts/project.js').SiteRecord; } };
+  const bridge = { startSite: async ({ id }: { id: string }, _options = {}) => { calls.push(id); return { ...project, port: 3456, status: 'running' } as import('../contracts/project.js').SiteRecord; } };
   assert.equal(await prepareExternalWorkspace({ project, bridge }), project.externalUrl);
   assert.deepEqual(calls, [project.id]);
   await assert.rejects(prepareExternalWorkspace({ project, bridge: undefined }), { message: 'The desktop bridge is unavailable.' });

@@ -33,10 +33,10 @@ export function useImportHandoff(
   // The latest callbacks, so the bridge listener is attached once rather than on every render.
   const latest = useRef({ busy, prefill, open });
   useEffect(() => { latest.current = { busy, prefill, open }; });
-  useEffect(() => getBridge()?.onOpenImport((request) => {
+  useEffect(() => getBridge()?.onOpenImport({ listener: (request) => {
     const address = handoffAddress({ request });
     const current = latest.current;
     if (address !== null && !current.busy) current.prefill(address);
     current.open();
-  }), [getBridge]);
+  } }), [getBridge]);
 }

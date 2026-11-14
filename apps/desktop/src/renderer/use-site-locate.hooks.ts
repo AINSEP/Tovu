@@ -31,11 +31,11 @@ export type SiteLocateResult = { record?: SiteRecord; error?: string };
  * @complexity O(1) beyond the IPC round trip.
  */
 export async function performSiteFolderAction(
-  { id, bridge }: { id: string; bridge: { locateSite: (id: string) => Promise<SiteRecord> } | undefined },
+  { id, bridge }: { id: string; bridge: { locateSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined },
   { describeError = describeAddFailure }: { describeError?: (error: unknown) => string | null } = {},
 ): Promise<SiteLocateResult> {
   if (bridge === undefined) return { error: 'The desktop bridge is unavailable.' };
-  try { return { record: await bridge.locateSite(id) }; }
+  try { return { record: await bridge.locateSite({ id }) }; }
   catch (err) {
     const error = describeError(err);
     return error === null ? {} : { error };

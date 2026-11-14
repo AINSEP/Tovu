@@ -110,7 +110,7 @@ test('useProjectMutations: a rejected create or delete propagates and leaves the
 
 test('useProjectMutations: delete drops the row and its tab; open clears the notice first; cancel resets the form', async (t) => {
   const deleted: string[] = [];
-  const { hook, calls } = mutationsHarness(t, { createSite: async () => CREATED, deleteSite: async (id) => { deleted.push(id); } });
+  const { hook, calls } = mutationsHarness(t, { createSite: async () => CREATED, deleteSite: async ({ id }, _options = {}) => { deleted.push(id); } });
   await act(() => hook.current().handleDelete('a'));
   assert.deepEqual(deleted, ['a']);
   assert.deepEqual(hook.current().projects.map((p) => p.id), ['b']);

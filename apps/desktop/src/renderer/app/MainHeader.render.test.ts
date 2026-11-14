@@ -37,9 +37,9 @@ test('MainHeader: on Websites the title is the section label and every tool reac
   const payloads = recordTelemetry({ t });
   const view = renderHeader(t);
   assert.equal(view.title(), 'Websites');
-  await view.click(view.byLabel('Rescan'));
-  await view.click(view.byText('Import'));
-  await view.click(view.all('button').find((button) => button.textContent?.includes('Create website')));
+  await view.click({ el: view.byLabel({ label: 'Rescan' }) });
+  await view.click({ el: view.byText({ text: 'Import' }) });
+  await view.click({ el: view.all({ selector: 'button' }).find((button) => button.textContent?.includes('Create website')) });
   assert.deepEqual(view.calls, ['rescan', 'import', 'create']);
   assert.deepEqual(payloads, [{ kind: 'action', id: 'import_website' }]);
 });
@@ -52,19 +52,19 @@ test('MainHeader: one Import button replaces the old icon and Add Tovu Website, 
   assert.ok(at('Rescan') < at('Shared keys'), 'Rescan leads the manage group');
   assert.ok(at('Shared keys') < at('gap') && at('gap') < at('Import'), 'a gap separates the groups');
   assert.ok(at('Import') < order.findIndex((label) => label?.includes('Create website')));
-  assert.equal(view.byLabel('Import site'), null, 'the down-arrow icon is gone');
-  assert.ok(!view.byText('Add Tovu Website'), 'and so is Add Tovu Website');
-  assert.ok(view.byText('Import')?.classList.contains('button--contrast'), 'Import stays the black contrast button');
+  assert.equal(view.byLabel({ label: 'Import site' }), null, 'the down-arrow icon is gone');
+  assert.ok(!view.byText({ text: 'Add Tovu Website' }), 'and so is Add Tovu Website');
+  assert.ok(view.byText({ text: 'Import' })?.classList.contains('button--contrast'), 'Import stays the black contrast button');
 });
 
 test('MainHeader: Import is there with no site at all, and a running rescan disables only Rescan', (t) => {
   const view = renderHeader(t, { rescanning: true });
-  const rescan = view.byLabel('Scanning…');
+  const rescan = view.byLabel({ label: 'Scanning…' });
   assert.ok(rescan);
   assert.equal(rescan.getAttribute('aria-busy'), 'true');
   assert.equal(rescan.hasAttribute('disabled'), true);
-  assert.equal(view.byText('Import')?.hasAttribute('disabled'), false);
-  assert.equal(renderHeader(t).byLabel('Rescan')?.getAttribute('aria-busy'), 'false');
+  assert.equal(view.byText({ text: 'Import' })?.hasAttribute('disabled'), false);
+  assert.equal(renderHeader(t).byLabel({ label: 'Rescan' })?.getAttribute('aria-busy'), 'false');
 });
 
 test('MainHeader: the import page swaps the title and takes the tools away', (t) => {

@@ -18,7 +18,7 @@ export function useLoadedSitesStepper({ setting }: { setting: LoadedSitesSetting
   // `null` shows the saved value; a string is the field mid-edit (cleared, or a non-digit typed).
   const [draft, setDraft] = useState<string | null>(null);
   const { value, save } = setting;
-  const onChange = (text: string) => {
+  const onChange = ({ text }: { text: string }, _options = {}) => {
     const next = loadedSitesFromText({ text });
     if (next === null) { setDraft(''); return; }
     setDraft(null);

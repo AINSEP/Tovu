@@ -45,10 +45,10 @@ export function useWorkspaceChatTransport(
     if (bridge === undefined) return undefined;
 
     return {
-      normalizeWorkingDirectory: bridge.normalizeWorkingDirectory,
-      pickWorkingDirectory: bridge.pickWorkingDirectory,
+      normalizeWorkingDirectory: (directory) => bridge.normalizeWorkingDirectory({ directory }),
+      pickWorkingDirectory: (currentDirectory) => bridge.pickWorkingDirectory({}, { currentDirectory }),
       recentDirectories: bridge.recentWorkingDirectories,
-      directoryExists: bridge.workingDirectoryExists,
+      directoryExists: (directory) => bridge.workingDirectoryExists({ directory }),
     };
   }, [bridge]);
 

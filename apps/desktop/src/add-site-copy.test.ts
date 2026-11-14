@@ -144,8 +144,8 @@ test("Start automatically re-identifies a copy already tracked by an older deskt
       started.push(siteDir);
     },
   };
-  await handleStart(f.copy, deps);
-  await handleStart(f.original, deps);
+  await handleStart({ id: f.copy, deps });
+  await handleStart({ id: f.original, deps });
   assert.deepEqual(started, [f.copy, f.original]);
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
 });
@@ -156,7 +156,7 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
   fs.rmSync(path.join(f.copy, "content.db"));
   f.workspace.updateConfig({ patch: { databases: "appData" } });
   trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
-  await handleStart(f.copy, {
+  await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
@@ -164,7 +164,7 @@ test("Start keeps a moved folder's identity and relocates its existing reservati
       assert.equal(readMeta({ siteDir }).siteId, ORIGINAL_ID);
       assert.equal(f.workspace.registry({}).list({}).find((row) => row.id === ORIGINAL_ID)?.path, f.copy);
     },
-  });
+  } });
   assert.deepEqual(readMeta({ siteDir: f.copy }), f.meta);
 });
 
@@ -175,12 +175,12 @@ test("Start reports a plain sentence when a linked marker cannot safely be re-id
   fs.symlinkSync(path.join(f.original, ".site-meta.json"), path.join(f.copy, ".site-meta.json"));
   trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   let spawned = false;
-  await assert.rejects(handleStart(f.copy, {
+  await assert.rejects(handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root,
     openSites: new Map(), serializer: createKeyedSerializer(), ctx: {},
     readSiteName: () => "Harbor Florist", readPreviewVersion: () => null,
     openSiteServer: async () => { spawned = true; },
-  }), { message: "This copied website could not start because Tovu could not give its folder a separate identity." });
+  } }), { message: "This copied website could not start because Tovu could not give its folder a separate identity." });
   assert.equal(spawned, false);
   assert.deepEqual(readMeta({ siteDir: f.original }), f.meta);
 });

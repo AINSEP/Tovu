@@ -28,10 +28,10 @@ export function useRunnerNavigation(
 ): void {
   useEffect(() => {
     const bridge = getBridge();
-    return bridge?.onNavigate((section) => {
+    return bridge?.onNavigate({ listener: (section) => {
       setActiveId(section);
       setActiveTab(null);
-    });
+    } });
   }, [setActiveId, setActiveTab, getBridge]);
 }
 

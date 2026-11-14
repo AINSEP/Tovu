@@ -23,7 +23,7 @@ test('SiteGrid: no dashed add tile, with or without websites — one card per we
   // The tile called the identical zero-argument handler the header's "Create website" button calls,
   // and its subtitle described the create path — one action wearing two controls. Checked by class
   // and by label both, so restoring either half fails.
-  const cases: SiteRecord[][] = [[], [site('a'), site('b')]];
+  const cases: SiteRecord[][] = [[], [site({ id: 'a' }), site({ id: 'b' })]];
   for (const projects of cases) {
     const view = await renderGrid(t, projects);
     assert.equal(view.container.querySelector('.card--add'), null);

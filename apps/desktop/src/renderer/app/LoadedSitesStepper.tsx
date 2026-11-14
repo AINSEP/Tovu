@@ -36,7 +36,7 @@ export function LoadedSitesStepper({ setting, labelledBy }: { setting: LoadedSit
         aria-valuenow={value}
         value={draft ?? String(value)}
         onFocus={(event) => event.currentTarget.select()}
-        onChange={(event) => onChange(event.currentTarget.value)}
+        onChange={(event) => onChange({ text: event.currentTarget.value })}
         onBlur={() => setDraft(null)}
         onKeyDown={onKeyDown}
       />

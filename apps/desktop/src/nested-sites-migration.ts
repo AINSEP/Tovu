@@ -39,9 +39,9 @@ async function migrateNestedSite(
 
 function removeDisposableNestedCache({ root }: { root: string }): void {
   // 0.1.14 cached sibling thumbnails in sites/.tovu; they regenerate, so only they never keep the old folder alive.
-  const cache = path.join(root, ".tovu"), disposable = (names: string[], allowed: string[]) => names.every((name) => allowed.includes(name));
+  const cache = path.join(root, ".tovu"), disposable = ({ names, allowed }: { names: string[]; allowed: string[] }, _options = {}) => names.every((name) => allowed.includes(name));
   try {
-    if (disposable(fs.readdirSync(root), [".tovu", ".DS_Store"]) && (!fs.existsSync(cache) || disposable(fs.readdirSync(cache), ["site-previews", "theme-previews"]))) {
+    if (disposable({ names: fs.readdirSync(root), allowed: [".tovu", ".DS_Store"] }) && (!fs.existsSync(cache) || disposable({ names: fs.readdirSync(cache), allowed: ["site-previews", "theme-previews"] }))) {
       fs.rmSync(cache, { recursive: true, force: true }); fs.rmSync(path.join(root, ".DS_Store"), { force: true });
     }
   } catch { /* The rmdir below keeps the container whenever anything remains. */ }

@@ -95,25 +95,25 @@ function collectReply<A extends OwnerStoreAction>({ child, request, action }: {
       clearTimeout(timer);
       resolve(reply);
     };
-    const fail = (code = 'operation-failed'): void => {
+    const fail = (_required: Record<string, never>, { code = 'operation-failed' }: { code?: string } = {}): void => {
       finish(ownerStoreFailure({ action, code }));
       child.kill('SIGKILL');
     };
-    const timer = setTimeout(() => fail('timeout'), timeoutMs);
+    const timer = setTimeout(() => fail({}, { code: 'timeout' }), timeoutMs);
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => {
       if (settled) return;
       bytes += Buffer.byteLength(chunk);
-      if (bytes > MAX_REPLY_BYTES) { fail(); return; }
+      if (bytes > MAX_REPLY_BYTES) { fail({}); return; }
       output += chunk;
     });
     child.stderr.resume();
-    child.stdout.once('error', () => fail());
-    child.stderr.once('error', () => fail());
-    child.stdin.once('error', () => fail());
-    child.once('error', () => fail());
+    child.stdout.once('error', () => fail({}));
+    child.stderr.once('error', () => fail({}));
+    child.stdin.once('error', () => fail({}));
+    child.once('error', () => fail({}));
     child.once('close', code => finish(parseReply({ action, output, code })));
-    try { child.stdin.end(request); } catch { fail(); }
+    try { child.stdin.end(request); } catch { fail({}); }
   });
 }
 

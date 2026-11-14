@@ -10,8 +10,8 @@ test('preload bridge uses fixed IPC channels, strips Electron event, and tears d
   const invokes: unknown[] = [], frames: unknown[] = [];
   let receive!: (frame: { siteDir: string; revision: string }) => void, detached = false;
   const watch = createSiteThemePreviewBridge({
-    invoke: async (channel, input) => { invokes.push([channel, input]); },
-    subscribe: (_channel, listener) => { receive = listener; return () => { detached = true; }; },
+    invoke: async ({ channel, input }, _options = {}) => { invokes.push([channel, input]); },
+    subscribe: ({ listener }, _options = {}) => { receive = listener; return () => { detached = true; }; },
   });
   const off = watch({ siteDir: '/a', listener: (frame) => frames.push(frame) });
   const id = (invokes[0] as [string, { subscriptionId: string }])[1].subscriptionId;
@@ -33,7 +33,7 @@ test('a rejected watch or unwatch claim is swallowed: preview is best-effort and
     const invoked: string[] = [];
     let detached = 0;
     const watch = createSiteThemePreviewBridge({
-      invoke: async (channel) => { invoked.push(channel); throw new Error(`${channel} refused`); },
+      invoke: async ({ channel }, _options = {}) => { invoked.push(channel); throw new Error(`${channel} refused`); },
       subscribe: () => () => { detached++; },
     });
     const off = watch({ siteDir: '/a', listener: () => undefined });

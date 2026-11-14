@@ -43,7 +43,7 @@ test("Enter or Space on a control INSIDE the card does not open the project", ()
 test("a menu entry closes the menu BEFORE running its action", () => {
   // Acting first would leave an open menu floating over whatever the action changed.
   const calls: string[] = [];
-  const choose = closeMenuThen((open) => calls.push(`setOpen:${open}`));
+  const choose = closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) });
   const onClick = choose(() => calls.push("act"));
   assert.equal(calls.length, 0, "building an entry's handler must run nothing");
   onClick();
@@ -52,7 +52,7 @@ test("a menu entry closes the menu BEFORE running its action", () => {
 
 test("every entry built from one closeMenuThen runs only its own action", () => {
   const calls: string[] = [];
-  const choose = closeMenuThen((open) => calls.push(`setOpen:${open}`));
+  const choose = closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) });
   const rename = choose(() => calls.push("rename"));
   const start = choose(() => calls.push("start"));
   start();
@@ -62,8 +62,8 @@ test("every entry built from one closeMenuThen runs only its own action", () => 
 
 test("a card whose folder is missing does not open — there is no site to start there", () => {
   const record = (fields: Partial<SiteRecord>) => ({ status: "stopped", folderMissing: false, ...fields }) as SiteRecord;
-  assert.equal(isCardOpenable(record({}), false), true);
-  assert.equal(isCardOpenable(record({ folderMissing: true }), false), false);
+  assert.equal(isCardOpenable({ project: record({}), confirming: false }), true);
+  assert.equal(isCardOpenable({ project: record({ folderMissing: true }), confirming: false }), false);
 });
 
 test("cardOpenProps opens only for accepted keys on the card and leaves descendant controls alone", () => {
@@ -73,7 +73,7 @@ test("cardOpenProps opens only for accepted keys on the card and leaves descenda
   ] as const) {
     let opened = 0;
     let prevented = 0;
-    const props = cardOpenProps(true, () => opened++);
+    const props = cardOpenProps({ openable: true, onOpen: () => opened++ });
     assert.equal(props.role, "button");
     assert.equal(props.tabIndex, 0);
     props.onKeyDown!({ key, target, currentTarget: card, preventDefault: () => prevented++ });
@@ -81,9 +81,9 @@ test("cardOpenProps opens only for accepted keys on the card and leaves descenda
     assert.equal(prevented, expected, key);
   }
   let opened = 0;
-  cardOpenProps(true, () => opened++).onClick!();
+  cardOpenProps({ openable: true, onOpen: () => opened++ }).onClick!();
   assert.equal(opened, 1);
-  assert.deepEqual(cardOpenProps(false, () => opened++), { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined });
+  assert.deepEqual(cardOpenProps({ openable: false, onOpen: () => opened++ }), { role: undefined, tabIndex: undefined, onClick: undefined, onKeyDown: undefined });
   assert.equal(opened, 1);
 });
 
@@ -95,7 +95,7 @@ test("the open-affordance class is absent for every inert card", () => {
     ['running', true, false, ''], ['running', false, true, ''],
   ] as const) {
     const project = { status, folderMissing } as SiteRecord;
-    assert.equal(cardOpenClass({ openable: isCardOpenable(project, overlay) }), expected);
+    assert.equal(cardOpenClass({ openable: isCardOpenable({ project, confirming: overlay }) }), expected);
   }
 });
 

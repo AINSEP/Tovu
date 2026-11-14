@@ -49,7 +49,7 @@ export const { App } = await import('./App.js');
 
 export type TestContext = Pick<NodeTestContext, 'after'>;
 
-export function site(id: string, fields: Partial<SiteRecord> = {}): SiteRecord {
+export function site({ id }: { id: string }, { fields = {} }: { fields?: Partial<SiteRecord> } = {}): SiteRecord {
   return {
     id, slug: id, displayName: `Site ${id}`, installDir: `/sites/${id}`, port: 0, partition: `persist:${id}`, templateId: 'starter',
     templateVersion: null, database: { kind: 'sqlite' }, desiredState: 'stopped', status: 'stopped', statusDetail: null,
@@ -67,10 +67,10 @@ function installBridge(overrides: Partial<RunnerInventoryBridge> = {}) {
     listAgents: async () => [], rescanAgents: async () => [], daemonOnline: async () => true,
     listSites: async () => [], rescanSites: async () => { calls.push('rescan'); return []; },
     addSite: async () => { calls.push('add'); return null; },
-    createSite: async () => null, renameSite: async (input: { id: string }) => site(input.id),
-    getSitePreview: async () => null, locateSite: async (id: string) => site(id),
-    startSite: async (id: string) => { calls.push(`start:${id}`); return site(id, { status: 'running', port: 4100 }); },
-    stopSite: async (id: string) => site(id), deleteSite: async () => {},
+    createSite: async () => null, renameSite: async (input: { id: string }) => site({ id: input.id }),
+    getSitePreview: async () => null, locateSite: async ({ id }: { id: string }, _options = {}) => site({ id }),
+    startSite: async ({ id }: { id: string }, _options = {}) => { calls.push(`start:${id}`); return site({ id }, { fields: { status: 'running', port: 4100 } }); },
+    stopSite: async ({ id }: { id: string }, _options = {}) => site({ id }), deleteSite: async () => {},
     keepSiteRunning: async ({ id }: { id: string }) => { calls.push(`keep-running:${id}`); },
     openSiteExternal: async (input: { siteId: string; view: string }) => { calls.push(`external:${input.siteId}:${input.view}`); },
     chatStart: async () => { throw new Error('unused'); }, chatReattach: async () => {}, chatDetach: async () => {}, chatStop: async () => {}, chatStatus: async () => null,
@@ -78,14 +78,14 @@ function installBridge(overrides: Partial<RunnerInventoryBridge> = {}) {
     listConversations: async () => [], createConversation: async () => { throw new Error('unused'); },
     renameConversation: async () => {}, deleteConversation: async () => {}, loadConversationMessages: async () => [], saveConversationMessage: async () => {},
     onChatEvent: () => () => {},
-    onNavigate: (listener: (section: RunnerSectionId) => void) => { listeners.navigate.add(listener); return () => listeners.navigate.delete(listener); },
+    onNavigate: ({ listener }: { listener: (section: RunnerSectionId) => void }, _options = {}) => { listeners.navigate.add(listener); return () => listeners.navigate.delete(listener); },
     onSiteHistory: () => () => {},
-    onOpenImport: (listener: (request: ImportHandoffRequest) => void) => { listeners.openImport.add(listener); return () => listeners.openImport.delete(listener); },
-    onFindToggle: (listener: () => void) => { listeners.find.add(listener); return () => listeners.find.delete(listener); },
+    onOpenImport: ({ listener }: { listener: (request: ImportHandoffRequest) => void }, _options = {}) => { listeners.openImport.add(listener); return () => listeners.openImport.delete(listener); },
+    onFindToggle: ({ listener }: { listener: () => void }, _options = {}) => { listeners.find.add(listener); return () => listeners.find.delete(listener); },
     findInPage: async () => { calls.push('find'); }, stopFindInPage: async () => { calls.push('stop-find'); }, onFindResult: () => () => {},
     onZoomCommand: () => () => {}, getZoomLevel: () => 0, setZoomLevel: () => {},
     getPathForFile: () => '', pickWorkingDirectory: async () => null, recentWorkingDirectories: async () => [],
-    workingDirectoryExists: async () => true, normalizeWorkingDirectory: async (directory: string) => directory,
+    workingDirectoryExists: async () => true, normalizeWorkingDirectory: async ({ directory }: { directory: string }, _options = {}) => directory,
     ...overrides,
   } as RunnerInventoryBridge;
   dom.window.tovuRunner = bridge;
@@ -102,7 +102,7 @@ export const settle = () => act(async () => { for (let i = 0; i < 6; i++) await 
 export async function renderApp(t: TestContext, overrides: Partial<RunnerInventoryBridge> = {}) {
   const host = installBridge(overrides);
   let settingsShown = 0;
-  const useSiteSettings: typeof useSiteStorageSettings = (required, options) => ({
+  const useSiteSettings: typeof useSiteStorageSettings = (required, options = {}) => ({
     ...useSiteStorageSettings(required, { ...options, useFolders: useFakeFolders }),
     show: () => { settingsShown++; },
   });
@@ -114,10 +114,10 @@ export async function renderApp(t: TestContext, overrides: Partial<RunnerInvento
   // overloads cannot infer through; the cast only restates that signature with props required.
   act(() => root.render(createElement(App as (required: typeof props) => ReturnType<typeof App>, props)));
   await settle();
-  const all = (selector: string) => [...container.querySelectorAll<HTMLElement>(selector)];
-  const byText = (text: string, selector = 'button') => all(selector).find((el) => el.textContent?.trim() === text);
-  const byLabel = (label: string) => container.querySelector<HTMLElement>(`[aria-label="${label}"]`);
-  const click = async (el: Element | null | undefined) => {
+  const all = ({ selector }: { selector: string }, _options = {}) => [...container.querySelectorAll<HTMLElement>(selector)];
+  const byText = ({ text }: { text: string }, { selector = 'button' }: { selector?: string } = {}) => all({ selector }).find((el) => el.textContent?.trim() === text);
+  const byLabel = ({ label }: { label: string }, _options = {}) => container.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+  const click = async ({ el }: { el: Element | null | undefined }, _options = {}) => {
     assert.ok(el, 'element to click is on screen');
     await act(async () => { el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); });
     await settle();
@@ -128,7 +128,7 @@ export async function renderApp(t: TestContext, overrides: Partial<RunnerInvento
 
 /** Opens the first card of the grid as a tab. */
 export async function openFirstSite(app: Awaited<ReturnType<typeof renderApp>>) {
-  await app.click(app.container.querySelector('article.card'));
+  await app.click({ el: app.container.querySelector('article.card') });
 }
 export { act };
 

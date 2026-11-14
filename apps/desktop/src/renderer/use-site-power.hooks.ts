@@ -183,11 +183,11 @@ export type SitePowerResult = { record: SiteRecord; error?: undefined } | { reco
 export async function performPowerAction(
   action: SitePowerAction,
   id: string,
-  bridge: { startSite: (id: string) => Promise<SiteRecord>; stopSite: (id: string) => Promise<SiteRecord> } | undefined,
+  bridge: { startSite: (required: { id: string }, options?: {}) => Promise<SiteRecord>; stopSite: (required: { id: string }, options?: {}) => Promise<SiteRecord> } | undefined,
 ): Promise<SitePowerResult> {
   if (bridge === undefined) return { error: 'The desktop bridge is unavailable.' };
   try {
-    return { record: action === 'start' ? await bridge.startSite(id) : await bridge.stopSite(id) };
+    return { record: action === 'start' ? await bridge.startSite({ id }) : await bridge.stopSite({ id }) };
   } catch (err) {
     if (action === 'start') return { error: siteOperationError({ error: err, operation: 'start' }) };
     return { error: err instanceof Error ? err.message : String(err) };

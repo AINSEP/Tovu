@@ -28,7 +28,7 @@ function ports(getPathForFile: Transport['getPathForFile']) {
 
 test('the pane state passes its collaborators through and derives the conversation view', (t) => {
   const fake = ports(undefined);
-  const hook = renderHook(t, () => useWorkspaceChatPane({}, fake.options));
+  const hook = renderHook({ t, useHook: () => useWorkspaceChatPane({}, fake.options) });
   const pane = hook.current();
   assert.equal(pane.transport, fake.transport.transport);
   assert.equal(pane.runtimeAccess, fake.transport.runtimeAccess);
@@ -46,7 +46,7 @@ test('the pane state passes its collaborators through and derives the conversati
 
 test('a folder dropped on the pane is written into the composer the ChatPane published', (t) => {
   const fake = ports((file) => (file as unknown as { path: string }).path);
-  const hook = renderHook(t, () => useWorkspaceChatPane({}, fake.options));
+  const hook = renderHook({ t, useHook: () => useWorkspaceChatPane({}, fake.options) });
   const inserted: string[] = [];
   hook.current().composerHandle.current = { insertText: (text: string) => void inserted.push(text) } as never;
   const calls: string[] = [];

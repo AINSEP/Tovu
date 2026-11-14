@@ -19,7 +19,7 @@ interface OwnerStorePorts {
   confirmDisconnect?: (input: { report: SharedOAuthDisconnectReport }) => Promise<boolean>;
 }
 interface OwnerStoreEvent { senderFrame: { url: string; parent: unknown } | null }
-type Serialize = <T>(work: () => Promise<T>) => Promise<T>;
+type Serialize = <T>(required: { work: () => Promise<T> }, options?: {}) => Promise<T>;
 export interface OwnerStoreController {
   execute: (input: { action: OwnerStoreAction; input: unknown }, options?: {}) => Promise<OwnerStoreReply>;
 }
@@ -70,12 +70,12 @@ async function importRequest({ request, ports, serialize }: {
 }, _options = {}): Promise<OwnerStoreReply<'import'>> {
   const fields = await importFields({ request, ports });
   if (fields === null) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
-  const dryRun = await serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: false } }));
+  const dryRun = await serialize({ work: () => ports.run({ action: 'import', fields: { ...fields, apply: false } }) });
   if (!dryRun.ok || !dryRun.data.items.some(item => item.status === 'new')) return dryRun;
   if (!await ports.confirmImport({ report: dryRun.data })) return ownerStoreFailure({ action: 'import', code: 'cancelled' });
   // The CLI rereads the source; naming the confirmed dry run's digest refuses a source replaced meanwhile.
   const expectedDigest = dryRun.data.sourceDigest;
-  return serialize(() => ports.run({ action: 'import', fields: { ...fields, apply: true, ...(expectedDigest === undefined ? {} : { expectedDigest }) } }));
+  return serialize({ work: () => ports.run({ action: 'import', fields: { ...fields, apply: true, ...(expectedDigest === undefined ? {} : { expectedDigest }) } }) });
 }
 
 /** Only main binds the apply to the source digest; the renderer's reply never carries it. */
@@ -93,10 +93,10 @@ async function disconnectRequest({ request, ports, serialize }: {
   const expectedRevision = request.expectedRevision;
   if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error(INVALID_REQUEST);
   const fields = { id, expectedRevision };
-  const reviewed = await serialize(() => ports.run({ action: 'disconnect', fields: { ...fields, apply: false } }));
+  const reviewed = await serialize({ work: () => ports.run({ action: 'disconnect', fields: { ...fields, apply: false } }) });
   if (!reviewed.ok) return reviewed;
   if (!ports.confirmDisconnect || !await ports.confirmDisconnect({ report: reviewed.data })) return ownerStoreFailure({ action: 'disconnect', code: 'cancelled' });
-  const result = await serialize(() => ports.run({ action: 'disconnect', fields: { ...fields, apply: true, expectedDigest: reviewed.data.sourceDigest } }));
+  const result = await serialize({ work: () => ports.run({ action: 'disconnect', fields: { ...fields, apply: true, expectedDigest: reviewed.data.sourceDigest } }) });
   if (!result.ok) return result;
   const { sourceDigest: _mainOnly, ...data } = result.data;
   return { ...result, data };
@@ -111,11 +111,11 @@ async function executeRequest({ action, input, ports, serialize }: {
   const request = requestInput({ action, input });
   // A total Record keeps the exhaustiveness check without a switch.
   const handlers: Record<OwnerStoreAction, () => Promise<OwnerStoreReply>> = {
-    status: () => serialize(() => ports.run({ action: 'status', fields: {} })),
-    list: () => serialize(() => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} })),
+    status: () => serialize({ work: () => ports.run({ action: 'status', fields: {} }) }),
+    list: () => serialize({ work: () => ports.run({ action: 'list', fields: request.store === 'project' ? { store: 'project' } : {} }) }),
     // Project attachments reference the original row; a save never creates a site copy.
-    put: () => serialize(() => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } })),
-    delete: () => serialize(() => ports.run({ action: 'delete', fields: { id: requiredString({ value: request.id }), expectedRevision: request.expectedRevision as number } })),
+    put: () => serialize({ work: () => ports.run({ action: 'put', fields: { store: 'project', entry: request.entry as OwnerStoreCliFields['put']['entry'] } }) }),
+    delete: () => serialize({ work: () => ports.run({ action: 'delete', fields: { id: requiredString({ value: request.id }), expectedRevision: request.expectedRevision as number } }) }),
     import: async () => withoutSourceDigest(await importRequest({ request, ports, serialize })),
     disconnect: () => disconnectRequest({ request, ports, serialize }),
   };
@@ -130,7 +130,7 @@ async function executeRequest({ action, input, ports, serialize }: {
  */
 export function createOwnerStoreController(ports: OwnerStorePorts, _options = {}): OwnerStoreController {
   const queue = createKeyedSerializer();
-  const serialize: Serialize = work => queue.run({ key: 'owner-store', fn: work });
+  const serialize: Serialize = ({ work }, _options = {}) => queue.run({ key: 'owner-store', fn: work });
   return {
     execute: async ({ action, input }, _options = {}) => {
       try { return await executeRequest({ action, input, ports, serialize }); }

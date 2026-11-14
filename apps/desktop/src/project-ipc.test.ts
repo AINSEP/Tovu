@@ -255,8 +255,8 @@ test("buildSiteRecord surfaces whatever version deps.readPreviewVersion reports,
 
 test("handleGetPreview delegates straight to deps.readPreviewDataUrl, keyed by the id it was given", () => {
   const deps = baseDeps({ readPreviewDataUrl: ({ id }: { id: string }) => (id === "/sites/a" ? "data:image/png;base64,AA==" : null) });
-  assert.equal(handleGetPreview("/sites/a", deps), "data:image/png;base64,AA==");
-  assert.equal(handleGetPreview("/sites/unknown", deps), null);
+  assert.equal(handleGetPreview({ id: "/sites/a", deps }), "data:image/png;base64,AA==");
+  assert.equal(handleGetPreview({ id: "/sites/unknown", deps }), null);
 });
 
 test("a crashed project is reported stopped, with a statusDetail saying why", async () => {
@@ -580,7 +580,7 @@ test("handleDelete on an untracked id is a no-op — no stop, no fs.rm, no throw
   const entry = { server: { pid: 777, stop: async () => assert.fail("an untracked server must not stop") } };
   deps.openSites.set(siteDir, entry);
   const files = fs.readdirSync(siteDir).map((name) => [name, fs.readFileSync(path.join(siteDir, name), "utf8")]);
-  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
   assert.deepEqual(fs.readdirSync(siteDir).map((name) => [name, fs.readFileSync(path.join(siteDir, name), "utf8")]), files);
   assert.equal(deps.openSites.get(siteDir), entry);
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
@@ -607,7 +607,7 @@ test("handleDelete on a running project the app CREATED stops the server before 
     window: { isDestroyed: () => false, destroy: () => order.push("destroyed") },
   });
 
-  const deleting = handleDelete(siteDir, deps);
+  const deleting = handleDelete({ id: siteDir, deps });
   try {
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.equal(fs.existsSync(siteDir), true, "files must survive until stop completes");
@@ -633,7 +633,7 @@ test("handleDelete stops a sites-home-opened (embedded-tab) entry that carries n
   let stopped = false;
   deps.openSites.set(siteDir, { server: { stop: async () => { stopped = true; } } });
 
-  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
 
   assert.equal(stopped, true);
   assert.equal(deps.openSites.has(siteDir), false);
@@ -645,7 +645,7 @@ test("handleDelete drops the cached preview for a project it ERASES", async () =
   const deps = baseDeps({ deletePreview: ({ id }) => deleted.push(id) });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-erase" });
 
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
 
   assert.deepEqual(deleted, [siteDir]);
 });
@@ -660,7 +660,7 @@ test("handleDelete drops the cached preview for a project it only REMOVES (adopt
   const deps = baseDeps({ deletePreview: ({ id }) => deleted.push(id) });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted });
 
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
 
   assert.deepEqual(deleted, [siteDir]);
   assert.equal(fs.existsSync(siteDir), true, "an adopted folder's bytes must survive its own delete");
@@ -670,7 +670,7 @@ test("handleDelete on an untracked id never calls deletePreview — there is no 
   const deleted: string[] = [];
   const deps = baseDeps({ deletePreview: ({ id }) => deleted.push(id) });
 
-  await handleDelete("/sites/never-tracked", deps);
+  await handleDelete({ id: "/sites/never-tracked", deps });
 
   assert.deepEqual(deleted, []);
 });
@@ -694,7 +694,7 @@ test("handleOpenExternal opens the admin surface by default, the site surface wh
 
 test("handleStart refuses an id this shell is not tracking", async () => {
   const deps = baseDeps({ openSiteServer: async () => assert.fail("must not be called") });
-  await assert.rejects(() => handleStart("/sites/unknown", deps), /Unknown project/);
+  await assert.rejects(() => handleStart({ id: "/sites/unknown", deps }), /Unknown project/);
 });
 
 test("handleStart serializes on the site dir, calls openSiteServer with ctx, and returns the fresh record", async () => {
@@ -707,7 +707,7 @@ test("handleStart serializes on the site dir, calls openSiteServer with ctx, and
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  const record = await handleStart("/sites/a", deps);
+  const record = await handleStart({ id: "/sites/a", deps });
 
   assert.deepEqual(openedWith, { siteDir: "/sites/a", ctx: deps.ctx });
   assert.equal(record.status, "running");
@@ -723,7 +723,7 @@ test("handleStart refuses a missing folder before attempting to spawn", async ()
   trackSite({ projectsPath: deps.projectsPath, siteDir });
 
   await assert.rejects(
-    () => handleStart(siteDir, deps),
+    () => handleStart({ id: siteDir, deps }),
     new Error("Folder moved or not a site. Locate the website folder or remove this card."),
   );
 });
@@ -733,7 +733,7 @@ test("handleStart refuses an existing non-site folder before spawning", async ()
   const deps = baseDeps({ openSiteServer: async () => assert.fail("must refuse before spawn") });
   trackSite({ projectsPath: deps.projectsPath, siteDir });
 
-  await assert.rejects(() => handleStart(siteDir, deps), /Folder moved or not a site/);
+  await assert.rejects(() => handleStart({ id: siteDir, deps }), /Folder moved or not a site/);
 });
 
 // --- stop (2026-09-18) ---------------------------------------------------------------------
@@ -745,7 +745,7 @@ test("handleStart refuses an existing non-site folder before spawning", async ()
 
 test("handleStop refuses an id this shell is not tracking", async () => {
   const deps = baseDeps();
-  await assert.rejects(() => handleStop("/sites/unknown", deps), /Unknown project/);
+  await assert.rejects(() => handleStop({ id: "/sites/unknown", deps }), /Unknown project/);
 });
 
 test("P1: Stop/Restart cancels a pending preview before the site's graceful drain", async () => {
@@ -755,9 +755,9 @@ test("P1: Stop/Restart cancels a pending preview before the site's graceful drai
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
   deps.openSites.set("/sites/a", { server: { port: 4321, stop: async () => { order.push("drain"); } } });
-  await handleStop("/sites/a", deps);
+  await handleStop({ id: "/sites/a", deps });
   assert.deepEqual(order, ["cancel /sites/a", "drain"]);
-  await handleStop("/sites/a", deps);
+  await handleStop({ id: "/sites/a", deps });
   assert.deepEqual(order, ["cancel /sites/a", "drain", "cancel /sites/a"], "even an already-stopped site withdraws pending work");
 });
 
@@ -768,7 +768,7 @@ test("P1: removing an adopted site cancels its preview before the server drains"
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" }, { origin: SITE_ORIGIN.adopted });
   deps.openSites.set("/sites/a", { server: { stop: async () => { order.push("drain"); } } });
-  await handleDelete("/sites/a", deps);
+  await handleDelete({ id: "/sites/a", deps });
   assert.deepEqual(order, ["cancel /sites/a", "drain"]);
 });
 
@@ -778,7 +778,7 @@ test("handleStop drains the server, drops the entry, and returns a stopped recor
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { stopped += 1; } } });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  const record = await handleStop("/sites/a", deps);
+  const record = await handleStop({ id: "/sites/a", deps });
 
   assert.equal(stopped, 1, "the child's own graceful drain must be what stops it");
   assert.equal(deps.openSites.get("/sites/a"), undefined);
@@ -813,7 +813,7 @@ test("the entry is dropped BEFORE the stop is awaited, so a deliberate stop is n
   });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  const record = await handleStop("/sites/a", deps);
+  const record = await handleStop({ id: "/sites/a", deps });
 
   assert.deepEqual(unexpected, [], "a stop the operator asked for is not an unexpected exit");
   assert.equal(record.statusDetail, null, "no crash reason may be shown for a deliberate stop");
@@ -831,7 +831,7 @@ test("the crash-safety row is dropped only AFTER the child is really gone, and b
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 777, stop: async () => { await draining; order.push("stopped"); } } });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  const stopping = handleStop("/sites/a", deps);
+  const stopping = handleStop({ id: "/sites/a", deps });
   try {
     await new Promise<void>((resolve) => setImmediate(resolve));
     assert.deepEqual(order, [], "the crash-safety row must outlive the draining child");
@@ -849,7 +849,7 @@ test("stopping an already-stopped site is a no-op that still returns its record,
   const deps = baseDeps({ recordSiteClosed: () => assert.fail("nothing was open to close") });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  const record = await handleStop("/sites/a", deps);
+  const record = await handleStop({ id: "/sites/a", deps });
 
   assert.equal(record.status, "stopped");
 });
@@ -862,7 +862,7 @@ test("a rejected card Stop keeps the crash-recovery row and reports failure", as
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 123, stop: async () => {
     throw new Error("forced Stop did not observe exit");
   } } });
-  await assert.rejects(handleStop("/sites/a", deps), /forced Stop did not observe exit/);
+  await assert.rejects(handleStop({ id: "/sites/a", deps }), /forced Stop did not observe exit/);
   assert.equal(closedRows, 0);
 });
 
@@ -872,7 +872,7 @@ test("handleStop runs inside the per-site serializer, so a delete cannot erase u
   deps.openSites.set("/sites/a", { server: { port: 4321, pid: 1, stop: async () => {} } });
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  await handleStop("/sites/a", deps);
+  await handleStop({ id: "/sites/a", deps });
 
   assert.deepEqual(keys, ["/sites/a"]);
 });
@@ -910,7 +910,7 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
   const siteSurfaceUrl = sourceFunction(source, "siteSurfaceUrl", { sitePortPresentation });
   const prepareExternalWorkspace = sourceFunction(source, "prepareExternalWorkspace", { siteSurfaceUrl });
 
-  const stopping = handleStop(alpha, deps);
+  const stopping = handleStop({ id: alpha, deps });
   await new Promise<void>((resolve) => setImmediate(resolve));
   let attachment: Promise<unknown> | undefined;
   try {
@@ -920,9 +920,9 @@ test("a site reads `stopping` for the whole drain: a live lease poll cannot rest
     assert.equal(midDrain.status, "stopping", "mid-drain the card must say so");
     assert.equal(midDrain.desiredState, "stopped", "the operator's intent, not the child's liveness");
     assert.ok(sharedSites.running({ path: alpha }).read({}), "the lease is still readable during drain");
-    attachment = prepareExternalWorkspace({ project: midDrain, bridge: { startSite: (id: string) => {
+    attachment = prepareExternalWorkspace({ project: midDrain, bridge: { startSite: ({ id }: { id: string }, _options = {}) => {
       automaticStarts++;
-      return handleStart(id, deps as ProjectIpcDeps);
+      return handleStart({ id, deps: deps as ProjectIpcDeps });
     } } }).then((url: string | null) => ({ url }), (error: unknown) => ({ error }));
     assert.equal(automaticStarts, 0, "the attachment function must not queue Start behind Stop");
     assert.equal(midDrain.externalUrl, undefined);
@@ -974,7 +974,7 @@ test("Stop on a site npm run dev serves goes through externalSites, reads stoppi
   const listed = handleList(deps).find((row) => row.id === site)!;
   assert.equal(listed.externalLauncher, "npm-run-dev", "the card learns it may offer Stop, and which confirm");
   assert.equal(listed.externalUrl, "http://localhost:4555/admin/");
-  const record = await handleStop(site, deps);
+  const record = await handleStop({ id: site, deps });
   assert.ok(calls.includes("stop:true:true:stopping"), `the lease handed over is the live one, inside the stopping transition: ${calls}`);
   assert.equal(record.status, "stopped");
   assert.equal(record.externalLauncher, undefined);
@@ -986,7 +986,7 @@ test("Stop withdraws this window's own attachment BEFORE signalling the external
   const closed: unknown[] = [];
   deps.recordSiteClosed = ({ siteDir }, options) => { closed.push([siteDir, options?.pid]); };
   deps.openSites.set(site, { server: { external: true, pid: 999, port: 4555, origin: "http://localhost:4555", stop: async () => { calls.push("detach"); } } });
-  await handleStop(site, deps);
+  await handleStop({ id: site, deps });
   assert.deepEqual(calls.filter((call) => !call.startsWith("launcherOf")).map((call) => call.split(":")[0]), ["detach", "stop"]);
   assert.equal(deps.openSites.has(site), false);
   assert.deepEqual(closed, [[site, 999]], "the detached child releases only its own crash-safety row");
@@ -995,7 +995,7 @@ test("Stop withdraws this window's own attachment BEFORE signalling the external
 test("an external Stop that fails surfaces main's sentence and keeps the lease", async (t) => {
   const { site, deps, lease } = externalLeaseFixture(t);
   deps.externalSites = { launcherOf: () => "other", stop: async () => { throw new Error("The site did not stop within 15 s. Stop it where it was started."); } };
-  await assert.rejects(handleStop(site, deps), /did not stop within 15 s/);
+  await assert.rejects(handleStop({ id: site, deps }), /did not stop within 15 s/);
   assert.equal(deps.sharedSites!.running({ path: site }).read({})?.token, lease.record.token);
   assert.equal(handleList(deps).find((row) => row.id === site)?.status, "running");
 });
@@ -1009,7 +1009,7 @@ test("a site this window serves itself never takes the external path, and gets n
     deps.sharedSites!.running({ path: site }).release({ token: lease.record.token });
   } } });
   assert.equal(handleList(deps).find((row) => row.id === site)?.externalLauncher, undefined);
-  await handleStop(site, deps);
+  await handleStop({ id: site, deps });
   assert.equal(drained, 1);
   assert.deepEqual(calls, [], "neither launcherOf nor stop is consulted for our own child");
 });
@@ -1030,7 +1030,7 @@ test("a site reads `starting` for its whole boot, not `stopped` until the port o
   deps.openSiteServer = async (siteDir: string) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  const starting = handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
+  const starting = handleStart({ id: "/sites/a", deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
   assert.equal(first(handleList(deps)).status, "starting");
   assert.equal(first(handleList(deps)).desiredState, "running");
   // Never a stale port: the record carries one only once a live entry publishes it.
@@ -1046,7 +1046,7 @@ test("a start that FAILS leaves the card stopped, not starting forever", async (
   deps.openSiteServer = async () => { throw new Error("tovu serve failed: PORT_IN_USE"); };
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
-  await assert.rejects(() => handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">), /PORT_IN_USE/); // assigned just above
+  await assert.rejects(() => handleStart({ id: "/sites/a", deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }), /PORT_IN_USE/); // assigned just above
   assert.equal(first(handleList(deps)).status, "stopped");
 });
 
@@ -1065,7 +1065,7 @@ test("a mid-transition card shows no stale crash reason from a previous exit", a
   let release = () => {};
   const booting = new Promise<void>((resolve) => { release = resolve; });
   deps.openSiteServer = async () => { await booting; };
-  const starting = handleStart("/sites/a", deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
+  const starting = handleStart({ id: "/sites/a", deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
 
   assert.equal(first(handleList(deps)).statusDetail, null);
   release();
@@ -1144,8 +1144,8 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
     deps.openSites.set(id, { server: { port: 4321, stop: async () => order.push("stopped") } });
   };
 
-  const starting = handleStart(siteDir, deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
-  const deleting = handleDelete(siteDir, deps);
+  const starting = handleStart({ id: siteDir, deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
+  const deleting = handleDelete({ id: siteDir, deps });
   releaseBoot();
   await Promise.all([starting, deleting]);
 
@@ -1166,8 +1166,8 @@ test("handleStart refuses a project that was deleted while its start was queued 
   deps.openSiteServer = async () => { spawned = true; };
   deps.openSites.set(siteDir, { server: { stop: async () => { await new Promise((r) => setTimeout(r, 20)); } } });
 
-  const deleting = handleDelete(siteDir, deps);
-  const starting = handleStart(siteDir, deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer">); // assigned just above
+  const deleting = handleDelete({ id: siteDir, deps });
+  const starting = handleStart({ id: siteDir, deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
 
   await deleting;
   await assert.rejects(() => starting, /Unknown project/);
@@ -1185,7 +1185,7 @@ test("handleDelete does NOT erase a created project's path once a DIFFERENT site
   await handleCreateInto(deps as Parameters<typeof handleCreate>[1], siteDir, "site-a"); // handleCreateInto assigns dialog/classifySiteDir/adoptSiteDir itself before use
 
   writeSite(siteDir, "site-b-someone-elses", { "content.db": "someone else's real database" });
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
 
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "a replacement site's files must survive delete");
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [], "the card must still go away");
@@ -1233,7 +1233,7 @@ test("handleDelete does NOT erase the directory of a project the app only adopte
   // No origin argument: the legacy/unknown-provenance row shape, which must fail CLOSED.
   trackSite({ projectsPath: deps.projectsPath, siteDir });
 
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
 
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "an adopted project's files must survive delete");
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [], "the card must still go away");
@@ -1247,7 +1247,7 @@ test("handleDelete refuses to erase anything under the repo root, even a row cla
   const deps = baseDeps({ repoRoot });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "repo-site" });
 
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
 
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "a repo-root directory must survive delete regardless of what the row claims");
 });
@@ -1297,7 +1297,7 @@ test("handleDelete still stops and closes a running project it may not erase", a
     window: { isDestroyed: () => false, destroy: () => order.push("destroyed") },
   });
 
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
 
   assert.deepEqual(order, ["stopped", "destroyed"], "removing the card still closes the site it was showing");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true);
@@ -1427,7 +1427,7 @@ test("rescanSites never resurrects a project the operator removed on purpose", a
   const deps = scanDeps();
   const alpha = siteFolder(deps.scanRoot, "alpha");
   await rescanSites(deps);
-  await handleDelete(alpha, deps);
+  await handleDelete({ id: alpha, deps });
   assert.deepEqual(handleList(deps), [], "precondition: the removal took");
   // Repeatedly, because a rescan is an operator-triggered button, not a one-shot boot step.
   assert.deepEqual(await rescanSites(deps), []);
@@ -1494,7 +1494,7 @@ test("handleDelete refuses to erase a directory a SECOND app instance still has 
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-shared" });
   seedForeignRegistryRow(deps, siteDir);
 
-  await assert.rejects(() => handleDelete(siteDir, deps), /still has this site open/);
+  await assert.rejects(() => handleDelete({ id: siteDir, deps }), /still has this site open/);
 
   // The load-bearing half: refused BEFORE any side effect, not partway through one.
   assert.equal(fs.existsSync(siteDir), true, "the directory must survive — a live server is still writing to it");
@@ -1511,7 +1511,7 @@ test("handleDelete does not stop its OWN server when it refuses", async () => {
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-shared-open" });
   seedForeignRegistryRow(deps, siteDir);
 
-  await assert.rejects(() => handleDelete(siteDir, deps), /still has this site open/);
+  await assert.rejects(() => handleDelete({ id: siteDir, deps }), /still has this site open/);
   assert.equal(stopped, false, "a refused delete must leave this instance's own site running too");
   assert.equal(deps.openSites.has(siteDir), true);
   assert.deepEqual(closed, [], "a refusal must retain the crash-safety row");
@@ -1527,7 +1527,7 @@ test("this instance's OWN registry row never counts as a foreign server", async 
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-own" });
   seedForeignRegistryRow(deps, siteDir, 777);
 
-  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
   assert.equal(fs.existsSync(siteDir), false);
 });
 
@@ -1542,7 +1542,7 @@ test("a STALE registry row does not wedge a delete", async () => {
     trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "site-stale" });
     seedForeignRegistryRow(deps, siteDir, pid);
 
-    await assert.doesNotReject(() => handleDelete(siteDir, deps));
+    await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
     assert.equal(fs.existsSync(siteDir), false);
   }
 });
@@ -1558,7 +1558,7 @@ test("handleDelete refuses to erase while a registry file is unreadable — its 
   fs.writeFileSync(torn, '{\n  "sites": [\n    { "siteDir": ');
 
   await assert.rejects(
-    () => handleDelete(siteDir, deps),
+    () => handleDelete({ id: siteDir, deps }),
     (error: Error) => error.message === `Could not read ${torn}, so Tovu cannot tell whether another copy of Tovu still has this site open. Nothing was deleted. Restart Tovu and try again.`,
   );
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "nothing may be erased on an unknown");
@@ -1573,7 +1573,7 @@ test("REMOVING an adopted project is not gated by a sibling instance — it eras
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.adopted, siteId: "site-adopted" });
   seedForeignRegistryRow(deps, siteDir);
 
-  await assert.doesNotReject(() => handleDelete(siteDir, deps));
+  await assert.doesNotReject(() => handleDelete({ id: siteDir, deps }));
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), [], "the card is gone");
   assert.equal(fs.existsSync(path.join(siteDir, "content.db")), true, "and every byte stays");
 });
@@ -1786,7 +1786,7 @@ test("handleLocate points a missing card at the folder the operator picked", asy
   const gone = path.join(tempDir(), "gone");
   trackSite({ projectsPath: deps.projectsPath, siteDir: gone });
 
-  const record = await handleLocate(gone, deps);
+  const record = await handleLocate({ id: gone, deps });
 
   assert.equal(record.id, picked);
   assert.equal(record.folderMissing, false);
@@ -1798,7 +1798,7 @@ test("handleLocate refuses a folder that is not a Tovu site, and changes nothing
   const gone = path.join(tempDir(), "gone");
   trackSite({ projectsPath: deps.projectsPath, siteDir: gone });
 
-  await assert.rejects(() => handleLocate(gone, deps), {
+  await assert.rejects(() => handleLocate({ id: gone, deps }), {
     message: /is not a complete Tovu site \(empty\)\. Pick the folder that holds this website\.$/,
   });
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }).map((row) => row.siteDir), [gone]);
@@ -1806,7 +1806,7 @@ test("handleLocate refuses a folder that is not a Tovu site, and changes nothing
 
 test("handleLocate rejects a cancelled dialog", async () => {
   const deps = locateDeps(null);
-  await assert.rejects(() => handleLocate("/whatever", deps), { message: "No folder was chosen." });
+  await assert.rejects(() => handleLocate({ id: "/whatever", deps }), { message: "No folder was chosen." });
 });
 
 test("handleLocate merges into an already-tracked folder without replacing its row", async () => {
@@ -1817,7 +1817,7 @@ test("handleLocate merges into an already-tracked folder without replacing its r
   trackSite({ projectsPath: deps.projectsPath, siteDir: picked });
   const existing = readTrackedSites({ projectsPath: deps.projectsPath }).find((row) => row.siteDir === picked)!;
 
-  const record = await handleLocate(gone, deps);
+  const record = await handleLocate({ id: gone, deps });
 
   assert.equal(record.id, picked);
   assert.equal(record.folderMissing, false);
@@ -1830,7 +1830,7 @@ test("handleLocate refuses an untracked id without altering the tracked list", a
   trackSite({ projectsPath: deps.projectsPath, siteDir: picked });
   const before = readTrackedSites({ projectsPath: deps.projectsPath });
 
-  await assert.rejects(() => handleLocate("/never-tracked", deps), /not tracking a site.*nothing to locate/);
+  await assert.rejects(() => handleLocate({ id: "/never-tracked", deps }), /not tracking a site.*nothing to locate/);
 
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), before);
 });
@@ -1849,13 +1849,13 @@ test('D-01: delete untracks and removes the preview only after the files are gon
     });
     trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: 'd01-site' });
     if (fails) {
-      await assert.rejects(handleDelete(siteDir, deps), {
+      await assert.rejects(handleDelete({ id: siteDir, deps }), {
         message: 'Could not delete this website. Permission was denied. Its card has been kept so you can try again.',
       });
       assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1);
       assert.equal(fs.existsSync(siteDir), true);
     } else {
-      await handleDelete(siteDir, deps);
+      await handleDelete({ id: siteDir, deps });
       assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
       assert.equal(fs.existsSync(siteDir), false);
     }
@@ -1872,7 +1872,7 @@ test('D-01: deleting a read-only plugin store really removes its entire tree', a
   fs.chmodSync(path.dirname(store), 0o555);
   const deps = baseDeps();
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: 'immutable-site' });
-  await handleDelete(siteDir, deps);
+  await handleDelete({ id: siteDir, deps });
   assert.equal(fs.existsSync(siteDir), false);
   assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
 });
@@ -2115,7 +2115,7 @@ test("handleStart with no injected classifier uses the real one and starts a rea
   // handleStart declares the classifier optional; omit it entirely rather than passing undefined.
   const { classifySiteDir: _injected, ...deps } = baseDeps({ openSiteServer: async () => { started += 1; } });
   trackSite({ projectsPath: deps.projectsPath, siteDir });
-  await handleStart(siteDir, deps);
+  await handleStart({ id: siteDir, deps });
   assert.equal(started, 1);
 });
 
@@ -2124,18 +2124,18 @@ test("a SITE_DIR_INVALID start failure becomes 'folder not found' only when the 
   const invalid = new Error("SITE_DIR_INVALID: config.json is missing at the site");
   const deps = baseDeps({ openSiteServer: async () => { throw invalid; } });
   trackSite({ projectsPath: deps.projectsPath, siteDir });
-  await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), (error) => error === invalid, "the folder is still there: serve's own reason stands");
+  await assert.rejects(handleStart({ id: siteDir, deps: deps as ProjectIpcDeps }), (error) => error === invalid, "the folder is still there: serve's own reason stands");
 
   deps.openSiteServer = async () => { fs.rmSync(siteDir, { recursive: true, force: true }); throw invalid; };
   // The classifier ran before the spawn, so the folder disappearing mid-start is what serve reports.
-  await assert.rejects(handleStart(siteDir, deps as ProjectIpcDeps), {
+  await assert.rejects(handleStart({ id: siteDir, deps: deps as ProjectIpcDeps }), {
     message: `Site folder not found: ${siteDir}. It was moved, renamed or deleted — remove this site from the list, then use Add Site on its new location.`,
   });
 
   const other = siteFixture("other-failure");
   trackSite({ projectsPath: deps.projectsPath, siteDir: other });
   deps.openSiteServer = async () => { throw "port in use"; };
-  await assert.rejects(handleStart(other, deps as ProjectIpcDeps), (error) => error === "port in use");
+  await assert.rejects(handleStart({ id: other, deps: deps as ProjectIpcDeps }), (error) => error === "port in use");
 });
 
 test("service discovery with no injected lister uses the real CLI, and any failure is an empty list with a warning", async (t) => {
@@ -2153,7 +2153,7 @@ test("Locate and Add Site share the folder into the shared catalog when shared s
   const located = locateDeps(moved);
   located.sharedSites = workspace;
   trackSite({ projectsPath: located.projectsPath, siteDir: path.join(root, "gone") });
-  await handleLocate(path.join(root, "gone"), located as ProjectIpcDeps);
+  await handleLocate({ id: path.join(root, "gone"), deps: located as ProjectIpcDeps });
   assert.ok(workspace.registry({}).list({}).some((row) => row.path === moved), "the located folder is in the shared catalog");
 
   const added = writeSite(path.join(root, "added-here"), "added-id");
@@ -2166,7 +2166,7 @@ test("an erase that fails for a reason other than permissions says the folder co
   const siteDir = writeSite(path.join(tempDir(), "busy-site"), "busy-site");
   const deps = baseDeps({ removeSiteTree: async () => { throw Object.assign(new Error("resource busy"), { code: "EBUSY" }); } });
   trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: "busy-site" });
-  await assert.rejects(handleDelete(siteDir, deps as ProjectIpcDeps), {
+  await assert.rejects(handleDelete({ id: siteDir, deps: deps as ProjectIpcDeps }), {
     message: "Could not delete this website. The folder could not be removed. Its card has been kept so you can try again.",
   });
   assert.equal(readTrackedSites({ projectsPath: deps.projectsPath }).length, 1);
@@ -2202,7 +2202,7 @@ test("erasing a created site drops it from the shared catalog, and a catalog fai
       : real;
     const deps = baseDeps({ sharedSites, removeSiteTree: async ({ root: dir }: { root: string }) => { fs.rmSync(dir, { recursive: true }); } });
     trackSite({ projectsPath: deps.projectsPath, siteDir }, { origin: SITE_ORIGIN.created, siteId: `made-${catalogFails}` });
-    await handleDelete(siteDir, deps as ProjectIpcDeps);
+    await handleDelete({ id: siteDir, deps: deps as ProjectIpcDeps });
     assert.equal(fs.existsSync(siteDir), false);
     assert.deepEqual(readTrackedSites({ projectsPath: deps.projectsPath }), []);
     assert.equal(real.registry({}).list({}).some((row) => row.path === siteDir), catalogFails, "kept only when the catalog refused");

@@ -17,7 +17,7 @@ import { useSiteActions } from './use-site-actions.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 
 interface FakeBridgeOverrides {
-  startSite?: (id: string) => Promise<unknown>;
+  startSite?: (required: { id: string }, options?: {}) => Promise<unknown>;
   openSiteExternal?: (input: { siteId: string; view: string }) => Promise<unknown>;
 }
 
@@ -52,9 +52,9 @@ async function withBridge(
     g.window = {};
   } else {
     const fakeBridge = {
-      startSite: (id: string) => {
+      startSite: ({ id }: { id: string }, _options = {}) => {
         calls.startSite.push(id);
-        return overrides.startSite ? overrides.startSite(id) : Promise.resolve(undefined);
+        return overrides.startSite ? overrides.startSite({ id }) : Promise.resolve(undefined);
       },
       openSiteExternal: (input: { siteId: string; view: string }) => {
         calls.openSiteExternal.push(input);

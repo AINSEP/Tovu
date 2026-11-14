@@ -14,7 +14,7 @@ const FOUND = { id: '/sites/tovu-dev', folderMissing: false } as unknown as Site
 test('a located folder resolves with main\'s record at its new id', async () => {
   const asked: string[] = [];
   const result = await performSiteFolderAction({ id: '/sites/tovu-com', bridge: {
-    locateSite: async (id) => {
+    locateSite: async ({ id }, _options = {}) => {
       asked.push(id);
       return FOUND;
     },
@@ -56,7 +56,7 @@ test('the locate hook shows pending/error state and delivers the found record wi
   let settle!: (record: SiteRecord) => void;
   let reject!: (error: Error) => void;
   const asked: string[] = [];
-  dom.window.tovuRunner = { locateSite: (id: string) => {
+  dom.window.tovuRunner = { locateSite: ({ id }: { id: string }, _options = {}) => {
     asked.push(id);
     return new Promise<SiteRecord>((resolve, refuse) => { settle = resolve; reject = refuse; });
   } };

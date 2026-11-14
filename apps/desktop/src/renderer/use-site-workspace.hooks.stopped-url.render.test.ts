@@ -21,7 +21,7 @@ const getBridge = () => bridge;
 // REGRESSION: fails if useSiteWorkspace restores `displayUrl: state.liveUrl ?? src`.
 test('stopping a tab blanks its url at once, even while the last guest url is remembered', (t) => {
   let project = OWN;
-  const hook = renderHook(t, () => useSiteWorkspace(project, false, { getBridge }));
+  const hook = renderHook({ t, useHook: () => useSiteWorkspace(project, false, { getBridge }) });
   const window = installDom();
   const guest = Object.assign(window.document.createElement('webview'), {
     canGoBack: () => false,

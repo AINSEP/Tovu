@@ -24,12 +24,12 @@ function fakeBridge(overrides: Partial<RunnerInventoryBridge> = {}): RunnerInven
     saveChatAttachment: async () => ({ path: '/staged/file.txt' }) as never,
     listConversations: async () => [], createConversation: inert, renameConversation: inert, deleteConversation: inert,
     loadConversationMessages: async () => [], saveConversationMessage: async () => {},
-    onChatEvent: (listener) => { chatListeners.add(listener); return () => chatListeners.delete(listener); },
+    onChatEvent: ({ listener }, _options = {}) => { chatListeners.add(listener); return () => chatListeners.delete(listener); },
     onNavigate: () => () => {}, onOpenImport: () => () => {}, onSiteHistory: () => () => {}, onFindToggle: () => () => {},
     findInPage: async () => {}, stopFindInPage: async () => {}, onFindResult: () => () => {}, onZoomCommand: () => () => {},
     getZoomLevel: () => 0, setZoomLevel: () => {}, getPathForFile: () => '/picked/file.txt',
     pickWorkingDirectory: async () => null, recentWorkingDirectories: async () => [], workingDirectoryExists: async () => true,
-    normalizeWorkingDirectory: async (directory) => directory,
+    normalizeWorkingDirectory: async ({ directory }, _options = {}) => directory,
     ...overrides,
   };
 }
@@ -71,16 +71,17 @@ test('reconnecting the same desktop bridge never hands the pane its disposed tra
   assert.equal(bridge.chatListeners.size, 1);
 });
 
-test('useWorkspaceChatTransport: wires every surface from one bridge, and disposing the pane drops its run listener', (t) => {
+test('useWorkspaceChatTransport: wires every surface from one bridge, and disposing the pane drops its run listener', async (t) => {
   const bridge = fakeBridge();
   const getBridge = () => bridge;
   const hook = renderHook(t, () => useWorkspaceChatTransport({}, { getBridge }));
   const value = hook.current();
   assert.deepEqual(value.runtimeAccess, { listAgents: bridge.listAgents, rescanAgents: bridge.rescanAgents, daemonOnline: bridge.daemonOnline });
-  assert.deepEqual(value.workingDirectoryAccess, {
-    normalizeWorkingDirectory: bridge.normalizeWorkingDirectory, pickWorkingDirectory: bridge.pickWorkingDirectory,
-    recentDirectories: bridge.recentWorkingDirectories, directoryExists: bridge.workingDirectoryExists,
-  });
+  assert.ok(value.workingDirectoryAccess);
+  assert.equal(await value.workingDirectoryAccess.normalizeWorkingDirectory?.('/site'), '/site');
+  assert.equal(await value.workingDirectoryAccess.pickWorkingDirectory('/site'), null);
+  assert.equal(await value.workingDirectoryAccess.directoryExists('/site'), true);
+  assert.equal(value.workingDirectoryAccess.recentDirectories, bridge.recentWorkingDirectories);
   assert.equal(value.getPathForFile, bridge.getPathForFile);
   assert.equal(typeof value.uploadAttachments, 'function');
   assert.ok(value.transport);

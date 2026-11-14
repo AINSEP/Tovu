@@ -30,10 +30,7 @@ function attachmentKind(file: File): ChatAttachment['kind'] {
   return file.type.startsWith('image/') ? 'image' : 'file';
 }
 
-async function stageOne(
-  bridge: Pick<RunnerInventoryBridge, 'saveChatAttachment'>,
-  file: File,
-  order: number,
+async function stageOne({ bridge, file, order }: { bridge: Pick<RunnerInventoryBridge, 'saveChatAttachment'>; file: File; order: number }, _options = {}
 ): Promise<ChatAttachment> {
   const data = await file.arrayBuffer();
   const { path } = await bridge.saveChatAttachment({ name: file.name, data });
@@ -52,7 +49,7 @@ export function createLocalAttachmentUploader(
     // clean up on Runner's side (the staging directory is wiped at every boot, not accumulated
     // across a session's worth of abandoned drafts), so an abort simply drops the result on the
     // floor rather than rolling anything back.
-    const staged = await Promise.all(files.map((file, order) => stageOne(bridge, file, order)));
+    const staged = await Promise.all(files.map((file, order) => stageOne({ bridge, file, order })));
     if (options?.signal.aborted === true) return [];
     return staged;
   };

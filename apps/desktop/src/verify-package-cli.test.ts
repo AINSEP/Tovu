@@ -50,7 +50,7 @@ function harness(fs: VerifyPackageFs, overrides: Partial<VerifyPackagePorts> = {
     isEmptyVerification: ({ checkedCount }, _options = {}) => checkedCount === 0,
     formatMismatchReport: ({ mismatches }, _options = {}) => `REPORT(${mismatches.map((item) => item.relPath).join(",")})`,
     bundledNpmFailures({ resourcesDirs }, _options = {}) { npmChecked.push(resourcesDirs); return []; },
-    ptyHelperFailures(dirs) { ptyChecked.push(dirs); return []; },
+    ptyHelperFailures({ resourcesDirs }, _options = {}) { ptyChecked.push(resourcesDirs); return []; },
     prefixes: ["src", "dist"],
     stdout: { write: (text: string) => out.push(text) },
     stderr: { write: (text: string) => err.push(text) },
@@ -151,7 +151,7 @@ test("a missing bundled npm exits 1 and lists every missing file", () => {
 // backstop proves the packaged copy kept them (open-bugs 11-02 o1: the release branch lacked staging's fix).
 test("a non-executable or missing node-pty spawn-helper exits 1 and names every file", () => {
   const { ports, out, err, ptyChecked } = harness(fakeFs({}), {
-    ptyHelperFailures: (dirs) => dirs.map((dir) => `${dir}/app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper (mode 644)`),
+    ptyHelperFailures: ({ resourcesDirs }, _options = {}) => resourcesDirs.map((dir) => `${dir}/app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper (mode 644)`),
   });
   assert.equal(runVerifyPackage({ argv: ["--asar", "/a/Resources/app.asar"], desktopRoot: ROOT }, ports), 1);
   assert.deepEqual(ptyChecked, []);

@@ -49,7 +49,7 @@ export function useLoadedSites(
     const previous = value;
     setValue(next);
     setError(null);
-    void write(next).then(
+    void write({ maximum: next }).then(
       (saved) => setValue(shownValue({ value: saved, current: next })),
       (failure: unknown) => {
         console.error(`[tovu-desktop] save loaded sites: ${failure instanceof Error ? failure.message : String(failure)}`);
