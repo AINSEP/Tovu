@@ -14,7 +14,7 @@ import { createSiteBackend, type SiteBackendPorts, type SiteBackendServer } from
 import { createSiteThemePreviewSubscriptions, type SiteThemePreviewTarget, type ThemePreviewFrame } from "../../site-theme-preview.ts";
 import type { SiteThemePreviewRefresh } from "../../contracts/project.ts";
 
-interface OpenedStream { siteDir: string; target: SiteThemePreviewTarget; onFrame: (frame: ThemePreviewFrame) => void }
+interface OpenedStream { siteDir: string; target: SiteThemePreviewTarget; onFrame: (required: { frame: ThemePreviewFrame }) => void }
 
 function server(port: number): SiteBackendServer {
   return { adminUrl: `http://127.0.0.1:${port}/admin/`, port, workspaceId: "own-workspace", pid: port, bootToken: null, onExit: () => {} };
@@ -63,31 +63,31 @@ const ctx = { cliMode: "source" as const, registryPath: "/user-data/registry" };
 test("a watched tab's stream opens when its site first starts, against that server's port, workspace and partition", async () => {
   const site = launch();
   const delivered: SiteThemePreviewRefresh[] = [];
-  site.themePreviews.watch({ siteDir: "/a", listener: (frame) => delivered.push(frame) });
+  site.themePreviews.watch({ siteDir: "/a", listener: ({ frame }) => delivered.push(frame) });
   assert.equal(site.streams.length, 0, "nothing is running yet, so nothing is streamed");
   await site.backend.openSiteServer({ siteDir: "/a", ctx });
   assert.equal(site.streams.length, 1);
   const target = site.streams[0]!.target;
   assert.deepEqual({ port: target.port, workspaceId: target.workspaceId, partition: target.partition }, { port: 4100, workspaceId: "own-workspace", partition: "persist:/a" });
   assert.equal(target.lifecycle, site.openSites.get("/a")?.server);
-  site.streams[0]!.onFrame({ revision: "r1" });
+  site.streams[0]!.onFrame({ frame: { revision: "r1" } });
   assert.deepEqual(delivered, [{ siteDir: "/a", revision: "r1" }]);
 });
 
 test("after Stop a late frame from the old server is dropped, and a restart streams from the new server", async () => {
   const site = launch();
   const delivered: SiteThemePreviewRefresh[] = [];
-  const off = site.themePreviews.watch({ siteDir: "/a", listener: (frame) => delivered.push(frame) });
+  const off = site.themePreviews.watch({ siteDir: "/a", listener: ({ frame }) => delivered.push(frame) });
   await site.backend.openSiteServer({ siteDir: "/a", ctx });
   // A card's Stop: the entry's cancelPreviewCapture stops the stream, and the supervisor drops the entry.
   site.themePreviews.stop({ siteDir: "/a" }, {});
   site.openSites.delete("/a");
-  site.streams[0]!.onFrame({ revision: "late" });
+  site.streams[0]!.onFrame({ frame: { revision: "late" } });
   assert.deepEqual(delivered, []);
   await site.backend.openSiteServer({ siteDir: "/a", ctx });
   assert.equal(site.streams.length, 2);
   assert.equal(site.streams[1]!.target.port, 4300);
-  site.streams[1]!.onFrame({ revision: "fresh" });
+  site.streams[1]!.onFrame({ frame: { revision: "fresh" } });
   assert.deepEqual(delivered, [{ siteDir: "/a", revision: "fresh" }]);
   off();
   assert.equal(site.closed(), 2, "the stopped stream and the restarted one are both closed");

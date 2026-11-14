@@ -80,7 +80,7 @@ export function createSiteFolders({ statePath, defaultRoots, createdSiteDirs = (
     };
   };
   /** Preserve sibling-process edits and damaged bytes across a settings mutation. */
-  const update = (change: (stored: StoredSiteFolders) => StoredSiteFolders): void => {
+  const update = ({ change }: { change: (stored: StoredSiteFolders) => StoredSiteFolders }, _optional = {}): void => {
     withFileLock({ filePath, critical: () => {
       const { stored, damaged } = readStoredFolders({ filePath });
       if (damaged && !quarantine({ filePath, notice: {
@@ -96,16 +96,16 @@ export function createSiteFolders({ statePath, defaultRoots, createdSiteDirs = (
       const canonical = fs.realpathSync(root);
       assertSpecificSiteRoot({ root: canonical });
       if (!fs.statSync(canonical).isDirectory()) throw new Error(`Sites folder is not a directory: ${root}`);
-      update((stored) => ({ ...stored, extraRoots: distinctRoots({ roots: [...stored.extraRoots, canonical] }) }));
+      update({ change: (stored) => ({ ...stored, extraRoots: distinctRoots({ roots: [...stored.extraRoots, canonical] }) }) });
       return read({});
     },
     remove({ root }, _optional = {}) {
       const [canonical] = distinctRoots({ roots: [root] });
-      update((stored) => ({ ...stored, extraRoots: distinctRoots({ roots: stored.extraRoots }).filter((entry) => entry !== canonical) }));
+      update({ change: (stored) => ({ ...stored, extraRoots: distinctRoots({ roots: stored.extraRoots }).filter((entry) => entry !== canonical) }) });
       return read({});
     },
     rememberCreated({ siteDir }, _optional = {}) {
-      update((stored) => ({ ...stored, creationRoots: distinctRoots({ roots: [...stored.creationRoots, path.dirname(siteDir)] }) }));
+      update({ change: (stored) => ({ ...stored, creationRoots: distinctRoots({ roots: [...stored.creationRoots, path.dirname(siteDir)] }) }) });
     },
   };
 }

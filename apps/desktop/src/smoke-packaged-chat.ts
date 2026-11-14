@@ -92,7 +92,7 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function eventsFrom(json: string): Record<string, unknown>[] {
+function eventsFrom({ json }: { json: string }, _optional = {}): Record<string, unknown>[] {
   let value: unknown;
   try { value = JSON.parse(json); }
   catch (error) { throw new PackagedChatSmokeError("chat.db contains invalid event JSON.", { cause: error }); }
@@ -103,7 +103,7 @@ function eventsFrom(json: string): Record<string, unknown>[] {
 /** The packaged daemon writes daemon.log as JSONL (`{"seq":…,"message":"[agent-daemon] …"}`), so
  *  an end-anchored match on the raw line never sees the message end; 0.1.18's first gate run failed
  *  on exactly that while the preflight had passed. Plain lines are still accepted as they are. */
-function daemonLogMessages(daemonLog: string): string[] {
+function daemonLogMessages({ daemonLog }: { daemonLog: string }, _optional = {}): string[] {
   return daemonLog.split(/\r?\n/).map(line => {
     try { const entry: unknown = JSON.parse(line); return record(entry) && typeof entry.message === "string" ? entry.message : line; }
     catch { return line; }
@@ -150,7 +150,7 @@ export function assertPackagedChatEvidence(
   if (row.run_status !== "succeeded") throw new PackagedChatSmokeError("The packaged chat run did not succeed.");
   // attempt_base_json is the recovery baseline, not this attempt's live projection. A first run
   // starts with []; its new events and final status live on the joined ai_chat_messages row.
-  const events = [...eventsFrom(row.attempt_base_json), ...eventsFrom(row.events_json)];
+  const events = [...eventsFrom({ json: row.attempt_base_json }), ...eventsFrom({ json: row.events_json })];
   const frames = rawFrames(events);
   const connected = frames.some(frame => frame.type === "system" && frame.subtype === "init"
     && Array.isArray(frame.mcp_servers) && frame.mcp_servers.some(server =>
@@ -164,7 +164,7 @@ export function assertPackagedChatEvidence(
   });
   assertPackagedSiteGuideResult({ events, delegated });
   if (row.content.trim() !== "DONE") throw new PackagedChatSmokeError("The packaged chat reply was not exactly DONE.");
-  if (!daemonLogMessages(daemonLog).some(message => /^.*\[agent-daemon\] jini bridge preflight ok \(\d+ms\)\s*$/.test(message))) {
+  if (!daemonLogMessages({ daemonLog }).some(message => /^.*\[agent-daemon\] jini bridge preflight ok \(\d+ms\)\s*$/.test(message))) {
     throw new PackagedChatSmokeError("daemon.log has no successful jini bridge preflight.");
   }
 }
@@ -173,10 +173,10 @@ export interface PackagedChatSmokePorts {
   acquireLock(): Promise<() => Promise<void>>;
   createSite(): Promise<string>;
   /** The launch adapter owns partial-start cleanup before rejecting. */
-  start(siteDir: string): Promise<{ stop(): Promise<void> }>;
+  start(required: { siteDir: string }, optional?: {}): Promise<{ stop(): Promise<void> }>;
   chat(): Promise<string>;
-  evidence(siteDir: string, runId: string): Promise<{ row: PackagedChatEvidence | null; daemonLog: string }>;
-  removeSite(siteDir: string): Promise<void>;
+  evidence(required: { siteDir: string; runId: string }, optional?: {}): Promise<{ row: PackagedChatEvidence | null; daemonLog: string }>;
+  removeSite(required: { siteDir: string }, optional?: {}): Promise<void>;
 }
 
 /** Coordinate one local gate; teardown attempts every owned resource, including on partial startup.
@@ -190,13 +190,13 @@ export async function runPackagedChatSmoke({ ports }: { ports: PackagedChatSmoke
   const failures: unknown[] = [];
   try {
     siteDir = await ports.createSite();
-    server = await ports.start(siteDir);
+    server = await ports.start({ siteDir });
     const runId = await ports.chat();
-    assertPackagedChatEvidence({ ...await ports.evidence(siteDir, runId), runId });
+    assertPackagedChatEvidence({ ...await ports.evidence({ siteDir, runId }), runId });
   } catch (error) { failures.push(error); }
   // Cleanup failures must not skip the remaining resources, or turn a failed release gate green.
   if (server) { try { await server.stop(); } catch (error) { failures.push(error); } }
-  if (siteDir) { try { await ports.removeSite(siteDir); } catch (error) { failures.push(error); } }
+  if (siteDir) { try { await ports.removeSite({ siteDir }); } catch (error) { failures.push(error); } }
   try { await release(); } catch (error) { failures.push(error); }
   if (failures.length) throw new AggregateError(failures, "Packaged chat smoke or teardown failed.");
 }

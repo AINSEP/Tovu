@@ -75,7 +75,7 @@ interface PlanContext {
  *   that is not JSON, or holds neither id as a non-empty string.
  * @complexity O(1) — one file read.
  */
-function readRelocationId(siteDir: string): string | null {
+function readRelocationId({ siteDir }: { siteDir: string }, _optional = {}): string | null {
   try {
     const meta = JSON.parse(fs.readFileSync(path.join(siteDir, SITE_META_FILE), "utf8")) as { siteId?: unknown; siteKeyId?: unknown } | null;
     const id = [meta?.siteId, meta?.siteKeyId].find((candidate): candidate is string => typeof candidate === "string" && candidate !== "");
@@ -87,7 +87,7 @@ function readRelocationId(siteDir: string): string | null {
 
 /** `root`'s immediate children as absolute paths; a root that cannot be read has none.
  *  @complexity O(n) in the child count. */
-function childPathsOf(root: string): string[] {
+function childPathsOf({ root }: { root: string }, _optional = {}): string[] {
   try {
     return fs.readdirSync(root).map((name) => path.join(root, name));
   } catch {
@@ -106,11 +106,11 @@ function childPathsOf(root: string): string[] {
 function relocationTarget({ row, context }: { row: TrackedSiteRow; context: PlanContext }, _options = {}): { dir: string; id: string } | null {
   // Created rows already saved the site id before relocationId existed. Never infer identity
   // from the name: different sites can legitimately share it. An invalid folder may retain a marker.
-  const identity = row.siteId ?? row.relocationId ?? readRelocationId(row.siteDir);
+  const identity = row.siteId ?? row.relocationId ?? readRelocationId({ siteDir: row.siteDir });
   if (identity === null || identity === undefined) return null;
   const roots = new Set([path.dirname(row.siteDir), ...context.searchRoots]);
-  const candidates = new Set([...context.knownDirs, ...[...roots].flatMap(childPathsOf)]);
-  const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir(dir) === "site" && readRelocationId(dir) === identity);
+  const candidates = new Set([...context.knownDirs, ...[...roots].flatMap((root) => childPathsOf({ root }))]);
+  const matches = [...candidates].filter((dir) => dir !== row.siteDir && context.classifySiteDir(dir) === "site" && readRelocationId({ siteDir: dir }) === identity);
   const [match] = matches;
   if (matches.length !== 1 || match === undefined || context.dismissed.includes(match)) return null; // Only one undismissed match can be used.
   // The target was matched BY this id, so the id travels with it rather than being read off disk again.
@@ -123,7 +123,7 @@ function relocationTarget({ row, context }: { row: TrackedSiteRow; context: Plan
  *
  * @complexity O(1).
  */
-function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string | null | undefined): WritableTrackedRow {
+function movedRow({ row, siteDir, relocationId }: { row: TrackedSiteRow; siteDir: string; relocationId: string | null | undefined }, _optional = {}): WritableTrackedRow {
   const next: WritableTrackedRow = { siteDir, createdAt: row.createdAt, origin: SITE_ORIGIN.adopted };
   return typeof relocationId === "string" ? { ...next, relocationId } : next;
 }
@@ -135,7 +135,7 @@ function movedRow(row: TrackedSiteRow, siteDir: string, relocationId: string | n
  */
 function planRow({ plan, row, context }: { plan: RelocationPlan; row: TrackedSiteRow; context: PlanContext }, _options = {}): void {
   if (context.classifySiteDir(row.siteDir) === "site") {
-    const id = row.relocationId === undefined ? readRelocationId(row.siteDir) : null;
+    const id = row.relocationId === undefined ? readRelocationId({ siteDir: row.siteDir }) : null;
     plan.changed ||= id !== null;
     plan.rows.push(id === null ? row : { ...row, relocationId: id });
     return;
@@ -152,7 +152,7 @@ function planRow({ plan, row, context }: { plan: RelocationPlan; row: TrackedSit
   }
   context.claimed.add(target.dir);
   plan.report.moved.push({ from: row.siteDir, to: target.dir });
-  plan.rows.push(movedRow(row, target.dir, target.id));
+  plan.rows.push(movedRow({ row, siteDir: target.dir, relocationId: target.id }));
 }
 
 /**
@@ -210,7 +210,7 @@ interface RelocationGateOptions {
 
 /** Decides, per list poll, whether {@link relocateMovedSites} is worth running. */
 interface RelocationGate {
-  shouldRun(file: Pick<ProjectsFile, "rows" | "dismissed">, options?: Record<string, never>): boolean;
+  shouldRun({ file }: { file: Pick<ProjectsFile, "rows" | "dismissed"> }, options?: Record<string, never>): boolean;
 }
 
 /** One minute: a sibling folder that appears while a row stays missing is picked up within this. */
@@ -234,7 +234,7 @@ function createRelocationGate(_required: Record<string, never>, options: Relocat
   let lastPicture: string | null = null;
   let lastRunAt = 0;
   return {
-    shouldRun(file, _options = {}) {
+    shouldRun({ file }, _options = {}) {
       const picture = [...file.rows.map((row) => `${row.siteDir}\u0000${classifySiteDir(row.siteDir)}`), "\u0000dismissed", ...file.dismissed].join("\n");
       const at = now();
       if (picture === lastPicture && at - lastRunAt < maxIdleMs) return false;
@@ -256,7 +256,7 @@ function createRelocationGate(_required: Record<string, never>, options: Relocat
  * @throws {Error} operator-facing, when `fromDir` is not a tracked row.
  * @complexity O(n) in the row count.
  */
-function repointTrackedSite(projectsPath: string, fromDir: string, toDir: string): WritableTrackedRow[] {
+function repointTrackedSite({ projectsPath, fromDir, toDir }: { projectsPath: string; fromDir: string; toDir: string }, _optional = {}): WritableTrackedRow[] {
   let tracked = false;
   const next = updateProjectsFile(projectsPath, (current) => {
     tracked = current.rows.some((row) => row.siteDir === fromDir);
@@ -264,7 +264,7 @@ function repointTrackedSite(projectsPath: string, fromDir: string, toDir: string
     const merge = current.rows.some((row) => row.siteDir === toDir);
     const rows = current.rows.flatMap((row) => {
       if (row.siteDir !== fromDir) return [row];
-      return merge ? [] : [movedRow(row, toDir, readRelocationId(toDir))];
+      return merge ? [] : [movedRow({ row, siteDir: toDir, relocationId: readRelocationId({ siteDir: toDir }) })];
     });
     return { rows, dismissed: current.dismissed.filter((dir) => dir !== toDir) };
   });

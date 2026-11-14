@@ -29,13 +29,13 @@ export function registerSiteThemePreviewIpc(
     sender.removeListener('destroyed', owner.destroy);
     for (const off of owner.claims.values()) off();
   };
-  const inputId = (input: unknown) => {
+  const inputId = ({ input }: { input: unknown }, _optional = {}) => {
     if (!input || typeof input !== 'object' || !('subscriptionId' in input)) return undefined;
     const { subscriptionId } = input;
     return typeof subscriptionId === 'string' && /^[\w-]{1,100}$/.test(subscriptionId) ? subscriptionId : undefined;
   };
   ipcMain.handle(channels.watch, ({ sender }, input) => {
-    const id = inputId(input);
+    const id = inputId({ input });
     if (!allowed({ sender }) || sender.isDestroyed() || !id) return;
     const siteDir = watchSiteDirectory({ input });
     if (siteDir === undefined) return;
@@ -46,12 +46,12 @@ export function registerSiteThemePreviewIpc(
       owners.set(sender, owner); sender.once('destroyed', owner.destroy);
     }
     if (owner.claims.has(id)) return;
-    owner.claims.set(id, subscriptions.watch({ siteDir, listener: (frame) => {
+    owner.claims.set(id, subscriptions.watch({ siteDir, listener: ({ frame }, _optional = {}) => {
       if (!sender.isDestroyed()) sender.send(channels.event, frame);
     } }));
   });
   ipcMain.handle(channels.unwatch, ({ sender }, input) => {
-    const id = inputId(input);
+    const id = inputId({ input });
     if (!id) return;
     const owner = owners.get(sender);
     owner?.claims.get(id)?.(); owner?.claims.delete(id);

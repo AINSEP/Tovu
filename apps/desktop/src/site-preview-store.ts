@@ -48,7 +48,7 @@ const PREVIEW_EXTENSION = ".png";
  *
  * @complexity O(n) in the path length.
  */
-function siteDigest(siteDir: string): string {
+function siteDigest({ siteDir }: { siteDir: string }, _optional = {}): string {
   return crypto.createHash("sha256").update(path.resolve(siteDir)).digest("hex").slice(0, 32);
 }
 
@@ -63,7 +63,7 @@ function siteDigest(siteDir: string): string {
  *
  * @complexity O(1).
  */
-function previewDir(userDataDir: string): string {
+function previewDir({ userDataDir }: { userDataDir: string }, _optional = {}): string {
   return path.join(userDataDir, PREVIEW_DIR_NAME);
 }
 
@@ -72,8 +72,8 @@ function previewDir(userDataDir: string): string {
  *
  * @complexity O(n) in the path length.
  */
-function previewPath(userDataDir: string, siteDir: string): string {
-  return path.join(previewDir(userDataDir), `${siteDigest(siteDir)}${PREVIEW_EXTENSION}`);
+function previewPath({ userDataDir, siteDir }: { userDataDir: string; siteDir: string }, _optional = {}): string {
+  return path.join(previewDir({ userDataDir }), `${siteDigest({ siteDir })}${PREVIEW_EXTENSION}`);
 }
 
 /**
@@ -89,9 +89,9 @@ function previewPath(userDataDir: string, siteDir: string): string {
  *   the ordinary case (every site starts with none), not an error.
  * @complexity O(1) — one `stat`.
  */
-function readPreviewVersion(userDataDir: string, siteDir: string): number | null {
+function readPreviewVersion({ userDataDir, siteDir }: { userDataDir: string; siteDir: string }, _optional = {}): number | null {
   try {
-    return fs.statSync(previewPath(userDataDir, siteDir)).mtimeMs;
+    return fs.statSync(previewPath({ userDataDir, siteDir })).mtimeMs;
   } catch {
     return null;
   }
@@ -110,9 +110,9 @@ function readPreviewVersion(userDataDir: string, siteDir: string): number | null
  * @returns the URL, or `null` when absent or unreadable.
  * @complexity O(n) in the file size — one read plus one base64 encode.
  */
-function readPreviewDataUrl(userDataDir: string, siteDir: string): string | null {
+function readPreviewDataUrl({ userDataDir, siteDir }: { userDataDir: string; siteDir: string }, _optional = {}): string | null {
   try {
-    const bytes = fs.readFileSync(previewPath(userDataDir, siteDir));
+    const bytes = fs.readFileSync(previewPath({ userDataDir, siteDir }));
     return `data:image/png;base64,${bytes.toString("base64")}`;
   } catch {
     return null;
@@ -128,16 +128,16 @@ function readPreviewDataUrl(userDataDir: string, siteDir: string): string | null
  * cannot decode — and the renderer would swap a working thumbnail for a broken one. Same-directory
  * rename makes the file either the old one or the new one.
  *
- * @param bytes the PNG, as `nativeImage.toPNG()` returns it.
+ * @param required.bytes the PNG, as `nativeImage.toPNG()` returns it.
  * @returns the new version token, or `null` when the write failed. Never throws: a preview is
  *   decoration, and failing to cache one must never take down the site start that triggered it.
  * @complexity O(n) in the byte length.
  */
-function writePreview(userDataDir: string, siteDir: string, bytes: Buffer): number | null {
-  const filePath = previewPath(userDataDir, siteDir);
+function writePreview({ userDataDir, siteDir, bytes }: { userDataDir: string; siteDir: string; bytes: Buffer }, _optional = {}): number | null {
+  const filePath = previewPath({ userDataDir, siteDir });
   const tempPath = `${filePath}.${process.pid}.tmp`;
   try {
-    fs.mkdirSync(previewDir(userDataDir), { recursive: true });
+    fs.mkdirSync(previewDir({ userDataDir }), { recursive: true });
     fs.writeFileSync(tempPath, bytes);
     fs.renameSync(tempPath, filePath);
     return fs.statSync(filePath).mtimeMs;
@@ -157,9 +157,9 @@ function writePreview(userDataDir: string, siteDir: string, bytes: Buffer): numb
  *
  * @complexity O(1).
  */
-function deletePreview(userDataDir: string, siteDir: string): void {
+function deletePreview({ userDataDir, siteDir }: { userDataDir: string; siteDir: string }, _optional = {}): void {
   try {
-    fs.rmSync(previewPath(userDataDir, siteDir), { force: true });
+    fs.rmSync(previewPath({ userDataDir, siteDir }), { force: true });
   } catch {
     // Best-effort. An orphan is swept at next boot, and is invisible until then — see
     // {@link sweepOrphanedPreviews}.
@@ -176,16 +176,16 @@ function deletePreview(userDataDir: string, siteDir: string): void {
  * the ones that never went through it (a hand-edited registry, a crash between the two writes, a
  * folder removed in Finder).
  *
- * @param trackedSiteDirs every currently tracked site directory.
+ * @param required.trackedSiteDirs every currently tracked site directory.
  * @returns how many files were removed.
  * @complexity O(n + m) — one `readdir` against a Set built from the tracked rows.
  */
-function sweepOrphanedPreviews(userDataDir: string, trackedSiteDirs: string[]): number {
-  const keep = new Set(trackedSiteDirs.map((dir) => `${siteDigest(dir)}${PREVIEW_EXTENSION}`));
+function sweepOrphanedPreviews({ userDataDir, trackedSiteDirs }: { userDataDir: string; trackedSiteDirs: string[] }, _optional = {}): number {
+  const keep = new Set(trackedSiteDirs.map((dir) => `${siteDigest({ siteDir: dir })}${PREVIEW_EXTENSION}`));
   let removed = 0;
   let entries: string[];
   try {
-    entries = fs.readdirSync(previewDir(userDataDir));
+    entries = fs.readdirSync(previewDir({ userDataDir }));
   } catch {
     // No directory yet is the ordinary first-run state, not a failure.
     return 0;
@@ -193,7 +193,7 @@ function sweepOrphanedPreviews(userDataDir: string, trackedSiteDirs: string[]): 
   for (const entry of entries) {
     if (keep.has(entry)) continue;
     try {
-      fs.rmSync(path.join(previewDir(userDataDir), entry), { force: true });
+      fs.rmSync(path.join(previewDir({ userDataDir }), entry), { force: true });
       removed += 1;
     } catch {
       // Leave it; the next boot tries again.

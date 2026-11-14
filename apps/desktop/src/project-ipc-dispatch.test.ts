@@ -72,7 +72,7 @@ function fixture({ t }: { t: TestContext }) {
       deps.openSites.set(dir, { server: { port: 4321, origin: "http://127.0.0.1:4321", pid: 12345,
         stop: async () => { stops += 1; } } });
     },
-    recordSiteClosed: (_registry, siteDir, options) => { closed.push({ siteDir, pid: options?.pid }); },
+    recordSiteClosed: ({ siteDir }, options) => { closed.push({ siteDir, pid: options?.pid }); },
     readRegistry: () => ({ sites: [], unreadable: [] }),
     isLiveServeRow: () => false,
     siteScanRoots: [path.join(root, "websites")],

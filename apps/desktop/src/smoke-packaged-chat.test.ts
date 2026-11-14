@@ -198,13 +198,13 @@ function fakePorts(failures: string[] = []): { ports: PackagedChatSmokePorts; ca
   return { calls, ports: {
     async acquireLock() { await step("lock"); return () => step("unlock"); },
     async createSite() { await step("site"); return "/scratch/site"; },
-    async start(siteDir) { assert.equal(siteDir, "/scratch/site"); await step("start"); return { stop: () => step("stop") }; },
+    async start({ siteDir }) { assert.equal(siteDir, "/scratch/site"); await step("start"); return { stop: () => step("stop") }; },
     async chat() { await step("chat"); return "smoke-run"; },
-    async evidence(siteDir, runId) {
+    async evidence({ siteDir, runId }) {
       assert.equal(siteDir, "/scratch/site"); assert.equal(runId, "smoke-run");
       await step("evidence"); return { row: evidence(), daemonLog: preflight };
     },
-    async removeSite(siteDir) { assert.equal(siteDir, "/scratch/site"); await step("remove"); },
+    async removeSite({ siteDir }) { assert.equal(siteDir, "/scratch/site"); await step("remove"); },
   } };
 }
 

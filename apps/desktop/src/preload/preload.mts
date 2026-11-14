@@ -14,8 +14,8 @@
  * **Never import speech-ipc.ts into a preload.** That main-process module pulls in
  * mac-on-device-transcriber.ts and therefore child_process, which must not be resolved here.
  * Both preloads now use Jini's narrow bridge with Tovu's channel namespace; the sandboxed admin
- * preload bundles it so Electron's restricted require needs only electron. The host keeps its
- * positional renderer API, and preload tests guard channel/payload parity with speech-ipc.ts.
+ * preload bundles it so Electron's restricted require needs only electron. The host uses an
+ * object-shaped renderer API, and preload tests guard channel/payload parity with speech-ipc.ts.
  * Shared keys use `tovuOwnerStore`, with fixed channels and all filesystem/CLI work kept in main.
  *
  * The `tovuRunner` channel names, by contrast, are imported from `../contracts/*.js` — this
@@ -210,7 +210,7 @@ contextBridge.exposeInMainWorld(
   }),
 );
 
-/** Translate the existing positional renderer call into Jini's object input. */
+/** Bind Jini's speech bridge to Tovu's IPC channel namespace. */
 const speech = createSpeechBridge({
   channelNamespace: 'tovu:speech',
   ipcRenderer: { invoke: ({ channel }, { args = [] } = {}) => ipcRenderer.invoke(channel, ...args) },
@@ -219,7 +219,7 @@ contextBridge.exposeInMainWorld(
   'tovuVoice',
   Object.freeze({
     isAvailable: () => speech.isAvailable(),
-    transcribe: (samples: Float32Array | readonly number[], sampleRate: number) =>
+    transcribe: ({ samples, sampleRate }: { samples: Float32Array | readonly number[]; sampleRate: number }, _optional = {}) =>
       speech.transcribe({ samples, sampleRate }),
   }),
 );

@@ -88,7 +88,7 @@ function runtimeWorkspaces({ repoRoot }: StageLayout, { fs }: StagePorts): strin
 function declaredRuntimePackages(layout: StageLayout, ports: StagePorts): Set<string> {
   const workspaces = runtimeWorkspaces(layout, ports)
     .map((directory) => readJson(ports.fs, path.join(directory, "package.json")).name as string);
-  return new Set([...ports.steps.declaredDependencies(layout.repoRoot), ...workspaces]);
+  return new Set([...ports.steps.declaredDependencies({ packageDir: layout.repoRoot }), ...workspaces]);
 }
 
 /**
@@ -102,7 +102,7 @@ function stageWorkspacePackages(layout: StageLayout, ports: StagePorts): string[
   const { fs, steps } = ports;
   return runtimeWorkspaces(layout, ports).map((source) => {
     const name = readJson(fs, path.join(source, "package.json")).name as string;
-    steps.stageDir(source, path.join(layout.outDir, "node_modules", name), true);
+    steps.stageDir({ src: source, dest: path.join(layout.outDir, "node_modules", name), dropNestedModules: true });
     return fs.realpathSync(source);
   });
 }
@@ -118,8 +118,8 @@ function stageRuntimePackages(layout: StageLayout, ports: StagePorts): { roots: 
   const { fs, steps } = ports;
   const roots = stageWorkspacePackages(layout, ports);
   let count = roots.length;
-  for (const name of steps.declaredDependencies(layout.repoRoot)) {
-    if (isExcluded(name)) continue;
+  for (const name of steps.declaredDependencies({ packageDir: layout.repoRoot })) {
+    if (isExcluded({ name })) continue;
     const source = path.join(layout.repoRoot, "node_modules", name);
     if (!fs.existsSync(source)) fail(`Unresolved runtime dependency: ${layout.repoRoot} -> ${name}`);
     const linked = fs.lstatSync(source).isSymbolicLink();
@@ -131,7 +131,7 @@ function stageRuntimePackages(layout: StageLayout, ports: StagePorts): { roots: 
     if (!linked) roots.push(...nestedPackageRoots(source, fs));
     const destination = path.join(layout.outDir, "node_modules", name);
     if (fs.existsSync(destination)) continue;
-    steps.stageDir(source, destination, linked);
+    steps.stageDir({ src: source, dest: destination, dropNestedModules: linked });
     count += 1;
   }
   return { roots, count };
@@ -265,10 +265,10 @@ function failIfDistIsStale(layout: StageLayout, { fs }: StagePorts): void {
  * @complexity O(n) in source files under the shell's own tree.
  */
 function failIfShellIsStale(repoRoot: string, shell: ShellEntry, { steps }: StagePorts): void {
-  const builtAt = steps.newestMtime(path.join(repoRoot, shell.relative, shell.marker));
+  const builtAt = steps.newestMtime({ abs: path.join(repoRoot, shell.relative, shell.marker) });
   let sourceAt = 0;
-  for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime(path.join(repoRoot, dir)));
-  for (const file of shell.sourceFiles ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime(path.join(repoRoot, file)));
+  for (const dir of shell.sourceDirs ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime({ abs: path.join(repoRoot, dir) }));
+  for (const file of shell.sourceFiles ?? []) sourceAt = Math.max(sourceAt, steps.newestMtime({ abs: path.join(repoRoot, file) }));
 
   const failure = shellStalenessFailure(builtAt, sourceAt, shell);
   if (failure) fail(failure);
@@ -411,7 +411,7 @@ export function runStagePayload({ repoRoot, desktopDir }: { repoRoot: string; de
 
   // `diskBytes`, not `du -sh`: `du` does not exist on Windows, and diskBytes already walks the same
   // on-disk block accounting the strip/prune tallies below use, so all three sizes stay comparable.
-  const sizeMb = megabytes(ports.steps.diskBytes(layout.outDir));
+  const sizeMb = megabytes(ports.steps.diskBytes({ abs: layout.outDir }));
   ports.stdout.write(`stage-payload: staged ${staged} packages, materialized ${materialized} symlinks -> ${layout.outDir} (${sizeMb} MB)\n`);
   ports.stdout.write(
     `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +

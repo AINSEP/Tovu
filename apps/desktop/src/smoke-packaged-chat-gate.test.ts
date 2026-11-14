@@ -511,16 +511,16 @@ test("a non-macOS isolated run skips the Keychain link", async (t) => {
 test("withInterruptSignal aborts on SIGINT/SIGTERM and always detaches its handlers", async () => {
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     const events = new EventEmitter();
-    const seen = await withInterruptSignal({ events }, async (abort) => {
+    const seen = await withInterruptSignal({ events, run: async (abort) => {
       assert.equal(abort.aborted, false);
       events.emit(signal);
       return abort.aborted;
-    });
+    } });
     assert.equal(seen, true);
     assert.equal(events.listenerCount("SIGINT") + events.listenerCount("SIGTERM"), 0);
   }
   const events = new EventEmitter();
-  await assert.rejects(withInterruptSignal({ events }, async () => { throw new PackagedChatSmokeError("boom"); }), PackagedChatSmokeError);
+  await assert.rejects(withInterruptSignal({ events, run: async () => { throw new PackagedChatSmokeError("boom"); } }), PackagedChatSmokeError);
   assert.equal(events.listenerCount("SIGINT") + events.listenerCount("SIGTERM"), 0);
 });
 

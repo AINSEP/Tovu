@@ -36,14 +36,14 @@ const CREATED = "2026-01-01T00:00:00.000Z";
 
 test("readRelocationId reads siteId, falls back to siteKeyId, and is null when neither is usable", () => {
   const root = tempDir();
-  assert.equal(readRelocationId(makeSite(path.join(root, "a"), { siteId: "id-a", siteKeyId: "key-a" })), "id-a");
+  assert.equal(readRelocationId({ siteDir: makeSite(path.join(root, "a"), { siteId: "id-a", siteKeyId: "key-a" }) }), "id-a");
   // Older sites (tovu-dev itself) carry only `siteKeyId`.
-  assert.equal(readRelocationId(makeSite(path.join(root, "b"), { siteKeyId: "key-b" })), "key-b");
-  assert.equal(readRelocationId(makeSite(path.join(root, "c"), { siteId: "", siteKeyId: 7 })), null);
-  assert.equal(readRelocationId(path.join(root, "missing")), null);
+  assert.equal(readRelocationId({ siteDir: makeSite(path.join(root, "b"), { siteKeyId: "key-b" }) }), "key-b");
+  assert.equal(readRelocationId({ siteDir: makeSite(path.join(root, "c"), { siteId: "", siteKeyId: 7 }) }), null);
+  assert.equal(readRelocationId({ siteDir: path.join(root, "missing") }), null);
   fs.mkdirSync(path.join(root, "garbled"));
   fs.writeFileSync(path.join(root, "garbled", ".site-meta.json"), "{not json");
-  assert.equal(readRelocationId(path.join(root, "garbled")), null);
+  assert.equal(readRelocationId({ siteDir: path.join(root, "garbled") }), null);
 });
 
 test("relocateMovedSites records the folder's id on a row whose folder exists, going forward", () => {
@@ -173,7 +173,7 @@ test("repointTrackedSite (Locate) moves the card to the picked folder and clears
   const picked = makeSite(path.join(root, "anywhere"), { siteKeyId: "key-5" });
   const file = projectsFile([{ siteDir: oldDir, createdAt: CREATED, origin: "created", siteId: "s" }], [picked]);
 
-  const rows = repointTrackedSite(file, oldDir, picked);
+  const rows = repointTrackedSite({ projectsPath: file, fromDir: oldDir, toDir: picked });
 
   assert.deepEqual(rows, [{ siteDir: picked, createdAt: CREATED, origin: "adopted", relocationId: "key-5" }]);
   assert.deepEqual(readTrackedSites(file), rows);
@@ -190,12 +190,12 @@ test("repointTrackedSite onto an already-tracked folder drops the stale card ins
     { siteDir: picked, createdAt: "2026-02-02T00:00:00.000Z" },
   ]);
 
-  assert.deepEqual(repointTrackedSite(file, oldDir, picked).map((row) => row.siteDir), [picked]);
+  assert.deepEqual(repointTrackedSite({ projectsPath: file, fromDir: oldDir, toDir: picked }).map((row) => row.siteDir), [picked]);
 });
 
 test("repointTrackedSite refuses an id this app is not tracking", () => {
   const file = projectsFile([]);
-  assert.throws(() => repointTrackedSite(file, "/nope", "/elsewhere"), {
+  assert.throws(() => repointTrackedSite({ projectsPath: file, fromDir: "/nope", toDir: "/elsewhere" }), {
     message: "This app is not tracking a site at /nope, so there is nothing to locate.",
   });
 });
@@ -220,20 +220,20 @@ test("createRelocationGate runs on the first poll, then only when the rows, thei
   const gate = createRelocationGate({}, { maxIdleMs: 60_000, now: () => clock });
   const file = { rows: [{ siteDir: here }, { siteDir: gone }], dismissed: [] as string[] } as never;
 
-  assert.equal(gate.shouldRun(file), true, "the first poll always runs");
+  assert.equal(gate.shouldRun({ file }), true, "the first poll always runs");
   clock += 4_000;
-  assert.equal(gate.shouldRun(file), false, "same rows, same folders: nothing could have moved");
+  assert.equal(gate.shouldRun({ file }), false, "same rows, same folders: nothing could have moved");
 
   fs.renameSync(here, path.join(root, "renamed"));
   clock += 4_000;
-  assert.equal(gate.shouldRun(file), true, "a folder that disappeared is noticed on the very next poll");
+  assert.equal(gate.shouldRun({ file }), true, "a folder that disappeared is noticed on the very next poll");
   clock += 4_000;
-  assert.equal(gate.shouldRun(file), false);
+  assert.equal(gate.shouldRun({ file }), false);
 
   clock += 4_000;
-  assert.equal(gate.shouldRun({ rows: [{ siteDir: gone }], dismissed: [] } as never), true, "a row removed");
+  assert.equal(gate.shouldRun({ file: { rows: [{ siteDir: gone }], dismissed: [] } as never }), true, "a row removed");
   clock += 4_000;
-  assert.equal(gate.shouldRun({ rows: [{ siteDir: gone }], dismissed: [here] } as never), true, "the removals changed");
+  assert.equal(gate.shouldRun({ file: { rows: [{ siteDir: gone }], dismissed: [here] } as never }), true, "the removals changed");
 });
 
 test("createRelocationGate still runs at the slow cadence while nothing changes, so a folder that turns up elsewhere is found", () => {
@@ -241,13 +241,13 @@ test("createRelocationGate still runs at the slow cadence while nothing changes,
   const gate = createRelocationGate({}, { maxIdleMs: 60_000, now: () => clock });
   const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
 
-  assert.equal(gate.shouldRun(file), true);
+  assert.equal(gate.shouldRun({ file }), true);
   clock += 59_999;
-  assert.equal(gate.shouldRun(file), false);
+  assert.equal(gate.shouldRun({ file }), false);
   clock += 1;
-  assert.equal(gate.shouldRun(file), true, "one full idle interval later");
+  assert.equal(gate.shouldRun({ file }), true, "one full idle interval later");
   clock += 1;
-  assert.equal(gate.shouldRun(file), false, "and the interval restarts from that pass");
+  assert.equal(gate.shouldRun({ file }), false, "and the interval restarts from that pass");
 });
 
 test("stalecard: a themes-only stale card merges into a valid tracked twin outside scan roots, once", (t) => {
@@ -304,10 +304,10 @@ test("stalecard: gate notices invalidated markers even if the folder still exist
   const dir = makeSite(path.join(root, "site"), { siteId: "same" });
   const file = { rows: [{ siteDir: dir, createdAt: CREATED, origin: "adopted" as const }], dismissed: [] };
   const gate = createRelocationGate({}, { now: () => 0 });
-  assert.equal(gate.shouldRun(file), true);
-  assert.equal(gate.shouldRun(file), false);
+  assert.equal(gate.shouldRun({ file }), true);
+  assert.equal(gate.shouldRun({ file }), false);
   fs.unlinkSync(path.join(dir, "config.json"));
-  assert.equal(gate.shouldRun(file), true);
+  assert.equal(gate.shouldRun({ file }), true);
 });
 
 test("stalecard: recomputing inside the registry lock preserves a twin adopted after the initial read", () => {
@@ -358,8 +358,8 @@ test("relocateMovedSites writes nothing when another instance healed the file be
 test("createRelocationGate with no injected clock uses the wall clock: the first poll runs, an immediate repeat does not", () => {
   const gate = createRelocationGate({}, { maxIdleMs: 60_000 });
   const file = { rows: [{ siteDir: path.join(tempDir(), "missing") }], dismissed: [] } as never;
-  assert.equal(gate.shouldRun(file), true);
-  assert.equal(gate.shouldRun(file), false, "well inside one idle minute of real time");
+  assert.equal(gate.shouldRun({ file }), true);
+  assert.equal(gate.shouldRun({ file }), false, "well inside one idle minute of real time");
 });
 
 test("repointTrackedSite (Locate) onto a site folder that carries no id records none", () => {
@@ -367,6 +367,6 @@ test("repointTrackedSite (Locate) onto a site folder that carries no id records 
   const gone = path.join(root, "gone");
   const file = projectsFile([{ siteDir: gone, createdAt: CREATED, origin: "adopted", relocationId: "old-id" }]);
   const picked = makeSite(path.join(root, "picked"), {});
-  repointTrackedSite(file, gone, picked);
+  repointTrackedSite({ projectsPath: file, fromDir: gone, toDir: picked });
   assert.deepEqual(readTrackedSites(file), [{ siteDir: picked, createdAt: CREATED, origin: "adopted" }], "no stale id is carried onto a folder that does not claim it");
 });

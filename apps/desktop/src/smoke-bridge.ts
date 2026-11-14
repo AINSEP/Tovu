@@ -28,7 +28,7 @@ export function resolveBridgeSmokeTargets(
     };
   } else if (platformArg) {
     const platformDir = path.resolve(desktopRoot, platformArg);
-    return resolveSmokeTargets(platformDir, readDirectory(platformDir));
+    return resolveSmokeTargets({ platformDir, entryNames: readDirectory(platformDir) });
   } else {
     throw new Error("smoke-bridge: --platform-dir <dir> or --app <Tovu.app> is required");
   }

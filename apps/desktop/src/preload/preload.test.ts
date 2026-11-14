@@ -111,7 +111,7 @@ test("the ESM preload exposes shared keys, runner and voice and maps methods to 
   assert.deepEqual(Object.keys(voice), ["isAvailable", "transcribe"]);
   assert.equal(await voice.isAvailable!(), availability);
   const samples = new Float32Array([0.1, -0.2]);
-  assert.equal(await voice.transcribe!(samples, 48000), transcription);
+  assert.equal(await voice.transcribe!({ samples, sampleRate: 48000 }), transcription);
   assert.deepEqual(invokes, [[IPC_CHANNEL_IS_AVAILABLE], [IPC_CHANNEL_TRANSCRIBE, samples, 48000]]);
   assert.equal(invokes[1]![1], samples);
   const ownerStore = exposed.get("tovuOwnerStore")!;

@@ -36,9 +36,9 @@ interface SiteTransitions {
    * rejects. The unmark is the whole contract: a start that fails must leave the card `stopped`,
    * not `starting` forever.
    */
-  during<T>(siteDir: string, transition: SiteTransition, body: () => Promise<T>): Promise<T>;
+  during<T>({ siteDir, transition, body }: { siteDir: string; transition: SiteTransition; body: () => Promise<T> }, optional?: {}): Promise<T>;
   /** The transition `siteDir` is in the middle of, or `null`. */
-  get(siteDir: string): SiteTransition | null;
+  get({ siteDir }: { siteDir: string }, optional?: {}): SiteTransition | null;
 }
 
 /**
@@ -59,7 +59,7 @@ function createSiteTransitions(): SiteTransitions {
 
   return {
     /** @complexity O(1) beyond `body`'s own cost. */
-    async during<T>(siteDir: string, transition: SiteTransition, body: () => Promise<T>): Promise<T> {
+    async during<T>({ siteDir, transition, body }: { siteDir: string; transition: SiteTransition; body: () => Promise<T> }, _optional = {}): Promise<T> {
       const marker = { transition };
       active.set(siteDir, marker);
       try {
@@ -70,7 +70,7 @@ function createSiteTransitions(): SiteTransitions {
     },
 
     /** @complexity O(1). */
-    get(siteDir: string): SiteTransition | null {
+    get({ siteDir }: { siteDir: string }, _optional = {}): SiteTransition | null {
       return active.get(siteDir)?.transition ?? null;
     },
   };

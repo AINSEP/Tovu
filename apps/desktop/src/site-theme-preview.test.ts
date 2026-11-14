@@ -6,7 +6,7 @@ test('one stream per running watched site, live target on restart, and stale cal
   const targets = new Map<string, { port: number; workspaceId: string; partition: string; lifecycle: object }>();
   const target = (port: number) => ({ port, workspaceId: 'ws', partition: `partition-${port}`, lifecycle: {} });
   targets.set('/a', target(4100)); targets.set('/b', target(4200));
-  const opened: { siteDir: string; port: number; closed: boolean; onFrame: (frame: { revision: string; path?: string }) => void }[] = [];
+  const opened: { siteDir: string; port: number; closed: boolean; onFrame: (required: { frame: { revision: string; path?: string } }) => void }[] = [];
   const delivered: unknown[] = [];
   const manager = createSiteThemePreviewSubscriptions({ ports: {
     current: ({ siteDir }) => targets.get(siteDir),
@@ -15,19 +15,19 @@ test('one stream per running watched site, live target on restart, and stale cal
       return () => { stream.closed = true; };
     },
   } });
-  const a = manager.watch({ siteDir: '/a', listener: (frame) => delivered.push(['a', frame]) });
-  const a2 = manager.watch({ siteDir: '/a', listener: (frame) => delivered.push(['a2', frame]) });
-  const b = manager.watch({ siteDir: '/b', listener: (frame) => delivered.push(['b', frame]) });
+  const a = manager.watch({ siteDir: '/a', listener: ({ frame }) => delivered.push(['a', frame]) });
+  const a2 = manager.watch({ siteDir: '/a', listener: ({ frame }) => delivered.push(['a2', frame]) });
+  const b = manager.watch({ siteDir: '/b', listener: ({ frame }) => delivered.push(['b', frame]) });
   assert.equal(opened.length, 2);
-  opened[0]!.onFrame({ revision: 'one', path: '/about' });
-  opened[0]!.onFrame({ revision: 'one', path: '/about' });
+  opened[0]!.onFrame({ frame: { revision: 'one', path: '/about' } });
+  opened[0]!.onFrame({ frame: { revision: 'one', path: '/about' } });
   assert.deepEqual(delivered, [['a', { siteDir: '/a', revision: 'one', path: '/about' }], ['a2', { siteDir: '/a', revision: 'one', path: '/about' }]]);
   a(); assert.equal(opened[0]!.closed, false);
   manager.stop({ siteDir: '/a' }); targets.delete('/a');
-  opened[0]!.onFrame({ revision: 'late' }); assert.equal(delivered.length, 2);
+  opened[0]!.onFrame({ frame: { revision: 'late' } }); assert.equal(delivered.length, 2);
   targets.set('/a', target(4300)); manager.sync({ siteDir: '/a' });
   assert.equal(opened[2]!.port, 4300);
-  opened[2]!.onFrame({ revision: 'restart' }); assert.equal(delivered.length, 3);
+  opened[2]!.onFrame({ frame: { revision: 'restart' } }); assert.equal(delivered.length, 3);
   a2(); assert.equal(opened[2]!.closed, true);
   b(); assert.equal(opened[1]!.closed, true);
   manager.dispose();
@@ -53,7 +53,7 @@ test('stream uses injected authenticated fetch, passes the live revision on reco
   const dispose = openSiteThemePreviewStream({
     target: { port: 4100, workspaceId: 'own ws', partition: 'own', lifecycle: {} },
     getRevision: () => revision,
-    onFrame: (frame) => received.push(frame),
+    onFrame: ({ frame }) => received.push(frame),
     fetch: async (url, init) => { calls.push([url, init]); return {} as never; },
   }, {
     open: (url, options) => {
@@ -74,14 +74,14 @@ test('stream uses injected authenticated fetch, passes the live revision on reco
 
 test('a stream reconnect resumes from the last revision it delivered, not one it skipped', () => {
   const target = { port: 4000, workspaceId: 'ws', partition: 'own', lifecycle: {} };
-  let getRevision!: () => string | undefined, onFrame!: (frame: { revision: string }) => void;
+  let getRevision!: () => string | undefined, onFrame!: (required: { frame: { revision: string } }) => void;
   const manager = createSiteThemePreviewSubscriptions({ ports: {
     current: () => target,
     open: (input) => { ({ getRevision, onFrame } = input); return () => {}; },
   } });
   const off = manager.watch({ siteDir: '/a', listener: () => {} });
   assert.equal(getRevision(), undefined);
-  onFrame({ revision: 'one' });
+  onFrame({ frame: { revision: 'one' } });
   assert.equal(getRevision(), 'one');
   off(); manager.dispose();
 });
@@ -91,7 +91,7 @@ test('a frame with a non-string path is rejected, and a frame without a path car
   const received: unknown[] = [];
   openSiteThemePreviewStream({
     target: { port: 4100, workspaceId: 'ws', partition: 'own', lifecycle: {} },
-    getRevision: () => undefined, onFrame: (frame) => received.push(frame), fetch: async () => ({}) as never,
+    getRevision: () => undefined, onFrame: ({ frame }) => received.push(frame), fetch: async () => ({}) as never,
   }, { open: () => ({ addEventListener: (_name, l) => { listener = l; }, close: () => {} }) });
   listener({ data: '{"revision":"r1","path":7}' });
   listener({ data: '{"revision":"r2"}' });
@@ -106,7 +106,7 @@ test('by default the stream is a real EventSource over the injected fetch, deliv
   const close = openSiteThemePreviewStream({
     target: { port: 4100, workspaceId: 'ws', partition: 'own', lifecycle: {} },
     getRevision: () => 'last-seen',
-    onFrame: (frame) => resolveFrame(frame),
+    onFrame: ({ frame }) => resolveFrame(frame),
     fetch: (async (url: string) => {
       requested.push(url);
       return new Response('event: theme-preview-refresh\ndata: {"revision":"fresh","path":"/"}\n\n', { status: 200, headers: { 'content-type': 'text/event-stream' } });
@@ -121,7 +121,7 @@ test('by default the stream is a real EventSource over the injected fetch, deliv
 });
 
 test('one tab whose listener throws cannot stop the other tabs of that site from refreshing', () => {
-  let onFrame!: (frame: { revision: string }) => void;
+  let onFrame!: (required: { frame: { revision: string } }) => void;
   const delivered: string[] = [];
   const target = { port: 4000, workspaceId: 'ws', partition: 'own', lifecycle: {} };
   const manager = createSiteThemePreviewSubscriptions({ ports: {
@@ -129,8 +129,8 @@ test('one tab whose listener throws cannot stop the other tabs of that site from
     open: (input) => { onFrame = input.onFrame; return () => {}; },
   } });
   manager.watch({ siteDir: '/a', listener: () => { throw new Error('renderer destroyed'); } });
-  manager.watch({ siteDir: '/a', listener: (frame) => delivered.push(frame.revision) });
-  onFrame({ revision: 'one' });
+  manager.watch({ siteDir: '/a', listener: ({ frame }) => delivered.push(frame.revision) });
+  onFrame({ frame: { revision: 'one' } });
   assert.deepEqual(delivered, ['one']);
   manager.dispose();
 });

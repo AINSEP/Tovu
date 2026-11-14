@@ -54,12 +54,12 @@ interface SmokeCheckResult {
  * Pure: `entryNames` is the caller's already-`readdirSync`'d listing of `platformDir`'s immediate
  * children, so this function does no filesystem I/O itself and is testable with plain arrays.
  *
- * @param platformDir absolute or caller-resolved path to the shared build output directory.
- * @param entryNames the immediate child names of `platformDir` (not full paths).
+ * @param required.platformDir absolute or caller-resolved path to the shared build output directory.
+ * @param required.entryNames the immediate child names of `platformDir` (not full paths).
  * @throws if no entry name matches either known layout.
  * @complexity O(n) in `entryNames`.
  */
-export function resolveSmokeTargets(platformDir: string, entryNames: string[]): SmokeNativeTargets {
+export function resolveSmokeTargets({ platformDir, entryNames }: { platformDir: string; entryNames: string[] }, _optional = {}): SmokeNativeTargets {
   const macDir = entryNames.find((name) => name.startsWith("mac"));
   if (macDir) {
     const appDir = path.join(platformDir, macDir, "Tovu.app");
@@ -94,11 +94,11 @@ export function resolveSmokeTargets(platformDir: string, entryNames: string[]): 
  * `nodeModulesDir` containing a quote or backslash cannot break out of the string literal it is
  * embedded in (see the test covering a deliberately adversarial path).
  *
- * @param nodeModulesDir absolute path to the staged `tovu/node_modules`, as {@link resolveSmokeTargets} resolves it.
+ * @param required.nodeModulesDir absolute path to the staged `tovu/node_modules`, as {@link resolveSmokeTargets} resolves it.
  * @complexity O(1) — fixed-size template, independent of input length beyond the embedded path itself.
  */
-export function buildSmokeScript(nodeModulesDir: string): string {
-  const requirePath = (packageName: string): string => JSON.stringify(path.join(nodeModulesDir, packageName));
+export function buildSmokeScript({ nodeModulesDir }: { nodeModulesDir: string }, _optional = {}): string {
+  const requirePath = ({ packageName }: { packageName: string }, _optional = {}): string => JSON.stringify(path.join(nodeModulesDir, packageName));
   // A 1x1 transparent PNG, base64-encoded, so `sharp` has real image bytes to decode without
   // shipping a binary fixture file alongside this source module.
   const onePixelPngBase64 =
@@ -109,7 +109,7 @@ export function buildSmokeScript(nodeModulesDir: string): string {
   const result = {};
 
   try {
-    const Database = require(${requirePath("better-sqlite3")});
+    const Database = require(${requirePath({ packageName: "better-sqlite3" })});
     const db = new Database(":memory:");
     db.exec("CREATE TABLE smoke (id INTEGER, v TEXT)");
     db.prepare("INSERT INTO smoke (id, v) VALUES (?, ?)").run(1, "smoke-native");
@@ -121,7 +121,7 @@ export function buildSmokeScript(nodeModulesDir: string): string {
   }
 
   try {
-    const sharp = require(${requirePath("sharp")});
+    const sharp = require(${requirePath({ packageName: "sharp" })});
     const onePixelPng = Buffer.from(${JSON.stringify(onePixelPngBase64)}, "base64");
     const meta = await sharp(onePixelPng).metadata();
     result.sharp = { ok: Boolean(meta && meta.width === 1 && meta.height === 1) };
@@ -130,7 +130,7 @@ export function buildSmokeScript(nodeModulesDir: string): string {
   }
 
   try {
-    const argon2 = require(${requirePath("argon2")});
+    const argon2 = require(${requirePath({ packageName: "argon2" })});
     const hash = await argon2.hash("smoke-native-check");
     const matches = await argon2.verify(hash, "smoke-native-check");
     result.argon2 = { ok: matches === true };
@@ -155,11 +155,11 @@ export function buildSmokeScript(nodeModulesDir: string): string {
  * pass; and a key genuinely absent from an otherwise-valid object is treated as that check having
  * failed, not skipped, so a child that dies partway through cannot look like partial success.
  *
- * @param stdout the spawned process's captured stdout.
+ * @param required.stdout the spawned process's captured stdout.
  * @throws if `stdout` cannot be parsed as a JSON value at all.
  * @complexity O(n) in captured JSON and diagnostic text; fixed three result keys.
  */
-export function parseSmokeOutput(stdout: string): SmokeCheckResult {
+export function parseSmokeOutput({ stdout }: { stdout: string }, _optional = {}): SmokeCheckResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout.trim());
@@ -170,7 +170,7 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
   const record: Record<string, unknown> =
     parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
 
-  const readOutcome = (key: string): SmokeCheckOutcome => {
+  const readOutcome = ({ key }: { key: string }, _optional = {}): SmokeCheckOutcome => {
     const raw = record[key];
     if (raw !== null && typeof raw === "object" && "ok" in (raw as object)) {
       const candidate = raw as { ok?: unknown; error?: unknown };
@@ -182,9 +182,9 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
     return { ok: false, error: `missing "${key}" result in smoke output` };
   };
 
-  const betterSqlite3 = readOutcome("betterSqlite3");
-  const sharp = readOutcome("sharp");
-  const argon2 = readOutcome("argon2");
+  const betterSqlite3 = readOutcome({ key: "betterSqlite3" });
+  const sharp = readOutcome({ key: "sharp" });
+  const argon2 = readOutcome({ key: "argon2" });
 
   return { ok: betterSqlite3.ok && sharp.ok && argon2.ok, betterSqlite3, sharp, argon2 };
 }
@@ -277,7 +277,7 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
  * @throws if `stdout` cannot be parsed as JSON.
  * @complexity O(n) in captured JSON, retaining at most 20 bounded diagnostic specifiers.
  */
-export function parseEntryLoadOutput(stdout: string): { ok: boolean; unresolved: string[] } {
+export function parseEntryLoadOutput({ stdout }: { stdout: string }, _optional = {}): { ok: boolean; unresolved: string[] } {
   let parsed: { ok?: unknown; unresolved?: unknown };
   try {
     parsed = JSON.parse(stdout.trim()) ?? {};
