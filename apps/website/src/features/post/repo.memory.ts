@@ -76,7 +76,7 @@ export class InMemoryPostRepo implements PostRepoPort, GoLiveCandidatesPort {
         (row) =>
           row.workspaceId === required.workspaceId &&
           row.kind === "post" &&
-          isLiveAt(row, nowIso)
+          isLiveAt({ record: row, nowIso })
       )
       .sort(comparePostsByDisplayDate)
       .slice(offset, offset + required.limit);

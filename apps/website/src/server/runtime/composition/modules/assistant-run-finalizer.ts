@@ -775,7 +775,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
             if (successor === watch || successor?.daemon !== watch.daemon) watch.daemon.release?.({ runId, principalId: watch.principalId }, {});
             await options.onAttemptEnded?.({ runId });
           }
-          catch (error) { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable", describeErrorForLog(error)); }
+          catch (error) { console.warn("[assistant-run-finalizer] attempt resource cleanup unavailable", describeErrorForLog({ err: error })); }
           finally { if (active.get(runId)?.watch === watch) active.delete(runId); }
         });
       active.set(runId, { watch, done });

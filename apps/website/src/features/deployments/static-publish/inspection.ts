@@ -72,7 +72,7 @@ async function resolveInspectionCredential({ deps, input }: { deps: StaticPublis
     return await deps.credentialSource.resolve({ workspaceId: input.workspaceId, target: input.config.target,
       ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}) });
   } catch (error) {
-    console.warn('[static-publish] saved connection could not be resolved for inspection', describeErrorForLog(error));
+    console.warn('[static-publish] saved connection could not be resolved for inspection', describeErrorForLog({ err: error }));
     throw new ToolInputError({ message: 'CREDENTIAL_RESOLUTION_FAILED: The saved connection could not be opened. Reopen the secure connection form and select or repair it before previewing again.' });
   }
 }

@@ -41,7 +41,7 @@ export type ProviderSettingsSaveResult =
 
 /** The select option that reveals a field's free-text twin (`allowCustom`). */
 const CUSTOM = "__custom";
-const customName = (name: string) => `${name}__custom`;
+const customName = ({ name }: { name: string }, _optional = {}) => `${name}__custom`;
 
 /** All controls retain the provider's conditional requirement metadata. */
 function fieldRequirements({ field }: { field: PluginProviderSettingField }, _options = {}) {
@@ -59,7 +59,7 @@ function choiceFields({ field, value }: { field: PluginProviderSettingField; val
     ...fieldRequirements({ field }),
     options: [...options, ...(field.allowCustom ? [{ value: CUSTOM, label: "Custom…" }] : [])], value: custom && field.allowCustom ? CUSTOM : value ?? field.default };
   if (!field.allowCustom) return [select];
-  return [select, { kind: "string", name: customName(field.name), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
+  return [select, { kind: "string", name: customName({ name: field.name }), label: `Custom ${field.label.toLowerCase()}`, ...(field.hint ? { hint: field.hint } : {}), ...(custom ? { value } : {}) }];
 }
 
 /** A secret control never carries its value; conditional blanks reach the shared server save rule. */
@@ -118,7 +118,7 @@ export function buildProviderSettingsForm({ prep }: { prep: Prep }, _optional = 
 export function readProviderSettingsValues({ fields, values }: { fields: readonly PluginProviderSettingField[]; values: Readonly<Record<string, unknown>> }): Record<string, string> {
   const out: Record<string, string> = {};
   for (const field of fields) {
-    const chosen = values[field.name] === CUSTOM ? values[customName(field.name)] : values[field.name];
+    const chosen = values[field.name] === CUSTOM ? values[customName({ name: field.name })] : values[field.name];
     if (typeof chosen === "string") out[field.name] = chosen;
   }
   return out;

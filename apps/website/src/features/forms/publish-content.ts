@@ -27,13 +27,13 @@ export const contributeFormPublish = (): PublishContentContributor =>
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",
-    ports: (deps) => deps.ports.form,
+    ports: ({ deps }, _optional = {}) => deps.ports.form,
     list: async ({ ports: p, workspaceId }) => (await p.repo.list({ workspaceId })).map(publishableForm),
     find: async ({ ports: p, workspaceId, id: slug }) => {
       const row = await p.repo.findBySlug({ workspaceId, slug });
       return row ? publishableForm(row) : null;
     },
-    idOf: (row) => row.slug,
+    idOf: ({ row }, _optional = {}) => row.slug,
     fields: {
       name: "transferred",
       slug: "transferred",

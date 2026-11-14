@@ -161,7 +161,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     const entry = runs.get(run.id);
     if (!entry) return '';
     try { return await entry.controller.prepare({ ...(tool.metadata?.guidanceCapabilities ? { capabilities: tool.metadata.guidanceCapabilities } : {}), signal }); }
-    catch (error) { console.warn('[agent-plugins] automatic tool guidance unavailable', describeErrorForLog(error)); return ''; }
+    catch (error) { console.warn('[agent-plugins] automatic tool guidance unavailable', describeErrorForLog({ err: error })); return ''; }
     finally { releaseDetached(entry); }
   };
   // Existing per-plugin tools read their boot-time source, not the run's consent/exclusion owner.

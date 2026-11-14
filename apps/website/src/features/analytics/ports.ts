@@ -58,13 +58,13 @@ export interface AnalyticsSinkCapabilities {
  */
 export interface AnalyticsSinkPort {
   capabilities(): AnalyticsSinkCapabilities;
-  accept(hit: NormalizedHit): Promise<void>;
-  acceptBatch(hits: readonly NormalizedHit[]): Promise<void>;
+  accept(required: { hit: NormalizedHit }, optional?: Record<string, never>): Promise<void>;
+  acceptBatch(required: { hits: readonly NormalizedHit[] }, optional?: Record<string, never>): Promise<void>;
   /**
    * Newest-first recent hits (the admin "recent hits" screen's only read). Async: the durable
    * adapter reads through the storage kernel, which is async on every dialect.
    */
-  list(input?: { limit?: number }): Promise<NormalizedHit[]>;
+  list(required: Record<string, never>, optional?: { limit?: number }): Promise<NormalizedHit[]>;
 }
 
 /**
@@ -156,7 +156,7 @@ export interface AnalyticsConfigPort {
  * `forwarding.ts#createPluginAnalyticsHooks` and reach the beacon route.
  */
 export interface AnalyticsHooks {
-  beforeIngest(hit: NormalizedHit): Promise<NormalizedHit | null>;
+  beforeIngest(required: { hit: NormalizedHit }, optional?: Record<string, never>): Promise<NormalizedHit | null>;
 }
 
 /** Typed outbox event envelope for the analytics library (rides core `DomainEvent`). */

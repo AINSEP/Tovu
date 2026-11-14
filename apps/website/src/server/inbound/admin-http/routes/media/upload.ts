@@ -110,7 +110,7 @@ function decodeUploadPayload(
   // `decodeStrictBase64`, not `Buffer.from(x, "base64")`: the latter never throws (it skips
   // characters outside the alphabet instead of refusing them), so a bare try/catch around it can
   // never fire — see that function's own header.
-  const bytes = decodeStrictBase64(dataBase64);
+  const bytes = decodeStrictBase64({ value: dataBase64 });
   if (!bytes) throw new MediaValidationError({ message: "dataBase64 is not valid base64" });
   // Trust sniffed bytes rather than the client label. HTML/unknown bytes are rejected;
   // uploadMedia sanitizes accepted SVG before hashing/storage.

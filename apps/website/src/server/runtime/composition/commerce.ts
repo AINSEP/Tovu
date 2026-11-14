@@ -275,7 +275,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         const webhookUrl = `${new URL(current.config.publicOrigin).origin}/api/payments/webhooks/${encodeURIComponent(required.siteId)}/${current.config.providerId}/${current.config.mode}`;
         const checkoutOrigin = new URL(current.config.publicOrigin).origin;
         return problem ? { ...status, ready: false, reason: problem, webhookUrl, checkoutOrigin } : { ...status, webhookUrl, checkoutOrigin }; }
-        catch (error) { console.warn('[commerce] Commerce configuration could not be read; checkout remains unavailable.', describeErrorForLog(error)); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; }
+        catch (error) { console.warn('[commerce] Commerce configuration could not be read; checkout remains unavailable.', describeErrorForLog({ err: error })); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; }
   }
   const warming = warm();
   const commerce: CommerceRuntime = {
@@ -298,7 +298,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
       activate: async () => { const status = await (await checkoutServer()).activate(); if (status.ready) { void worker.kick(); } return status; },
       status: async () => { try { return { ...await readStatus(), needsAttention: await needsAttention() }; }
-        catch (error) { console.warn('[commerce] Commerce status could not be read; checkout remains unavailable.', describeErrorForLog(error)); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
+        catch (error) { console.warn('[commerce] Commerce status could not be read; checkout remains unavailable.', describeErrorForLog({ err: error })); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
       // Disabled storefront admission reads only plugin activation; operator status keeps drain details.
       storefrontStatus: async () => await isActive() ? readStatus() : { active: false, ready: false, reason: null },
       checkoutOrigin: async () => { const current = await resolve(); return current ? new URL(current.config.publicOrigin).origin : null; },

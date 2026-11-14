@@ -380,7 +380,7 @@ function refreshDocumentState({ state, deps, consent }: { state: DocumentState; 
   state.nextReadAt = state.now() + 60_000;
   const policy = readSiteConsentPolicy({ deps }).then(config => { state.policy = config; }, error => {
     console.warn('[consent] Cookie preferences could not refresh. The last loaded preferences remain in use; a later request will try again:',
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
     throw error;
   });
   const lastGoodScripts = state.scripts;

@@ -38,7 +38,7 @@ export async function buildBackstopPreview(
         ? await previewRow({ entity, backstop, workspaceId, preview })
         : await previewFile({ entity, backstop, preview }));
     } catch (error) {
-      console.warn("[publish-content] backstop values could not be inspected; preview remains unavailable", describeErrorForLog(error));
+      console.warn("[publish-content] backstop values could not be inspected; preview remains unavailable", describeErrorForLog({ err: error }));
       previews.push({ ...preview, unavailableReason: "These values could not be inspected safely. Check again before sending." });
     }
   }

@@ -126,7 +126,7 @@ export class SqlPublishHistoryStore implements PublishHistoryStore {
   }
 
   async list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]> {
-    const limit = resolvePublishHistoryListLimit(input.limit);
+    const limit = resolvePublishHistoryListLimit({ requested: input.limit });
     const rows = await this.kernel.run((db) => {
       let query = db.selectFrom("publish_history").selectAll().where("workspace_id", "=", input.workspaceId);
       if (input.target !== undefined) query = query.where("target", "=", input.target);

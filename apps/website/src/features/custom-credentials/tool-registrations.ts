@@ -167,7 +167,7 @@ const TOVU_CUSTOM_CREDENTIAL_HOST: CustomCredentialToolHost = {
  * allowlist, {@link FORM_SAVE_CALLER_SAFE_ERRORS}.
  */
 const CUSTOM_CREDENTIALS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
-  forbiddenRule("CUSTOM_CREDENTIALS"),
+  forbiddenRule({ domainPrefix: "CUSTOM_CREDENTIALS" }),
   { error: CustomCredentialNotFoundError, code: "CUSTOM_CREDENTIALS_NOT_FOUND", guidance: "Call credential_save with kind api to open the secure credential card, then retry once." },
   { error: CustomCredentialValidationError, code: "CUSTOM_CREDENTIALS_VALIDATION_FAILED" },
   { error: CredentialedRequestValidationError, code: "CUSTOM_CREDENTIALS_REQUEST_REJECTED" },
@@ -470,7 +470,7 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
       },
     },
     diagnostics: {
-      describeError: ({ error }) => describeErrorForLog(error),
+      describeError: ({ error }) => describeErrorForLog({ err: error }),
       createFailure: ({ metadata }) => failureLog(routeDeps)(JSON.stringify(metadata)),
       rotateFailure: ({ toolId, exchangeId, credentialId, errorSummary }) => failureLog(routeDeps)(`[custom-credentials] ${toolId}: save failed exchange=${exchangeId} credentialId=${credentialId} error=${errorSummary}`),
       writeFailure: required => reportRepositoryWriteFailure({ routeDeps, ...required }),

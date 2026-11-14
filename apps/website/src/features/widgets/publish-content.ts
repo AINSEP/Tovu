@@ -111,7 +111,7 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     // `importWidgetInstance` asks `widgets.create` for a widget new to the destination.
     alsoAuthorizes: ["widgets.create"],
     dependsOn: ["form"],
-    ports: (deps) => deps.ports.widget,
+    ports: ({ deps }, _optional = {}) => deps.ports.widget,
     list: async ({ ports: p, workspaceId }) =>
       Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
     find: async ({ ports: p, workspaceId, id }) => {
@@ -202,10 +202,10 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     coversTables: ["entries", "entry_refs", WIDGET_REGION_BINDINGS_TABLE],
     permission: "widgets.place",
     dependsOn: ["widget"],
-    ports: (deps) => deps.ports["widget-area"],
+    ports: ({ deps }, _optional = {}) => deps.ports["widget-area"],
     list: ({ ports, workspaceId }) => listAreas({ ports, workspaceId }),
     find: async ({ ports: p, workspaceId, id: regionKey }) => (await listAreas({ ports: p, workspaceId })).find((row) => row.regionKey === regionKey) ?? null,
-    idOf: (row) => row.regionKey,
+    idOf: ({ row }, _optional = {}) => row.regionKey,
     fields: {
       regionKey: "transferred",
       placements: "transferred",

@@ -10,13 +10,13 @@ export interface ConsentDeclarationEvidence { scripts: unknown; runtimeSlot: boo
 const LIMIT = 200;
 
 /** Diagnostics never disclose URL credentials, query values, fragments or inline code. */
-function sourceLabel(value: string | undefined): string | null {
+function sourceLabel({ value }: { value: string | undefined }, _optional = {}): string | null {
   if (!value) return null;
   try { const url = new URL(value, 'https://site.invalid'); return `${url.origin === 'https://site.invalid' ? '' : url.origin}${url.pathname}`.slice(0, 500); }
   catch { return '[invalid resource URL]'; }
 }
 
-function executableScript(node: DefaultTreeAdapterMap['element'], attrs: Map<string, string>): boolean {
+function executableScript({ node, attrs }: { node: DefaultTreeAdapterMap['element']; attrs: Map<string, string> }, _optional = {}): boolean {
   if (node.tagName !== 'script' || attrs.has('data-jini-declared-script')) return false;
   if (/^\/_consent\/(?:client-[\w-]+\.min\.js|extensions\.min\.js|load\.js)$/.test(attrs.get('src') ?? '')) return false;
   return ['', 'module', 'text/javascript', 'application/javascript'].includes((attrs.get('type') ?? '').toLowerCase());
@@ -25,19 +25,19 @@ function executableScript(node: DefaultTreeAdapterMap['element'], attrs: Map<str
 function unmanaged(node: DefaultTreeAdapterMap['element']): ConsentWarning | null {
   const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
   const handlers = node.attrs.filter(attr => /^on[a-z]+$/i.test(attr.name)).map(attr => attr.name);
-  const resource = liveEmbeddedSource(node.tagName, attrs);
-  if (!executableScript(node, attrs) && handlers.length === 0 && resource === undefined) return null;
+  const resource = liveEmbeddedSource({ tag: node.tagName, attrs });
+  if (!executableScript({ node, attrs }) && handlers.length === 0 && resource === undefined) return null;
   return { code: 'UNMANAGED_CONTENT', message: 'Executable page content is outside declared-script consent. Review its authoring before moving this site.',
-    tag: node.tagName, source: sourceLabel(resource ?? attrs.get('src')), ...(handlers.length ? { attributes: handlers } : {}) };
+    tag: node.tagName, source: sourceLabel({ value: resource ?? attrs.get('src') }), ...(handlers.length ? { attributes: handlers } : {}) };
 }
 
-function liveEmbeddedSource(tag: string, attrs: Map<string, string>): string | undefined {
+function liveEmbeddedSource({ tag, attrs }: { tag: string; attrs: Map<string, string> }, _optional = {}): string | undefined {
   if (tag === 'object') return attrs.get('data');
   return ['iframe', 'embed'].includes(tag) ? attrs.get('src') : undefined;
 }
 
 /** Templates are inert authored content, not a promise that their future descendants are controlled. */
-function unmanagedWarnings(html: string, available: number): { warnings: ConsentWarning[]; truncated: boolean } {
+function unmanagedWarnings({ html, available }: { html: string; available: number }, _optional = {}): { warnings: ConsentWarning[]; truncated: boolean } {
   const nodes: Node[] = [...parse(html).childNodes];
   const warnings: ConsentWarning[] = [];
   while (nodes.length) {
@@ -54,7 +54,7 @@ function unmanagedWarnings(html: string, available: number): { warnings: Consent
   return { warnings, truncated: false };
 }
 
-const declarationOverflow = (scripts: unknown, limit: number) => Array.isArray(scripts) && scripts.length > limit;
+const declarationOverflow = ({ scripts, limit }: { scripts: unknown; limit: number }, _optional = {}) => Array.isArray(scripts) && scripts.length > limit;
 
 /** Validate declarations and label gaps separately. No allowance simulation or page rewriting.
  * @complexity O(sample bytes + declarations), at most 1 MB and 200 returned diagnostic entries. */
@@ -63,7 +63,7 @@ export function consentDeclarationReadiness({ html, scripts, runtimeSlot, proble
   const input = Array.isArray(scripts) ? scripts.slice(0, declarationLimit) : scripts;
   const checked = validateScripts({ scripts: input });
   const declarations: DeclaredScript[] = checked.scripts.map(script => {
-    const src = sourceLabel(script.src);
+    const src = sourceLabel({ value: script.src });
     if (src === null) throw new Error('Consent readiness has a declaration with no source');
     return { ...script, src };
   });
@@ -71,9 +71,9 @@ export function consentDeclarationReadiness({ html, scripts, runtimeSlot, proble
   const categories = CATEGORIES.map(id => ({ id, required: id === 'necessary', editable: false }));
   if (Buffer.byteLength(html, 'utf8') > 1_000_000) return { declarations, warnings: [] as ConsentWarning[], categories, truncated: true,
     problems: [...problems, { code: 'PAGE_UNAVAILABLE', message: 'The page exceeds the 1 MB audit limit.' }] };
-  const inventory = unmanagedWarnings(html, LIMIT - declarations.length - (runtimeSlot ? 0 : 1));
+  const inventory = unmanagedWarnings({ html, available: LIMIT - declarations.length - (runtimeSlot ? 0 : 1) });
   if (!runtimeSlot) inventory.warnings.unshift({ code: 'MISSING_RUNTIME_SLOT', message: 'This full-document page or theme has no supported runtime loading slot. Review its authoring before moving this site.' });
-  const truncated = inventory.truncated || declarationOverflow(scripts, declarationLimit);
+  const truncated = inventory.truncated || declarationOverflow({ scripts, limit: declarationLimit });
   if (truncated) problems.push({ code: 'INVENTORY_TRUNCATED', message: 'More than 200 diagnostic entries. Inspect a smaller page sample.' });
   return { declarations, warnings: inventory.warnings, categories, problems, truncated };
 }

@@ -90,44 +90,44 @@ test("rejects an empty or oversized commitMessage", () => {
 // ---------------------------------------------------------------------------
 
 test("rejects an absolute path", () => {
-  assert.throws(() => normalizeWriteFilePath("/etc/passwd"), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath("C:\\Windows\\system.ini"), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "/etc/passwd" }), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "C:\\Windows\\system.ini" }), CustomCredentialValidationError);
 });
 
 test("rejects a '..' traversal segment", () => {
-  assert.throws(() => normalizeWriteFilePath("../../etc/passwd"), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath("a/../../b"), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "../../etc/passwd" }), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "a/../../b" }), CustomCredentialValidationError);
 });
 
 test("rejects a NUL byte", () => {
-  assert.throws(() => normalizeWriteFilePath("example-host.toml\0.png"), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "example-host.toml\0.png" }), CustomCredentialValidationError);
 });
 
 test("rejects a path over the length cap", () => {
-  assert.throws(() => normalizeWriteFilePath("a".repeat(1025)), new CustomCredentialValidationError(`file path exceeds the 1024-character cap: '${"a".repeat(80)}...'`));
-  assert.equal(normalizeWriteFilePath("a".repeat(1024)), "a".repeat(1024));
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "a".repeat(1025) }), new CustomCredentialValidationError(`file path exceeds the 1024-character cap: '${"a".repeat(80)}...'`));
+  assert.equal(normalizeWriteFilePath({ rawPath: "a".repeat(1024) }), "a".repeat(1024));
 });
 
 test("rejects an empty path, and a path that normalizes to nothing", () => {
-  assert.throws(() => normalizeWriteFilePath(""), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath("."), CustomCredentialValidationError);
-  assert.throws(() => normalizeWriteFilePath("./"), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "" }), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "." }), CustomCredentialValidationError);
+  assert.throws(() => normalizeWriteFilePath({ rawPath: "./" }), CustomCredentialValidationError);
 });
 
 test("rejects a path naming or nesting under the reserved '.git' directory, case-insensitively", () => {
-  assert.throws(() => normalizeWriteFilePath(".git"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.git'"));
-  assert.throws(() => normalizeWriteFilePath(".git/config"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.git/config'"));
-  assert.throws(() => normalizeWriteFilePath(".GIT/hooks/pre-commit"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.GIT/hooks/pre-commit'"));
-  assert.throws(() => normalizeWriteFilePath(".Git/HEAD"), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.Git/HEAD'"));
+  assert.throws(() => normalizeWriteFilePath({ rawPath: ".git" }), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.git'"));
+  assert.throws(() => normalizeWriteFilePath({ rawPath: ".git/config" }), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.git/config'"));
+  assert.throws(() => normalizeWriteFilePath({ rawPath: ".GIT/hooks/pre-commit" }), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.GIT/hooks/pre-commit'"));
+  assert.throws(() => normalizeWriteFilePath({ rawPath: ".Git/HEAD" }), new CustomCredentialValidationError("file path names or nests under the reserved '.git' directory: '.Git/HEAD'"));
 });
 
 test("normalizes backslashes and a leading './' the same way package-paths.ts's lexical rules do", () => {
-  assert.equal(normalizeWriteFilePath("./example-host.toml"), "example-host.toml");
-  assert.equal(normalizeWriteFilePath("sub\\dir\\file.txt"), "sub/dir/file.txt");
+  assert.equal(normalizeWriteFilePath({ rawPath: "./example-host.toml" }), "example-host.toml");
+  assert.equal(normalizeWriteFilePath({ rawPath: "sub\\dir\\file.txt" }), "sub/dir/file.txt");
 });
 
 test("a normal nested path is accepted unchanged", () => {
-  assert.equal(normalizeWriteFilePath(".github/workflows/example-host-deploy.yml"), ".github/workflows/example-host-deploy.yml");
+  assert.equal(normalizeWriteFilePath({ rawPath: ".github/workflows/example-host-deploy.yml" }), ".github/workflows/example-host-deploy.yml");
 });
 
 // ---------------------------------------------------------------------------
@@ -188,10 +188,10 @@ test("resource limits are pinned independently and accept their inclusive byte b
 
 test("every .git path segment is reserved, including nested Windows spellings", () => {
   for (const path of ["vendor/.git/config", "a/b/.GIT", "a\\b\\.GiT\\hooks/x", "a//./.git/config"]) {
-    assert.throws(() => normalizeWriteFilePath(path), CustomCredentialValidationError);
+    assert.throws(() => normalizeWriteFilePath({ rawPath: path }), CustomCredentialValidationError);
   }
-  assert.equal(normalizeWriteFilePath("a/.github/config"), "a/.github/config");
-  assert.equal(normalizeWriteFilePath("a/.gitignore"), "a/.gitignore");
+  assert.equal(normalizeWriteFilePath({ rawPath: "a/.github/config" }), "a/.github/config");
+  assert.equal(normalizeWriteFilePath({ rawPath: "a/.gitignore" }), "a/.gitignore");
 });
 
 for (const branch of [null, undefined, 42, false, ["main"], { name: "main" }]) {

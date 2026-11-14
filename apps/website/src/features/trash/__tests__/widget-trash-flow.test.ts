@@ -78,7 +78,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
   const entries = new SqliteEntryRepo(db);
   const widgetDeps: WidgetTrashDeps = { host: buildWidgetHostPorts({}, {}),
     entryRepo: entries,
-    contentTypeRepo: new SqliteContentTypeRepo(db),
+    contentTypeRepo: new SqliteContentTypeRepo({ store: db }),
     entryRefsRepo: new SqliteEntryRefsRepo({ store: db }),
     clock: { nowMs: () => Date.parse(AT) },
     ids: { newId: () => randomUUID() },

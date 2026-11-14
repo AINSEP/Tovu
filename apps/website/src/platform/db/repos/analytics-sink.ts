@@ -95,16 +95,16 @@ export class SqlBufferSink implements AnalyticsSinkPort {
     return { durable: true, batch: true };
   }
 
-  async accept(hit: NormalizedHit): Promise<void> {
+  async accept({ hit }: { hit: NormalizedHit }, _optional = {}): Promise<void> {
     await this.deps.kernel.run((db) => db.insertInto("analytics_events").values(toRow(hit)).execute());
   }
 
-  async acceptBatch(hits: readonly NormalizedHit[]): Promise<void> {
+  async acceptBatch({ hits }: { hits: readonly NormalizedHit[] }, _optional = {}): Promise<void> {
     if (hits.length === 0) return;
     await this.deps.kernel.run((db) => db.insertInto("analytics_events").values(hits.map(toRow)).execute());
   }
 
-  async list(input: { limit?: number } = {}): Promise<NormalizedHit[]> {
+  async list(_required: Record<string, never>, input: { limit?: number } = {}): Promise<NormalizedHit[]> {
     const limit = clampListLimit({ requested: input.limit });
     const rows = await this.deps.kernel.run((db) =>
       db

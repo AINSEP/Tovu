@@ -11,7 +11,7 @@ export interface ByoClientCredentials {
   readonly keyring: KeyringPort;
 }
 
-function unusable(connection: Pick<DeclaredApiConnection, 'descriptor'>, label: string, problem: string): ApiConnectionError {
+function unusable({ connection, label, problem }: { connection: Pick<DeclaredApiConnection, 'descriptor'>; label: string; problem: string }, _optional = {}): ApiConnectionError {
   return new ApiConnectionError({ code: "descriptor-invalid", message: `${connection.descriptor.label} cannot use your own OAuth client: the saved credential "${label}" ${problem}. Edit it under Admin > Access Tokens, then retry.` });
 }
 
@@ -25,7 +25,7 @@ export function createByoCredentials(required: { credentials: ByoClientCredentia
     refuse(input: ApiConnectionByoRefusal) {
       const problem = input.problem === 'wrong-origin' ? `has the wrong base URL: its base URL must be on ${input.tokenOrigin}`
         : input.problem === 'unreadable' ? 'could not be read on this site' : 'has no client ID: save the OAuth client ID as its username';
-      return unusable(input.connection, input.label, problem);
+      return unusable({ connection: input.connection, label: input.label, problem });
     },
   };
 }

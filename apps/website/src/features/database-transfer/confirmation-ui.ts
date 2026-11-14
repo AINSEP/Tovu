@@ -12,13 +12,13 @@ import type { DatabaseTransferPlan } from "./plan-store.js";
 export const DATABASE_TRANSFER_RUN_TOOL_ID = "database_transfer_run";
 
 /** `3:41 PM, Sep 27` in the server's locale-neutral English. */
-export function formatSnapshotTime(iso: string): string {
+export function formatSnapshotTime({ iso }: { iso: string }, _optional = {}): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
 }
 
-function plural(n: number, one: string, many: string): string {
+function plural({ n, one, many }: { n: number; one: string; many: string }, _optional = {}): string {
   return `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 }
 
@@ -29,17 +29,17 @@ export function describeTransferApproval({ plan }: { plan: DatabaseTransferPlan 
   const leftOutRows = plan.leftOut.reduce((sum, entry) => sum + entry.rows, 0);
   const details = [
     { label: "Destination", value: where },
-    { label: "Copies", value: `${plural(plan.tableCount, "table", "tables")}, ${plural(plan.rowCount, "row", "rows")}, as of ${formatSnapshotTime(plan.snapshotAt)}` },
+    { label: "Copies", value: `${plural({ n: plan.tableCount, one: "table", many: "tables" })}, ${plural({ n: plan.rowCount, one: "row", many: "rows" })}, as of ${formatSnapshotTime({ iso: plan.snapshotAt })}` },
     { label: "Goes into", value: `A private area named "${plan.schema}". Nothing else in that database is touched.` },
-    { label: "Replaces", value: plan.replaces === null ? "Nothing. This is the first copy." : `The earlier copy from ${formatSnapshotTime(plan.replaces)}` },
-    { label: "Left out", value: `Logins and saved keys (${plural(leftOutRows, "row", "rows")}). Photos and files stay where they are.` },
+    { label: "Replaces", value: plan.replaces === null ? "Nothing. This is the first copy." : `The earlier copy from ${formatSnapshotTime({ iso: plan.replaces })}` },
+    { label: "Left out", value: `Logins and saved keys (${plural({ n: leftOutRows, one: "row", many: "rows" })}). Photos and files stay where they are.` },
   ];
   return {
     toolId: DATABASE_TRANSFER_RUN_TOOL_ID, errorCode: "DATABASE_TRANSFER",
     title: `Copy this site's data to ${where}?`,
     description: "Your site keeps running on its built-in storage. This only makes a copy.",
     details,
-    ...(plan.replaces === null ? {} : { warning: `The earlier copy from ${formatSnapshotTime(plan.replaces)} is replaced once this copy has been checked.` }),
+    ...(plan.replaces === null ? {} : { warning: `The earlier copy from ${formatSnapshotTime({ iso: plan.replaces })} is replaced once this copy has been checked.` }),
     confirmLabel: "Copy", cancelLabel: "Cancel",
   };
 }

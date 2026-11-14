@@ -7,7 +7,7 @@ import { currentIso, isLiveAt } from "#src/contracts/core/scheduled-publish";
 const consoleLogger = createConsoleLogger({ prefix: "" });
 
 const routing = createRouting({ ports: {
-  isLive: ({ post }) => isLiveAt(post, currentIso()),
+  isLive: ({ post }) => isLiveAt({ record: post, nowIso: currentIso() }),
   reportPhaseError: ({ message, error }) => {
     // preserve routing's existing operator-facing fault channel.
     consoleLogger.error({ message }, { error });

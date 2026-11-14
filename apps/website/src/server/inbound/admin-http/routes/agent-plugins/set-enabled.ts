@@ -167,7 +167,7 @@ async function provisionAgentPluginMcpServersBestEffort(
     }, { skipServerKeys: result.failed.map((failure) => failure.serverKey) });
   } catch (error) {
     console.warn(
-      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${describeErrorForLog(error)}`,
+      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${describeErrorForLog({ err: error })}`,
     );
   }
 }

@@ -18,7 +18,7 @@ export const MAX_PUBLISH_HISTORY_LIST_LIMIT = 200;
  *  InMemoryPublishHistoryStore} and `SqlitePublishHistoryStore` apply the same bound, so the two
  *  implementations can never silently disagree on what "too many" means.
  *  @complexity O(1). */
-export function resolvePublishHistoryListLimit(requested: number | undefined): number {
+export function resolvePublishHistoryListLimit({ requested }: { requested: number | undefined }, _optional = {}): number {
   if (requested === undefined) return DEFAULT_PUBLISH_HISTORY_LIST_LIMIT;
   return Math.max(1, Math.min(Math.trunc(requested), MAX_PUBLISH_HISTORY_LIST_LIMIT));
 }

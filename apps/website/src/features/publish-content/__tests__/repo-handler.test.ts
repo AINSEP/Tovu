@@ -132,11 +132,11 @@ function baseConfig(overrides: Partial<RepoPublishTypeConfig<Row, ItemPorts>> = 
   return {
     entityType: "item",
     permission: "admin.items.manage",
-    ports: (deps) => (deps as TestDeps).itemPorts,
+    ports: ({ deps }, _optional = {}) => (deps as TestDeps).itemPorts,
     list: ({ ports, workspaceId }) => ports.repo.list(workspaceId),
     find: ({ ports, workspaceId, id }) => ports.repo.find(workspaceId, id),
     isTrashed: (row) => row.status === "trashed",
-    include: (row) => row.status !== "hidden",
+    include: ({ row }, _optional = {}) => row.status !== "hidden",
     fields: { id: "local", workspaceId: "local", slug: "transferred", title: "transferred", note: "provenance", status: "transferred", version: "local" },
     address: { field: "slug", holder: ({ ports, workspaceId, value: slug }) => ports.repo.findBySlug(workspaceId, slug) },
     write: async (ctx) => {
@@ -276,7 +276,7 @@ test("precheck compares the address holder by idOf, so a natural-key type is not
   const repo = new FakeItemRepo([{ id: "row-1", workspaceId: WORKSPACE_ID, slug: "taken", title: "Same", note: "", status: "active", version: 1 }]);
   const handler = buildHandler(
     baseConfig({
-      idOf: (row) => row.slug,
+      idOf: ({ row }, _optional = {}) => row.slug,
       find: ({ ports, workspaceId, id: slug }) => ports.repo.findBySlug(workspaceId, slug),
       address: { field: "slug", holder: ({ ports, workspaceId, value: slug }) => ports.repo.findBySlug(workspaceId, slug) },
     }),

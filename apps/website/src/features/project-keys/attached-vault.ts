@@ -18,7 +18,7 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
       if (!await attachments.isAttached({ siteId, keyId: input.id })) return null;
       return await vault.find(input, options);
     } catch (error) {
-      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog(error));
+      console.warn('[shared-keys] A granted key could not be read. Local keys remain available; retry Shared Keys. Details: P25_SHARED_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
       return null;
     }
   };
@@ -46,7 +46,7 @@ export function attachedOnlyVault({ vault, siteId, attachments }: {
         const id = await keyForLabel({ siteId, label: input.label });
         return id ? await find({ workspaceId: input.workspaceId, id }) : null;
       } catch (error) {
-        console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.', describeErrorForLog(error));
+        console.warn('[shared-keys] A granted key label could not be resolved. Reopen Use a saved key and retry. Details: P25_SHARED_LABEL_READ_FAILED; secret values omitted.', describeErrorForLog({ err: error }));
         return null;
       }
     } } : {}),

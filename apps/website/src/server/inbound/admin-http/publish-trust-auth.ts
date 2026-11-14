@@ -227,7 +227,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
     // A site without a configured key is an ordinary state, not a boot failure.
     if (isNoSiteKeyError(error)) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity:",
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
     return null;
   });
   return async function requirePublishTrustMiddleware(
@@ -257,7 +257,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       // Losing the site key is also a normal unconfigured state after boot.
       if (isNoSiteKeyError(error)) return null;
       console.error("[publish-trust] Could not verify the publishing session:",
-        describeErrorForLog(error));
+        describeErrorForLog({ err: error }));
       return null;
     });
     if (verified === null || !verified.ok) {

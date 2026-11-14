@@ -659,7 +659,7 @@ export async function executePeerImport(
     } catch (error) {
       // The remote apply already succeeded; bookkeeping must never invite a duplicate retry.
       // Fixed diagnostics exclude credentials, remote bodies and database error parameters.
-      console.warn("[publish-content] destination history write failed after remote apply", describeErrorForLog(error));
+      console.warn("[publish-content] destination history write failed after remote apply", describeErrorForLog({ err: error }));
     }
   }
   return result;

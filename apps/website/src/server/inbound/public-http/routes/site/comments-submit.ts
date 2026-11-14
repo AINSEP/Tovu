@@ -100,7 +100,7 @@ export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDe
   // below re-awaits the same promise and hands that failure to Express's error path instead.
   handler.catch((error: unknown) => {
     console.error("[comments] Could not prepare the comment submission handler:",
-      describeErrorForLog(error));
+      describeErrorForLog({ err: error }));
   });
   const submit: RequestHandler = async (request, response, next) => {
     if (!isSameOriginCommentPost({ request })) {

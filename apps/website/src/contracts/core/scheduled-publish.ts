@@ -31,7 +31,7 @@ export function currentIso(): string {
 
 /** True when a published row's go-live time is still ahead of `nowIso`. A draft is never "scheduled":
  *  its `publishAt` only takes effect once it is published. @complexity O(1). */
-export function isScheduledAt(record: SchedulableRecord, nowIso: string): boolean {
+export function isScheduledAt({ record, nowIso }: { record: SchedulableRecord; nowIso: string }, _optional = {}): boolean {
   return record.status === "published" && typeof record.publishAt === "string" && record.publishAt > nowIso;
 }
 
@@ -57,6 +57,6 @@ export function comparePostsByDisplayDate(
 
 /** Published, not trashed, and past its go-live time — the whole public-visibility rule for a post
  *  or page row. @complexity O(1). */
-export function isLiveAt(record: SchedulableRecord & { readonly deletedAt?: string | null }, nowIso: string): boolean {
-  return record.status === "published" && !isTrashed(record) && !isScheduledAt(record, nowIso);
+export function isLiveAt({ record, nowIso }: { record: SchedulableRecord & { readonly deletedAt?: string | null }; nowIso: string }, _optional = {}): boolean {
+  return record.status === "published" && !isTrashed(record) && !isScheduledAt({ record, nowIso });
 }

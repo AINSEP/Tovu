@@ -169,7 +169,7 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   try {
     const automaticPrefix = await plugins.controller.start({ runId, messageId: run.messageId, context: pluginContext });
     return [pinnedPrefix, automaticPrefix].filter(Boolean).join("\n\n");
-  } catch (error) { console.warn("[agent-plugins] automatic preflight unavailable", describeErrorForLog(error)); return pinnedPrefix; }
+  } catch (error) { console.warn("[agent-plugins] automatic preflight unavailable", describeErrorForLog({ err: error })); return pinnedPrefix; }
 }
 
 /** Read metadata only after readiness, checking the live attempt across asynchronous boundaries.

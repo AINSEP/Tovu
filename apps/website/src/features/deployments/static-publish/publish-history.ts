@@ -140,7 +140,7 @@ export class InMemoryPublishHistoryStore implements PublishHistoryStore {
   }
 
   async list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]> {
-    const limit = resolvePublishHistoryListLimit(input.limit);
+    const limit = resolvePublishHistoryListLimit({ requested: input.limit });
     const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
     const matching = input.target === undefined ? rows : rows.filter((row) => row.target === input.target);
     // Newest-first: entries are appended oldest-to-newest, so reverse before slicing to `limit`.

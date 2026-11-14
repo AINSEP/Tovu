@@ -98,8 +98,8 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
       urlFor: ({ target, ctx }) => urlFor({ deps: { postRepo: deps.postRepo }, target, ctx }),
     },
     liveness: {
-      isScheduledAt: ({ post, nowIso }) => isScheduledAt(post, nowIso),
-      isLiveAt: ({ post, nowIso }) => isLiveAt(post, nowIso),
+      isScheduledAt: ({ post, nowIso }) => isScheduledAt({ record: post, nowIso }),
+      isLiveAt: ({ post, nowIso }) => isLiveAt({ record: post, nowIso }),
       postDisplayDateIso: ({ post }) => postDisplayDateIso(post),
     },
     clock: { nowIso: deps.clock.nowIso.bind(deps.clock) },

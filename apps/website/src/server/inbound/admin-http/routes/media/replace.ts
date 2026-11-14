@@ -29,7 +29,7 @@ function readReplacementFields({ body }: { body: unknown }): { filename: string;
  *  @complexity O(n) in the payload length. */
 function parseReplacement({ body }: { body: unknown }) {
   const { filename, contentType, dataBase64 } = readReplacementFields({ body });
-  const bytes = decodeStrictBase64(dataBase64);
+  const bytes = decodeStrictBase64({ value: dataBase64 });
   if (!bytes) throw new MediaValidationError({ message: 'dataBase64 is not valid base64' });
   if (bytes.byteLength > TOVU_MAX_UPLOAD_BYTES) {
     throw new MediaValidationError({ message: `uploaded file exceeds the ${TOVU_MAX_UPLOAD_BYTES / (1024 * 1024)} MB size cap` });

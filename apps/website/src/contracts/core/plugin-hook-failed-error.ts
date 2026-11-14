@@ -36,11 +36,11 @@ export function pluginHookRefusalText(err: PluginHookFailedError): string {
  * {@link pluginHookRefusalText}; a `ModelFacingErrorRule` cannot interpolate the plugin id, which is
  * why this is a function rather than a rule.
  *
- * @param err - Any rejection a tool handler threw.
+ * @param required.err - Any rejection a tool handler threw.
  * @returns The value to re-throw.
  * @complexity O(1).
  */
-export function toModelFacingPluginHookError(err: unknown): unknown {
+export function toModelFacingPluginHookError({ err }: { err: unknown }, _optional = {}): unknown {
   if (!(err instanceof PluginHookFailedError)) return err;
   return new ToolInputError({ message: `PLUGIN_HOOK_FAILED: ${pluginHookRefusalText(err)}` });
 }
@@ -62,7 +62,7 @@ export function withPluginHookRefusals(handlers: Record<string, ToolHandler>): R
         try {
           return await handler(...args);
         } catch (err) {
-          throw toModelFacingPluginHookError(err);
+          throw toModelFacingPluginHookError({ err });
         }
       },
     ])

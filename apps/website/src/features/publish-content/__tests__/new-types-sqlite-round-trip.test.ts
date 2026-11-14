@@ -33,7 +33,7 @@ function instance(name: string) {
   const db = openContentDb(":memory:");
   const repos = {
     forms: new SqliteFormDefinitionRepo(db),
-    contentTypes: new SqliteContentTypeRepo(db),
+    contentTypes: new SqliteContentTypeRepo({ store: db }),
     entries: new SqliteEntryRepo(db),
     entryRefs: new SqliteEntryRefsRepo({ store: db }),
     bindings: new SqliteWidgetRegionBindingRepo(db),

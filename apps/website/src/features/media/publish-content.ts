@@ -192,9 +192,9 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     coversTables: ["media", "asset_blobs", "asset_renditions", "media_slug_history"],
     // The same permission `post`/`page` declare; media has no write permission of its own.
     permission: "content.write",
-    ports: (deps, _optional = {}) => deps.ports.media,
+    ports: ({ deps }, _optional = {}) => deps.ports.media,
     // Library sharing has its own private archive flow. Ordinary publishing never carries documents.
-    include: (row, _optional = {}) => row.kind !== "document",
+    include: ({ row }, _optional = {}) => row.kind !== "document",
     list: ({ ports: p, workspaceId }, _optional = {}) => p.repo.list({ workspaceId }),
     find: ({ ports: p, workspaceId, id }, _optional = {}) => p.repo.findById({ workspaceId, id }),
     fields: MEDIA_FIELDS,

@@ -105,7 +105,7 @@ function readOverrides(input: Record<string, unknown>): { title?: string; slug?:
  *
  * @complexity O(r log r) in the number of registered resources — only on the rejection path.
  */
-function unsupportedResourceError(resource: string, supportedResources: Iterable<string>): ToolInputError {
+function unsupportedResourceError({ resource, supportedResources }: { resource: string; supportedResources: Iterable<string> }, _optional = {}): ToolInputError {
   const supported = [...supportedResources].sort();
   return new ToolInputError({ message: `content_duplicate: cannot duplicate resource '${resource}'. Supported resources: ` +
       `${supported.length > 0 ? supported.join(", ") : "(none registered)"}. ` +
@@ -153,7 +153,7 @@ export function buildContentDuplicationRegistrations<TDeps extends ContentDuplic
       const overrides = readOverrides(input);
 
       const handler = handlersByResource.get(resource);
-      if (!handler) throw unsupportedResourceError(resource, handlersByResource.keys());
+      if (!handler) throw unsupportedResourceError({ resource, supportedResources: handlersByResource.keys() });
 
       // The resource's OWN declared permission — see this file's own header for why this is
       // deliberately per-resource rather than one flat check for the whole tool.

@@ -25,12 +25,12 @@ test("currentIso returns the wall clock as round-trippable ISO text", () => {
 });
 
 test("isScheduledAt: only a published record with a future publishAt is scheduled", () => {
-  assert.equal(isScheduledAt({ status: "published", publishAt: LATER }, NOW), true);
-  assert.equal(isScheduledAt({ status: "published", publishAt: NOW }, NOW), false, "publishAt == now is live");
-  assert.equal(isScheduledAt({ status: "published", publishAt: EARLIER }, NOW), false);
-  assert.equal(isScheduledAt({ status: "published", publishAt: null }, NOW), false);
-  assert.equal(isScheduledAt({ status: "published" }, NOW), false);
-  assert.equal(isScheduledAt({ status: "draft", publishAt: LATER }, NOW), false);
+  assert.equal(isScheduledAt({ record: { status: "published", publishAt: LATER }, nowIso: NOW }), true);
+  assert.equal(isScheduledAt({ record: { status: "published", publishAt: NOW }, nowIso: NOW }), false, "publishAt == now is live");
+  assert.equal(isScheduledAt({ record: { status: "published", publishAt: EARLIER }, nowIso: NOW }), false);
+  assert.equal(isScheduledAt({ record: { status: "published", publishAt: null }, nowIso: NOW }), false);
+  assert.equal(isScheduledAt({ record: { status: "published" }, nowIso: NOW }), false);
+  assert.equal(isScheduledAt({ record: { status: "draft", publishAt: LATER }, nowIso: NOW }), false);
 });
 
 test("postDisplayDateIso prefers publishAt and falls back to updatedAt", () => {
@@ -54,9 +54,9 @@ test("comparePostsByDisplayDate sorts newest display date first, then ascending 
 });
 
 test("isLiveAt: published, not trashed and not still scheduled", () => {
-  assert.equal(isLiveAt({ status: "published", publishAt: EARLIER }, NOW), true);
-  assert.equal(isLiveAt({ status: "published", deletedAt: null }, NOW), true);
-  assert.equal(isLiveAt({ status: "published", deletedAt: EARLIER }, NOW), false);
-  assert.equal(isLiveAt({ status: "published", publishAt: LATER }, NOW), false);
-  assert.equal(isLiveAt({ status: "draft" }, NOW), false);
+  assert.equal(isLiveAt({ record: { status: "published", publishAt: EARLIER }, nowIso: NOW }), true);
+  assert.equal(isLiveAt({ record: { status: "published", deletedAt: null }, nowIso: NOW }), true);
+  assert.equal(isLiveAt({ record: { status: "published", deletedAt: EARLIER }, nowIso: NOW }), false);
+  assert.equal(isLiveAt({ record: { status: "published", publishAt: LATER }, nowIso: NOW }), false);
+  assert.equal(isLiveAt({ record: { status: "draft" }, nowIso: NOW }), false);
 });

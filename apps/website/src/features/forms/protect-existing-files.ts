@@ -30,7 +30,7 @@ export async function protectExistingFormFiles(
     });
     if (!retryProtection) await writeFile(marker, 'complete\n', { mode: 0o600 });
   } catch (error) {
-    warn(`Legacy form file protection could not finish; the site will continue and retry on its next owner start. Details: FORMS_LEGACY_FILE_PROTECTION_INCOMPLETE. Cause: ${describeErrorForLog(error)}`);
+    warn(`Legacy form file protection could not finish; the site will continue and retry on its next owner start. Details: FORMS_LEGACY_FILE_PROTECTION_INCOMPLETE. Cause: ${describeErrorForLog({ err: error })}`);
   }
 }
 

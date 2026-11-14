@@ -5,11 +5,11 @@ import { SqlContentTypeRepo } from "./repo.js";
 /**
  * @file The content-type repo on a site's SQLite `content.db`: {@link SqlContentTypeRepo} (the one
  * Kysely query body, `repo.ts`). Kept as a named class so existing call sites that construct it
- * from the content db handle stay as they are; new code calls `contentTypeRepoFor`.
+ * from the content db handle stay available; new code calls `contentTypeRepoFor`.
  */
 export class SqliteContentTypeRepo extends SqlContentTypeRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
     super(contentKernel({ store }));
   }
 }

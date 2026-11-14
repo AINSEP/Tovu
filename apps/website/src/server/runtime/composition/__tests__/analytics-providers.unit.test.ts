@@ -72,7 +72,7 @@ test("analyticsProviderRouteDeps: retired proofs do not grant strict-region forw
   headers.cookie = 'jini_choices=' + encodeURIComponent(JSON.stringify({ v: 1, p: policy.policyVersion, t: deps.clock.nowMs(), a: 'accept', c: { functional: true, analytics: true, marketing: true }, r: 'receipt_current_0123456789' }));
   assert.deepEqual((await route.forwarders!({ request })).map(item => item.id), ["plausible"]);
   assert.deepEqual(created, [{ credential: null, kit: { httpClient } }]);
-  assert.equal(await route.hooks!.beforeIngest({ path: '/x' } as never), null);
+  assert.equal(await route.hooks!.beforeIngest({ hit: { path: '/x' } as never }), null);
   headers['sec-gpc'] = '1'; assert.deepEqual(await route.forwarders!({ request }), []);
   delete headers['sec-gpc']; headers.dnt = '1'; assert.deepEqual(await route.forwarders!({ request }), []);
   delete headers.dnt;

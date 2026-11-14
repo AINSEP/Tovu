@@ -94,7 +94,7 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
       }
 
       const limit = parseLimitParam(req.query.limit);
-      const hits = (await deps.analyticsSink.list({ limit })).map(toAdminAnalyticsHitResponse);
+      const hits = (await deps.analyticsSink.list({}, { limit })).map(toAdminAnalyticsHitResponse);
       res.json({ hits });
     } catch (err) {
       // Keep shared redacted diagnostics without replacing the canonical analytics wire contract.

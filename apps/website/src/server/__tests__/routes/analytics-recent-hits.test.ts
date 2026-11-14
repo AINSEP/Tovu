@@ -114,10 +114,10 @@ test("REQ-14: GET recent-hits succeeds (200) for the seeded owner (wildcard gran
 
 test("AC-27: owner sees hits newest-first with only the honest raw-ingest fields", async (t) => {
   const { app, deps } = buildTestApp();
-  await deps.analyticsSink.acceptBatch([
+  await deps.analyticsSink.acceptBatch({ hits: [
     makeHit({ path: "/first", occurredAt: "2026-07-10T12:00:00.000Z" }),
     makeHit({ path: "/second", occurredAt: "2026-07-10T12:01:00.000Z" }),
-  ]);
+  ] });
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits`, {
@@ -148,7 +148,7 @@ test("AC-27: owner sees hits newest-first with only the honest raw-ingest fields
 
 test("AC-30: owner's ?limit= query param is respected", async (t) => {
   const { app, deps } = buildTestApp();
-  await deps.analyticsSink.acceptBatch([makeHit({ path: "/a" }), makeHit({ path: "/b" }), makeHit({ path: "/c" })]);
+  await deps.analyticsSink.acceptBatch({ hits: [makeHit({ path: "/a" }), makeHit({ path: "/b" }), makeHit({ path: "/c" })] });
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(
@@ -163,7 +163,7 @@ test("AC-30: owner's ?limit= query param is respected", async (t) => {
 
 test("AC-31: owner's non-numeric ?limit= is ignored rather than erroring", async (t) => {
   const { app, deps } = buildTestApp();
-  await deps.analyticsSink.acceptBatch([makeHit(), makeHit(), makeHit()]);
+  await deps.analyticsSink.acceptBatch({ hits: [makeHit(), makeHit(), makeHit()] });
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(
@@ -177,7 +177,7 @@ test("AC-31: owner's non-numeric ?limit= is ignored rather than erroring", async
 
 test("recent hits: zero, negative, fractional and oversized limits use the real sink's clamp", async (t) => {
   const { app, deps } = buildTestApp();
-  await deps.analyticsSink.acceptBatch(Array.from({ length: 501 }, (_, i) => makeHit({ path: `/hit-${i}` })));
+  await deps.analyticsSink.acceptBatch({ hits: Array.from({ length: 501 }, (_, i) => makeHit({ path: `/hit-${i}` })) });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   for (const [limit, count] of [["0", 1], ["-5", 1], ["1.9", 1], ["100000", 500]] as const) {
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits?limit=${limit}`, { headers: { cookie } });

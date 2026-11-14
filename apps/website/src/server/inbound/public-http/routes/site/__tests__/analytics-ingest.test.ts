@@ -116,7 +116,7 @@ test("analytics-ingest: disabled analytics and configured path/IP exclusions sti
 test("analytics-ingest: beforeIngest can transform or drop the normalized hit while the route keeps 204", async (t) => {
   let transformed: ReturnType<ReturnType<typeof createLocalAnalyticsSink>["all"]>[number] | undefined;
   const { app, sink } = buildApp(undefined, {
-    hooks: { beforeIngest: async (hit) => {
+    hooks: { beforeIngest: async ({ hit }) => {
       assert.equal(hit.path, "/original");
       transformed = { ...hit, path: "/annotated", eventProps: { source: "hook" } };
       return transformed;

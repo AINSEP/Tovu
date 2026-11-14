@@ -558,7 +558,7 @@ test("insertWidgetEmbed rolls back document, version, refs and revision when ref
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   const entryRepo = new SqliteEntryRepo(db);
-  const contentTypeRepo = new SqliteContentTypeRepo(db);
+  const contentTypeRepo = new SqliteContentTypeRepo({ store: db });
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: db });
   const memory = makeSharedRepos();
   const deps = makeDeps(memory, { entryRepo, contentTypeRepo, entryRefsRepo });

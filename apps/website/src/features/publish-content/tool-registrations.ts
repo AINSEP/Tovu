@@ -484,7 +484,7 @@ function modelFacingPullError({ error }: { error: unknown }, _options: Record<st
   if (error instanceof PlanStaleError) return new ToolInputError({ message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." });
   if (error instanceof PublishContentBundleNotFoundError) return new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
   // The apply writes row by row, so the refusal names the item and says earlier items stay saved.
-  if (error instanceof PluginHookFailedError) return toModelFacingPluginHookError(error);
+  if (error instanceof PluginHookFailedError) return toModelFacingPluginHookError({ err: error });
   if (error instanceof RestorePointUnavailableError) return new ToolInputError({ message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." });
   if (error instanceof PublishContentPeerNotFoundError) {
     return new ToolInputError({ message: "The saved destination was removed. Choose a saved peerId or connect the live site again." });
