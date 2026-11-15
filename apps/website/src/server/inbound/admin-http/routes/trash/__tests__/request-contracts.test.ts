@@ -25,10 +25,10 @@ function harness(overrides: Record<string, unknown> = {}) {
   const app = express();
   const deps = { workspaceId: "ws-7", registry: new Map(), clock: { nowIso: () => now },
     authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides } as any;
-  registerAdminTrashListRoute(app, deps);
-  registerAdminTrashMoveToTrashRoute(app, deps);
-  registerAdminTrashPurgeRoute(app, deps);
-  registerAdminTrashRestoreRoute(app, deps);
+  registerAdminTrashListRoute({ app, deps });
+  registerAdminTrashMoveToTrashRoute({ app, deps });
+  registerAdminTrashPurgeRoute({ app, deps });
+  registerAdminTrashRestoreRoute({ app, deps });
   return async (method: "get" | "post", suffix: string, body?: unknown, query: unknown = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -179,8 +179,8 @@ test("trash list and purge 404 an absent or foreign workspace before authorizing
   const app = express();
   let calls = 0;
   const deps = portFake<TrashRouteDeps>({ workspaceId: "ws-7", authorize: async () => { calls++; return { allowed: true, reason: "matched" }; } });
-  registerAdminTrashListRoute(app, deps);
-  registerAdminTrashPurgeRoute(app, deps);
+  registerAdminTrashListRoute({ app, deps });
+  registerAdminTrashPurgeRoute({ app, deps });
   for (const [method, suffix] of [["get", ""], ["post", "/purge"]] as const) {
     for (const params of [{}, { workspaceId: "foreign" }]) {
       const { res, capture } = createCapturingResponse();
@@ -210,10 +210,10 @@ test("trash row projection sends a null actorUsername for an unknown actor and f
     trashedAt: "2026-09-30T12:00:00.000Z", purgeAfter: "2026-10-02T12:00:00.000Z", actorPrincipalId: "gone-user", actorPluginId: null,
     entityVersion: null, priorMarker: null };
   const names = new Map([["someone-else", "ada"]]);
-  const unknown = toAdminTrashResponse(item, now, names);
+  const unknown = toAdminTrashResponse({ item, now, usernameByPrincipalId: names });
   assert.equal(unknown.actorUsername, null);
   assert.equal(unknown.actorIsSystem, false);
-  const system = toAdminTrashResponse({ ...item, actorPrincipalId: "system" }, now, names);
+  const system = toAdminTrashResponse({ item: { ...item, actorPrincipalId: "system" }, now, usernameByPrincipalId: names });
   assert.equal(system.actorUsername, null);
   assert.equal(system.actorIsSystem, true);
 });

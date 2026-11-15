@@ -72,7 +72,7 @@ test("idsNeedingAccountLabelHeal — empty input, empty output (no false-positiv
 
 test("createAccountLabelHealScheduler — calls heal exactly once per new id", () => {
   const calls: string[] = [];
-  const scheduler = createAccountLabelHealScheduler({ heal: async (id) => void calls.push(id) });
+  const scheduler = createAccountLabelHealScheduler({ heal: async ({ id }) => void calls.push(id) });
 
   scheduler.triggerFor(["a", "b"]);
 

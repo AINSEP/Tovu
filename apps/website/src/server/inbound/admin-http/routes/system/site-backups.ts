@@ -21,7 +21,7 @@ export const PUSH_POLL_WAIT_MS = 1500;
 
 /** The service's thrown errors as HTTP. Validation and permission errors carry no secret (see
  *  `tool-registrations.ts`'s model-facing rules); anything else gets a fixed line, never its text. */
-function fail(res: Response, error: unknown): void {
+function fail({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
   if (error instanceof ForbiddenError) { res.status(403).json({ code: "FORBIDDEN", message: "You do not have permission to back up this site." }); return; }
   if (error instanceof CustomCredentialValidationError || error instanceof ToolInputError) { res.status(400).json({ code: "INVALID_INPUT", message: error.message }); return; }
   sendAdminFailure({ res, error }, { operation: "routes/system/site-backups", code: "BACKUP_FAILED", field: "message", message: "Git backup failed. Try again." });
@@ -46,10 +46,10 @@ export function registerAdminSiteBackupRoutes(required: { app: Express; deps: Si
   };
   app.post(`${root}/plan`, async (req, res) => {
     try { const call = gate(req, res); if (call) res.json(await planSiteBackup({ deps, call })); }
-    catch (error) { fail(res, error); }
+    catch (error) { fail({ res, error }); }
   });
   app.post(`${root}/push`, async (req, res) => {
     try { const call = gate(req, res); if (call) res.json(await pushSiteBackup({ deps, call }, { waitMs: PUSH_POLL_WAIT_MS })); }
-    catch (error) { fail(res, error); }
+    catch (error) { fail({ res, error }); }
   });
 }

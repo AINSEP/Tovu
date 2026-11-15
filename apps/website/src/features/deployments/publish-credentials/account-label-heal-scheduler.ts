@@ -49,7 +49,7 @@ export interface AccountLabelHealSchedulerDeps {
   /** Attempts to heal exactly one row — expected to be `verifyAfterSave`-shaped (probe the real
    *  provider, then persist the label if one came back). May reject; a rejection is caught and
    *  reported via `onHealError`, never re-thrown into whatever triggered this heal. */
-  heal(id: string): Promise<unknown>;
+  heal(required: { id: string }, optional?: Record<string, never>): Promise<unknown>;
   /** Called when `heal` rejects (or throws synchronously, despite the documented contract — see
    *  {@link createAccountLabelHealScheduler}'s own doc). Defaults to a `console.error` matching
    *  `publish-credentials.ts`'s own `sendStoreError` fallback-logging convention, so a background heal
@@ -60,7 +60,7 @@ export interface AccountLabelHealSchedulerDeps {
 
 export interface AccountLabelHealScheduler {
   /**
-   * Fires `deps.heal(id)` for every id in `ids` not ALREADY in flight from a previous call — never
+   * Fires `deps.heal({ id })` for every id in `ids` not ALREADY in flight from a previous call — never
    * awaited, never throws, never returns a rejected (or any) Promise to the caller. Safe to call on
    * every single request: an id already healing is simply skipped; an id whose previous attempt already
    * settled (success OR failure) is eligible again, so a transient failure is not a permanent
@@ -89,7 +89,7 @@ function startHeal({ id, deps, inFlight }: { id: string; deps: Required<AccountL
   inFlight.add(id);
   let result: Promise<unknown>;
   try {
-    result = deps.heal(id);
+    result = deps.heal({ id });
   } catch (err) {
     inFlight.delete(id);
     deps.onHealError({ id, err });

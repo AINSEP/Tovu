@@ -179,7 +179,7 @@ function sendRefusal(res: Response, refusal: SiteAdminRefusal): void {
  *  or the refusal the route should send verbatim, so the create handler's own branching stays at
  *  "is this valid or not" rather than re-deriving the wire format inline.
  *  @complexity O(1) time/space; cyclomatic 3, cognitive 2. */
-function parseCreateSiteName(body: unknown): { ok: true; name: string } | SiteAdminRefusal {
+function parseCreateSiteName({ body }: { body: unknown }, _optional = {}): { ok: true; name: string } | SiteAdminRefusal {
   const record = body as Record<string, unknown> | null | undefined;
   const name = typeof record?.name === "string" ? record.name : undefined;
   if (name === undefined) {
@@ -408,7 +408,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       } });
       if (!authorized) return;
 
-      const parsed = parseCreateSiteName(req.body);
+      const parsed = parseCreateSiteName({ body: req.body });
       if (!parsed.ok) {
         sendRefusal(res, parsed);
         return;

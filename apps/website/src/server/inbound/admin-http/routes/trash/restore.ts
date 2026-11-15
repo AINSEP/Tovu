@@ -18,7 +18,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * Items are addressed by `{ entityType, entityId }` rather than by the trash row's id, so this
  * endpoint maps 1:1 onto `TrashPort.restore` and needs no id lookup the port does not have.
  */
-export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) => {
+export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/trash/restore", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

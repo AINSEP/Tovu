@@ -60,10 +60,10 @@ test('observability read can succeed while test-error permission is denied', asy
 test('browser telemetry answers a fixed 500 if its limiter rejects, without forwarding', async t => {
   t.mock.method(console, 'error', () => {});
   const app = express();
-  registerAdminBrowserTelemetryRoute(app, {
+  registerAdminBrowserTelemetryRoute({ app, deps: {
     clock: { nowMs: () => 0, nowIso: () => '2026-10-28T00:00:00.000Z' },
     tracker: portFake<Tracker>({ capture: () => assert.fail('must not capture'), error: () => assert.fail('must not report') }),
-  }, { check: async () => { throw new Error('private limiter failure'); } });
+  } }, { limiter: { check: async () => { throw new Error('private limiter failure'); } } });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' };
   res.locals.authCredentialKind = 'session';

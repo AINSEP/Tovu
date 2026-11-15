@@ -21,7 +21,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * Unexpected discovery failures are logged with a public error ID. Raw filesystem or provider
  * exceptions must never be returned verbatim.
  */
-export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
+export const registerSkillsListRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

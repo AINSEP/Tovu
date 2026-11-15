@@ -24,7 +24,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * `adapter-unavailable` and `version-changed` do — a selection an operator ticked by hand must not
  * be aborted wholesale because one row was not theirs to destroy.
  */
-export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => {
+export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/trash/purge", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -33,7 +33,7 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => 
       const params = { principalId: principal.id, permission: TRASH_READ_PERMISSION, workspaceId: deps.workspaceId };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const ids = readIds(req.body);
+      const ids = readIds({ body: req.body });
       if (!ids) {
         res.status(400).json({
           error: `expected { ids: [string] } with 1..${MAX_TRASH_SELECTION} entries`,
@@ -71,7 +71,7 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => 
  *
  * @complexity O(n) in the selection's length.
  */
-function readIds(body: unknown): string[] | null {
+function readIds({ body }: { body: unknown }, _optional = {}): string[] | null {
   if (typeof body !== "object" || body === null) return null;
   const raw = (body as { ids?: unknown }).ids;
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TRASH_SELECTION) return null;

@@ -109,9 +109,7 @@ export type AdminPublishSiteDeps = RouteDeps;
  * and whether their values are valid, is judged by the registry (`readStaticPublishConfig` +
  * `planStaticPublish`), so a caller only ever gets one canonical rejection for the same bad value.
  */
-function parsePublishRequestBody(
-  body: unknown
-): { ok: true; raw: Record<string, unknown>; targetId: string; projectName: string; credentialId?: string } | { ok: false; error: string } {
+function parsePublishRequestBody({ body }: { body: unknown }, _optional?: Record<string, never>): { ok: true; raw: Record<string, unknown>; targetId: string; projectName: string; credentialId?: string } | { ok: false; error: string } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "request body must be a JSON object" };
   }
@@ -151,12 +149,7 @@ function validOptionalCredential({ value }: { value: unknown }, _options = {}): 
  * @returns The target and config, or a refusal naming the unknown target / the non-string field.
  * @complexity One registry load plus O(f) declared fields.
  */
-async function readTargetConfig(
-  deps: AdminPublishSiteDeps,
-  targetId: string,
-  raw: Record<string, unknown>,
-  blankAsAbsent: boolean
-): Promise<{ ok: true; registry: DeployTargetRegistry; target: LoadedDeployTarget; config: StaticPublishConfig } | { ok: false; error: string }> {
+async function readTargetConfig({ deps, targetId, raw, blankAsAbsent }: { deps: AdminPublishSiteDeps; targetId: string; raw: Record<string, unknown>; blankAsAbsent: boolean }, _optional = {}): Promise<{ ok: true; registry: DeployTargetRegistry; target: LoadedDeployTarget; config: StaticPublishConfig } | { ok: false; error: string }> {
   const registry = await deps.loadDeployTargets(deps.workspaceId);
   for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
   const target = registry.get(targetId);
@@ -219,7 +212,7 @@ async function readPublishTriggerConfig(required: {
   // filesystem/network at all, on a config `publishStaticSite` would reject anyway — the same
   // `planStaticPublish` verdict `publishStaticSite` reaches internally — so a caller who only sends
   // a malformed config never sees a "running" snapshot at all.
-  const read = await readTargetConfig(deps, targetId, raw, false);
+  const read = await readTargetConfig({ deps, targetId, raw, blankAsAbsent: false });
   if (!read.ok) return { ok: false, status: 400, body: { error: read.error } };
   const plan = planStaticPublish(read.registry, read.config);
   if (!plan.ok) return { ok: false, status: 400, body: { error: plan.message } };
@@ -253,7 +246,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       } });
       if (!authorized) { void deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "auth", source: "admin" } }); return; }
 
-      const parsed = parsePublishRequestBody(req.body);
+      const parsed = parsePublishRequestBody({ body: req.body });
       if (!parsed.ok) {
         void deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "config", source: "admin" } });
         res.status(400).json({ error: parsed.error });
@@ -355,7 +348,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         res.status(400).json({ error: "'target' query param (non-empty string) is required" });
         return;
       }
-      const read = await readTargetConfig(deps, query.target, query, true);
+      const read = await readTargetConfig({ deps, targetId: query.target, raw: query, blankAsAbsent: true });
       if (!read.ok) {
         res.status(400).json({ error: read.error });
         return;

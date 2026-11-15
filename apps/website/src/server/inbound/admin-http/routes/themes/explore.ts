@@ -130,7 +130,7 @@ function findThemeOrRespond(
  * broke" when the honest answer is "that path is not editable", which is the difference between a
  * user fixing their own mistake and filing a bug.
  */
-function sendThemeFileError(res: Response, err: unknown): void {
+function sendThemeFileError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ThemeFileReadOnlyError) {
     res.status(403).json({ error: err.message, code: "GENERATED_READONLY" });
     return;
@@ -159,7 +159,7 @@ function sendThemeFileError(res: Response, err: unknown): void {
  * checked identically to one written by hand, and a theme edited into an invalid state reports
  * `status: "invalid"` rather than silently rendering stale-but-valid markup.
  */
-export function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
+export function reloadTheme({ deps, themeId }: { deps: ContentRouteDeps; themeId: string }, _optional = {}): void {
   const index = deps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index < 0) return;
   const current = deps.themes[index];
@@ -203,7 +203,7 @@ const TEXT_READABLE_EXTENSIONS = new Set([
   ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest", ".liquid",
 ]);
 
-function isTextReadable(relativePath: string): boolean {
+function isTextReadable({ relativePath }: { relativePath: string }, _optional = {}): boolean {
   const dot = relativePath.lastIndexOf(".");
   return dot === -1 ? false : TEXT_READABLE_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
 }
@@ -267,8 +267,8 @@ const CONTENT_EDIT_LOCKED_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set([
  * earlier `_unpublished/` convention was removed for.
  * @complexity O(k) time and space for k characters in the relative path; no I/O.
  */
-function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): boolean {
-  if (!isTextReadable(relativePath)) return false;
+function isThemeFileWritable({ relativePath, apiVersion }: { relativePath: string; apiVersion: 2 | undefined }, _optional = {}): boolean {
+  if (!isTextReadable({ relativePath })) return false;
   return (
     // v2's render/pages grouping must not turn the read-only Liquid preview into an edit surface.
     !relativePath.toLowerCase().endsWith(".liquid") &&
@@ -284,7 +284,7 @@ function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): b
  * `readdirSync(pagesDir)`, which never sees a nested path). Not a general basename helper: only ever
  * called on a path {@link fileGroup} already classified `"page"`.
  */
-function pageIdForPagePath(relativePath: string): string {
+function pageIdForPagePath({ relativePath }: { relativePath: string }, _optional = {}): string {
   const base = relativePath.slice(relativePath.lastIndexOf("/") + 1);
   return base.endsWith(".html") ? base.slice(0, -".html".length) : base;
 }
@@ -351,7 +351,7 @@ function originalSourceFor(deps: ContentRouteDeps, theme: DiscoveredTheme): Them
  *
  * @complexity O(s) in the two `theme.json` sizes, or O(1) when there is no source at all.
  */
-function originalComparableForReset(theme: DiscoveredTheme, originalSource: ThemeOriginalSource | null): boolean {
+function originalComparableForReset({ theme, originalSource }: { theme: DiscoveredTheme; originalSource: ThemeOriginalSource | null }, _optional = {}): boolean {
   return (
     originalSource !== null &&
     themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir }) === null
@@ -373,10 +373,7 @@ function originalComparableForReset(theme: DiscoveredTheme, originalSource: Them
  * @complexity O(1) when there is no original or the sizes differ; O(s) in the file size when the sizes
  * match. Across a detail listing that is O(total bytes) of same-size files with an original.
  */
-function fileModifiedFromOriginal(
-  relativePath: string,
-  options: { originalSource: ThemeOriginalSource | null; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme }
-): boolean | null {
+function fileModifiedFromOriginal({ relativePath, options }: { relativePath: string; options: { originalSource: ThemeOriginalSource | null; comparableOriginal: boolean; themesDir: string; theme: DiscoveredTheme } }, _optional = {}): boolean | null {
   if (!options.comparableOriginal || !options.originalSource) return null;
   try {
     return themeFileDiffersFromOriginal({
@@ -425,17 +422,14 @@ function fileModifiedFromOriginal(
  * exists. Both are also `false`/`null` for every file of a theme whose original the reset route would
  * refuse (`comparableOriginal: false`, e.g. an original saved under another layout version).
  */
-function describeThemeFile(
-  relativePath: string,
-  options: {
+function describeThemeFile({ relativePath, options }: { relativePath: string; options: {
     originalSource: ThemeOriginalSource | null;
     comparableOriginal: boolean;
     themesDir: string;
     apiVersion: 2 | undefined;
     theme: DiscoveredTheme;
     contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>;
-  }
-): {
+  } }, _optional = {}): {
   path: string;
   group: ThemeExploreFileGroup;
   readable: boolean;
@@ -447,13 +441,13 @@ function describeThemeFile(
   inherited?: boolean;
 } {
   const group = fileGroup(relativePath, options.apiVersion);
-  const pageId = group === "page" ? pageIdForPagePath(relativePath) : null;
-  const modified = fileModifiedFromOriginal(relativePath, options);
+  const pageId = group === "page" ? pageIdForPagePath({ relativePath }) : null;
+  const modified = fileModifiedFromOriginal({ relativePath, options });
   return {
     path: relativePath,
     group,
-    readable: isTextReadable(relativePath),
-    editable: isThemeFileWritable(relativePath, options.apiVersion),
+    readable: isTextReadable({ relativePath }),
+    editable: isThemeFileWritable({ relativePath, apiVersion: options.apiVersion }),
     // Whether THIS file can be reset — a file the author added themselves (including a fresh copy)
     // has no original to go back to, and offering a Reset that would fail is worse than not
     // offering one. `modified` is `null` for exactly those files.
@@ -463,7 +457,7 @@ function describeThemeFile(
       pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
         ? isStandaloneThemePage(options.theme, pageId)
         : null,
-    collidingContent: themePageCollidingContent(options.theme, pageId, options.contentBySlug),
+    collidingContent: themePageCollidingContent({ theme: options.theme, pageId, contentBySlug: options.contentBySlug }),
   };
 }
 
@@ -480,11 +474,7 @@ function describeThemeFile(
  *
  * @complexity O(1) — one `Map` lookup.
  */
-function themePageCollidingContent(
-  theme: DiscoveredTheme,
-  pageId: string | null,
-  contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>
-): ThemeFileContentCollision | null {
+function themePageCollidingContent({ theme, pageId, contentBySlug }: { theme: DiscoveredTheme; pageId: string | null; contentBySlug: ReadonlyMap<string, ThemeFileContentCollision> }, _optional = {}): ThemeFileContentCollision | null {
   if (pageId === "index") return contentBySlug.get(ROOT_SLUG) ?? null;
   if (pageId === null || !isPublishableThemePageCandidate(theme, pageId)) return null;
   return contentBySlug.get(pageId) ?? null;
@@ -492,15 +482,15 @@ function themePageCollidingContent(
 
 /** A JSON request body coerced to a plain object — `{}` for a missing/`null`/non-object body,
  *  matching every mutating route below's existing lenient handling of an absent body. */
-export function bodyRecord(body: unknown): Record<string, unknown> {
+export function bodyRecord({ body }: { body: unknown }, _optional = {}): Record<string, unknown> {
   return (body ?? {}) as Record<string, unknown>;
 }
 
 /** One string field off a JSON body, defaulting to `""` when the body itself or the field is
  *  missing/non-string — the same coercion `path`/`name`/etc. already applied inline at each call
  *  site below, pulled into one definition so it is applied identically everywhere. */
-export function bodyStringField(body: unknown, field: string): string {
-  return String(bodyRecord(body)[field] ?? "");
+export function bodyStringField({ body, field }: { body: unknown; field: string }, _optional = {}): string {
+  return String(bodyRecord({ body })[field] ?? "");
 }
 
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
@@ -523,7 +513,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
       // Once for the whole listing: whether any file here can be reset from that original.
-      const comparableOriginal = originalComparableForReset(theme, originalSource);
+      const comparableOriginal = originalComparableForReset({ theme, originalSource });
       // ONE batched lookup for the WHOLE listing below, not one `findBySlug` per file — see
       // `contentRecordsBySlug`'s own doc for why that per-file shape must never come back.
       const contentBySlug = contentRecordsBySlug(await deps.postRepo.list({ workspaceId: deps.workspaceId }));
@@ -535,14 +525,14 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
         .filter((path) => !isGeneratedThemePath(path) && !isTrashedThemePath(path))
         .map((path) =>
-          describeThemeFile(path, {
+          describeThemeFile({ relativePath: path, options: {
             originalSource,
             comparableOriginal,
             themesDir: deps.themesDir,
             apiVersion: theme.manifest.apiVersion,
             theme,
             contentBySlug,
-          })
+          } })
         );
       // The loader owns inheritance. Virtual sources must be listed so View Template's Explore
       // link can select them, but they cannot masquerade as editable physical site files.
@@ -590,7 +580,7 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = ({ app, dep
       const content = readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
       res.json({ path, content });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -604,8 +594,8 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = ({ app, dep
 function parseThemeFilePutBody(
   req: { body: unknown }
 ): { ok: true; path: string; content: string; overwriteOversized: boolean } | { ok: false } {
-  const path = bodyStringField(req.body, "path");
-  const body = bodyRecord(req.body);
+  const path = bodyStringField({ body: req.body, field: "path" });
+  const body = bodyRecord({ body: req.body });
   if (typeof body.content !== "string") return { ok: false };
   return { ok: true, path, content: body.content, overwriteOversized: body.overwriteOversized === true };
 }
@@ -635,12 +625,12 @@ function parseThemeFilePutBody(
  * (`theme.ts`, the `build.source === "compiled"` manifest check) so a conflicting manifest is
  * refused at load, not only caught per-write here.
  */
-function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFileWriteScope): boolean {
+function isPutWritable({ theme, path, writeScope }: { theme: DiscoveredTheme; path: string; writeScope: ThemeFileWriteScope }, _optional = {}): boolean {
   return (
     !isGeneratedThemePath(path) &&
     (isInsideCompiledSourceDir(theme, path, writeScope)
       ? isSourceDirWritableExtension(path)
-      : isThemeFileWritable(path, theme.manifest.apiVersion))
+      : isThemeFileWritable({ relativePath: path, apiVersion: theme.manifest.apiVersion }))
   );
 }
 
@@ -683,7 +673,7 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, dep
         return;
       }
 
-      if (!isPutWritable(theme, path, writeScope)) {
+      if (!isPutWritable({ theme, path, writeScope })) {
         res.status(403).json({
           error: `'${path}' is read-only in Explore and cannot be saved`,
           code: "READ_ONLY_FILE",
@@ -697,11 +687,11 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, dep
       );
 
       // Re-read from disk after writing, or the save is invisible. See `reloadTheme`.
-      reloadTheme(deps, theme.manifest.id);
+      reloadTheme({ deps, themeId: theme.manifest.id });
 
       res.json({ path, bytes: Buffer.byteLength(content, "utf8") });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -714,14 +704,14 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = ({ app, dep
  * route's full response itself (success or `NO_ORIGINAL`) since the two cases share nothing with
  * the per-file reset path below.
  */
-function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme, res: Response): void {
+function handleGeneratedTreeReset({ deps, theme, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; res: Response }, _optional = {}): void {
   try {
     const { restoredFiles } = restoreBuiltThemeGeneratedTree({
       themeDir: theme.dir,
       themesRoot: deps.themesDir,
       manifest: theme.manifest,
     });
-    reloadTheme(deps, theme.manifest.id);
+    reloadTheme({ deps, themeId: theme.manifest.id });
     res.json({ scope: "release", restoredFiles });
   } catch (err) {
     if (err instanceof ThemePathError) {
@@ -742,13 +732,7 @@ function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme
  * first, before any file is looked at), and `NOT_IN_ORIGINAL` when the catalog has no regular file at
  * `path`.
  */
-function resetFileFromOriginal(
-  deps: ContentRouteDeps,
-  theme: DiscoveredTheme,
-  originalSource: ThemeOriginalSource,
-  path: string,
-  res: Response
-): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
+function resetFileFromOriginal({ deps, theme, originalSource, path, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; originalSource: ThemeOriginalSource; path: string; res: Response }, _optional = {}): { ok: true; wasModified: boolean; bytes: number } | { ok: false } {
   const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
   if (refusal) {
     res.status(409).json({ error: refusal.message, code: refusal.code });
@@ -780,12 +764,7 @@ function resetFileFromOriginal(
  * Behaviour is unchanged: `bytes` reports 0 when nothing was written, and `content` is `null` past
  * the {@link MAX_THEME_FILE_BYTES} text-read limit, exactly as inline before.
  */
-function buildFileResetResponse(
-  deps: ContentRouteDeps,
-  theme: DiscoveredTheme,
-  path: string,
-  reset: { wasModified: boolean; bytes: number }
-): { scope: "file"; path: string; wasModified: boolean; bytes: number; content: string | null } {
+function buildFileResetResponse({ deps, theme, path, reset }: { deps: ContentRouteDeps; theme: DiscoveredTheme; path: string; reset: { wasModified: boolean; bytes: number } }, _optional = {}): { scope: "file"; path: string; wasModified: boolean; bytes: number; content: string | null } {
   return {
     scope: "file",
     path,
@@ -840,11 +819,11 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, d
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const path = bodyStringField(req.body, "path");
+      const path = bodyStringField({ body: req.body, field: "path" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
       if (writeScope.kind === "generated-readonly") {
-        handleGeneratedTreeReset(deps, theme, res);
+        handleGeneratedTreeReset({ deps, theme, res });
         return;
       }
       // 2026-08-13 (security pass Finding 1, defense in depth, continuation agent): `writeScope`
@@ -872,15 +851,15 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, d
         return;
       }
 
-      const resetResult = resetFileFromOriginal(deps, theme, originalSource, path, res);
+      const resetResult = resetFileFromOriginal({ deps, theme, originalSource, path, res });
       if (!resetResult.ok) return;
       // Reloaded even when nothing was written, matching `theme_reset_file`: this process's snapshot
       // is stale whenever a different process wrote the theme.
-      reloadTheme(deps, theme.manifest.id);
+      reloadTheme({ deps, themeId: theme.manifest.id });
 
-      res.json(buildFileResetResponse(deps, theme, path, resetResult));
+      res.json(buildFileResetResponse({ deps, theme, path, reset: resetResult }));
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -906,7 +885,7 @@ export const registerAdminThemeSaveOriginalRoute: ContentRouteRegistrar = ({ app
       }
       res.json({ themeId: theme.manifest.id, saved: true });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -933,7 +912,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, de
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const sourcePath = bodyStringField(req.body, "path");
+      const sourcePath = bodyStringField({ body: req.body, field: "path" });
 
       // ADR-020 §5: duplicating a file INTO a built theme's generated tree would add an untracked
       // extra to a region `build.artifactHashes` is supposed to fully account for — a write, same as
@@ -971,24 +950,24 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, de
       // A new file on disk is exactly the same boot-time-snapshot problem writes are — see
       // `reloadTheme`'s doc comment. Skipping this means the copy exists on disk but the preview and
       // the next GET of `pages`/`partials` still act as if it does not.
-      reloadTheme(deps, theme.manifest.id);
+      reloadTheme({ deps, themeId: theme.manifest.id });
 
       const originalSource = originalSourceFor(deps, theme);
       res.json({
-        ...describeThemeFile(destPath, {
+        ...describeThemeFile({ relativePath: destPath, options: {
           originalSource,
-          comparableOriginal: originalComparableForReset(theme, originalSource),
+          comparableOriginal: originalComparableForReset({ theme, originalSource }),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
           // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
           // doc for why an empty map here is correct, not merely convenient.
           contentBySlug: NO_CONTENT_COLLISIONS,
-        }),
+        } }),
         copiedFrom: sourcePath,
       });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -1008,7 +987,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, de
  * real operator-authored path input here is validated exactly as strictly as a write target, per
  * the containment rule every route in this file follows. `null` means `name` is valid.
  */
-function validateRenameTargetName(name: string): string | null {
+function validateRenameTargetName({ name }: { name: string }, _optional = {}): string | null {
   if (name.length === 0) return "name is required";
   if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
     return `name '${name}' must be a plain filename in the same folder, not a path`;
@@ -1025,13 +1004,7 @@ function validateRenameTargetName(name: string): string | null {
  * the rename succeeded (or was validly skipped as a no-op) and the caller should build its normal
  * response.
  */
-export function renameThemeFileIfChanged(
-  deps: ContentRouteDeps,
-  theme: DiscoveredTheme,
-  paths: { sourcePath: string; destPath: string; name: string },
-  existingPaths: ReadonlySet<string>,
-  res: Response
-): boolean {
+export function renameThemeFileIfChanged({ deps, theme, paths, existingPaths, res }: { deps: ContentRouteDeps; theme: DiscoveredTheme; paths: { sourcePath: string; destPath: string; name: string }; existingPaths: ReadonlySet<string>; res: Response }, _optional = {}): boolean {
   const { sourcePath, destPath, name } = paths;
   if (destPath === sourcePath) return true;
 
@@ -1071,7 +1044,7 @@ export function renameThemeFileIfChanged(
   }
 
   renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
-  reloadTheme(deps, theme.manifest.id);
+  reloadTheme({ deps, themeId: theme.manifest.id });
   return true;
 }
 
@@ -1115,8 +1088,8 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, 
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const sourcePath = bodyStringField(req.body, "path");
-      const name = bodyStringField(req.body, "name");
+      const sourcePath = bodyStringField({ body: req.body, field: "path" });
+      const name = bodyStringField({ body: req.body, field: "name" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
       const sourceError = validateFileIdentityChange(theme, sourcePath, writeScope, "renamed");
@@ -1125,7 +1098,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, 
         return;
       }
 
-      const nameError = validateRenameTargetName(name);
+      const nameError = validateRenameTargetName({ name });
       if (nameError) {
         res.status(400).json({ error: nameError, code: "INVALID_NAME" });
         return;
@@ -1140,24 +1113,24 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, 
       const slash = sourcePath.lastIndexOf("/");
       const destPath = slash === -1 ? name : `${sourcePath.slice(0, slash)}/${name}`;
 
-      if (!renameThemeFileIfChanged(deps, theme, { sourcePath, destPath, name }, existingPaths, res)) return;
+      if (!renameThemeFileIfChanged({ deps, theme, paths: { sourcePath, destPath, name }, existingPaths, res })) return;
 
       const originalSource = originalSourceFor(deps, theme);
       res.json({
-        ...describeThemeFile(destPath, {
+        ...describeThemeFile({ relativePath: destPath, options: {
           originalSource,
-          comparableOriginal: originalComparableForReset(theme, originalSource),
+          comparableOriginal: originalComparableForReset({ theme, originalSource }),
           themesDir: deps.themesDir,
           apiVersion: theme.manifest.apiVersion,
           theme,
           // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
           // doc for why an empty map here is correct, not merely convenient.
           contentBySlug: NO_CONTENT_COLLISIONS,
-        }),
+        } }),
         renamedFrom: sourcePath,
       });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -1183,7 +1156,7 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, 
       const theme = findThemeOrRespond(deps, req, res);
       if (!theme) return;
 
-      const path = bodyStringField(req.body, "path");
+      const path = bodyStringField({ body: req.body, field: "path" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
       const lockError = validateFileIdentityChange(theme, path, writeScope, "deleted");
@@ -1202,7 +1175,7 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, 
 
       res.json({ path, deleted: true });
     } catch (err) {
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };
@@ -1213,8 +1186,8 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, 
 function parseThemePagePublishBody(
   req: { body: unknown }
 ): { ok: true; page: string; published: boolean } | { ok: false } {
-  const page = bodyStringField(req.body, "page");
-  const published = bodyRecord(req.body).published;
+  const page = bodyStringField({ body: req.body, field: "page" });
+  const published = bodyRecord({ body: req.body }).published;
   if (typeof published !== "boolean") return { ok: false };
   return { ok: true, page, published };
 }
@@ -1268,7 +1241,7 @@ export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = ({ app,
         res.status(err.status).json({ error: err.message, code: err.code });
         return;
       }
-      sendThemeFileError(res, err);
+      sendThemeFileError({ res, err });
     }
   });
 };

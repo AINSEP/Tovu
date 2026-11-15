@@ -15,7 +15,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * Rows whose `purge_after` has passed are excluded by the repo itself, so a site that sat closed past
  * day 60 shows nothing expired on its first render, sweeper or no sweeper.
  */
-export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
+export const registerAdminTrashListRoute: TrashRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/trash", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -28,9 +28,9 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
       const page = await deps.trash.list({
         workspaceId: deps.workspaceId,
         now,
-        limit: readLimit(req.query.limit)      }, {
-        entityTypes: readEntityTypes(req.query.entityTypes),
-        cursor: readCursor(req.query.cursor)      });
+        limit: readLimit({ raw: req.query.limit })      }, {
+        entityTypes: readEntityTypes({ raw: req.query.entityTypes }),
+        cursor: readCursor({ raw: req.query.cursor })      });
 
       // Per-kind, not per-surface: a principal who can only moderate comments must not read the
       // titles of deleted posts here any more than they can through the agent tool.
@@ -42,7 +42,7 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
       res.json({
         items: visible.map((item) => {
           const displayKind = item.entityType === "post" ? postKindById.get(item.entityId) : undefined;
-          return { ...toAdminTrashResponse(item, now, usernameByPrincipalId), ...(displayKind ? { displayKind } : {}) };
+          return { ...toAdminTrashResponse({ item, now, usernameByPrincipalId }), ...(displayKind ? { displayKind } : {}) };
         }),
         nextCursor: page.nextCursor,
       });
@@ -105,7 +105,7 @@ const SYSTEM_ACTOR_PRINCIPAL_ID = "system";
  *
  * @complexity O(1).
  */
-export function toAdminTrashResponse(item: TrashItem, now: string, usernameByPrincipalId: ReadonlyMap<string, string>) {
+export function toAdminTrashResponse({ item, now, usernameByPrincipalId }: { item: TrashItem; now: string; usernameByPrincipalId: ReadonlyMap<string, string> }, _optional = {}) {
   return {
     id: item.id,
     entityType: item.entityType,
@@ -123,7 +123,7 @@ export function toAdminTrashResponse(item: TrashItem, now: string, usernameByPri
 }
 
 /** @complexity O(n) in the filter's length. Unknown kinds are left in — the per-row filter drops them. */
-function readEntityTypes(raw: unknown): string[] | undefined {
+function readEntityTypes({ raw }: { raw: unknown }, _optional = {}): string[] | undefined {
   const joined = Array.isArray(raw) ? raw.join(",") : "";
   const value = typeof raw === "string" ? raw : joined;
   const types = value.split(",").map((part) => part.trim()).filter((part) => part.length > 0);
@@ -131,13 +131,13 @@ function readEntityTypes(raw: unknown): string[] | undefined {
 }
 
 /** Clamped rather than rejected: a bad `limit` is not worth a 400 on a read. @complexity O(1). */
-function readLimit(raw: unknown): number {
+function readLimit({ raw }: { raw: unknown }, _optional = {}): number {
   const parsed = Number.parseInt(typeof raw === "string" ? raw : "", 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_TRASH_PAGE_SIZE;
   return Math.min(parsed, MAX_TRASH_PAGE_SIZE);
 }
 
 /** @complexity O(1). */
-function readCursor(raw: unknown): string | null {
+function readCursor({ raw }: { raw: unknown }, _optional = {}): string | null {
   return typeof raw === "string" && raw.length > 0 ? raw : null;
 }

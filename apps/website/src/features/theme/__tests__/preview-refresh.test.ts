@@ -91,7 +91,7 @@ test("admin and assistant save chokepoints both signal, rejected writes do not",
     resolveActiveThemeId: async () => "",
   };
   assert.equal(readThemePreviewRefresh({ themesDir }), null);
-  reloadTheme(deps as never, "plain");
+  reloadTheme({ deps: deps as never, themeId: "plain" });
   const first = readThemePreviewRefresh({ themesDir });
   assert.ok(first);
   const writer = buildConfirmedThemesRegistrations(deps).find((r) => r.descriptor.id === "theme_write_file");

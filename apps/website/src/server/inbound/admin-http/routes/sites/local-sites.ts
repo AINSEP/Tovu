@@ -26,7 +26,7 @@ function respondToLifecycleError({ res, error }: { res: Response; error: unknown
   res.status(STATUS[code] ?? 500).json({ code, error: code });
 }
 
-function lifecycleHandler(deps: LocalSitesRouteDeps, action: (req: Request, base: string, supervisor: LocalSiteSupervisorPort) => Promise<unknown>) {
+function lifecycleHandler({ deps, action }: { deps: LocalSitesRouteDeps; action: (req: Request, base: string, supervisor: LocalSiteSupervisorPort) => Promise<unknown> }, _optional = {}) {
   return async (req: Request, res: Response) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const gate = resolveSiteSwitchBase({ binding: deps.siteBinding, switchingEnabled: deps.isSiteSwitcherEnabled() });
@@ -47,9 +47,9 @@ function lifecycleHandler(deps: LocalSitesRouteDeps, action: (req: Request, base
 /** Register only handlers; host lifetime belongs to the serving composition. @complexity O(1). */
 export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: LocalSitesRouteDeps }, _options = {}): void {
   const trash = deps.siteTrash ?? { trash: trashSite, restore: restoreSite, remove: permanentlyDeleteTrashedSite };
-  app.post(`${PREFIX}/:name/start`, lifecycleHandler(deps, (req, _base, supervisor) => supervisor.start({ name: String(req.params.name ?? "") })));
-  app.post(`${PREFIX}/:name/stop`, lifecycleHandler(deps, (req, _base, supervisor) => supervisor.stop({ name: String(req.params.name ?? "") })));
-  app.post(`${PREFIX}/:name/trash`, lifecycleHandler(deps, async (req, base, supervisor) => {
+  app.post(`${PREFIX}/:name/start`, lifecycleHandler({ deps, action: (req, _base, supervisor) => supervisor.start({ name: String(req.params.name ?? "") }) }));
+  app.post(`${PREFIX}/:name/stop`, lifecycleHandler({ deps, action: (req, _base, supervisor) => supervisor.stop({ name: String(req.params.name ?? "") }) }));
+  app.post(`${PREFIX}/:name/trash`, lifecycleHandler({ deps, action: async (req, base, supervisor) => {
     if (req.body?.confirmed !== true) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
     const name = String(req.params.name ?? "");
     return supervisor.withStoppedSite({ name, task: async () => {
@@ -57,16 +57,16 @@ export function registerLocalSitesRoutes({ app, deps }: { app: Express; deps: Lo
       deps.afterTrash?.({ base, name });
       return { site };
     } });
-  }));
-  app.post(`${PREFIX}/trash/:id/restore`, lifecycleHandler(deps, async (req, base, supervisor) => {
+  } }));
+  app.post(`${PREFIX}/trash/:id/restore`, lifecycleHandler({ deps, action: async (req, base, supervisor) => {
     const id = String(req.params.id ?? "");
     return supervisor.withStoppedSite({ name: siteTrashName({ id }), task: async () => { trash.restore({ base, id }); } });
-  }));
-  app.post(`${PREFIX}/trash/:id/delete`, lifecycleHandler(deps, async (req, base, supervisor) => {
+  } }));
+  app.post(`${PREFIX}/trash/:id/delete`, lifecycleHandler({ deps, action: async (req, base, supervisor) => {
     if (req.body?.checked !== true || req.body?.confirmed !== true) throw new LocalSiteError({ code: "SITE_CONFIRM_REQUIRED" });
     const id = String(req.params.id ?? "");
     return supervisor.withStoppedSite({ name: siteTrashName({ id }), task: async () => {
       trash.remove({ base, id, checked: req.body?.checked === true, confirmed: req.body?.confirmed === true });
     } });
-  }));
+  } }));
 }

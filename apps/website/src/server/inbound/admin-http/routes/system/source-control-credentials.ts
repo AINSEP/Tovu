@@ -65,7 +65,7 @@ const PROVIDERS_PATH = "/api/admin/v1/workspaces/:workspaceId/system/source-cont
  *  `publish-credentials.ts`'s own doc comment on this same function for the fuller story (found via
  *  an AST scan over every `app.<verb>()` handler in `src/server/routes/**`, which is also how this
  *  file's `GET`/`DELETE` were found with no `try`/`catch` at all). */
-function sendStoreError(res: Response, err: unknown): void {
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   if (err instanceof SourceControlCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
@@ -130,7 +130,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
         switchedOff: [...(registry.switchedOff ?? [])].map(([id, pluginId]) => ({ id, pluginId })),
       });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -140,7 +140,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       const credentials: SourceControlCredentialSummary[] = await listSourceControlCredentials(readDeps, { workspaceId: deps.workspaceId });
       res.status(200).json({ credentials });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -161,7 +161,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       if (credential.scope === "project") await deps.projectKeys?.use({ keyId: credential.id, use: true });
       res.status(201).json({ credential });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -178,7 +178,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       } });
       res.status(200).json({ credential });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -192,7 +192,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
       await deleteSourceControlCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       res.status(204).end();
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 }

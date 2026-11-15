@@ -203,7 +203,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  successful verify into a failed response) — a targeted single-column write against a row this
    *  same request just confirmed exists has no realistic failure mode short of the DB itself being
    *  down, at which point the save/verify response the caller already has is still honest. */
-  async function verifyAfterSave(id: string): Promise<PublishCredentialVerificationResult | undefined> {
+  async function verifyAfterSave({ id }: { id: string }, _optional = {}): Promise<PublishCredentialVerificationResult | undefined> {
     const result = await verifyPublishCredentialById(
       {
         repo: deps.vendorCredentialSetRepo,
@@ -289,7 +289,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // "connection omitted => nothing changed to verify" reasoning below. `createPublishCredential`
       // always requires a connection, so this is always true here; kept as an explicit check (rather
       // than an unconditional call) so both handlers read the same way.
-      const verification = body.connection !== undefined ? await verifyAfterSave(credential.id) : undefined;
+      const verification = body.connection !== undefined ? await verifyAfterSave({ id: credential.id }) : undefined;
       res.status(201).json({ credential, ...(verification ? { verification } : {}) });
     } catch (err) {
       sendStoreError({ res, err });
@@ -311,7 +311,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // A label-only/isDefault-only rename verifies nothing new — the connection (and therefore
       // whatever a previous verification already found) is unchanged, so re-checking here would
       // just repeat the same network call for no new information.
-      const verification = body.connection !== undefined ? await verifyAfterSave(credential.id) : undefined;
+      const verification = body.connection !== undefined ? await verifyAfterSave({ id: credential.id }) : undefined;
       res.status(200).json({ credential, ...(verification ? { verification } : {}) });
     } catch (err) {
       sendStoreError({ res, err });
@@ -326,7 +326,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
         return;
       }
-      const verification = await verifyAfterSave(existing.id);
+      const verification = await verifyAfterSave({ id: existing.id });
       res.status(200).json({ verification });
     } catch (err) {
       // `describeCredential` itself never decrypts (this file's own header) and cannot land here —

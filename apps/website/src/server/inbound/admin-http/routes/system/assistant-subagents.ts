@@ -37,7 +37,7 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
       else availability = {};
       return { ...permissions, agents: AGENT_DEFS.map(({ id, name, externalMcpInjection }) => ({ id, name, inheritedRunKey: (externalMcpInjection === "opencode-env-content" || externalMcpInjection === "mimo-env-content") || externalMcpInjection === "env-passthrough", writesPersonalConfig: externalMcpInjection === "env-passthrough" })), ...availability, permissionMode: resolveAgentPermissionMode({ env: process.env }, { hostSignals }) };
     },
-    parse: body => {
+    parse: ({ body }, _optional = {}) => {
       const overrides = body.capabilities;
       const malformed = overrides !== undefined && (!overrides || typeof overrides !== "object" || Array.isArray(overrides));
       const unknownCapability = !malformed && overrides !== undefined && Object.entries(overrides).some(([key, value]) => !ASSISTANT_CLI_CAPABILITIES.some(item => item.key === key) || typeof value !== "boolean");
@@ -68,6 +68,6 @@ export function registerAdminAssistantSubagentsRoutes(required: { app: Express; 
       if (agentIds.length) await lowerAssistantToolAccess({ agentIds });
       return next;
     },
-    value: settings => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
+    value: ({ settings }, _optional = {}) => ({ enabled: settings.enabled, capabilities: { ...settings.capabilities } }),
   }, { requireAcknowledgment: false, scope: "user" });
 }

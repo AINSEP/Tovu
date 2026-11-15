@@ -22,10 +22,10 @@ test('site key generation supplies the shared writer a live scan of this site', 
     return { action: 'mint', fingerprint: 'public-fingerprint', perSiteFilePath: '/fixture/site-key.hex' };
   } });
   const app = express();
-  registerAdminSiteKeyRoutes(app, portFake<AdminSiteKeyDeps>({ workspaceId: 'ws',
+  registerAdminSiteKeyRoutes({ app, deps: portFake<AdminSiteKeyDeps>({ workspaceId: 'ws',
     siteBinding: { name: 'fixture', dir, dirOverridden: true, switcherCompatible: false },
     authorize: async () => ({ allowed: true, reason: 'owner' }),
-  }), writer);
+  }), siteKey: writer });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' }; res.locals.authCredentialKind = 'session';
   res.set = (() => res) as typeof res.set;
@@ -35,7 +35,7 @@ test('site key generation supplies the shared writer a live scan of this site', 
 });
 
 test('start-fresh warning names every affected webhook with its receiver', () => {
-  assert.equal(startFreshDetail(1, [{ label: 'Orders', targetUrl: 'https://orders.example/hook' }, { label: 'Archive', targetUrl: 'https://archive.example/hook' }]),
+  assert.equal(startFreshDetail({ removes: 1, affectedWebhooks: [{ label: 'Orders', targetUrl: 'https://orders.example/hook' }, { label: 'Archive', targetUrl: 'https://archive.example/hook' }] }),
     "1 saved credential can't be unlocked and will be removed. These webhooks get a new signing secret, so update their receivers: Orders (https://orders.example/hook), Archive (https://archive.example/hook).");
 });
 
@@ -49,13 +49,13 @@ test('start-fresh preview lists every affected webhook without writing or disclo
   const affectedWebhooks = [{ label: 'Orders', targetUrl: 'https://orders.example/hook' }, { label: 'Archive', targetUrl: 'https://archive.example/hook' }];
   const checked: unknown[] = [];
   const app = express();
-  registerAdminSiteKeyRoutes(app, portFake<AdminSiteKeyDeps>({ workspaceId: 'ws',
+  registerAdminSiteKeyRoutes({ app, deps: portFake<AdminSiteKeyDeps>({ workspaceId: 'ws',
     siteBinding: { name: 'fixture', dir, dirOverridden: true, switcherCompatible: false },
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     webhookSubscriptionRepo: { listByWorkspace: async (input: unknown) => { checked.push(input); return affectedWebhooks.map(row => ({ ...row, signingSecret: 'private' })); } },
-  }), portFake<SiteKeyKeyWriter>({ checkKey: async input => {
+  }), siteKey: portFake<SiteKeyKeyWriter>({ checkKey: async input => {
     checked.push(input); return { sealed: 3, opens: 1, storageSecret: 'absent', metadataOnly: 2 };
-  }, installSiteKey: () => assert.fail('preview cannot install a key'), discardNotOpening: async () => assert.fail('preview cannot discard credentials') }));
+  }, installSiteKey: () => assert.fail('preview cannot install a key'), discardNotOpening: async () => assert.fail('preview cannot discard credentials') }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' }; res.locals.authCredentialKind = 'session';
   res.set = (() => res) as typeof res.set;

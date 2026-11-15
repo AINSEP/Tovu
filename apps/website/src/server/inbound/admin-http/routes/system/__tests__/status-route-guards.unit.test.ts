@@ -49,7 +49,7 @@ const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post" | "put"; path
   { name: "observability-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/observability-status",
     register: (app, deps) => registerAdminObservabilityStatusRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[routes/system/observability-status]" },
   { name: "server-logs", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/server-logs",
-    register: (app, deps) => registerAdminServerLogsRoute(app, deps), logPrefix: "[routes/system/server-logs]" },
+    register: (app, deps) => registerAdminServerLogsRoute({ app, deps }), logPrefix: "[routes/system/server-logs]" },
   { name: "assistant-daemon restart", method: "post", path: "/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart",
     register: (app, deps) => registerAdminAssistantDaemonRoutes(app, { ...deps, restartAssistantDaemon: () => { throw new Error("must not restart"); } }),
     logPrefix: "[routes/system/assistant-daemon]" },
@@ -91,7 +91,7 @@ test("server-logs: a repeated query param (?level=error&level=debug) is filtered
   const entry = (seq: number, level: ServerLogEntry["level"]): ServerLogEntry => ({ seq, at: "2026-10-21T00:00:00.000Z", level, source: "server", message: `line ${seq}` });
   const entries = [entry(1, "debug"), entry(2, "info"), entry(3, "error")];
   const app = express();
-  registerAdminServerLogsRoute(app, { workspaceId: WS, authorize: allow }, { logs: { read: () => ({ entries, capturing: true }) } });
+  registerAdminServerLogsRoute({ app, deps: { workspaceId: WS, authorize: allow } }, { logs: { read: () => ({ entries, capturing: true }) } });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/server-logs")(

@@ -53,7 +53,7 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/custom/credentia
 
 /** Every error this route can produce, shaped once so each handler below stays a thin dispatch —
  *  mirrors `source-control-credentials.ts`'s own `sendStoreError`. */
-function sendStoreError(res: Response, err: unknown): void {
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ToolInputError) { res.status(409).json({ error: "KEY_IN_USE", detail: err.message }); return; }
   if (err instanceof CustomCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
@@ -87,7 +87,7 @@ function sendStoreError(res: Response, err: unknown): void {
  * pushed that handler's cyclomatic complexity to 10 against the repo's ceiling of 9 — this helper's
  * own complexity is a flat 7 (one per checked field, no nesting), comfortably under the gate.
  */
-function buildUpdateCredentialInput(workspaceId: string, id: string, body: Record<string, unknown>): UpdateCustomCredentialInput {
+function buildUpdateCredentialInput({ workspaceId, id, body }: { workspaceId: string; id: string; body: Record<string, unknown> }, _optional = {}): UpdateCustomCredentialInput {
   return {
     workspaceId,
     id,
@@ -167,7 +167,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       });
       res.status(200).json({ credentials, ...(deps.projectKeys ? { projectKeysAvailable: true } : {}) });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -187,7 +187,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       if (registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, after: credential });
       res.status(201).json({ credential: await attachAddedProjectKey({ credential, keys: deps.projectKeys }) });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -198,11 +198,11 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       const registry = await registryForInvalidation({ deps });
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const ownerSession = res.locals.authCredentialKind === "session" && getAuthedPrincipal(res).id === await deps.ownerPrincipalId;
-      const credential = await updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement: ownerSession }, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
+      const credential = await updateCustomCredential({ ...writeDeps, allowSharedKeyReplacement: ownerSession }, buildUpdateCredentialInput({ workspaceId: deps.workspaceId, id: req.params.id, body }));
       if (before && body.worksFor !== undefined && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before, after: credential });
       res.status(200).json({ credential });
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 
@@ -217,7 +217,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       if (before && registry && deps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });
       res.status(204).end();
     } catch (err) {
-      sendStoreError(res, err);
+      sendStoreError({ res, err });
     }
   } }));
 }

@@ -7,7 +7,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SkillsRouteRegistrar } from "./deps.js";
 
 /** Read-only sibling of plugin files: resolve an installed id before joining any path. */
-export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
+export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills/:toolId/files", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

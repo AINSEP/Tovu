@@ -27,19 +27,19 @@ const PERMISSION = "admin.forms.manage";
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
 const LOCAL_REFUSALS = new Set(["MAIL_TEST_DUPLICATE", "MAIL_TEST_RATE_LIMITED"]);
 
-function readRequestId(value: unknown): string {
+function readRequestId({ value }: { value: unknown }, _optional = {}): string {
   if (value === undefined) return randomUUID();
   if (typeof value === "string" && REQUEST_ID.test(value)) return value;
   throw new ToolInputError({ message: "requestId must be 8-64 letters, digits, '-' or '_'. Nothing was sent." });
 }
 
-function readBody(body: unknown): Record<string, unknown> {
+function readBody({ body }: { body: unknown }, _optional = {}): Record<string, unknown> {
   if (body === undefined || body === null) return {};
   if (typeof body === "object" && !Array.isArray(body)) return body as Record<string, unknown>;
   throw new ToolInputError({ message: "the request body must be a JSON object. Nothing was sent." });
 }
 
-async function authorized(deps: AdminMailTestSendDeps, principalId: string, res: Response): Promise<boolean> {
+async function authorized({ deps, principalId, res }: { deps: AdminMailTestSendDeps; principalId: string; res: Response }, _optional = {}): Promise<boolean> {
   const auth = await deps.authorize({ principalId, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: "mail" });
   if (auth.allowed) return true;
   res.status(403).json({ error: `principal '${principalId}' is not authorized for '${PERMISSION}' (${auth.reason})`, code: "FORBIDDEN", details: { permission: PERMISSION, reason: auth.reason } });
@@ -58,11 +58,11 @@ export function registerAdminMailTestSendRoute(app: Express, deps: AdminMailTest
       return;
     }
     try {
-      const body = readBody(req.body);
+      const body = readBody({ body: req.body });
       const to = readTestRecipient({ value: body.to });
-      const requestId = readRequestId(body.requestId);
+      const requestId = readRequestId({ value: body.requestId });
       const principal = getAuthedPrincipal(res);
-      if (!(await authorized(deps, principal.id, res))) return;
+      if (!(await authorized({ deps, principalId: principal.id, res }))) return;
       const plan = await planMailTestSend({ ...{ principalId: principal.id, ...(to === undefined ? {} : { to }) }, deps: deps });
       const result = await runMailTestSend({ ...{ principalId: principal.id, plan, ref: `admin:${principal.id}:${requestId}` }, deps: deps });
       const refusedLocally = result.outcome === "failed" && LOCAL_REFUSALS.has(result.errorCode);

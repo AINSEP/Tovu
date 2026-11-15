@@ -79,7 +79,7 @@ function buildTestApp(): { app: express.Express; skillsDeps: SkillsRouteDeps; ba
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerSkillsListRoute(app, skillsDeps);
+  registerSkillsListRoute({ app, deps: skillsDeps });
   return { app, skillsDeps, baseDeps };
 }
 

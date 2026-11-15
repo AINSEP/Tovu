@@ -86,20 +86,20 @@ class SecondError extends Error {}
 
 test("respondToSettingsError: the first matching mapping wins and carries the error's own message", () => {
   const { res, capture } = createCapturingResponse();
-  respondToSettingsError(res, new SecondError("definition 'x' is gone"), [
+  respondToSettingsError({ res, err: new SecondError("definition 'x' is gone"), mappings: [
     { matches: (e) => e instanceof FirstError, status: 404, code: "FIRST" },
     { matches: (e) => e instanceof SecondError, status: 409, code: "SECOND" },
     { matches: () => true, status: 400, code: "CATCH_ALL" },
-  ]);
+  ] });
   assert.equal(capture.statusCode, 409);
   assert.deepEqual(capture.jsonBody, { error: "definition 'x' is gone", code: "SECOND" });
 });
 
 test("respondToSettingsError: an unmapped error is a fixed 500 that never echoes its message", () => {
   const { res, capture } = createCapturingResponse();
-  respondToSettingsError(res, new Error("connection to db at postgres://secret@host failed"), [
+  respondToSettingsError({ res, err: new Error("connection to db at postgres://secret@host failed"), mappings: [
     { matches: (e) => e instanceof FirstError, status: 404, code: "FIRST" },
-  ]);
+  ] });
   assert.equal(capture.statusCode, 500);
   assertAdminResponse({ actual: capture.jsonBody, expected: { error: "The settings request could not finish.", code: "INTERNAL_ERROR" } }, { failure: {"message":"The settings request could not finish.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"setting operation"} });
 });

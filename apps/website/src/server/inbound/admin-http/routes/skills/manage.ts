@@ -17,7 +17,7 @@ function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): 
   });
 }
 
-function installationInput(body: unknown, workspaceId: string): SkillInstallInput {
+function installationInput({ body, workspaceId }: { body: unknown; workspaceId: string }, _optional?: Record<string, never>): SkillInstallInput {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
   const fields = body as Record<string, unknown>;
   if (fields.confirmed !== true) throw new SkillInputError({ message: "Confirm the skill installation first." });
@@ -31,8 +31,11 @@ function installationInput(body: unknown, workspaceId: string): SkillInstallInpu
 
 /** Session-gated routes; one validator/service owns every installation transport. */
 export const registerSkillsManagementRoutes = (
-  app: Parameters<SkillsRouteRegistrar>[0],
-  deps: Parameters<SkillsRouteRegistrar>[1] & { withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  { app, deps }: {
+    app: Parameters<SkillsRouteRegistrar>[0]["app"];
+    deps: Parameters<SkillsRouteRegistrar>[0]["deps"] & { withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy };
+  },
+  _optional = {},
 ): void => {
   const base = "/api/admin/v1/workspaces/:workspaceId/skills";
   const guarded = (work: (req: Request, res: Response) => Promise<void>) => async (req: Request, res: Response) => {
@@ -47,7 +50,7 @@ export const registerSkillsManagementRoutes = (
     }
   };
   app.post(base, guarded(async (req, res) => {
-    const skill = await installSkill({ ...installationInput(req.body, deps.workspaceId), skillLayout: deps.skillLayout, siteBinding: deps.siteBinding });
+    const skill = await installSkill({ ...installationInput({ body: req.body, workspaceId: deps.workspaceId }), skillLayout: deps.skillLayout, siteBinding: deps.siteBinding });
     res.status(201).json({ skill });
   }));
   app.patch(`${base}/:toolId`, guarded(async (req, res) => {

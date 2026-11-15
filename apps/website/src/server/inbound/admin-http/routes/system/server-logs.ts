@@ -21,7 +21,7 @@ function queryRecord(query: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(query).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 }
 
-export function registerAdminServerLogsRoute(app: Express, deps: AdminServerLogsDeps, optional: { logs?: ServerLogSourcePort } = {}): void {
+export function registerAdminServerLogsRoute({ app, deps }: { app: Express; deps: AdminServerLogsDeps }, optional: { logs?: ServerLogSourcePort } = {}): void {
   const logs = optional.logs ?? processServerLogSource;
   app.get("/api/admin/v1/workspaces/:workspaceId/system/server-logs", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;

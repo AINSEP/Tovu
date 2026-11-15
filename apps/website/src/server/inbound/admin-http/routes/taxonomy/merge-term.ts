@@ -26,7 +26,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `intoTermId`'s content and removes `fromTermId` outright) — unlike `delete-term.ts`/
  * `delete-taxonomy.ts`, this file is NOT converted to the Trash. No code change here.
  */
-function statusFor(err: unknown): { status: number; code: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string } {
   if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
   if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE" };
   if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED" };
@@ -74,7 +74,7 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
 
       res.json(result);
     } catch (err) {
-      const { status, code } = statusFor(err);
+      const { status, code } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
@@ -116,7 +116,7 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
 
       res.json({ confirmationToken: token });
     } catch (err) {
-      const { status, code } = statusFor(err);
+      const { status, code } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
@@ -157,7 +157,7 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
 
       res.json(result);
     } catch (err) {
-      const { status, code } = statusFor(err);
+      const { status, code } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }

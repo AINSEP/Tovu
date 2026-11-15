@@ -55,7 +55,7 @@ function capturePageId(theme: DiscoveredTheme): string | null {
 }
 
 /** Resolves after `ms`, or when `work` settles — whichever is first. Never rejects. */
-function settleWithin(work: Promise<void>, ms: number): Promise<void> {
+function settleWithin({ work, ms }: { work: Promise<void>; ms: number }, _optional = {}): Promise<void> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<void>((resolve) => { timer = setTimeout(resolve, ms); });
   return Promise.race([work.catch((error: unknown) => {
@@ -82,7 +82,7 @@ async function readThemeCapture(
   if (captured === undefined && serving) {
     const url = `${serving.scheme}://localhost:${serving.port}/theme-explore/${encodeURIComponent(themeId)}/${encodeURIComponent(pageId)}`;
     previews.versions({ sites: [site], targets: [{ name: themeId, url, lifecycle: String(version) }] });
-    await settleWithin(previews.idle(), waitMs);
+    await settleWithin({ work: previews.idle(), ms: waitMs });
     captured = previews.versions({ sites: [site], targets: [] })[themeId];
   }
   return captured === undefined ? null : previews.read({ name: themeId });

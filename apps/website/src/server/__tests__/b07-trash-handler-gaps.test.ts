@@ -29,7 +29,7 @@ type TrashRouteFakes = { [K in keyof TrashRouteDeps]?: Partial<TrashRouteDeps[K]
 
 async function invoke(register: TrashRouteRegistrar, deps: TrashRouteFakes, suffix = "", body?: unknown, query: object = {}) {
   const app = express();
-  register(app, { ...base, ...deps } as TrashRouteDeps);
+  register({ app, deps: { ...base, ...deps } as TrashRouteDeps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-b07" };
   await extractRouteHandler(app, register === registerAdminTrashListRoute ? "get" : "post", `${ROOT}${suffix}`)(

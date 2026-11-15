@@ -28,7 +28,7 @@ const SET_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
  *  which is why this checks `"valueJson" in body` rather than `body.valueJson !== undefined`).
  *  `null` means the body failed that check.
  *  @complexity O(1). */
-function parseSetRequestFields(rawBody: unknown): {
+function parseSetRequestFields({ rawBody }: { rawBody: unknown }, _optional = {}): {
   namespace: string;
   key: string;
   scope: SettingScope;
@@ -74,7 +74,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = ({ app, dep
   mountSettingsJsonRoute({ app, deps, method: "put", path: "/api/admin/v1/workspaces/:workspaceId/settings/value",
     errorMappings: SET_ERROR_MAPPINGS,
     handle: async ({ request: req, principal, authorize }) => {
-      const parsed = parseSetRequestFields(req.body);
+      const parsed = parseSetRequestFields({ rawBody: req.body });
       if (!parsed) {
         rejectSettingsRequest({ status: 400,
           error: "namespace, key, scope (global|workspace|user), and valueJson are required",

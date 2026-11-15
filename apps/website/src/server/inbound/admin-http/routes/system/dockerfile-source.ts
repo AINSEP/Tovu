@@ -59,7 +59,7 @@ export type AdminDockerfileSourceDeps = Pick<RouteDeps, "workspaceId" | "authori
  *  no path field to validate because {@link writeDockerfileSourceWithIfMatch} accepts none, and the
  *  write's other required input, `If-Match`, is a HEADER (checked separately below, before this
  *  parser ever runs) rather than a body field. */
-function parseWriteRequestBody(body: unknown): { ok: true; contents: string } | { ok: false; error: string } {
+function parseWriteRequestBody({ body }: { body: unknown }, _optional = {}): { ok: true; contents: string } | { ok: false; error: string } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "request body must be a JSON object" };
   }
@@ -115,7 +115,7 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
         return;
       }
 
-      const parsedBody = parseWriteRequestBody(req.body);
+      const parsedBody = parseWriteRequestBody({ body: req.body });
       if (!parsedBody.ok) {
         res.status(400).json({ error: parsedBody.error });
         return;

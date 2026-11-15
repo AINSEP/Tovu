@@ -88,7 +88,7 @@ function normalizeBasePath(raw: Record<string, unknown>): string | undefined {
 /** Validates the trigger request's optional JSON body. Never throws — every malformed shape maps
  *  to a `{ error }` result the route turns into a `400`, per secure-input-handling discipline for
  *  a request body this route hands straight into a filesystem-writing operation's options. */
-function parseTriggerRequestBody(body: unknown): { ok: true; clean: boolean; basePath?: string } | { ok: false; error: string } {
+function parseTriggerRequestBody({ body }: { body: unknown }, _optional = {}): { ok: true; clean: boolean; basePath?: string } | { ok: false; error: string } {
   if (body === undefined || body === null) return { ok: true, clean: false };
   if (typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "request body must be a JSON object" };
 
@@ -122,7 +122,7 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
         return;
       }
 
-      const parsedBody = parseTriggerRequestBody(req.body);
+      const parsedBody = parseTriggerRequestBody({ body: req.body });
       if (!parsedBody.ok) {
         res.status(400).json({ error: parsedBody.error });
         return;

@@ -25,7 +25,7 @@ export interface AdminMailDnsDeps {
 type Operation = (required: Record<string, never>, ports: ReturnType<typeof mailDnsPorts>) => Promise<MailDnsStatus>;
 
 /** One authorized call of `operation`, with the mail-status route's 404/403/500 shapes. */
-function handler(deps: AdminMailDnsDeps, permission: string, operation: Operation) {
+function handler({ deps, permission, operation }: { deps: AdminMailDnsDeps; permission: string; operation: Operation }, _optional = {}) {
   return async (req: Request, res: Response): Promise<void> => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -48,6 +48,6 @@ function handler(deps: AdminMailDnsDeps, permission: string, operation: Operatio
  * @example registerAdminMailDnsRoutes(app, { workspaceId, dns })
  */
 export function registerAdminMailDnsRoutes(app: Express, deps: AdminMailDnsDeps): void {
-  app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-dns", handler(deps, "deployments.read", readMailDnsStatus));
-  app.post("/api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify", handler(deps, "deployments.publish", verifyMailDnsStatus));
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/mail-dns", handler({ deps, permission: "deployments.read", operation: readMailDnsStatus }));
+  app.post("/api/admin/v1/workspaces/:workspaceId/system/mail-dns/verify", handler({ deps, permission: "deployments.publish", operation: verifyMailDnsStatus }));
 }

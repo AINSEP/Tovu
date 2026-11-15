@@ -139,7 +139,7 @@ export async function resolveUserLayerReadTarget(
  * these routes throw is a bare `class XError extends Error {}` with no fields beyond `message`, so
  * narrowing buys nothing here.
  */
-export function respondToSettingsError(res: Response, err: unknown, mappings: readonly SettingsErrorMapping[]): void {
+export function respondToSettingsError({ res, err, mappings }: { res: Response; err: unknown; mappings: readonly SettingsErrorMapping[] }, _optional = {}): void {
   if (!mappings.some(mapping => mapping.matches(err))) {
     sendAdminFailure({ res, error: err }, { operation: "routes/settings", message: "The settings request could not finish." });
     return;
@@ -173,7 +173,7 @@ export function createTovuSettingsService(required: { deps: SettingsRouteDeps })
   // Mail provider readiness is cached (mail-status-cache.ts); any core.mail write must drop it so a
   // cleared provider stops accepting sign-ins at once. A reset can commit earlier clears before a
   // later failure, so invalidation runs on settlement either way.
-  const afterWrite = async <T>(input: { namespace: string }, write: () => Promise<T>): Promise<T> => {
+  const afterWrite = async <T>({ input, write }: { input: { namespace: string }; write: () => Promise<T> }, _optional = {}): Promise<T> => {
     try { return await write(); } finally {
       if (input.namespace === "core.mail") required.deps.mailProviderControl?.invalidate?.();
     }
@@ -181,9 +181,9 @@ export function createTovuSettingsService(required: { deps: SettingsRouteDeps })
   // Clear and reset keep the CMS service's own authorization; the comments provider is refused first
   // because restoring its default re-enables comments behind `comments_set_provider`'s card.
   return { ...service,
-    set: input => afterWrite(input, () => (required.deps.set ?? set)({ deps, input })),
-    clear: input => afterWrite(input, async () => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); }),
-    reset: input => afterWrite(input, async () => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); }),
+    set: input => afterWrite({ input, write: () => (required.deps.set ?? set)({ deps, input }) }),
+    clear: input => afterWrite({ input, write: async () => { await refuseCommentsProviderClear({ repo: deps.repo, input }); return service.clear(input); } }),
+    reset: input => afterWrite({ input, write: async () => { await refuseCommentsProviderReset({ repo: deps.repo, input }); return service.reset(input); } }),
   };
 }
 
@@ -258,7 +258,7 @@ export function mountSettingsJsonRoute<Output>(required: {
     },
     onError: ({ res, error }) => {
       if (error instanceof SettingsRequestError) { res.status(error.response.status).json(error.response.body); return; }
-      respondToSettingsError(res, error, errorMappings);
+      respondToSettingsError({ res, err: error, mappings: errorMappings });
     },
   } });
   mountJsonRoute({ app, spec, deps });

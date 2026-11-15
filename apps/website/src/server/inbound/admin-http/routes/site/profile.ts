@@ -86,7 +86,7 @@ class SiteProfileQueryError extends Error {
  * @throws {SiteProfileQueryError} If any part of `raw` is not a string.
  * @complexity O(S) in the requested-section count.
  */
-function splitRequestedSectionNames(raw: unknown): string[] {
+function splitRequestedSectionNames({ raw }: { raw: unknown }, _optional = {}): string[] {
   const parts = Array.isArray(raw) ? raw : [raw];
   const names: string[] = [];
   for (const part of parts) {
@@ -132,9 +132,9 @@ function assertKnownSectionNames(names: string[]): asserts names is SiteProfileS
  * @complexity O(S) in the requested-section count.
  * @example parseSections("pages,theme"); // => ["pages", "theme"]
  */
-export function parseSections(raw: unknown): SiteProfileSectionName[] | undefined {
+export function parseSections({ raw }: { raw: unknown }, _optional = {}): SiteProfileSectionName[] | undefined {
   if (raw === undefined) return undefined;
-  const names = splitRequestedSectionNames(raw);
+  const names = splitRequestedSectionNames({ raw });
   if (names.length === 0) return undefined;
   assertKnownSectionNames(names);
   return names;
@@ -153,7 +153,7 @@ export function parseSections(raw: unknown): SiteProfileSectionName[] | undefine
  * @complexity O(1).
  * @example parsePageLimit("25"); // => 25
  */
-export function parsePageLimit(raw: unknown): number | undefined {
+export function parsePageLimit({ raw }: { raw: unknown }, _optional = {}): number | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string") throw new SiteProfileQueryError("pageLimit must be a single integer value");
   const parsed = Number(raw);
@@ -173,8 +173,8 @@ export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfi
       let sections: SiteProfileSectionName[] | undefined;
       let pageLimit: number | undefined;
       try {
-        sections = parseSections(req.query.sections);
-        pageLimit = parsePageLimit(req.query.pageLimit);
+        sections = parseSections({ raw: req.query.sections });
+        pageLimit = parsePageLimit({ raw: req.query.pageLimit });
       } catch (err) {
         if (err instanceof SiteProfileQueryError) {
           res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });

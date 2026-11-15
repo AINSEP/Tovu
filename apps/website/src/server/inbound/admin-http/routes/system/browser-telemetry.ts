@@ -47,18 +47,18 @@ const URL_QUERY = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s?#()'"]{0,2048})[?#][^\s()'"]{0,
  * @returns The template, or `null` when it is not an admin path.
  * @complexity O(n) in the route length (capped by the caller).
  */
-export function toRouteTemplate(raw: string): string | null {
+export function toRouteTemplate({ raw }: { raw: string }, _optional = {}): string | null {
   const path = raw.split(/[?#]/, 1)[0] ?? "";
   if (!ROUTE_SHAPE.test(path)) return null;
   return path.split("/").map((segment) => ((STRUCTURED_ID_SEGMENT.test(segment) || MIXED_ID_SEGMENT.test(segment)) ? ":id" : segment)).join("/");
 }
 
 /** Cuts URL queries/fragments, then core redaction (keys, tokens, e-mails, phones). @complexity O(n). */
-export function scrubTelemetryText(text: string): string {
+export function scrubTelemetryText({ text }: { text: string }, _optional = {}): string {
   return redactSecrets({ input: text.replace(URL_QUERY, "$1$2") });
 }
 
-function checkFields(body: Record<string, unknown>, type: "error" | "pageview"): Parsed | null {
+function checkFields({ body, type }: { body: Record<string, unknown>; type: "error" | "pageview" }, _optional = {}): Parsed | null {
   const allowed: readonly string[] = KEYS[type];
   const unknown = Object.keys(body).find((key) => !allowed.includes(key));
   if (unknown) return { ok: false, status: 400, error: `unknown field '${unknown}'` };
@@ -77,21 +77,21 @@ function checkFields(body: Record<string, unknown>, type: "error" | "pageview"):
  * Validates and sanitizes one request body into the event that may be forwarded.
  * @complexity O(n) in the (capped) body size.
  */
-export function parseBrowserTelemetry(body: unknown): Parsed {
+export function parseBrowserTelemetry({ body }: { body: unknown }, _optional = {}): Parsed {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return { ok: false, status: 400, error: "body must be an object" };
   const record = body as Record<string, unknown>;
   if (record.type !== "error" && record.type !== "pageview") return { ok: false, status: 400, error: "type must be 'error' or 'pageview'" };
-  const invalid = checkFields(record, record.type);
+  const invalid = checkFields({ body: record, type: record.type });
   if (invalid) return invalid;
-  const route = toRouteTemplate(record.route as string);
+  const route = toRouteTemplate({ raw: record.route as string });
   if (route === null) return { ok: false, status: 400, error: "route must be an admin path" };
-  return { ok: true, event: record.type === "pageview" ? { type: "pageview", route } : toErrorEvent(record, route) };
+  return { ok: true, event: record.type === "pageview" ? { type: "pageview", route } : toErrorEvent({ record, route }) };
 }
 
 /** The error event with every free-text field scrubbed; fields were already checked to be strings. */
-function toErrorEvent(record: Record<string, unknown>, route: string): BrowserTelemetryEvent {
-  const componentStack = record.componentStack ? scrubTelemetryText(record.componentStack as string) : "";
-  return { type: "error", route, message: scrubTelemetryText(record.message as string), stack: scrubTelemetryText(record.stack as string), ...(componentStack ? { componentStack } : {}) };
+function toErrorEvent({ record, route }: { record: Record<string, unknown>; route: string }, _optional = {}): BrowserTelemetryEvent {
+  const componentStack = record.componentStack ? scrubTelemetryText({ text: record.componentStack as string }) : "";
+  return { type: "error", route, message: scrubTelemetryText({ text: record.message as string }), stack: scrubTelemetryText({ text: record.stack as string }), ...(componentStack ? { componentStack } : {}) };
 }
 
 /** An `Error` carrying the browser's (already scrubbed) message and stack, not this route's. */
@@ -139,12 +139,12 @@ async function admit(limiter: RateLimiter, req: Request, res: Response): Promise
  * Registers `POST /api/admin/v1/telemetry` (behind `requireAdminSession`, like all of `/api/admin`).
  * @complexity O(n) in the capped body; one limiter check.
  */
-export function registerAdminBrowserTelemetryRoute(app: Express, deps: AdminBrowserTelemetryDeps, limiter: RateLimiter = createBrowserTelemetryLimiter(deps)): void {
+export function registerAdminBrowserTelemetryRoute({ app, deps }: { app: Express; deps: AdminBrowserTelemetryDeps }, { limiter = createBrowserTelemetryLimiter(deps) }: { limiter?: RateLimiter } = {}): void {
   app.post("/api/admin/v1/telemetry", async (req, res) => {
     try {
       const principalId = await admit(limiter, req, res);
       if (principalId === null) return;
-      const parsed = parseBrowserTelemetry(req.body);
+      const parsed = parseBrowserTelemetry({ body: req.body });
       if (!parsed.ok) {
         res.status(parsed.status).json({ error: parsed.error, code: parsed.status === 413 ? "PAYLOAD_TOO_LARGE" : "INVALID_INPUT" });
         return;

@@ -15,4 +15,4 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type SkillsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "skillLayout" | "siteBinding">;
 
-export type SkillsRouteRegistrar = (app: Express, deps: SkillsRouteDeps) => void;
+export type SkillsRouteRegistrar = (required: { app: Express; deps: SkillsRouteDeps }, optional?: Record<string, never>) => void;

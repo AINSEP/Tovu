@@ -16,29 +16,29 @@ import { parsePageLimit, parseSections } from "../profile.js";
  */
 
 test("parseSections: absent or blank means every section (undefined), never an empty selection", () => {
-  assert.equal(parseSections(undefined), undefined);
-  assert.equal(parseSections(""), undefined);
-  assert.equal(parseSections(" , ,"), undefined);
+  assert.equal(parseSections({ raw: undefined }), undefined);
+  assert.equal(parseSections({ raw: "" }), undefined);
+  assert.equal(parseSections({ raw: " , ," }), undefined);
 });
 
 test("parseSections: trims names and merges a repeated ?sections= param in order", () => {
-  assert.deepEqual(parseSections(" theme , pages "), ["theme", "pages"]);
-  assert.deepEqual(parseSections(["theme", "plugins,settings"]), ["theme", "plugins", "settings"]);
+  assert.deepEqual(parseSections({ raw: " theme , pages " }), ["theme", "pages"]);
+  assert.deepEqual(parseSections({ raw: ["theme", "plugins,settings"] }), ["theme", "plugins", "settings"]);
 });
 
 test("parseSections: an unknown name or a non-string (nested query object) is refused", () => {
-  assert.throws(() => parseSections("pages,Theme"), {
+  assert.throws(() => parseSections({ raw: "pages,Theme" }), {
     message: "unknown section 'Theme' — valid sections are: pages, theme, plugins, settings, contentTypes",
   });
-  assert.throws(() => parseSections({ a: "pages" }), { message: "sections must be a comma-separated string of section names" });
+  assert.throws(() => parseSections({ raw: { a: "pages" } }), { message: "sections must be a comma-separated string of section names" });
 });
 
 test("parsePageLimit: accepts 1 and 200 inclusive, refuses 201, a repeated param, and absence is undefined", () => {
-  assert.equal(parsePageLimit(undefined), undefined);
-  assert.equal(parsePageLimit("1"), 1);
-  assert.equal(parsePageLimit("200"), 200);
-  assert.throws(() => parsePageLimit("201"), { message: "pageLimit must be an integer between 1 and 200, got '201'" });
-  assert.throws(() => parsePageLimit(["5", "6"]), { message: "pageLimit must be a single integer value" });
+  assert.equal(parsePageLimit({ raw: undefined }), undefined);
+  assert.equal(parsePageLimit({ raw: "1" }), 1);
+  assert.equal(parsePageLimit({ raw: "200" }), 200);
+  assert.throws(() => parsePageLimit({ raw: "201" }), { message: "pageLimit must be an integer between 1 and 200, got '201'" });
+  assert.throws(() => parsePageLimit({ raw: ["5", "6"] }), { message: "pageLimit must be a single integer value" });
 });
 
 test("GET site/profile: pageLimit caps the pages section's items while total still counts every page", async (t) => {

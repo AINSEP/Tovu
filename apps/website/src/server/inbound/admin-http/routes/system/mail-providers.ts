@@ -51,7 +51,7 @@ const STORE_ERRORS: readonly [new (...args: never[]) => Error, number, string][]
 ];
 
 /** Maps a refusal to its status; anything else is a logged 500 without the error's text. */
-function sendError(res: Response, err: unknown): void {
+function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof MailProviderOperationError) {
     res.status(OPERATION_STATUS[err.code]).json({ error: err.message, code: err.code });
     return;
@@ -66,7 +66,7 @@ function sendError(res: Response, err: unknown): void {
 }
 
 /** The body's credential parts; any non-string part is refused rather than coerced. */
-function readCredentialInput(body: unknown): MailProviderCredentialInput {
+function readCredentialInput({ body }: { body: unknown }, _optional = {}): MailProviderCredentialInput {
   const record = (typeof body === "object" && body !== null && !Array.isArray(body) ? body : {}) as Record<string, unknown>;
   const input: Record<string, string> = {};
   for (const key of ["token", "username", "baseUrl"] as const) {
@@ -100,7 +100,7 @@ export function registerAdminMailProviderRoutes(app: Express, deps: AdminMailPro
       if (principalId === null) return;
       res.status(200).json(await run({ req, res, principalId }));
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   };
   const providerId = (req: Request): string => String(req.params.providerId);
@@ -113,7 +113,7 @@ export function registerAdminMailProviderRoutes(app: Express, deps: AdminMailPro
     const ownerSession = res.locals.authCredentialKind === "session" && principalId === await deps.ownerPrincipalId;
     return { provider: await saveMailProviderCredential({ control: deps.mailProviderControl,
       credentials: { ...credentials, allowSharedKeyReplacement: ownerSession }, workspaceId: deps.workspaceId,
-      providerId: providerId(req), input: readCredentialInput(req.body) }, { projectKeys: deps.projectKeys }) };
+      providerId: providerId(req), input: readCredentialInput({ body: req.body }) }, { projectKeys: deps.projectKeys }) };
   }));
   app.post(`${BASE_PATH}/:providerId/activate`, route("settings.workspace.write", ({ req, principalId }) =>
     activateMailProvider({ control: deps.mailProviderControl, providerId: providerId(req), principalId })));

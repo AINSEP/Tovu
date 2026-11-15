@@ -18,7 +18,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
 
 /** The `EntityNotLiveError` arm is S10 (web-high fix plan, 2026-09-24) — assigning terms to a
  * trashed post/page now 409s instead of silently joining terms to it. */
-function statusFor(err: unknown): { status: number; code: string; message: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } {
   if (err instanceof EntityNotLiveError) return { status: 409, code: err.code, message: err.message };
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
   if (err instanceof TermRecordNotFoundError) return { status: 404, code: "TERM_NOT_FOUND", message: err.message };
@@ -63,8 +63,8 @@ function readAssignmentBody(req: Request, res: Response): { contentType: string;
   return { contentType: body.contentType, contentId: body.contentId, termIds: body.termIds };
 }
 
-function sendError(res: Response, err: unknown): void {
-  const { status, code, message } = statusFor(err);
+function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  const { status, code, message } = statusFor({ err });
   if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
   res.status(status).json({ error: message, code });
 }
@@ -91,7 +91,7 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
       await assignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   });
 }
@@ -111,7 +111,7 @@ export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: Taxo
       await unassignTerms({ deps: writeDeps(deps), principalId: principal.id, ...body });
       res.status(204).send();
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   });
 }
@@ -137,7 +137,7 @@ export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: Taxo
       const rows = await deps.entryTermRepo.listForContent({ contentType, contentId });
       res.json({ termIds: rows.map((row) => row.termId).sort() });
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   });
 }

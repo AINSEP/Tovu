@@ -34,7 +34,7 @@ export interface TrashRouteDeps {
   movers?: ReadonlyMap<string, TrashKindMover>;
 }
 
-export type TrashRouteRegistrar = (app: Express, deps: TrashRouteDeps) => void;
+export type TrashRouteRegistrar = (required: { app: Express; deps: TrashRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Rows per page when the caller does not say. Matches the screen's own first render. */
 export const DEFAULT_TRASH_PAGE_SIZE = 50;

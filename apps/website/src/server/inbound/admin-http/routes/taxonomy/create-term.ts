@@ -15,7 +15,7 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
 
-function statusFor(err: unknown): { status: number; code: string; message: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } {
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };
   if (err instanceof TaxonomyRecordNotFoundError) return { status: 404, code: "TAXONOMY_NOT_FOUND", message: err.message };
   if (
@@ -66,7 +66,7 @@ export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: Taxonom
 
       res.status(201).json({ term });
     } catch (err) {
-      const { status, code, message } = statusFor(err);
+      const { status, code, message } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: message, code });
     }

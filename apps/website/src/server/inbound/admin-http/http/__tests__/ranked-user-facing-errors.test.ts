@@ -44,7 +44,7 @@ for (const row of ranked) {
 }
 
 for (const [step, invoke] of [
-  ["settings.change", (error: unknown, res: ReturnType<typeof createCapturingResponse>["res"]) => respondToSettingsError(res, error, [])],
+  ["settings.change", (error: unknown, res: ReturnType<typeof createCapturingResponse>["res"]) => respondToSettingsError({ res, err: error, mappings: [] })],
   ["media.upload", (error: unknown, res: ReturnType<typeof createCapturingResponse>["res"]) => sendValidationOrInternalError({ res, error })],
 ] as const) {
   test(`${step}: the unmapped error retains its status, concrete message and error ID`, t => {
