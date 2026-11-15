@@ -44,7 +44,7 @@ type PluginRouteDeps = Pick<RouteDeps, 'workspaceId' | 'pluginContributions' | '
 type PluginRouteErrorReporter = (required: { pluginId: string; error: unknown }, optional?: Record<string, never>) => void;
 
 const respondNotFound = (res: Response): void => { res.status(404).json({ code: 'NOT_FOUND' }); };
-const warnPluginRouteFailure: PluginRouteErrorReporter = (failure, _optional = {}) => console.warn(`[plugins] Plugin '${failure.pluginId}' route failed`, failure.error);
+const warnPluginRouteFailure: PluginRouteErrorReporter = ({ pluginId, error }, _optional = {}) => console.warn(`[plugins] Plugin '${pluginId}' route failed`, error);
 
 /** Whether the durable activation row says the plugin is enabled right now. */
 async function isPluginActivated({ deps, pluginId }: { deps: PluginRouteDeps; pluginId: string }): Promise<boolean> {
