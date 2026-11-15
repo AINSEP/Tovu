@@ -100,7 +100,7 @@ async function openPostgresSiteStore(
   optional: OpenSiteStoreOptional
 ): Promise<SiteStore> {
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a postgres site");
-  const connectionString = await resolvePostgresConnectionString(storage, { siteDir: dirname(required.dbPath) }, optional);
+  const connectionString = await resolvePostgresConnectionString({ storage, siteDir: dirname(required.dbPath) }, optional);
   const base = openPostgresKernel<unknown>({ connectionString });
   return preparePgStore({ storage, base, close: () => base.close(), seed: optional.seed });
 }

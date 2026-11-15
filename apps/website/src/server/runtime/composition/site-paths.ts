@@ -160,7 +160,7 @@ export function defaultContentDbPath(): string {
   // scratch space. Database journals/snapshots follow content.db into data.nosync or app-data;
   // uploads/chat-attachments stay under the site root. A deployment passes an explicit dir, and `TOVU_CONTENT_DB` still
   // overrides this outright. ABSOLUTE now, where the old `join("infra", "content.db")` was relative.
-  return assertContentDbFileName(process.env.TOVU_CONTENT_DB ?? resolveSiteDatabasePaths({ dir: siteDir() }).contentDbPath);
+  return assertContentDbFileName({ dbPath: process.env.TOVU_CONTENT_DB ?? resolveSiteDatabasePaths({ dir: siteDir() }).contentDbPath });
 }
 
 /**
@@ -169,7 +169,7 @@ export function defaultContentDbPath(): string {
  * Placement only ever names the file content.db; this refuses the legacy paths that do not.
  * @throws When a file database is named anything but `content.db`.
  */
-export function assertContentDbFileName(dbPath: string): string {
+export function assertContentDbFileName({ dbPath }: { dbPath: string }, _optional = {}): string {
   // Only the driver's own in-memory names: better-sqlite3 opens with URI interpretation off, so
   // `file:a.db?mode=memory` is a real disk file and gets the content.db rule like any other path.
   if (dbPath === ":memory:" || dbPath === "") return dbPath;

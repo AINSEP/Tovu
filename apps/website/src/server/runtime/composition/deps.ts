@@ -960,7 +960,7 @@ export async function createSiteRouteDeps(
   { dbPath = defaultContentDbPath(), overrides }: { dbPath?: string; overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   assertOverridesPairedOrAbsent(overrides);
-  assertContentDbFileName(dbPath);
+  assertContentDbFileName({ dbPath });
   const opened = await openCompositionStore({ dbPath }, { overrides });
   try {
     return await composeSiteRouteDeps({ dbPath, opened: { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose } }, { overrides });
@@ -1140,7 +1140,7 @@ async function composeSiteRouteDeps(
   const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePorts }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: bundledAgentPluginsDir() }) });
   // Everything below is built from `kernel` / `chat` (the chat kernel) except these, which depend on
   // the storage engine (`store-bound-services.ts`: `sqliteOnlyServices` or `pgOnlyServices`).
-  const storeBound = storeBoundServicesFor(store, dbPath);
+  const storeBound = storeBoundServicesFor({ store, dbPath });
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
   // internal construction below that used to read the old seeded-workspace literal directly —
   // this is the sole `resolveWorkspace` call site in this function's call graph
@@ -3127,7 +3127,7 @@ export async function createSiteRouteDepsForWorkspace(
   } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   // Before the workspace check below opens, migrates and seeds the file.
-  assertContentDbFileName(dbPath);
+  assertContentDbFileName({ dbPath });
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, storeRole } });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.

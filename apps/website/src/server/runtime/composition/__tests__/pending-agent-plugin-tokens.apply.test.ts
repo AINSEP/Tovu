@@ -162,7 +162,7 @@ test("production onboarding writer round-trips multiple tokens through a freshly
   const raw = fs.readFileSync(target(), "utf8");
   assert.ok(!raw.includes(TOKEN) && !raw.includes("distinct-other-site-key"));
   assert.equal(fs.statSync(target()).mode & 0o777, 0o600);
-  const bootSealer = siteSecretSealer(siteDir, process.env, "round-trip-site").sealer;
+  const bootSealer = siteSecretSealer({ siteDir }, { env: process.env, siteKeyId: "round-trip-site" }).sealer;
   const calls: Array<[string, string]> = [];
   const { logs, log } = recorder();
   await applyPendingAgentPluginTokens({ siteDir, sealer: bootSealer, importToken: async ({ pluginId: id, token }) => { calls.push([id, token]); return "saved"; } }, log);

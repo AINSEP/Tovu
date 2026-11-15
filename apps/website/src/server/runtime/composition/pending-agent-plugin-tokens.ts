@@ -49,7 +49,7 @@ export async function sealPendingAgentPluginTokensForNewSite(
   // refusal and sealing arms in-process without minting a key under the real home directory.
   {
     ensure = ensureSiteKey,
-    sealerFor = (siteKeyIdForSite: string) => siteSecretSealer(required.siteDir, process.env, siteKeyIdForSite),
+    sealerFor = (siteKeyIdForSite: string) => siteSecretSealer({ siteDir: required.siteDir }, { env: process.env, siteKeyId: siteKeyIdForSite }),
   }: { ensure?: typeof ensureSiteKey; sealerFor?: (siteKeyId: string) => SiteSecretSealer } = {},
 ): Promise<void> {
   const { siteDir, siteKeyId, tokens } = required;

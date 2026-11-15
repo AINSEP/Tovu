@@ -367,6 +367,6 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
 
 const INVENTORY_BY_NAME = new Map(CAPABILITY_INVENTORY.map((entry) => [entry.name, entry]));
 
-export function findCapabilityEntry(name: string): CapabilityInventoryEntry | undefined {
+export function findCapabilityEntry({ name }: { name: string }, _optional = {}): CapabilityInventoryEntry | undefined {
   return INVENTORY_BY_NAME.get(name);
 }

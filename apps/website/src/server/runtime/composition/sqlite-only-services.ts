@@ -15,7 +15,7 @@ import type { StoreBoundServices } from "./store-bound-contracts.js";
  * @param dbPath - the file behind it, which restore points copy.
  * @complexity O(1) — constructs two objects, no I/O.
  */
-export function sqliteOnlyServices(db: ContentDb, dbPath: string): StoreBoundServices {
+export function sqliteOnlyServices({ db, dbPath }: { db: ContentDb; dbPath: string }, _optional = {}): StoreBoundServices {
   return {
     dbOps: new SqliteDbOpsAdapter({ db, filePath: dbPath }),
     stampWatermark: kernelStampWatermark(contentKernel({ store: db })),

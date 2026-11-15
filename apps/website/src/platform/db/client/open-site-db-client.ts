@@ -40,8 +40,7 @@ export type ImportSiteDbDriver = <K extends keyof SiteDbDrivers>(
 
 /** Reads a Postgres site's connection string (composition passes `resolvePostgresConnectionString` from `storage-secret.ts`). */
 export type ResolvePostgresConnectionString = (
-  storage: Extract<SiteStorage, { kind: "postgres" }>,
-  required: { siteDir: string },
+  required: { storage: Extract<SiteStorage, { kind: "postgres" }>; siteDir: string },
   optional: { env?: NodeJS.ProcessEnv }
 ) => Promise<string>;
 
@@ -155,8 +154,7 @@ async function openPostgresKernel(
   driver: SiteDbDrivers["postgres"]
 ): Promise<StorageKernel<unknown>> {
   const connectionString = await required.resolvePostgresConnectionString(
-    required.storage,
-    { siteDir: dirname(required.dbPath) },
+    { storage: required.storage, siteDir: dirname(required.dbPath) },
     { env: required.env }
   );
   return driver.openPostgresKernel<unknown>({ connectionString });

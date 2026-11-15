@@ -78,7 +78,7 @@ test("a sealed connection string round-trips; the file is 0600 and never holds i
   const raw = fs.readFileSync(file, "utf8");
   assert.ok(!raw.includes("PW-SENTINEL-51c3") && !raw.includes("db.example.test"));
   assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: key.sealer }), URL);
-  assert.equal(await resolvePostgresConnectionString({ kind: "postgres", secretRef: "site" }, { siteDir: dir }, { sealer: key.sealer }), URL);
+  assert.equal(await resolvePostgresConnectionString({ storage: { kind: "postgres", secretRef: "site" }, siteDir: dir }, { sealer: key.sealer }), URL);
   assert.deepEqual(fs.readdirSync(dir), [STORAGE_SECRET_FILENAME], "no temp file left behind");
 });
 
@@ -105,9 +105,9 @@ test("another site key, a tampered file or a malformed one is refused without th
 test("secretRef { env }: the variable's value, or an error naming the variable", async (t) => {
   const dir = siteDir(t);
   const storage = { kind: "postgres" as const, secretRef: { env: "SITE_PG_URL" } };
-  assert.equal(await resolvePostgresConnectionString(storage, { siteDir: dir }, { env: { SITE_PG_URL: URL } }), URL);
+  assert.equal(await resolvePostgresConnectionString({ storage, siteDir: dir }, { env: { SITE_PG_URL: URL } }), URL);
   await assert.rejects(
-    resolvePostgresConnectionString(storage, { siteDir: dir }, { env: { SITE_PG_URL: " " } }),
+    resolvePostgresConnectionString({ storage, siteDir: dir }, { env: { SITE_PG_URL: " " } }),
     (err: unknown) => err instanceof StorageSecretError && /environment variable SITE_PG_URL, which is not set/.test(err.message)
   );
 });

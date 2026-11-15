@@ -26,7 +26,7 @@ test("each SQLite-bound service works on the handle and file it was given", asyn
   const db = openContentDb(dbPath);
   try {
     await prepareContentStore(contentKernel({ store: db }));
-    const services = sqliteOnlyServices(db, dbPath);
+    const services = sqliteOnlyServices({ db, dbPath });
 
     const before = await readKernelWatermark(contentKernel({ store: db }));
     await services.stampWatermark();

@@ -268,7 +268,7 @@ test("W1-L: postgres resolves the site's connection string through the injected 
     { env, importDriver }
   );
   assert.deepEqual(kinds, ["postgres"]);
-  assert.deepEqual(calls, [[storage, { siteDir: "/site" }, { env }], { connectionString: "postgres://resolved" }]);
+  assert.deepEqual(calls, [[{ storage, siteDir: "/site" }, { env }], { connectionString: "postgres://resolved" }]);
   assert.equal(await schemaOf(client.chat as unknown as StorageKernel<unknown>), "ai_chat");
   await client.close();
   assert.equal(fake.closed(), 1);

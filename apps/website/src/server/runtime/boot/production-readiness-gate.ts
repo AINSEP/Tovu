@@ -187,7 +187,7 @@ export function capabilityRouteGuard(options: CapabilityRouteGuardOptions): Capa
     return { register: false };
   }
 
-  const entry = findCapabilityEntry(options.capabilityName);
+  const entry = findCapabilityEntry({ name: options.capabilityName });
   if (!entry) {
     // REQ-12/CAPABILITY_INVENTORY_STALE — belt-and-suspenders; no basis to register a capability
     // with no inventory entry at all.
