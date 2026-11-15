@@ -26,7 +26,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * own `source` plus its `variants` map (`{ minimal: "render/partials/footer-minimal.html" }`), and a
  * `renderer.pages` entry's `source`, without assuming a shape neither field's target design pins down
  * more precisely than "a source is a relative file path" (see this file's header). */
-function collectDeclaredSources(entry: unknown): string[] {
+function collectDeclaredSources({ entry }: { entry: unknown }, _optional = {}): string[] {
   if (!isObject(entry)) return [];
   const sources: string[] = [];
   if (typeof entry.source === "string") sources.push(entry.source);
@@ -42,15 +42,14 @@ function collectDeclaredSources(entry: unknown): string[] {
  *  each source (input to {@link checkDuplicateSources} below). Split out of
  *  {@link checkDeclaredReferences} to keep that function's own nesting to one loop. */
 function checkMissingFilesAndCollectOwners(
-  themeDir: string,
-  fieldName: string,
-  entries: Record<string, unknown>
+  { themeDir, fieldName, entries }: { themeDir: string; fieldName: string; entries: Record<string, unknown> },
+  _optional = {}
 ): { issues: ThemeValidationIssue[]; sourceOwners: Map<string, Set<string>> } {
   const issues: ThemeValidationIssue[] = [];
   const sourceOwners = new Map<string, Set<string>>();
 
   for (const [id, entry] of Object.entries(entries)) {
-    for (const source of collectDeclaredSources(entry)) {
+    for (const source of collectDeclaredSources({ entry })) {
       if (!existsSync(join(themeDir, source))) {
         issues.push({
           ruleId: "references-missing-file",
@@ -69,7 +68,10 @@ function checkMissingFilesAndCollectOwners(
 
 /** Flags any source path declared by more than one logical id — a copy-paste manifest bug (this
  *  file's own header). */
-function checkDuplicateSources(fieldName: string, sourceOwners: ReadonlyMap<string, ReadonlySet<string>>): ThemeValidationIssue[] {
+function checkDuplicateSources(
+  { fieldName, sourceOwners }: { fieldName: string; sourceOwners: ReadonlyMap<string, ReadonlySet<string>> },
+  _optional = {}
+): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [];
   for (const [source, owners] of sourceOwners) {
     if (owners.size > 1) {
@@ -98,6 +100,6 @@ export function checkDeclaredReferences(
   const { themeDir, fieldName, entries } = required;
   if (!isObject(entries)) return [];
 
-  const { issues, sourceOwners } = checkMissingFilesAndCollectOwners(themeDir, fieldName, entries);
-  return [...issues, ...checkDuplicateSources(fieldName, sourceOwners)];
+  const { issues, sourceOwners } = checkMissingFilesAndCollectOwners({ themeDir, fieldName, entries });
+  return [...issues, ...checkDuplicateSources({ fieldName, sourceOwners })];
 }

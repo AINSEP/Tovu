@@ -210,27 +210,27 @@ function checkUnknownTopLevelFields(raw: Record<string, unknown>): ThemeValidati
   return issues;
 }
 
-function checkApiVersion(value: unknown): ThemeValidationIssue[] {
+function checkApiVersion({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === 2) return [];
   return [{ ruleId: "v2-api-version", message: `theme.json: apiVersion must be exactly 2, got ${JSON.stringify(value)}` }];
 }
 
-function checkId(value: unknown): ThemeValidationIssue[] {
+function checkId({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (typeof value === "string" && value.length > 0) return [];
   return [{ ruleId: "v2-id", message: "theme.json: id must be a non-empty string" }];
 }
 
-function checkName(value: unknown): ThemeValidationIssue[] {
+function checkName({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (typeof value === "string" && value.length > 0) return [];
   return [{ ruleId: "v2-name", message: "theme.json: name must be a non-empty string" }];
 }
 
-function checkVersionField(value: unknown): ThemeValidationIssue[] {
+function checkVersionField({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (typeof value === "string" && SEMVER_PATTERN.test(value)) return [];
   return [{ ruleId: "v2-version-semver", message: `theme.json: version must be valid semver (X.Y.Z), got ${JSON.stringify(value)}` }];
 }
 
-function checkTier(value: unknown): ThemeValidationIssue[] {
+function checkTier({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === undefined) return [];
   if (typeof value === "string" && V2_TIERS.has(value)) return [];
   return [
@@ -268,7 +268,7 @@ function checkFontStylesheets({ value }: { value: unknown }, _optional = {}): Th
  * already skips it unconditionally via `V2_FIELDS_READ_BY_LOADER` (the key itself IS read, in its
  * number form; only the object shape here is unimplemented, and that already has its own finding).
  */
-function checkEngine(value: unknown): ThemeValidationIssue[] {
+function checkEngine({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === undefined) return [];
   if (!isObject(value)) {
     return [{ ruleId: "v2-engine-shape", message: "theme.json: engine must be an object ({ name, version }) in schema v2, not a bare number" }];
@@ -303,7 +303,7 @@ function checkEngine(value: unknown): ThemeValidationIssue[] {
  *
  * The caller adds "tokens" to `flaggedUnimplemented` so the generic sweep doesn't double-flag it.
  */
-function checkTokens(value: unknown): ThemeValidationIssue[] {
+function checkTokens({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [];
   if (!isObject(value)) {
     issues.push({ ruleId: "v2-tokens-shape", message: "theme.json: tokens must be an object ({ defaultMode, modes }) in schema v2" });
@@ -328,17 +328,17 @@ function checkTokens(value: unknown): ThemeValidationIssue[] {
   return issues;
 }
 
-function checkLicense(value: unknown): ThemeValidationIssue[] {
+function checkLicense({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === undefined || isObject(value)) return [];
   return [{ ruleId: "v2-license-shape", message: "theme.json: license must be an object ({ spdx, file }) in schema v2" }];
 }
 
-function checkAuthors(value: unknown): ThemeValidationIssue[] {
+function checkAuthors({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === undefined || Array.isArray(value)) return [];
   return [{ ruleId: "v2-authors-shape", message: "theme.json: authors must be an array of { name, url? } in schema v2" }];
 }
 
-function checkAttributions(value: unknown): ThemeValidationIssue[] {
+function checkAttributions({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === undefined || Array.isArray(value)) return [];
   return [{ ruleId: "v2-attributions-shape", message: "theme.json: attributions must be an array in schema v2" }];
 }
@@ -355,7 +355,7 @@ function checkAttributions(value: unknown): ThemeValidationIssue[] {
  *
  * The caller adds "partials" to `flaggedUnimplemented` so the generic sweep doesn't double-flag it.
  */
-function checkPartials(value: unknown): ThemeValidationIssue[] {
+function checkPartials({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [];
   if (!isObject(value)) {
     issues.push({ ruleId: "v2-partials-shape", message: "theme.json: partials must be an object keyed by partial id" });
@@ -368,7 +368,7 @@ function checkPartials(value: unknown): ThemeValidationIssue[] {
   return issues;
 }
 
-function checkRegions(value: unknown): ThemeValidationIssue[] {
+function checkRegions({ value }: { value: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (value === undefined || Array.isArray(value)) return [];
   return [{ ruleId: "v2-regions-shape", message: "theme.json: regions must be an array of strings" }];
 }
@@ -438,11 +438,11 @@ export function validateManifestV2(
   issues.push(...checkUnknownTopLevelFields(raw));
   issues.push(...validateScripts({ scripts: raw.scripts }).problems.map(message => ({ ruleId: 'v2-scripts', message: `theme.json: ${message}` })));
 
-  issues.push(...checkApiVersion(raw.apiVersion));
-  issues.push(...checkId(raw.id));
-  issues.push(...checkName(raw.name));
-  issues.push(...checkVersionField(raw.version));
-  issues.push(...checkTier(raw.tier));
+  issues.push(...checkApiVersion({ value: raw.apiVersion }));
+  issues.push(...checkId({ value: raw.id }));
+  issues.push(...checkName({ value: raw.name }));
+  issues.push(...checkVersionField({ value: raw.version }));
+  issues.push(...checkTier({ value: raw.tier }));
   issues.push(...checkFontStylesheets({ value: raw.fontStylesheets }));
   // The runtime parser owns this contract too: schema acceptance must never hide loader rejection.
   try {
@@ -451,26 +451,26 @@ export function validateManifestV2(
     issues.push({ ruleId: "v2-template-for", message: (error as Error).message });
   }
 
-  issues.push(...checkEngine(raw.engine));
+  issues.push(...checkEngine({ value: raw.engine }));
   // `engine` is deliberately NOT added to `flaggedUnimplemented` here — the generic sweep already
   // skips it unconditionally via `V2_FIELDS_READ_BY_LOADER` (the key itself IS read, in its number
   // form; only the object shape above is unimplemented, and that already has its own finding).
 
   if (raw.tokens !== undefined) {
-    issues.push(...checkTokens(raw.tokens));
+    issues.push(...checkTokens({ value: raw.tokens }));
     flaggedUnimplemented.add("tokens");
   }
 
-  issues.push(...checkLicense(raw.license));
-  issues.push(...checkAuthors(raw.authors));
-  issues.push(...checkAttributions(raw.attributions));
+  issues.push(...checkLicense({ value: raw.license }));
+  issues.push(...checkAuthors({ value: raw.authors }));
+  issues.push(...checkAttributions({ value: raw.attributions }));
 
   if (raw.partials !== undefined) {
-    issues.push(...checkPartials(raw.partials));
+    issues.push(...checkPartials({ value: raw.partials }));
     flaggedUnimplemented.add("partials");
   }
 
-  issues.push(...checkRegions(raw.regions));
+  issues.push(...checkRegions({ value: raw.regions }));
 
   if (raw.renderer !== undefined) {
     issues.push(...checkRenderer());
@@ -483,7 +483,7 @@ export function validateManifestV2(
   // a future reader sees WHY, rather than assuming the omission from `V2_TOP_LEVEL_KEYS` is a gap.
 
   if (raw.build !== undefined) {
-    issues.push(...validateBuildV2(raw.build));
+    issues.push(...validateBuildV2({ build: raw.build }));
   }
 
   issues.push(...checkUnimplementedFieldSweep(raw, flaggedUnimplemented));
@@ -536,7 +536,7 @@ function checkCompiledBuildRequirements(build: Record<string, JsonValue>): Theme
   return issues;
 }
 
-function validateBuildV2(build: unknown): ThemeValidationIssue[] {
+function validateBuildV2({ build }: { build: unknown }, _optional = {}): ThemeValidationIssue[] {
   if (!isObject(build)) {
     return [{ ruleId: "v2-build-shape", message: "theme.json: build must be an object when present" }];
   }

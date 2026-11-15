@@ -78,7 +78,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * all reported as issues, matching every other check module's contract. `raw` defaults to `{}` on any
  * failure so every downstream check can keep treating it as a plain (if empty) manifest object.
  */
-function loadRawManifest(themeDir: string): { raw: Record<string, unknown>; issues: ThemeValidationIssue[] } {
+function loadRawManifest(
+  { themeDir }: { themeDir: string },
+  _optional = {}
+): { raw: Record<string, unknown>; issues: ThemeValidationIssue[] } {
   const issues: ThemeValidationIssue[] = [];
   const manifestPath = join(themeDir, "theme.json");
   let raw: Record<string, unknown> = {};
@@ -99,7 +102,10 @@ function loadRawManifest(themeDir: string): { raw: Record<string, unknown>; issu
   return { raw, issues };
 }
 
-function checkV2ManifestIdMatch(raw: Record<string, unknown>, id: string): ThemeValidationIssue[] {
+function checkV2ManifestIdMatch(
+  { raw, id }: { raw: Record<string, unknown>; id: string },
+  _optional = {}
+): ThemeValidationIssue[] {
   if (typeof raw.id !== "string" || raw.id === id) return [];
   return [{ ruleId: "manifest-id-mismatch", message: `theme.json id '${raw.id}' must equal folder name '${id}'` }];
 }
@@ -119,7 +125,10 @@ function checkV2BuildContainment(raw: Record<string, unknown>): ThemeValidationI
   });
 }
 
-function checkV2References(raw: Record<string, unknown>, themeDir: string): ThemeValidationIssue[] {
+function checkV2References(
+  { raw, themeDir }: { raw: Record<string, unknown>; themeDir: string },
+  _optional = {}
+): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [...checkDeclaredReferences({ themeDir, fieldName: "partials", entries: raw.partials })];
   if (isObject(raw.renderer)) {
     issues.push(...checkDeclaredReferences({ themeDir, fieldName: "renderer.pages", entries: raw.renderer.pages }));
@@ -133,7 +142,10 @@ function checkV2References(raw: Record<string, unknown>, themeDir: string): Them
  * advisory outside the `publish` profile — an in-progress `author`-profile theme should not fail
  * validation merely for not having picked a license yet.
  */
-function checkV2PublishReadiness(raw: Record<string, unknown>, themeDir: string): ThemeValidationIssue[] {
+function checkV2PublishReadiness(
+  { raw, themeDir }: { raw: Record<string, unknown>; themeDir: string },
+  _optional = {}
+): ThemeValidationIssue[] {
   const issues: ThemeValidationIssue[] = [];
   if (raw.license === undefined) {
     issues.push({ ruleId: "license-missing", message: "theme.json has no license field — required before this theme can be published" });
@@ -156,20 +168,23 @@ function checkV2PublishReadiness(raw: Record<string, unknown>, themeDir: string)
  * `checkDeclaredReferences` against `partials`/`renderer.pages` — see this file's own header for the
  * full rationale.
  */
-function runV2StrictChecks(raw: Record<string, unknown>, id: string, themeDir: string): ThemeValidationIssue[] {
+function runV2StrictChecks(
+  { raw, id, themeDir }: { raw: Record<string, unknown>; id: string; themeDir: string },
+  _optional = {}
+): ThemeValidationIssue[] {
   return [
     ...checkApprovedRoots({ themeDir }),
     ...validateManifestV2({ raw }),
-    ...checkV2ManifestIdMatch(raw, id),
+    ...checkV2ManifestIdMatch({ raw, id }),
     ...checkV2BuildContainment(raw),
-    ...checkV2References(raw, themeDir),
-    ...checkV2PublishReadiness(raw, themeDir),
+    ...checkV2References({ raw, themeDir }),
+    ...checkV2PublishReadiness({ raw, themeDir }),
   ];
 }
 
 /** v1 fallback — see this file's own header for why this defers to `loadTheme()` rather than
  * re-deriving its rules. */
-function runV1FallbackCheck(themeDir: string, id: string): ThemeValidationIssue[] {
+function runV1FallbackCheck({ themeDir, id }: { themeDir: string; id: string }, _optional = {}): ThemeValidationIssue[] {
   const discovered = loadTheme({ themeDir, id, source: "site" });
   return discovered.errors.map((message) => ({ ruleId: "loadtheme-error", message }));
 }
@@ -228,7 +243,7 @@ export function validateThemePackage(
   const { themeDir, id, profile } = required;
   const rawIssues: ThemeValidationIssue[] = [];
 
-  const { raw, issues: manifestIssues } = loadRawManifest(themeDir);
+  const { raw, issues: manifestIssues } = loadRawManifest({ themeDir });
   rawIssues.push(...manifestIssues);
 
   const schemaVersion: 1 | 2 = raw.apiVersion === 2 ? 2 : 1;
@@ -236,7 +251,7 @@ export function validateThemePackage(
   const { issues: walkIssues, files } = walkThemePackage({ themeDir });
   rawIssues.push(...walkIssues);
 
-  rawIssues.push(...(schemaVersion === 2 ? runV2StrictChecks(raw, id, themeDir) : runV1FallbackCheck(themeDir, id)));
+  rawIssues.push(...(schemaVersion === 2 ? runV2StrictChecks({ raw, id, themeDir }) : runV1FallbackCheck({ themeDir, id })));
 
   rawIssues.push(...checkMarkupFiles(files));
 

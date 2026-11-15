@@ -131,7 +131,10 @@ function toThemeToolView(theme: DiscoveredTheme) {
 }
 
 /** Editable manifest metadata must not turn a compiled release's generated files into source. */
-function assertCompiledWriteBoundaryUnchanged(theme: DiscoveredTheme, relativePath: string, content: string): void {
+function assertCompiledWriteBoundaryUnchanged(
+  { theme, relativePath, content }: { theme: DiscoveredTheme; relativePath: string; content: string },
+  _optional = {}
+): void {
   if (theme.manifest.build?.source !== "compiled" || resolve(theme.dir, relativePath) !== resolve(theme.dir, "theme.json")) return;
   let next: { build?: { source?: string; sourceDir?: string } } | null;
   try {
@@ -176,9 +179,8 @@ function originalSourceForTool(routeDeps: ThemeToolDeps, theme: DiscoveredTheme)
  * route's `ORIGINAL_LAYOUT_MISMATCH`.
  */
 function resetFromOriginalForTool(
-  routeDeps: ThemeToolDeps,
-  theme: DiscoveredTheme,
-  relativePath: string
+  { routeDeps, theme, relativePath }: { routeDeps: ThemeToolDeps; theme: DiscoveredTheme; relativePath: string },
+  _optional = {}
 ): { wasModified: boolean; bytes: number } {
   const originalSource = originalSourceForTool(routeDeps, theme);
   if (!originalSource) {
@@ -202,7 +204,7 @@ function resetFromOriginalForTool(
 /** How many times `needle` occurs in `haystack`, as a plain literal substring (never a regex) — the
  *  same counting trick `split(needle).length - 1` uses everywhere else a literal (not regex) count
  *  is wanted, avoiding any need to escape `needle` for a regex engine. */
-function countOccurrences(haystack: string, needle: string): number {
+function countOccurrences({ haystack, needle }: { haystack: string; needle: string }, _optional = {}): number {
   return haystack.split(needle).length - 1;
 }
 
@@ -235,7 +237,7 @@ function replaceThemeFileText(
   { currentContent, edit, relativePath }: { currentContent: string; edit: { oldString: string; newString: string; replaceAll: boolean }; relativePath: string },
   _optional: Record<string, never> = {},
 ): string {
-  const occurrences = countOccurrences(currentContent, edit.oldString);
+  const occurrences = countOccurrences({ haystack: currentContent, needle: edit.oldString });
   if (occurrences === 0) {
     throw new ThemeFileEditMatchError(
       `oldString was not found in '${relativePath}' — read the file with theme_read_file and copy the exact text to replace, including whitespace`
@@ -256,7 +258,7 @@ function replaceThemeFileText(
  *  duplicate here rather than a third shared module, since it is a 3-line, dependency-free input
  *  check with nothing else to drift out of sync. `null` means `name` is valid. An empty `name`
  *  never reaches this: the handler's `requireString` already refuses it. */
-function invalidRenameTargetNameReason(name: string): string | null {
+function invalidRenameTargetNameReason({ name }: { name: string }, _optional = {}): string | null {
   if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
     return `name '${name}' must be a plain filename in the same folder, not a path`;
   }
@@ -276,10 +278,18 @@ function invalidRenameTargetNameReason(name: string): string | null {
  * @returns The path the file ends up at (`sourcePath` unchanged, for the deliberate no-op case).
  */
 export function performThemeFileRename(
-  routeDeps: ThemeToolDeps,
-  theme: DiscoveredTheme,
-  paths: { sourcePath: string; destPath: string; name: string },
-  existingPaths: ReadonlySet<string>
+  {
+    routeDeps,
+    theme,
+    paths,
+    existingPaths,
+  }: {
+    routeDeps: ThemeToolDeps;
+    theme: DiscoveredTheme;
+    paths: { sourcePath: string; destPath: string; name: string };
+    existingPaths: ReadonlySet<string>;
+  },
+  _optional = {}
 ): string {
   const { sourcePath, destPath, name } = paths;
   if (destPath === sourcePath) return sourcePath;
@@ -394,15 +404,18 @@ function normalizeThemeReadInput(
 
 /**
  * Reads an optional integer selector from tool input and enforces its published bounds.
- * @param input - Raw tool input.
- * @param key - Selector name.
- * @param minimum - Inclusive lower bound.
- * @param maximum - Inclusive upper bound (Infinity for an unbounded start line).
+ * @param required.input - Raw tool input.
+ * @param required.key - Selector name.
+ * @param required.minimum - Inclusive lower bound.
+ * @param required.maximum - Inclusive upper bound (Infinity for an unbounded start line).
  * @returns The integer, or undefined when omitted.
  * @throws {ToolInputError} For an invalid type, fraction or out-of-range value.
  * @complexity O(1).
  */
-function optionalThemeReadInteger(input: Record<string, unknown>, key: string, minimum: number, maximum: number): number | undefined {
+function optionalThemeReadInteger(
+  { input, key, minimum, maximum }: { input: Record<string, unknown>; key: string; minimum: number; maximum: number },
+  _optional = {}
+): number | undefined {
   const value = input[key];
   if (value === undefined) return undefined;
   if (typeof value !== "number" || !Number.isInteger(value) || value < minimum || value > maximum) {
@@ -424,9 +437,9 @@ function themeReadSelection(input: Record<string, unknown>): ThemeReadSelection 
   if (input.find !== undefined && (typeof input.find !== "string" || input.find.length > 200)) {
     throw new ToolInputError({ message: "theme_read_file: find must be a string of at most 200 characters." });
   }
-  const startLine = optionalThemeReadInteger(input, "startLine", 1, Infinity) ?? 1;
-  const lineCount = optionalThemeReadInteger(input, "lineCount", 1, 2000);
-  const context = optionalThemeReadInteger(input, "context", 0, 20) ?? 3;
+  const startLine = optionalThemeReadInteger({ input, key: "startLine", minimum: 1, maximum: Infinity }) ?? 1;
+  const lineCount = optionalThemeReadInteger({ input, key: "lineCount", minimum: 1, maximum: 2000 });
+  const context = optionalThemeReadInteger({ input, key: "context", minimum: 0, maximum: 20 }) ?? 3;
   if (typeof input.find === "string") return { mode: "find", find: input.find, context, startLine, lineCount };
   if (hasWindow) return { mode: "window", startLine, lineCount: lineCount ?? 2000 };
   return { mode: "full" };
@@ -442,12 +455,15 @@ interface ThemeReadWindow {
  * Finds up to 50 matching lines and merges overlapping or adjacent context intervals.
  * Caps each window at 2,000 characters and each result at 4,000; the existing 20-item
  * batch limit therefore bounds find content at 80,000 characters per batch.
- * @param lines - File lines retaining their original terminators.
- * @param options - Validated substring and context count.
+ * @param required.lines - File lines retaining their original terminators.
+ * @param required.options - Validated substring and context count.
  * @returns Text in file order, capped match count, overflow signal and narrowing hint when cut.
  * @complexity O(b) time/space in file text size; returned text is bounded even for minified lines.
  */
-function findThemeReadWindows(lines: string[], options: Extract<ThemeReadSelection, { mode: "find" }>) {
+function findThemeReadWindows(
+  { lines, options }: { lines: string[]; options: Extract<ThemeReadSelection, { mode: "find" }> },
+  _optional = {}
+) {
   const found = collectThemeReadMatches({ lines, options });
   const rendered = renderThemeReadWindows({ lines, windows: found.windows, find: options.find });
   const truncated = found.truncated || rendered.truncated;
@@ -525,14 +541,17 @@ function renderThemeReadWindows(required: { lines: string[]; windows: readonly T
 
 /**
  * Selects file text without changing LF/CRLF bytes or inventing a line after a final newline.
- * @param content - Complete decoded file text, already checked against the 1 MB read limit.
- * @param selection - Validated window or find selection.
+ * @param required.content - Complete decoded file text, already checked against the 1 MB read limit.
+ * @param required.selection - Validated window or find selection.
  * @returns Selected content, full-file line count and selection metadata. Empty files have 0 lines.
  * @complexity O(b) time and space in the bounded file size; substring length is capped at 200.
  */
-function selectThemeReadContent(content: string, selection: Exclude<ThemeReadSelection, { mode: "full" }>) {
+function selectThemeReadContent(
+  { content, selection }: { content: string; selection: Exclude<ThemeReadSelection, { mode: "full" }> },
+  _optional = {}
+) {
   const lines = content.match(/\n|[^\n]+\n?/g) ?? [];
-  if (selection.mode === "find") return { ...findThemeReadWindows(lines, selection), totalLines: lines.length };
+  if (selection.mode === "find") return { ...findThemeReadWindows({ lines, options: selection }), totalLines: lines.length };
   const start = selection.startLine - 1;
   const end = Math.min(lines.length, start + selection.lineCount);
   return { content: lines.slice(start, end).join(""), totalLines: lines.length,
@@ -649,7 +668,7 @@ export function buildThemesRegistrations(
 
       return withSchemaOnRejection({ toolId: "theme_read_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const selection = themeReadSelection(input);
-        const offset = optionalThemeReadInteger(input, "offset", 0, Number.MAX_SAFE_INTEGER);
+        const offset = optionalThemeReadInteger({ input, key: "offset", minimum: 0, maximum: Number.MAX_SAFE_INTEGER });
         if (selection.mode === "find" && offset !== undefined) throw new ToolInputError({ message: "theme_read_file: offset cannot be combined with find. Use a narrower find or a paged file read." });
         const theme = findThemeOrThrow(routeDeps, themeId);
         const file = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
@@ -657,7 +676,7 @@ export function buildThemesRegistrations(
         if (selection.mode === "full") return { themeId, path: relativePath, ...pageThemeReadContent({ content, offset }) };
         // Use the file's byte size, rather than decoded UTF-8 length (which differs for binary text).
         const totalBytes = statSync(resolveThemeFilePath(file)).size;
-        const selected = selectThemeReadContent(content, selection);
+        const selected = selectThemeReadContent({ content, selection });
         const page = selection.mode === "window" ? pageThemeReadContent({ content: selected.content, offset }) : {};
         return { themeId, path: relativePath, ...selected, ...page, totalBytes };
       } });
@@ -680,7 +699,7 @@ export function buildThemesRegistrations(
         // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
         assertThemeFileWritable(theme, relativePath);
 
-        assertCompiledWriteBoundaryUnchanged(theme, relativePath, content);
+        assertCompiledWriteBoundaryUnchanged({ theme, relativePath, content });
         let previousRevision: { trashedPath: string; note: string } | undefined;
         ctx.signal.throwIfAborted();
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content }, { overwriteOversized,
@@ -729,9 +748,9 @@ export function buildThemesRegistrations(
 
         const currentContent = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
         const nextContent = applyThemeFileEdit({ currentContent, edit: { oldString, newString, replaceAll, ...(input.intent === "delete" ? { intent: "delete" as const } : {}) }, relativePath });
-        const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
+        const occurrencesReplaced = replaceAll ? countOccurrences({ haystack: currentContent, needle: oldString }) : 1;
 
-        assertCompiledWriteBoundaryUnchanged(theme, relativePath, nextContent);
+        assertCompiledWriteBoundaryUnchanged({ theme, relativePath, content: nextContent });
         ctx.signal.throwIfAborted();
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: nextContent });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
@@ -784,7 +803,7 @@ export function buildThemesRegistrations(
 
         // Byte comparison against the catalog copy, never mtime or size alone, then a byte copy only
         // when they differ.
-        const { wasModified, bytes } = resetFromOriginalForTool(routeDeps, theme, relativePath);
+        const { wasModified, bytes } = resetFromOriginalForTool({ routeDeps, theme, relativePath });
         // Reloaded even when nothing was written: `status`/`errors` report the theme as it is on disk
         // now, and this process's snapshot is stale whenever a different process wrote the theme.
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
@@ -820,7 +839,7 @@ export function buildThemesRegistrations(
           throw new ThemePathError(`'${relativePath}' is inside the trash — restore it first with theme_restore_trashed_file`);
         }
 
-        const nameError = invalidRenameTargetNameReason(name);
+        const nameError = invalidRenameTargetNameReason({ name });
         if (nameError) throw new ThemePathError(nameError);
 
         // The ONE shared gate `explore.ts`'s HTTP rename route also calls — see
@@ -839,7 +858,7 @@ export function buildThemesRegistrations(
         const slash = relativePath.lastIndexOf("/");
         const destPath = slash === -1 ? name : `${relativePath.slice(0, slash)}/${name}`;
         ctx.signal.throwIfAborted();
-        const finalPath = performThemeFileRename(routeDeps, theme, { sourcePath: relativePath, destPath, name }, existingPaths);
+        const finalPath = performThemeFileRename({ routeDeps, theme, paths: { sourcePath: relativePath, destPath, name }, existingPaths });
 
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
