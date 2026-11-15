@@ -590,9 +590,9 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
       const { consents } = makeRepos();
       await assert.rejects(
         consents.transaction({ fn: async () => {
-          await consents.transaction(async () => {
+          await consents.transaction({ fn: async () => {
             await consents.save(consent("c1"));
-          });
+          } });
           throw new Error("boom");
         } }),
         /boom/
