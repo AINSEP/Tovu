@@ -15,7 +15,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  * `deps.revisions` is supplied, so an html Page's edit history is recoverable the same way a Post's
  * already is (see `html-document-store.sqlite.ts`'s `PagesHtmlDocumentStoreDeps.revisions` doc).
  *
- * One kernel shared between the store and the repo, matching production (`server/deps.ts` wires
+ * One kernel shared between the store and the repo, matching production (`server/runtime/composition/deps.ts` wires
  * both off the SAME `db`) — a second database would give the two a disconnected set of rows, per
  * `html-document-store.memory.ts`'s own header on exactly this trap. Runs on SQLite and PGlite, so
  * the store's writes joining `repo.transaction()` is proven on both.

@@ -14,7 +14,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 /**
  * @file design-spec.md §3.8 backend-gap closure — route-level tests for Database's restore-points
  * list + create HTTP surface (ADR-041 §2/REQ-22/AC-26/AC-27), this dispatch. Exercises the real
- * `InMemoryDbOpsAdapter`/`InMemoryRestorePointsRepo` composition `server/app.ts` wires.
+ * `InMemoryDbOpsAdapter`/`InMemoryRestorePointsRepo` composition `server/runtime/composition/app.ts` wires.
  */
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();

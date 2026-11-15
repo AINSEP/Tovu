@@ -13,7 +13,7 @@ type ContentTypeLookup = CoreResolverDeps["contentTypes"];
 /**
  * @file `createCoreResolvers` — the pure assembly step `resolvers/index.ts`'s `wireCoreResolvers`
  * calls to turn injected infrastructure deps into the closed `CORE_RESOLVERS` map. This is real,
- * live wiring: `server/app.ts` and `server/deps.ts` both call `wireCoreResolvers` at boot (the
+ * live wiring: `server/runtime/composition/app.ts` and `server/runtime/composition/deps.ts` both call `wireCoreResolvers` at boot (the
  * "future boot-wiring pass" `resolvers/index.ts`'s own file header once described as not-yet-landed
  * is landed). Each individual resolver factory (`createRecentEntriesResolver`/`createMenuResolver`/
  * `createContactFormResolver`) already has its own dedicated test exercising its resolution logic —

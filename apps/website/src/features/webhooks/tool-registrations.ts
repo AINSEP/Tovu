@@ -367,7 +367,7 @@ export function buildWebhooksRegistrations(
  * `src/webhooks` are `import type` only (erased from the runtime graph `check:architecture`'s
  * cycle/SCC metric is computed on), and all three were reverted this batch anyway for an UNRELATED
  * cycle (through `features/vendor-credentials`/`widgets`, not `integrations`). Re-verified directly
- * instead: the only VALUE importers of `src/webhooks` anywhere in the tree are `server/app.ts`
+ * instead: the only VALUE importers of `src/webhooks` anywhere in the tree are `server/runtime/composition/app.ts`
  * and `server/modules/integrations.ts` (both server-layer, never reachable from `assistant`), so a
  * one-directional `integrations -> assistant` registry edge closes no cycle — confirmed via
  * `check:architecture` (cycles/SCC stayed at 0 after this edit).

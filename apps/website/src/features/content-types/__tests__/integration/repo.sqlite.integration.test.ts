@@ -135,7 +135,7 @@ test("audit provenance persists: principal_kind distinguishes a human write from
     const deps = { repo, clock, ids: { newId: () => "ct-1" }, authorize: alwaysAllow(), indexProvisioner: noopIndexProvisioner(), outbox: { enqueue: async () => {} } };
 
     // Both writes are attributed to the SAME principal id — the assistant runs under the human's
-    // own principal (see `server/modules/assistant.ts`), so `actor_id` cannot tell them apart.
+    // own principal (see `server/runtime/composition/modules/assistant.ts`), so `actor_id` cannot tell them apart.
     await registerContentType({
       deps,
       input: { actorId: "principal-7", principalKind: "user", workspaceId: "ws-1", key: "recipe", label: "Recipe", fields: [] },

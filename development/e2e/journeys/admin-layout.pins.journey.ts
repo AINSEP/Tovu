@@ -1132,7 +1132,7 @@ test.describe("Bug pin: multi-tab-resource-soak", () => {
 
 const WORKSPACE_ID = "workspace-local";
 const SETTINGS_EVENTS_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/events`;
-/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.tsx`), enough to
+/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.ts`), enough to
  *  push the origin's total held connections past Chrome's 6-per-origin HTTP/1.1 cap regardless of
  *  exact browser accounting — same value and reasoning as
  *  `themes-presentation-request-timeout.spec.ts`. */

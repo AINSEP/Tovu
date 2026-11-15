@@ -48,7 +48,7 @@
  * hand. It is not part of `PAGE_CAPABILITIES` or `CHAT_CAPABILITIES` because it is not generic chat/
  * page vocabulary; it belongs to Tovu the way `TOVU_FRONTEND_CAPABILITIES` below is scoped.
  *
- * The browser side (`apps/admin/src/App.hooks.tsx`'s `useAgentPageBridge`) claims it through
+ * The browser side (`apps/admin/src/App.hooks.ts`'s `useAgentPageBridge`) claims it through
  * `createFrontendSessionBridge`'s `executors` map, keyed by the `"admin."` prefix — the SAME
  * extension point this file's header describes `chat.*`/`page.*` using, just exercised for the
  * first time by a Tovu-native verb instead of a Jini one. `apps/admin/src/lib/agent-screenshot.ts`
@@ -64,7 +64,7 @@
  *
  * Chat and WebMCP agents can open the admin's Publish dialog pre-filled with what to publish
  * or overwrite. `risk: 'write'` (publishing writes to the site) but still no `requiresConfirmation`:
- * the executor behind this id (`apps/admin/src/App.hooks.tsx`'s `buildAdminCapabilityExecutors`) can
+ * the executor behind this id (`apps/admin/src/App.hooks.ts`'s `buildAdminCapabilityExecutors`) can
  * only call `requestPublish`, never `confirmPublish`/`executePublish` — the dialog itself is the
  * confirmation, and only a person's own click on its Publish button can write anything. See that
  * plan's §3 for the full gate (why the Publish button carries no agent handle, and what that does

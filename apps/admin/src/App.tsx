@@ -243,7 +243,7 @@ function NoAccess(props: { locale: string }) {
 /**
  * The screen for a route whose section this deployment does not have: no markup at all, just the
  * redirect to the default section. Same shape as `features/workspace/WorkspaceRedirect.tsx` — the
- * effect lives in `App.hooks.tsx`'s `useDefaultSectionRedirect`, so this component carries no logic
+ * effect lives in `App.hooks.ts`'s `useDefaultSectionRedirect`, so this component carries no logic
  * of its own.
  */
 function UnavailableSectionRedirect() {
@@ -295,7 +295,7 @@ function SidebarEmptyClickToggle() {
  * The "are you sure you want to log out?" confirmation (owner-requested, 2026-08-31 — someone can
  * click "Log out" by accident, and the sidebar button used to sign them out immediately with no way
  * back). `onLogout` above now opens this instead of logging out directly — see `useLogoutConfirm`'s
- * own doc comment in `App.hooks.tsx`.
+ * own doc comment in `App.hooks.ts`.
  *
  * Reuses `@jini-ai/admin/react`'s `ConfirmDialog`, the same component every other destructive
  * action in this app already confirms through (`Roles.tsx`'s `RoleDeleteDialog`, `Media.tsx`'s
@@ -340,7 +340,7 @@ function LogoutConfirmDialog(props: { logoutConfirm: UseLogoutConfirm; locale: s
  * Returns `null` internally rather than `App` deciding whether to render this at all, so `App`
  * itself carries no conditional for it — always rendered, `enabled` decides.
  *
- * The FAB clearance math (`resolveChatFabClearance`, `App.hooks.tsx`) is pure derived state, not
+ * The FAB clearance math (`resolveChatFabClearance`, `App.hooks.ts`) is pure derived state, not
  * JSX — kept out of this component's own body for the same reason it was never inline JSX-prop
  * ternaries here.
  */
@@ -359,7 +359,7 @@ function AssistantChrome(props: {
   dockWidthPx: number;
   chatDockRef: React.RefObject<HTMLElement | null>;
   chatFabRef: React.RefObject<HTMLButtonElement | null>;
-  /** SPEC-053 — `useChatDockLayout`'s `handleDockDropCapture` (`App.hooks.tsx`): the `<aside>`'s
+  /** SPEC-053 — `useChatDockLayout`'s `handleDockDropCapture` (`App.hooks.ts`): the `<aside>`'s
    *  capture-phase drop handler. */
   onDockDropCapture: (event: React.DragEvent<HTMLElement>) => void;
   /** SPEC-053 — `useChatDockLayout`'s `publishDropCapture`, handed to `AssistantDock` as its
@@ -585,7 +585,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
   const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
   // Confirmation-modal state around `logout` above — see `useLogoutConfirm`'s own doc comment
-  // (`App.hooks.tsx`) for why this is its own hook rather than a `useSession()` field. Called
+  // (`App.hooks.ts`) for why this is its own hook rather than a `useSession()` field. Called
   // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),
   // same reasoning `useAdminAssistantAvailability` just below already documents for itself.
   const logoutConfirm = useLogoutConfirm({ logout });
@@ -639,7 +639,7 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   const contentNode = contentEl ?? null;
   useListTableCellLabels({ root: contentNode });
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
-  // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
+  // (`App.hooks.ts`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
   // publish-criteria-tool-webmcp-plan-2026-09-24.md §4 S2 — the Publish dialog moved here, to the top
   // of the tree, because none of its three callers (the Dashboard button, the chat capability, the

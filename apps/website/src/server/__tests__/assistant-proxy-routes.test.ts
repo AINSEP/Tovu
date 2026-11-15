@@ -19,7 +19,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Route-level tests for `server/modules/assistant.ts`, the session-gated reverse proxy in
+ * @file Route-level tests for `server/runtime/composition/modules/assistant.ts`, the session-gated reverse proxy in
  * front of the standalone agent daemon. A stand-in daemon records exactly what arrives on the
  * wire, so these are end-to-end assertions about the proxy hop, not assertions about its internals.
  *
@@ -162,8 +162,8 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
 
 /**
  * One-time process-wide setup: the stand-in daemon must be listening and `JINI_AGENT_DAEMON_URL`
- * must be set BEFORE `server/modules/assistant.ts` is first evaluated, hence the dynamic imports
- * (`server/app.ts` imports the assistant module statically, so it has to be deferred too).
+ * must be set BEFORE `server/runtime/composition/modules/assistant.ts` is first evaluated, hence the dynamic imports
+ * (`server/runtime/composition/app.ts` imports the assistant module statically, so it has to be deferred too).
  */
 let harnessPromise: Promise<{ buildApp: (observability?: ObservabilityPort) => express.Express; daemon: Server }> | null = null;
 function harness() {
@@ -319,7 +319,7 @@ test("a streamed multi-chunk SSE response is relayed incrementally as it arrives
 });
 
 /**
- * Regression test for `proxyMcpUiToolCall`'s fall-through branch (`server/modules/assistant.ts`,
+ * Regression test for `proxyMcpUiToolCall`'s fall-through branch (`server/runtime/composition/modules/assistant.ts`,
  * the route ending around line 403-409). `forwardToAgentDaemon` was refactored to return
  * `Response | null` instead of relaying internally, and this one call site was not migrated: it
  * fetched the daemon's answer and never wrote to `res`, hanging the browser until timeout so the

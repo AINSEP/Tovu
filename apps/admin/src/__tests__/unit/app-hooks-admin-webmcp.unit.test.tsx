@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 /**
- * @file `App.hooks.tsx`'s `registerAdminWebMcpTool` — publish-criteria plan §4 S5 ("WebMCP on"),
+ * @file `App.hooks.ts`'s `registerAdminWebMcpTool` — publish-criteria plan §4 S5 ("WebMCP on"),
  * the owner's 09-22 decision that WebMCP stays on now that P0 (plan §3 item 2) has removed the
  * Publish button's agent handle.
  *

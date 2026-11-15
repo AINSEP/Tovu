@@ -18,7 +18,7 @@ import { renderDocNode } from "#src/server/inbound/public-http/http/site/render"
 import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstrap.js";
 
 /**
- * @file `ensureCoreMediaTransform` — the boot-time find-or-create guard `server/deps.ts` chains
+ * @file `ensureCoreMediaTransform` — the boot-time find-or-create guard `server/runtime/composition/deps.ts` chains
  * into its `Ready` sequence. The property under test is entirely about idempotency: this is the
  * ONE guard standing between a normal `tsx watch` restart and a `transform_registry` that grows a
  * new "public" version on every file save (see `bootstrap.ts`'s own file header for the disclosed

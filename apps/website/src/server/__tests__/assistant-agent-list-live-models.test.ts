@@ -14,7 +14,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/modules/assistant.ts`) —
+ * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/runtime/composition/modules/assistant.ts`) —
  * the `GET /api/agents` / `POST /api/agents/rescan` handler that replaced the raw streaming
  * `proxyPassthrough` for those two routes. Complements `live-model-cache.test.ts` (which proves the
  * credential/cache/union logic in isolation) by proving the wiring: the real session-authenticated

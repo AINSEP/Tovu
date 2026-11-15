@@ -835,7 +835,7 @@ export interface PresentationDeps {
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
   themes: DiscoveredTheme[];
   /**
-   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
+   * The themes root those themes were discovered under (`server/runtime/composition/deps.ts`'s `builtInThemesDir()`).
    *
    * Threaded through as a dependency rather than re-derived where it is needed, because it is the
    * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says

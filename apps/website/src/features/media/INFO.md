@@ -69,9 +69,9 @@ Disclosed scope adjustments:
   real, production-shaped adapter — properly typed, lazily `require()`s
   `sharp` at call time — but throws a clear `ImageTransformUnavailableError`
   instead of faking output bytes until `npm install sharp` is run. Hermetic
-  tests and the dev/test composition (`server/app.ts`) use
+  tests and the dev/test composition (`server/runtime/composition/app.ts`) use
   `InMemoryImageTransformer` instead (a deterministic, non-real test double);
-  the real running server (`server/deps.ts`) is wired to `SharpImageTransformer`.
+  the real running server (`server/runtime/composition/deps.ts`) is wired to `SharpImageTransformer`.
 - **Purged-vs-never-existed is indistinguishable** at the rendition route:
   `purgeMedia` hard-deletes with no tombstone, so `rendition-service.ts` maps
   "no media row" to `404` and the one gone-but-observable state this build
@@ -99,7 +99,7 @@ headers — summarized:
 - Keep media business rules inside this feature (`media-service.ts`), not in
   Express routes.
 - Repositories and blob storage stay behind their ports (`ports.ts`); routes
-  and the composition roots (`src/server/app.ts`, `src/server/deps.ts`) only
+  and the composition roots (`src/server/runtime/composition/app.ts`, `src/server/runtime/composition/deps.ts`) only
   wire concrete adapters in.
 - `source.sha256` is write-once (`resolveWriteOnceSource`) — no write path may
   add a way to change it without also updating that guard and its test.

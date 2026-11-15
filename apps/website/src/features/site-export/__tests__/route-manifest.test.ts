@@ -45,7 +45,7 @@ function makeTheme(overrides: Partial<Omit<DiscoveredTheme, "manifest">> & { man
 /**
  * @file Regression coverage for `buildRouteManifest` (SPEC — static site exporter, 2026-08-15).
  *
- * Deliberately built against `server/app.ts`'s own `createRouteDeps()` fixture (the seeded demo
+ * Deliberately built against `server/runtime/composition/app.ts`'s own `createRouteDeps()` fixture (the seeded demo
  * workspace/posts/theme every other route test in this repo already trusts) rather than hand-rolled
  * fakes — that fixture is real production seed data (`server/seed.ts`), so a manifest that is wrong
  * against it would also be wrong against a freshly-installed real site.

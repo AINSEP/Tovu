@@ -157,8 +157,8 @@ const HAND_WRITTEN_RULES = [
       // `exportSite` pass, and `RouteDeps.runExportSite`'s contravariant parameter makes a narrower
       // `ExportEngine<T>` declaration impossible on its own (verified, not assumed) — is solved by a
       // NEW `RouteDeps.exportSiteBound` field (`server/routes/types.ts`): a pre-bound export call,
-      // closed over the full `RouteDeps` once at the composition root (`server/app.ts`'s
-      // `createRouteDeps()`/`server/deps.ts`'s `createSiteRouteDeps()`), so each narrow domain type
+      // closed over the full `RouteDeps` once at the composition root (`server/runtime/composition/app.ts`'s
+      // `createRouteDeps()`/`server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`), so each narrow domain type
       // only ever has to describe `{outputDir; clean?; basePath?}` — never `routeDeps` itself.
       // `features/deployments/export-run.ts` needed NO changes: its own `ExportEngine<TRouteDeps>`
       // was already generic and never named `RouteDeps` — it was already the target shape this whole
@@ -168,7 +168,7 @@ const HAND_WRITTEN_RULES = [
       // (`feature-no-express-or-admin-imports` -> `feature-no-server-or-framework-imports`) — the
       // old name described the old `to`. `apps/website/src/features/INFO.md` has always said "Features should not
       // import server/framework code", full stop; the rule only ever policed the `routes/` third of
-      // that, so an edge into `server/app.ts`, `server/deps.ts`, `server/http/**` or
+      // that, so an edge into `server/runtime/composition/app.ts`, `server/runtime/composition/deps.ts`, `server/http/**` or
       // `server/modules/**` was unpoliced. Widening was safe to do in one step rather than
       // incrementally because the production edge count into the newly-covered area was already
       // ZERO — measured from dependency-cruiser's own module graph across all 33 slices, including
@@ -425,7 +425,7 @@ const GUARDED_MODULES = [
 // same role as `server`'s two files for the HTTP process (confirmed: `cli/commands/serve.ts`'s
 // own docblock names this explicitly; see plan doc §3 / trace-A's site-dir section).
 // `export.ts` joined 2026-08-18 (no-deep-imports:site-dir triage) — it is architecturally
-// identical to `serve.ts`: both call `createSiteRouteDeps` (`server/deps.ts`) and reach
+// identical to `serve.ts`: both call `createSiteRouteDeps` (`server/runtime/composition/deps.ts`) and reach
 // `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
 // `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
 // `app.listen` half (the exporter crawls the app instead of serving it).
@@ -471,7 +471,7 @@ const DB_SQLITE = "^apps/website/src/platform/db/sqlite";
 // 2026-08-17: the Stage 2 registry rollout MOVED this seam's caller. Domains no longer sit in
 // `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array (which is now empty save two
 // env-gated demo stubs); each domain instead calls `registerToolContributor` itself, and
-// `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` imports all 25
+// `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` imports all 25
 // `contribute<Domain>Tools` functions at boot. That made the production registrar a second seam
 // caller. It was not added here at the time, so all 25 conversions came through an UNREGISTERED
 // door: 19 violations (18 `warn`, plus 1 `error` for `features/post`, the one module promoted in
@@ -804,7 +804,7 @@ function noDeepImportRules(mod) {
       // this one just missed it because its `from` is a fixed pattern instead of derived from
       // `mod`. Verified: `assistant`'s `EXTRA_TO_EXEMPT` entry (mcp-federation) and every other
       // guarded module are unaffected — `modPath` for any mod other than "assistant" cannot match
-      // `apps/website/src/assistant/tool-registrations.ts` or `apps/website/src/server/tool-catalog-manifest.ts`.
+      // `apps/website/src/assistant/tool-registrations.ts` or `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts`.
       name: `no-non-seam-deep-imports-from-tool-registration-caller:${mod}`,
       severity: "warn",
       comment: `assistant/tool-registrations.ts (and its own tests) may reach ${mod}'s tool-registrations.ts/agent-tools.ts seam, but nothing else in ${mod}.`,

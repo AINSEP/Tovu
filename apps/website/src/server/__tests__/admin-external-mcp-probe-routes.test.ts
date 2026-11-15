@@ -66,7 +66,7 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   const base = createRouteDeps();
   const probeDeps: ExternalMcpProbeRouteDeps = { ...base, ...(options.externalMcpOAuth ? { externalMcpOAuth: options.externalMcpOAuth } : {}), ...(options.connect ? { connect: options.connect } : {}) };
   // `createExternalMcpModule` only reads the fields it knows about off whatever shape it is handed
-  // — passing the widened `probeDeps` through as `RouteDeps` mirrors how `server/deps.ts` composes
+  // — passing the widened `probeDeps` through as `RouteDeps` mirrors how `server/runtime/composition/deps.ts` composes
   // one real deps object for every module, including this one.
   const deps = probeDeps as unknown as RouteDeps;
   const app = express();

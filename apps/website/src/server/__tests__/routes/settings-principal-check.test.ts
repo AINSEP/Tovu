@@ -19,7 +19,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * targeting a `principalId` that does not resolve to an active principal in
  * the request's workspace must be rejected `404 PRINCIPAL_NOT_FOUND`, not
  * 500 (Red-Team RT-001's flagged gap). Run against the REAL SQLite adapter
- * (`createSiteRouteDeps(":memory:")`, `server/deps.ts`) per tasks.md T037,
+ * (`createSiteRouteDeps(":memory:")`, `server/runtime/composition/deps.ts`) per tasks.md T037,
  * not the in-memory one `settings-auth.test.ts` uses — proves the whole
  * chokepoint (route -> write-service -> `SqliteSettingsRepo` -> real
  * transactional SQLite) rejects the same way an in-memory double would.

@@ -818,7 +818,7 @@ describe("per-file overflow menu — copy, rename, and delete", () => {
  * not `userEvent`.
  *
  * KNOWN GAP (documented fully in `taxonomy-agent-drive.unit.test.tsx`): `RowMenu` portals its
- * dropdown to `document.body`, while Tovu's real agent bridge (`App.hooks.tsx`) scopes its driver to
+ * dropdown to `document.body`, while Tovu's real agent bridge (`App.hooks.ts`) scopes its driver to
  * `contentEl` on purpose — narrower than `document.body`. The trigger is discoverable and clickable
  * through that scoped root; the item it reveals is not. Asserted directly below (`root: container`,
  * matching `contentEl`) rather than against `document.body`, which would hide the gap.
@@ -840,7 +840,7 @@ describe("driving the per-file RowMenu through page.* verbs", () => {
     // the next test, which proves the handle is computed once across ALL files, not per group.
     const { container } = render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
     await screen.findByRole("button", { name: "about" });
-    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // Scoped to `container`, the same way `App.hooks.ts` scopes the real bridge to `contentEl`
     // rather than `document.body` — see this block's own doc comment above.
     const driver = createDomPageDriver({ root: container, pages: {} });
 

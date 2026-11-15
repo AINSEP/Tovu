@@ -15,7 +15,7 @@ import {
  * latched into the same snapshot `/readyz` and the module-status route already expose.
  *
  * `recordAssistantDaemonFailure`/`isAssistantDaemonKnownFailed`/`clearAssistantDaemonFailure` are
- * the state `server/modules/assistant.ts` short-circuits on and `index.ts`'s `spawnAgentDaemon()`
+ * the state `server/runtime/composition/modules/assistant.ts` short-circuits on and `index.ts`'s `spawnAgentDaemon()`
  * latches — see those files' own docs for the end-to-end story. This file proves the state module
  * itself in isolation: latch, visibility in the snapshot, clear, and that a daemon failure never
  * flips the rest of the app's own `ok`.
@@ -97,7 +97,7 @@ test("clearAssistantDaemonFailure on an already-clear snapshot is a safe no-op",
 });
 
 /**
- * `getAssistantDaemonFailureReasonCode` — added 2026-08-17 alongside `server/modules/assistant.ts`'s
+ * `getAssistantDaemonFailureReasonCode` — added 2026-08-17 alongside `server/runtime/composition/modules/assistant.ts`'s
  * 503 body fix (Terra's review finding: the old body claimed "failed to start for this boot" for
  * BOTH a never-started daemon and a mid-life crash-loop give-up, which are different situations).
  * This is the seam that lets a caller tell them apart without re-deriving the synthetic module name.

@@ -26,7 +26,7 @@ import type { ExportReport } from "../site-exporter.js";
 /**
  * @file Regression coverage for `exportSite` (SPEC — static site exporter, 2026-08-15).
  *
- * Runs the REAL exporter against `server/app.ts`'s own seeded demo workspace (the same fixture
+ * Runs the REAL exporter against `server/runtime/composition/app.ts`'s own seeded demo workspace (the same fixture
  * `route-manifest.test.ts` uses), over a real in-process HTTP server — no mocked render path, per
  * this feature's own "do not write a second renderer" rule.
  */
@@ -908,7 +908,7 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   // Written via `save()` directly into the EXISTING `base.redirectRepo` instance — NOT
   // `base.redirectRepo = new InMemoryRedirectRepo([rule])`. `createRouteDeps()` wires the live app's
   // redirect-serving phase handler (`RedirectPhaseHandlerResolver`) to this exact repo OBJECT at
-  // construction time (`server/app.ts`'s `registerRedirectsPhaseHandlers({ resolver: new
+  // construction time (`server/runtime/composition/app.ts`'s `registerRedirectsPhaseHandlers({ resolver: new
   // RedirectPhaseHandlerResolver({ repo: redirectRepo, ... }) })`) — a module-level registration, not
   // something `RouteDeps.redirectRepo` re-reads per request. Swapping the field to a fresh repo
   // instance (first attempt at this test) orphans it from that resolver: `buildRouteManifest` would

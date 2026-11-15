@@ -41,7 +41,7 @@ installFirstPartyToolContributors({ contributions });
  * The question this exists to make answerable: *"was this content-type change made by a human
  * admin or by the AI assistant, and which one?"* `actor_id` alone could never answer it — the
  * assistant runs under the very same human principal id (Tovu's proxy reads it from the browser
- * session and stamps it into the run's `contextRef`; `server/modules/assistant.ts`), so both paths
+ * session and stamps it into the run's `contextRef`; `server/runtime/composition/modules/assistant.ts`), so both paths
  * record an identical `actorId`. The distinguishing fact is the actor CLASS, which now rides the
  * existing revision row as `principal_kind`.
  *

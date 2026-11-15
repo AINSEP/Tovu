@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID, MAX_SCREENSHOT_BYTES, captureAdminScreenshotToolResult, renderAdminScreenshotCanvas } from "../agent-screenshot";
 
 /**
- * @file `agent-screenshot.ts`'s orchestration logic — the part `App.hooks.tsx`'s `useAgentPageBridge`
+ * @file `agent-screenshot.ts`'s orchestration logic — the part `App.hooks.ts`'s `useAgentPageBridge`
  * registers under `createFrontendSessionBridge`'s `"admin."` executor prefix to answer
  * `admin.capture_screenshot` invocations.
  *

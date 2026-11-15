@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { api } from "../api";
 
 /**
- * @file `api.redeemBootSession` — the thin wrapper `App.hooks.tsx`'s boot effect calls with the
+ * @file `api.redeemBootSession` — the thin wrapper `App.hooks.ts`'s boot effect calls with the
  * token `takeBootToken` read off the URL fragment (run-from-zip plan S2). Asserts the actual `fetch`
  * call's URL/method/body, same discipline as `api-system-endpoints.unit.test.ts`, so a future edit
  * that breaks the request shape fails this test rather than only a coverage number. The route itself

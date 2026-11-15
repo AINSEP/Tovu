@@ -6,7 +6,7 @@ import { ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID } from "../../lib/agent-screensh
 import { PUBLISH_CONTENT_CAPABILITY, type PublishRequestResult } from "@tovu/publish-content-ui";
 
 /**
- * @file `App.hooks.tsx`'s `buildAdminCapabilityExecutors` — the `executors` map
+ * @file `App.hooks.ts`'s `buildAdminCapabilityExecutors` — the `executors` map
  * `useAgentPageBridge` registers under `createFrontendSessionBridge`'s `"admin."` prefix (see that
  * hook's own doc comment, and `agent-screenshot.ts`'s module doc for the capability this answers).
  *

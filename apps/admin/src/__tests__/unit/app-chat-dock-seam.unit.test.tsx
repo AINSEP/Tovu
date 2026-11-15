@@ -17,7 +17,7 @@ vi.mock("../../features/fs-files/hooks/use-folder-drop.hooks", () => ({
 }));
 
 /**
- * @file Proves `App`'s `useChatDock` seam (added 2026-08-12 alongside the rest of `App.hooks.tsx`'s
+ * @file Proves `App`'s `useChatDock` seam (added 2026-08-12 alongside the rest of `App.hooks.ts`'s
  * seams — see that file's own header) buys something none of the other App tests can reach today:
  * asserting the assistant dock's OPEN state.
  *

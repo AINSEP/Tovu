@@ -950,7 +950,7 @@ async function main() {
    * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `apps/website/src/index.ts`
    * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
    * seconds before the daemon binds :4319. That one is handled where it belongs, in
-   * `server/modules/assistant.ts`'s proxy — see its retry note.
+   * `server/runtime/composition/modules/assistant.ts`'s proxy — see its retry note.
    */
   await finishDevStartup({ apiPort: API_PORT, vitePort: VITE_PORT, scheme, extraCaCerts, certificate, lite });
 

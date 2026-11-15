@@ -715,7 +715,7 @@ export const redirectHits = sqliteTable("redirect_hits", {
  * Members (ADR-030, ADR-PIPE-013 Decision §5 — rule-of-two SQLite adapter for
  * all 6 `members` repo ports). 7 tables mirror `SqlitePostRepo`'s/
  * `src/features/settings/repo.sqlite.ts`'s exact shape: typed columns +
- * JSON-text bags for nested/optional fields. NOT wired into `server/app.ts`'s
+ * JSON-text bags for nested/optional fields. NOT wired into `server/runtime/composition/app.ts`'s
  * boot path this pass (ADR-PIPE-013 Decision §5 — the in-memory adapters
  * remain the only ones actually receiving traffic; no feature in this repo
  * has flipped that switch yet, matching `SqlitePostRepo`'s own precedent).

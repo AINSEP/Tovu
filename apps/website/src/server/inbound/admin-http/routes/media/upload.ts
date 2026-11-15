@@ -139,7 +139,7 @@ function sendUploadFailure({ res, error }: { res: Response; error: unknown }): v
  * walking skeleton. This is a real, disclosed simplification: a production
  * upload path should stream bytes (multipart or raw octet-stream), not
  * base64-inflate them through JSON. `express.json()`'s body-size limit was
- * bumped in `server/app.ts` to accommodate this (see that file's comment).
+ * bumped in `server/runtime/composition/app.ts` to accommodate this (see that file's comment).
  */
 export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {

@@ -20,7 +20,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 /**
  * @file Route-level tests for the integrations admin HTTP API (ADR-036 admin wiring).
  *
- * `src/server/app.ts` is out of scope for this task (see the handoff report for the `createApp`
+ * `src/server/runtime/composition/app.ts` is out of scope for this task (see the handoff report for the `createApp`
  * wiring lines), so these tests build a standalone Express app the same way `app.ts` composes
  * one — auth middleware + the route registrars under test — instead of exercising `createApp()`
  * directly. `createRouteDeps()` (already exported by `app.ts`, unmodified) supplies the base

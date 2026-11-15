@@ -36,7 +36,7 @@ const contributions = {
  * `buildAssistantToolRegistrations(createRouteDeps())` — this domain's own narrow deps type is the
  * seam worth proving; the full 26-domain assembler is `assistant/tool-registrations.ts`'s own test
  * suite's job, and a real `createRouteDeps()` boot would also make this suite depend on
- * `server/deps.ts`, which another agent owns this session.
+ * `server/runtime/composition/deps.ts`, which another agent owns this session.
  *
  * Every refusal case asserts NOT ONLY that the call throws, but that `duplicateSite` (the
  * side-effecting fake) was never invoked — "it threw" alone would also pass a handler that checked

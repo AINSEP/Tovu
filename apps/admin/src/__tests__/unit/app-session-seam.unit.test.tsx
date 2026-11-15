@@ -8,7 +8,7 @@ import { App } from "../../App";
 import type { UseAdminSession } from "../../App.hooks";
 
 /**
- * @file Proves `App`'s `useSession` seam (added alongside the `App.hooks.tsx` extraction,
+ * @file Proves `App`'s `useSession` seam (added alongside the `App.hooks.ts` extraction,
  * 2026-08-12 — see that file's own header for why this is the one of the four extracted hooks
  * worth injecting) actually buys what it is for.
  *
@@ -64,7 +64,7 @@ it("renders the authenticated shell immediately through a fake useSession, with 
   const { container } = render(<App useSession={() => fakeSession} />);
 
   // The seam is proven structurally by these two: `useSession` is a full replacement for
-  // `useAdminSession` (`App.hooks.tsx`), so ITS internal effect — the one that chains into
+  // `useAdminSession` (`App.hooks.ts`), so ITS internal effect — the one that chains into
   // `api.me()` on `checking` — never runs at all; `.boot-screen` staying absent and `main` being
   // present on the very first synchronous read is what "never runs" looks like from outside.
   //

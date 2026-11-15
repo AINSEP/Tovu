@@ -15,7 +15,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
 /**
- * @file Route-level tests for `server/modules/assistant.ts`'s MCP-UI confirmation redemption proxy
+ * @file Route-level tests for `server/runtime/composition/modules/assistant.ts`'s MCP-UI confirmation redemption proxy
  * (`proxyMcpUiToolCall`, ADR-053 Decision 3) — the browser-facing half of the endpoint
  * `@jini-ai/chat`'s `createMcpUiToolCaller` posts to. Mirrors `assistant-proxy-routes.test.ts`'s
  * stand-in-daemon harness: a plain HTTP server records exactly what crosses the wire, so these

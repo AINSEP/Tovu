@@ -602,7 +602,7 @@ test("P0a: a plugin enabled in a prior process is re-attached at boot, without a
 /**
  * REACHABILITY (Milestone 1 dispatch, 2026-08-20): before this slice, `composePluginRuntime` never
  * forwarded `installDir` to `discoverPluginRuntimePlugins()` — every real composition root
- * (`server/deps.ts`, `server/app.ts`) called it with `sources: [WORD_COUNT_RUNTIME_SOURCE]` and
+ * (`server/runtime/composition/deps.ts`, `server/runtime/composition/app.ts`) called it with `sources: [WORD_COUNT_RUNTIME_SOURCE]` and
  * nothing else, so a plugin placed on disk at the REQ-02 install layout was invisible no matter how
  * it got there. `discoverPlugins()` itself already fully implements and tests the install-dir scan
  * (`discovery.integration.test.ts`'s AC-11 fixture) — the gap was purely in this composition seam.

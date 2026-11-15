@@ -2387,7 +2387,7 @@ export const REQUEST_TIMEOUT_CODE = "REQUEST_TIMEOUT";
  *  Most real calls through `request()` are CRUD round trips measured in low tens of milliseconds
  *  locally, and the few genuinely long-running operations (static export/publish) are start/poll,
  *  never a single blocking call — EXCEPT `uploadMedia`, which sends a whole file as base64 JSON
- *  through this same seam and can legitimately run long: `server/app.ts` accepts request bodies up
+ *  through this same seam and can legitimately run long: `server/runtime/composition/app.ts` accepts request bodies up
  *  to 15mb (`express.json({ limit: "15mb" })`), which a slow/mobile upload could take the better
  *  part of a minute to send. 60s comfortably covers that worst real case while staying far short of
  *  "hangs forever" — the failure this timeout exists to convert into something visible. */

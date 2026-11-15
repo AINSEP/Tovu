@@ -76,7 +76,7 @@ test("ADR-027 §4: a published post's ref-based image renders on GET /:slug; its
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   // Registers the SAME "public" transform `ensureCoreMediaTransform` registers at real boot —
-  // this test app is `app.ts`'s hermetic composition, which (deliberately, see `server/app.ts`'s
+  // this test app is `app.ts`'s hermetic composition, which (deliberately, see `server/runtime/composition/app.ts`'s
   // own header) never calls the SQLite-only boot chain `deps.ts` chains it into, so the test
   // registers it directly, mirroring `media-rendition-route.test.ts`'s existing `registerOne`
   // convention for the same reason.

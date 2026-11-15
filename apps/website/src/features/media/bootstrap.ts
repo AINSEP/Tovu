@@ -25,7 +25,7 @@ export const CORE_PUBLIC_TRANSFORM_NAME = "public";
  * `/m/{assetId}/public.v{version}/...` URL always resolves for any active asset (subject to the
  * generation-bound rules `resolveMediaRendition` itself enforces). Mirrors
  * `newsletter/lists.ts`'s `ensureDefaultList` shape exactly: find-latest-or-create, called once
- * per boot from `server/deps.ts`'s existing `Ready`-chain sequence.
+ * per boot from `server/runtime/composition/deps.ts`'s existing `Ready`-chain sequence.
  *
  * **Why find-or-create, not a bare `registerTransform` call.** `registerTransform` is
  * deliberately NOT idempotent — it is append-only and always mints `version = currentMax + 1`

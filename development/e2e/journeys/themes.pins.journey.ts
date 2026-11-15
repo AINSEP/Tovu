@@ -878,7 +878,7 @@ test.describe("Bug pin: themes-presentation-request-timeout", () => {
  * (all confirmed synchronous-under-`better-sqlite3`, single shared connection, no lock/pool to
  * exhaust — see the investigation note this fix's handoff links). It is a browser-level resource
  * exhaustion: `apps/admin/src/lib/settings-events.ts`'s `subscribeToSettingsChanges`, mounted once
- * per open admin tab by `App.hooks.tsx`, opens an `EventSource` to `.../settings/events` that is
+ * per open admin tab by `App.hooks.ts`, opens an `EventSource` to `.../settings/events` that is
  * "deliberately not closed" (that file's own comment) for the tab's entire lifetime. Vite's dev
  * server (and this repo's production server) speak plain HTTP/1.1, and Chrome caps concurrent
  * connections to one origin at 6. Enough long-lived tabs/streams against the same origin — verified
@@ -895,7 +895,7 @@ test.describe("Bug pin: themes-presentation-request-timeout", () => {
  * "N long-lived connections already held against this origin" — reproduced directly and
  * deterministically by opening six extra raw `EventSource` connections to the very same
  * `/settings/events` endpoint from inside the one already-logged-in tab (which already holds a
- * seventh, the tab's own real one from `App.hooks.tsx`), then triggering the real Themes navigation
+ * seventh, the tab's own real one from `App.hooks.ts`), then triggering the real Themes navigation
  * and observing what the real app does. This is the same origin, the same endpoint, the same
  * "never closes" connection shape as the real bug — not a mock of the mechanism, a smaller-footprint
  * instance of it.
@@ -928,7 +928,7 @@ test.describe("Bug pin: themes-presentation-request-timeout", () => {
 
 const WORKSPACE_ID = "workspace-local";
 const SETTINGS_EVENTS_URL = `/api/admin/v1/workspaces/${WORKSPACE_ID}/settings/events`;
-/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.tsx`), enough to
+/** Extra long-lived connections opened on top of the tab's own real one (`App.hooks.ts`), enough to
  *  push the origin's total held connections past Chrome's 6-per-origin HTTP/1.1 cap regardless of
  *  exact browser accounting. */
 const EXTRA_HELD_CONNECTIONS = 6;

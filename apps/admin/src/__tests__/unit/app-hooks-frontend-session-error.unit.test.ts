@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { logFrontendSessionError } from "../../App.hooks";
 
 /**
- * @file `App.hooks.tsx`'s `logFrontendSessionError` — the `onError` callback
+ * @file `App.hooks.ts`'s `logFrontendSessionError` — the `onError` callback
  * `useAgentPageBridge` hands `createFrontendSessionBridge`. Regression coverage for the bug this
  * fixed: every stream hiccup (the `EventSource`'s own `error` `Event`, fired while the browser is
  * mid-retry) was logged at `console.error`, so nearly every admin page logged

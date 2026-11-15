@@ -688,7 +688,7 @@ describe("AssistantDock useAdminLocale injection", () => {
  * Regression coverage for the `chat.get_state` hang (production `agent_tool_attempts` rows:
  * `requested` -> 30.008s later -> `timed-out`, run `4ea23482-c7de-4402-8985-1b83470f4ff8`).
  *
- * Root cause, traced end to end: `useAgentPageBridge` (`App.hooks.tsx`) builds the page-control
+ * Root cause, traced end to end: `useAgentPageBridge` (`App.hooks.ts`) builds the page-control
  * bridge via `createFrontendSessionBridge({ pageDriver, onError })` with no `executors`. Jini's
  * `createFrontendSessionBridge` (`frontend-session-bridge.ts`) claims ALL seven `CHAT_CAPABILITIES`
  * ids unconditionally in its `attached` handshake (unlike `page.*`, gated behind `pageDriver`) — so

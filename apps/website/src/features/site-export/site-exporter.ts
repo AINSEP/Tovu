@@ -474,7 +474,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
 /** Writes every manifest route to disk, collecting succeeded/failed routes plus every asset URL discovered in their HTML. */
 /** `unreferencedThemeFiles` needs a theme to diff against — no theme discovered means nothing to report. */
   // Injected via `RouteDeps.createSiteApp` (see the file-header note and that field's own doc in
-  // `server/routes/types.ts`) rather than imported from `server/app.ts` — no `require` left here at
+  // `server/routes/types.ts`) rather than imported from `server/runtime/composition/app.ts` — no `require` left here at
   // all, lazy or otherwise. Since 2026-08-20 (RouteDeps-narrowing pass 2) it is already closed
   // over its own `routeDeps` at composition-root construction time. Only a selected capture passes
   // a request-local theme override; ordinary exports still call it without arguments.

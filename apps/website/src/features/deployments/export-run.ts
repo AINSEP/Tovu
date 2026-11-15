@@ -25,7 +25,7 @@ import { firstExportFailure } from '@jini-ai/devops/static-export/failure-summar
  * and back then `src/features/site-export/site-exporter.ts` imported `createApp` from `server/app.ts`,
  * whose module body ended with an EAGER `export const app = createApp();` that ran the whole
  * app-boot call graph (including, via the BYOK execution mode, `buildAssistantToolRegistrations`) as
- * a side effect of merely LOADING `server/app.ts` — closing a real cycle: `assistant/
+ * a side effect of merely LOADING `server/runtime/composition/app.ts` — closing a real cycle: `assistant/
  * tool-registrations.ts` (loading) -> this domain's `tool-registrations.ts` -> this file ->
  * `export/index.ts` -> `site-exporter.ts` -> `server/app.ts` -> (via `modules/assistant-byok.ts`/
  * `byok-tool-surface.ts`) back into the STILL-LOADING `assistant/tool-registrations.ts`, calling

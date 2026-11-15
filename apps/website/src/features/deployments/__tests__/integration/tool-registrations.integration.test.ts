@@ -21,7 +21,7 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * way `features/pages/__tests__/tool-registrations.test.ts`'s harness is: `deployment_trigger_export`
  * needs the full composition-root deps bag `exportSite` boots a real in-process app from (see
  * `tool-registrations.ts`'s own file header for why), so every test here starts from the real
- * `createRouteDeps()` hermetic fixture `server/app.ts`'s own route tests already use, overriding only
+ * `createRouteDeps()` hermetic fixture `server/runtime/composition/app.ts`'s own route tests already use, overriding only
  * `authorize` where a test needs to.
  *
  * `RouteDeps.exportOutputRootDir` is pointed at a throwaway temp directory for this whole file (via

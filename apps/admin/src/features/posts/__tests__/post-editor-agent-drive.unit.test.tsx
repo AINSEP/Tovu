@@ -32,7 +32,7 @@ vi.mock("../../content-analysis/ContentAnalysisCard", () => ({
  * screen; this one is `PostEditor.tsx`-scoped — the screen that row's own agentHandle'd link opens).
  * Same convention: drive the REAL `executePageCapability` and the REAL `createDomPageDriver`, not
  * `userEvent` alone, and scope the driver to `root: container` (standing in for `contentEl`, the
- * real bridge's own scope — `App.hooks.tsx`) rather than `document.body` — see that sibling file's
+ * real bridge's own scope — `App.hooks.ts`) rather than `document.body` — see that sibling file's
  * own "KNOWN GAP" doc header for why a broader root can hide exactly this kind of unreachable-handle
  * defect.
  *

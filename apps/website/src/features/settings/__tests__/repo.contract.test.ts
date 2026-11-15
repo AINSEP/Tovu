@@ -326,7 +326,7 @@ function runContractSuite(adapterName: string, makeRepo: () => SettingsRepoPort)
     // reasoning that in-memory mutations are individually atomic already. They
     // are — but the guarantee this port sells is that a COMPOSITE is
     // all-or-nothing, which is what `resetNamespace` depends on. Gating it left
-    // the in-memory adapter (the wired default in `server/app.ts`) leaving a
+    // the in-memory adapter (the wired default in `server/runtime/composition/app.ts`) leaving a
     // half-applied namespace reset, invisible to CI. Running it against every
     // adapter is the point of a contract suite.
     const repo = makeRepo();

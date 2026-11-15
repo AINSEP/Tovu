@@ -146,7 +146,7 @@ consumer there reaches into a `.hooks.tsx` from outside its own folder.
 real hook.** This is the load-bearing rule — the folder split alone buys tidiness; this buys
 testability. **Not folder-scoped** — it governs a root-level component too, not just one under
 `src/components/<Name>/`. Settled 2026-08-12 when `src/App.tsx` (the root component; `main.tsx`
-imports it as `"./App"`, and it has no `<Name>/` folder of its own) got the same `App.hooks.tsx`
+imports it as `"./App"`, and it has no `<Name>/` folder of its own) got the same `App.hooks.ts`
 split and all five of its extracted hooks seamed (`useAdminSession`, `useSidebarDrawer`,
 `useInternalLinkInterceptor`, `useChatDockLayout`, `useAgentPageBridge`) despite living outside
 this section's own path. Rules 1/2/4 below are genuinely folder-shaped (no barrel to omit, no

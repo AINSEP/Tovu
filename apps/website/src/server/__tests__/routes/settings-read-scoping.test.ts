@@ -24,7 +24,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * setting values (ADR-007 workspace-scoping break, ADR-021 authorize-is-the-only-evaluator
  * break).
  *
- * Run against the REAL SQLite adapter (`createSiteRouteDeps(":memory:")`, `server/deps.ts`),
+ * Run against the REAL SQLite adapter (`createSiteRouteDeps(":memory:")`, `server/runtime/composition/deps.ts`),
  * matching `settings-principal-check.test.ts` rather than `settings-auth.test.ts`'s in-memory
  * repo: the other workspace's row is seeded through the same FK-enforced
  * `setting_values_workspace`/`setting_values_user` tables production uses, so "the value really

@@ -232,7 +232,7 @@ describe("driving the taxonomy-level RowMenu through page.* verbs", () => {
     const groupB: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ id: "tax-b", name: "Tag" }), terms: [] };
     const { container } = renderTaxonomy({ taxonomies: [groupA, groupB] });
     await screen.findByText("Category");
-    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // Scoped to `container`, the same way `App.hooks.ts` scopes the real bridge to `contentEl`
     // rather than `document.body` — see this block's own doc comment above.
     const driver = createDomPageDriver({ root: container, pages: {} });
 

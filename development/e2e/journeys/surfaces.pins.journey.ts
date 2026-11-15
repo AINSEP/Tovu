@@ -22,7 +22,7 @@ test.describe("Bug pin: a2ui-transport-contract", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 /**
  * @file Real-HTTP contract tests for the A2UI/MCP-UI inbound transport (ADR-055 Decision 1),
- * exercised against the REAL running Tovu proxy (`src/server/modules/assistant.ts`) fronting the
+ * exercised against the REAL running Tovu proxy (`src/server/runtime/composition/modules/assistant.ts`) fronting the
  * REAL daemon process this suite's `webServer` block spawns — not a hand-built express app, and not
  * a mocked `ToolExecutor`/`SurfaceExchangeStore`. This is deliberately the negative-path subset of
  * the transport's contract: every case here is reachable with NO open exchange and no agent run at

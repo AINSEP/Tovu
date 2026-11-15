@@ -20,14 +20,14 @@ const require = createRequire(import.meta.url);
  * REGRESSION COVER for a live outage on 2026-08-15: the daemon died on every boot with
  *
  *     TypeError: Cannot read properties of undefined (reading 'createInMemoryChatStoreFactory')
- *         at createRouteDeps (src/server/app.ts)
+ *         at createRouteDeps (src/server/runtime/composition/app.ts)
  *
  * caused by an import cycle:
  *
  *     server/app.ts -> ... -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
  * `site-exporter.ts` imports `createApp` on purpose (exporting drives the real app rather than
- * re-implementing rendering), and `server/app.ts` runs its whole boot graph as a side effect of
+ * re-implementing rendering), and `server/runtime/composition/app.ts` runs its whole boot graph as a side effect of
  * being loaded — so re-entering it mid-initialisation hands out half-built module exports.
  *
  * WHY NOTHING CAUGHT IT. Every existing suite either imports `createApp` directly or boots through

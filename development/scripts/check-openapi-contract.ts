@@ -46,7 +46,7 @@
  * - **422/429/503/410/416** — each is route-specific (e.g. rate limiting, range requests) rather
  *   than a mechanically derivable probe; not attempted here.
  *
- * All requests run against `createRouteDeps()`'s in-memory repos (see `src/server/app.ts`) — the
+ * All requests run against `createRouteDeps()`'s in-memory repos (see `src/server/runtime/composition/app.ts`) — the
  * server is thrown away when the script exits, so nothing here touches a persisted database.
  *
  * Usage: npx tsx development/scripts/check-openapi-contract.ts

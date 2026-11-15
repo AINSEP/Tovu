@@ -83,13 +83,13 @@ index, and the resolved render model themes consume.
   (`__tests__/repo.sqlite.test.ts`), plus a DB-level unique-constraint proof for
   `nav_location_bindings`' `UNIQUE(workspace_id, location_key)` (INV-02
   strengthened over the in-memory adapter's single-threaded-only guarantee).
-  Wired into `server/deps.ts`'s SQLite composition root only — `server/app.ts`'s
+  Wired into `server/runtime/composition/deps.ts`'s SQLite composition root only — `server/runtime/composition/app.ts`'s
   in-memory root is unchanged (the other rule-of-two half).
 - **`reconcile.ts` (NEW)** — `rebuildNavLocationBindings()`, the first real
   caller of the already-implemented `NavLocationBindingRepoPort
   .rebuildForWorkspace` (D-8). Reads every menu's `.locations` field and
   replaces the whole workspace's binding index in one shot; idempotent. Called
-  once at boot from `server/deps.ts`, after the SQLite db opens.
+  once at boot from `server/runtime/composition/deps.ts`, after the SQLite db opens.
 - **Outbox event publication (D-11)** — `createMenu`/`updateMenuTree`/
   `assignLocation`/`deleteMenu` each now take an `outbox: OutboxPort` dependency
   and enqueue their matching `NAVIGATION_EVENTS` entry after their repo write(s)

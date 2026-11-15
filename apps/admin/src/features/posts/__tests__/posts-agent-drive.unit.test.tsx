@@ -21,7 +21,7 @@ import { currentRoutePath, installInternalLinkInterceptor } from "@/lib/router";
  *
  * KNOWN GAP (documented fully in `taxonomy-agent-drive.unit.test.tsx`, same file with the original
  * finding): `RowMenu` portals its dropdown to `document.body`, while Tovu's real agent bridge
- * (`App.hooks.tsx`) scopes its driver to `contentEl` on purpose — narrower than `document.body`.
+ * (`App.hooks.ts`) scopes its driver to `contentEl` on purpose — narrower than `document.body`.
  * The trigger is discoverable and clickable through that scoped root; the items it reveals are not.
  * The tests below assert that real, scoped-root shape (`root: container`) rather than testing
  * against `document.body`, which would hide the gap.
@@ -86,7 +86,7 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
   it("publishes a distinct, clickable handle per row; the dropdown item stays outside the production-scoped root", async () => {
     const { container } = renderPosts({ posts: [POST, SECOND_POST] });
     await screen.findByText("Hello World");
-    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // Scoped to `container`, the same way `App.hooks.ts` scopes the real bridge to `contentEl`
     // rather than `document.body` — see this file's "KNOWN GAP" doc comment.
     const driver = createDomPageDriver({ root: container, pages: {} });
 

@@ -54,7 +54,7 @@ test.describe("Bug pin: agent-page-control-live-verification", () => {
  *
  * Two independent proofs: that the REAL bundled admin JS (not a hand-rolled script) actually opens
  * `GET /api/frontend-sessions/stream` on its own after login (`useAgentPageBridge`,
- * `App.hooks.tsx`), and that the daemon's own end of that same route hands back a real
+ * `App.hooks.ts`), and that the daemon's own end of that same route hands back a real
  * `{type:"attached", sessionId, bindToken}` frame on a real connection, using the exact wire
  * protocol `frontend-session-bridge.ts` speaks.
  *
@@ -184,7 +184,7 @@ test.describe.serial("Agent page-control — live verification", () => {
 
     // ---- Proof 1: the REAL bundled admin JS opens this connection on its own, unprompted, after
     // login — not something only a hand-rolled test script can do. `useAgentPageBridge`
-    // (`App.hooks.tsx`) mounts unconditionally once `<main>` renders. ----
+    // (`App.hooks.ts`) mounts unconditionally once `<main>` renders. ----
     const bridgeStreamRequest = page.waitForRequest(
       (req) => req.url().includes("/api/frontend-sessions/stream"),
       { timeout: 15_000 },

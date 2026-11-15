@@ -18,7 +18,7 @@ import "../../features/posts";
  * way to learn the flag was off, so it kept mounting `AssistantDock`/`ChatFab` regardless: a
  * permanently broken chat surface reporting "No usable CLI is selected" instead of nothing.
  *
- * `App.hooks.tsx`'s `useAdminAssistantAvailability` reads a sibling `adminAssistantEnabled` field
+ * `App.hooks.ts`'s `useAdminAssistantAvailability` reads a sibling `adminAssistantEnabled` field
  * `GET .../assistant/settings` now returns (`server/routes/admin/assistant/get-settings.ts`), and
  * `App.tsx` conditionally mounts the dock/FAB on it. These two tests prove the wiring: shown by
  * default (field `true`, or a stub response omitting it entirely — the admin's own fail-open

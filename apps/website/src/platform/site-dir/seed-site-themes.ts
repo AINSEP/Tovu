@@ -33,7 +33,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  *
  * Architectural role:
  * Pure filesystem effect, no domain logic and no port. Called from the real composition root
- * (`server/deps.ts`'s `createSiteRouteDeps`) only — deliberately NOT from `server/app.ts`'s
+ * (`server/runtime/composition/deps.ts`'s `createSiteRouteDeps`) only — deliberately NOT from `server/runtime/composition/app.ts`'s
  * in-memory `createRouteDeps()`, which is the hermetic/test path and would copy the whole tree per
  * test run.
  */

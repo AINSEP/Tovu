@@ -503,8 +503,8 @@ test.describe("Bug pin: deployment-static-site-verify-gap", () => {
  * `src/features/deployments/static-publish/verify.ts`) tells the model to default a GitHub Pages
  * publish's `owner` from the credential's verified `accountLabel` rather than guessing it — but
  * `accountLabel` only exists once a human (re-)verifies the saved token, and verification is a
- * CACHED, in-memory result (`InMemoryPublishCredentialVerificationCache`, `src/server/app.ts`,
- * `src/server/deps.ts`) that a server restart silently wipes even though the credential itself is
+ * CACHED, in-memory result (`InMemoryPublishCredentialVerificationCache`, `src/server/runtime/composition/app.ts`,
+ * `src/server/runtime/composition/deps.ts`) that a server restart silently wipes even though the credential itself is
  * unchanged. When that happens live, the assistant tells the human: "Go to Deployment panel ->
  * Static Site -> Publish and hit verify on the GitHub token" — but grepping
  * `apps/admin/src/features/deployment/StaticSiteTab.tsx` for "verify" (any case) returns zero

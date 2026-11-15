@@ -20,7 +20,7 @@ import { resolveAgentPluginLayout } from "../../layout.js";
  * `install.ts` by mistake.
  *
  * Still mirrors this codebase's own `TOVU_*_DIR` convention: `mediaUploadsDir()`
- * (`src/server/deps.ts`) defaults to `join(siteDir(), "uploads")`, overridden by
+ * (`src/server/runtime/composition/deps.ts`) defaults to `join(siteDir(), "uploads")`, overridden by
  * `TOVU_MEDIA_UPLOADS_DIR`; `sites/<name>/` is the site's own gitignored runtime-data root
  * (`.gitignore`, `sites/README.md`) and already has a `ws/<workspaceId>/` shape for uploads
  * (`sites/tovu-dev/uploads/ws/workspace-local/`). The default moved off `<cwd>/infra/` on

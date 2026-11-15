@@ -6,7 +6,7 @@ import { ASSISTANT_DOCK_DICT, t } from "../assistant-dock-i18n";
 /**
  * @file `ASSISTANT_DOCK_DICT` cross-locale coverage — same idiom as
  * `taxonomy/__tests__/taxonomy-i18n.unit.test.ts` (read that file's header): `assistant-dock-i18n.ts`
- * exported no module-level `t` for `ASSISTANT_DOCK_DICT` at all before this fix — `App.hooks.tsx`'s
+ * exported no module-level `t` for `ASSISTANT_DOCK_DICT` at all before this fix — `App.hooks.ts`'s
  * `translateAssistantDockLabel` and `AssistantDock.hooks.tsx`'s `useAssistantDockChrome` each built
  * their own no-fallback `ASSISTANT_DOCK_DICT[locale]?.[key] ?? key` closure independently.
  *
