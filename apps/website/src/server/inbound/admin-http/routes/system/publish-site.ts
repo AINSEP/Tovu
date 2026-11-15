@@ -109,11 +109,11 @@ export type AdminPublishSiteDeps = RouteDeps;
  * and whether their values are valid, is judged by the registry (`readStaticPublishConfig` +
  * `planStaticPublish`), so a caller only ever gets one canonical rejection for the same bad value.
  */
-function parsePublishRequestBody({ body }: { body: unknown }, _optional?: Record<string, never>): { ok: true; raw: Record<string, unknown>; targetId: string; projectName: string; credentialId?: string } | { ok: false; error: string } {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+function parsePublishRequestBody({ body }: { body: unknown }, _optional = {}): { ok: true; raw: Record<string, unknown>; targetId: string; projectName: string; credentialId?: string } | { ok: false; error: string } {
+  const raw = asJsonObject({ body });
+  if (!raw) {
     return { ok: false, error: "request body must be a JSON object" };
   }
-  const raw = body as Record<string, unknown>;
 
   if (typeof raw.projectName !== "string" || raw.projectName.trim() === "") {
     return { ok: false, error: "'projectName' (non-empty string) is required" };
@@ -137,6 +137,12 @@ function parsePublishRequestBody({ body }: { body: unknown }, _optional?: Record
     projectName: raw.projectName,
     ...(typeof raw.credentialId === "string" ? { credentialId: raw.credentialId } : {}),
   };
+}
+
+/** The body as a plain object, or `null` for a non-object, `null` or array body. */
+function asJsonObject({ body }: { body: unknown }, _optional = {}): Record<string, unknown> | null {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return null;
+  return body as Record<string, unknown>;
 }
 
 function validOptionalCredential({ value }: { value: unknown }, _options = {}): boolean {
