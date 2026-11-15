@@ -200,6 +200,6 @@ function serializeElement(element: HeadElement): string {
 }
 
 /** Turns the final `HeadElement[]` into escaped `<head>` tag markup. */
-export function serializeHeadElements(elements: HeadElement[]): string {
+export function serializeHeadElements({ elements }: { elements: HeadElement[] }, _optional = {}): string {
   return elements.map(serializeElement).join("");
 }

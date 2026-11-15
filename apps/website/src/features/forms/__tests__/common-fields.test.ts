@@ -104,7 +104,7 @@ test("assistant create/update schemas advertise common native fields and builder
   assert.match(html, /<option value="sales">Sales/);
   assert.ok(html.includes(`aria-describedby="${topicId}-help ${topicId}-error"`));
   assert.ok(html.includes(`<div id="${topicId}-help" class="widget-form-field-help">Pick a topic</div>`));
-  const invalid = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [{ field: "topic", reason: "invalid_option" }] });
+  const invalid = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "topic", reason: "invalid_option" }] } });
   assert.ok(invalid.includes(`class="widget-form-field-error" data-field="topic" id="${topicId}-error">`));
   assert.equal((html.match(/<button type="submit"/g) ?? []).length, 1);
 });

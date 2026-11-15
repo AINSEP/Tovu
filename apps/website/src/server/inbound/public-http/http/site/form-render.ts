@@ -331,7 +331,7 @@ export function clearFormSubmissionResultQueryParams(params: URLSearchParams): v
   for (const key of Object.values(FORM_RESULT_QUERY_KEYS)) params.delete(key);
 }
 
-function queryStringValue(value: unknown): string {
+function queryStringValue({ value }: { value: unknown }, _optional = {}): string {
   return typeof value === "string" ? value : "";
 }
 
@@ -352,17 +352,17 @@ function queryStringValue(value: unknown): string {
  *  same "escape at the sink, not at the boundary" rule every other query/cookie decoder in this file
  *  follows.
  * @complexity O(1). */
-function parseFieldErrorEntry(entry: unknown): { field: string; reason: string } | null {
+function parseFieldErrorEntry({ entry }: { entry: unknown }, _optional = {}): { field: string; reason: string } | null {
   const candidate = { value: entry };
   if (!isNonArrayRecord(candidate)) return null;
-  const field = queryStringValue(candidate.value.field);
+  const field = queryStringValue({ value: candidate.value.field });
   if (!field) return null;
-  const reason = queryStringValue(candidate.value.reason);
+  const reason = queryStringValue({ value: candidate.value.reason });
   return { field: field.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN), reason: reason.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN) };
 }
 
-function readFieldErrorsFromQuery(raw: unknown): Array<{ field: string; reason: string }> {
-  const rawString = queryStringValue(raw);
+function readFieldErrorsFromQuery({ raw }: { raw: unknown }, _optional = {}): Array<{ field: string; reason: string }> {
+  const rawString = queryStringValue({ value: raw });
   if (!rawString || rawString.length > FORM_RESULT_MAX_FIELD_STRING_LEN * FORM_RESULT_MAX_FIELD_ERRORS) return [];
   let parsed: unknown;
   try {
@@ -373,7 +373,7 @@ function readFieldErrorsFromQuery(raw: unknown): Array<{ field: string; reason: 
   if (!Array.isArray(parsed)) return [];
   const errors: Array<{ field: string; reason: string }> = [];
   for (const entry of parsed.slice(0, FORM_RESULT_MAX_FIELD_ERRORS)) {
-    const parsedEntry = parseFieldErrorEntry(entry);
+    const parsedEntry = parseFieldErrorEntry({ entry });
     if (parsedEntry) errors.push(parsedEntry);
   }
   return errors;
@@ -388,17 +388,17 @@ function readFieldErrorsFromQuery(raw: unknown): Array<{ field: string; reason: 
  * @complexity O(1), except `form_status=invalid` which delegates to
  * {@link readFieldErrorsFromQuery}'s own bounded cost. */
 export function decodeFormSubmissionResultFromQuery(query: Record<string, unknown>): FormSubmissionRedirectResult | undefined {
-  const slug = queryStringValue(query[FORM_RESULT_QUERY_KEYS.slug]);
-  const status = queryStringValue(query[FORM_RESULT_QUERY_KEYS.status]);
+  const slug = queryStringValue({ value: query[FORM_RESULT_QUERY_KEYS.slug] });
+  const status = queryStringValue({ value: query[FORM_RESULT_QUERY_KEYS.status] });
   if (!slug || !status) return undefined;
   if (status === "success") return { kind: "success", slug };
   if (status === "error") return { kind: "error", slug };
   if (status === "too-fast") return { kind: "too-fast", slug };
   if (status === "rate_limited") {
-    const retryAfterSeconds = Number.parseInt(queryStringValue(query[FORM_RESULT_QUERY_KEYS.retryAfter]), 10);
+    const retryAfterSeconds = Number.parseInt(queryStringValue({ value: query[FORM_RESULT_QUERY_KEYS.retryAfter] }), 10);
     return { kind: "rate-limited", slug, retryAfterSeconds: Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : 0 };
   }
-  if (status === "validation") return { kind: "validation", slug, fieldErrors: readFieldErrorsFromQuery(query[FORM_RESULT_QUERY_KEYS.errors]) };
+  if (status === "validation") return { kind: "validation", slug, fieldErrors: readFieldErrorsFromQuery({ raw: query[FORM_RESULT_QUERY_KEYS.errors] }) };
   return undefined;
 }
 
@@ -410,7 +410,7 @@ export function decodeFormSubmissionResultFromQuery(query: Record<string, unknow
  *  `$`-prefixed sequences (`$&`, `$1`, ...) that `String.prototype.replace` would otherwise
  *  reinterpret as its own replacement-pattern syntax, corrupting or duplicating unrelated output; a
  *  function return value is always inserted literally. */
-function showFormSuccessMessage(html: string, slugPattern: string): string {
+function showFormSuccessMessage({ html, slugPattern }: { html: string; slugPattern: string }, _optional = {}): string {
   const successRegex = new RegExp(`(<div class="[^"]*\\b${FORM_SUCCESS_CLASS}\\b[^"]*" ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
   const plainRegex = new RegExp(`(<div data-tovu-form-success ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden>`, "i");
   return html.replace(successRegex, (_match, openTag: string) => `${openTag}>`)
@@ -420,7 +420,7 @@ function showFormSuccessMessage(html: string, slugPattern: string): string {
 /** Adds `hidden` to the matched `<form ...>` block's own opening tag — used on success, once the
  *  message above is shown, so the visitor sees the confirmation in place of the (now pointless) form
  *  rather than both at once. */
-function hideFormElement(formHtml: string): string {
+function hideFormElement({ formHtml }: { formHtml: string }, _optional = {}): string {
   return formHtml.replace(/^<form /, "<form hidden ");
 }
 
@@ -428,7 +428,7 @@ function hideFormElement(formHtml: string): string {
  *  itself — never attacker-controlled — for the `rate-limited`/`error` cases and the validation
  *  banner; see {@link showFieldErrors} for the one case where the text IS attacker-controlled).
  *  Matches on the generic class/attribute, same reasoning as {@link showFormSuccessMessage}. */
-function showFormErrorSummary(formHtml: string, slugPattern: string, message: string): string {
+function showFormErrorSummary({ formHtml, slugPattern, message }: { formHtml: string; slugPattern: string; message: string }, _optional = {}): string {
   const errorRegex = new RegExp(`(<div class="[^"]*\\b${FORM_ERROR_CLASS}\\b[^"]*" ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden><\\/div>`, "i");
   const plainRegex = new RegExp(`(<div data-tovu-form-error ${FORM_SLUG_ATTR}="${slugPattern}"[^>]*) hidden><\\/div>`, "i");
   return formHtml.replace(errorRegex, (_match, openTag: string) => `${openTag}>${message}</div>`)
@@ -442,7 +442,7 @@ function showFormErrorSummary(formHtml: string, slugPattern: string, message: st
  *  a partial-corruption risk. `.widget-form-field`/`.widget-form-field-error` are already
  *  form-generic class names (not `contact-form`-specific), so no change was needed here for the
  *  2026-08-31 generalization beyond moving the function. */
-function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: string; message: string }>): string {
+function showFieldErrors({ formHtml, fieldErrors }: { formHtml: string; fieldErrors: ReadonlyArray<{ field: string; message: string }> }, _optional = {}): string {
   return fieldErrors.reduce((updated, { field, message }) => {
     const fieldPattern = RegExp.escape(escapeHtml(field));
     const fieldErrorRegex = new RegExp(`(<div class="widget-form-field-error" data-field="${fieldPattern}"[^>]*) hidden></div>`, "i");
@@ -488,7 +488,7 @@ function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: s
  *  to a specific delimiter pair. Unquoted `value=old` attributes are a separate, pre-existing gap (not
  *  introduced or widened by this fix) — grepping every theme's HTML for an unquoted `value=` attribute
  *  found zero occurrences, so it's left out of scope rather than folded into this change. */
-function setInputValueAttr(tag: string, escapedValue: string): string {
+function setInputValueAttr({ tag, escapedValue }: { tag: string; escapedValue: string }, _optional = {}): string {
   const existingValueAttr = /(\s)value=("[^"]*"|'[^']*')/i;
   if (existingValueAttr.test(tag)) {
     return tag.replace(existingValueAttr, (_match, leadingSpace: string) => `${leadingSpace}value="${escapedValue}"`);
@@ -511,14 +511,14 @@ function setInputValueAttr(tag: string, escapedValue: string): string {
  *  its wiped value). A replacer FUNCTION for the same `$&`/`$1` corruption reason documented on
  *  {@link showFormSuccessMessage}. @complexity O(html.length) per call — two regex passes, the
  *  second only executed when the first did not match. */
-function showOneFieldValue(html: string, field: string, value: string): string {
+function showOneFieldValue({ html, field, value }: { html: string; field: string; value: string }, _optional = {}): string {
   const fieldPattern = RegExp.escape(escapeHtml(field));
   const escapedValue = escapeHtml(value);
   const textareaRegex = new RegExp(`(<textarea\\b[^>]*\\bname="${fieldPattern}"[^>]*>)[\\s\\S]*?(<\\/textarea>)`, "i");
   const withTextarea = html.replace(textareaRegex, (_match, openTag: string, closeTag: string) => `${openTag}${escapedValue}${closeTag}`);
   if (withTextarea !== html) return withTextarea;
   const inputRegex = new RegExp(`<input\\b[^>]*\\bname="${fieldPattern}"[^>]*>`, "i");
-  return html.replace(inputRegex, (matchedTag: string) => setInputValueAttr(matchedTag, escapedValue));
+  return html.replace(inputRegex, (matchedTag: string) => setInputValueAttr({ tag: matchedTag, escapedValue }));
 }
 
 /** Re-populates every field named in `values` (already filtered to repopulatable, non-sensitive
@@ -526,9 +526,9 @@ function showOneFieldValue(html: string, field: string, value: string): string {
  *  `buildFormFlashValues`) into `formHtml`. `undefined` (no flash present, or a plain success/
  *  rate-limited/error result) is a byte-identical no-op. @complexity O(n) reduce over `values`'
  *  entries, each doing {@link showOneFieldValue}'s own bounded work. */
-function showFieldValues(formHtml: string, values: Readonly<Record<string, string>> | undefined): string {
+function showFieldValues({ formHtml, values }: { formHtml: string; values: Readonly<Record<string, string>> | undefined }, _optional = {}): string {
   if (!values) return formHtml;
-  return Object.entries(values).reduce((updated, [field, value]) => showOneFieldValue(updated, field, value), formHtml);
+  return Object.entries(values).reduce((updated, [field, value]) => showOneFieldValue({ html: updated, field, value }), formHtml);
 }
 
 /** The `"validation"` outcome for one matched `<form>` block: per-field messages (labels read from
@@ -546,11 +546,7 @@ function showValidationResult(
     errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }],
     locale: formDocumentLocale({ html }),
   });
-  return showFormErrorSummary(
-    showFieldValues(showFieldErrors(originalForm, messages), result.values),
-    slugPattern,
-    authored ? messages.map(({ message }) => escapeHtml(message)).join(" ") : "Please fix the highlighted fields below."
-  );
+  return showFormErrorSummary({ formHtml: showFieldValues({ formHtml: showFieldErrors({ formHtml: originalForm, fieldErrors: messages }), values: result.values }), slugPattern, message: authored ? messages.map(({ message }) => escapeHtml(message)).join(" ") : "Please fix the highlighted fields below." });
 }
 
 /** Rebuilds the one matched `<form>` block for `result`'s outcome (success hides it; every other
@@ -560,14 +556,14 @@ function showValidationResult(
 function updateFormForResult(
   { html, originalForm, slugPattern, result }: { html: string; originalForm: string; slugPattern: string; result: FormSubmissionRedirectResult },
 ): string {
-  if (result.kind === "success") return hideFormElement(originalForm);
+  if (result.kind === "success") return hideFormElement({ formHtml: originalForm });
   if (result.kind === "validation") return showValidationResult({ html, originalForm, slugPattern, result });
-  if (result.kind === "too-fast") return showFormErrorSummary(showFieldValues(originalForm, result.values), slugPattern, FORM_SUBMISSION_TOO_FAST_MESSAGE);
+  if (result.kind === "too-fast") return showFormErrorSummary({ formHtml: showFieldValues({ formHtml: originalForm, values: result.values }), slugPattern, message: FORM_SUBMISSION_TOO_FAST_MESSAGE });
   if (result.kind === "rate-limited") {
     const plural = result.retryAfterSeconds === 1 ? "" : "s";
-    return showFormErrorSummary(originalForm, slugPattern, `Too many submissions — please try again in ${result.retryAfterSeconds} second${plural}.`);
+    return showFormErrorSummary({ formHtml: originalForm, slugPattern, message: `Too many submissions — please try again in ${result.retryAfterSeconds} second${plural}.` });
   }
-  return showFormErrorSummary(originalForm, slugPattern, "Something went wrong — please try again.");
+  return showFormErrorSummary({ formHtml: originalForm, slugPattern, message: "Something went wrong — please try again." });
 }
 
 /**
@@ -589,7 +585,7 @@ function updateFormForResult(
  * outcome's own splice (bounded by `result.fieldErrors.length`/`values` size for `"validation"`,
  * themselves already capped upstream).
  */
-export function injectFormSubmissionResultIntoHtml(html: string, result: FormSubmissionRedirectResult | undefined): string {
+export function injectFormSubmissionResultIntoHtml({ html, result }: { html: string; result: FormSubmissionRedirectResult | undefined }, _optional = {}): string {
   if (!result) return html;
   const slugPattern = RegExp.escape(escapeHtml(result.slug));
   const formRegex = new RegExp(`<form\\b[^>]*${FORM_SLUG_ATTR}="${slugPattern}"[^>]*>[\\s\\S]*?<\\/form>`, "i");
@@ -604,7 +600,7 @@ export function injectFormSubmissionResultIntoHtml(html: string, result: FormSub
   // different splices into one manual slice — `formMatch.index` was measured against the ORIGINAL
   // `html`, and no longer lines up with anything once an earlier edit shifts every byte after it.
   const withUpdatedForm = html.slice(0, formMatch.index) + updatedForm + html.slice(formMatch.index + originalForm.length);
-  return result.kind === "success" ? showFormSuccessMessage(withUpdatedForm, slugPattern) : withUpdatedForm;
+  return result.kind === "success" ? showFormSuccessMessage({ html: withUpdatedForm, slugPattern }) : withUpdatedForm;
 }
 
 /** Every public form's opening tag: both renderers (Builder and HTML mode) stamp `${FORM_SLUG_ATTR}`. */
@@ -634,7 +630,7 @@ export function injectFormAttemptTokens(
 
 /** One visible text control's `maxlength`: an author's own attribute stays; otherwise the cap the
  *  submit route enforces (`features/forms/field-length-caps.ts`). Hidden inputs have nothing to show. */
-function stampControlMaxLength(tag: string, caps: ReadonlyMap<string, number>): string {
+function stampControlMaxLength({ tag, caps }: { tag: string; caps: ReadonlyMap<string, number> }, _optional = {}): string {
   const max = caps.get(/\sname="([^"]*)"/i.exec(tag)?.[1] ?? "");
   if (max === undefined || /\smaxlength\s*=/i.test(tag) || /\stype="hidden"/i.test(tag)) return tag;
   const selfClosing = /\/>$/.test(tag);
@@ -645,13 +641,13 @@ function stampControlMaxLength(tag: string, caps: ReadonlyMap<string, number>): 
  *  the browser stops typing at the same cap the server refuses past. Browsers count UTF-16 units here
  *  while the server counts code points, so the browser is never the looser of the two.
  *  @complexity O(html.length + fields). */
-export function stampFormFieldMaxLengths(html: string, fields: readonly FieldDescriptor[]): string {
+export function stampFormFieldMaxLengths({ html, fields }: { html: string; fields: readonly FieldDescriptor[] }, _optional = {}): string {
   const caps = new Map<string, number>();
   for (const field of fields) {
     const max = typeof field === "object" && field !== null ? fieldMaxChars({ field }) : undefined;
     if (max !== undefined) caps.set(field.id, max);
   }
-  return html.replace(/<(?:input|textarea)\b[^>]*>/gi, (tag) => stampControlMaxLength(tag, caps));
+  return html.replace(/<(?:input|textarea)\b[^>]*>/gi, (tag) => stampControlMaxLength({ tag, caps }));
 }
 
 // ---------------------------------------------------------------------------
@@ -757,7 +753,7 @@ function decodeFlashValues(rawValues: Record<string, unknown>): Record<string, s
  *  treats a hand-crafted query string — so any malformation (not JSON, wrong shape, oversized)
  *  degrades to `undefined` rather than throwing.
  * @complexity O(1) plus {@link decodeFlashValues}' own bounded cost. */
-export function decodeFormFlashCookieValue(raw: string | undefined): FormFlashPayload | undefined {
+export function decodeFormFlashCookieValue({ raw }: { raw: string | undefined }, _optional = {}): FormFlashPayload | undefined {
   if (!raw) return undefined;
   let parsed: unknown;
   try {
@@ -776,8 +772,7 @@ export function decodeFormFlashCookieValue(raw: string | undefined): FormFlashPa
  *  `"rate-limited"`/`"error"` result (a shape it was never set for) all pass `result` through
  *  unchanged. @complexity O(1). */
 export function mergeFormFlashIntoResult(
-  result: FormSubmissionRedirectResult | undefined,
-  flash: FormFlashPayload | undefined
+  { result, flash }: { result: FormSubmissionRedirectResult | undefined; flash: FormFlashPayload | undefined }, _optional = {}
 ): FormSubmissionRedirectResult | undefined {
   // Timing retries use the same read-once text recovery; successful/rate/internal outcomes do not.
   if (!result || !flash || flash.slug !== result.slug) return result;

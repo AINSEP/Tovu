@@ -40,12 +40,12 @@ test("HTML-mode forms get the cap on authored controls but keep an author's own 
 test("hidden inputs and undeclared controls are left alone", () => {
   const fields = [{ id: "ref", label: "Ref", type: "hidden", required: false }] as Parameters<typeof stampFormFieldMaxLengths>[1];
   const html = '<input type="hidden" name="ref" value="x"><input name="other">';
-  assert.equal(stampFormFieldMaxLengths(html, fields), html);
+  assert.equal(stampFormFieldMaxLengths({ html, fields }), html);
 });
 
 test("a too_long error names the field's limit; a control without maxlength keeps the plain copy", () => {
   const html = renderWidgetIr({ componentId: "contact-form", props: { slug: "contact", fields: FIELDS } });
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [{ field: "message", reason: "too_long" }] });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "message", reason: "too_long" }] } });
   const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-message-error)"/)?.[1];
   assert.ok(errorId);
   assert.ok(updated.includes(`id="${errorId}">Please keep Message to 2000 characters or fewer.</div>`));

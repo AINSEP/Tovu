@@ -61,10 +61,10 @@ test("HTML mode is per occurrence, and native POST results reveal plain confirma
   assert.equal(resolved.get("widget")?.get("widget-1")?.props.mode, undefined);
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
   const plain = renderHtmlPageBody(plainHtml, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }));
-  const success = injectFormSubmissionResultIntoHtml(plain, { kind: "success", slug: "contact" });
+  const success = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "success", slug: "contact" } });
   assert.match(success, /data-tovu-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
   assert.match(success, /<form hidden class="tovu-form" data-tovu-form/);
-  const failure = injectFormSubmissionResultIntoHtml(plain, { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] });
+  const failure = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] } });
   // A sentence from the field's label since 2e733c6a5 (friendly form errors), not "email: invalid".
   assert.match(failure, /role="alert">Please check your email\.<\/div>/);
 });

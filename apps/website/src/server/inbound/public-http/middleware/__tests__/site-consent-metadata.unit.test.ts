@@ -39,7 +39,7 @@ for (const [name, source, selector] of metadata) {
 }
 
 test('the actual Tovu head serializer preserves canonical metadata beside consent assets', () => {
-  const head = serializeHeadElements([{ kind: 'link', rel: 'canonical', href: 'https://site.example/docs', priority: 120 }]);
+  const head = serializeHeadElements({ elements: [{ kind: 'link', rel: 'canonical', href: 'https://site.example/docs', priority: 120 }] });
   assert.equal(head.includes('data-consent-category'), false);
   const dom = new JSDOM(documentWithAssets(head));
   try { assert.equal(dom.window.document.head.querySelector('link[rel="canonical"]')?.getAttribute('href'), 'https://site.example/docs'); }

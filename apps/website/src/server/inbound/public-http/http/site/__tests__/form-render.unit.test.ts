@@ -49,12 +49,12 @@ test("timing retry round-trips without answers in the URL and restores eligible 
   assert.equal(query.toString(), "form=contact&form_status=too-fast");
   const result = decodeFormSubmissionResultFromQuery(Object.fromEntries(query));
   assert.deepEqual(result, { kind: "too-fast", slug: "contact" });
-  assert.deepEqual(mergeFormFlashIntoResult(result, { slug: "other", values: { name: "wrong" } }), result);
-  const merged = mergeFormFlashIntoResult(result, { slug: "contact", values: { name: "Ada <safe>" } });
+  assert.deepEqual(mergeFormFlashIntoResult({ result, flash: { slug: "other", values: { name: "wrong" } } }), result);
+  const merged = mergeFormFlashIntoResult({ result, flash: { slug: "contact", values: { name: "Ada <safe>" } } });
   const html = '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact" hidden></div><input name="name"><input type="file" name="photo"></form>';
-  assert.equal(injectFormSubmissionResultIntoHtml(html, merged), '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name" value="Ada &lt;safe&gt;"><input type="file" name="photo"></form>');
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: merged }), '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name" value="Ada &lt;safe&gt;"><input type="file" name="photo"></form>');
   const authored = '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact" hidden></div><input name="name"></form>';
-  assert.equal(injectFormSubmissionResultIntoHtml(authored, result), '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name"></form>');
+  assert.equal(injectFormSubmissionResultIntoHtml({ html: authored, result }), '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name"></form>');
 });
 
 test("encode: validation writes at most 20 field errors — the first 20, in order", () => {
@@ -115,12 +115,12 @@ test("decode: ignores a result without a non-empty string form slug", () => {
 });
 
 test("decode flash: JSON null is ignored without throwing", () => {
-  assert.equal(decodeFormFlashCookieValue("null"), undefined);
+  assert.equal(decodeFormFlashCookieValue({ raw: "null" }), undefined);
 });
 
 test("decode flash: rejects a missing, empty or non-string slug even with valid values", () => {
   for (const slug of [undefined, "", 42]) {
-    assert.equal(decodeFormFlashCookieValue(JSON.stringify({ slug, values: { email: "ada@example.com" } })), undefined);
+    assert.equal(decodeFormFlashCookieValue({ raw: JSON.stringify({ slug, values: { email: "ada@example.com" } }) }), undefined);
   }
 });
 
@@ -156,7 +156,7 @@ const htmlModeFormPage =
 
 test("inject: success on an HTML-mode form reveals its bare success slot and hides the form", () => {
   assert.equal(
-    injectFormSubmissionResultIntoHtml(htmlModeFormPage, { kind: "success", slug: "s" }),
+    injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "success", slug: "s" } }),
     '<div data-tovu-form-success data-form-slug="s">Thanks</div>' +
       '<form hidden data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s" hidden></div></form>',
   );
@@ -164,7 +164,7 @@ test("inject: success on an HTML-mode form reveals its bare success slot and hid
 
 test("inject: a one-second rate limit says 'second', not 'seconds'", () => {
   assert.equal(
-    injectFormSubmissionResultIntoHtml(htmlModeFormPage, { kind: "rate-limited", slug: "s", retryAfterSeconds: 1 }),
+    injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "rate-limited", slug: "s", retryAfterSeconds: 1 } }),
     '<div data-tovu-form-success data-form-slug="s" hidden>Thanks</div>' +
       '<form data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s">Too many submissions — please try again in 1 second.</div></form>',
   );

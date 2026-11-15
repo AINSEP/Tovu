@@ -51,6 +51,6 @@ test("injectFormAttemptTokens: the token is HTML-escaped", () => {
 });
 
 test("injectFormAttemptTokens: composes with a success result splice (the form is hidden, the token still inside it)", () => {
-  const html = injectFormAttemptTokens({ html: injectFormSubmissionResultIntoHtml(builderForm(), { kind: "success", slug: "contact" }), newToken: counter() }, {});
+  const html = injectFormAttemptTokens({ html: injectFormSubmissionResultIntoHtml({ html: builderForm(), result: { kind: "success", slug: "contact" } }), newToken: counter() }, {});
   assert.match(html, /<form hidden [^>]*><input type="hidden" name="_attempt" value="tok-1">/);
 });

@@ -138,13 +138,13 @@ test("registerPageHeadContributor: multiple registered contributors both fold", 
 
 test("serializeHeadElements: renders one case per HeadElement kind, escaped", async () => {
   const hostileJsonLd = { "@type": "Article", name: '</script><script>alert("breakout")</script>' };
-  const html = serializeHeadElements([
+  const html = serializeHeadElements({ elements: [
     { kind: "title", text: "A & B", priority: 100 },
     { kind: "meta", name: "description", content: '"quoted"', priority: 110 },
     { kind: "link", rel: "canonical", href: "https://example.com/?a=1&b=2", priority: 120 },
     { kind: "og", property: "og:title", content: "<script>", priority: 140 },
     { kind: "jsonld", data: hostileJsonLd, priority: 900 },
-  ]);
+  ] });
 
   assert.match(html, /<title>A &amp; B<\/title>/);
   assert.match(html, /<meta name="description" content="&quot;quoted&quot;"/);
@@ -163,7 +163,7 @@ test("serializeHeadElements: renders one case per HeadElement kind, escaped", as
 });
 
 test("serializeHeadElements: never string-concatenates jsonld — the payload round-trips through JSON.stringify", async () => {
-  const html = serializeHeadElements([{ kind: "jsonld", data: { "@type": "Article", headline: "Hi" }, priority: 900 }]);
+  const html = serializeHeadElements({ elements: [{ kind: "jsonld", data: { "@type": "Article", headline: "Hi" }, priority: 900 }] });
   const scriptBodyMatch = /<script type="application\/ld\+json">(.*?)<\/script>/s.exec(html);
   assert.ok(scriptBodyMatch);
   const parsed = JSON.parse(scriptBodyMatch![1]!.replace(/\\u003c/g, "<"));
@@ -185,11 +185,11 @@ test("serializeHeadElements: never string-concatenates jsonld — the payload ro
  * escape `'` are what makes "it wasn't needed here" an assumption rather than a rule.
  */
 test("serializeHeadElements: an apostrophe is escaped, so a single-quoted attribute added later cannot be broken out of", () => {
-  const html = serializeHeadElements([
+  const html = serializeHeadElements({ elements: [
     { kind: "title", text: "Ada's page", priority: 100 },
     { kind: "meta", name: "description", content: "it's a description' onload='alert(1)", priority: 110 },
     { kind: "link", rel: "canonical", href: "https://example.com/ada's", priority: 120 },
-  ]);
+  ] });
 
   assert.match(html, /<title>Ada&#39;s page<\/title>/);
   assert.match(html, /content="it&#39;s a description&#39; onload=&#39;alert\(1\)"/);
@@ -202,15 +202,15 @@ test("serializeHeadElements: escaping this module's five entities agrees with it
   // `static-render.ts`, `form-render.ts` and `site-exporter.ts` all map exactly these five, `&`
   // first (it is the escape character for every entity below it, so escaping it later would
   // double-escape what the others introduce).
-  const html = serializeHeadElements([{ kind: "title", text: `&<>"'`, priority: 100 }]);
+  const html = serializeHeadElements({ elements: [{ kind: "title", text: `&<>"'`, priority: 100 }] });
 
   assert.match(html, /<title>&amp;&lt;&gt;&quot;&#39;<\/title>/);
 });
 
 test("serializeHeadElements: a link's optional type and title render as escaped attributes (RSS auto-discovery)", async () => {
-  const html = serializeHeadElements([
+  const html = serializeHeadElements({ elements: [
     { kind: "link", rel: "alternate", type: "application/rss+xml", title: `Tom & "Jerry"`, href: "/feed.xml", priority: 125 },
-  ]);
+  ] });
   assert.equal(html, `<link rel="alternate" href="/feed.xml" type="application/rss+xml" title="Tom &amp; &quot;Jerry&quot;"/>`);
 });
 
@@ -234,8 +234,8 @@ test("foldPageHead: alternate languages survive together and serialize their hre
   registerPageHeadContributor(hook(10, links));
   const folded = await foldPageHead(ctx);
   assert.deepEqual(folded, links);
-  assert.equal(serializeHeadElements(folded), '<link rel="alternate" href="/en" hreflang="en"/><link rel="alternate" href="/fr" hreflang="fr"/>');
-  assert.equal(serializeHeadElements([
+  assert.equal(serializeHeadElements({ elements: folded }), '<link rel="alternate" href="/en" hreflang="en"/><link rel="alternate" href="/fr" hreflang="fr"/>');
+  assert.equal(serializeHeadElements({ elements: [
     { kind: "link", rel: "alternate", hreflang: 'en&"', href: "/en", priority: 125 },
-  ]), '<link rel="alternate" href="/en" hreflang="en&amp;&quot;"/>');
+  ] }), '<link rel="alternate" href="/en" hreflang="en&amp;&quot;"/>');
 });

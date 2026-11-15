@@ -48,7 +48,7 @@ test("live GET and POST share issuance: fast retries preserve text, 1000 ms admi
   assert.equal(native.headers.get("location"), "/?form=contact&form_status=too-fast");
   const flash = native.headers.get("set-cookie")?.match(/tovu_form_flash=([^;]*)/)?.[1];
   assert.ok(flash);
-  assert.deepEqual(decodeFormFlashCookieValue(decodeURIComponent(flash)), { slug: "contact", values: { name: "Ada" } });
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: decodeURIComponent(flash) }), { slug: "contact", values: { name: "Ada" } });
   const retryPage = await fetch(`${baseUrl}${native.headers.get("location")}`, { headers: { cookie: `tovu_form_flash=${flash}` } });
   const retryHtml = await retryPage.text();
   assert.ok(retryHtml.includes("Please wait a moment, then submit again."));

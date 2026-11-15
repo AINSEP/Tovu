@@ -2471,7 +2471,7 @@ function renderWidgetContactForm(props: JsonObject): string {
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
   }, { ...collectionHtmlOptions({ props }), idPrefix, consentOff: props.collectionConsentOff === true }) + rangeReadout;
   // Both modes show the length caps the submit route enforces (owner 2026-10-25, spam protection).
-  if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths(renderHtmlForm({
+  if (props.mode === "html") return FORM_BASELINE_STYLE + stampFormFieldMaxLengths({ html: renderHtmlForm({
     slug, action: `/forms/${encodeURIComponent(slug)}/submit`,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
     fields: fieldDescriptors,
@@ -2481,10 +2481,10 @@ function renderWidgetContactForm(props: JsonObject): string {
     idPrefix,
     successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
-  }), fieldDescriptors) + rangeReadout;
+  }), fields: fieldDescriptors }) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
   const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
-  const fields = stampFormFieldMaxLengths(renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fieldDescriptors);
+  const fields = stampFormFieldMaxLengths({ html: renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fields: fieldDescriptors });
   const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
   const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
