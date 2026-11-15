@@ -14,7 +14,7 @@ test("pages_read_html resolves the same slug on the selected site for single rea
       workspaceId: site.workspaceId, id, kind: "page", slug: "/", title: `${site.name} landing`, actorId: site.ownerId,
     } });
     await new PagesHtmlDocumentStore({ workspaceId: site.workspaceId, postId: id, actorId: site.ownerId }, { db: site.kernel, clock: site.clock })
-      .ensureHtmlFormat(`<section data-agent-element="hero">${site.name} hero</section><section data-agent-element="cta">${site.name} CTA</section>`);
+      .ensureHtmlFormat({ seedHtml: `<section data-agent-element="hero">${site.name} hero</section><section data-agent-element="cta">${site.name} CTA</section>` });
   }
   const peer = await f.call("pages_read_html", { site: "B", slug: "/", regionId: "hero" }) as { id: string; html: string };
   assert.equal(peer.id, "B-landing");

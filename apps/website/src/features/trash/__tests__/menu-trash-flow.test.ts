@@ -53,8 +53,8 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
   const trashDb = contentKernel({ store: db });
-  const menuRepo = new SqliteMenuRepo(db);
-  const bindingRepo = new SqliteNavLocationBindingRepo(db);
+  const menuRepo = new SqliteMenuRepo({ store: db });
+  const bindingRepo = new SqliteNavLocationBindingRepo({ store: db });
 
   const events: DomainEvent[] = [];
   const unreachable = (name: string) => async () => {

@@ -300,9 +300,9 @@ async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo, html
     { workspaceId: WORKSPACE_ID, postId: "page-1" },
     { repo: postRepo, clock: deps.clock }
   );
-  await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+  await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("content_post_update: a title-only patch on a bespoke-HTML page SUCCEEDS — the omitted bodyJson never reaches the S3 guard as a change", async () => {

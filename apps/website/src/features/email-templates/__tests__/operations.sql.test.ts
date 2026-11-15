@@ -35,8 +35,8 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
     assert.equal(a.subject, "Hi {{name}}");
     const pagesSurface = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: a.id }, { kernel, clock, revisions: postRepo });
     await assert.rejects(pagesSurface.read(), PageNotFoundError);
-    await assert.rejects(pagesSurface.ensureHtmlFormat("<p>bypass</p>"), PageKindMismatchError);
-    await assert.rejects(pagesSurface.write("<p>bypass</p>"), /before read/);
+    await assert.rejects(pagesSurface.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);
+    await assert.rejects(pagesSurface.write({ html: "<p>bypass</p>" }), /before read/);
     const edited = await editEmailTemplate({ deps, input: { id: a.id, html: HTML.replace("<p>", "<p>Dear "), expectedVersion: a.version }, actorId: "u1" });
     assert.equal(edited.version, a.version + 1);
     assert.match((await getEmailTemplate({ deps, id: a.id })).html, /Dear/);

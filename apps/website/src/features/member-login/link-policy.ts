@@ -3,7 +3,7 @@ import type { VerifiedLoginIdentity } from "./types.js";
 
 export type LinkDecision = "sign_in" | "link" | "create" | "email_verification_required" | "blocked" | "conflict";
 
-function admission(member: MemberRecord | null, connectMemberId: string | undefined): "blocked" | "conflict" | undefined {
+function admission({ member, connectMemberId }: { member: MemberRecord | null; connectMemberId: string | undefined }, _optional = {}): "blocked" | "conflict" | undefined {
   if (member?.status === "disabled" || member?.status === "trash") return "blocked";
   if (connectMemberId && member?.id !== connectMemberId) return "conflict";
   return undefined;
@@ -30,7 +30,7 @@ export function decideMemberLogin(required: {
   emailProofVerified?: boolean;
 }, _options = {}): LinkDecision {
   const { member, subjectLinked, unlinked, connectMemberId, identity, emailProofVerified } = required;
-  const refused = admission(member, connectMemberId);
+  const refused = admission({ member, connectMemberId });
   if (refused) return refused;
   if (subjectLinked) return member ? "sign_in" : "blocked";
   if (unlinked && !connectMemberId) return "blocked";

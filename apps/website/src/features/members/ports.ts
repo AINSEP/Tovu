@@ -171,7 +171,7 @@ export interface MemberConsentRepoPort {
    * a same-tick passthrough (no real rollback possible/needed); the SQLite
    * adapter uses a real `BEGIN IMMEDIATE`/`COMMIT`/`ROLLBACK`.
    */
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  transaction<T>(required: { fn: () => Promise<T> }, optional?: Record<string, never>): Promise<T>;
 }
 
 /* -------------------------------------------------------------------------- */

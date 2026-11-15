@@ -107,7 +107,7 @@ export function menuHoldersReferencing(
   const holders: ReferenceHolder[] = [];
   for (const menu of menus) {
     const referencedInThisMenu = new Set<string>();
-    collectReferencedIds(menu.doc.items, wanted, referencedInThisMenu);
+    collectReferencedIds({ items: menu.doc.items, wanted, into: referencedInThisMenu });
     for (const referencedId of referencedInThisMenu) {
       holders.push({
         entityType: "menu",
@@ -123,16 +123,15 @@ export function menuHoldersReferencing(
 /** Recursively collects every `entryRef.entryId` in `items` (and their `children`) that is a
  *  member of `wanted`, into `into`. */
 function collectReferencedIds(
-  items: readonly NavItemNode[],
-  wanted: ReadonlySet<string>,
-  into: Set<string>
+  { items, wanted, into }: { items: readonly NavItemNode[]; wanted: ReadonlySet<string>; into: Set<string> },
+  _optional = {}
 ): void {
   for (const item of items) {
     if (item.target.kind === "entryRef" && wanted.has(item.target.entryId)) {
       into.add(item.target.entryId);
     }
     if (item.children && item.children.length > 0) {
-      collectReferencedIds(item.children, wanted, into);
+      collectReferencedIds({ items: item.children, wanted, into });
     }
   }
 }

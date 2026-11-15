@@ -51,7 +51,7 @@ async function seed(
   _optional: Record<string, never> = {},
 ) {
   await createPost({ deps: { repo, clock }, input: { workspaceId, id, slug, title: id, kind: "page" } });
-  await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat(body);
+  await new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: id }, { repo, clock }).ensureHtmlFormat({ seedHtml: body });
   return (await repo.findById({ workspaceId, id }))!;
 }
 

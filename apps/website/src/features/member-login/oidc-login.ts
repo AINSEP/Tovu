@@ -36,14 +36,14 @@ export interface CompletedOidcLogin {
   readonly startedAt: string;
 }
 
-function hash(value: string): string {
+function hash({ value }: { value: string }, _optional = {}): string {
   return createHash("sha256").update(value).digest("base64url");
 }
 
-function bindingContext(input: LoginContext, binding: string) {
+function bindingContext({ input, binding }: { input: LoginContext; binding: string }, _optional = {}) {
   if (!/^[A-Za-z0-9_-]{43}$/.test(binding)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   return { ownerKey: input.connectMemberId ? `member-connect:v1:${input.connectMemberId}:${binding}` : `member-login:v1:${binding}`,
-    nonce: hash(`nonce:${binding}`) };
+    nonce: hash({ value: `nonce:${binding}` }) };
 }
 
 /** Canonical registry evidence only; URL API preserves base paths on Windows and Unix alike.
@@ -74,7 +74,7 @@ async function configuration(deps: OidcLoginDeps, input: LoginContext) {
   if (client.authMethod !== provider.clientAuthentication || !client.clientId || !client.clientSecret) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" });
   const redirectUri = await memberLoginCallbackUrl({ origin: deps.origin, ...input });
   // Bind client rotation as well as the bundled preset: old redirects cannot use replacement keys.
-  const version = hash(JSON.stringify([provider.configurationVersion, client.clientId, client.clientSecret, client.authMethod]));
+  const version = hash({ value: JSON.stringify([provider.configurationVersion, client.clientId, client.clientSecret, client.authMethod]) });
   return { provider, client, redirectUri, version };
 }
 
@@ -84,7 +84,7 @@ async function sealState(required: { deps: OidcLoginDeps; plaintext: string; aad
   return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
 }
 
-function stateCodec(deps: OidcLoginDeps, aad: string) {
+function stateCodec({ deps, aad }: { deps: OidcLoginDeps; aad: string }, _optional = {}) {
   return {
     async seal({ plaintext }: { plaintext: string }, _options = {}) {
       return sealState({ deps, plaintext, aad });
@@ -98,10 +98,10 @@ function stateCodec(deps: OidcLoginDeps, aad: string) {
   };
 }
 
-function redirectState(deps: OidcLoginDeps, input: LoginContext, version: string) {
+function redirectState({ deps, input, version }: { deps: OidcLoginDeps; input: LoginContext; version: string }, _optional = {}) {
   const serverId = `${input.providerId}:${version}`;
   const aad = formatAad({ kind: "member-login-state", version: "v1", parts: [JSON.stringify([input.workspaceId, serverId])] });
-  return createSealedAuthorizationState({ clock: deps.clock, workspaceId: input.workspaceId, serverId, codec: stateCodec(deps, aad) });
+  return createSealedAuthorizationState({ clock: deps.clock, workspaceId: input.workspaceId, serverId, codec: stateCodec({ deps, aad }) });
 }
 
 /** Begin a ten-minute redirect. HTTP owns setting the returned binding in its callback-scoped
@@ -117,9 +117,9 @@ export async function beginOidcLogin(required: { deps: OidcLoginDeps; input: Log
     const bytes = deps.randomBytesFn({ byteLength: 32 });
     if (bytes.length !== 32) throw new MemberLoginError({ code: "LOGIN_UNAVAILABLE" });
     const browserBinding = Buffer.from(bytes).toString("base64url");
-    const { ownerKey, nonce } = bindingContext(input, browserBinding);
+    const { ownerKey, nonce } = bindingContext({ input, binding: browserBinding });
     const started = await beginAuthorizationCode({ provider: protocolProvider(config.provider), client: config.client,
-      stateless: redirectState(deps, input, config.version), guard: deps.httpPorts.guard, randomBytesFn: deps.randomBytesFn,
+      stateless: redirectState({ deps, input, version: config.version }), guard: deps.httpPorts.guard, randomBytesFn: deps.randomBytesFn,
       options: { clientDisplayName: "Tovu members", softwareId: "tovu-member-login", redirectUris: [config.redirectUri] },
       ownerKey, redirectUri: config.redirectUri }, { scopes: config.provider.scopes, extraAuthorizationParams: { nonce } });
     return { authorizationUrl: started.authorizationUrl, expiresAt: started.expiresAt, browserBinding, returnPath: "/account" as const };
@@ -128,7 +128,7 @@ export async function beginOidcLogin(required: { deps: OidcLoginDeps; input: Log
   }
 }
 
-function authoritativeEmail(provider: LoginProvider, claims: OidcIdTokenClaims, domain: string): boolean {
+function authoritativeEmail({ provider, claims, domain }: { provider: LoginProvider; claims: OidcIdTokenClaims; domain: string }, _optional = {}): boolean {
   const hosted = provider.hostedDomainClaim ? claims[provider.hostedDomainClaim] : undefined;
   // The pinned issuer's hosted-domain claim establishes mailbox authority, including Workspace
   // aliases whose email domain can differ from the organization's primary hosted domain.
@@ -136,7 +136,7 @@ function authoritativeEmail(provider: LoginProvider, claims: OidcIdTokenClaims, 
     || (typeof hosted === "string" && hosted.trim().length > 0);
 }
 
-function validEmail(email: string): boolean {
+function validEmail({ email }: { email: string }, _optional = {}): boolean {
   if (email.length > 320 || /\s/.test(email)) return false;
   const parts = email.split("@");
   if (parts.length !== 2 || !parts[0]) return false;
@@ -145,15 +145,15 @@ function validEmail(email: string): boolean {
   return dot > 0 && dot < domain.length - 1;
 }
 
-function verifiedIdentity(provider: LoginProvider, claims: OidcIdTokenClaims, clock: Clock): VerifiedLoginIdentity {
+function verifiedIdentity({ provider, claims, clock }: { provider: LoginProvider; claims: OidcIdTokenClaims; clock: Clock }, _optional = {}): VerifiedLoginIdentity {
   if (claims.email_verified !== true || typeof claims.email !== "string") throw new MemberLoginError({ code: "LOGIN_INVALID" });
   const email = claims.email.trim().toLowerCase();
-  if (!validEmail(email)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
+  if (!validEmail({ email })) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   if (!claims.sub || claims.sub.length > 255) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   if (claims.iat > Math.floor(clock.nowMs() / 1000)) throw new MemberLoginError({ code: "LOGIN_INVALID" });
   const domain = email.slice(email.lastIndexOf("@") + 1);
   return { providerId: provider.id, issuer: provider.issuer, subject: claims.sub, email,
-    emailAuthoritative: authoritativeEmail(provider, claims, domain) };
+    emailAuthoritative: authoritativeEmail({ provider, claims, domain }) };
 }
 
 /** Complete with independent cookie proof; Jini validates the sealed context before exchange.
@@ -168,9 +168,9 @@ export async function completeOidcLogin(required: {
 }, _options = {}): Promise<CompletedOidcLogin> {
   try {
     const { deps, input } = required;
-    const { ownerKey, nonce } = bindingContext(input, input.browserBinding);
+    const { ownerKey, nonce } = bindingContext({ input, binding: input.browserBinding });
     const config = await configuration(deps, input);
-    const stateless = redirectState(deps, input, config.version);
+    const stateless = redirectState({ deps, input, version: config.version });
     // Preserve the validated issuance time so Trash/restore cannot revive an outstanding redirect.
     const pending = await stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri });
     const tokens = await completeAuthorizationCode({ ...deps.httpPorts, clock: deps.clock, provider: protocolProvider(config.provider),
@@ -182,7 +182,7 @@ export async function completeOidcLogin(required: {
     const current = await configuration(deps, input);
     if (current.version !== config.version || current.redirectUri !== config.redirectUri) throw new MemberLoginError({ code: "LOGIN_INVALID" });
     // Omit an absent intent so the sealed email-code continuation round-trips the same shape.
-    return { identity: verifiedIdentity(config.provider, claims, deps.clock),
+    return { identity: verifiedIdentity({ provider: config.provider, claims, clock: deps.clock }),
       ...(input.connectMemberId === undefined ? {} : { connectMemberId: input.connectMemberId }),
       returnPath: "/account", authenticatedAt: nowIso({ clock: deps.clock }), startedAt: pending.createdAt };
   } catch {
@@ -190,13 +190,13 @@ export async function completeOidcLogin(required: {
   }
 }
 
-function continuationAad(input: LoginContext & { browserBinding: string }, version: string) {
-  const { ownerKey } = bindingContext(input, input.browserBinding);
-  return formatAad({ kind: "member-login-email-proof", version: "v1", parts: [JSON.stringify([input.workspaceId, input.providerId, version, hash(ownerKey)])] });
+function continuationAad({ input, version }: { input: LoginContext & { browserBinding: string }; version: string }, _optional = {}) {
+  const { ownerKey } = bindingContext({ input, binding: input.browserBinding });
+  return formatAad({ kind: "member-login-email-proof", version: "v1", parts: [JSON.stringify([input.workspaceId, input.providerId, version, hash({ value: ownerKey })])] });
 }
 
-function continuationCodec(deps: OidcLoginDeps, input: LoginContext & { browserBinding: string }, version: string) {
-  return stateCodec(deps, continuationAad(input, version));
+function continuationCodec({ deps, input, version }: { deps: OidcLoginDeps; input: LoginContext & { browserBinding: string }; version: string }, _optional = {}) {
+  return stateCodec({ deps, aad: continuationAad({ input, version }) });
 }
 
 /** Seal only the verified normalized identity for the emailed-code continuation. The callback
@@ -216,7 +216,7 @@ export async function sealLoginEmailContinuation(required: {
     const expiresAt = Date.parse(login.startedAt) + 600000;
     if (!Number.isFinite(expiresAt) || expiresAt <= deps.clock.nowMs()) throw new MemberLoginError({ code: "LOGIN_INVALID" });
     // Seal directly with the visible continuation aad so check:seal-aad can verify this call site.
-    return await sealState({ deps, plaintext: JSON.stringify({ login, expiresAt }), aad: continuationAad(input, config.version) });
+    return await sealState({ deps, plaintext: JSON.stringify({ login, expiresAt }), aad: continuationAad({ input, version: config.version }) });
   } catch {
     throw new MemberLoginError({ code: "LOGIN_INVALID" });
   }
@@ -235,7 +235,7 @@ export async function openLoginEmailContinuation(required: {
     const { deps, input } = required;
     if (input.continuation.length > 8192) throw new MemberLoginError({ code: "LOGIN_INVALID" });
     const config = await configuration(deps, input);
-    const value = JSON.parse(await continuationCodec(deps, input, config.version).open({ state: input.continuation }));
+    const value = JSON.parse(await continuationCodec({ deps, input, version: config.version }).open({ state: input.continuation }));
     if (!Number.isFinite(value.expiresAt) || value.expiresAt <= deps.clock.nowMs()) throw new MemberLoginError({ code: "LOGIN_INVALID" });
     if (value.expiresAt !== Date.parse(value.login.startedAt) + 600000) throw new MemberLoginError({ code: "LOGIN_INVALID" });
     if (value.login.identity.providerId !== input.providerId || value.login.identity.issuer !== config.provider.issuer

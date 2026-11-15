@@ -75,7 +75,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
     const postRepo = new SqlitePostRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel }), formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'post', title: `${name} post`, actorId: ownerId } });
     await createPost({ deps: { repo: postRepo, clock }, input: { workspaceId, id: 'page', kind: 'page', title: `${name} page`, actorId: ownerId } });
-    await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat(`<main>${name} page</main>`);
+    await new PagesHtmlDocumentStore({ workspaceId, postId: 'page', actorId: ownerId }, { db: kernel, clock }).ensureHtmlFormat({ seedHtml: `<main>${name} page</main>` });
     const bytes = await sharp({ create: { width: 2, height: 1, channels: 3, background: name === 'A' ? 'red' : 'blue' } }).png().toBuffer();
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     const blobStore = new LocalFsBlobStore({ rootDir: path.join(dir, 'uploads') });

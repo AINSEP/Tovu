@@ -53,15 +53,15 @@ export interface MailSuppressionAdminRepo {
 type Row = { normalized_address: string; scope: MailSuppressionScope; reason: MailSuppressionReason; created_at: string; revision: string };
 
 const toEntry = (row: Row): MailSuppressionEntry => ({ address: row.normalized_address, scope: row.scope, reason: row.reason, createdAt: row.created_at, revision: row.revision });
-const normalize = (address: string): string => address.trim().toLowerCase();
-const likeLiteral = (term: string): string => {
-  const escaped = normalize(term).replace(/[\\%_]/g, (c) => `\\${c}`);
+const normalize = ({ address }: { address: string }, _optional = {}): string => address.trim().toLowerCase();
+const likeLiteral = ({ term }: { term: string }, _optional = {}): string => {
+  const escaped = normalize({ address: term }).replace(/[\\%_]/g, (c) => `\\${c}`);
   return `%${escaped}%`;
 };
 
-function conditions(workspaceId: string, optional: MailSuppressionListFilter): RawBuilder<unknown>[] {
+function conditions({ workspaceId }: { workspaceId: string }, optional: MailSuppressionListFilter): RawBuilder<unknown>[] {
   const where: RawBuilder<unknown>[] = [sql`workspace_id = ${workspaceId}`];
-  if (optional.search) where.push(sql`normalized_address LIKE ${likeLiteral(optional.search)} ESCAPE '\\'`);
+  if (optional.search) where.push(sql`normalized_address LIKE ${likeLiteral({ term: optional.search })} ESCAPE '\\'`);
   if (optional.scope) where.push(sql`scope = ${optional.scope}`);
   if (optional.reason) where.push(sql`reason = ${optional.reason}`);
   if (optional.before) where.push(sql`(created_at < ${optional.before.createdAt} OR (created_at = ${optional.before.createdAt} AND revision < ${optional.before.key}))`);
@@ -77,23 +77,23 @@ export function createMailSuppressionAdminRepo<DB>({ db }: MailRepoDeps<DB>, opt
   const newId = optional.newId ?? randomUUID;
   const find: MailSuppressionAdminRepo["find"] = async ({ workspaceId, address, scope }) => {
     const [row] = await db.query<Row>(sql`SELECT normalized_address, scope, reason, created_at, revision FROM mail_suppression
-      WHERE workspace_id = ${workspaceId} AND normalized_address = ${normalize(address)} AND scope = ${scope}`);
+      WHERE workspace_id = ${workspaceId} AND normalized_address = ${normalize({ address })} AND scope = ${scope}`);
     return row ? toEntry(row) : null;
   };
   return {
     async list(required, filter = {}) {
       const rows = await db.query<Row>(sql`SELECT normalized_address, scope, reason, created_at, revision FROM mail_suppression
-        WHERE ${sql.join(conditions(required.workspaceId, filter), sql` AND `)}
+        WHERE ${sql.join(conditions({ workspaceId: required.workspaceId }, filter), sql` AND `)}
         ORDER BY created_at DESC, revision DESC LIMIT ${required.limit}`);
       return rows.map(toEntry);
     },
     find,
     remove: (required) => db.transaction(async () => {
-      await db.lockKey(`mail-suppression:${required.workspaceId}:${normalize(required.address)}:${required.scope}`);
+      await db.lockKey(`mail-suppression:${required.workspaceId}:${normalize({ address: required.address })}:${required.scope}`);
       // DELETE claims the reviewed incarnation. A replacement cannot inherit an old approval;
       // RETURNING also ensures only the winning transaction can write an audit record.
       const [row] = await db.query<Row>(sql`DELETE FROM mail_suppression
-        WHERE workspace_id = ${required.workspaceId} AND normalized_address = ${normalize(required.address)}
+        WHERE workspace_id = ${required.workspaceId} AND normalized_address = ${normalize({ address: required.address })}
           AND scope = ${required.scope} AND revision = ${required.revision}
         RETURNING normalized_address, scope, reason, created_at, revision`);
       if (!row) return null;

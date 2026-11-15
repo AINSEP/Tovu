@@ -77,7 +77,7 @@ export function dummyPasswordHash({ hasher }: { hasher: PasswordHasherPort }, _o
 }
 
 /** High-entropy session/link digest; low-entropy codes use Jini's Argon2 helper instead. */
-function hashToken(rawToken: string): string {
+function hashToken({ rawToken }: { rawToken: string }, _optional = {}): string {
   return sessionTokens.hashToken({ rawToken });
 }
 
@@ -85,12 +85,12 @@ function newRawToken(): string {
   return sessionTokens.newToken({});
 }
 
-function isoPlusMs(nowIso: string, ms: number): string {
+function isoPlusMs({ nowIso, ms }: { nowIso: string; ms: number }, _optional = {}): string {
   return new Date(new Date(nowIso).getTime() + ms).toISOString();
 }
 
 /** Normalize + validate an email address. Throws `MemberValidationError` on a bad format. */
-function assertValidEmail(email: string): string {
+function assertValidEmail({ email }: { email: string }, _optional = {}): string {
   const normalized = email.trim().toLowerCase();
   const domain = normalized.slice(normalized.indexOf("@") + 1);
   // Preserve the original grammar: a dot needs at least one domain character on each side.
@@ -160,7 +160,7 @@ export async function createMember(required: {
   input: { workspaceId: string; email: string };
 }, optional: { name?: string; deferCreatedNotification?: boolean } = {}): Promise<{ member: MemberRecord }> {
   const { deps, input } = required;
-  const email = assertValidEmail(input.email);
+  const email = assertValidEmail({ email: input.email });
   const name = optional.name?.trim();
   if (name !== undefined && !name) throw new MemberValidationError("name must not be blank when provided");
   const existing = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
@@ -232,8 +232,8 @@ export function memberChallengeStore(required: {
         codeHash: record.codeHash ?? undefined, failedAttempts: record.failedAttempts,
         expiresAt: record.expiresAt, consumedAt: record.consumedAt ?? undefined });
     },
-    findById: async input => asChallenge(await repo.findById(input)),
-    findByTokenHash: async input => asChallenge(await repo.findByTokenHash(input)),
+    findById: async input => asChallenge({ record: await repo.findById(input) }),
+    findByTokenHash: async input => asChallenge({ record: await repo.findByTokenHash(input) }),
     reserveCodeAttempt: input => repo.reserveCodeAttempt(input, { maxAttempts: input.maxAttempts }),
     consume: async input => {
       try {
@@ -251,7 +251,7 @@ export function memberChallengeStore(required: {
 }
 
 /** Legacy link-only rows normalize to Jini's nullable code hash and zero spent attempts. */
-function asChallenge(record: MagicLinkTokenRecord | null): AuthChallengeRecord | null {
+function asChallenge({ record }: { record: MagicLinkTokenRecord | null }, _optional = {}): AuthChallengeRecord | null {
   return record && { ...record, realm: "member", codeHash: record.codeHash ?? null, failedAttempts: record.failedAttempts ?? 0 };
 }
 
@@ -259,7 +259,7 @@ function asChallenge(record: MagicLinkTokenRecord | null): AuthChallengeRecord |
  * Only local absolute paths survive; controls/backslashes can change browser URL parsing, and an
  * encoded slash/backslash becomes `//host` if any later hop decodes the path before redirecting.
  */
-function safeRedirectPath(path?: string): string | undefined {
+function safeRedirectPath(_required = {}, { path }: { path?: string } = {}): string | undefined {
   return path && /^\/(?!\/)/.test(path) && !/[\\\x00-\x1f\x7f]|%(2f|5c)/i.test(path) ? path : undefined;
 }
 
@@ -269,7 +269,7 @@ function challengeLinkPath(required: {
 }, _options = {}): string {
   const { purpose, token, redirectPath } = required;
   if (purpose === "password_reset") return `/reset-password#token=${token}`;
-  const redirect = safeRedirectPath(redirectPath);
+  const redirect = safeRedirectPath({}, { path: redirectPath });
   const redirectSuffix = redirect ? `&redirect=${encodeURIComponent(redirect)}` : "";
   return `/signin#magic=${token}${redirectSuffix}`;
 }
@@ -286,7 +286,7 @@ async function saveMemberChallenge(required: {
   } });
   await store.save({ id: challengeId, workspaceId, realm: "member", purpose,
     tokenHash, failedAttempts: 0, codeHash,
-    expiresAt: isoPlusMs(nowIso, MAGIC_LINK_TTL_MS) });
+    expiresAt: isoPlusMs({ nowIso, ms: MAGIC_LINK_TTL_MS }) });
 }
 
 /**
@@ -303,7 +303,7 @@ export async function prepareMemberChallenge(required: {
   purpose: "signin" | "password_reset";
 }, _options = {}): Promise<{ challengeId: string; deliver: () => Promise<{ delivered: boolean; challengeId: string }> }> {
   const { deps, input, purpose } = required;
-  const email = assertValidEmail(input.email);
+  const email = assertValidEmail({ email: input.email });
   const nowIso = clockNowIso({ clock: deps.clock });
   // Resolved before the member lookup: a missing sender must fail the same way for every address,
   // so the error itself never tells a caller which emails are registered, and no token is minted
@@ -367,7 +367,7 @@ export async function consumeMemberChallenge(required: {
   const store = memberChallengeStore({ repo: deps.magicLinks });
   const scope = { workspaceId: input.workspaceId, realm: "member", purpose };
   const record = input.token !== undefined
-    ? await store.findByTokenHash({ ...scope, tokenHash: hashToken(input.token) })
+    ? await store.findByTokenHash({ ...scope, tokenHash: hashToken({ rawToken: input.token }) })
     : await store.findById({ ...scope, id: input.challengeId });
   const hasher = memberPasswordHasher({ deps });
   if (decideChallenge({ ...scope, record, nowIso }) !== "ok" || !record) {
@@ -457,9 +457,9 @@ export async function issueMemberSession(required: {
     id: deps.ids.newId(),
     workspaceId: member.workspaceId,
     memberId: member.id,
-    tokenHash: hashToken(rawSessionToken),
+    tokenHash: hashToken({ rawToken: rawSessionToken }),
     createdAt: nowIso,
-    expiresAt: isoPlusMs(nowIso, SESSION_TTL_MS),
+    expiresAt: isoPlusMs({ nowIso, ms: SESSION_TTL_MS }),
     userAgent: options.userAgent,
     ip: options.ip,
   };

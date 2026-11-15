@@ -26,10 +26,10 @@ function fixture() {
     readIdentity: async () => ({ siteTitle: 'A & B', email: 'owner@example.test', principalId: 'owner' }),
     pagesHtmlStore: scope => {
       const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-      return { ensureHtmlFormat: async html => {
+      return { ensureHtmlFormat: async ({ seedHtml: html }) => {
         assert.equal(inTransaction, true, 'create and HTML seed share a transaction');
         seeds++;
-        await store.ensureHtmlFormat(html);
+        await store.ensureHtmlFormat({ seedHtml: html });
       } };
     },
   };

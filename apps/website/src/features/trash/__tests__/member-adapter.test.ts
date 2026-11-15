@@ -168,7 +168,7 @@ test("gapb member: generic tool schemas include member without a per-resource de
 
 test("gapb member: memory reader retains email reservation but prevents list/get/update resurrection", async () => {
   const member = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "trash" as const, createdAt: AT, updatedAt: AT, version: 2 };
-  const repo = new InMemoryMemberRepo([member]);
+  const repo = new InMemoryMemberRepo({}, { initialRows: [member] });
   assert.equal(await repo.findById({ workspaceId: WS, id: member.id }), null);
   assert.deepEqual(await repo.list({ workspaceId: WS }), []);
   assert.equal((await repo.findByEmail({ workspaceId: WS, email: member.email }))!.status, "trash");
@@ -180,7 +180,7 @@ test("gapb member: sign-in request for a trashed email returns an unstored handl
   const blocked = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "trash" as const, createdAt: AT, updatedAt: AT, version: 2 };
   const fail = async () => { assert.fail("a trashed account must not mint a credential or send mail"); };
   const deps = {
-    clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo([blocked]),
+    clock: createFakeClock({ startIso: AT }), members: new InMemoryMemberRepo({}, { initialRows: [blocked] }),
     magicLinks: { save: fail }, mailer: { send: fail, capabilities: () => ({ driver: "smtp" }) },
     // All addresses receive a handle and pay the hashing cost; blocked ones never persist it.
     ids: { newId: () => "unstored-challenge" },
@@ -199,7 +199,7 @@ test("gapb member: a late link minted before restore cannot sign the restored ac
   const restored = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "active" as const, credentialsRevokedAt: LATER, createdAt: AT, updatedAt: LATER, version: 3 };
   let consumed = false;
   const deps = {
-    clock: createFakeClock({ startIso: LATER }), members: new InMemoryMemberRepo([restored]),
+    clock: createFakeClock({ startIso: LATER }), members: new InMemoryMemberRepo({}, { initialRows: [restored] }),
     magicLinks: { findByTokenHash: async () => ({ id: "late-link", workspaceId: WS, memberId: restored.id,
       tokenHash: "fake-hash", purpose: "signin", createdAt: AT, expiresAt: "2027-01-01T00:00:00.000Z" }), consume: async () => { consumed = true; } },
     sessions: { save: async () => { assert.fail("must not mint a session"); } },

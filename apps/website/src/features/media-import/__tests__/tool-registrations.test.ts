@@ -477,9 +477,9 @@ test("transport failures retain their error identity instead of becoming caller 
 
 test("shared egress narrowing identifies the consuming tool in diagnostics", async () => {
   const logs: string[] = [];
-  await assert.rejects(withCallerSafeEgressRefusal(line => logs.push(line), async () => {
+  await assert.rejects(withCallerSafeEgressRefusal({ log: line => logs.push(line), work: async () => {
     throw new EgressRefusedError({ message: "private address blocked" }, { callerSafeMessage: "host refused" });
-  }, { toolId: "theme_import_file_from_url" }), {
+  } }, { toolId: "theme_import_file_from_url" }), {
     message: "host refused", callerSafeMessage: "host refused",
   });
   assert.deepEqual(logs, ["[media-import] theme_import_file_from_url egress refused: private address blocked"]);

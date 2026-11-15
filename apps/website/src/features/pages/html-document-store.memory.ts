@@ -73,7 +73,7 @@ export class InMemoryPagesHtmlDocumentStore {
   }
 
   /** @see PagesHtmlDocumentStore's own `reindexEntryRefs` private method for the full rationale. */
-  private async reindexEntryRefs(html: string): Promise<void> {
+  private async reindexEntryRefs({ html }: { html: string }, _optional = {}): Promise<void> {
     if (!this.deps.entryRefsRepo) return;
     const refs = extractHtmlEntryRefs({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, html });
     await this.deps.entryRefsRepo.replaceForSource({ workspaceId: this.scope.workspaceId, sourceEntryId: this.scope.postId, refs });
@@ -90,7 +90,7 @@ export class InMemoryPagesHtmlDocumentStore {
    * is what this whole double is built over — see this file's header), so there is no "supplied or
    * not" branch: every call appends.
    */
-  private async appendRevision(seq: number, recordedAt: string): Promise<void> {
+  private async appendRevision({ seq, recordedAt }: { seq: number; recordedAt: string }, _optional = {}): Promise<void> {
     const row = await this.load();
     if (!row) return;
     await this.deps.repo.appendRevision({
@@ -105,12 +105,12 @@ export class InMemoryPagesHtmlDocumentStore {
   }
 
   /** @see SqlPagesHtmlDocumentStore's `catchUpGoLive`; `row` is the row before this write. */
-  private async catchUpGoLive(row: PostRecord, nowIso: string): Promise<void> {
+  private async catchUpGoLive({ row, nowIso }: { row: PostRecord; nowIso: string }, _optional = {}): Promise<void> {
     if (this.deps.outbox) await announcePendingGoLive({ outbox: this.deps.outbox, post: row, nowIso });
   }
 
   /** @see PagesHtmlDocumentStore.ensureHtmlFormat */
-  async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
+  async ensureHtmlFormat({ seedHtml: authoredSeedHtml }: { seedHtml: string }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.load();
@@ -135,7 +135,7 @@ export class InMemoryPagesHtmlDocumentStore {
       // when a revision at this exact `seq` already exists.
       const existing = await this.deps.repo.listRevisions({ workspaceId: this.scope.workspaceId, postId: this.scope.postId });
       if (!existing.some((revision) => revision.seq === row.version)) {
-        await this.appendRevision(row.version, updatedAt);
+        await this.appendRevision({ seq: row.version, recordedAt: updatedAt });
       }
       await this.deps.repo.save({
         ...row,
@@ -144,11 +144,11 @@ export class InMemoryPagesHtmlDocumentStore {
         version: nextVersion,
         updatedAt,
       });
-      await this.appendRevision(nextVersion, updatedAt);
-      await this.catchUpGoLive(row, updatedAt);
+      await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
+      await this.catchUpGoLive({ row, nowIso: updatedAt });
     } });
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(seedHtml);
+    await this.reindexEntryRefs({ html: seedHtml });
   }
 
   /** @see PagesHtmlDocumentStore.read */
@@ -179,7 +179,7 @@ export class InMemoryPagesHtmlDocumentStore {
    * Pinned by `__tests__/html-document-store.memory.test.ts`'s "BUG: two write() calls truly IN
    * FLIGHT AT ONCE" case.
    */
-  async write(authoredHtml: string): Promise<void> {
+  async write({ html: authoredHtml }: { html: string }, _optional?: Record<string, never>): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
@@ -218,9 +218,9 @@ export class InMemoryPagesHtmlDocumentStore {
     // S1 (fix plan 2026-09-24 row 14) — after, not inside, `saveIfVersion`: that call is this
     // store's own atomic compare-and-set (see this method's own header), so there is nothing left to
     // wrap in a `transaction()` by the time `applied` is known true.
-    await this.appendRevision(nextVersion, updatedAt);
-    await this.catchUpGoLive(row, updatedAt);
+    await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
+    await this.catchUpGoLive({ row, nowIso: updatedAt });
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(html);
+    await this.reindexEntryRefs({ html });
   }
 }

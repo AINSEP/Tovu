@@ -43,7 +43,7 @@ export interface ConsentServiceDeps {
   consents: MemberConsentRepoPort;
 }
 
-async function assertMemberExists(deps: ConsentServiceDeps, workspaceId: string, memberId: string): Promise<void> {
+async function assertMemberExists({ deps, workspaceId, memberId }: { deps: ConsentServiceDeps; workspaceId: string; memberId: string }, _optional = {}): Promise<void> {
   const member = await deps.members.findById({ workspaceId, id: memberId });
   if (!member) {
     throw new MemberNotFoundError(`member '${memberId}' was not found`);
@@ -69,7 +69,7 @@ export async function requestConsent(required: {
   };
 }): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
-  await assertMemberExists(deps, input.workspaceId, input.memberId);
+  await assertMemberExists({ deps, workspaceId: input.workspaceId, memberId: input.memberId });
 
   const nowIso = clockNowIso({ clock: deps.clock });
   const existing = await deps.consents.findByMemberAndPurpose({
@@ -100,7 +100,7 @@ export async function requestConsent(required: {
         version: 1,
       };
 
-  await deps.consents.transaction(async () => {
+  await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);
     await deps.consents.appendRevision({
       workspaceId: input.workspaceId,
@@ -113,7 +113,7 @@ export async function requestConsent(required: {
       originModule: input.originModule,
       createdAt: nowIso,
     });
-  });
+  } });
 
   return { consent };
 }
@@ -136,7 +136,7 @@ export async function confirmConsent(required: {
   };
 }): Promise<{ consent: MemberConsentRecord }> {
   const { deps, input } = required;
-  await assertMemberExists(deps, input.workspaceId, input.memberId);
+  await assertMemberExists({ deps, workspaceId: input.workspaceId, memberId: input.memberId });
 
   const existing = await deps.consents.findByMemberAndPurpose({
     workspaceId: input.workspaceId,
@@ -162,7 +162,7 @@ export async function confirmConsent(required: {
     version: existing.version + 1,
   };
 
-  await deps.consents.transaction(async () => {
+  await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);
     await deps.consents.appendRevision({
       workspaceId: input.workspaceId,
@@ -175,7 +175,7 @@ export async function confirmConsent(required: {
       originModule: input.originModule,
       createdAt: nowIso,
     });
-  });
+  } });
 
   return { consent };
 }
@@ -219,7 +219,7 @@ export async function revokeConsent(required: {
     version: existing.version + 1,
   };
 
-  await deps.consents.transaction(async () => {
+  await deps.consents.transaction({ fn: async () => {
     await deps.consents.save(consent);
     await deps.consents.appendRevision({
       workspaceId: input.workspaceId,
@@ -234,7 +234,7 @@ export async function revokeConsent(required: {
       originModule: "members",
       createdAt: nowIso,
     });
-  });
+  } });
 
   return { consent };
 }

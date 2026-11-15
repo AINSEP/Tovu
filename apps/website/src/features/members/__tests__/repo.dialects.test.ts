@@ -573,13 +573,13 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
 
     test("transaction returns the callback's value; a throw rolls the consent and its revision back together", async () => {
       const { consents } = makeRepos();
-      assert.equal(await consents.transaction(async () => 42), 42);
+      assert.equal(await consents.transaction({ fn: async () => 42 }), 42);
       await assert.rejects(
-        consents.transaction(async () => {
+        consents.transaction({ fn: async () => {
           await consents.save(consent("c1"));
           await consents.appendRevision(revision("c1", "newsletter"));
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), null);
@@ -589,12 +589,12 @@ describeEachDialect("members repos", { tables: TABLES, make: repos }, (makeRepos
     test("nested transactions join the outer one", async () => {
       const { consents } = makeRepos();
       await assert.rejects(
-        consents.transaction(async () => {
+        consents.transaction({ fn: async () => {
           await consents.transaction(async () => {
             await consents.save(consent("c1"));
           });
           throw new Error("boom");
-        }),
+        } }),
         /boom/
       );
       assert.equal(await consents.findByMemberAndPurpose({ workspaceId: WS, memberId: "m1", purpose: "newsletter" }), null);

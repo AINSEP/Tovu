@@ -370,9 +370,9 @@ const LEGACY_DUPLICATE =
 async function seedHtmlBypassingTools(repo: InMemoryPostRepo, id: string, html: string) {
   await seedPage(repo, id);
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: id, actorId: "seed" }, { repo, clock });
-  await store.ensureHtmlFormat(html);
+  await store.ensureHtmlFormat({ seedHtml: html });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused", async () => {
@@ -437,7 +437,7 @@ test("pages_write_region reports a store CAS race as an actionable input error a
   const { repo, call } = harness(async (repo) => {
     const winner = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-race" }, { repo, clock });
     await winner.read();
-    await winner.write(THREE_REGIONS.replace("Body copy.", "Winning edit."));
+    await winner.write({ html: THREE_REGIONS.replace("Body copy.", "Winning edit.") });
     winningRow = await repo.findById({ workspaceId: WS, id: "page-race" });
   });
   await seedHtmlBypassingTools(repo, "page-race", THREE_REGIONS);
@@ -571,7 +571,7 @@ for (const selector of ["regionId", "handle", "region"]) {
     await seedThreeRegionPage(h.call, h.repo, "landing");
     const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "landing" }, { repo: h.repo, clock });
     await store.read();
-    await store.write(THREE_REGIONS + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>');
+    await store.write({ html: THREE_REGIONS + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>' });
     const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
     for (const region of ["absent", "dup"]) {
       const result = await executeRegisteredTool({ registration: h.byName.get("pages_write_region")!,

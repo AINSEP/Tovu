@@ -384,7 +384,7 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
 
   test(`[${adapterName}] MemberConsentRepoPort: transaction runs the callback and returns its result`, async () => {
     const repo = makeRepo();
-    const result = await repo.transaction(async () => {
+    const result = await repo.transaction({ fn: async () => {
       await repo.save({
         id: "c-tx",
         workspaceId: "ws-1",
@@ -397,7 +397,7 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
         version: 1,
       });
       return "done";
-    });
+    } });
     assert.equal(result, "done");
     assert.notEqual(await repo.findByMemberAndPurpose({ workspaceId: "ws-1", memberId: "m-tx", purpose: "tx-purpose" }), null);
   });
@@ -443,19 +443,19 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
 }
 
 runMemberRepoContractSuite("InMemoryMemberRepo", () => new InMemoryMemberRepo());
-runMemberRepoContractSuite("SqliteMemberRepo", () => new SqliteMemberRepo(openContentDb(":memory:")));
+runMemberRepoContractSuite("SqliteMemberRepo", () => new SqliteMemberRepo({ store: openContentDb(":memory:") }));
 
 runMemberTierRepoContractSuite("InMemoryMemberTierRepo", () => new InMemoryMemberTierRepo());
-runMemberTierRepoContractSuite("SqliteMemberTierRepo", () => new SqliteMemberTierRepo(openContentDb(":memory:")));
+runMemberTierRepoContractSuite("SqliteMemberTierRepo", () => new SqliteMemberTierRepo({ store: openContentDb(":memory:") }));
 
 runMemberSubscriptionRepoContractSuite("InMemoryMemberSubscriptionRepo", () => new InMemoryMemberSubscriptionRepo());
-runMemberSubscriptionRepoContractSuite("SqliteMemberSubscriptionRepo", () => new SqliteMemberSubscriptionRepo(openContentDb(":memory:")));
+runMemberSubscriptionRepoContractSuite("SqliteMemberSubscriptionRepo", () => new SqliteMemberSubscriptionRepo({ store: openContentDb(":memory:") }));
 
 runMemberSessionRepoContractSuite("InMemoryMemberSessionRepo", () => new InMemoryMemberSessionRepo());
-runMemberSessionRepoContractSuite("SqliteMemberSessionRepo", () => new SqliteMemberSessionRepo(openContentDb(":memory:")));
+runMemberSessionRepoContractSuite("SqliteMemberSessionRepo", () => new SqliteMemberSessionRepo({ store: openContentDb(":memory:") }));
 
 runMagicLinkTokenRepoContractSuite("InMemoryMagicLinkTokenRepo", () => new InMemoryMagicLinkTokenRepo());
-runMagicLinkTokenRepoContractSuite("SqliteMagicLinkTokenRepo", () => new SqliteMagicLinkTokenRepo(openContentDb(":memory:")));
+runMagicLinkTokenRepoContractSuite("SqliteMagicLinkTokenRepo", () => new SqliteMagicLinkTokenRepo({ store: openContentDb(":memory:") }));
 
 runMemberConsentRepoContractSuite("InMemoryMemberConsentRepo", () => new InMemoryMemberConsentRepo());
-runMemberConsentRepoContractSuite("SqliteMemberConsentRepo", () => new SqliteMemberConsentRepo(openContentDb(":memory:")));
+runMemberConsentRepoContractSuite("SqliteMemberConsentRepo", () => new SqliteMemberConsentRepo({ store: openContentDb(":memory:") }));

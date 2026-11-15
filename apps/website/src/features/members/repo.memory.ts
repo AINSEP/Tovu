@@ -152,7 +152,7 @@ export class InMemoryMemberRepo implements MemberRepoPort {
   // Separate credential storage preserves the same profile boundary as the durable adapter.
   private passwordHashes = new Map<string, string>();
 
-  constructor(initialRows: MemberRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: MemberRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -221,7 +221,7 @@ export class InMemoryMemberRepo implements MemberRepoPort {
 export class InMemoryMemberTierRepo implements MemberTierRepoPort {
   private rows: MemberTierRecord[];
 
-  constructor(initialRows: MemberTierRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: MemberTierRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -269,7 +269,7 @@ export class InMemoryMemberTierRepo implements MemberTierRepoPort {
 export class InMemoryMemberSubscriptionRepo implements MemberSubscriptionRepoPort {
   private rows: MemberSubscriptionRecord[];
 
-  constructor(initialRows: MemberSubscriptionRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: MemberSubscriptionRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -323,7 +323,7 @@ export class InMemoryMemberSubscriptionRepo implements MemberSubscriptionRepoPor
 export class InMemoryMemberSessionRepo implements MemberSessionRepoPort {
   private rows: MemberSessionRecord[];
 
-  constructor(initialRows: MemberSessionRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: MemberSessionRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -390,7 +390,7 @@ export class InMemoryMemberSessionRepo implements MemberSessionRepoPort {
 export class InMemoryMagicLinkTokenRepo implements MagicLinkTokenRepoPort {
   private rows: MagicLinkTokenRecord[];
 
-  constructor(initialRows: MagicLinkTokenRecord[] = []) {
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: MagicLinkTokenRecord[] } = {}) {
     this.rows = [...initialRows];
   }
 
@@ -502,7 +502,7 @@ export class InMemoryMemberConsentRepo implements MemberConsentRepoPort {
    * why no interleaving is possible on one connection) — a same-tick
    * passthrough is a faithful, if trivial, atomicity guarantee here.
    */
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional?: Record<string, never>): Promise<T> {
     return fn();
   }
 }

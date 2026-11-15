@@ -92,7 +92,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: pagesAgentToolCatalog });
  *
  * @complexity O(1).
  */
-function parsePageExpectedVersion(raw: unknown): number | undefined {
+function parsePageExpectedVersion({ raw }: { raw: unknown }, _optional = {}): number | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
     throw new ToolInputError({ message: EXPECTED_VERSION_REJECTION });
@@ -153,7 +153,7 @@ function assertExpectedVersion(required: { id: string; expectedVersion: number |
  *
  * @complexity O(1).
  */
-function toModelFacingWriteError(err: unknown): unknown {
+function toModelFacingWriteError({ err }: { err: unknown }, _optional = {}): unknown {
   if (!(err instanceof PageConcurrentEditError)) return err;
   return new ToolInputError({ message: `${VERSION_CONFLICT_CODE}: ${err.message}. Nothing was written. Re-read the page with pages_read_html, ` +
       "reapply your change to the body you get back, and resend." });
@@ -212,7 +212,7 @@ function assertTopLevelSectionsAreTagged(
  *
  * @complexity O(r) in the document's region count.
  */
-function describeRegionProblem(id: string, handle: string, problem: RegionLookupProblem): string {
+function describeRegionProblem({ id, handle, problem }: { id: string; handle: string; problem: RegionLookupProblem }, _optional = {}): string {
   if (problem.kind === "ambiguous") {
     return (
       `Nothing was written: ${problem.count} elements in page '${id}' carry data-agent-element="${handle}", so that handle ` +
@@ -252,7 +252,7 @@ function requireRegion(
   _options: Record<string, never> = {},
 ): ScannedRegion {
   const lookup = locateRegion({ scan, handle });
-  if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem(id, handle, lookup.problem) });
+  if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem({ id, handle, problem: lookup.problem }) });
   return lookup.region;
 }
 
@@ -289,7 +289,7 @@ function joinWarnings(
  *
  * @complexity O(k) in the offending handle count.
  */
-function describeHandleCollision(id: string, handle: string, collisions: readonly string[]): string {
+function describeHandleCollision({ id, handle, collisions }: { id: string; handle: string; collisions: readonly string[] }, _optional = {}): string {
   const quoted = collisions.map((collision) => `"${collision}"`).join(", ");
   return (
     `Nothing was written: the html for region "${handle}" carries data-agent-element=${quoted}, which ` +
@@ -303,7 +303,7 @@ function describeHandleCollision(id: string, handle: string, collisions: readonl
  *
  * @complexity O(k) in the offending handle count.
  */
-function describeFullWriteHandleCollision(id: string, collisions: readonly string[]): string {
+function describeFullWriteHandleCollision({ id, collisions }: { id: string; collisions: readonly string[] }, _optional = {}): string {
   const quoted = collisions.map((collision) => `"${collision}"`).join(", ");
   return (
     `Nothing was written: the html for page '${id}' puts data-agent-element=${quoted} on more than one element, ` +
@@ -403,7 +403,7 @@ async function openForFullWrite(
 
   const row = await guard.postRepo.findById({ workspaceId: guard.workspaceId, id: guard.id });
   if (row) assertExpectedVersion({ id: guard.id, expectedVersion: guard.expectedVersion, basis: row.version });
-  await store.ensureHtmlFormat(seedHtml);
+  await store.ensureHtmlFormat({ seedHtml });
   return { basis: null };
 }
 
@@ -561,7 +561,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 
       const id = requireString({ input: input, key: "id" });
       const html = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
-      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const expectedVersion = parsePageExpectedVersion({ raw: input.expectedVersion });
       // Before anything is opened or converted, so a refused write leaves the row exactly as it was
       // — including a `doc`-format row that would otherwise have been converted one-way by
       // `ensureHtmlFormat` on the way to a rejection.
@@ -574,9 +574,9 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       try {
         const opening = await openForFullWrite({ store, seedHtml: html, scan, guard: { postRepo: routeDeps.postRepo, workspaceId: routeDeps.workspaceId, id, expectedVersion } });
         // Returned, not thrown, like the region writer's collision refusal: the fix is in the model's own input.
-        if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision(id, opening.madeAmbiguous) };
+        if ("madeAmbiguous" in opening) return { written: false, reason: describeFullWriteHandleCollision({ id, collisions: opening.madeAmbiguous }) };
         if (opening.basis !== null) assertExpectedVersion({ id, expectedVersion, basis: opening.basis });
-        await store.write(html);
+        await store.write({ html });
       } catch (err) {
         if (err instanceof PageKindMismatchError) {
           // Surfaced as a model-facing reason rather than a thrown error: this is a mistake the
@@ -590,7 +590,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
               "kind:'page' to find the right id, or content_post_create with kind:'page' to make one.",
           };
         }
-        throw toModelFacingWriteError(err);
+        throw toModelFacingWriteError({ err });
       }
 
       // A warning, not a refusal: hidden-until-script markup copied from another site is a fixable
@@ -610,7 +610,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
       const fragment = requirePageAuthoringHtml({ html: requireString({ input: input, key: "html" }) });
-      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const expectedVersion = parsePageExpectedVersion({ raw: input.expectedVersion });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
@@ -639,7 +639,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 
       const scan = scanHtmlRegions({ html: current });
       const lookup = locateRegion({ scan, handle });
-      if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem(id, handle, lookup.problem) });
+      if ("problem" in lookup) throw new ToolInputError({ message: describeRegionProblem({ id, handle, problem: lookup.problem }) });
 
       // Inner-only replacement preserves the address, classes and aria attributes by construction;
       // asking the model to re-emit the whole element would let a typo erase the address being edited.
@@ -651,13 +651,13 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       if (madeAmbiguous.length > 0) {
         // Returned, not thrown, like the other refusals the model fixes by changing its own input:
         // here it only has to drop or rename the reused handle in its fragment.
-        return { written: false, reason: describeHandleCollision(id, handle, madeAmbiguous) };
+        return { written: false, reason: describeHandleCollision({ id, handle, collisions: madeAmbiguous }) };
       }
       try {
         ctx.signal.throwIfAborted();
-        await store.write(next);
+        await store.write({ html: next });
       } catch (err) {
-        throw toModelFacingWriteError(err);
+        throw toModelFacingWriteError({ err });
       }
 
       const warning = joinWarnings({ warnings: [describeScriptRevealedContent({ html: fragment }), describeUnsafeRegions({ scan: nextScan }), ...embedWarningMessages({ store })] });
@@ -685,7 +685,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const id = requireString({ input: input, key: "id" });
       const handle = requireString({ input: input, key: "regionId" });
       const { placement, targetHandle } = parseMovePlacement(input);
-      const expectedVersion = parsePageExpectedVersion(input.expectedVersion);
+      const expectedVersion = parsePageExpectedVersion({ raw: input.expectedVersion });
       const store = routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: id, actorId: ctx.principal.id });
 
       let current: string;
@@ -717,9 +717,9 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       }
       try {
         ctx.signal.throwIfAborted();
-        await store.write(moved.html);
+        await store.write({ html: moved.html });
       } catch (err) {
-        throw toModelFacingWriteError(err);
+        throw toModelFacingWriteError({ err });
       }
       const movedScan = scanHtmlRegions({ html: moved.html });
       return { written: true, id, handle, regions: regionHandlesIn({ scan: movedScan }), version: requireCapturedVersion(store), ...joinWarnings({ warnings: embedWarningMessages({ store }) }) };

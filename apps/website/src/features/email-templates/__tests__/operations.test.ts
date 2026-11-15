@@ -202,7 +202,7 @@ test("a Pages conversion failure rolls back the template and permits a clean ret
   let broken = true;
   const { deps, repo } = harness({ storeFactory: (repo, clock) => (scope, options = {}) => {
     const store = new InMemoryPagesHtmlDocumentStore(scope, { ...options, repo, clock });
-    return { read: () => store.read(), capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: async seed => { if (broken) throw new Error("conversion failed"); return store.ensureHtmlFormat(seed); } };
+    return { read: () => store.read(), capturedVersion: () => store.capturedVersion(), write: ({ html }) => store.write({ html }), ensureHtmlFormat: async ({ seedHtml }) => { if (broken) throw new Error("conversion failed"); return store.ensureHtmlFormat({ seedHtml }); } };
   } });
   await assert.rejects(createEmailTemplate({ deps, input: { name: "Atomic", html: HTML }, actorId: "u" }), /conversion failed/);
   assert.deepEqual(await repo.list({ workspaceId: WS }), []);
@@ -247,13 +247,13 @@ test("Pages stores cannot read, convert or write templates; template-scoped stor
   const template = await createEmailTemplate({ deps, input: { name: "Private template", html: HTML }, actorId: "owner" });
   const page = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: template.id }, { repo, clock: deps.clock });
   await assert.rejects(page.read(), PageNotFoundError);
-  await assert.rejects(page.ensureHtmlFormat("<p>bypass</p>"), PageKindMismatchError);
-  await assert.rejects(page.write("<p>bypass</p>"), /before read/);
+  await assert.rejects(page.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);
+  await assert.rejects(page.write({ html: "<p>bypass</p>" }), /before read/);
   assert.equal((await getEmailTemplate({ deps, id: template.id })).html, HTML);
   await createPost({ deps: { repo, clock: deps.clock }, input: { workspaceId: WS, id: "only-page", title: "Page", kind: "page" } });
   const pageScope = { workspaceId: WS, postId: "only-page" };
-  await new InMemoryPagesHtmlDocumentStore(pageScope, { repo, clock: deps.clock }).ensureHtmlFormat("<p>page</p>");
+  await new InMemoryPagesHtmlDocumentStore(pageScope, { repo, clock: deps.clock }).ensureHtmlFormat({ seedHtml: "<p>page</p>" });
   const templateStore = deps.pagesHtmlStore(pageScope, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) });
   await assert.rejects(templateStore.read(), PageNotFoundError);
-  await assert.rejects(templateStore.ensureHtmlFormat("<p>bypass</p>"), PageKindMismatchError);
+  await assert.rejects(templateStore.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);
 });

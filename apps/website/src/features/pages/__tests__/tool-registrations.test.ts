@@ -488,7 +488,7 @@ for (const [tool, input] of WRITES) {
         read: async () => FAULT_PAGE,
         capturedVersion: () => 1,
         ensureHtmlFormat: async () => { assert.fail("the page already has HTML"); },
-        write: async html => { pending.push(html); throw failure; },
+        write: async ({ html }) => { pending.push(html); throw failure; },
       };
       const { call } = harness({}, () => store);
       await assert.rejects(call(tool, input), error => {
@@ -526,7 +526,7 @@ test("a region edit on legacy HTML without handles explains that there are no re
   await seedPage(repo, "legacy", "Legacy");
   // Legacy markup enters through the store: the tools correctly refuse to author untagged HTML.
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "legacy" }, { repo, clock });
-  await store.ensureHtmlFormat("<p>Keep this legacy copy.</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>Keep this legacy copy.</p>" });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "legacy" }));
 
   // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).
@@ -545,7 +545,7 @@ test("an unclosed region is refused with repair guidance and its stored HTML sur
   const { repo, call } = harness();
   await seedPage(repo, "unclosed", "Unclosed");
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "unclosed" }, { repo, clock });
-  await store.ensureHtmlFormat('<section data-agent-element="hero"><p>Keep the unclosed section.</p>');
+  await store.ensureHtmlFormat({ seedHtml: '<section data-agent-element="hero"><p>Keep the unclosed section.</p>' });
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "unclosed" }));
 
   // why: direct handler call bypasses the alias hook; regionId is the canonical field since N3 (42773ffa).

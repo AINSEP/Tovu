@@ -187,9 +187,9 @@ export interface PagesHtmlDocumentStorePort {
   /** Safe warnings from the last validated write, for authenticated authoring surfaces. */
   embedWarnings?(): readonly PluginEmbedDiagnostic[];
   /** Births an `"html"`-format Page, or no-ops if the row already is one. */
-  ensureHtmlFormat(seedHtml: string): Promise<void>;
+  ensureHtmlFormat(required: { seedHtml: string }, optional?: Record<string, never>): Promise<void>;
   read(): Promise<string>;
-  write(html: string): Promise<void>;
+  write(required: { html: string }, optional?: Record<string, never>): Promise<void>;
   /**
    * The row `version` captured by the most recent {@link read}/{@link ensureHtmlFormat} — the exact
    * value the next {@link write}'s compare-and-set will condition on — or `null` before either has
@@ -282,7 +282,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    *
    * @complexity O(1) besides `fn`.
    */
-  private inTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  private inTransaction<T>({ fn }: { fn: () => Promise<T> }, _optional = {}): Promise<T> {
     return this.deps.revisions ? this.deps.revisions.transaction({ fn }) : this.deps.kernel.transaction(fn);
   }
 
@@ -293,7 +293,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    *
    * @complexity O(1) — at most one enqueue.
    */
-  private async catchUpGoLive(row: GoLiveColumns, nowIso: string): Promise<void> {
+  private async catchUpGoLive({ row, nowIso }: { row: GoLiveColumns; nowIso: string }, _optional = {}): Promise<void> {
     if (!this.deps.outbox) return;
     const post = {
       id: row.id,
@@ -381,7 +381,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * stop (D-1), and no Post may be converted to bespoke HTML through this or any other path.
    * @complexity O(1) — one indexed row lookup plus, on a `doc` row, one indexed row update.
    */
-  async ensureHtmlFormat(authoredSeedHtml: string): Promise<void> {
+  async ensureHtmlFormat({ seedHtml: authoredSeedHtml }: { seedHtml: string }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const seedHtml = normalizeEmbedMarkerQuoting({ html: authoredSeedHtml });
     const row = await this.deps.kernel.run((db) =>
@@ -420,7 +420,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
           postId: this.scope.postId,
         });
         if (!existing.some((revision) => revision.seq === row.version)) {
-          await this.appendRevision(row.version, updatedAt);
+          await this.appendRevision({ seq: row.version, recordedAt: updatedAt });
         }
       }
 
@@ -446,15 +446,15 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       }
 
       // The POST-conversion snapshot — the row's first ever html-format state.
-      await this.appendRevision(nextVersion, updatedAt);
+      await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
       await this.emitUpdated({ status: row.status, version: nextVersion, occurredAt: updatedAt });
-      await this.catchUpGoLive(row, updatedAt);
+      await this.catchUpGoLive({ row, nowIso: updatedAt });
     };
 
-    await this.inTransaction(runConversion);
+    await this.inTransaction({ fn: runConversion });
 
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(seedHtml);
+    await this.reindexEntryRefs({ html: seedHtml });
   }
 
   /**
@@ -495,7 +495,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    *
    * @complexity O(1) — one indexed lookup plus one ledger insert.
    */
-  private async appendRevision(seq: number, recordedAt: string): Promise<void> {
+  private async appendRevision({ seq, recordedAt }: { seq: number; recordedAt: string }, _optional = {}): Promise<void> {
     if (!this.deps.revisions) return;
     const row = await this.deps.revisions.findById({ workspaceId: this.scope.workspaceId, id: this.scope.postId });
     // Cannot happen on either call site's success path (each call follows a write that just matched
@@ -521,7 +521,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * one `replaceForSource` write.
    * @overallScore 100
    */
-  private async reindexEntryRefs(html: string): Promise<void> {
+  private async reindexEntryRefs({ html }: { html: string }, _optional = {}): Promise<void> {
     if (!this.deps.entryRefsRepo) return;
     const refs = extractHtmlEntryRefs({
       workspaceId: this.scope.workspaceId,
@@ -553,7 +553,7 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
    * revision append, plus the optional reference scan. No persistence writes for unchanged HTML.
    * @overallScore 100
    */
-  async write(authoredHtml: string): Promise<void> {
+  async write({ html: authoredHtml }: { html: string }, _optional = {}): Promise<void> {
     // Canvas-serialized `data-embed-config="{&quot;…}"` is stored in the readable single-quoted form.
     const html = normalizeEmbedMarkerQuoting({ html: authoredHtml });
     if (this.lastReadVersion === null) {
@@ -582,14 +582,14 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
       // this back too — though there is nothing to roll back on this path, unlike `ensureHtmlFormat`'s
       // two-append converting branch).
       if (changes > 0) {
-        await this.appendRevision(nextVersion, updatedAt);
+        await this.appendRevision({ seq: nextVersion, recordedAt: updatedAt });
         await this.emitUpdated({ status: current.status, version: nextVersion, occurredAt: updatedAt });
-        await this.catchUpGoLive(current, updatedAt);
+        await this.catchUpGoLive({ row: current, nowIso: updatedAt });
       }
       return changes;
     };
 
-    const changes = await this.inTransaction(runWrite);
+    const changes = await this.inTransaction({ fn: runWrite });
     if (changes === null) return;
 
     if (changes === 0) {
@@ -608,6 +608,6 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
     }
 
     this.lastReadVersion = nextVersion;
-    await this.reindexEntryRefs(html);
+    await this.reindexEntryRefs({ html });
   }
 }

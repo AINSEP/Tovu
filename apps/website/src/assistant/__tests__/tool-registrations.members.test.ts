@@ -70,7 +70,7 @@ function seedMember(overrides: Partial<MemberRecord> = {}): MemberRecord {
 
 function fakeRouteDeps(options: { allow?: boolean; seed?: MemberRecord[] } = {}) {
   const allow = options.allow ?? true;
-  const memberRepo = new InMemoryMemberRepo(options.seed ?? []);
+  const memberRepo = new InMemoryMemberRepo({}, { initialRows: options.seed ?? [] });
   const memberSessionRepo = new InMemoryMemberSessionRepo();
   const magicLinkRepo = new InMemoryMagicLinkTokenRepo();
   const principalRepo = new InMemoryPrincipalRepo({});

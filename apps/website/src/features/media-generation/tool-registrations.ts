@@ -114,9 +114,12 @@ export interface MediaGenerationToolDeps {
    * gate (`MediaDispatchEngineOptions.allowStubFallback`) — never enabled unless the caller asked.
    */
   generateMedia?: (
-    request: MediaGenerationRequest,
-    credentials: ProviderCredentials,
-    options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry }
+    required: {
+      request: MediaGenerationRequest;
+      credentials: ProviderCredentials;
+      options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry };
+    },
+    optional?: Record<string, never>
   ) => Promise<MediaGenerationResult>;
   /**
    * The credential-env lookup table {@link resolveCredentialForProvider}'s env fallback reads from.
@@ -147,9 +150,12 @@ const DEFAULT_MODEL = "gpt-image-2";
  *  guarded HTTP client serves both generation and asset downloads.
  *  @complexity O(1) setup, plus generation I/O. */
 async function defaultGenerateMedia(
-  request: MediaGenerationRequest,
-  credentials: ProviderCredentials,
-  options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry }
+  { request, credentials, options }: {
+    request: MediaGenerationRequest;
+    credentials: ProviderCredentials;
+    options: { providerId: string; allowStubFallback: boolean; httpClient: HttpClientPort; registry: MediaProviderRegistry };
+  },
+  _optional = {}
 ): Promise<MediaGenerationResult> {
   const { registry } = options;
   const engine = createMediaDispatchEngine({ registry, httpClient: options.httpClient }, {
@@ -176,7 +182,7 @@ async function defaultGenerateMedia(
  * @complexity O(1) beyond {@link resolveMediaProviderCredential}'s own cost (one workspace-scoped
  *   credential-row read, plus a decrypt only when a key is present).
  */
-async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, providerId: string): Promise<ProviderCredentials | null> {
+async function resolveCredentialForProvider({ routeDeps, providerId }: { routeDeps: MediaGenerationToolDeps; providerId: string }, _optional = {}): Promise<ProviderCredentials | null> {
   const saved = await resolveMediaProviderCredential(
     { repo: routeDeps.mediaProviderCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer },
     { workspaceId: routeDeps.workspaceId, providerId }
@@ -207,7 +213,7 @@ async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, 
  * @complexity O(P) credential lookups, P = the number of distinct providers among
  *   `IMAGE_MODEL_IDS` — a fixed, catalog-bounded count, never caller-controlled.
  */
-async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps, imageModelIds: readonly string[]): Promise<string> {
+async function resolveDefaultImageModel({ routeDeps, imageModelIds }: { routeDeps: MediaGenerationToolDeps; imageModelIds: readonly string[] }, _optional = {}): Promise<string> {
   const checkedProviders = new Set<string>();
   for (const modelId of imageModelIds) {
     // Non-null: every id in imageModelIds is derived from this same registry (agent-tools.ts).
@@ -216,7 +222,7 @@ async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps, imag
     const providerId = model.provider;
     if (checkedProviders.has(providerId)) continue;
     checkedProviders.add(providerId);
-    const credential = await resolveCredentialForProvider(routeDeps, providerId);
+    const credential = await resolveCredentialForProvider({ routeDeps, providerId });
     if (credential) return modelId;
   }
   return DEFAULT_MODEL;
@@ -247,7 +253,7 @@ export const mediaGenerationDerivedRisk: DerivedRiskByToolId = new Map<string, A
  *
  * @complexity O(n) in `prompt.length`, once.
  */
-function buildGeneratedFilename(prompt: string): string {
+function buildGeneratedFilename({ prompt }: { prompt: string }, _optional = {}): string {
   const slug = prompt
     .replace(/[^a-zA-Z0-9\s-]/g, "")
     .trim()
@@ -274,8 +280,8 @@ export class MediaGenerationValidationError extends Error {}
  *   catalog-bounded set — a simple membership check, not worth a Set for a list this size); see
  *   {@link resolveDefaultImageModel}'s own complexity note for the omitted-`model` branch.
  */
-async function requireImageModel(raw: string | undefined, routeDeps: MediaGenerationToolDeps, imageModelIds: readonly string[]): Promise<string> {
-  if (raw === undefined) return resolveDefaultImageModel(routeDeps, imageModelIds);
+async function requireImageModel({ raw, routeDeps, imageModelIds }: { raw: string | undefined; routeDeps: MediaGenerationToolDeps; imageModelIds: readonly string[] }, _optional = {}): Promise<string> {
+  if (raw === undefined) return resolveDefaultImageModel({ routeDeps, imageModelIds });
   if (!imageModelIds.includes(raw)) {
     throw new MediaGenerationValidationError(
       `'model' must be a registered image model — got '${raw}'. See this tool's own schema for the full list of ${imageModelIds.length} supported ids across every configured vendor.`
@@ -293,7 +299,7 @@ async function requireImageModel(raw: string | undefined, routeDeps: MediaGenera
  *
  * @complexity O(1).
  */
-function buildNoCredentialError(providerId: string, registry: MediaProviderRegistry): Error {
+function buildNoCredentialError({ providerId, registry }: { providerId: string; registry: MediaProviderRegistry }, _optional = {}): Error {
   const label = registry.findProvider({ id: providerId })?.label ?? providerId;
   const envCandidates = PROVIDER_CREDENTIAL_ENV_VARS[providerId] ?? [];
   const envNote = envCandidates.length > 0 ? ` (also checked ${envCandidates.join(", ")} in this process's environment — none were set)` : "";
@@ -348,7 +354,7 @@ async function storeGeneratedImage(
     input: {
       workspaceId: routeDeps.workspaceId,
       bytes: generated.bytes,
-      filename: buildGeneratedFilename(prompt),
+      filename: buildGeneratedFilename({ prompt }),
       contentType,
       alt: optionalString({ input: input, key: "alt" }),
       caption: optionalString({ input: input, key: "caption" }),
@@ -428,7 +434,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
       return withSchemaOnRejection(
         { toolId: "media_generate_asset", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof MediaGenerationValidationError, fn: async () => {
-          const model = await requireImageModel(optionalString({ input: input, key: "model" }), routeDeps, imageModelIds);
+          const model = await requireImageModel({ raw: optionalString({ input: input, key: "model" }), routeDeps, imageModelIds });
           const allowStubFallback = optionalBoolean({ input, key: "allowStubFallback" }) ?? false;
           // Guaranteed non-null: `model` was just validated against `imageModelIds`, itself
           // derived from this same registry (`agent-tools.ts`'s own doc for both).
@@ -436,14 +442,14 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           if (registeredModel == null) throw new Error(`Media generation registry has no model ${model}`);
           const providerId = registeredModel.provider;
 
-          const credential = await resolveCredentialForProvider(routeDeps, providerId);
+          const credential = await resolveCredentialForProvider({ routeDeps, providerId });
           if (!credential && !allowStubFallback) {
-            return { generated: false, message: buildNoCredentialError(providerId, registry).message,
+            return { generated: false, message: buildNoCredentialError({ providerId, registry }).message,
               credentialSetup: issueCredentialSetup({ setupToolId: "credential_save", prefill: { kind: "media-provider", target: providerId } }, {}) };
           }
 
           const generate = routeDeps.generateMedia ?? defaultGenerateMedia;
-          const generated = await generate({ surface: "image", model, prompt }, credential ?? {}, { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry });
+          const generated = await generate({ request: { surface: "image", model, prompt }, credentials: credential ?? {}, options: { providerId, allowStubFallback, httpClient: routeDeps.mediaGenerationHttpClient, registry } });
 
           const { media, sniffed } = await storeGeneratedImage({ routeDeps, ctx, input, prompt, generated, provenance: generatedProvenance({ model, generated }) });
 

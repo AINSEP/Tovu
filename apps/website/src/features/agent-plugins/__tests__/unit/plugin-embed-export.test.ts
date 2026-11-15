@@ -40,7 +40,7 @@ test("T1: static snapshot ships fallback + deduplicated CSS/artwork, no marker/s
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "plugin-page", slug: "plugin-page", title: "Embed", kind: "page", status: "published" } });
   const snippet = embedMarkerSnippetFromConfig({ config }).replace('></div>', '><p class="fallback">Login unavailable offline</p></div>');
   const store = deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: "plugin-page" });
-  await store.ensureHtmlFormat(`<main>${snippet}${snippet}</main>`);
+  await store.ensureHtmlFormat({ seedHtml: `<main>${snippet}${snippet}</main>` });
   const report = await exportSite({ routeDeps: deps, outputDir, basePath: "/snapshot" });
   assert.ok(report.routes.succeeded.some(route => route.path === "/plugin-page"));
   const html = readFileSync(path.join(outputDir, "plugin-page/index.html"), "utf8");

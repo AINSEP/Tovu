@@ -33,7 +33,7 @@ function makeIds(prefix: string): IdGeneratorPort {
 function makeDeps(overrides: Partial<ConsentServiceDeps> = {}): ConsentServiceDeps {
   const clock = makeClock("2026-07-13T00:00:00.000Z");
   const ids = makeIds("id");
-  const members = new InMemoryMemberRepo([
+  const members = new InMemoryMemberRepo({}, { initialRows: [
     {
       id: MEMBER_ID,
       workspaceId: WORKSPACE_ID,
@@ -43,7 +43,7 @@ function makeDeps(overrides: Partial<ConsentServiceDeps> = {}): ConsentServiceDe
       updatedAt: "2026-07-01T00:00:00.000Z",
       version: 1,
     },
-  ]);
+  ] });
   const consents = new InMemoryMemberConsentRepo();
   return { clock, ids, members, consents, ...overrides };
 }
@@ -279,7 +279,7 @@ test("confirmConsent refuses revoked consent without changing the value or ledge
 test("requestConsent rolls back its durable value when revision insertion fails", async () => {
   const db = openContentDb(":memory:");
   try {
-    const consents = new SqliteMemberConsentRepo(db);
+    const consents = new SqliteMemberConsentRepo({ store: db });
     const deps = makeDeps({ consents });
     const input = { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" };
     db.$client.exec("CREATE TRIGGER reject_consent_revision BEFORE INSERT ON member_revisions BEGIN SELECT RAISE(ABORT, 'revision rejected'); END");

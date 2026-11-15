@@ -124,7 +124,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     assert.equal(store.capturedVersion(), null);
     await store.read();
     assert.equal(store.capturedVersion(), 5);
-    await store.write("<p>new</p>");
+    await store.write({ html: "<p>new</p>" });
     assert.equal(store.capturedVersion(), 6);
 
     const row = (await readRow(db, "page-1"));
@@ -137,7 +137,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     await insertHtmlPage(db, { id: "page-1", html: "<p>old</p>" });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-    await assert.rejects(() => store.write("<p>new</p>"), /before read\(\)/);
+    await assert.rejects(() => store.write({ html: "<p>new</p>" }), /before read\(\)/);
   });
 
   test("write() lets a single instance write repeatedly with no intervening read() — mirrors createHtmlRegionTarget's restore() calling write() several times in one pass", async () => {
@@ -146,8 +146,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
     await store.read();
-    await store.write("<p>v2</p>");
-    await store.write("<p>v3</p>");
+    await store.write({ html: "<p>v2</p>" });
+    await store.write({ html: "<p>v3</p>" });
 
     const row = (await readRow(db, "page-1"));
     assert.equal(row.bodyHtml, "<p>v3</p>");
@@ -178,7 +178,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     assert.equal(seenByB, "<p>base</p>");
 
     // A writes first and succeeds.
-    await writerA.write("<p>A's edit</p>");
+    await writerA.write({ html: "<p>A's edit</p>" });
     const afterA = (await readRow(db, "page-1"));
     assert.equal(afterA.bodyHtml, "<p>A's edit</p>");
     assert.equal(afterA.version, 2);
@@ -186,7 +186,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     // B writes next, still conditioned on the version it read (1) — the row is now at version 2, so
     // this MUST be rejected, never silently overwrite A's committed edit.
     await assert.rejects(
-      () => writerB.write("<p>B's edit, computed against a document A already changed</p>"),
+      () => writerB.write({ html: "<p>B's edit, computed against a document A already changed</p>" }),
       PageConcurrentEditError
     );
 
@@ -206,14 +206,14 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
 
     await writerA.read();
     await writerB.read();
-    await writerA.write("<p>A's edit</p>");
-    await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
+    await writerA.write({ html: "<p>A's edit</p>" });
+    await assert.rejects(() => writerB.write({ html: "<p>stale</p>" }), PageConcurrentEditError);
 
     // The documented recovery path: re-read, then retry.
     const freshRead = await writerB.read();
     assert.equal(freshRead, "<p>A's edit</p>", "the retry must see A's committed edit, not the stale base");
 
-    await writerB.write("<p>B's edit, now based on A's content</p>");
+    await writerB.write({ html: "<p>B's edit, now based on A's content</p>" });
     const finalRow = (await readRow(db, "page-1"));
     assert.equal(finalRow.bodyHtml, "<p>B's edit, now based on A's content</p>");
     assert.equal(finalRow.version, 3);
@@ -231,7 +231,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     // of the version check, not merely as a side effect of it.
     await setRow(db, "page-1", { body_format: "doc", body_html: null, body_json: "{}" });
 
-    await assert.rejects(() => store.write("<p>should never land</p>"), PageConcurrentEditError);
+    await assert.rejects(() => store.write({ html: "<p>should never land</p>" }), PageConcurrentEditError);
 
     const row = (await readRow(db, "page-1"));
     assert.equal(row.bodyFormat, "doc", "the row must stay doc-format — the html write must not have landed");
@@ -248,7 +248,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock, entryRefsRepo });
 
     await store.read();
-    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+    await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
 
     const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
     assert.equal(refs.length, 1);
@@ -263,8 +263,8 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock, entryRefsRepo });
 
     await store.read();
-    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
-    await store.write("<p>the embed was removed in this edit</p>");
+    await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
+    await store.write({ html: "<p>the embed was removed in this edit</p>" });
 
     const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
     assert.deepEqual(refs, []);
@@ -276,7 +276,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
     await store.read();
-    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
+    await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
 
     const row = (await readRow(db, "page-1"));
     assert.equal(row.bodyHtml, `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>`);
@@ -294,7 +294,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
     await store.read();
-    await store.write(`<p>That marker, live:</p>${CANVAS_SERIALIZED_MARKER}`);
+    await store.write({ html: `<p>That marker, live:</p>${CANVAS_SERIALIZED_MARKER}` });
 
     assert.equal((await readRow(db, "page-1")).bodyHtml, `<p>That marker, live:</p>${READABLE_MARKER}`);
   });
@@ -305,9 +305,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-3" }, { kernel: db, clock });
 
     assert.equal(store.capturedVersion(), null);
-    await store.ensureHtmlFormat(CANVAS_SERIALIZED_MARKER);
+    await store.ensureHtmlFormat({ seedHtml: CANVAS_SERIALIZED_MARKER });
     assert.equal(store.capturedVersion(), 2);
-    await store.ensureHtmlFormat("<p>ignored</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>ignored</p>" });
     assert.equal(store.capturedVersion(), 2);
 
     assert.equal((await readRow(db, "page-3")).bodyHtml, READABLE_MARKER);
@@ -320,7 +320,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock, entryRefsRepo });
 
     await store.read();
-    await store.write(`<div data-embed-config='{"type":"widget","id":"widget-does-not-exist-anywhere"}'></div>`);
+    await store.write({ html: `<div data-embed-config='{"type":"widget","id":"widget-does-not-exist-anywhere"}'></div>` });
 
     const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-1" });
     assert.equal(refs.length, 1);
@@ -333,7 +333,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const entryRefsRepo = new InMemoryEntryRefsRepo();
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-2" }, { kernel: db, clock, entryRefsRepo });
 
-    await store.ensureHtmlFormat(`<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>`);
+    await store.ensureHtmlFormat({ seedHtml: `<div data-embed-config='{"type":"widget","id":"cf-widget-1"}'></div>` });
 
     const refs = await entryRefsRepo.findBySource({ workspaceId: WS, sourceEntryId: "page-2" });
     assert.equal(refs.length, 1);
@@ -362,7 +362,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     await insertPost(db, { id: "page-1", title: "New page", slug: "new-page", kind: "page", deleted_at: "2026-09-24T00:00:00.000Z" });
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { kernel: db, clock });
 
-    await assert.rejects(() => store.ensureHtmlFormat("<p>seed</p>"), { message: TRASH_MESSAGE });
+    await assert.rejects(() => store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" }), { message: TRASH_MESSAGE });
   });
 
   test("write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged", async () => {
@@ -373,7 +373,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     await store.read();
     await setRow(db, "page-1", { deleted_at: "2026-09-24T00:00:00.000Z" });
 
-    await assert.rejects(() => store.write("<p>should never land</p>"), { message: TRASH_MESSAGE });
+    await assert.rejects(() => store.write({ html: "<p>should never land</p>" }), { message: TRASH_MESSAGE });
 
     const row = (await readRow(db, "page-1"));
     assert.equal(row.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
@@ -387,9 +387,9 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
 
     await writerA.read();
     await writerB.read();
-    await writerA.write("<p>A's edit</p>");
+    await writerA.write({ html: "<p>A's edit</p>" });
 
-    await assert.rejects(() => writerB.write("<p>stale</p>"), PageConcurrentEditError);
+    await assert.rejects(() => writerB.write({ html: "<p>stale</p>" }), PageConcurrentEditError);
   });
   test("ensureHtmlFormat() refuses a post and leaves its doc body and revision ledger unchanged", async () => {
     const db = makeKernel();
@@ -397,7 +397,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const before = await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow());
     const repo = postRepoFor(db);
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-guard" }, { kernel: db, clock, revisions: repo });
-    await assert.rejects(store.ensureHtmlFormat("<p>replacement</p>"), PageKindMismatchError);
+    await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>replacement</p>" }), PageKindMismatchError);
     assert.deepEqual(await db.run((q) => q.selectFrom("posts").selectAll().where("id", "=", "post-guard").executeTakeFirstOrThrow()), before);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-guard" }), []);
     assert.equal(store.capturedVersion(), null);
@@ -428,7 +428,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
   test("ensureHtmlFormat refuses a missing page without capturing a version", async () => {
     const db = makeKernel();
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { kernel: db, clock });
-    await assert.rejects(store.ensureHtmlFormat("<p>seed</p>"), { message: "page 'missing' was not found" });
+    await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" }), { message: "page 'missing' was not found" });
     assert.equal(store.capturedVersion(), null);
   });
 
@@ -438,7 +438,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "removed" }, { kernel: db, clock });
     await store.read();
     await db.run(q => q.deleteFrom("posts").where("id", "=", "removed").execute());
-    await assert.rejects(store.write("<p>new</p>"), { message: "page 'removed' was edited elsewhere since this turn started — re-read and retry" });
+    await assert.rejects(store.write({ html: "<p>new</p>" }), { message: "page 'removed' was edited elsewhere since this turn started — re-read and retry" });
     assert.equal(store.capturedVersion(), 1);
     assert.equal(await db.run(q => q.selectFrom("posts").select("id").where("id", "=", "removed").executeTakeFirst()), undefined);
   });
@@ -461,7 +461,7 @@ describeEachDialect("SqlPagesHtmlDocumentStore", { tables: ["posts", "post_revis
       const store = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: "cas-race" }, { kernel, clock });
       await store.read();
       race = true;
-      await assert.rejects(store.write("<p>loser</p>"), change === "trash"
+      await assert.rejects(store.write({ html: "<p>loser</p>" }), change === "trash"
         ? { message: "ENTITY_IN_TRASH: page 'cas-race' is in the Trash. Restore it from the Trash before changing it." }
         : PageConcurrentEditError);
       assert.equal(store.capturedVersion(), 1);

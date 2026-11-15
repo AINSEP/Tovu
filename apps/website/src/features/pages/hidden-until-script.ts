@@ -35,7 +35,7 @@ const STYLE_BLOCK = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
 const CSS_COMMENT = /\/\*[\s\S]*?\*\//g;
 const KEYFRAMES_BLOCK = /@(?:-[a-z]+-)?keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/gi;
 
-function readAttributes(raw: string): Map<string, string> {
+function readAttributes({ raw }: { raw: string }, _optional: Record<string, never> = {}): Map<string, string> {
   const attributes = new Map<string, string>();
   ATTRIBUTE_NAME.lastIndex = 0;
   for (let name = ATTRIBUTE_NAME.exec(raw); name; name = ATTRIBUTE_NAME.exec(raw)) {
@@ -47,7 +47,7 @@ function readAttributes(raw: string): Map<string, string> {
   return attributes;
 }
 
-function hidingDeclaration(declarations: string): string | undefined {
+function hidingDeclaration({ declarations }: { declarations: string }, _optional: Record<string, never> = {}): string | undefined {
   for (const declaration of declarations.trim().split(";")) {
     const hidden = ZERO_OPACITY.exec(declaration) ?? HIDDEN_VISIBILITY.exec(declaration);
     if (hidden) return hidden[1];
@@ -56,8 +56,8 @@ function hidingDeclaration(declarations: string): string | undefined {
 }
 
 /** The one reason this element is hidden until a script runs, or `undefined`. */
-function elementReason(attributes: Map<string, string>): string | undefined {
-  const inline = hidingDeclaration(attributes.get("style") ?? "");
+function elementReason({ attributes }: { attributes: Map<string, string> }, _optional: Record<string, never> = {}): string | undefined {
+  const inline = hidingDeclaration({ declarations: attributes.get("style") ?? "" });
   if (inline !== undefined) return `inline style ${inline}`;
   const attribute = REVEAL_ATTRIBUTES.find((name) => attributes.has(name));
   if (attribute !== undefined) return `${attribute} (a scroll-reveal library attribute)`;
@@ -66,11 +66,11 @@ function elementReason(attributes: Map<string, string>): string | undefined {
   return revealClass === undefined ? undefined : `class "${revealClass}" (a scroll-reveal library class)`;
 }
 
-function elementFindings(html: string): string[] {
+function elementFindings({ html }: { html: string }, _optional: Record<string, never> = {}): string[] {
   const findings: string[] = [];
   for (const match of maskNonRenderableRegions({ html }).matchAll(START_TAG)) {
-    const attributes = readAttributes(match[2]);
-    const reason = elementReason(attributes);
+    const attributes = readAttributes({ raw: match[2] });
+    const reason = elementReason({ attributes });
     if (reason === undefined) continue;
     const className = attributes.get("class");
     const classAttribute = className ? ` class="${className}"` : "";
@@ -85,13 +85,13 @@ function cssRuleFindings({ css }: { css: string }, _optional: Record<string, nev
   for (let i = 1; i + 2 < parts.length; i += 2) {
     if (parts[i] !== "{" || parts[i + 2] !== "}" || parts[i - 1] === "") continue;
     const selector = parts[i - 1].trim().replace(/\s+/g, " ");
-    const hidden = hidingDeclaration(parts[i + 1]);
+    const hidden = hidingDeclaration({ declarations: parts[i + 1] });
     if (hidden !== undefined && !selector.startsWith("@") && REVEAL_SELECTOR.test(selector)) findings.push(`<style> rule "${selector}" sets ${hidden}`);
   }
   return findings;
 }
 
-function styleRuleFindings(html: string): string[] {
+function styleRuleFindings({ html }: { html: string }, _optional: Record<string, never> = {}): string[] {
   const findings: string[] = [];
   for (const block of html.replace(HTML_COMMENT, "").matchAll(STYLE_BLOCK)) {
     const css = block[1].replace(CSS_COMMENT, "").replace(KEYFRAMES_BLOCK, "");
@@ -108,7 +108,7 @@ function styleRuleFindings(html: string): string[] {
  * @complexity O(n) in the markup length.
  */
 export function findScriptRevealedContent({ html }: { html: string }, _optional: {} = {}): readonly string[] {
-  const findings = [...elementFindings(html), ...styleRuleFindings(html)];
+  const findings = [...elementFindings({ html }), ...styleRuleFindings({ html })];
   if (findings.length <= MAX_REVEAL_FINDINGS) return findings;
   return [...findings.slice(0, MAX_REVEAL_FINDINGS), `...and ${findings.length - MAX_REVEAL_FINDINGS} more.`];
 }

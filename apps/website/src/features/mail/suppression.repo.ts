@@ -11,7 +11,7 @@ const BLOCKING_SCOPES: Readonly<Record<MailDeliveryLane, readonly MailSuppressio
 };
 
 /** Addresses are keyed case-insensitively; callers normalize too, this keeps the key honest. */
-const normalize = (address: string): string => address.trim().toLowerCase();
+const normalize = ({ address }: { address: string }, _optional = {}): string => address.trim().toLowerCase();
 
 /**
  * The do-not-send list. Keyed by address and scope, never provider, so it survives a provider
@@ -25,12 +25,12 @@ export function createMailSuppressionRepo<DB>({ db }: MailRepoDeps<DB>, optional
     async isSuppressed({ workspaceId, normalizedAddress, lane }) {
       const scopes = sql.join(BLOCKING_SCOPES[lane].map((scope) => sql`${scope}`));
       const rows = await db.query(sql`SELECT 1 AS hit FROM mail_suppression
-        WHERE workspace_id = ${workspaceId} AND normalized_address = ${normalize(normalizedAddress)} AND scope IN (${scopes}) LIMIT 1`);
+        WHERE workspace_id = ${workspaceId} AND normalized_address = ${normalize({ address: normalizedAddress })} AND scope IN (${scopes}) LIMIT 1`);
       return rows.length > 0;
     },
     async suppress({ workspaceId, normalizedAddress, scope, reason }) {
       await db.execute(sql`INSERT INTO mail_suppression (workspace_id, normalized_address, scope, reason, created_at, revision)
-        VALUES (${workspaceId}, ${normalize(normalizedAddress)}, ${scope}, ${reason}, ${nowIso()}, ${randomUUID()})
+        VALUES (${workspaceId}, ${normalize({ address: normalizedAddress })}, ${scope}, ${reason}, ${nowIso()}, ${randomUUID()})
         ON CONFLICT (workspace_id, normalized_address, scope) DO NOTHING`);
     },
   };

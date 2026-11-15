@@ -109,7 +109,7 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
     },
     // A sitemap has no visitor session: only the member owner's anonymous/public decision
     // applies. Members/paid/tiers and malformed/unknown visibility fail closed (ADR-030 §4).
-    isPubliclyAccessible: ({ post }) => resolvePostMemberAccess(post.memberAccessJson).visibility === "public",
+    isPubliclyAccessible: ({ post }) => resolvePostMemberAccess({ raw: post.memberAccessJson }).visibility === "public",
     runtimeMode: resolveRuntimeMode(),
     rootSlug: ROOT_SLUG,
     // Only an explicit workspace title counts for the root entry, not the default/display fallback.

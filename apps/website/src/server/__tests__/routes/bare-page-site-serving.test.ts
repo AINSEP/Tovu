@@ -241,11 +241,11 @@ test("a member-gated bare Page still 404s for a signed-out visitor — the gate 
   assert.equal(status, 404);
   assert.ok(!html.includes(POST_BODY_TEXT), "the gated body must never reach a signed-out visitor");
   const token = "bare-page-member-session";
-  deps.memberSessionRepo = new InMemoryMemberSessionRepo([{
+  deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [{
     id: "bare-page-member-session-id", workspaceId: WORKSPACE_ID, memberId: "bare-page-member",
     tokenHash: createHash("sha256").update(token).digest("hex"),
     createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z",
-  }]);
+  }] });
   const entitled = await fetch(`${baseUrl}/bare-gated`, { headers: { cookie: `tovu_member_session=${token}` } });
   assert.equal(entitled.status, 200);
   const entitledHtml = await entitled.text();

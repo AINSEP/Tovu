@@ -47,12 +47,12 @@ test("write() after read() updates body_html and increments version (sanity, mir
   const { repo } = await harness();
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
 
-  await store.ensureHtmlFormat("<p>old</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
   await store.read();
   const beforeVersion = store.capturedVersion();
   assert.ok(beforeVersion !== null);
   assert.equal(beforeVersion, 2);
-  await store.write("<p>new</p>");
+  await store.write({ html: "<p>new</p>" });
 
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(row?.bodyHtml, "<p>new</p>");
@@ -64,9 +64,9 @@ test("write() stores a canvas-serialized embed marker in the readable single-quo
   const { repo } = await harness();
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
 
-  await store.ensureHtmlFormat("<p>old</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>old</p>" });
   await store.read();
-  await store.write(`<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>`);
+  await store.write({ html: `<div data-embed-config="{&quot;type&quot;:&quot;widget&quot;,&quot;slug&quot;:&quot;contact-form&quot;}"></div>` });
 
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(row?.bodyHtml, `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`);
@@ -81,15 +81,15 @@ test("CIC-1 (sequential): two readers, then two SEQUENTIAL writes (read, read, w
   const writerA = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
   const writerB = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
 
-  await writerA.ensureHtmlFormat("<p>base</p>");
+  await writerA.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   const seenByA = await writerA.read();
   const seenByB = await writerB.read();
   assert.equal(seenByA, "<p>base</p>");
   assert.equal(seenByB, "<p>base</p>");
 
-  await writerA.write("<p>A's edit</p>");
+  await writerA.write({ html: "<p>A's edit</p>" });
 
-  await assert.rejects(() => writerB.write("<p>B's edit, computed against a document A already changed</p>"), PageConcurrentEditError);
+  await assert.rejects(() => writerB.write({ html: "<p>B's edit, computed against a document A already changed</p>" }), PageConcurrentEditError);
 
   const finalRow = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(finalRow?.bodyHtml, "<p>A's edit</p>", "B's rejected write must not have landed, even partially");
@@ -105,11 +105,11 @@ test("BUG: two write() calls truly IN FLIGHT AT ONCE (not sequential) both succe
   const writerA = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
   const writerB = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
 
-  await writerA.ensureHtmlFormat("<p>base</p>");
+  await writerA.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   await writerA.read();
   await writerB.read();
 
-  const [a, b] = await Promise.allSettled([writerA.write("<p>A's edit</p>"), writerB.write("<p>B's edit</p>")]);
+  const [a, b] = await Promise.allSettled([writerA.write({ html: "<p>A's edit</p>" }), writerB.write({ html: "<p>B's edit</p>" })]);
 
   // What SHOULD happen, matching CIC-1 and the sqlite store's own atomic behavior: exactly one of
   // the two writes lands, and the OTHER is rejected with PageConcurrentEditError — never both
@@ -144,7 +144,7 @@ const TRASH_MESSAGE = "ENTITY_IN_TRASH: page 'page-1' is in the Trash. Restore i
 test("read() rejects a trashed html-format page with the entity-liveness message", async () => {
   const { repo } = await harness();
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
-  await store.ensureHtmlFormat("<p>base</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
 
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.ok(row);
@@ -156,14 +156,14 @@ test("read() rejects a trashed html-format page with the entity-liveness message
 test("write() rejects when the row was trashed between this instance's read() and write()", async () => {
   const { repo } = await harness();
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock });
-  await store.ensureHtmlFormat("<p>base</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   await store.read();
 
   const row = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.ok(row);
   await repo.softDelete({ workspaceId: WS, id: "page-1", deletedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z", version: row.version });
 
-  await assert.rejects(() => store.write("<p>should never land</p>"), { message: TRASH_MESSAGE });
+  await assert.rejects(() => store.write({ html: "<p>should never land</p>" }), { message: TRASH_MESSAGE });
 
   const finalRow = await repo.findById({ workspaceId: WS, id: "page-1" });
   assert.equal(finalRow?.bodyHtml, "<p>base</p>", "the trashed row's body_html must be untouched");
@@ -178,7 +178,7 @@ test("ensureHtmlFormat refuses a post without changing its body or revision ledg
   const before = structuredClone(await repo.findById({ workspaceId: WS, id: "post-1" }));
   const revisionsBefore = structuredClone(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }));
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "post-1" }, { repo, clock });
-  await assert.rejects(store.ensureHtmlFormat("<p>replacement</p>"), PageKindMismatchError);
+  await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>replacement</p>" }), PageKindMismatchError);
   assert.deepEqual(await repo.findById({ workspaceId: WS, id: "post-1" }), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "post-1" }), revisionsBefore);
 });
@@ -195,8 +195,8 @@ test("conversion and write append recoverable original, converted, and edited sn
   };
   await repo.save(original);
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1", actorId: "editor-7" }, { repo, clock });
-  await store.ensureHtmlFormat("<p>converted</p>");
-  await store.write("<p>edited</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>converted</p>" });
+  await store.write({ html: "<p>edited</p>" });
   const revisions = (await repo.listRevisions({ workspaceId: WS, postId: "page-1" })).filter((revision) => revision.seq >= 5);
   const converted = { ...original, bodyFormat: "html", bodyHtml: "<p>converted</p>", version: 6, updatedAt: clock.nowIso() };
   const edited = { ...converted, bodyHtml: "<p>edited</p>", version: 7 };
@@ -215,11 +215,11 @@ test("conversion, replacement, and removal reindex exact HTML embed references w
   await refs.replaceForSource({ workspaceId: WS, sourceEntryId: "other-page", refs: [sibling] });
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "page-1" }, { repo, clock, entryRefsRepo: refs });
   const expected = { workspaceId: WS, sourceEntryId: "page-1", sourceKind: "page-html-embed", targetKind: "entry", fieldPath: "bodyHtml[embed:widget#1]" };
-  await store.ensureHtmlFormat(`<div data-embed-config='{"type":"widget","id":"seed-widget"}'></div>`);
+  await store.ensureHtmlFormat({ seedHtml: `<div data-embed-config='{"type":"widget","id":"seed-widget"}'></div>` });
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), [{ ...expected, targetId: "seed-widget" }]);
-  await store.write(`<div data-embed-config='{"type":"widget","id":"edited-widget"}'></div>`);
+  await store.write({ html: `<div data-embed-config='{"type":"widget","id":"edited-widget"}'></div>` });
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), [{ ...expected, targetId: "edited-widget" }]);
-  await store.write("<p>no embed</p>");
+  await store.write({ html: "<p>no embed</p>" });
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "page-1" }), []);
   assert.deepEqual(await refs.findBySource({ workspaceId: WS, sourceEntryId: "other-page" }), [sibling]);
 });
@@ -229,7 +229,7 @@ for (const operation of ["read", "convert"] as const) {
   test(`${operation} refuses a missing page without capturing a version`, async () => {
     const { repo } = await harness();
     const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "missing" }, { repo, clock });
-    await assert.rejects(operation === "read" ? store.read() : store.ensureHtmlFormat("<p>seed</p>"),
+    await assert.rejects(operation === "read" ? store.read() : store.ensureHtmlFormat({ seedHtml: "<p>seed</p>" }),
       { message: "page 'missing' was not found" });
     assert.equal(store.capturedVersion(), null);
   });
@@ -250,7 +250,7 @@ test("write before read refuses to change the row or ledger", async () => {
   assert.ok(before);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
   const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-  await assert.rejects(store.write("<p>bad</p>"), { message: "PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on" });
+  await assert.rejects(store.write({ html: "<p>bad</p>" }), { message: "PagesHtmlDocumentStore.write() called before read() — there is no version to condition the write on" });
   assert.deepEqual(await repo.findById(page), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
 });
@@ -261,7 +261,7 @@ for (const change of ["deleted", "converted-to-doc"] as const) {
     const scope = { workspaceId: WS, postId: "page-1" };
     const page = { workspaceId: WS, id: scope.postId };
     const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-    await store.ensureHtmlFormat("<p>base</p>");
+    await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
     const captured = store.capturedVersion();
     const row = await repo.findById(page);
     assert.ok(row);
@@ -269,7 +269,7 @@ for (const change of ["deleted", "converted-to-doc"] as const) {
     else await repo.save({ ...row, bodyFormat: "doc", bodyHtml: null });
     const before = await repo.findById(page);
     const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
-    await assert.rejects(store.write("<p>new</p>"), { message: "page 'page-1' was edited elsewhere since this turn started — re-read and retry" });
+    await assert.rejects(store.write({ html: "<p>new</p>" }), { message: "page 'page-1' was edited elsewhere since this turn started — re-read and retry" });
     assert.deepEqual(await repo.findById(page), before);
     assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
     assert.equal(store.capturedVersion(), captured);
@@ -281,12 +281,12 @@ test("converting an already HTML page captures its version without reseeding or 
   const scope = { workspaceId: WS, postId: "page-1" };
   const page = { workspaceId: WS, id: scope.postId };
   const first = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-  await first.ensureHtmlFormat("<p>keep</p>");
+  await first.ensureHtmlFormat({ seedHtml: "<p>keep</p>" });
   const before = await repo.findById(page);
   assert.ok(before);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
   const reopened = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-  await reopened.ensureHtmlFormat("<p>discard</p>");
+  await reopened.ensureHtmlFormat({ seedHtml: "<p>discard</p>" });
   assert.equal(reopened.capturedVersion(), 2);
   assert.deepEqual(await repo.findById(page), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
@@ -301,7 +301,7 @@ test("conversion refuses a trashed document before changing the body or revision
   assert.ok(before);
   const revisions = await repo.listRevisions({ workspaceId: WS, postId: "page-1" });
   const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-  await assert.rejects(store.ensureHtmlFormat("<p>new</p>"), { message: TRASH_MESSAGE });
+  await assert.rejects(store.ensureHtmlFormat({ seedHtml: "<p>new</p>" }), { message: TRASH_MESSAGE });
   assert.deepEqual(await repo.findById(page), before);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), revisions);
 });
@@ -311,14 +311,14 @@ test("a page removed after the successful CAS does not receive a phantom revisio
   const scope = { workspaceId: WS, postId: "page-1" };
   const page = { workspaceId: WS, id: scope.postId };
   const store = new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
-  await store.ensureHtmlFormat("<p>base</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>base</p>" });
   const save = repo.saveIfVersion.bind(repo);
   repo.saveIfVersion = async input => {
     const result = await save(input);
     await repo.hardDelete(page);
     return result;
   };
-  await store.write("<p>new</p>");
+  await store.write({ html: "<p>new</p>" });
   assert.equal(await repo.findById(page), null);
   assert.deepEqual(await repo.listRevisions({ workspaceId: WS, postId: "page-1" }), []);
   assert.equal(store.capturedVersion(), 3);

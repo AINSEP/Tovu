@@ -52,9 +52,9 @@ async function seedHtmlPage(repo: InMemoryPostRepo, html: string) {
     { workspaceId: "ws-1", postId: "page-1" },
     { repo, clock }
   );
-  await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+  await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("updatePost: renaming an html-format Page keeps its bodyFormat and body_html intact", async () => {
@@ -145,7 +145,7 @@ describeEachDialect("HTML metadata preservation", { tables: ["posts", "post_revi
     await createPost({ deps: { repo, clock }, input: { workspaceId: "ws-1", id: "page-sql", title: "Landing", kind: "page" } });
     const html = "<section>Original HTML</section>";
     const store = new SqlPagesHtmlDocumentStore({ workspaceId: "ws-1", postId: "page-sql" }, { kernel, clock });
-    await store.ensureHtmlFormat(html);
+    await store.ensureHtmlFormat({ seedHtml: html });
     const original = await repo.findById({ workspaceId: "ws-1", id: "page-sql" });
     assert.ok(original);
     const { post } = await updatePost({

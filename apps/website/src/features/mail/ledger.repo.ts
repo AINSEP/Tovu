@@ -45,8 +45,8 @@ export function createMailSendLedgerRepo<DB>({ db }: MailRepoDeps<DB>, optional:
   const where = ({ workspaceId, idempotencyKey, recipient }: Key) =>
     sql`workspace_id = ${workspaceId} AND idempotency_key = ${idempotencyKey} AND recipient = ${recipient}`;
 
-  const reserve = async (required: Key & { payloadHash: string; lane: MailDeliveryLane; providerId: string }, reclaimUnknown: boolean): Promise<ReserveResult> => {
-    const { workspaceId, idempotencyKey, recipient, payloadHash, lane, providerId } = required;
+  const reserve = async (required: Key & { payloadHash: string; lane: MailDeliveryLane; providerId: string; reclaimUnknown: boolean }, _optional = {}): Promise<ReserveResult> => {
+    const { workspaceId, idempotencyKey, recipient, payloadHash, lane, providerId, reclaimUnknown } = required;
     await db.lockKey(lockName(required));
     const at = nowIso();
     const inserted = await db.query(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at, activity_id)
@@ -67,7 +67,7 @@ export function createMailSendLedgerRepo<DB>({ db }: MailRepoDeps<DB>, optional:
   };
 
   return {
-    reserve: (required, optional = {}) => db.transaction(async () => reserve(required, optional.reclaimUnknown === true)),
+    reserve: (required, optional = {}) => db.transaction(async () => reserve({ ...required, reclaimUnknown: optional.reclaimUnknown === true })),
     mark: (required) => db.transaction(async () => {
       await db.lockKey(lockName(required));
       await db.execute(sql`UPDATE mail_send_ledger SET outcome = ${required.outcome}, provider_message_id = ${required.providerMessageId ?? null},

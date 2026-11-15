@@ -80,11 +80,10 @@ const FAKE_PNG_BYTES = Buffer.from(
 function fakeGenerateMedia(
   recorded: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }>
 ): (
-  request: MediaGenerationRequest,
-  credentials: ProviderCredentials,
-  options: { providerId: string; allowStubFallback: boolean }
+  required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } },
+  optional?: Record<string, never>
 ) => Promise<MediaGenerationResult> {
-  return async (request, credentials, options) => {
+  return async ({ request, credentials, options }) => {
     recorded.push({ request, credentials, options });
     return { bytes: FAKE_PNG_BYTES, providerNote: "fake/test", providerId: options.providerId, usedStubFallback: false, warnings: [] };
   };
@@ -108,7 +107,7 @@ function fakeRouteDeps(
      *  the selected model's provider has no adapter registered at all). Omitted/`undefined` uses the
      *  fake, as before. */
     generateMedia?:
-      | ((request: MediaGenerationRequest, credentials: ProviderCredentials, options: { providerId: string; allowStubFallback: boolean }) => Promise<MediaGenerationResult>)
+      | ((required: { request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }, optional?: Record<string, never>) => Promise<MediaGenerationResult>)
       | null;
     /** Defaults to `{}` (no env vars at all) — deliberately NOT the real `process.env` — so no test
      *  here can pass or fail depending on what happens to be set on the machine running it. Tests
@@ -399,7 +398,7 @@ test("the vendor reported is the one the engine actually used, not only the cata
 });
 
 test("a placeholder says so: the result names what was asked for, and the library never credits the model with the stand-in", async () => {
-  const fixture = fakeRouteDeps({ generateMedia: async (_request, _credentials, options) => ({ bytes: FAKE_PNG_BYTES, providerNote: "stub", providerId: options.providerId, usedStubFallback: true, warnings: [] }) });
+  const fixture = fakeRouteDeps({ generateMedia: async ({ options }) => ({ bytes: FAKE_PNG_BYTES, providerNote: "stub", providerId: options.providerId, usedStubFallback: true, warnings: [] }) });
   const out = await wired("media_generate_asset", fixture.deps).handler(executionContext({ prompt: "Placeholder", model: "gpt-image-2", allowStubFallback: true })) as ModelReport;
   assert.equal(out.media.placeholder, true);
   assert.equal(out.model, "gpt-image-2");
@@ -530,7 +529,7 @@ test("a real vendor's model with no registered adapter is rejected the same as a
 // the returned `media.placeholder` field, independent of which vendor produced it.
 test("usedStubFallback:true from generateMedia is surfaced as media.placeholder:true on the tool's return", async () => {
   const fixture = fakeRouteDeps({
-    generateMedia: async (_request, _credentials, options) => ({
+    generateMedia: async ({ options }) => ({
       bytes: FAKE_PNG_BYTES,
       providerNote: "stub/test",
       providerId: options.providerId,
@@ -644,7 +643,7 @@ test("a saved key without a base URL reaches the generator without inventing one
 
 test("an explicit stub opt-in lets the generator decide what to do without credentials", async () => {
   const calls: ProviderCredentials[] = [];
-  const fixture = fakeRouteDeps({ generateMedia: async (_request, credentials, options) => {
+  const fixture = fakeRouteDeps({ generateMedia: async ({ credentials, options }) => {
     calls.push(credentials);
     assert.equal(options.allowStubFallback, true);
     return { bytes: FAKE_PNG_BYTES, providerNote: "test placeholder", providerId: options.providerId, usedStubFallback: true, warnings: [] };

@@ -25,7 +25,7 @@ const SCHEME_OR_AUTHORITY = /^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i;
 /** Backslashes, C0 controls and space anywhere in the href. */
 const UNSAFE_HREF_CHARACTER = /[\\\u0000- ]/;
 
-function isSiteRelative(href: string): boolean {
+function isSiteRelative({ href }: { href: string }, _optional = {}): boolean {
   return href !== "" && !SCHEME_OR_AUTHORITY.test(href) && !UNSAFE_HREF_CHARACTER.test(href);
 }
 
@@ -36,7 +36,7 @@ function isSiteRelative(href: string): boolean {
  */
 function renderToolAttrs({ href, toolName, label }: { href: string; toolName: string; label: string }, _options = {}): string {
   const name = toolName.length <= 128 ? toolName : `${toolName.slice(0, 63)}_${createHash("sha256").update(toolName).digest("hex")}`;
-  return isSiteRelative(href)
+  return isSiteRelative({ href })
     ? ` data-toolname="${escapeHtml(name)}" data-tooldescription="${escapeHtml(label)}" data-tool-action="navigate"` : "";
 }
 

@@ -598,7 +598,7 @@ export class SqlMemberConsentRepo implements MemberConsentRepoPort {
     return rows.map(toMemberConsentRevisionRecord);
   }
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
+  async transaction<T>({ fn }: { fn: () => Promise<T> }, _optional?: Record<string, never>): Promise<T> {
     return this.kernel.transaction(fn);
   }
 }

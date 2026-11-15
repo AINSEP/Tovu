@@ -205,7 +205,7 @@ for (const selector of ["regionId", "handle", "region"]) {
     await seedLanding(h);
     const store = new InMemoryPagesHtmlDocumentStore({ workspaceId: WS, postId: "landing" }, { repo: h.repo, clock });
     await store.read();
-    await store.write(LANDING + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>');
+    await store.write({ html: LANDING + '<section data-agent-element="dup">one</section><section data-agent-element="dup">two</section>' });
     const before = await h.repo.findById({ workspaceId: WS, id: "landing" });
     for (const region of ["absent", "dup"]) {
       const result = await executeRegisteredTool({ registration: h.byName.get("pages_move_region")!,

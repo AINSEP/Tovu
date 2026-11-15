@@ -184,7 +184,7 @@ export async function createEmailTemplate(
   // Both adapters join the same kernel transaction, so conversion failure leaves no hidden doc row.
   return deps.postRepo.transaction({ fn: async () => {
     await deps.postRepo.save(row);
-    await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) }).ensureHtmlFormat(seed);
+    await deps.pagesHtmlStore({ workspaceId: deps.workspaceId, postId: row.id, actorId }, { allowedKinds: new Set([EMAIL_TEMPLATE_KIND]) }).ensureHtmlFormat({ seedHtml: seed });
     return toDetail(await loadTemplate({ deps: deps, id: row.id }));
   } });
 }
@@ -211,7 +211,7 @@ export async function editEmailTemplate(
     throw new EmailTemplateVersionConflictError(`email template '${id}' is at version ${basis}, not ${expectedVersion} — re-read it and retry`);
   }
   try {
-    await store.write(html);
+    await store.write({ html });
   } catch (err) {
     if (err instanceof PageConcurrentEditError) throw new EmailTemplateVersionConflictError(`email template '${id}' was edited elsewhere — re-read it and retry`);
     throw err;

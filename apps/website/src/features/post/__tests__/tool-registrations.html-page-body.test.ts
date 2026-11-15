@@ -82,9 +82,9 @@ async function seedHtmlPage(deps: PostToolDeps, postRepo: InMemoryPostRepo | Sql
     { workspaceId: WORKSPACE_ID, postId: "page-1" },
     { repo: postRepo, clock: deps.clock }
   );
-  await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+  await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
   await store.read();
-  await store.write(html);
+  await store.write({ html });
 }
 
 test("content_post_update: a different bodyJson on a bespoke-HTML page is REJECTED, not silently dropped", async () => {

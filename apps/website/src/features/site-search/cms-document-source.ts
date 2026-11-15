@@ -44,7 +44,7 @@ export const MEMBER_AUDIENCE = { members: "members", paid: "paid", tier: (tierId
  * @complexity O(t) in the tier-id count.
  */
 export function cmsSearchVisibility(required: { memberAccessJson: string | null }, _optional: Record<string, never> = {}): SearchVisibility {
-  const access = resolvePostMemberAccess(required.memberAccessJson);
+  const access = resolvePostMemberAccess({ raw: required.memberAccessJson });
   switch (access.visibility) {
     case "public": return { kind: "public" };
     case "members": return { kind: "restricted", audiences: [MEMBER_AUDIENCE.members] };

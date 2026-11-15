@@ -38,7 +38,7 @@ export async function selectArtifactStoreProvider<C>(
   optional: { readonly savedProvider?: string } = {}
 ): Promise<{ readonly id: string; readonly provider: ArtifactStoreCapable; readonly credential: C } | undefined> {
   const capable = required.loaded.registry.list().filter((entry) => typeof (entry.provider as Partial<ArtifactStoreCapable>).createArtifactStore === "function"
-    && (optional.savedProvider === undefined || artifactStoreTarget(entry.id) === optional.savedProvider));
+    && (optional.savedProvider === undefined || artifactStoreTarget({ id: entry.id }) === optional.savedProvider));
   const ordered = [...capable.filter((entry) => entry.id === required.preferredId), ...capable.filter((entry) => entry.id !== required.preferredId)];
   for (const entry of ordered) {
     const credential = await required.resolveCredential({ id: entry.id });
@@ -50,7 +50,7 @@ export async function selectArtifactStoreProvider<C>(
 }
 
 /** Provider ids use underscores; the saved connection (and a share's recorded provider) is the hyphenated target id. */
-export function artifactStoreTarget(id: string): string {
+export function artifactStoreTarget({ id }: { id: string }, _optional = {}): string {
   return id.replace(/_/g, "-");
 }
 

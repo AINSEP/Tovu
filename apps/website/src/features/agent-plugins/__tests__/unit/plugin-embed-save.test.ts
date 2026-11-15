@@ -16,12 +16,12 @@ test("T1: invalid known props reject seed/save with a typed editor error and pre
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: "page" }, { repo, clock, validatePluginEmbeds: runtime.validateHtml });
   const invalid = embedMarkerSnippetFromConfig({ config: { ...config, props: { label: 42 } } });
   const beforeSeed = await repo.findById({ workspaceId, id: "page" });
-  await assert.rejects(store.ensureHtmlFormat(invalid), PluginEmbedValidationError);
+  await assert.rejects(store.ensureHtmlFormat({ seedHtml: invalid }), PluginEmbedValidationError);
   assert.deepEqual(await repo.findById({ workspaceId, id: "page" }), beforeSeed);
-  await store.ensureHtmlFormat("<p>Original</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>Original</p>" });
   await store.read();
   const beforeWrite = await repo.findById({ workspaceId, id: "page" });
-  await assert.rejects(store.write(invalid), PluginEmbedValidationError);
+  await assert.rejects(store.write({ html: invalid }), PluginEmbedValidationError);
   assert.deepEqual(await repo.findById({ workspaceId, id: "page" }), beforeWrite);
 });
 
@@ -65,10 +65,10 @@ test("T1: asynchronous validation cannot recapture a newer write's concurrency b
   const secondGate = new Promise<void>(resolve => { release = resolve; });
   const store = new InMemoryPagesHtmlDocumentStore({ workspaceId, postId: "page" }, { repo, clock,
     validatePluginEmbeds: async ({ html }) => { if (html.includes("second")) await secondGate; return []; } });
-  await store.ensureHtmlFormat("<p>Original</p>");
+  await store.ensureHtmlFormat({ seedHtml: "<p>Original</p>" });
   await store.read();
-  const first = store.write("<p>first</p>");
-  const second = store.write("<p>second</p>");
+  const first = store.write({ html: "<p>first</p>" });
+  const second = store.write({ html: "<p>second</p>" });
   const rejected = assert.rejects(second, /edited elsewhere/);
   await first;
   release();

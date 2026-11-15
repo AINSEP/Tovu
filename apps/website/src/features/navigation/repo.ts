@@ -47,7 +47,7 @@ const TRASH = "trash";
 
 /** A write refused by the slug index: the reads hide a trashed holder, so that is the one the
  *  app-level slug check could not have seen. */
-function trashedSlugConflict(slug: string): MenuConflictError {
+function trashedSlugConflict({ slug }: { slug: string }, _optional = {}): MenuConflictError {
   return new MenuConflictError({ message: `a menu with slug '${slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
 }
 
@@ -178,7 +178,7 @@ export class SqlMenuRepo implements MenuRepoPort {
           .execute()
       );
     } catch (error) {
-      if (isUniqueViolation(error)) throw trashedSlugConflict(record.slug);
+      if (isUniqueViolation(error)) throw trashedSlugConflict({ slug: record.slug });
       throw error;
     }
   }
@@ -197,7 +197,7 @@ export class SqlMenuRepo implements MenuRepoPort {
     // find this very row and turn a create that succeeded into a false version conflict.
     if (Number(inserted.numInsertedOrUpdatedRows) !== 0) return;
     const holder = await this.kernel.run((db) => db.selectFrom("menus").select("version").where("id", "=", record.id).executeTakeFirst());
-    if (!holder) throw trashedSlugConflict(record.slug);
+    if (!holder) throw trashedSlugConflict({ slug: record.slug });
     throw menuVersionConflictError({ id: record.id, expectedVersion: null, found: holder.version });
   }
 

@@ -147,8 +147,7 @@ export function isImportShapeRejection({ error }: { error: unknown }): boolean {
  * @complexity O(1) beyond `work` itself.
  */
 export async function withCallerSafeEgressRefusal<T>(
-  log: (line: string) => void,
-  work: () => Promise<T>,
+  { log, work }: { log: (line: string) => void; work: () => Promise<T> },
   { toolId = "media_import_from_url" }: { toolId?: string } = {},
 ): Promise<T> {
   try {
@@ -295,11 +294,13 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
             throw new MediaImportValidationError({ message: "Media file replacement is unavailable on this storage adapter." });
           }
           const source = remote
-            ? await withCallerSafeEgressRefusal(routeDeps.mediaImportEgressRefusalLog ?? console.warn,
-              async () => {
+            ? await withCallerSafeEgressRefusal({
+              log: routeDeps.mediaImportEgressRefusalLog ?? console.warn,
+              work: async () => {
                 const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url: requireString({ input, key: "url" }) });
                 return { ...fetched, provenance: { kind: 'url' as const, url: fetched.url.href } };
               },
+            },
               { toolId: "media_replace_file" })
             : await readLocalReplacement({ routeDeps, input });
           ctx.signal.throwIfAborted();
@@ -367,7 +368,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
         catalog: CATALOG_BY_ID,
         isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof MediaValidationError,
         fn: () =>
-          withCallerSafeEgressRefusal(logEgressRefusal, async () => {
+          withCallerSafeEgressRefusal({ log: logEgressRefusal, work: async () => {
             const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
 
             ctx.signal.throwIfAborted();
@@ -387,7 +388,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
               sourceUrl: fetched.url.href,
             });
             return withChatPreview({ routeDeps, bytes: fetched.bytes, contentType: fetched.contentType, result });
-          })
+          } })
       });
     },
   };

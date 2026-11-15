@@ -115,7 +115,7 @@ test("trash between a successful lookup and real Pages store access returns not-
         trashedId = row.id;
       }
       return store.read();
-    }, capturedVersion: () => store.capturedVersion(), write: html => store.write(html), ensureHtmlFormat: seed => store.ensureHtmlFormat(seed) };
+    }, capturedVersion: () => store.capturedVersion(), write: ({ html }) => store.write({ html }), ensureHtmlFormat: ({ seedHtml }) => store.ensureHtmlFormat({ seedHtml }) };
   } } });
   const created = await r.send("POST", BASE, { name: "Racy", html: HTML });
   assert.equal(created.status, 201);

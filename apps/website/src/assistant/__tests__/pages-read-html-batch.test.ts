@@ -22,7 +22,7 @@ async function harness({ resolveTargets = false } = {}) {
     new InMemoryPagesHtmlDocumentStore(scope, { repo, clock });
   for (const id of ["first", "second", "third", "home"]) {
     await createPost({ deps: { repo, clock }, input: { workspaceId, id, title: id, kind: "page", ...(id === "home" ? { slug: "/" } : {}) } });
-    await pagesHtmlStore({ workspaceId, postId: id }).ensureHtmlFormat(`<main>${id}</main>`);
+    await pagesHtmlStore({ workspaceId, postId: id }).ensureHtmlFormat({ seedHtml: `<main>${id}</main>` });
   }
   const checks: unknown[] = [];
   let deniedCheck = -1;

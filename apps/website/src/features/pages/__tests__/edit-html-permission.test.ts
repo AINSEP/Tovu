@@ -352,17 +352,17 @@ async function toolHarness() {
     pagesHtmlStore: (scope) => {
       const real = new InMemoryPagesHtmlDocumentStore(scope, { repo: postRepo, clock });
       return {
-        ensureHtmlFormat: async (seedHtml: string) => {
+        ensureHtmlFormat: async ({ seedHtml }: { seedHtml: string }) => {
           storeCalls.push("ensureHtmlFormat");
-          return real.ensureHtmlFormat(seedHtml);
+          return real.ensureHtmlFormat({ seedHtml });
         },
         read: async () => {
           storeCalls.push("read");
           return real.read();
         },
-        write: async (html: string) => {
+        write: async ({ html }: { html: string }) => {
           storeCalls.push("write");
-          return real.write(html);
+          return real.write({ html });
         },
         // Not spied: `capturedVersion` is a pure accessor over what the three calls above already
         // recorded, so counting it would add a call to `storeCalls` that says nothing about which
