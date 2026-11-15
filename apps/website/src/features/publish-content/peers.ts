@@ -223,7 +223,7 @@ function requireBoundedField(value: unknown, field: string): string {
 /** @complexity O(n) in the length of `raw`. */
 function requireBaseUrl(raw: unknown): string {
   const trimmed = requireBoundedField(raw, "baseUrl");
-  const result = normalizePeerBaseUrl(trimmed);
+  const result = normalizePeerBaseUrl({ raw: trimmed });
   if ("error" in result) throw new PublishContentPeerValidationError(result.error);
   return result.baseUrl;
 }

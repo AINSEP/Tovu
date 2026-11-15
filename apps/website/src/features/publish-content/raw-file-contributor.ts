@@ -10,9 +10,9 @@ import type { PackedEntity, PublishContentContributor, PublishContentDeps, Publi
 
 function sha(bytes: Uint8Array): string { return createHash("sha256").update(bytes).digest("hex"); }
 function stateFor(relPath: string, file: RawFileSnapshot): Record<string, unknown> {
-  return { path: relPath, sha256: sha(file.bytes), size: file.bytes.byteLength, mode: normalizeMode(file.mode) };
+  return { path: relPath, sha256: sha(file.bytes), size: file.bytes.byteLength, mode: normalizeMode({ mode: file.mode }) };
 }
-function hash(relPath: string, file: RawFileSnapshot): string { return contentHash("raw-file", stateFor(relPath, file)); }
+function hash(relPath: string, file: RawFileSnapshot): string { return contentHash({ entityType: "raw-file", state: stateFor(relPath, file) }); }
 function version(relPath: string, file: RawFileSnapshot): number { return Number.parseInt(hash(relPath, file).slice(0, 12), 16); }
 
 export function contributeRawFilePublish(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): PublishContentContributor {
@@ -32,7 +32,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
       // Missing policy dependencies fail closed rather than allowing an unguarded store read.
       if (!media || await isDocumentOnlyBlob({ deps: { mediaRepo: media.repo, blobRepo: media.assetBlobRepo },
         input: { workspaceId: deps.workspaceId, sha256: entity.state.sha256 as string } })) {
-        throw new PublishContentApplyRowError("blocked", "Library documents cannot be published");
+        throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: "Library documents cannot be published" });
       }
       const storageKey = computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256: entity.state.sha256 as string });
       return await deps.backstop.blobs.exists({ storageKey }) ? deps.backstop.blobs.get({ storageKey }) : null;
@@ -59,7 +59,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
         const secret = checkRawValues({ values: { [relPath]: Buffer.from(bytes).toString("utf8") } });
         if (secret) return secret;
       }
-      return contentHash("raw-file", entity.state) === entity.contentHash ? null : "The raw file does not match its checked content hash.";
+      return contentHash({ entityType: "raw-file", state: entity.state }) === entity.contentHash ? null : "The raw file does not match its checked content hash.";
     }
 
     /** Reads one selected file, retaining policy and read failures as skips. @complexity O(k) plus file read. */
@@ -81,13 +81,13 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     async function packFile({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _options = {}): Promise<PackedEntity | null> {
       const state = stateFor(relPath, file);
       const entity: PackedEntity = { entityType: "raw-file", id: relPath, schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
-        contentHash: contentHash("raw-file", state), requiredBlobs: [state.sha256 as string], state };
+        contentHash: contentHash({ entityType: "raw-file", state }), requiredBlobs: [state.sha256 as string], state };
       const reason = await check(entity, file.bytes);
       if (reason) skipped.push({ entityType: "raw-file", id: relPath, label: relPath, reason });
       else {
         const index = deps.backstop?.fileBlobIndex;
         if (!index) throw new Error("Send by hand has no file blob index");
-        index.set(state.sha256 as string, { absPath: file.absPath, size: file.bytes.byteLength });
+        index.set({ sha256: state.sha256 as string, entry: { absPath: file.absPath, size: file.bytes.byteLength } });
         return entity;
       }
       return null;
@@ -138,7 +138,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
       },
       apply: async (input) => {
         const reason = await check(input.entity);
-        if (reason) throw new PublishContentApplyRowError("blocked", reason);
+        if (reason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
         if (!files || !deps.changeSets || !deps.outbox || !deps.authorize) throw new Error("The raw file command gateway is not wired.");
         let prior: RawFileInverse | undefined;
         let priorVersion: number | undefined;
@@ -151,15 +151,15 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
             captureInverse: async () => {
               prior = await files.capture({ relPath: input.entity.id });
               // Derive OCC from the same snapshot saved for undo, rather than a separate read.
-              priorVersion = prior.sha256 === null ? undefined : Number.parseInt(contentHash("raw-file", {
+              priorVersion = prior.sha256 === null ? undefined : Number.parseInt(contentHash({ entityType: "raw-file", state: {
                 path: prior.relPath, sha256: prior.sha256, size: prior.size, mode: prior.mode,
-              }).slice(0, 12), 16);
+              } }).slice(0, 12), 16);
               return { ...prior };
             },
             execute: async () => {
               const current = await files.read({ relPath: input.entity.id });
               const currentVersion = current ? version(input.entity.id, current) : undefined;
-              if (priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion) throw new PublishContentApplyRowError("conflict", "This file changed on live after it was checked.");
+              if (priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion) throw new PublishContentApplyRowError({ rowOutcome: "conflict", message: "This file changed on live after it was checked." });
               // Re-read through the shared isolation guard after authorization, immediately before writing.
               const bytes = await blob(input.entity);
               if (!bytes || sha(bytes) !== input.entity.state.sha256) throw new Error("The raw file bytes changed before apply.");

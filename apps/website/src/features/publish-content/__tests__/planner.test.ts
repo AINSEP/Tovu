@@ -103,7 +103,7 @@ function fakeContributor(handler: PublishContentHandler): PublishContentContribu
 function makeEntity(overrides: Partial<PackedEntity> & { entityType: string; id: string }): PackedEntity {
   return {
     schemaVersion: 1,
-    contentHash: contentHash(overrides.entityType, { title: overrides.id }),
+    contentHash: contentHash({ entityType: overrides.entityType, state: { title: overrides.id } }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
     state: { title: overrides.id },
@@ -129,7 +129,7 @@ function makeDeps(options: {
   return {
     publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
     getBaseline: async ({ entityType, entityId }) => baselines.get(entityKey(entityType, entityId)) ?? null,
-    hasBlob: async (sha256) => availableBlobs.has(sha256),
+    hasBlob: async ({ sha256 }) => availableBlobs.has(sha256),
     forcedEntityKeys: options.forcedEntityKeys,
     ...(options.seedHashes
       ? { getSeedHash: async ({ entityType, entityId }: { entityType: string; entityId: string }) => options.seedHashes!.get(entityKey(entityType, entityId)) ?? null }
@@ -969,7 +969,7 @@ test("real post contributor: created + byte-identical destination", async () => 
     entityType: "post",
     id: "post-2",
     schemaVersion: 2, // post's current version (termIds, plan §3.7)
-    contentHash: contentHash("post", newPostState),
+    contentHash: contentHash({ entityType: "post", state: newPostState }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
     state: newPostState,
@@ -1017,7 +1017,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
     entityType: "post",
     id: "post-2",
     schemaVersion: 2, // post's current version (termIds, plan §3.7)
-    contentHash: contentHash("post", incomingState),
+    contentHash: contentHash({ entityType: "post", state: incomingState }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
     state: incomingState,
@@ -1115,7 +1115,7 @@ test("L044 preconditions precede unchanged and forcing; missing blobs stop later
   }));
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] };
   const deps = { ...makeDeps({ forcedEntityKeys: new Set([entityKey("pin", "one")]) }),
-    hasBlob: async (sha: string) => { calls.push(sha); return false; } };
+    hasBlob: async ({ sha256: sha }: { sha256: string }) => { calls.push(sha); return false; } };
   assert.equal((await planImport(bundle, deps)).rows[0]!.canOverwrite, false);
   assert.deepEqual(calls, ["missing"]);
   calls.length = 0;

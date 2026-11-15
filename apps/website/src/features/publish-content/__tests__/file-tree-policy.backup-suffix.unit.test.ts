@@ -24,8 +24,8 @@ const ALLOWED = ["npmrc-guide.md", "pemberton.css", "keynote.txt", "backup-notes
 test("credential/key/database names under a backup suffix are refused by the typed-tree rule, root and nested", () => {
   for (const name of DENIED) {
     for (const relPath of [name, `assets/deep/${name}`]) {
-      assert.notEqual(checkTreePath(relPath), null, relPath);
-      assert.ok(checkTreePath(relPath)!.startsWith(`"${relPath}" `), relPath);
+      assert.notEqual(checkTreePath({ relPath }), null, relPath);
+      assert.ok(checkTreePath({ relPath })!.startsWith(`"${relPath}" `), relPath);
     }
   }
 });
@@ -41,14 +41,14 @@ test("the same names are refused by the raw-file rule, root and nested", () => {
 test("raw-only private names (per-install config at any depth) are refused under a backup suffix too", () => {
   // The typed-tree rule allows a nested config.json; only the raw-file rule denies it at every depth.
   for (const relPath of ["assets/deep/config.json.bak", "assets/deep/.site-meta.json~", "a/CONFIG.JSON.orig"]) {
-    assert.equal(checkTreePath(relPath), null, relPath);
+    assert.equal(checkTreePath({ relPath }), null, relPath);
     assert.equal(checkRawFilePath({ relPath }), `File '${relPath}' holds private data or belongs to a protected site folder and is never sent.`, relPath);
   }
 });
 
 test("look-alike ordinary names stay allowed by both rules", () => {
   for (const name of ALLOWED) {
-    assert.equal(checkTreePath(name), null, name);
+    assert.equal(checkTreePath({ relPath: name }), null, name);
     assert.equal(checkRawFilePath({ relPath: name }), null, name);
   }
 });

@@ -186,7 +186,7 @@ function walkStep({ entry, relPath }: { entry: Dirent; relPath: string }): "skip
   // `Thumbs.db`/`desktop.ini`) is excluded HERE, at the source of the file list every downstream
   // consumer (state, upload, contentHash, `inspect()`'s live re-hash) builds from — never a
   // whole-tree DENY (`file-tree-policy.ts`'s own header on `isIgnoredTreeFileName`).
-  if (isIgnoredTreeFileName(entry.name)) return "skip";
+  if (isIgnoredTreeFileName({ name: entry.name })) return "skip";
   if (entry.isDirectory()) return "descend";
   if (!entry.isFile()) return "skip"; // a socket, fifo, or other non-regular entry — never a theme file.
   if (isGeneratedThemePath(relPath)) return "skip"; // regenerated on every build; never real source.
@@ -202,7 +202,7 @@ async function readWalkedFile({ absPath, relPath }: { absPath: string; relPath: 
   return {
     path: relPath,
     size: bytes.length,
-    mode: normalizeMode(info.mode),
+    mode: normalizeMode({ mode: info.mode }),
     sha256: sha256Of(bytes),
     absPath,
     textSample: bytes.length <= MAX_SECRET_SCAN_BYTES ? bytes.toString("utf8") : undefined,
@@ -327,14 +327,14 @@ async function packOneThemeTree(input: {
   }));
   const blockReason = checkTreeFiles(THEME_FILES_KIND, policyInputs);
   if (blockReason) {
-    return { skippedTree: { treeKey, reason: wrapTreePolicyReason(title, blockReason), ...(label ? { label } : {}) } };
+    return { skippedTree: { treeKey, reason: wrapTreePolicyReason({ title, reason: blockReason }), ...(label ? { label } : {}) } };
   }
 
   const sortedFiles = sortByPath(walked);
   const state = buildTreeState(treeKey, sortedFiles);
 
   for (const file of sortedFiles) {
-    input.fileBlobIndex?.set(file.sha256, { absPath: file.absPath, size: file.size });
+    input.fileBlobIndex?.set({ sha256: file.sha256, entry: { absPath: file.absPath, size: file.size } });
   }
 
   return {
@@ -342,7 +342,7 @@ async function packOneThemeTree(input: {
       entityType: THEME_FILES_KIND,
       id: treeKey,
       schemaVersion: 1,
-      contentHash: contentHash(THEME_FILES_KIND, state),
+      contentHash: contentHash({ entityType: THEME_FILES_KIND, state }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: sortedFiles.map((file) => file.sha256),
       state,
@@ -418,7 +418,7 @@ async function hashTreeAt(absDir: string, treeKey: string): Promise<string | nul
   const info = await lstatIfPresent({ absPath: absDir });
   if (!info?.isDirectory()) return null;
   const walked = await walkThemeTree(absDir);
-  return contentHash(THEME_FILES_KIND, buildTreeState(treeKey, sortByPath(walked)));
+  return contentHash({ entityType: THEME_FILES_KIND, state: buildTreeState(treeKey, sortByPath(walked)) });
 }
 
 /**
@@ -475,7 +475,7 @@ function readIncomingFiles(entity: PackedEntity): { files: readonly IncomingThem
   if (state.kind !== THEME_FILES_KIND || state.treeKey !== entity.id || !Array.isArray(state.files)) return notDescribed;
   const raws = state.files as unknown[];
   if (!raws.every(isIncomingFileShape)) return notDescribed;
-  return { files: raws.map((file) => ({ path: file.path, sha256: file.sha256, size: file.size, mode: normalizeMode(file.mode) })) };
+  return { files: raws.map((file) => ({ path: file.path, sha256: file.sha256, size: file.size, mode: normalizeMode({ mode: file.mode }) })) };
 }
 
 /** One raw `state.files[]` entry has the {@link IncomingThemeFile} shape (mode not yet normalized). */
@@ -501,10 +501,10 @@ async function readBlob({ deps, sha256 }: { deps: PublishContentDeps; sha256: st
   _optional: Record<string, never> = {}): Promise<Uint8Array | null> {
   // All readers share media's policy, including the authoritative read just before staging.
   if (await isBlockedLibraryBlob({ deps, sha256 })) {
-    throw new PublishContentApplyRowError("blocked", "Library documents cannot be published");
+    throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: "Library documents cannot be published" });
   }
   const media = deps.ports.media;
-  if (!media) throw new PublishContentApplyRowError("blocked", "Theme publishing has no media store");
+  if (!media) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: "Theme publishing has no media store" });
   const { blobStore } = media;
   const workspaceId = deps.workspaceId;
   const storageKey = computeBlobStorageKey({ workspaceId, sha256 });
@@ -576,7 +576,7 @@ async function incomingPolicyInputs({ deps, files }: { deps: PublishContentDeps;
  * @complexity O(blob bytes).
  */
 async function incomingTextSample({ deps, file }: { deps: PublishContentDeps; file: IncomingThemeFile }): Promise<string | undefined> {
-  if (file.size > MAX_SECRET_SCAN_BYTES || checkTreePath(file.path) !== null) return undefined;
+  if (file.size > MAX_SECRET_SCAN_BYTES || checkTreePath({ relPath: file.path }) !== null) return undefined;
   const bytes = await readBlob({ deps, sha256: file.sha256 });
   return bytes && bytes.length <= MAX_SECRET_SCAN_BYTES ? Buffer.from(bytes).toString("utf8") : undefined;
 }
@@ -684,7 +684,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     const policy = await incomingPolicyInputs({ deps, files: incoming.files });
     if ("reason" in policy) return policy;
     const policyReason = checkTreeFiles(THEME_FILES_KIND, policy.inputs);
-    return policyReason ? { reason: wrapTreePolicyReason(title, policyReason) } : incoming;
+    return policyReason ? { reason: wrapTreePolicyReason({ title, reason: policyReason }) } : incoming;
   }
 
   /**
@@ -716,7 +716,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
     let swapped: { previous: string | null } | null = null;
 
     const blocked = (reason: string): never => {
-      throw new PublishContentApplyRowError("blocked", reason);
+      throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
     };
 
     async function stageFiles(files: readonly IncomingThemeFile[]): Promise<void> {

@@ -130,7 +130,7 @@ const MCP_CONFIG_NAME_PATTERN = /^\.mcp\..*\.json$/;
  *
  * @complexity O(1).
  */
-export function isIgnoredTreeFileName(name: string): boolean {
+export function isIgnoredTreeFileName({ name }: { name: string }, _optional = {}): boolean {
   if (name === ".DS_Store" || name === "Thumbs.db" || name === "desktop.ini") return true;
   if (name === ".Spotlight-V100" || name === ".Trashes") return true;
   if (name.startsWith("._")) return true; // AppleDouble sidecar, e.g. "._photo.png".
@@ -149,7 +149,7 @@ export function isIgnoredTreeFileName(name: string): boolean {
  *
  * @complexity O(1).
  */
-function deniedFileNameReason(name: string): string | null {
+function deniedFileNameReason({ name }: { name: string }, _optional = {}): string | null {
   // Judged on the name a backup/editor copy still means (`.npmrc.bak`, `.env~`, any case).
   const base = credentialBaseName({ name });
   if (base === ".env" || base.startsWith(".env.")) return "looks like an environment file";
@@ -211,14 +211,14 @@ const TEXT_LIKE_SCAN_EXTENSIONS: ReadonlySet<string> = new Set([
 ]);
 
 /** @complexity O(1). */
-function extensionOf(relPath: string): string {
+function extensionOf({ relPath }: { relPath: string }, _optional = {}): string {
   const base = relPath.slice(relPath.lastIndexOf("/") + 1);
   const dot = base.lastIndexOf(".");
   return dot <= 0 ? "" : base.slice(dot + 1).toLowerCase();
 }
 
 /** @complexity O(1). */
-function baseNameOf(relPath: string): string {
+function baseNameOf({ relPath }: { relPath: string }, _optional = {}): string {
   return relPath.slice(relPath.lastIndexOf("/") + 1);
 }
 
@@ -239,9 +239,9 @@ const PREFORMATTED_REASON_PREFIX = "Can't publish:";
  *
  * @complexity O(1).
  */
-function disallowedExtensionReason(path: string): string {
-  const name = baseNameOf(path);
-  const ext = extensionOf(path);
+function disallowedExtensionReason({ path }: { path: string }, _optional = {}): string {
+  const name = baseNameOf({ relPath: path });
+  const ext = extensionOf({ relPath: path });
   return VIDEO_EXTENSIONS.has(ext)
     ? `${PREFORMATTED_REASON_PREFIX} contains a video file (${name})`
     : `${PREFORMATTED_REASON_PREFIX} contains a file type that isn't allowed (${name})`;
@@ -255,7 +255,7 @@ function disallowedExtensionReason(path: string): string {
  *
  * @complexity O(1).
  */
-export function wrapTreePolicyReason(title: string, reason: string): string {
+export function wrapTreePolicyReason({ title, reason }: { title: string; reason: string }, _optional = {}): string {
   return reason.startsWith(PREFORMATTED_REASON_PREFIX) ? reason : `${title} was not published: ${reason}`;
 }
 
@@ -270,7 +270,7 @@ export function wrapTreePolicyReason(title: string, reason: string): string {
  *   its own.
  * @complexity O(k) in `relPath`'s length (segment split, one deny-list lookup per segment).
  */
-export function checkTreePath(relPath: string): string | null {
+export function checkTreePath({ relPath }: { relPath: string }, _optional = {}): string | null {
   const shapeReason = treePathShapeReason({ relPath });
   if (shapeReason) return shapeReason;
   const segments = relPath.split("/");
@@ -278,13 +278,13 @@ export function checkTreePath(relPath: string): string | null {
   if (segmentReason) return segmentReason;
 
   const name = segments[segments.length - 1] as string;
-  const deniedReason = deniedFileNameReason(name);
+  const deniedReason = deniedFileNameReason({ name });
   if (deniedReason) return `"${relPath}" ${deniedReason}`;
   if (segments.length === 1 && ROOT_ONLY_DENIED_NAMES.has(name)) {
     return `"${relPath}" is a per-install site file, never part of a published tree`;
   }
 
-  const ext = extensionOf(relPath);
+  const ext = extensionOf({ relPath });
   if (DENY_EXTENSIONS.has(ext)) return `"${relPath}" has a '.${ext}' extension, which is never published`;
   const keyOrDatabase = deniedKeyOrDatabaseReason({ base: credentialBaseName({ name }) });
   if (keyOrDatabase) return `"${relPath}" ${keyOrDatabase}`;
@@ -330,7 +330,7 @@ function treePathSegmentReason({ relPath, segments }: { relPath: string; segment
  *   does not parse (a malformed `mcp.json` is a different tree's own problem, not this check's).
  * @complexity O(n) in the JSON text length.
  */
-export function checkMcpJsonSecretPlaceholders(jsonText: string): string | null {
+export function checkMcpJsonSecretPlaceholders({ jsonText }: { jsonText: string }, _optional = {}): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonText);
@@ -399,7 +399,7 @@ const NORMALIZED_EXEC_MODE = 0o755;
  *
  * @complexity O(1).
  */
-export function normalizeMode(mode: number): number {
+export function normalizeMode({ mode }: { mode: number }, _optional = {}): number {
   return (mode & 0o111) !== 0 ? NORMALIZED_EXEC_MODE : NORMALIZED_FILE_MODE;
 }
 
@@ -455,12 +455,12 @@ export function checkTreeFiles(kind: FileTreeKind, files: readonly FileTreeFileI
 function treeFileReason({ file, spec, seenLowercase }: {
   file: FileTreeFileInput; spec: FileTreeKindSpec; seenLowercase: Map<string, string>;
 }, _options = {}): string | null {
-  const shapeReason = checkTreePath(file.path);
+  const shapeReason = checkTreePath({ relPath: file.path });
   if (shapeReason) return shapeReason;
   // A walker skips OS junk before this runs (`isIgnoredTreeFileName`), so one reaching here came
   // from a sender that did not — on the destination, every listed file is written. Refused, never
   // filtered: filtering would let it skip every check below and still be staged.
-  if (isIgnoredTreeFileName(file.path.slice(file.path.lastIndexOf("/") + 1))) {
+  if (isIgnoredTreeFileName({ name: file.path.slice(file.path.lastIndexOf("/") + 1) })) {
     return `"${file.path}" is a system file that is never published`;
   }
 
@@ -483,9 +483,9 @@ function treeFileReason({ file, spec, seenLowercase }: {
 function treeFileContentReason({ file, spec }: { file: FileTreeFileInput; spec: FileTreeKindSpec }, _options = {}): string | null {
   // Bundled vendor attribution must travel with the theme. Treat canonical extensionless notices
   // as text so they get the same mandatory secret scan, never a blanket extensionless exemption.
-  const ext = /^(?:LICENSE|COPYING|NOTICE)$/i.test(baseNameOf(file.path)) ? "txt" : extensionOf(file.path);
+  const ext = /^(?:LICENSE|COPYING|NOTICE)$/i.test(baseNameOf({ relPath: file.path })) ? "txt" : extensionOf({ relPath: file.path });
   if (spec.allowedExtensions && !spec.allowedExtensions.includes(ext)) {
-    return disallowedExtensionReason(file.path);
+    return disallowedExtensionReason({ path: file.path });
   }
 
   if (TEXT_LIKE_SCAN_EXTENSIONS.has(ext) && file.size <= MAX_SECRET_SCAN_BYTES) {

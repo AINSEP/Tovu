@@ -128,7 +128,7 @@ test("L156 publish import uses source provenance only on create and keeps destin
     ports: { post: { repo, forgetRemoved: async () => {} } },
   });
   const source = toPublishableState(buildPostRecord({ createdAt: "source-created", createdByPrincipalId: "source-author" }));
-  const entity = { entityType: "post", id: existing.id, schemaVersion: 2, state: source, contentHash: contentHash("post", source), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [] };
+  const entity = { entityType: "post", id: existing.id, schemaVersion: 2, state: source, contentHash: contentHash({ entityType: "post", state: source }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [] };
   await handler.apply({ entity, expectedVersion: 1, principalId: "operator", idempotencyKey: "update" });
   const updated = (await repo.findById({ workspaceId: existing.workspaceId, id: existing.id }))!;
   assert.deepEqual([updated.createdAt, updated.createdByPrincipalId, updated.ext, updated.author, updated.showAuthor],

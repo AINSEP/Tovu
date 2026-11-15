@@ -24,14 +24,13 @@ export type { AdminPluginEnvelope } from "@jini-ai/plugins/host";
  * Projects one discovery record + its (possibly absent, meaning "never enabled") activation
  * record into the wire shape. Pure — no I/O.
  *
- * @param discovery - One plugin's discovery-time record (source/status/errors).
- * @param activation - That plugin's persisted activation row, or `null` when it has never been
+ * @param required.discovery - One plugin's discovery-time record (source/status/errors).
+ * @param required.activation - That plugin's persisted activation row, or `null` when it has never been
  * enabled (treated as disabled — `enabled: false`, not an error).
  * @param optional.conflicts - This plugin's entry from `listPluginConflicts()`, if any.
  */
 export function toAdminPluginResponse(
-  discovery: PluginDiscoveryRecord,
-  activation: PluginActivationRecord | null,
+  { discovery, activation }: { discovery: PluginDiscoveryRecord; activation: PluginActivationRecord | null },
   optional: { readonly conflicts?: readonly PluginConflict[] } = {}
 ): AdminPluginEnvelope {
   return toAdminPluginEnvelope({ discovery, activation }, optional);

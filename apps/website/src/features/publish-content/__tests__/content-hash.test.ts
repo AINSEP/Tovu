@@ -57,14 +57,14 @@ test("same content on two databases with different version/updatedAt (and differ
     updatedAt: "2026-09-18T12:34:56.000Z",
   });
 
-  assert.equal(contentHash("post", onDbA), contentHash("post", onDbB));
+  assert.equal(contentHash({ entityType: "post", state: onDbA }), contentHash({ entityType: "post", state: onDbB }));
 });
 
 test("an autosaveJson field (per-editor standing draft) never affects the hash even when present", () => {
   const withoutAutosave = fixtureState();
   const withAutosave = fixtureState({ autosaveJson: JSON.stringify({ bodyJson: { type: "doc", content: [] } }) });
 
-  assert.equal(contentHash("post", withoutAutosave), contentHash("post", withAutosave));
+  assert.equal(contentHash({ entityType: "post", state: withoutAutosave }), contentHash({ entityType: "post", state: withAutosave }));
 });
 
 // Task 15 (plan §4 task 15) — authorship provenance fields must never perturb the content hash, the
@@ -79,14 +79,14 @@ test("same content with different createdByPrincipalId/createdAt (as if authored
     createdAt: "2026-09-18T12:34:56.000Z",
   });
 
-  assert.equal(contentHash("post", authoredHere), contentHash("post", authoredThere));
+  assert.equal(contentHash({ entityType: "post", state: authoredHere }), contentHash({ entityType: "post", state: authoredThere }));
 });
 
 test("a createdByPrincipalId/createdAt of null (pre-migration row) hashes the same as any other value for those fields", () => {
   const withAuthor = fixtureState({ createdByPrincipalId: "11111111-2222-3333-4444-555555555555", createdAt: "2026-01-01T00:00:00.000Z" });
   const withoutAuthor = fixtureState({ createdByPrincipalId: null, createdAt: null });
 
-  assert.equal(contentHash("post", withAuthor), contentHash("post", withoutAuthor));
+  assert.equal(contentHash({ entityType: "post", state: withAuthor }), contentHash({ entityType: "post", state: withoutAuthor }));
 });
 
 // ---------------------------------------------------------------------------
@@ -114,8 +114,8 @@ for (const { field, changed } of CONTENT_FIELD_CHANGES) {
     const baseline = fixtureState();
     const mutated = fixtureState({ [field]: changed });
     assert.notEqual(
-      contentHash("post", baseline),
-      contentHash("post", mutated),
+      contentHash({ entityType: "post", state: baseline }),
+      contentHash({ entityType: "post", state: mutated }),
       `expected changing '${field}' to change the content hash`
     );
   });
@@ -123,7 +123,7 @@ for (const { field, changed } of CONTENT_FIELD_CHANGES) {
 
 test("changing entityType alone (same state) changes the hash — the discriminator is part of the hashed identity", () => {
   const state = fixtureState();
-  assert.notEqual(contentHash("post", state), contentHash("page", state));
+  assert.notEqual(contentHash({ entityType: "post", state }), contentHash({ entityType: "page", state }));
 });
 
 // ---------------------------------------------------------------------------
@@ -131,29 +131,29 @@ test("changing entityType alone (same state) changes the hash — the discrimina
 // ---------------------------------------------------------------------------
 
 test("canonicalize produces stable key order regardless of input property order", () => {
-  const a = canonicalize("post", { b: 1, a: 2, c: 3 });
-  const b = canonicalize("post", { c: 3, a: 2, b: 1 });
+  const a = canonicalize({ entityType: "post", state: { b: 1, a: 2, c: 3 } });
+  const b = canonicalize({ entityType: "post", state: { c: 3, a: 2, b: 1 } });
   assert.equal(a, b);
   assert.equal(a, '{"entityType":"post","state":{"a":2,"b":1,"c":3}}');
 });
 
 test("canonicalize emits no whitespace", () => {
-  const out = canonicalize("post", { a: 1 });
+  const out = canonicalize({ entityType: "post", state: { a: 1 } });
   assert.equal(/\s/.test(out), false);
 });
 
 test("canonicalize writes an explicit null for an undefined field rather than dropping the key", () => {
-  const out = canonicalize("post", { a: undefined });
+  const out = canonicalize({ entityType: "post", state: { a: undefined } });
   assert.equal(out, '{"entityType":"post","state":{"a":null}}');
 });
 
 test("canonicalize sorts keys and nulls-out undefined recursively inside nested objects", () => {
-  const out = canonicalize("post", { outer: { b: 1, a: undefined } });
+  const out = canonicalize({ entityType: "post", state: { outer: { b: 1, a: undefined } } });
   assert.equal(out, '{"entityType":"post","state":{"outer":{"a":null,"b":1}}}');
 });
 
 test("canonicalize excludes id, workspaceId, version, updatedAt, autosaveJson, createdByPrincipalId, and createdAt", () => {
-  const out = canonicalize("post", {
+  const out = canonicalize({ entityType: "post", state: {
     id: "x",
     workspaceId: "y",
     version: 99,
@@ -162,7 +162,7 @@ test("canonicalize excludes id, workspaceId, version, updatedAt, autosaveJson, c
     createdByPrincipalId: "author-1",
     createdAt: "2026-01-01T00:00:00.000Z",
     title: "kept",
-  });
+  } });
   assert.equal(out, '{"entityType":"post","state":{"title":"kept"}}');
 });
 
@@ -181,7 +181,7 @@ test("contentHash output is pinned for a fixed fixture — a change here means t
     version: 3,
     updatedAt: "2026-05-01T00:00:00.000Z",
   });
-  assert.equal(contentHash("post", pinned), "b0eac00a251d3a8b6973e539141998515aecfc13a8fee165c3d572070b612309");
+  assert.equal(contentHash({ entityType: "post", state: pinned }), "b0eac00a251d3a8b6973e539141998515aecfc13a8fee165c3d572070b612309");
 });
 
 test("canonicalize preserves array order while sorting object keys inside array elements", () => {
@@ -191,8 +191,8 @@ test("canonicalize preserves array order while sorting object keys inside array 
   ];
   const state = { bodyJson: { type: "doc", content: paragraphs }, termIds: ["a", "b"] };
   const equivalent = { termIds: ["a", "b"], bodyJson: { content: paragraphs.map(({ type, content }) => ({ content, type })), type: "doc" } };
-  assert.equal(contentHash("post", state), contentHash("post", equivalent));
-  assert.deepEqual(JSON.parse(canonicalize("post", state)).state.bodyJson.content, paragraphs);
-  assert.notEqual(contentHash("post", state), contentHash("post", { ...state, termIds: ["b", "a"] }));
-  assert.notEqual(contentHash("post", state), contentHash("post", { ...state, bodyJson: { type: "doc", content: [...paragraphs].reverse() } }));
+  assert.equal(contentHash({ entityType: "post", state }), contentHash({ entityType: "post", state: equivalent }));
+  assert.deepEqual(JSON.parse(canonicalize({ entityType: "post", state })).state.bodyJson.content, paragraphs);
+  assert.notEqual(contentHash({ entityType: "post", state }), contentHash({ entityType: "post", state: { ...state, termIds: ["b", "a"] } }));
+  assert.notEqual(contentHash({ entityType: "post", state }), contentHash({ entityType: "post", state: { ...state, bodyJson: { type: "doc", content: [...paragraphs].reverse() } } }));
 });

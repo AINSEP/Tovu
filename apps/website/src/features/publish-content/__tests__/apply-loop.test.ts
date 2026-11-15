@@ -163,7 +163,7 @@ function packedFrom(post: PostRecord): PackedEntity {
     entityType: "post",
     id: post.id,
     schemaVersion: 2, // post's current version (termIds, plan §3.7)
-    contentHash: contentHash("post", toPublishableState(post)),
+    contentHash: contentHash({ entityType: "post", state: toPublishableState(post) }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [],
     state: toPublishableState(post),
@@ -326,7 +326,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
     entityId: "post-1",
-    hashAtLastSync: contentHash("post", toPublishableState(original)),
+    hashAtLastSync: contentHash({ entityType: "post", state: toPublishableState(original) }),
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
@@ -356,7 +356,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
   assert.equal(run!.phase, "applied", "the run itself completed — only the one row was downgraded, the run did not abort");
 
   const baseline = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "post", entityId: "post-1" });
-  assert.equal(baseline?.hashAtLastSync, contentHash("post", toPublishableState(original)), "a conflicted row must never refresh the baseline");
+  assert.equal(baseline?.hashAtLastSync, contentHash({ entityType: "post", state: toPublishableState(original) }), "a conflicted row must never refresh the baseline");
 });
 
 // ---------------------------------------------------------------------------
@@ -755,7 +755,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
     entityId: "p-applied",
-    hashAtLastSync: contentHash("post", toPublishableState(applied)),
+    hashAtLastSync: contentHash({ entityType: "post", state: toPublishableState(applied) }),
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
@@ -1061,7 +1061,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
     entityType: "media",
     id: mediaRecord.id,
     schemaVersion: 1,
-    contentHash: contentHash("media", { ...mediaRecord }),
+    contentHash: contentHash({ entityType: "media", state: { ...mediaRecord } }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [photoSha256],
     state: { ...mediaRecord } as unknown as Record<string, unknown>,
@@ -1193,7 +1193,7 @@ test("after applying, the run reports a published media item whose poster is not
       entityType: "media",
       id: video.id,
       schemaVersion: 1,
-      contentHash: contentHash("media", { ...video }),
+      contentHash: contentHash({ entityType: "media", state: { ...video } }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [videoSha256],
       state: { ...video } as unknown as Record<string, unknown>,
@@ -1279,7 +1279,7 @@ test("a write refused permission blocks that ONE row with the refusal as its rea
       entityType: "media",
       id: mediaRecord.id,
       schemaVersion: 1,
-      contentHash: contentHash("media", { ...mediaRecord }),
+      contentHash: contentHash({ entityType: "media", state: { ...mediaRecord } }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [photoSha256],
       state: { ...mediaRecord } as unknown as Record<string, unknown>,
@@ -1329,7 +1329,7 @@ async function planWithSeed(
 
 test("D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time", async () => {
   const seeded = makePost({ id: "page-seeded", title: "Seed title", slug: "seeded", version: 3 });
-  const seedHash = contentHash("post", toPublishableState(seeded));
+  const seedHash = contentHash({ entityType: "post", state: toPublishableState(seeded) });
   const getSeedHash = async ({ entityId }: { entityType: string; entityId: string }) => (entityId === "page-seeded" ? seedHash : null);
   const { postRepo, clock, baselineRepo, bundleRepo, publishContentDeps, applyPort } = makeHarness([seeded], undefined, getSeedHash);
 
@@ -1349,7 +1349,7 @@ test("D1: a row still matching the seed with NO baseline plans 'applied' AND is 
 
 test("D1: a seed-matched row edited on the destination AFTER plan still downgrades to 'conflict' at apply", async () => {
   const seeded = makePost({ id: "page-seeded", title: "Seed title", slug: "seeded", version: 3 });
-  const seedHash = contentHash("post", toPublishableState(seeded));
+  const seedHash = contentHash({ entityType: "post", state: toPublishableState(seeded) });
   const getSeedHash = async () => seedHash;
   const { postRepo, clock, bundleRepo, publishContentDeps, applyPort } = makeHarness([seeded], undefined, getSeedHash);
 

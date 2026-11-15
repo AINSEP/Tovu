@@ -8,7 +8,7 @@ import type { Plugin } from "@tovu/sdk";
 
 /** `definePlugin()`'s runtime return shape. A plain `{ setup() {} }` export is deliberately not
  * accepted: only the SDK helper's opaque `{ definition }` wrapper is a valid plugin ABI value. */
-export function readDefinedPlugin(moduleValue: unknown): Plugin | null {
+export function readDefinedPlugin({ moduleValue }: { moduleValue: unknown }, _optional = {}): Plugin | null {
   if (typeof moduleValue !== "object" || moduleValue === null) return null;
   const candidate = (moduleValue as { default?: unknown }).default;
   if (typeof candidate !== "object" || candidate === null) return null;

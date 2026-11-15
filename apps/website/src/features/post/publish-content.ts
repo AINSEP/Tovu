@@ -380,7 +380,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
     },
     write: async ({ ports, deps, workspaceId, id, state, existing, expectedVersion, principalId, onRollback }) => {
       const wrongKind = packedKindMismatch({ kind, id, state });
-      if (wrongKind) throw new PublishContentApplyRowError("blocked", wrongKind);
+      if (wrongKind) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: wrongKind });
       const { repo, outbox } = applyPorts({ ports, deps, kind });
       const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
       // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
@@ -456,7 +456,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
       entityType: holder.kind,
       entityId: holder.id,
       entityLabel: holder.title,
-      hash: contentHash(holder.kind, await stateOf(holder)),
+      hash: contentHash({ entityType: holder.kind, state: await stateOf(holder) }),
     };
   }
 
@@ -535,7 +535,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
           }
           // The apply loop's own re-check runs before this read, outside any lock; checking the
           // hash again here, on the row whose version `execute` pins, closes that gap.
-          if (contentHash(holder.kind, await stateOf(holder)) !== target.hash) {
+          if (contentHash({ entityType: holder.kind, state: await stateOf(holder) }) !== target.hash) {
             throw new PostConflictError(`the live ${target.entityType} at this address changed after this run's plan was built`);
           }
           // The slug too: a retire renames it, so a revert from history must be able to move it back.

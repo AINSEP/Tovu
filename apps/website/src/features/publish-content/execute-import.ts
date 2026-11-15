@@ -24,7 +24,7 @@
  *  declares its own class rather than sharing one, the established precedent — see that file's own
  *  header and `@jini-ai/db/tools`'s sibling class of the same name). */
 export class RestorePointUnavailableError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "RestorePointUnavailableError";
   }
@@ -48,10 +48,11 @@ export async function executePublishContentImport<TResult>(
   const { workspaceId, costClass, gatewayExecute } = required;
 
   if (costClass === "unavailable") {
-    throw new RestorePointUnavailableError(
-      `workspace '${workspaceId}' has restore-point costClass 'unavailable' — publish-content import ` +
-        "is refused with no attestation override (mirrors ADR-041 §2's forward-migrate rule)"
-    );
+    throw new RestorePointUnavailableError({
+      message:
+        `workspace '${workspaceId}' has restore-point costClass 'unavailable' — publish-content import ` +
+        "is refused with no attestation override (mirrors ADR-041 §2's forward-migrate rule)",
+    });
   }
 
   return gatewayExecute();

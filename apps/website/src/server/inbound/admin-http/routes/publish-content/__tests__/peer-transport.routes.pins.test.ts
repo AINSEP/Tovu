@@ -48,7 +48,7 @@ const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [
   [new PublishTrustHandshakeError("live.example does not accept publishes from this computer yet", "not-connected"), 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
   [new PublishContentPeerCredentialMissingError("peer 'peer-1' has no saved credential"), 409, "PEER_CREDENTIAL_MISSING"],
   [new PublishContentPeerSecretStoreUnconfiguredError("peer 'Live' credential could not be opened"), 503, "SECRET_STORE_UNCONFIGURED"],
-  [new PublishContentPeerTransportError("peer answered 401", "PEER_REJECTED", { peerStatus: 401 }), 502, "PEER_REJECTED"],
+  [new PublishContentPeerTransportError({ message: "peer answered 401", code: "PEER_REJECTED" }, { peerStatus: 401 }), 502, "PEER_REJECTED"],
 ];
 
 for (const [route, body] of Object.entries(SEND_BODIES)) {

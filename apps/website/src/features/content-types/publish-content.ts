@@ -58,7 +58,7 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
       seededKeyRefusal({ key: entity.id }) ?? (existing?.status === "tombstone" ? tombstonedAtDestination("content-type", entity.id) : null),
     write: async ({ ports, deps, workspaceId, id: key, state, existing, principalId: actorId }) => {
       const seeded = seededKeyRefusal({ key });
-      if (seeded) throw new PublishContentApplyRowError("blocked", seeded);
+      if (seeded) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: seeded });
       const gateway = gatewayDeps(deps, "content-type");
       const outbox = toContentTypeOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId });
       // Preserve Jini's content-type scope along with the gateway's publish-type stamp.

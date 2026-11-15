@@ -51,7 +51,7 @@ function livePost(id: string): PackedEntity {
     kind: "post", bodyFormat: "doc", bodyHtml: null, updatedAt: "2026-09-01T00:00:00.000Z", version: 1, createdByPrincipalId: null,
   };
   const state = toPublishableState(post);
-  return { entityType: "post", id, schemaVersion: 2, hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("post", state), requiredBlobs: [], state };
+  return { entityType: "post", id, schemaVersion: 2, hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "post", state }), requiredBlobs: [], state };
 }
 
 function refusingSecondPost(): BeforeSaveHookPort {

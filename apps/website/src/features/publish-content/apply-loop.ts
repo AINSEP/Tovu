@@ -202,9 +202,8 @@ interface ApplyRowContext {
  * @complexity O(1).
  */
 function classifyApplyRowFailure(
-  error: unknown,
-  row: PublishContentOutcomeRow,
-  handler: PublishContentHandler
+  { error, row, handler }: { error: unknown; row: PublishContentOutcomeRow; handler: PublishContentHandler },
+  _optional = {}
 ): { outcome: "conflict" | "blocked"; reason: string } | null {
   if (error instanceof PublishContentApplyRowError) {
     return { outcome: error.rowOutcome, reason: error.message };
@@ -227,7 +226,7 @@ function classifyApplyRowFailure(
  * a failure outside a row, is returned unchanged.
  * @complexity O(1).
  */
-function withRefusedItem(error: unknown, itemKey: string | null): unknown {
+function withRefusedItem({ error, itemKey }: { error: unknown; itemKey: string | null }, _optional = {}): unknown {
   if (!(error instanceof PluginHookFailedError) || itemKey === null) return error;
   return new PluginHookFailedError(error.pluginId, error.message, { cause: error, refusedItemRef: itemKey });
 }
@@ -239,7 +238,7 @@ function withRefusedItem(error: unknown, itemKey: string | null): unknown {
  * already phrases — see {@link createPublishContentApplyPort}'s repoint pass, below).
  * @complexity O(1).
  */
-function capitalize(value: string): string {
+function capitalize({ value }: { value: string }, _optional = {}): string {
   return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);
 }
 
@@ -368,7 +367,7 @@ async function applyOneRow(
       }));
     } catch (error) {
       await undoRetire({ error, retireResult, row });
-      const downgrade = classifyApplyRowFailure(error, row, handler);
+      const downgrade = classifyApplyRowFailure({ error, row, handler });
       if (downgrade) {
         return {
           row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
@@ -475,7 +474,7 @@ async function applyOneRow(
       await refreshBaseline({ row, entity, ctx });
       return { row, changeSetId, retiredChangeSetId: null };
     } catch (error) {
-      const downgrade = classifyApplyRowFailure(error, row, handler);
+      const downgrade = classifyApplyRowFailure({ error, row, handler });
       if (downgrade) {
         return {
           row: { ...row, outcome: downgrade.outcome, writes: false, reason: downgrade.reason },
@@ -538,9 +537,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         now: startedAt,
       });
       if (!staged) {
-        throw new PublishContentBundleNotFoundError(
-          `publish-content: bundle '${bundleId}' was not found, or has expired, for workspace '${input.workspaceId}'`
-        );
+        throw new PublishContentBundleNotFoundError({ message: `publish-content: bundle '${bundleId}' was not found, or has expired, for workspace '${input.workspaceId}'` });
       }
       const sourcePrincipalId = staged.sourcePrincipalId;
       const runId = input.idGen.newId();
@@ -651,8 +648,8 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         rows: report.rows.map((row) => effectiveRowsByKey.get(entityKey(row.entityType, row.entityId)) ?? row),
       });
       const saveSnapshot = async (
-        phase: PublishContentRunRecord["phase"],
-        finishedAt: string | null
+        { phase, finishedAt }: { phase: PublishContentRunRecord["phase"]; finishedAt: string | null },
+        _optional = {}
       ): Promise<void> =>
         saveRun({
           runId,
@@ -668,7 +665,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         });
 
       // Persist the run and every pending item before the first content write.
-      await saveSnapshot("applying", null);
+      await saveSnapshot({ phase: "applying", finishedAt: null });
 
       const ctx: ApplyRowContext = {
         workspaceId: input.workspaceId,
@@ -690,7 +687,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             ...(retiredChangeSetId === undefined ? {} : { retiredChangeSetId }),
             updatedAt: clockNowIso({ clock: input.clock }),
           });
-          await saveSnapshot("applying", null);
+          await saveSnapshot({ phase: "applying", finishedAt: null });
         },
       };
 
@@ -751,7 +748,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
               // via `notUpdated` above; reaching this catch means the WHOLE call failed (e.g. a
               // required port was never wired for this composition root).
               const message = error instanceof Error ? error.message : String(error);
-              menuLinksNotUpdated.push(`${capitalize(handler.entityType)} links were not updated: ${message}`);
+              menuLinksNotUpdated.push(`${capitalize({ value: handler.entityType })} links were not updated: ${message}`);
             }
           }
         }
@@ -801,7 +798,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
               updatedAt: clockNowIso({ clock: input.clock }),
             });
           }
-          await saveSnapshot("applying", null);
+          await saveSnapshot({ phase: "applying", finishedAt: null });
           activeItemKey = null;
         }
         if (auditRecord) {
@@ -862,7 +859,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         // R6 — whatever landed before this abort (an overwrite row's retire+create both done) still
         // gets repointed; see `runRepointPass`'s own doc above for why this is safe to call here too.
         await runRepointPass();
-        await saveSnapshot("failed", clockNowIso({ clock: input.clock }));
+        await saveSnapshot({ phase: "failed", finishedAt: clockNowIso({ clock: input.clock }) });
         if (auditRecord) {
           if (!backstopAudit) throw new Error("Send by hand has no audit storage");
           await backstopAudit.save({
@@ -873,7 +870,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           }
           });
         }
-        throw transactional ? error : withRefusedItem(error, activeItemKey);
+        throw transactional ? error : withRefusedItem({ error, itemKey: activeItemKey });
       }
       // Only a raw-row/raw-file run is all-or-nothing; every other run writes row by row, so an
       // abort leaves the rows before it saved.
@@ -894,7 +891,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass();
       const verificationProblems = await runVerifyPass();
 
-      await saveSnapshot("applied", clockNowIso({ clock: input.clock }));
+      await saveSnapshot({ phase: "applied", finishedAt: clockNowIso({ clock: input.clock }) });
       return {
         report: currentReport(),
         runId,
@@ -974,11 +971,11 @@ function backstopAuditItems(
     if (!inverse) return item;
     let beforeHash: string | null = null;
     if (inverse.kind === "raw-row") {
-      if (inverse.before !== null) beforeHash = contentHash("raw-row", inverse.before as unknown as Record<string, unknown>);
+      if (inverse.before !== null) beforeHash = contentHash({ entityType: "raw-row", state: inverse.before as unknown as Record<string, unknown> });
     } else {
-      if (inverse.before.sha256 !== null) beforeHash = contentHash("raw-file", {
+      if (inverse.before.sha256 !== null) beforeHash = contentHash({ entityType: "raw-file", state: {
         path: item.id, sha256: inverse.before.sha256, size: inverse.before.size, mode: inverse.before.mode,
-      });
+      } });
     }
     return { ...item, beforeHash };
   });
@@ -994,6 +991,6 @@ async function verifyPublishedEntities(
     return await handler.verifyApplied({ entities });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return [`${capitalize(handler.entityType)} could not be checked after publishing: ${message}`];
+    return [`${capitalize({ value: handler.entityType })} could not be checked after publishing: ${message}`];
   }
 }

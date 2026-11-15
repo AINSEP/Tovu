@@ -88,13 +88,13 @@ type CanonicalJsonValue = null | boolean | number | string | CanonicalJsonValue[
  * visit per node, one sort per object level (bounded by that level's own key count, never the
  * whole tree).
  */
-function normalize(value: unknown): CanonicalJsonValue {
+function normalize({ value }: { value: unknown }, _optional = {}): CanonicalJsonValue {
   if (value === undefined || value === null) return null;
-  if (Array.isArray(value)) return value.map(normalize);
+  if (Array.isArray(value)) return value.map((item) => normalize({ value: item }));
   if (typeof value === "object") {
     const sorted: Record<string, CanonicalJsonValue> = {};
     for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-      sorted[key] = normalize((value as Record<string, unknown>)[key]);
+      sorted[key] = normalize({ value: (value as Record<string, unknown>)[key] });
     }
     return sorted;
   }
@@ -121,17 +121,17 @@ function omitExcludedKeys(state: Record<string, unknown>): Record<string, unknow
  * still hash differently — the discriminator is part of what is being identified, exactly as
  * `PackedEntity.entityType` travels alongside `contentHash` everywhere else in the feature.
  *
- * @param entityType Stable wire discriminator (e.g. `"post"`, `"page"`) — see
+ * @param required.entityType Stable wire discriminator (e.g. `"post"`, `"page"`) — see
  * `type-registry.ts`'s `PublishContentHandler.entityType` doc for the "never renamed" contract.
- * @param state The entity's own field bag, in whatever shape its owning domain type uses. Identity
+ * @param required.state The entity's own field bag, in whatever shape its owning domain type uses. Identity
  * and write-bookkeeping fields ({@link EXCLUDED_KEYS}) may be present — they are dropped here, so a
  * caller can pass a whole domain record (e.g. a `PostRecord`) without pre-filtering it.
  * @returns Deterministic JSON text: `{"entityType":...,"state":{...sorted keys...}}`, no
  * insignificant whitespace, no dropped-vs-null ambiguity for `undefined` fields.
  * @complexity See {@link normalize}.
  */
-export function canonicalize(entityType: string, state: Record<string, unknown>): string {
-  const canonicalState = normalize(omitExcludedKeys(state));
+export function canonicalize({ entityType, state }: { entityType: string; state: Record<string, unknown> }, _optional = {}): string {
+  const canonicalState = normalize({ value: omitExcludedKeys(state) });
   return JSON.stringify({ entityType, state: canonicalState });
 }
 
@@ -147,6 +147,6 @@ export function canonicalize(entityType: string, state: Record<string, unknown>)
  * @complexity O(n) in `state`'s total size (one canonicalization pass, one hash pass over the
  * resulting text).
  */
-export function contentHash(entityType: string, state: Record<string, unknown>): string {
-  return createHash("sha256").update(canonicalize(entityType, state), "utf8").digest("hex");
+export function contentHash({ entityType, state }: { entityType: string; state: Record<string, unknown> }, _optional = {}): string {
+  return createHash("sha256").update(canonicalize({ entityType, state }), "utf8").digest("hex");
 }

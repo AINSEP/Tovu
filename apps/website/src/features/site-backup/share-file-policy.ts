@@ -93,7 +93,7 @@ export function validateSharePath(required: { path: string }, _optional: Record<
   // The publish owner mixes secret names with path-shape checks. Mask only credential
   // names here, retaining separators, dot segments and length for structural checks.
   const structural = p.split("/").map(part => secretSharePath({ path: part }) ? "x".repeat(part.length) : part).join("/");
-  const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath(structural);
+  const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath({ relPath: structural });
   if (reason || hasUnportableSpelling({ path: p })) {
     const shownPath = archiveRefusalName({ name: p });
     // A callback treats archive '$&'/'$`' spellings as text, never replacement tokens.

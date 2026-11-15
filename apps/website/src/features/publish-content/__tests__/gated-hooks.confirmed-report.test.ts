@@ -52,13 +52,13 @@ const ENTITY_TYPE = "thing";
 const ENTITY_ID = "thing-1";
 
 /** The hash the bundle carries (what the peer wants written). */
-const INCOMING_HASH = contentHash(ENTITY_TYPE, { title: "incoming" });
+const INCOMING_HASH = contentHash({ entityType: ENTITY_TYPE, state: { title: "incoming" } });
 /** The hash both sides agreed on at the last sync. */
-const BASELINE_HASH = contentHash(ENTITY_TYPE, { title: "baseline" });
+const BASELINE_HASH = contentHash({ entityType: ENTITY_TYPE, state: { title: "baseline" } });
 /** The destination's hash at plan/confirm time — differs from the baseline, so the row is a
  *  `conflict`: the destination has been edited since the last sync and must not be overwritten
  *  without an explicit force. */
-const DRIFTED_HASH = contentHash(ENTITY_TYPE, { title: "drifted" });
+const DRIFTED_HASH = contentHash({ entityType: ENTITY_TYPE, state: { title: "drifted" } });
 
 test.beforeEach(() => {
   resetPublishContentContributorsForTests();

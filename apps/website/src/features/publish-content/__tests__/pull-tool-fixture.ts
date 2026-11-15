@@ -15,7 +15,7 @@ import type { HttpRequest } from "../../../platform/http/index.js";
 export const NOW = "2026-10-01T12:00:00.000Z";
 export const OWNER = "human-owner";
 export function packed(id: string, title = `Live ${id}`, requiredBlobs: string[] = []): PackedEntity {
-  return { entityType: "pull-fixture", id, schemaVersion: 1, hashVersion: 1, contentHash: contentHash("pull-fixture", { title }), requiredBlobs, state: { title } };
+  return { entityType: "pull-fixture", id, schemaVersion: 1, hashVersion: 1, contentHash: contentHash({ entityType: "pull-fixture", state: { title } }), requiredBlobs, state: { title } };
 }
 export function peerRow(id = "live", label = "Live site", connected = false): PublishContentPeerRecord {
   return { workspaceId: "local", id, label, baseUrl: `https://${id}.example`, remoteWorkspaceId: "remote", sealed: connected ? null : { keyId: "key", iv: "iv", ciphertext: "sealed", tag: "tag" } as never, masked: "***", aadVersion: 1, createdAt: NOW, updatedAt: NOW };

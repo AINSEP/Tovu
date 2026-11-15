@@ -39,7 +39,7 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
       fs.writeFileSync(path.join(dir, 'styles.css'), 'body{margin:0}');
       for (const template of ['home', 'entry']) fs.writeFileSync(path.join(dir, 'templates', `${template}.json`), '{"type":"doc","content":[]}');
     }
-    await new SqlitePresentationSettingsRepo(site.kernel).save({ workspaceId: site.workspaceId,
+    await new SqlitePresentationSettingsRepo({ store: site.kernel }).save({ workspaceId: site.workspaceId,
       activeThemeId: site.name === 'B' ? 'selected' : 'decoy', updatedAt: site.clock.nowIso() });
   }
   const files = [f.b.paths.contentDbPath, f.b.paths.chatDbPath, f.b.journalPath];

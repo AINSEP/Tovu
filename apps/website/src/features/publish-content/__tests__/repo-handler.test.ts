@@ -185,7 +185,7 @@ test("pack skips trashed and include-false rows, and hashes only transferred fie
   assert.deepEqual(packed.map((entity) => entity.id).sort(), ["a"]);
 
   // Same transferred fields, different "note" (provenance) -> same hash.
-  const sameContentDifferentNote = contentHash("item", { slug: "a", title: "A", status: "active" });
+  const sameContentDifferentNote = contentHash({ entityType: "item", state: { slug: "a", title: "A", status: "active" } });
   assert.equal(packed[0]!.contentHash, sameContentDifferentNote);
   assert.deepEqual(packed[0]!.state, { slug: "a", title: "A", note: "note-1", status: "active" });
 });
@@ -210,7 +210,7 @@ test("pack honours packOrder, requiredBlobs and legacyHashState; extend's method
   const packed = await collect(handler.pack());
   assert.deepEqual(packed.map((entity) => entity.id), ["b", "a"]);
   assert.deepEqual(packed[1]!.requiredBlobs, ["sha-a"]);
-  assert.equal(packed[1]!.contentHash, contentHash("item", { slug: "a", title: "A", note: "n", status: "active" }));
+  assert.equal(packed[1]!.contentHash, contentHash({ entityType: "item", state: { slug: "a", title: "A", note: "n", status: "active" } }));
   assert.equal((await handler.inspect("a"))?.hash, packed[1]!.contentHash);
   assert.equal(handler.seedHash, seedHash);
 });

@@ -105,7 +105,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     },
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
       const widgetType = widgetTypeRefusal({ id, state });
-      if (widgetType) throw new PublishContentApplyRowError("blocked", widgetType);
+      if (widgetType) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: widgetType });
       const gateway = gatewayDeps(deps, "collection-entry");
       // Checked before the entry is written, so a missing term or permission blocks the row whole.
       const terms = await prepareTermSync({

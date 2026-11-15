@@ -28,7 +28,7 @@ function decodeId(id: string): { table: string; pk: Readonly<Record<string, RawV
 function rowState(row: RawRowSnapshot): Record<string, unknown> {
   return { table: row.table, columns: row.columns, pk: row.pk, values: row.values };
 }
-function rowHash(row: RawRowSnapshot): string { return contentHash("raw-row", rowState(row)); }
+function rowHash(row: RawRowSnapshot): string { return contentHash({ entityType: "raw-row", state: rowState(row) }); }
 function rowVersion(row: RawRowSnapshot): number { return Number.parseInt(rowHash(row).slice(0, 12), 16); }
 function shape(columns: readonly RawColumn[]): string {
   return JSON.stringify([...columns].sort((a, b) => a.name.localeCompare(b.name)));
@@ -147,13 +147,13 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
     precheck,
     apply: async (input) => {
       const reason = await precheck(input.entity);
-      if (reason) throw new PublishContentApplyRowError("blocked", reason);
+      if (reason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
       const { changeSets, authorize, outbox } = deps;
       if (!port || !changeSets || !authorize || !outbox) throw new Error("The raw row command gateway is not wired.");
       const incoming = input.entity.state as unknown as RawRowSnapshot;
       return port.transaction({ work: async () => {
         const freshReason = await precheck(input.entity);
-        if (freshReason) throw new PublishContentApplyRowError("blocked", freshReason);
+        if (freshReason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: freshReason });
         let prior: RawRowSnapshot | null = null;
         const result = await executeCommand<{ version: number }>({
           deps: { clock: deps.clock, idGen: deps.idGen, authorize, changeSets, outbox },
@@ -166,7 +166,7 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
             },
             execute: async () => {
               if (input.expectedVersion === undefined ? prior !== null : prior === null || rowVersion(prior) !== input.expectedVersion) {
-                throw new PublishContentApplyRowError("conflict", "This row changed on live after it was checked.");
+                throw new PublishContentApplyRowError({ rowOutcome: "conflict", message: "This row changed on live after it was checked." });
               }
               await port.upsert(incoming);
               return { version: rowVersion(incoming) };

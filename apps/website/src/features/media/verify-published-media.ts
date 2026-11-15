@@ -60,7 +60,7 @@ async function verifyOne(
   if (!recordedTypes.has(sha256) && !(await repairContentType({ ports, workspaceId, sha256 }))) {
     problems.push(`Media '${label}': the site could not read its file type, so a video may show as a broken image.`);
   }
-  for (const key of collectMediaUrlKeys(record.htmlAttributes ?? "")) {
+  for (const key of collectMediaUrlKeys({ text: record.htmlAttributes ?? "" })) {
     const named = await findMediaByIdOrSlug({ deps: { mediaRepo: ports.repo }, input: { workspaceId, idOrSlug: key } });
     if (!named) problems.push(`Media '${label}' uses '${key}' in its HTML attributes, but '${key}' is not on the site, so it will not load.`);
   }

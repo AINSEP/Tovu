@@ -173,11 +173,11 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         .map((field) => [field, (row as Record<string, unknown>)[field] ?? null])
     );
   const hashOf = (row: Row) =>
-    contentHash(entityType, config.legacyHashState ? config.legacyHashState({ row, packedState: pick(row, packedFields) }) : pick(row, hashedFields));
+    contentHash({ entityType, state: config.legacyHashState ? config.legacyHashState({ row, packedState: pick(row, packedFields) }) : pick(row, hashedFields) });
 
   const conflict = (id: string, detail: string) => {
     const message = changedSincePlan(entityType, id, detail);
-    return config.conflictError?.({ message }) ?? new PublishContentApplyRowError("conflict", message);
+    return config.conflictError?.({ message }) ?? new PublishContentApplyRowError({ rowOutcome: "conflict", message });
   };
 
   function toRowError(err: unknown, id: string): unknown {
@@ -185,7 +185,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     if (config.errors?.conflict?.some((cls) => err instanceof cls)) {
       return conflict(id, err.message);
     }
-    if (config.errors?.blocked?.some((cls) => err instanceof cls)) return new PublishContentApplyRowError("blocked", err.message);
+    if (config.errors?.blocked?.some((cls) => err instanceof cls)) return new PublishContentApplyRowError({ rowOutcome: "blocked", message: err.message });
     return err;
   }
 

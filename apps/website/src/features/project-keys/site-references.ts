@@ -24,20 +24,20 @@ export function createSiteOAuthBindings({ vault, repo, workspaceId }: {
   vault: SecretsVaultService; repo: VaultRepoPort; workspaceId: string;
 }, _options = {}): SiteOAuthBindings {
   const scope = apiConnectionVaultScope({ workspaceId });
-  const checkedId = (value: string) => {
+  const checkedId = ({ value }: { value: string }, _optional = {}) => {
     if (!value || value.length > 512 || value.includes('\0')) throw new ToolInputError({ message: 'Choose an existing saved connection for this site.' });
     return value;
   };
   const identity = ({ consumerId }: { consumerId: string }) => ({ ...scope,
-    id: `plugin-state:tovu-shared-oauth-binding:${createHash('sha256').update(checkedId(consumerId)).digest('hex')}` });
+    id: `plugin-state:tovu-shared-oauth-binding:${createHash('sha256').update(checkedId({ value: consumerId })).digest('hex')}` });
   return {
     read: async input => {
       const found = await vault.get(identity(input));
       const value = found?.payload?.value as { credentialId?: unknown } | undefined;
-      return typeof value?.credentialId === 'string' ? { credentialId: checkedId(value.credentialId) } : null;
+      return typeof value?.credentialId === 'string' ? { credentialId: checkedId({ value: value.credentialId }) } : null;
     },
     set: async input => {
-      const credentialId = checkedId(input.credentialId);
+      const credentialId = checkedId({ value: input.credentialId });
       const key = identity(input);
       const current = await repo.find(key);
       await vault.put({ ...key, expectedRevision: current?.revision ?? null, provider: null, label: key.id,

@@ -314,15 +314,15 @@ test("toc: uses the renderer transliteration and omits unanchorable headings", (
 });
 
 test("countSyllables: vowel groups, silent trailing e, consonant+le keeps its syllable, min 1", () => {
-  assert.equal(countSyllables("the"), 1);
-  assert.equal(countSyllables("cat"), 1);
-  assert.equal(countSyllables("make"), 1);
-  assert.equal(countSyllables("table"), 2);
-  assert.equal(countSyllables("banana"), 3);
-  assert.equal(countSyllables("rhythm"), 1);
-  assert.equal(countSyllables("42"), 1);
-  assert.equal(countSyllables("University,"), 5);
-  assert.equal(countSyllables("be"), 1);
+  assert.equal(countSyllables({ word: "the" }), 1);
+  assert.equal(countSyllables({ word: "cat" }), 1);
+  assert.equal(countSyllables({ word: "make" }), 1);
+  assert.equal(countSyllables({ word: "table" }), 2);
+  assert.equal(countSyllables({ word: "banana" }), 3);
+  assert.equal(countSyllables({ word: "rhythm" }), 1);
+  assert.equal(countSyllables({ word: "42" }), 1);
+  assert.equal(countSyllables({ word: "University," }), 5);
+  assert.equal(countSyllables({ word: "be" }), 1);
 });
 
 // Todo 21: the TOC must link to ids emitted by the actual renderer.

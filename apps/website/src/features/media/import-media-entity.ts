@@ -227,7 +227,7 @@ function checkedBytes({ record, bytes }: { record: MediaRecord; bytes: Uint8Arra
 
   // Safety property 1 (sha256 shape + match) — checked first, before any repo read even, since a
   // malformed/mismatched claim makes every other check moot.
-  if (!isValidSha256Hex(record.source.sha256)) {
+  if (!isValidSha256Hex({ value: record.source.sha256 })) {
     return { status: "blocked", code: "precondition", reason: `malformed source sha256 '${record.source.sha256}'` };
   }
   if (!bytesMatchSha256({ bytes, claimedSha256: record.source.sha256 })) {

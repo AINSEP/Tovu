@@ -22,18 +22,18 @@ import { discardCommittedSnapshot, isInMemoryDbPath, snapshotDb } from "../snaps
  */
 
 test("isInMemoryDbPath: recognizes SQLite's special non-file identifiers", () => {
-  assert.equal(isInMemoryDbPath(":memory:"), true, "the common in-memory literal");
-  assert.equal(isInMemoryDbPath(""), true, "the empty-string private on-disk temp db identifier");
-  assert.equal(isInMemoryDbPath("file::memory:?cache=shared"), true, "SQLite's own doc-example URI form");
-  assert.equal(isInMemoryDbPath("file::memory:"), true, "the URI form with no query string at all");
-  assert.equal(isInMemoryDbPath("file:some.db?mode=memory&cache=shared"), true, "explicit mode=memory query param");
+  assert.equal(isInMemoryDbPath({ dbPath: ":memory:" }), true, "the common in-memory literal");
+  assert.equal(isInMemoryDbPath({ dbPath: "" }), true, "the empty-string private on-disk temp db identifier");
+  assert.equal(isInMemoryDbPath({ dbPath: "file::memory:?cache=shared" }), true, "SQLite's own doc-example URI form");
+  assert.equal(isInMemoryDbPath({ dbPath: "file::memory:" }), true, "the URI form with no query string at all");
+  assert.equal(isInMemoryDbPath({ dbPath: "file:some.db?mode=memory&cache=shared" }), true, "explicit mode=memory query param");
 });
 
 test("isInMemoryDbPath: a real file path (plain or file: URI) is never mistaken for in-memory", () => {
-  assert.equal(isInMemoryDbPath("/tmp/content.db"), false);
-  assert.equal(isInMemoryDbPath("content.db"), false);
-  assert.equal(isInMemoryDbPath("file:/tmp/content.db"), false);
-  assert.equal(isInMemoryDbPath("file:content.db?cache=shared"), false, "a real path with an unrelated query param");
+  assert.equal(isInMemoryDbPath({ dbPath: "/tmp/content.db" }), false);
+  assert.equal(isInMemoryDbPath({ dbPath: "content.db" }), false);
+  assert.equal(isInMemoryDbPath({ dbPath: "file:/tmp/content.db" }), false);
+  assert.equal(isInMemoryDbPath({ dbPath: "file:content.db?cache=shared" }), false, "a real path with an unrelated query param");
 });
 
 test("snapshotDb: against an in-memory db, returns null and writes NO file anywhere, including the cwd", async () => {
@@ -90,9 +90,9 @@ test("discardCommittedSnapshot deletes the committed backup and tolerates a seco
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const snapshotPath = path.join(dir, "content.db.snapshot-plugin");
   fs.writeFileSync(snapshotPath, "committed backup");
-  await discardCommittedSnapshot(snapshotPath);
+  await discardCommittedSnapshot({ snapshotPath });
   assert.equal(fs.existsSync(snapshotPath), false);
-  await assert.doesNotReject(() => discardCommittedSnapshot(snapshotPath));
+  await assert.doesNotReject(() => discardCommittedSnapshot({ snapshotPath }));
 });
 
 
@@ -107,7 +107,7 @@ test("discardCommittedSnapshot: failed removal resolves and preserves unrelated 
 
   // fs.rm without recursive must reject this path, exercising the best-effort catch.
   await assert.rejects(fs.promises.rm(snapshotPath, { force: true }), { code: "ERR_FS_EISDIR" });
-  await assert.doesNotReject(() => discardCommittedSnapshot(snapshotPath));
+  await assert.doesNotReject(() => discardCommittedSnapshot({ snapshotPath }));
   assert.equal(fs.readFileSync(unrelated, "utf8"), "unrelated database");
   assert.equal(fs.readFileSync(path.join(snapshotPath, "keep.txt"), "utf8"), "snapshot contents");
 });

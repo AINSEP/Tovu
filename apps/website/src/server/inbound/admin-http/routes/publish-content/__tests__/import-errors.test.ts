@@ -71,8 +71,8 @@ test("each known import error maps to its status and code, keeping its message",
     [new PlanStaleError({ message: "plan changed" }), 409, "PLAN_STALE"],
     [new TokenExpiredError({ message: "token expired" }), 409, "TOKEN_EXPIRED"],
     [new TokenAlreadyRedeemedError({ message: "token used" }), 409, "TOKEN_ALREADY_REDEEMED"],
-    [new RestorePointUnavailableError("no restore point"), 409, "RESTORE_POINT_UNAVAILABLE"],
-    [new PublishContentBundleNotFoundError("bundle gone"), 404, "BUNDLE_NOT_FOUND"],
+    [new RestorePointUnavailableError({ message: "no restore point" }), 409, "RESTORE_POINT_UNAVAILABLE"],
+    [new PublishContentBundleNotFoundError({ message: "bundle gone" }), 404, "BUNDLE_NOT_FOUND"],
   ];
   for (const [err, status, code] of cases) {
     assert.deepEqual(importErrorResponse({ err }), { status, body: { error: err.message, code } }, code);

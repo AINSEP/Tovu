@@ -290,7 +290,7 @@ export function buildPublishContentRegistrations(
         };
       }
 
-      const normalized = normalizePeerBaseUrl(raw);
+      const normalized = normalizePeerBaseUrl({ raw });
       if ("error" in normalized) {
         return { connected: false, message: "That does not look like a website address.", nextStep: null };
       }

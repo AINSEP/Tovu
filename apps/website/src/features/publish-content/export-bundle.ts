@@ -202,16 +202,16 @@ export function applyPublishScope(
   scope: PublishScope
 ): PublishContentExportEnvelope {
   const entityKeys = scope.entityKeys ? new Set(scope.entityKeys) : null;
-  const matchesScope = (type: string, id: string): boolean => {
+  const matchesScope = ({ type, id }: { type: string; id: string }, _optional = {}): boolean => {
     if (scope.entityTypes && !scope.entityTypes.includes(type)) return false;
     if (entityKeys && !entityKeys.has(entityKey(type, id))) return false;
     return true;
   };
 
-  const entities = envelope.entities.filter((entity) => matchesScope(entity.entityType, entity.id));
+  const entities = envelope.entities.filter((entity) => matchesScope({ type: entity.entityType, id: entity.id }));
   const requiredBlobs = new Set<string>();
   for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
-  const skipped = envelope.skipped.filter((entry) => matchesScope(entry.entityType, entry.id));
+  const skipped = envelope.skipped.filter((entry) => matchesScope({ type: entry.entityType, id: entry.id }));
 
   return { ...envelope, entities, blobManifest: Array.from(requiredBlobs), skipped };
 }
@@ -267,9 +267,8 @@ function indexCarriable(source: PublishContentExportEnvelope, held: ReadonlySet<
  * most the `c` entities it can reach; O(s) extra space.
  */
 export function includeReferencedEntities(
-  envelope: PublishContentExportEnvelope,
-  source: PublishContentExportEnvelope,
-  handlers: ReferenceHandlers
+  { envelope, source, handlers }: { envelope: PublishContentExportEnvelope; source: PublishContentExportEnvelope; handlers: ReferenceHandlers },
+  _optional = {}
 ): ReferencedEntityInclusion {
   const referencesOf = (entity: PackedEntity) => handlers.get(entity.entityType)?.references?.(entity) ?? [];
   const held = new Set(envelope.entities.map((entity) => entityKey(entity.entityType, entity.id)));

@@ -59,7 +59,7 @@ export class PublishContentApplyRowError extends Error {
    *  does not hold (a missing blob, a taken slug), `conflict` for a destination that moved on. */
   readonly rowOutcome: PublishContentApplyRowOutcome;
 
-  constructor(rowOutcome: PublishContentApplyRowOutcome, message: string) {
+  constructor({ rowOutcome, message }: { rowOutcome: PublishContentApplyRowOutcome; message: string }) {
     super(message);
     this.name = "PublishContentApplyRowError";
     this.rowOutcome = rowOutcome;

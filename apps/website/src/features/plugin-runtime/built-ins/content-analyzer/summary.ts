@@ -15,7 +15,7 @@
  */
 import type { CheckId, ContentAnalysisReport, ContentCheck } from "./analyze-content.js";
 
-function plural(count: number, noun: string): string {
+function plural({ count, noun }: { count: number; noun: string }, _optional = {}): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
@@ -31,11 +31,11 @@ const CHECK_SENTENCES: Record<CheckId, (check: ContentCheck) => string> = {
   "heading-order": ({ params }) =>
     `The heading "${params.heading}" jumps from H${params.from} to H${params.to}; do not skip heading levels.`,
   "single-h1": ({ params }) =>
-    `The body has ${plural(Number(params.h1), "H1 heading")}; the title is already the page H1, so use H2 or lower.`,
+    `The body has ${plural({ count: Number(params.h1), noun: "H1 heading" })}; the title is already the page H1, so use H2 or lower.`,
   "content-length": ({ status, params }) =>
     status === "fail"
       ? `There is no body text yet; aim for at least ${params.min} words.`
-      : `The body has only ${plural(Number(params.words), "word")}; aim for at least ${params.min}.`,
+      : `The body has only ${plural({ count: Number(params.words), noun: "word" })}; aim for at least ${params.min}.`,
   subheadings: ({ params }) => `${params.words} words with no subheadings; add H2 sections to break up the text.`,
 };
 
@@ -50,7 +50,7 @@ export function summarizeReport(report: ContentAnalysisReport): string {
   const { readability } = report;
   const parts = [
     `Content score ${report.score}/100.`,
-    `${plural(report.wordCount, "word")} (${report.readingTimeMinutes} min read).`,
+    `${plural({ count: report.wordCount, noun: "word" })} (${report.readingTimeMinutes} min read).`,
     // A zero-word report's band is a placeholder (see analyze-content.ts), so say so instead.
     report.wordCount === 0
       ? "Readability: not measured (no body text)."
@@ -61,6 +61,6 @@ export function summarizeReport(report: ContentAnalysisReport): string {
   if (toImprove.length === 0) parts.push("All checks pass.");
   else parts.push("To improve:", ...toImprove.map((check) => CHECK_SENTENCES[check.id](check)));
 
-  parts.push(report.toc.length === 0 ? "Table of contents: no headings." : `Table of contents: ${plural(report.toc.length, "heading")}.`);
+  parts.push(report.toc.length === 0 ? "Table of contents: no headings." : `Table of contents: ${plural({ count: report.toc.length, noun: "heading" })}.`);
   return parts.join(" ");
 }

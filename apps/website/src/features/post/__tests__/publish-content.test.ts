@@ -98,7 +98,7 @@ function packedFrom(entityType: "post" | "page", post: PostRecord) {
     entityType,
     id: post.id,
     schemaVersion: 1,
-    contentHash: contentHash(entityType, toPublishableState(post)),
+    contentHash: contentHash({ entityType, state: toPublishableState(post) }),
     hashVersion: 1,
     requiredBlobs: [],
     state: toPublishableState(post),
@@ -132,7 +132,7 @@ test("both built handlers declare the resource's own content.write permission", 
 // pack() — kind-filtered, canonicalized, hashed
 // ---------------------------------------------------------------------------
 
-test("post.pack() yields only kind:'post' rows, each hashed with contentHash('post', ...)", async () => {
+test("post.pack() yields only kind:'post' rows, each hashed with contentHash({ entityType: 'post', state: ... })", async () => {
   const post = makePost({ id: "post-1", kind: "post", title: "A Post" });
   const page = makePost({ id: "page-1", kind: "page", slug: "a-page", title: "A Page" });
   const handler = contributePostPublish().build(makeDeps([post, page]));
@@ -163,7 +163,7 @@ test("post.pack() yields only kind:'post' rows, each hashed with contentHash('po
     "the packed wire shape changed — every field here is one publish is expected to carry, and a " +
       "field that leaves this list must also leave the content hash (see POST_FIELD_DISPOSITIONS)"
   );
-  assert.equal(packed[0].contentHash, contentHash("post", packed[0].state));
+  assert.equal(packed[0].contentHash, contentHash({ entityType: "post", state: packed[0].state }));
   assert.deepEqual(packed[0].requiredBlobs, []);
 });
 

@@ -78,10 +78,7 @@ export async function prepareTermSync(input: {
   }
   const allowed = await authorize({ principalId, permission: TERM_SYNC_PERMISSION, workspaceId });
   if (!allowed.allowed) {
-    throw new PublishContentApplyRowError(
-      "blocked",
-      `${entityType} '${entityId}' has category or tag changes, and you need '${TERM_SYNC_PERMISSION}' to publish them (${allowed.reason})`
-    );
+    throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `${entityType} '${entityId}' has category or tag changes, and you need '${TERM_SYNC_PERMISSION}' to publish them (${allowed.reason})` });
   }
   await validateAddedTerms({ ports, termIds: add, entityType, entityId });
 
@@ -113,10 +110,7 @@ async function validateAddedTerms(
   for (const termId of termIds) {
     const term = await ports.terms.findAnyById({ id: termId });
     if (!term || term.status === "trash") {
-      throw new PublishContentApplyRowError(
-        "blocked",
-        `${entityType} '${entityId}' is tagged with term '${termId}', which is ${term ? "in the trash" : "missing"} at this destination — publish or restore that term first`
-      );
+      throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `${entityType} '${entityId}' is tagged with term '${termId}', which is ${term ? "in the trash" : "missing"} at this destination — publish or restore that term first` });
     }
   }
 }

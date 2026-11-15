@@ -92,11 +92,11 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
       const { authorize } = gatewayDeps(deps, "active-theme");
       const auth = await authorize({ principalId, permission: "theme.set", workspaceId, entityType: "presentation" });
       if (!auth.allowed) {
-        throw new PublishContentApplyRowError("blocked", `principal '${principalId}' is not authorized for 'theme.set' (${auth.reason})`);
+        throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `principal '${principalId}' is not authorized for 'theme.set' (${auth.reason})` });
       }
       const available = writableThemeIds({ themes: [...ports.themes] });
       const activeThemeId = themeIdCandidates(themeId).find((candidate) => available.includes(candidate));
-      if (!activeThemeId) throw new PublishContentApplyRowError("blocked", notInstalled(themeId));
+      if (!activeThemeId) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: notInstalled(themeId) });
       const { settings } = await setActiveTheme({
         deps: { repo: ports.presentation, clock: deps.clock, availableThemeIds: available },
         input: { workspaceId, activeThemeId },

@@ -179,7 +179,7 @@ export interface PlanImportDeps {
    *  is not this module's concern; this is a narrow read-only probe a later composition wires to the
    *  real `BlobStorePort`. Required (not optional) so a caller is forced to make a deliberate choice
    *  for it rather than the check silently always passing. */
-  readonly hasBlob: (sha256: string) => Promise<boolean>;
+  readonly hasBlob: (required: { sha256: string }, optional?: Record<string, never>) => Promise<boolean>;
   /**
    * D1 (2026-09-24 owner decision, publish-types-plan §6) — the hash this entity had in the SHIPPED
    * SEED database (`content.seed.db`) this destination was originally hydrated from, consulted only
@@ -295,7 +295,7 @@ async function planEntity(
   }
 
   for (const sha256 of entity.requiredBlobs) {
-    if (!(await deps.hasBlob(sha256))) {
+    if (!(await deps.hasBlob({ sha256 }))) {
       return {
         ...identity,
         outcome: "blocked",

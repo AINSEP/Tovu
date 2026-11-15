@@ -53,7 +53,7 @@ export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDep
             workspaceId: deps.workspaceId,
             pluginId: record.id,
           });
-          return toAdminPluginResponse(record, activation, { conflicts: conflicts.get(record.id) ?? [] });
+          return toAdminPluginResponse({ discovery: record, activation }, { conflicts: conflicts.get(record.id) ?? [] });
         })
       );
 

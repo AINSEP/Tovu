@@ -96,7 +96,7 @@ export interface PublishContentRestorePointSavePort {
  *  same file's own "an unrecognized bundle and an expired bundle are indistinguishable to a caller"
  *  reasoning for `token.ts`'s `TokenExpiredError`. */
 export class PublishContentBundleNotFoundError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentBundleNotFoundError";
   }
@@ -233,9 +233,7 @@ export function buildPublishContentImportHooks(
     const now = clockNowIso({ clock: input.clock });
     const staged = await loadActiveBundle({ repo: input.bundleRepo, workspaceId: input.workspaceId, id: input.bundleId, now });
     if (!staged) {
-      throw new PublishContentBundleNotFoundError(
-        `publish-content: bundle '${input.bundleId}' was not found, or has expired, for workspace '${input.workspaceId}'`
-      );
+      throw new PublishContentBundleNotFoundError({ message: `publish-content: bundle '${input.bundleId}' was not found, or has expired, for workspace '${input.workspaceId}'` });
     }
 
     const bundle: PublishContentBundle = {
@@ -261,7 +259,7 @@ export function buildPublishContentImportHooks(
       return record ? { hashAtLastSync: record.hashAtLastSync, hashVersion: record.hashVersion } : null;
     };
 
-    const hasBlob = async (sha256: string): Promise<boolean> =>
+    const hasBlob = async ({ sha256 }: { sha256: string }, _optional = {}): Promise<boolean> =>
       input.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: input.workspaceId, sha256 }) });
 
     return planImport(bundle, {

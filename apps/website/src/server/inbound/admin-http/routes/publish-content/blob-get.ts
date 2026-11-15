@@ -75,7 +75,7 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     const sha256 = String(req.params.sha ?? "");
-    if (!isValidSha256Hex(sha256)) {
+    if (!isValidSha256Hex({ value: sha256 })) {
       res.status(400).json({ error: "sha must be a lowercase 64-character hex sha256 digest" });
       return;
     }

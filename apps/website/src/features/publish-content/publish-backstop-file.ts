@@ -69,7 +69,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     try {
       const stat = lstatSync(filename);
       if (stat.size > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });
-      return { absPath: filename, bytes: readFileSync(fd), mode: normalizeMode(stat.mode) };
+      return { absPath: filename, bytes: readFileSync(fd), mode: normalizeMode({ mode: stat.mode }) };
     } finally { closeSync(fd); }
   }
   function privateDir(name: ".publish-staging" | ".publish-previous"): string {
@@ -111,9 +111,9 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });
     const stage = path.join(privateDir(".publish-staging"), randomUUID());
     try {
-      writeFileSync(stage, bytes, { mode: normalizeMode(mode), flag: "wx" });
+      writeFileSync(stage, bytes, { mode: normalizeMode({ mode }), flag: "wx" });
       // The process umask must not change the normalized mode included in the checked hash.
-      chmodSync(stage, normalizeMode(mode));
+      chmodSync(stage, normalizeMode({ mode }));
       if (sha(readFileSync(stage)) !== sha(bytes)) throw new BackstopRefusal({ message: "The staged file failed its checksum check." });
       parents(relPath);
       renameSync(stage, target(relPath));

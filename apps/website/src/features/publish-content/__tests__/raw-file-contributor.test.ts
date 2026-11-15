@@ -63,7 +63,7 @@ test("destination rechecks deny paths, links and actual blob secrets without tru
   const sha256 = createHash("sha256").update(planted).digest("hex");
   await f.blobs.putIfAbsent({ workspaceId: "ws", sha256, bytes: planted });
   const state = { ...entity.state, sha256, size: planted.byteLength };
-  const forged = { ...entity, state, contentHash: contentHash("raw-file", state), requiredBlobs: [sha256] };
+  const forged = { ...entity, state, contentHash: contentHash({ entityType: "raw-file", state }), requiredBlobs: [sha256] };
   const credentialRefusal = await f.handler.precheck(forged);
   assert.ok(typeof credentialRefusal === "string");
   assert.match(credentialRefusal, /looks like it holds a key/);

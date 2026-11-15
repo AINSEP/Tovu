@@ -40,10 +40,10 @@ export interface FileBlobIndexPort {
   /** Records (or replaces) where `sha256`'s bytes live right now. Bumps recency like a fresh insert
    *  always would, even when `sha256` was already present — a re-pack of an unmoved file is still
    *  "just touched". */
-  set(sha256: string, entry: FileBlobIndexEntry): void;
+  set(required: { sha256: string; entry: FileBlobIndexEntry }, optional?: Record<string, never>): void;
   /** The entry for `sha256`, or `undefined` when it was never recorded or has since been evicted.
    *  Bumps recency on a hit (this file's own header, "why reads count too"). */
-  get(sha256: string): FileBlobIndexEntry | undefined;
+  get(required: { sha256: string }, optional?: Record<string, never>): FileBlobIndexEntry | undefined;
   /** Current entry count — exposed for tests and diagnostics, never used to drive eviction from
    *  outside this module (eviction is this module's own invariant to hold, not a caller's). */
   readonly size: number;
@@ -64,7 +64,7 @@ export const FILE_BLOB_INDEX_MAX_ENTRIES = 20_000;
  * touched entry is therefore always the map's own first key — no separate doubly-linked-list
  * bookkeeping is needed for an LRU this simple.
  *
- * @param maxEntries - Test seam / operator override for {@link FILE_BLOB_INDEX_MAX_ENTRIES}. Must be
+ * @param optional.maxEntries - Test seam / operator override for {@link FILE_BLOB_INDEX_MAX_ENTRIES}. Must be
  *   at least 1; a non-positive cap would make every `set()` immediately evict what it just inserted,
  *   which is never a caller's real intent, so it is refused rather than silently producing an
  *   always-empty index.
@@ -72,14 +72,14 @@ export const FILE_BLOB_INDEX_MAX_ENTRIES = 20_000;
  * @complexity Every operation is O(1) amortized (a `Map` delete+set / get / delete), matching a real
  *   LRU's own bound.
  */
-export function createFileBlobIndex(maxEntries: number = FILE_BLOB_INDEX_MAX_ENTRIES): FileBlobIndexPort {
+export function createFileBlobIndex(_required: Record<string, never> = {}, { maxEntries = FILE_BLOB_INDEX_MAX_ENTRIES }: { maxEntries?: number } = {}): FileBlobIndexPort {
   if (!Number.isInteger(maxEntries) || maxEntries < 1) {
     throw new RangeError(`createFileBlobIndex: maxEntries must be a positive integer, got ${maxEntries}`);
   }
 
   const entries = new Map<string, FileBlobIndexEntry>();
 
-  function touch(sha256: string, entry: FileBlobIndexEntry): void {
+  function touch({ sha256, entry }: { sha256: string; entry: FileBlobIndexEntry }, _optional = {}): void {
     // Re-inserting an existing key does not itself move a `Map` key's iteration position — only a
     // fresh `set` on a key that is not already present appends. Deleting first is what makes a
     // re-touch of an existing key move it to the end, exactly like a real insert would.
@@ -88,18 +88,18 @@ export function createFileBlobIndex(maxEntries: number = FILE_BLOB_INDEX_MAX_ENT
   }
 
   return {
-    set(sha256, entry) {
-      touch(sha256, entry);
+    set({ sha256, entry }) {
+      touch({ sha256, entry });
       while (entries.size > maxEntries) {
         const oldest = entries.keys().next().value;
         if (oldest === undefined) break;
         entries.delete(oldest);
       }
     },
-    get(sha256) {
+    get({ sha256 }) {
       const found = entries.get(sha256);
       if (found === undefined) return undefined;
-      touch(sha256, found);
+      touch({ sha256, entry: found });
       return found;
     },
     get size() {

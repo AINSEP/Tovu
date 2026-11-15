@@ -117,8 +117,8 @@ test("agent file tools and publish trees deny the secret by name, at any depth",
   assert.equal(isDeniedFsFileName({ fileName: STORAGE_SECRET_FILENAME }), true);
   assert.equal(isDeniedFsFileName({ fileName: ".Storage-Secret.json" }), true, "case-folded like every other entry");
   assert.equal(isDeniedFsFileName({ fileName: `.${STORAGE_SECRET_FILENAME}.123.abc.tmp` }), true, "a crashed write's temp file too");
-  assert.match(checkTreePath(STORAGE_SECRET_FILENAME) ?? "", /sealed database connection string/);
-  assert.match(checkTreePath(`nested/dir/${STORAGE_SECRET_FILENAME}`) ?? "", /sealed database connection string/);
+  assert.match(checkTreePath({ relPath: STORAGE_SECRET_FILENAME }) ?? "", /sealed database connection string/);
+  assert.match(checkTreePath({ relPath: `nested/dir/${STORAGE_SECRET_FILENAME}` }) ?? "", /sealed database connection string/);
 });
 
 test("git ignores the secret in any site folder (sites/ is tracked and deployed from git)", (t) => {

@@ -104,7 +104,7 @@ test("a static export of the site writes no trace of the pre-migrations copy", a
 test("agent file tools and publish trees deny the copy and its sidecars by name", () => {
   for (const name of [COPY_NAME, `${COPY_NAME}-wal`, `${COPY_NAME}-shm`]) {
     assert.equal(isDeniedFsFileName({ fileName: name }), true, `${name} is denied to agent file tools`);
-    assert.notEqual(checkTreePath(`ops/${name}`), null, `${name} is refused in a publish tree`);
+    assert.notEqual(checkTreePath({ relPath: `ops/${name}` }), null, `${name} is refused in a publish tree`);
   }
 });
 

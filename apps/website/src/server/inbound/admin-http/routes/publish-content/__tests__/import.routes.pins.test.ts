@@ -79,7 +79,7 @@ async function rawRowPlanDeps(t: TestContext, bundleRepo: InMemoryPublishContent
   assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };
   const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
-    contentHash: contentHash("raw-row", state), requiredBlobs: [], state,
+    contentHash: contentHash({ entityType: "raw-row", state }), requiredBlobs: [], state,
     backstop: { mode: "backstop", reason: "Emergency footer fix", sourceActor: "owner", destinationHost: "live.example", gapLabels: ["table:p_banner"] } };
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00Z"), nowIso: () => "2026-10-04T00:00:00.000Z" };
   let serial = 0;

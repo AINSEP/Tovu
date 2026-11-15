@@ -141,7 +141,7 @@ export function sqliteContentSite() {
     terms: new SqliteTermRepo({ db, workspaceId }),
     entryTerms: new SqliteEntryTermRepo({ db, workspaceId }),
     settings: new SqliteSettingsRepo(db),
-    presentation: new SqlitePresentationSettingsRepo(db),
+    presentation: new SqlitePresentationSettingsRepo({ store: db }),
     /** The site's discovered themes; a test pushes stand-ins. */
     themes: [] as DiscoveredTheme[],
   };

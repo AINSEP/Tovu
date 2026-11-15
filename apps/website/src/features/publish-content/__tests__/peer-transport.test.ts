@@ -140,10 +140,7 @@ test("the same diagnosis is produced for a push, not only a pull", async () => {
 });
 
 test("describePeerEgressRefusal names the bracket-stripped IPv6 host exactly as an allowlist entry is written", () => {
-  const described = describePeerEgressRefusal(
-    new EgressRefusedError({ message: "full" }, { callerSafeMessage: "refused" }),
-    "https://[fd00::1]:3000"
-  );
+  const described = describePeerEgressRefusal({ err: new EgressRefusedError({ message: "full" }, { callerSafeMessage: "refused" }), baseUrl: "https://[fd00::1]:3000" });
   assert.match(described.message, /add 'fd00::1'/);
   assert.equal(described.message.includes("["), false);
 });
@@ -737,7 +734,7 @@ test("pull labels an envelope with no sourceLabel after the saved peer", async (
 });
 
 test("a transport error raised inside the http client passes through unchanged, not re-wrapped as unreachable", async () => {
-  const original = new PublishContentPeerTransportError("the peer refused the upload size", "PEER_RESPONSE_INVALID");
+  const original = new PublishContentPeerTransportError({ message: "the peer refused the upload size", code: "PEER_RESPONSE_INVALID" });
   const http: HttpClientPort = { send: async () => { throw original; } };
   await assert.rejects(pullBundleFromPeer({ httpClient: http, credential: CREDENTIAL }), (err: unknown) => err === original);
 });

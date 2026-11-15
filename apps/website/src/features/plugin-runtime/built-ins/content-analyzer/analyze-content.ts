@@ -113,13 +113,13 @@ export function analyzeContent(required: AnalyzeContentRequired, optional: Analy
   const images = blocks.filter((b): b is Extract<ContentBlock, { kind: "image" }> => b.kind === "image");
 
   const checks: ContentCheck[] = [
-    checkTitleLength(title),
-    checkMetaDescription(metaDescription),
-    checkImageAlt(images),
-    checkHeadingOrder(headings),
-    checkSingleH1(headings),
-    checkContentLength(prose.words),
-    checkSubheadings(prose.words, headings),
+    checkTitleLength({ title }),
+    checkMetaDescription({ metaDescription }),
+    checkImageAlt({ images }),
+    checkHeadingOrder({ headings }),
+    checkSingleH1({ headings }),
+    checkContentLength({ words: prose.words }),
+    checkSubheadings({ words: prose.words, headings }),
   ];
 
   return {
@@ -130,7 +130,7 @@ export function analyzeContent(required: AnalyzeContentRequired, optional: Analy
     // ceil() already yields >= 1 for any positive word count.
     readingTimeMinutes: prose.words > 0 ? Math.ceil(prose.words / DEFAULT_WORDS_PER_MINUTE) : 0,
     readability: readability(prose),
-    toc: buildToc(headings),
+    toc: buildToc({ headings }),
     checks,
   };
 }
@@ -147,7 +147,7 @@ function measureProse(blocks: readonly ContentBlock[]): ProseStats {
     if (block.kind !== "text") continue;
     const tokens = block.text.split(/\s+/).filter((token) => WORD_CHAR.test(token));
     stats.words += tokens.length;
-    for (const token of tokens) stats.syllables += countSyllables(token);
+    for (const token of tokens) stats.syllables += countSyllables({ word: token });
     stats.sentences += block.text.split(SENTENCE_BREAK).filter((segment) => WORD_CHAR.test(segment)).length;
   }
   return stats;
@@ -158,11 +158,11 @@ function measureProse(blocks: readonly ContentBlock[]): ProseStats {
  * syllable of a consonant + "le" ending, as in "table"), count vowel groups (`y` included),
  * minimum 1 per word.
  *
- * @param word - One token; punctuation and digits are ignored.
+ * @param required.word - One token; punctuation and digits are ignored.
  * @returns The estimated syllable count, always >= 1.
  * @complexity O(word.length).
  */
-export function countSyllables(word: string): number {
+export function countSyllables({ word }: { word: string }, _optional = {}): number {
   let letters = word.toLowerCase().replace(/[^a-z]/g, "");
   if (letters.length > 2 && letters.endsWith("e") && !/[^aeiouy]le$/.test(letters)) {
     letters = letters.slice(0, -1);
@@ -171,7 +171,7 @@ export function countSyllables(word: string): number {
   return Math.max(1, groups);
 }
 
-function round1(value: number): number {
+function round1({ value }: { value: number }, _optional = {}): number {
   return Math.round(value * 10) / 10;
 }
 
@@ -180,9 +180,9 @@ function readability(prose: ProseStats): ContentAnalysisReport["readability"] {
   if (prose.words === 0) return { fleschReadingEase: 0, gradeLevel: 0, band: "standard" };
   const wordsPerSentence = prose.words / prose.sentences;
   const syllablesPerWord = prose.syllables / prose.words;
-  const ease = round1(Math.min(100, Math.max(0, 206.835 - 1.015 * wordsPerSentence - 84.6 * syllablesPerWord)));
-  const grade = round1(Math.max(0, 0.39 * wordsPerSentence + 11.8 * syllablesPerWord - 15.59));
-  return { fleschReadingEase: ease, gradeLevel: grade, band: bandFor(ease) };
+  const ease = round1({ value: Math.min(100, Math.max(0, 206.835 - 1.015 * wordsPerSentence - 84.6 * syllablesPerWord)) });
+  const grade = round1({ value: Math.max(0, 0.39 * wordsPerSentence + 11.8 * syllablesPerWord - 15.59) });
+  return { fleschReadingEase: ease, gradeLevel: grade, band: bandFor({ ease }) };
 }
 
 const BAND_FLOORS: ReadonlyArray<readonly [number, ReadabilityBand]> = [
@@ -194,11 +194,11 @@ const BAND_FLOORS: ReadonlyArray<readonly [number, ReadabilityBand]> = [
   [30, "difficult"],
 ];
 
-function bandFor(ease: number): ReadabilityBand {
+function bandFor({ ease }: { ease: number }, _optional = {}): ReadabilityBand {
   return BAND_FLOORS.find(([floor]) => ease >= floor)?.[1] ?? "very-difficult";
 }
 
-function checkTitleLength(title: string): ContentCheck {
+function checkTitleLength({ title }: { title: string }, _optional = {}): ContentCheck {
   // Code points, not UTF-16 units, so an emoji counts as one character.
   const length = [...title.trim()].length;
   const params = { length, min: TITLE_MIN, max: TITLE_MAX };
@@ -207,7 +207,7 @@ function checkTitleLength(title: string): ContentCheck {
   return { id: "title-length", status: "pass", params };
 }
 
-function checkMetaDescription(metaDescription: string | undefined): ContentCheck {
+function checkMetaDescription({ metaDescription }: { metaDescription: string | undefined }, _optional = {}): ContentCheck {
   const trimmed = metaDescription?.trim() ?? "";
   if (trimmed === "") return { id: "meta-description-length", status: "skip", params: {} };
   const length = [...trimmed].length;
@@ -215,12 +215,12 @@ function checkMetaDescription(metaDescription: string | undefined): ContentCheck
   return { id: "meta-description-length", status, params: { length, min: META_MIN, max: META_MAX } };
 }
 
-function checkImageAlt(images: ReadonlyArray<{ alt: string | null }>): ContentCheck {
+function checkImageAlt({ images }: { images: ReadonlyArray<{ alt: string | null }> }, _optional = {}): ContentCheck {
   const missing = images.filter((image) => (image.alt ?? "").trim() === "").length;
   return { id: "image-alt", status: missing > 0 ? "fail" : "pass", params: { images: images.length, missing } };
 }
 
-function checkHeadingOrder(headings: ReadonlyArray<{ level: HeadingLevel; text: string }>): ContentCheck {
+function checkHeadingOrder({ headings }: { headings: ReadonlyArray<{ level: HeadingLevel; text: string }> }, _optional = {}): ContentCheck {
   // The post title is the page's H1, so the walk starts at level 1: a first body heading of H3
   // already skips H2.
   let previous = 1;
@@ -233,19 +233,19 @@ function checkHeadingOrder(headings: ReadonlyArray<{ level: HeadingLevel; text: 
   return { id: "heading-order", status: "pass", params: {} };
 }
 
-function checkSingleH1(headings: ReadonlyArray<{ level: HeadingLevel }>): ContentCheck {
+function checkSingleH1({ headings }: { headings: ReadonlyArray<{ level: HeadingLevel }> }, _optional = {}): ContentCheck {
   // The post title already renders as the page H1, so ANY body H1 is a second one.
   const h1 = headings.filter((heading) => heading.level === 1).length;
   return { id: "single-h1", status: h1 > 0 ? "warn" : "pass", params: { h1 } };
 }
 
-function checkContentLength(words: number): ContentCheck {
+function checkContentLength({ words }: { words: number }, _optional = {}): ContentCheck {
   const params = { words, min: CONTENT_MIN_WORDS };
   if (words === 0) return { id: "content-length", status: "fail", params };
   return { id: "content-length", status: words < CONTENT_MIN_WORDS ? "warn" : "pass", params };
 }
 
-function checkSubheadings(words: number, headings: ReadonlyArray<{ level: HeadingLevel }>): ContentCheck {
+function checkSubheadings({ words, headings }: { words: number; headings: ReadonlyArray<{ level: HeadingLevel }> }, _optional = {}): ContentCheck {
   const hasSubheading = headings.some((heading) => heading.level >= 2);
   const status = words >= CONTENT_MIN_WORDS && !hasSubheading ? "warn" : "pass";
   return { id: "subheadings", status, params: status === "warn" ? { words } : {} };
@@ -260,7 +260,7 @@ function scoreChecks(checks: readonly ContentCheck[]): number {
 /**
  * Uses the renderer's slug function so transliteration and empty headings match emitted ids.
  */
-function buildToc(headings: ReadonlyArray<{ level: HeadingLevel; text: string }>): TocEntry[] {
+function buildToc({ headings }: { headings: ReadonlyArray<{ level: HeadingLevel; text: string }> }, _optional = {}): TocEntry[] {
   const used = new Set<string>();
   const toc: TocEntry[] = [];
   for (const heading of headings) {

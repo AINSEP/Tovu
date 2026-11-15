@@ -211,7 +211,7 @@ test('gallery image dependencies and their blobs accompany a scoped page export'
       bodyHtml: `<div data-embed-config='{"type":"gallery","layout":"grid","images":[{"mediaId":"m1","alt":"Logo"},{"mediaId":"m2","alt":"Hero"},{"mediaId":"m1","alt":"Again"}]}'></div>`,
     })],
   };
-  const { envelope, includedFor } = includeReferencedEntities(applyPublishScope(source, { entityTypes: ['page'] }), source, REF_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: applyPublishScope(source, { entityTypes: ['page'] }), source, handlers: REF_HANDLERS });
   assert.deepEqual(envelope.entities.map(e => entityKey(e.entityType, e.id)).sort(), ['media:m1', 'media:m2', 'page:gallery-page']);
   assert.deepEqual([...envelope.blobManifest].sort(), ['sha-a', 'sha-b']);
   assert.deepEqual(Object.fromEntries(includedFor), { 'media:m1': ['page:gallery-page'], 'media:m2': ['page:gallery-page'] });
@@ -219,7 +219,7 @@ test('gallery image dependencies and their blobs accompany a scoped page export'
 
 test("includeReferencedEntities adds exactly the media the kept pages reference, by id or slug", () => {
   const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page"] });
-  const { envelope, includedFor } = includeReferencedEntities(scoped, REF_SOURCE, REF_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: scoped, source: REF_SOURCE, handlers: REF_HANDLERS });
 
   assert.deepEqual(
     envelope.entities.map((e) => entityKey(e.entityType, e.id)).sort(),
@@ -232,7 +232,7 @@ test("includeReferencedEntities adds exactly the media the kept pages reference,
 test("includeReferencedEntities follows the operator's row selection — a deselected page brings nothing", () => {
   const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page"] });
   const selected = selectBundleEntities(scoped, new Set([entityKey("page", "pg1")]));
-  const { envelope, includedFor } = includeReferencedEntities(selected, REF_SOURCE, REF_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: selected, source: REF_SOURCE, handlers: REF_HANDLERS });
 
   assert.deepEqual(envelope.entities.map((e) => entityKey(e.entityType, e.id)).sort(), ["media:m1", "page:pg1"]);
   assert.deepEqual(Object.fromEntries(includedFor), { "media:m1": ["page:pg1"] });
@@ -240,7 +240,7 @@ test("includeReferencedEntities follows the operator's row selection — a desel
 
 test("includeReferencedEntities never reads references off a type whose handler has no references()", () => {
   const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["redirect"] });
-  const { envelope, includedFor } = includeReferencedEntities(scoped, REF_SOURCE, REF_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: scoped, source: REF_SOURCE, handlers: REF_HANDLERS });
 
   assert.deepEqual(envelope.entities.map((e) => e.id), ["r1"]);
   assert.equal(includedFor.size, 0);
@@ -248,7 +248,7 @@ test("includeReferencedEntities never reads references off a type whose handler 
 
 test("includeReferencedEntities leaves a media row the bundle already holds as an ordinary row", () => {
   const scoped = applyPublishScope(REF_SOURCE, { entityTypes: ["page", "media"] });
-  const { envelope, includedFor } = includeReferencedEntities(scoped, REF_SOURCE, REF_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: scoped, source: REF_SOURCE, handlers: REF_HANDLERS });
 
   assert.equal(envelope.entities.length, scoped.entities.length, "nothing is added twice");
   assert.equal(includedFor.size, 0, "an in-scope media row is the operator's own choice, not an add-on");
@@ -281,7 +281,7 @@ const CHAIN_SOURCE: PublishContentExportEnvelope = {
 
 test("includeReferencedEntities follows carried rows' own references, naming the in-scope roots for each", () => {
   const scoped = applyPublishScope(CHAIN_SOURCE, { entityTypes: ["page", "widget-area"] });
-  const { envelope, includedFor } = includeReferencedEntities(scoped, CHAIN_SOURCE, CHAIN_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: scoped, source: CHAIN_SOURCE, handlers: CHAIN_HANDLERS });
 
   assert.deepEqual(
     envelope.entities.map((e) => entityKey(e.entityType, e.id)),
@@ -296,7 +296,7 @@ test("includeReferencedEntities follows carried rows' own references, naming the
 
 test("includeReferencedEntities does not walk through a row the bundle already holds", () => {
   const scoped = applyPublishScope(CHAIN_SOURCE, { entityTypes: ["widget", "widget-area"] });
-  const { envelope, includedFor } = includeReferencedEntities(scoped, CHAIN_SOURCE, CHAIN_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: scoped, source: CHAIN_SOURCE, handlers: CHAIN_HANDLERS });
 
   assert.deepEqual(envelope.entities.map((e) => entityKey(e.entityType, e.id)), ["form:contact", "widget:w1", "widget-area:sidebar"]);
   assert.deepEqual(Object.fromEntries(includedFor), { "form:contact": ["widget:w1"] }, "the form is the widget's, not the area's");
@@ -304,7 +304,7 @@ test("includeReferencedEntities does not walk through a row the bundle already h
 
 test("includeReferencedEntities stops on a reference cycle instead of looping", () => {
   const scoped = selectBundleEntities(CHAIN_SOURCE, new Set([entityKey("term", "t1")]));
-  const { envelope, includedFor } = includeReferencedEntities(scoped, CHAIN_SOURCE, CHAIN_HANDLERS);
+  const { envelope, includedFor } = includeReferencedEntities({ envelope: scoped, source: CHAIN_SOURCE, handlers: CHAIN_HANDLERS });
 
   assert.deepEqual(envelope.entities.map((e) => entityKey(e.entityType, e.id)), ["term:t2", "term:t3", "term:t1"]);
   assert.deepEqual(Object.fromEntries(includedFor), { "term:t2": ["term:t1"], "term:t3": ["term:t1"] });
@@ -317,11 +317,11 @@ test("L163 reference traversal keeps depth-first order, deduplicates cycles, and
     ["page", { references: () => [{ entityType: "media", key: "absent" }, { entityType: "media", key: "one" }, { entityType: "media", key: "two" }] }],
     ["media", { references: () => [{ entityType: "media", key: "one" }, { entityType: "media", key: "two" }] }],
   ]);
-  const result = includeReferencedEntities({ ...ENVELOPE, entities: roots }, source, handlers);
+  const result = includeReferencedEntities({ envelope: { ...ENVELOPE, entities: roots }, source, handlers });
   assert.deepEqual(result.envelope.entities.map(e => entityKey(e.entityType, e.id)), ["media:two", "media:one", "page:z", "page:a"]);
   assert.deepEqual(result.envelope.blobManifest, ["second", "first"]);
   assert.deepEqual([...result.includedFor], [["media:two", ["page:a", "page:z"]], ["media:one", ["page:a", "page:z"]]]);
-  const unchanged = includeReferencedEntities(source, source, new Map());
+  const unchanged = includeReferencedEntities({ envelope: source, source, handlers: new Map() });
   assert.equal(unchanged.envelope, source);
   assert.equal(unchanged.includedFor.size, 0);
 });

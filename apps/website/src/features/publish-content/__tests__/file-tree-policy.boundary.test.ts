@@ -72,33 +72,33 @@ test("checkTreePath blocks every deny-listed segment, name and extension", () =>
     ["data.db-shm", "has a '.db-shm' extension, which is never published"],
   ];
   for (const [relPath, reason] of cases) {
-    assert.equal(checkTreePath(relPath), `"${relPath}" ${reason}`);
+    assert.equal(checkTreePath({ relPath }), `"${relPath}" ${reason}`);
   }
 });
 
 test("checkTreePath blocks config.json/.site-meta.json only at tree root, not nested", () => {
-  assert.ok(checkTreePath("config.json") !== null);
-  assert.ok(checkTreePath(".site-meta.json") !== null);
-  assert.equal(checkTreePath("fixtures/config.json"), null);
-  assert.equal(checkTreePath("fixtures/.site-meta.json"), null);
+  assert.ok(checkTreePath({ relPath: "config.json" }) !== null);
+  assert.ok(checkTreePath({ relPath: ".site-meta.json" }) !== null);
+  assert.equal(checkTreePath({ relPath: "fixtures/config.json" }), null);
+  assert.equal(checkTreePath({ relPath: "fixtures/.site-meta.json" }), null);
 });
 
 test("checkTreePath blocks path-shape violations (.., leading /, backslash, depth, length, empty segment)", () => {
-  assert.ok(checkTreePath("../x") !== null);
-  assert.ok(checkTreePath("a/../b") !== null);
-  assert.ok(checkTreePath("./a") !== null);
-  assert.ok(checkTreePath("/abs/path") !== null);
-  assert.ok(checkTreePath("a\\b") !== null);
-  assert.ok(checkTreePath("a//b") !== null); // empty segment
-  assert.ok(checkTreePath("") !== null);
-  assert.ok(checkTreePath("a".repeat(600)) !== null);
-  assert.ok(checkTreePath(Array.from({ length: 17 }, (_, i) => `d${i}`).join("/")) !== null);
+  assert.ok(checkTreePath({ relPath: "../x" }) !== null);
+  assert.ok(checkTreePath({ relPath: "a/../b" }) !== null);
+  assert.ok(checkTreePath({ relPath: "./a" }) !== null);
+  assert.ok(checkTreePath({ relPath: "/abs/path" }) !== null);
+  assert.ok(checkTreePath({ relPath: "a\\b" }) !== null);
+  assert.ok(checkTreePath({ relPath: "a//b" }) !== null); // empty segment
+  assert.ok(checkTreePath({ relPath: "" }) !== null);
+  assert.ok(checkTreePath({ relPath: "a".repeat(600) }) !== null);
+  assert.ok(checkTreePath({ relPath: Array.from({ length: 17 }, (_, i) => `d${i}`).join("/") }) !== null);
 });
 
 test("checkTreePath accepts an ordinary theme source path", () => {
-  assert.equal(checkTreePath("render/pages/index.html"), null);
-  assert.equal(checkTreePath("theme.json"), null);
-  assert.equal(checkTreePath("preview/screenshot.png"), null);
+  assert.equal(checkTreePath({ relPath: "render/pages/index.html" }), null);
+  assert.equal(checkTreePath({ relPath: "theme.json" }), null);
+  assert.equal(checkTreePath({ relPath: "preview/screenshot.png" }), null);
 });
 
 // OS junk files are IGNORED (silently excluded before packing), never a whole-tree DENY reason —
@@ -106,19 +106,19 @@ test("checkTreePath accepts an ordinary theme source path", () => {
 // a walker (`walkThemeTree`) is what keeps it out of a tree at all; `checkTreePath` on its own is a
 // per-path shape check a caller could still run directly.
 test("isIgnoredTreeFileName recognizes every documented OS junk name", () => {
-  assert.ok(isIgnoredTreeFileName(".DS_Store"));
-  assert.ok(isIgnoredTreeFileName("Thumbs.db"));
-  assert.ok(isIgnoredTreeFileName("desktop.ini"));
-  assert.ok(isIgnoredTreeFileName("._resource-fork"));
-  assert.ok(isIgnoredTreeFileName(".Spotlight-V100"));
-  assert.ok(isIgnoredTreeFileName(".Trashes"));
-  assert.equal(isIgnoredTreeFileName("theme.json"), false);
-  assert.equal(isIgnoredTreeFileName(".env"), false);
+  assert.ok(isIgnoredTreeFileName({ name: ".DS_Store" }));
+  assert.ok(isIgnoredTreeFileName({ name: "Thumbs.db" }));
+  assert.ok(isIgnoredTreeFileName({ name: "desktop.ini" }));
+  assert.ok(isIgnoredTreeFileName({ name: "._resource-fork" }));
+  assert.ok(isIgnoredTreeFileName({ name: ".Spotlight-V100" }));
+  assert.ok(isIgnoredTreeFileName({ name: ".Trashes" }));
+  assert.equal(isIgnoredTreeFileName({ name: "theme.json" }), false);
+  assert.equal(isIgnoredTreeFileName({ name: ".env" }), false);
 });
 
 test("checkTreePath no longer blocks a .DS_Store path — it is ignored upstream, not denied here", () => {
-  assert.equal(checkTreePath(".DS_Store"), null);
-  assert.equal(checkTreePath("render/.DS_Store"), null);
+  assert.equal(checkTreePath({ relPath: ".DS_Store" }), null);
+  assert.equal(checkTreePath({ relPath: "render/.DS_Store" }), null);
 });
 
 // The walker is the ONE place junk is ignored. `checkTreeFiles` also runs on the destination over a
@@ -261,14 +261,14 @@ test("checkTreeFiles blocks a tree over the file-count cap", () => {
 });
 
 test("normalizeMode collapses any exec bit to 0o755 and everything else to 0o644", () => {
-  assert.equal(normalizeMode(0o644), 0o644);
-  assert.equal(normalizeMode(0o600), 0o644);
-  assert.equal(normalizeMode(0o755), 0o755);
-  assert.equal(normalizeMode(0o700), 0o755);
+  assert.equal(normalizeMode({ mode: 0o644 }), 0o644);
+  assert.equal(normalizeMode({ mode: 0o600 }), 0o644);
+  assert.equal(normalizeMode({ mode: 0o755 }), 0o755);
+  assert.equal(normalizeMode({ mode: 0o700 }), 0o755);
   // setuid + world-writable + exec — must still collapse to plain 0o755, never carry setuid through.
-  assert.equal(normalizeMode(0o4777), 0o755);
+  assert.equal(normalizeMode({ mode: 0o4777 }), 0o755);
   // setuid with no exec bit at all — collapses to plain 0o644, never carries setuid through either.
-  assert.equal(normalizeMode(0o4666), 0o644);
+  assert.equal(normalizeMode({ mode: 0o4666 }), 0o644);
 });
 
 test("resolveTreeRelativePath rejects a wrong segment count and an invalid segment", () => {
@@ -280,32 +280,32 @@ test("resolveTreeRelativePath rejects a wrong segment count and an invalid segme
 });
 
 test("checkMcpJsonSecretPlaceholders allows empty/placeholder env values and blocks a literal token", () => {
-  assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify({ env: { API_KEY: "${API_KEY}", OTHER: "" } })), null);
-  const blocked = checkMcpJsonSecretPlaceholders(JSON.stringify({ env: { API_KEY: "sk-live-abc123" } }));
+  assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify({ env: { API_KEY: "${API_KEY}", OTHER: "" } }) }), null);
+  const blocked = checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify({ env: { API_KEY: "sk-live-abc123" } }) });
   assert.match(blocked ?? "", /move it to live's settings/);
-  assert.equal(checkMcpJsonSecretPlaceholders("not json"), null);
+  assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: "not json" }), null);
 });
 
 test("MCP headers must be empty or placeholders, never literal credentials", () => {
-  assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify({ headers: { Authorization: "${TOKEN}", Empty: "" } })), null);
+  assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify({ headers: { Authorization: "${TOKEN}", Empty: "" } }) }), null);
   assert.equal(
-    checkMcpJsonSecretPlaceholders(JSON.stringify({ headers: { Authorization: "Bearer literal-token" } })),
+    checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify({ headers: { Authorization: "Bearer literal-token" } }) }),
     "has a key written into mcp.json (headers.Authorization); move it to live's settings"
   );
 });
 
 test("NUL paths and sealed storage-secret filenames are refused", () => {
-  assert.equal(checkTreePath("a\0b.json"), '"a\0b.json" contains a NUL byte');
+  assert.equal(checkTreePath({ relPath: "a\0b.json" }), '"a\0b.json" contains a NUL byte');
   for (const name of [".storage-secret.json", "nested/.storage-secret.json", ".storage-secret.json.bak"]) {
-    assert.equal(checkTreePath(name), `"${name}" is a site's sealed database connection string`);
+    assert.equal(checkTreePath({ relPath: name }), `"${name}" is a site's sealed database connection string`);
   }
 });
 
 test("wrapTreePolicyReason prefixes ordinary reasons and preserves final reasons", () => {
-  assert.equal(wrapTreePolicyReason("Theme: static/basic", '".env" looks like an environment file'),
+  assert.equal(wrapTreePolicyReason({ title: "Theme: static/basic", reason: '".env" looks like an environment file' }),
     'Theme: static/basic was not published: ".env" looks like an environment file');
   const finalReason = "Can't publish: contains a video file (hero.mp4)";
-  assert.equal(wrapTreePolicyReason("Theme: static/basic", finalReason), finalReason);
+  assert.equal(wrapTreePolicyReason({ title: "Theme: static/basic", reason: finalReason }), finalReason);
 });
 
 test("THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real static/tovu-theme theme", (t) => {
@@ -332,7 +332,7 @@ function listFilesRecursive(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
     // Mirrors `walkThemeTree`: Finder recreates `.DS_Store` in a real theme folder on its own.
-    if (isIgnoredTreeFileName(name)) continue;
+    if (isIgnoredTreeFileName({ name })) continue;
     const full = path.join(dir, name);
     if (statSync(full).isDirectory()) out.push(...listFilesRecursive(full));
     else out.push(full);

@@ -16,9 +16,9 @@ test("L044 path checks preserve shape, segment, name and extension precedence", 
     ["a.PFX", '"a.PFX" has a \'.pfx\' extension, which is never published'],
     ["nested/config.json", null], ["ok.html", null],
   ];
-  for (const [value, expected] of cases) assert.equal(checkTreePath(value), expected);
-  assert.match(checkTreePath("x".repeat(513))!, /512-character/);
-  assert.match(checkTreePath(Array(17).fill("x").join("/"))!, /16-level/);
+  for (const [value, expected] of cases) assert.equal(checkTreePath({ relPath: value }), expected);
+  assert.match(checkTreePath({ relPath: "x".repeat(513) })!, /512-character/);
+  assert.match(checkTreePath({ relPath: Array(17).fill("x").join("/") })!, /16-level/);
 });
 
 test("L044 tree checks preserve aggregate caps, collision ordering, extension and scan boundaries", () => {
@@ -40,23 +40,23 @@ test("L044 tree checks preserve aggregate caps, collision ordering, extension an
 
 test("L044 MCP scan checks nested literals while preserving malformed JSON handling", () => {
   for (const value of ["{", "null", "3", '{"env":null}']) {
-    assert.equal(checkMcpJsonSecretPlaceholders(value), null);
+    assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: value }), null);
   }
-  assert.equal(checkMcpJsonSecretPlaceholders('{"env":{"empty":"","placeholder":"${TOKEN}","number":1}}'), null);
-  assert.match(checkMcpJsonSecretPlaceholders('{"env":{"first":"literal"},"headers":{"second":"literal"}}')!, /env.first/);
-  assert.match(checkMcpJsonSecretPlaceholders('{"headers":{"second":"literal"}}')!, /headers.second/);
+  assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: '{"env":{"empty":"","placeholder":"${TOKEN}","number":1}}' }), null);
+  assert.match(checkMcpJsonSecretPlaceholders({ jsonText: '{"env":{"first":"literal"},"headers":{"second":"literal"}}' })!, /env.first/);
+  assert.match(checkMcpJsonSecretPlaceholders({ jsonText: '{"headers":{"second":"literal"}}' })!, /headers.second/);
   for (const section of ["env", "headers"]) {
     const nested = { [section]: { nested: [{ key: "literal" }] } };
-    assert.match(checkMcpJsonSecretPlaceholders(JSON.stringify(nested))!, new RegExp(`${section}\\.nested\\.0\\.key`));
-    assert.match(checkMcpJsonSecretPlaceholders(JSON.stringify({ mcpServers: { helper: nested } }))!, /mcpServers.helper/);
+    assert.match(checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify(nested) })!, new RegExp(`${section}\\.nested\\.0\\.key`));
+    assert.match(checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify({ mcpServers: { helper: nested } }) })!, /mcpServers.helper/);
     const safe = { [section]: { nested: [{ key: "${TOKEN}", empty: "", number: 1 }] } };
-    assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify({ mcpServers: { helper: safe } })), null);
+    assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify({ mcpServers: { helper: safe } }) }), null);
   }
 });
 
 test("L044 SSH basenames require an exact name or a literal dot suffix", () => {
-  for (const name of ["id_rsa", "id_rsa.bak", "id_ed25519", "id_ed25519.bak"]) assert.match(checkTreePath(name)!, /private SSH key/);
-  for (const name of ["id_rsax", "id_ed25519x", "id_rsa\n", "id_ed25519\n"]) assert.equal(checkTreePath(name), null);
+  for (const name of ["id_rsa", "id_rsa.bak", "id_ed25519", "id_ed25519.bak"]) assert.match(checkTreePath({ relPath: name })!, /private SSH key/);
+  for (const name of ["id_rsax", "id_ed25519x", "id_rsa\n", "id_ed25519\n"]) assert.equal(checkTreePath({ relPath: name }), null);
 });
 
 test("L044 absent text samples block qualifying files instead of bypassing the secret scan", () => {
@@ -83,7 +83,7 @@ test("security cleanup pins MCP traversal order, primitive leaves and section bo
     [null, null], [7, null], ["literal", null], [{}, null],
   ];
   for (const [value, section] of cases) {
-    assert.equal(checkMcpJsonSecretPlaceholders(JSON.stringify(value)), section === null ? null
+    assert.equal(checkMcpJsonSecretPlaceholders({ jsonText: JSON.stringify(value) }), section === null ? null
       : `has a key written into mcp.json (${section}); move it to live's settings`);
   }
 });

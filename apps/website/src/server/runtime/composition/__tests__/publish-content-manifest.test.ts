@@ -145,7 +145,7 @@ for (const fixture of APPLY_FIXTURES) {
       else assert.equal(prior, undefined, "the target must not already exist");
 
       await handler.apply({ entity: { entityType: fixture.entityType, id: fixture.id, state: fixture.state,
-        schemaVersion: handler.schemaVersion, contentHash: contentHash(fixture.entityType, fixture.state), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [],
+        schemaVersion: handler.schemaVersion, contentHash: contentHash({ entityType: fixture.entityType, state: fixture.state }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [],
       }, expectedVersion: (await handler.inspect(fixture.id))?.version, principalId: "registry-operator", idempotencyKey: `registry-${fixture.entityType}` });
 
       const after = [];
@@ -180,7 +180,7 @@ test("the registered raw-row contributor creates a row readable through an indep
       values: { id: "article-1", title: "Registry raw article" } };
     assert.equal((site.db.$client.prepare("SELECT count(*) AS n FROM p_registry_article").get() as { n: number }).n, 0);
     await handler.apply({ entity: { entityType: "raw-row", id, state, schemaVersion: 1,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("raw-row", state), requiredBlobs: [],
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "raw-row", state }), requiredBlobs: [],
     }, principalId: "registry-operator", expectedVersion: undefined, idempotencyKey: "registry-raw-row" });
     assert.deepEqual(site.db.$client.prepare("SELECT id, title FROM p_registry_article").all(), [{ id: "article-1", title: "Registry raw article" }]);
   } finally {
@@ -209,7 +209,7 @@ test("the registered raw-file contributor creates the exact bytes on disk", asyn
     const state = { path: id, size: bytes.byteLength, sha256, mode: 0o644 };
     await assert.rejects(readFile(path.join(root, id)), { code: "ENOENT" });
     await handler.apply({ entity: { entityType: "raw-file", id, state, schemaVersion: 1,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("raw-file", state), requiredBlobs: [sha256],
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "raw-file", state }), requiredBlobs: [sha256],
     }, principalId: "registry-operator", expectedVersion: undefined, idempotencyKey: "registry-raw-file" });
     assert.deepEqual(await readFile(path.join(root, id)), bytes);
   } finally {
@@ -264,7 +264,7 @@ test("the registered media contributor's apply() is a real write path, not a thr
       entityType: "media",
       id: record.id,
       schemaVersion: 1,
-      contentHash: contentHash("media", { ...record }),
+      contentHash: contentHash({ entityType: "media", state: { ...record } }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [sha256],
       state: { ...record } as unknown as Record<string, unknown>,
@@ -382,7 +382,7 @@ test("the registered menu contributor's apply() is a real write path, not a thro
       entityType: "menu",
       id: "menu-header-nav",
       schemaVersion: 1,
-      contentHash: contentHash("menu", record),
+      contentHash: contentHash({ entityType: "menu", state: record }),
       hashVersion: CONTENT_HASH_VERSION,
       requiredBlobs: [],
       state: record as unknown as Record<string, unknown>,

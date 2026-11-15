@@ -16,7 +16,7 @@ const ID = "publish_content_publish";
 function post(id: string, title: string): PackedEntity {
   const state = { title, slug: title.toLowerCase().replaceAll(" ", "-"), status: "published", deletedAt: null };
   return { entityType: "post", id, schemaVersion: 1, hashVersion: 1, state,
-    contentHash: contentHash("post", state), requiredBlobs: [] };
+    contentHash: contentHash({ entityType: "post", state }), requiredBlobs: [] };
 }
 
 /** A fake network adapter hosts the real staging, planner, gateway and single-use token store.

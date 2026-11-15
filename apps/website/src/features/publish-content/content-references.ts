@@ -19,7 +19,7 @@ import type { PublishContentReference } from "./type-registry.js";
  */
 
 /** Adds `{entityType, key}` once. @complexity O(1). */
-function add(out: Map<string, PublishContentReference>, entityType: string, key: string): void {
+function add({ out, entityType, key }: { out: Map<string, PublishContentReference>; entityType: string; key: string }, _optional = {}): void {
   if (key.length > 0) out.set(`${entityType}:${key}`, { entityType, key });
 }
 
@@ -31,11 +31,11 @@ function add(out: Map<string, PublishContentReference>, entityType: string, key:
  */
 export function collectBodyReferences(state: Readonly<Record<string, unknown>>): readonly PublishContentReference[] {
   const out = new Map<string, PublishContentReference>();
-  for (const key of collectReferencedMediaKeys(state)) add(out, "media", key);
+  for (const key of collectReferencedMediaKeys(state)) add({ out, entityType: "media", key });
 
   // Ids are only echoed onto the rows; nothing here reads them.
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: state.bodyJson, fieldsExt: {} });
-  for (const row of rows) if (row.sourceKind === "widget-embed") add(out, "widget", row.targetId);
+  for (const row of rows) if (row.sourceKind === "widget-embed") add({ out, entityType: "widget", key: row.targetId });
 
   addHtmlWidgetReferences({ html: state.bodyHtml, out });
   addTermReferences({ termIds: state.termIds, out });
@@ -50,7 +50,7 @@ export function collectBodyReferences(state: Readonly<Record<string, unknown>>):
 export function collectPlacementReferences(state: Readonly<Record<string, unknown>>): readonly PublishContentReference[] {
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: { placements: state.placements }, fieldsExt: {} });
   const out = new Map<string, PublishContentReference>();
-  for (const row of rows) if (row.sourceKind === "widget-area-placement") add(out, "widget", row.targetId);
+  for (const row of rows) if (row.sourceKind === "widget-area-placement") add({ out, entityType: "widget", key: row.targetId });
   addPlacementMediaReferences({ placements: state.placements, out });
   return [...out.values()];
 }
@@ -60,19 +60,19 @@ function addHtmlWidgetReferences({ html, out }: { html: unknown; out: Map<string
   for (const marker of scanEmbedMarkers({ html }).markers) {
     if (marker.type.toLowerCase() !== "widget") continue;
     const target = embedMarkerTarget({ type: marker.type, config: marker.config });
-    if (target !== undefined && target.key !== "none") add(out, "widget", target.value);
+    if (target !== undefined && target.key !== "none") add({ out, entityType: "widget", key: target.value });
   }
 }
 
 function addTermReferences({ termIds, out }: { termIds: unknown; out: Map<string, PublishContentReference> }, _optional: Record<string, never> = {}): void {
   if (!Array.isArray(termIds)) return;
-  for (const id of termIds) if (typeof id === "string") add(out, "term", id);
+  for (const id of termIds) if (typeof id === "string") add({ out, entityType: "term", key: id });
 }
 
 function addPlacementMediaReferences({ placements, out }: { placements: unknown; out: Map<string, PublishContentReference> }, _optional: Record<string, never> = {}): void {
   if (!Array.isArray(placements)) return;
   for (const placement of placements) {
     if (typeof placement !== "object" || placement === null) continue;
-    for (const key of collectMediaConfigKeys({ config: (placement as Record<string, unknown>).content })) add(out, "media", key);
+    for (const key of collectMediaConfigKeys({ config: (placement as Record<string, unknown>).content })) add({ out, entityType: "media", key });
   }
 }

@@ -136,7 +136,7 @@ test("placed widgets with no explicit mode scan their items, and a config with n
 
 test("data-media-slug references in raw HTML count, in body HTML and in free text", () => {
   assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: '<p><img data-media-slug="body-slug"></p>' })], ["body-slug"]);
-  assert.ok(collectMediaUrlKeys('Intro <img data-media-slug="text-slug"> and /m/url-key/file.png').has("text-slug"));
+  assert.ok(collectMediaUrlKeys({ text: 'Intro <img data-media-slug="text-slug"> and /m/url-key/file.png' }).has("text-slug"));
 });
 
 test("a gallery marker with no images array contributes nothing and does not throw", () => {

@@ -21,14 +21,14 @@ export function buildProjectKeyRegistrations({ keys, authorize, loadCards, surfa
     if (!keys) throw new ToolInputError({ message: "This site has no project key store; keys saved here are used by this site at once." });
     return keys;
   };
-  const empty = (input: unknown) => {
+  const empty = ({ input }: { input: unknown }, _optional = {}) => {
     const value = input === undefined ? {} : requireInputRecord({ input });
     if (Object.keys(value).length) throw new ToolInputError({ message: "This tool takes no arguments." });
   };
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "project-keys", catalogModule: "features/project-keys/tools.ts",
     catalog: indexCatalogById({ catalog: projectKeysCatalog }), derivedRisk: projectKeysRisk, handlers: {
       project_keys_list: async ctx => {
-        empty(ctx.input);
+        empty({ input: ctx.input });
         await authorize({ ctx, permission: "custom-credentials.read" });
         return { keys: await available().listGranted({ cards: await loadCards() }) };
       },
@@ -45,7 +45,7 @@ export function buildProjectKeyRegistrations({ keys, authorize, loadCards, surfa
       // The shared Jini approval lifecycle freezes the call and binds the actor; no supervisor = no card.
       site_restart: approvalToolHandler({ surfaces,
         prepare: async ({ ctx }) => {
-          empty(ctx.input);
+          empty({ input: ctx.input });
           await authorize({ ctx, permission: "admin.plugins.enable" });
           return { restart };
         },

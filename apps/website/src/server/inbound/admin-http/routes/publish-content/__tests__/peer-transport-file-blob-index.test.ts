@@ -110,7 +110,7 @@ test("push/plan uploads a blob that exists only in the file index (never in the 
   const sha = sha256Of(Buffer.from(content));
 
   const fileBlobIndex = createFileBlobIndex();
-  fileBlobIndex.set(sha, { absPath: filePath, size: content.length });
+  fileBlobIndex.set({ sha256: sha, entry: { absPath: filePath, size: content.length } });
 
   const canaryEntity: PackedEntity = {
     entityType: "file-index-canary",

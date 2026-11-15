@@ -29,11 +29,11 @@ function openTempContentDb() {
 test("save (insert) -> restart-simulated (fresh repo instance against the same file) -> data still there", async () => {
   const { db, filePath, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqlitePresentationSettingsRepo(db);
+    const repo = new SqlitePresentationSettingsRepo({ store: db });
     await repo.save({ workspaceId: "ws-1", activeThemeId: "paper", updatedAt: "2026-07-15T00:00:00.000Z" });
 
     const dbAfterRestart = openContentDb(filePath);
-    const repoAfterRestart = new SqlitePresentationSettingsRepo(dbAfterRestart);
+    const repoAfterRestart = new SqlitePresentationSettingsRepo({ store: dbAfterRestart });
     const found = await repoAfterRestart.findByWorkspaceId({ workspaceId: "ws-1" });
     assert.ok(found);
     assert.equal(found?.activeThemeId, "paper");
@@ -46,7 +46,7 @@ test("save (insert) -> restart-simulated (fresh repo instance against the same f
 test("findByWorkspaceId returns null for a workspace with no presentation-settings row", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqlitePresentationSettingsRepo(db);
+    const repo = new SqlitePresentationSettingsRepo({ store: db });
     assert.equal(await repo.findByWorkspaceId({ workspaceId: "no-such-workspace" }), null);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -56,7 +56,7 @@ test("findByWorkspaceId returns null for a workspace with no presentation-settin
 test("save() on an existing workspaceId upserts in place — one real UPDATE, not a duplicate row", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqlitePresentationSettingsRepo(db);
+    const repo = new SqlitePresentationSettingsRepo({ store: db });
     await repo.save({ workspaceId: "ws-1", activeThemeId: "paper", updatedAt: "2026-07-15T00:00:00.000Z" });
     await repo.save({ workspaceId: "ws-1", activeThemeId: "atlas", updatedAt: "2026-07-16T00:00:00.000Z" });
 
@@ -77,7 +77,7 @@ test("save() on an existing workspaceId upserts in place — one real UPDATE, no
 test("workspace-scoping: findByWorkspaceId for ws-2 does not see ws-1's row, and listAll reports both", async () => {
   const { db, tmpDir } = openTempContentDb();
   try {
-    const repo = new SqlitePresentationSettingsRepo(db);
+    const repo = new SqlitePresentationSettingsRepo({ store: db });
     await repo.save({ workspaceId: "ws-1", activeThemeId: "paper", updatedAt: "2026-07-15T00:00:00.000Z" });
     await repo.save({ workspaceId: "ws-2", activeThemeId: "glassmorphic", updatedAt: "2026-07-15T00:00:01.000Z" });
 

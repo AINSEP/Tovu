@@ -134,7 +134,7 @@ test("a row without a schedule or featured image packs without either key", asyn
 test("toPublishableState agrees with the packed hash for a scheduled row (planRetire/retire hash it)", async () => {
   for (const row of [post(), post({ publishAt: PUBLISH_AT, featuredMediaId: FEATURED_MEDIA_ID })]) {
     const [entity] = await packAll([row]);
-    assert.equal(contentHash("post", toPublishableState(row)), entity?.contentHash);
+    assert.equal(contentHash({ entityType: "post", state: toPublishableState(row) }), entity?.contentHash);
   }
 });
 

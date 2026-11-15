@@ -137,7 +137,7 @@ async function packAndStage(fixture: Fixture, options: { skipSha?: string } = {}
   assert.ok(entity, "the source basic theme must pack");
   for (const sha256 of entity.requiredBlobs ?? []) {
     if (sha256 === options.skipSha) continue;
-    const indexed = fileBlobIndex.get(sha256);
+    const indexed = fileBlobIndex.get({ sha256 });
     assert.ok(indexed, "every transported digest must be indexed");
     const bytes = await readFile(indexed.absPath);
     await fixture.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes });
@@ -151,7 +151,7 @@ function handlerFor(deps: PublishContentDeps) {
 
 /** Re-hashes an entity whose state a test edited, so the hash check is not what refuses it. */
 function rehash(entity: PackedEntity, state: Record<string, unknown>): PackedEntity {
-  return { ...entity, state, contentHash: contentHash("theme-files", state) };
+  return { ...entity, state, contentHash: contentHash({ entityType: "theme-files", state }) };
 }
 
 // ---------------------------------------------------------------------------

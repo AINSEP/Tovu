@@ -32,7 +32,7 @@ function fakeBlobStore(storageKeys: ReadonlySet<string>) {
 test("checks the blob store first and never touches the file index when it has the blob", async (t) => {
   const store = fakeBlobStore(new Set(["key-a"]));
   const index = createFileBlobIndex();
-  index.set("sha-a", { absPath: "/conflicting-index-entry", size: 999 });
+  index.set({ sha256: "sha-a", entry: { absPath: "/conflicting-index-entry", size: 999 } });
   const readIndex = t.mock.method(index, "get", () => { throw new Error("blob-store hit must not read the index"); });
   const source = createCompositePeerBlobSource({ blobStore: store, fileBlobIndex: index });
   assert.equal(await source.exists({ sha256: "sha-a", storageKey: "key-a" }), true);
@@ -50,7 +50,7 @@ test("falls back to the file index and reads real bytes off disk when the store 
 
     const store = fakeBlobStore(new Set());
     const index = createFileBlobIndex();
-    index.set(sha256, { absPath: filePath, size: content.length });
+    index.set({ sha256, entry: { absPath: filePath, size: content.length } });
     const source = createCompositePeerBlobSource({ blobStore: store, fileBlobIndex: index });
 
     assert.equal(await source.exists({ sha256, storageKey: "irrelevant-key" }), true);
@@ -75,7 +75,7 @@ test("answers unavailable when the file at the indexed path changed since it was
     const sha256 = sha256Hex(original);
 
     const index = createFileBlobIndex();
-    index.set(sha256, { absPath: filePath, size: original.length });
+    index.set({ sha256, entry: { absPath: filePath, size: original.length } });
     const source = createCompositePeerBlobSource({ blobStore: fakeBlobStore(new Set()), fileBlobIndex: index });
 
     // The file changes after packing (an author editing the same theme) — bytes on disk no longer
@@ -97,7 +97,7 @@ test("answers unavailable when the indexed file was deleted since it was packed"
     const sha256 = sha256Hex(content);
 
     const index = createFileBlobIndex();
-    index.set(sha256, { absPath: filePath, size: content.length });
+    index.set({ sha256, entry: { absPath: filePath, size: content.length } });
     rmSync(filePath);
 
     const source = createCompositePeerBlobSource({ blobStore: fakeBlobStore(new Set()), fileBlobIndex: index });
@@ -120,7 +120,7 @@ test("get() throws FileBlobUnavailableError when a same-tick file mutation races
     writeFileSync(filePath, original);
     const sha256 = sha256Hex(original);
     const index = createFileBlobIndex();
-    index.set(sha256, { absPath: filePath, size: original.length });
+    index.set({ sha256, entry: { absPath: filePath, size: original.length } });
     const source = createCompositePeerBlobSource({ blobStore: fakeBlobStore(new Set()), fileBlobIndex: index });
 
     assert.equal(await source.exists({ sha256, storageKey: "k" }), true);

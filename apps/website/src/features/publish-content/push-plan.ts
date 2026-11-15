@@ -50,7 +50,7 @@ export async function planPublishToPeer(
   const { envelope: bundle, includedFor } =
     input.scope == null
       ? { envelope: selected, includedFor: new Map<string, readonly string[]>() }
-      : includeReferencedEntities(selected, fullBundle, buildPublishContentCatalog(publishContentDeps).handlerByType);
+      : includeReferencedEntities({ envelope: selected, source: fullBundle, handlers: buildPublishContentCatalog(publishContentDeps).handlerByType });
 
   const result = await pushBundleToPeer(
     {

@@ -41,7 +41,7 @@ export function readMetaDescription(entry: Readonly<ContentEntryDraft>): string 
 export function buildContentAnalyzerPatch(entry: Readonly<ContentEntryDraft>): ExtPatch {
   const metaDescription = readMetaDescription(entry);
   const report = analyzeContent(
-    { title: entry.title, blocks: tiptapToBlocks(entry.bodyJson) },
+    { title: entry.title, blocks: tiptapToBlocks({ bodyJson: entry.bodyJson }) },
     metaDescription === undefined ? {} : { metaDescription },
   );
   return {

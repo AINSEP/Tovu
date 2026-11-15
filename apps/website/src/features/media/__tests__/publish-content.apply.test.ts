@@ -89,7 +89,7 @@ function packedFrom(record: MediaRecord) {
     entityType: "media",
     id: record.id,
     schemaVersion: 1,
-    contentHash: contentHash("media", { ...record }),
+    contentHash: contentHash({ entityType: "media", state: { ...record } }),
     hashVersion: CONTENT_HASH_VERSION,
     requiredBlobs: [record.source.sha256],
     state: { ...record } as unknown as Record<string, unknown>,
@@ -676,7 +676,7 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   assert.deepEqual(await handler.verifyApplied!({ entities }), []);
   const report = await planImport({ artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities }, {
     publishContentDeps: destinationDeps, getBaseline: async () => null,
-    hasBlob: async sha256 => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
+    hasBlob: async ({ sha256 }) => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
   });
   assert.equal(report.refused, false);
   assert.deepEqual(report.rows.map(row => [row.entityId, row.outcome, row.writes]).sort(),

@@ -51,7 +51,7 @@ import type { PeerBlobSource } from "./peer-transport.js";
  *  narrow is exceptional enough that surfacing it as a hard failure is more honest than silently
  *  reporting the blob as merely absent. */
 export class FileBlobUnavailableError extends Error {
-  constructor(sha256: string, reason: string) {
+  constructor({ sha256, reason }: { sha256: string; reason: string }) {
     super(`file blob '${sha256}' is unavailable: ${reason}`);
     this.name = "FileBlobUnavailableError";
   }
@@ -65,7 +65,7 @@ export interface CompositeBlobStoreRead {
 }
 
 /** @complexity O(bytes) — one file read plus one sha256 digest. */
-async function readAndVerify(entry: { absPath: string; size: number }, sha256: string): Promise<Uint8Array | null> {
+async function readAndVerify({ entry, sha256 }: { entry: { absPath: string; size: number }; sha256: string }, _optional = {}): Promise<Uint8Array | null> {
   let bytes: Buffer;
   try {
     bytes = await readFile(entry.absPath);
@@ -92,19 +92,19 @@ export function createCompositePeerBlobSource(deps: {
   return {
     async exists({ sha256, storageKey }) {
       if (await deps.blobStore.exists({ storageKey })) return true;
-      const entry = deps.fileBlobIndex.get(sha256);
+      const entry = deps.fileBlobIndex.get({ sha256 });
       if (!entry) return false;
-      return (await readAndVerify(entry, sha256)) !== null;
+      return (await readAndVerify({ entry, sha256 })) !== null;
     },
     async get({ sha256, storageKey }) {
       if (await deps.blobStore.exists({ storageKey })) return deps.blobStore.get({ storageKey });
-      const entry = deps.fileBlobIndex.get(sha256);
+      const entry = deps.fileBlobIndex.get({ sha256 });
       if (!entry) {
-        throw new FileBlobUnavailableError(sha256, "not present in the blob store or the file index");
+        throw new FileBlobUnavailableError({ sha256, reason: "not present in the blob store or the file index" });
       }
-      const verified = await readAndVerify(entry, sha256);
+      const verified = await readAndVerify({ entry, sha256 });
       if (!verified) {
-        throw new FileBlobUnavailableError(sha256, "the file at its indexed path no longer hashes to the requested sha256");
+        throw new FileBlobUnavailableError({ sha256, reason: "the file at its indexed path no longer hashes to the requested sha256" });
       }
       return verified;
     },

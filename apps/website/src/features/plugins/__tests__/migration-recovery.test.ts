@@ -42,7 +42,7 @@ async function recoverAtBoot(dbPath: string): Promise<RecoveryResult> {
       restoreSnapshots: (entries) => {
         closeSqliteConnection(scan);
         closed = true;
-        restoreSqliteSnapshots(dbPath, entries);
+        restoreSqliteSnapshots({ dbPath, entries });
       },
     });
   } finally {

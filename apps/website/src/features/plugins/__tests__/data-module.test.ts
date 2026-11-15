@@ -339,7 +339,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
     store: contentKernel({ store: scan }),
     restoreSnapshots: (entries) => {
       scan.close();
-      restoreSqliteSnapshots(dbPath, entries);
+      restoreSqliteSnapshots({ dbPath, entries });
     },
   });
   if (scan.open) scan.close();

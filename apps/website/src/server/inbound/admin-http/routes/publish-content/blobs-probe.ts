@@ -39,7 +39,7 @@ function validateProbeShas({ rawBody }: { rawBody: unknown }, _options: Record<s
     return { error: `at most ${PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS} shas are allowed per request` };
   }
   for (const sha of shas) {
-    if (typeof sha !== "string" || !isValidSha256Hex(sha)) {
+    if (typeof sha !== "string" || !isValidSha256Hex({ value: sha })) {
       return { error: `'${String(sha)}' is not a valid lowercase sha256 hex digest` };
     }
   }

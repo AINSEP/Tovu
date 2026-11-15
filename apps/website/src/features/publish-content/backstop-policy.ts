@@ -61,7 +61,7 @@ export function checkRawFilePath(
   if (isSymbolicLink) return "Links are never sent; choose a regular file inside the site folder.";
   // A raw file can start at the site root, unlike a typed tree. Apply the deny-list at EVERY
   // component so a directory named .env (or a nested database backup) cannot evade it.
-  const shape = checkTreePath(relPath);
+  const shape = checkTreePath({ relPath });
   if (shape) return shape;
   if (/[:%\x01-\x1f\x7f]/.test(relPath)) return `File '${relPath}' has an unsafe path shape.`;
   for (const part of relPath.split("/")) {

@@ -113,7 +113,7 @@ test("publishing only a video media item carries its poster along, and the recei
   const video = all.find((entity) => entity.id === VIDEO.id)!;
   const { handlerByType } = buildPublishContentCatalog(sourceDeps);
   const envelope = { artifactFormatVersion: 1, hashVersion: 1, entities: [video], blobManifest: [VIDEO_SHA] };
-  const widened = includeReferencedEntities(envelope as never, { ...envelope, entities: all } as never, handlerByType);
+  const widened = includeReferencedEntities({ envelope: envelope as never, source: { ...envelope, entities: all } as never, handlers: handlerByType });
   const sent = widened.envelope.entities;
   assert.deepEqual(sent.map((entity) => entity.id).sort(), [POSTER.id, VIDEO.id]);
 

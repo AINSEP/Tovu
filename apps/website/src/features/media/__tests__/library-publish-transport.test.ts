@@ -94,7 +94,7 @@ test('Library forged raw-file/theme apply refuses private hashes before blob I/O
       ] as const) {
         const handler = contributor.build(publishDeps);
         const entity: PackedEntity = { entityType: contributor.entityType, id, state, schemaVersion: 1, hashVersion: 1,
-          contentHash: contentHash(contributor.entityType, state), requiredBlobs: [media.source.sha256] };
+          contentHash: contentHash({ entityType: contributor.entityType, state }), requiredBlobs: [media.source.sha256] };
         // Call apply directly: a forged sender need not have passed the planner's precheck.
         await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: 'owner',
           idempotencyKey: `${contributor.entityType}-${size}-${phase}` }), /Library documents cannot be published/);
@@ -157,14 +157,14 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
     ] as const) {
       const handler = contributor.build(publishDeps);
       const entity: PackedEntity = { entityType: contributor.entityType, id, state, schemaVersion: 1, hashVersion: 1,
-        contentHash: contentHash(contributor.entityType, state), requiredBlobs: [media.source.sha256] };
+        contentHash: contentHash({ entityType: contributor.entityType, state }), requiredBlobs: [media.source.sha256] };
       await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `${contributor.entityType}-${status}` });
       assert.deepEqual(await readFile(path), storedBytes);
     }
     const handler = contributeMediaPublish().build(publishDeps);
     const state = { ...media, id: `republished-${status}`, slug: `republished-${status}` };
     const entity: PackedEntity = { entityType: 'media', id: state.id, state, schemaVersion: 1, hashVersion: 1,
-      contentHash: contentHash('media', state), requiredBlobs: [media.source.sha256] };
+      contentHash: contentHash({ entityType: 'media', state }), requiredBlobs: [media.source.sha256] };
     assert.equal(await handler.precheck(entity), null, status);
     await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `ordinary-media-${status}` });
     assert.equal((await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: state.id }))?.source.sha256, media.source.sha256);

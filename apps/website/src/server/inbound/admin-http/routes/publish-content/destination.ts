@@ -197,7 +197,7 @@ export function registerPublishContentDestinationRoutes(
         });
         return;
       }
-      const normalized = normalizePeerBaseUrl(String(raw));
+      const normalized = normalizePeerBaseUrl({ raw: String(raw) });
       if ("error" in normalized) {
         res.status(400).json({ error: "That does not look like a website address.", code: "VALIDATION_ERROR" });
         return;

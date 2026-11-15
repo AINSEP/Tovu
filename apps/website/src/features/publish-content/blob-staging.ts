@@ -34,7 +34,7 @@ const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
  *
  * @complexity O(1) (fixed-length regex).
  */
-export function isValidSha256Hex(value: string): boolean {
+export function isValidSha256Hex({ value }: { value: string }, _optional = {}): boolean {
   return SHA256_HEX_PATTERN.test(value);
 }
 

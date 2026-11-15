@@ -93,12 +93,12 @@ test("a theme.json name labels the row without touching the packed state or its 
     // `state` is exactly the pre-label shape, so the hash is the one every existing build computes.
     assert.deepEqual(Object.keys(entity.state).sort(), ["files", "kind", "title", "treeKey"]);
     assert.equal(entity.state.title, "Theme: static/basic");
-    const preLabelHash = contentHash("theme-files", {
+    const preLabelHash = contentHash({ entityType: "theme-files", state: {
       title: "Theme: static/basic",
       kind: "theme-files",
       treeKey: "static/basic",
       files: entity.state.files,
-    });
+    } });
     assert.equal(entity.contentHash, preLabelHash);
     // …and the destination half, re-hashing the same tree, agrees: the row can never look changed.
     const handler = contributeThemeFilesPublish().build({
@@ -211,7 +211,7 @@ test("fills the file blob index as it packs, keyed by each file's real sha256", 
     assert.equal(entities[0].id, "static/basic");
     assert.deepEqual(entities[0].requiredBlobs, [createHash("sha256").update('{"id":"basic"}').digest("hex")]);
     const sha256 = (entities[0]!.state.files as { path: string; sha256: string }[])[0]!.sha256;
-    const indexed = fileBlobIndex.get(sha256);
+    const indexed = fileBlobIndex.get({ sha256 });
     assert.ok(indexed);
     assert.equal(fileBlobIndex.size, 1);
     assert.equal(indexed.size, 14);

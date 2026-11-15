@@ -40,7 +40,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Adds every media key a URL-bearing string names. @complexity O(n) in the string's length. */
-function addUrlKeys(text: string, out: Set<string>): void {
+function addUrlKeys({ text, out }: { text: string; out: Set<string> }, _optional = {}): void {
   for (const match of text.matchAll(MEDIA_URL_PATTERN)) {
     try {
       out.add(decodeURIComponent(match[1]));
@@ -52,19 +52,19 @@ function addUrlKeys(text: string, out: Set<string>): void {
 
 /** Adds every media URL key held in a mark's string attrs (a `link` mark's `href`, chiefly).
  *  @complexity O(m) in the marks' total attr length. */
-function addMarkKeys(marks: unknown, out: Set<string>): void {
+function addMarkKeys({ marks, out }: { marks: unknown; out: Set<string> }, _optional = {}): void {
   if (!Array.isArray(marks)) return;
   for (const mark of marks) {
     if (!isPlainObject(mark) || !isPlainObject(mark.attrs)) continue;
-    for (const value of Object.values(mark.attrs)) if (typeof value === "string") addUrlKeys(value, out);
+    for (const value of Object.values(mark.attrs)) if (typeof value === "string") addUrlKeys({ text: value, out });
   }
 }
 
 /** Every media key a free-text string names by a `/m/` or `/media/` URL (a text widget's body, a
  *  social link's `url`). @complexity O(n) in the string's length. */
-export function collectMediaUrlKeys(text: string): ReadonlySet<string> {
+export function collectMediaUrlKeys({ text }: { text: string }, _optional = {}): ReadonlySet<string> {
   const keys = new Set<string>();
-  addUrlKeys(text, keys);
+  addUrlKeys({ text, out: keys });
   for (const ref of galleryMediaReferences({ config: { html: text } })) keys.add(ref.mediaId);
   return keys;
 }
@@ -72,17 +72,17 @@ export function collectMediaUrlKeys(text: string): ReadonlySet<string> {
 /** Shared authored-config reference scan, independent of layout/render validity. */
 export function collectMediaConfigKeys({ config }: { config: unknown }, _optional: Record<string, never> = {}): ReadonlySet<string> {
   const keys = new Set(galleryMediaReferences({ config }).map(ref => ref.mediaId));
-  if (isPlainObject(config) && typeof config.html === 'string') addUrlKeys(config.html, keys);
+  if (isPlainObject(config) && typeof config.html === 'string') addUrlKeys({ text: config.html, out: keys });
   return keys;
 }
 
 /** Walks a TipTap tree collecting every `image`/`media` node's `assetId` and legacy `src` key, plus
  *  any media URL in a mark's attrs. @complexity O(n) in the tree's size. */
-function addDocKeys(root: unknown, out: Set<string>): void {
+function addDocKeys({ root, out }: { root: unknown; out: Set<string> }, _optional = {}): void {
   walkDoc({
-    root, visit: (node) => {
+    root, visit: ({ node }) => {
       addNodeKeys({ node, out });
-      addMarkKeys(node.marks, out);
+      addMarkKeys({ marks: node.marks, out });
     }
   });
 }
@@ -96,7 +96,7 @@ export function collectPlacedWidgetMediaKeys(
 ): { keys: ReadonlySet<string>; readable: boolean } {
   const keys = new Set<string>();
   let readable = true;
-  const collect = (key: string, content: unknown): void => {
+  const collect = ({ key, content }: { key: string; content: unknown }, _optional = {}): void => {
     if (!savedWidgets) { readable = false; return; }
     const config = savedWidgets.get(key);
     if (!config) return; // Missing/trashed widgets do not render; there is no served asset to gate.
@@ -104,20 +104,20 @@ export function collectPlacedWidgetMediaKeys(
     for (const ref of collectMediaConfigKeys({ config: activeWidgetConfig({ merged }) })) keys.add(ref);
   };
   walkDoc({
-    root: bodyJson, visit: (node) => {
-      if (node.type === 'widgetEmbed' && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === 'string') collect(node.attrs.widgetEntryId, node.attrs.content);
+    root: bodyJson, visit: ({ node }) => {
+      if (node.type === 'widgetEmbed' && isPlainObject(node.attrs) && typeof node.attrs.widgetEntryId === 'string') collect({ key: node.attrs.widgetEntryId, content: node.attrs.content });
     }
   });
   if (typeof bodyHtml === 'string') for (const marker of scanEmbedMarkers({ html: bodyHtml }).markers) {
     if (marker.type.toLowerCase() !== 'widget') continue;
     const target = embedMarkerTarget({ type: marker.type, config: marker.config });
-    if (target && target.key !== 'none') collect(target.value, marker.config.content);
+    if (target && target.key !== 'none') collect({ key: target.value, content: marker.config.content });
   }
   return { keys, readable };
 }
 
 /** @complexity O(n) over `html`'s length (one shared marker scan plus one URL scan). */
-function addHtmlKeys(html: string, out: Set<string>): void {
+function addHtmlKeys({ html, out }: { html: string; out: Set<string> }, _optional = {}): void {
   for (const ref of galleryMediaReferences({ config: { html } })) out.add(ref.mediaId);
   for (const marker of scanEmbedMarkers({ html: html }).markers) {
     for (const key of collectMediaConfigKeys({ config: marker.config })) out.add(key);
@@ -126,12 +126,12 @@ function addHtmlKeys(html: string, out: Set<string>): void {
     const target = embedMarkerTarget({ type: marker.type, config: marker.config });
     if (target !== undefined && target.key !== "none") out.add(target.value);
   }
-  addUrlKeys(html, out);
+  addUrlKeys({ text: html, out });
 }
 
 /** `seoExtJson` is stored as a raw JSON string (`PostRecord.seoExtJson`'s own doc); an unparseable
  *  one contributes nothing. @complexity O(n) in the string's length for the parse. */
-function addSeoKeys(raw: unknown, out: Set<string>): void {
+function addSeoKeys({ raw, out }: { raw: unknown; out: Set<string> }, _optional = {}): void {
   let seo: unknown = raw;
   if (typeof raw === "string") {
     try {
@@ -155,9 +155,9 @@ function addSeoKeys(raw: unknown, out: Set<string>): void {
  */
 export function collectReferencedMediaKeys(state: Readonly<Record<string, unknown>>): ReadonlySet<string> {
   const keys = new Set<string>();
-  addDocKeys(state.bodyJson, keys);
-  if (typeof state.bodyHtml === "string") addHtmlKeys(state.bodyHtml, keys);
-  addSeoKeys(state.seoExtJson, keys);
+  addDocKeys({ root: state.bodyJson, out: keys });
+  if (typeof state.bodyHtml === "string") addHtmlKeys({ html: state.bodyHtml, out: keys });
+  addSeoKeys({ raw: state.seoExtJson, out: keys });
   return keys;
 }
 
@@ -172,18 +172,18 @@ function addNodeKeys({ node, out }: { node: Record<string, unknown>; out: Set<st
     out.add(node.attrs.assetId);
     return;
   }
-  if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+  if (typeof node.attrs.src === "string") addUrlKeys({ text: node.attrs.src, out });
 }
 
 function visitDocNode(
-  { node, visit, stack }: { node: Record<string, unknown>; visit: (node: Record<string, unknown>) => void; stack: unknown[] },
+  { node, visit, stack }: { node: Record<string, unknown>; visit: (required: { node: Record<string, unknown> }, optional?: Record<string, never>) => void; stack: unknown[] },
   _optional: Record<string, never> = {},
 ): void {
-  visit(node);
+  visit({ node });
   if (Array.isArray(node.content)) stack.push(node.content);
 }
 
-function walkDoc({ root, visit }: { root: unknown; visit: (node: Record<string, unknown>) => void }, _optional: Record<string, never> = {}): void {
+function walkDoc({ root, visit }: { root: unknown; visit: (required: { node: Record<string, unknown> }, optional?: Record<string, never>) => void }, _optional: Record<string, never> = {}): void {
   const stack: unknown[] = [root];
   while (stack.length) {
     const node = stack.pop();
@@ -212,7 +212,7 @@ function addGalleryKeys({ marker, out }: { marker: ReturnType<typeof scanEmbedMa
   // Read decoded config values too: a browser save entity-encodes JSON quotes in HTML.
   if (!Array.isArray(marker.config.images)) return;
   for (const image of marker.config.images) {
-    if (isPlainObject(image) && typeof image.src === "string") addUrlKeys(image.src, out);
+    if (isPlainObject(image) && typeof image.src === "string") addUrlKeys({ text: image.src, out });
   }
 }
 
@@ -220,7 +220,7 @@ function addSeoReference({ ref, out }: { ref: unknown; out: Set<string> }, _opti
 
   if (typeof ref !== "string") return;
   if (ref.includes("/")) {
-    addUrlKeys(ref, out); // an absolute URL, not a `"{assetId}:{transformName}"` ref
+    addUrlKeys({ text: ref, out }); // an absolute URL, not a `"{assetId}:{transformName}"` ref
     return;
   }
   const assetId = ref.split(":")[0];

@@ -29,7 +29,7 @@ const pluginSdkBinding: PluginSdkBinding = {
   hookSemantics: PLUGIN_HOOK_SEMANTICS,
   // @tovu/sdk blocks package.json deep imports (ADR-005); bump with packages/sdk/package.json.
   runtimeSdkVersion: "0.1.0",
-  readDefinedPlugin: ({ moduleValue }) => readDefinedPlugin(moduleValue) as unknown as ReturnType<PluginSdkBinding["readDefinedPlugin"]>,
+  readDefinedPlugin: ({ moduleValue }) => readDefinedPlugin({ moduleValue }) as unknown as ReturnType<PluginSdkBinding["readDefinedPlugin"]>,
   buildSdk: ({ sdk }) => sdk,
   definePlugin: (definition) => definePlugin(definition as unknown as { setup(sdk: PluginSdk): void | Promise<void> }) as unknown as ReturnType<PluginSdkBinding["definePlugin"]>,
 };

@@ -68,7 +68,7 @@ export class MediaApplyBlockedError extends PublishContentApplyRowError {
   readonly code: MediaApplyBlockedCode;
 
   constructor({ code, message }: { code: MediaApplyBlockedCode; message: string }) {
-    super("blocked", message);
+    super({ rowOutcome: "blocked", message });
     this.name = "MediaApplyBlockedError";
     this.code = code;
   }
@@ -82,7 +82,7 @@ export class MediaApplyBlockedError extends PublishContentApplyRowError {
  */
 export class MediaApplyConflictError extends PublishContentApplyRowError {
   constructor({ message }: { message: string }) {
-    super("conflict", message);
+    super({ rowOutcome: "conflict", message });
     this.name = "MediaApplyConflictError";
   }
 }
@@ -155,8 +155,8 @@ async function assertPublishableMedia(
  * @returns The refusal, or null when every given hash is a sha256. @complexity O(b) required blobs.
  */
 function malformedHashRefusal({ sourceSha256, requiredBlobs }: { sourceSha256: string | undefined; requiredBlobs: readonly string[] }, _options = {}): string | null {
-  if (sourceSha256 && !isValidSha256Hex(sourceSha256)) return `malformed source sha256 '${sourceSha256}'`;
-  const malformed = requiredBlobs.find(sha256 => !isValidSha256Hex(sha256));
+  if (sourceSha256 && !isValidSha256Hex({ value: sourceSha256 })) return `malformed source sha256 '${sourceSha256}'`;
+  const malformed = requiredBlobs.find(sha256 => !isValidSha256Hex({ value: sha256 }));
   return malformed === undefined ? null : `required blob '${malformed}' is not a sha256 hash`;
 }
 
@@ -209,7 +209,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
     // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
     references: ({ entity }, _optional = {}) =>
       typeof entity.state.htmlAttributes === "string"
-        ? [...collectMediaUrlKeys(entity.state.htmlAttributes)].map((key) => ({ entityType: "media", key }))
+        ? [...collectMediaUrlKeys({ text: entity.state.htmlAttributes })].map((key) => ({ entityType: "media", key }))
         : [],
     // `media.slug` may be empty on pre-backfill rows; the factory skips an empty address.
     address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }, _optional = {}) => p.repo.findBySlug({ workspaceId, slug }) },
@@ -234,7 +234,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       const record = state as unknown as MediaRecord; // this handler's own pack() produced it
       // Same shape check as `validate`, again here: apply must not trust that precheck ran.
       const sha256 = record.source?.sha256;
-      if (sha256 && !isValidSha256Hex(sha256)) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
+      if (sha256 && !isValidSha256Hex({ value: sha256 })) throw new MediaApplyBlockedError({ code: "blocked:precondition", message: `media '${id}' cannot be applied — malformed source sha256 '${sha256}'` });
       const bytes = await stagedBytes({ blobStore, workspaceId, record });
       const outcome = importedOrThrow({ id, outcome: await importMediaEntity({
         deps: { mediaRepo, assetBlobRepo, blobStore, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, idGen: deps.idGen },

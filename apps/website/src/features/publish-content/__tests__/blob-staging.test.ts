@@ -44,15 +44,15 @@ test("bytesMatchSha256 compares case-insensitively on the claimed side, always a
 
 test("isValidSha256Hex accepts exactly 64 lowercase hex characters", () => {
   const valid = "a".repeat(64);
-  assert.equal(isValidSha256Hex(valid), true);
+  assert.equal(isValidSha256Hex({ value: valid }), true);
 });
 
 test("isValidSha256Hex rejects the wrong length, uppercase, and non-hex input", () => {
-  assert.equal(isValidSha256Hex("a".repeat(63)), false);
-  assert.equal(isValidSha256Hex("a".repeat(65)), false);
-  assert.equal(isValidSha256Hex("A".repeat(64)), false);
-  assert.equal(isValidSha256Hex("g".repeat(64)), false);
-  assert.equal(isValidSha256Hex(""), false);
+  assert.equal(isValidSha256Hex({ value: "a".repeat(63) }), false);
+  assert.equal(isValidSha256Hex({ value: "a".repeat(65) }), false);
+  assert.equal(isValidSha256Hex({ value: "A".repeat(64) }), false);
+  assert.equal(isValidSha256Hex({ value: "g".repeat(64) }), false);
+  assert.equal(isValidSha256Hex({ value: "" }), false);
 });
 
 test("PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS is a real positive bound, not accidentally zero/Infinity", () => {
