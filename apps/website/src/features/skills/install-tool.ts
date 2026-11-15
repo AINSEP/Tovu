@@ -68,7 +68,7 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
 ]);
 
 /** Service refusals are input problems the model can relay; anything else propagates. */
-async function asToolInput<T>(work: () => Promise<T>): Promise<T> {
+async function asToolInput<T>({ work }: { work: () => Promise<T> }, _optional = {}): Promise<T> {
   try { return await work(); }
   catch (error) { if (error instanceof SkillInputError) { throw new ToolInputError({ message: error.message }); } throw error; }
 }
@@ -91,12 +91,12 @@ export function buildRegistrations(deps: SkillsInstallToolDeps): ToolRegistratio
           throw new ToolInputError({ message: "githubUrl (an https://github.com/... URL) is the only, required argument." });
         }
         const githubUrl = input.githubUrl.trim();
-        const prepared = await asToolInput(() => prepareSkillInstall({ workspaceId: deps.workspaceId, githubUrl }, deps.skillFetch ? { fetchImpl: deps.skillFetch } : {}));
+        const prepared = await asToolInput({ work: () => prepareSkillInstall({ workspaceId: deps.workspaceId, githubUrl }, deps.skillFetch ? { fetchImpl: deps.skillFetch } : {}) });
         if ((await listManagedSkills(deps)).some((skill) => skill.toolId === prepared.toolId)) {
           throw new ToolInputError({ message: `Skill '${prepared.name}' is already installed. Remove it from the Skills screen before installing another version.` });
         }
         ctx.signal.throwIfAborted();
-        const skill = await asToolInput(() => commitSkillInstall({ ...deps, workspaceId: deps.workspaceId, prepared }));
+        const skill = await asToolInput({ work: () => commitSkillInstall({ ...deps, workspaceId: deps.workspaceId, prepared }) });
         return { installed: true, skill, note: `Installed the ${skill.name} skill; it is on. Its tool ${skill.toolId} is picked up by the next search_tools call.` };
       },
     },

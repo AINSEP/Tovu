@@ -73,14 +73,14 @@ export function createSitePreviewService(
   let drain: Promise<void> = Promise.resolve();
 
   /** A capture made before this folder existed belongs to a deleted namesake. */
-  function usableVersion(name: string, createdAt: string): number | null {
+  function usableVersion({ name, createdAt }: { name: string; createdAt: string }, _optional = {}): number | null {
     const version = store.version({ name });
     const created = Date.parse(createdAt);
     if (version === null || created > version) return null;
     return version;
   }
 
-  function isDue(target: SitePreviewTarget, version: number | null): boolean {
+  function isDue({ target, version }: { target: SitePreviewTarget; version: number | null }, _optional = {}): boolean {
     if (active === target.name || queue.some((queued) => queued.name === target.name)) return false;
     const failed = failedAt.get(target.name);
     if (failed !== undefined && now() - failed < retryMs) return false;
@@ -121,12 +121,12 @@ export function createSitePreviewService(
       const result: Record<string, number> = {};
       const createdAtByName = new Map(sites.map((site) => [site.name, site.createdAt]));
       for (const site of sites) {
-        const version = usableVersion(site.name, site.createdAt);
+        const version = usableVersion({ name: site.name, createdAt: site.createdAt });
         if (version !== null) result[site.name] = version;
       }
       for (const target of targets) {
         if (!createdAtByName.has(target.name)) continue;
-        if (isDue(target, result[target.name] ?? null)) enqueue(target);
+        if (isDue({ target, version: result[target.name] ?? null })) enqueue(target);
       }
       return result;
     },

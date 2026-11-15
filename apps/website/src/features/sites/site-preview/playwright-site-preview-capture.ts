@@ -84,7 +84,7 @@ export function createPlaywrightSitePreviewCapture(
 ): SitePreviewCapturePort {
   const browser = createLazyBrowser({ launch: async () => (await loadLauncher()).launch(LAUNCH_OPTIONS) });
 
-  async function shoot(url: string): Promise<Buffer> {
+  async function shoot({ url }: { url: string }, _optional = {}): Promise<Buffer> {
     // `ignoreHTTPSErrors`: dev sites serve the repo's self-signed localhost certificate, and the
     // URL is always this server's own loopback address (see `SitePreviewTarget.url`).
     const context = await (await browser.acquire()).newContext({ viewport: VIEWPORT, ignoreHTTPSErrors: true });
@@ -101,7 +101,7 @@ export function createPlaywrightSitePreviewCapture(
   return {
     async capture({ url }) {
       try {
-        return await shoot(url);
+        return await shoot({ url });
       } catch (error) {
         log(`[site-preview] could not capture ${url}: ${(error as Error).message}`);
         return null;

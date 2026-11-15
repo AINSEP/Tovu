@@ -69,7 +69,7 @@ async function readOwnedIdentities({ plugin, readFile }: { plugin: TrustedPlugin
   const identities = new Set([plugin.pluginId]);
   const sources = [
     { filename: 'tovu-deploy-targets.json', parse: parseDeployTargetsFile },
-    { filename: 'tovu-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile(raw) },
+    { filename: 'tovu-source-control.json', parse: ({ raw }: { raw: string }, _options = {}) => parseSourceControlProvidersFile({ raw }) },
     { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
   ];
   for (const source of sources) {

@@ -87,7 +87,7 @@ test("restore gateway Result errors have the same private diagnostic envelope as
 test("the recorded duplicate-skill-name refusal remains actionable while unexpected discovery errors stay private", async t => {
   const site = createTempSiteLayoutFixture({});
   t.after(site.cleanup);
-  const root = site.deps.skillLayout.forWorkspace("workspace-local").root;
+  const root = site.deps.skillLayout.forWorkspace({ workspaceId: "workspace-local" }).root;
   for (const name of ["first", "second"]) {
     const dir = path.join(root, name);
     fs.mkdirSync(dir, { recursive: true });

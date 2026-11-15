@@ -189,16 +189,16 @@ export interface DescribedTransportError {
 export interface SourceControlProviderKit {
   readonly repositoryPaths: import("@jini-ai/devops/source-control").SourceControlProviderKit["repositoryPaths"];
   /** Plain `fetch`, looked up at call time. */
-  fetch(url: string, init: RequestInit): Promise<Response>;
+  fetch(required: { url: string; init: RequestInit }, optional?: Record<string, never>): Promise<Response>;
   /** A `RequestInit` that never follows a redirect. */
-  redirectGuardInit(init: RequestInit): RequestInit;
+  redirectGuardInit(required: { init: RequestInit }, optional?: Record<string, never>): RequestInit;
   /** Throws when `response` is a redirect, so a token is never sent on to another host. */
-  assertNotRedirected(response: Response, hostName: string): void;
+  assertNotRedirected(required: { response: Response; hostName: string }, optional?: Record<string, never>): void;
   /** True for the error {@link assertNotRedirected} throws. */
-  isRedirectRefusal(error: unknown): boolean;
+  isRedirectRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
   /** The guarded outbound-HTTP seam (ADR-038) for credentialed custom-credential calls. */
   readonly httpClient: HttpClientPort;
-  describeTransportError(error: unknown): DescribedTransportError;
+  describeTransportError(required: { error: unknown }, optional?: Record<string, never>): DescribedTransportError;
   /** Waits before a retry. Optional so a hand-built kit may omit it; a module falls back to a timer. */
   sleep?(ms: number): Promise<void>;
 }

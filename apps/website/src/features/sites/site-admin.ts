@@ -152,9 +152,8 @@ export interface CreateSiteForOwnerResult {
 /** The refusal for a token that failed its check, or `null` when every token may be stored. No
  *  guarded HTTP client in these ports means no check can run: every token is then `unsupported`. */
 async function checkTokensBeforeCreate(
-  workspaceId: string,
-  ports: CreateSiteForOwnerPorts,
-  tokens: Readonly<Record<string, string>>,
+  { workspaceId, ports, tokens }: { workspaceId: string; ports: CreateSiteForOwnerPorts; tokens: Readonly<Record<string, string>> },
+  _optional = {},
 ): Promise<SiteAdminRefusal | null> {
   const check = ports.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
   const httpClient = ports.customCredentialsHttpClient;
@@ -170,9 +169,8 @@ async function checkTokensBeforeCreate(
 /** Seals the checked tokens into the new site. The site already exists, so a failure here is
  *  reported, not thrown: the person connects from chat instead. */
 async function storeTokensForNewSite(
-  ports: CreateSiteForOwnerPorts,
-  site: { dir: string; siteId: string },
-  tokens: Readonly<Record<string, string>>,
+  { ports, site, tokens }: { ports: CreateSiteForOwnerPorts; site: { dir: string; siteId: string }; tokens: Readonly<Record<string, string>> },
+  _optional = {},
 ): Promise<CreateSiteForOwnerResult["agentPluginTokens"]> {
   const pluginIds = Object.keys(tokens);
   if (pluginIds.length === 0 || !ports.sealPendingAgentPluginTokens) return { status: "none", pluginIds };
@@ -188,7 +186,7 @@ async function storeTokensForNewSite(
 /** Classifies a thrown `createSite()` error into a refusal, or `null` for anything unclassified
  *  that the caller should treat as an internal error. Keeps the mapping in one place so a future
  *  site-registry error type has exactly one spot to be taught about. @complexity O(1); cyclomatic 3. */
-function classifyCreateSiteError(err: unknown): SiteAdminRefusal | null {
+function classifyCreateSiteError({ err }: { err: unknown }, _optional = {}): SiteAdminRefusal | null {
   if (err instanceof ValidationError) return { ok: false, code: "VALIDATION_ERROR", error: err.message };
   if (err instanceof InitDirNotEmptyError) return { ok: false, code: "SITE_ALREADY_EXISTS", error: err.message };
   return null;
@@ -212,14 +210,14 @@ export async function createSiteForOwner(
     if (Object.keys(parsedTokens.tokens).length > 0 && !ports.sealPendingAgentPluginTokens) {
       return { ok: false, code: "VALIDATION_ERROR", error: "access tokens can't be stored from here — create the site without them and connect later from chat" };
     }
-    const refusal = await checkTokensBeforeCreate(required.workspaceId, ports, parsedTokens.tokens);
+    const refusal = await checkTokensBeforeCreate({ workspaceId: required.workspaceId, ports, tokens: parsedTokens.tokens });
     if (refusal) return refusal;
     const result = await ports.createSite({ name: required.name, adminPassword }, { cwd: required.switcherBase });
     trackCreatedSite({ required, site: result }, ports);
-    const agentPluginTokens = await storeTokensForNewSite(ports, result, parsedTokens.tokens);
+    const agentPluginTokens = await storeTokensForNewSite({ ports, site: result, tokens: parsedTokens.tokens });
     return { ok: true, site: { name: result.name, dir: result.dir, siteId: result.siteId }, agentPluginTokens };
   } catch (err) {
-    const classified = classifyCreateSiteError(err);
+    const classified = classifyCreateSiteError({ err });
     if (classified) return classified;
     throw err;
   }
@@ -270,7 +268,7 @@ export interface ActivateSiteResult {
 
 /** Whether to fire the restart, and if not, why (so the person is told the real reason). Only
  *  called once `activateSite` has seen `restartNow`, so no "not asked to restart" case lives here. */
-function restartDecision(required: ActivateSiteRequired, devRestart: DevRestartPort | null | undefined): { restart: boolean; note?: string } {
+function restartDecision({ required, devRestart }: { required: ActivateSiteRequired; devRestart: DevRestartPort | null | undefined }, _optional = {}): { restart: boolean; note?: string } {
   if (devRestart?.canSwitchSite === false) return { restart: false };
   if (required.dirOverridden) {
     return { restart: false, note: " Not restarting: TOVU_SITE_DIR is set, so a restart would come back on the same site — unset it first." };
@@ -330,7 +328,7 @@ function siteActivationRestartResult(required: ActivateSiteRequired, ports: Pick
   const { name } = required;
   const base = { ok: true as const, activeSiteName: name, restartRequired: true as const };
   if (!required.restartNow) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS };
-  const decision = restartDecision(required, ports.devRestart);
+  const decision = restartDecision({ required, devRestart: ports.devRestart });
   if (!decision.restart) return { ...base, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS + (decision.note ?? ""), restarting: false };
   if (!ports.devRestart) throw new Error("Site activation has no restart service");
   ports.devRestart.requestRestart({ reason: `switch site to '${name}'` });

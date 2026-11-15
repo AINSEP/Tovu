@@ -140,7 +140,7 @@ test("a switched-off bundled plugin contributes nothing, is not an error, and is
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual([...(registry.switchedOff ?? [])], [["fixture-git", "fixture-git"]]);
     assert.equal(
-      noSourceControlProviderMessage(registry, "fixture-git"),
+      noSourceControlProviderMessage({ registry }, { providerId: "fixture-git" }),
       "No enabled Agent Plugin provides 'fixture-git' source control: the 'fixture-git' Agent Plugin is switched off. To switch it back on, open the admin's Add-Ons > Agent Plugins screen and turn on 'fixture-git'.",
     );
   });
@@ -168,73 +168,73 @@ test("a module without create() is refused, and a module path escaping the plugi
 });
 
 test("parseSourceControlProvidersFile rejects bad JSON, a bad schema version, a non-.mjs module, an empty label, a duplicate id, a bad apiOrigin and a bad maxFileBytes", () => {
-  assert.deepEqual(parseSourceControlProvidersFile("{"), { ok: false, reason: "not valid JSON" });
-  assert.deepEqual(parseSourceControlProvidersFile(JSON.stringify({ schemaVersion: 2, providers: [] })), { ok: false, reason: "schemaVersion must be 1" });
+  assert.deepEqual(parseSourceControlProvidersFile({ raw: "{" }), { ok: false, reason: "not valid JSON" });
+  assert.deepEqual(parseSourceControlProvidersFile({ raw: JSON.stringify({ schemaVersion: 2, providers: [] }) }), { ok: false, reason: "schemaVersion must be 1" });
   const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
-  assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, module: "a.js" }])), { ok: false, reason: "providers[0].module must be a relative path ending in .mjs" });
-  assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, label: "" }])), { ok: false, reason: "providers[0].label must be a non-empty string" });
-  assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([entry, entry])), { ok: false, reason: "providers[1].id 'a' is declared twice" });
+  assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, module: "a.js" }]) }), { ok: false, reason: "providers[0].module must be a relative path ending in .mjs" });
+  assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, label: "" }]) }), { ok: false, reason: "providers[0].label must be a non-empty string" });
+  assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([entry, entry]) }), { ok: false, reason: "providers[1].id 'a' is declared twice" });
   for (const apiOrigin of ["http://a.test", "https://a.test/api", "not a url", undefined]) {
-    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, apiOrigin }])), { ok: false, reason: "providers[0].apiOrigin must be an https origin with no path" });
+    assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, apiOrigin }]) }), { ok: false, reason: "providers[0].apiOrigin must be an https origin with no path" });
   }
   for (const maxFileBytes of [0, -1, 1.5, "100"]) {
-    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, maxFileBytes }])), { ok: false, reason: "providers[0].maxFileBytes must be a positive integer" });
+    assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, maxFileBytes }]) }), { ok: false, reason: "providers[0].maxFileBytes must be a positive integer" });
   }
 });
 
 test("reservedPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file", () => {
   const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
-  const parsed = parseSourceControlProvidersFile(descriptorJson([{ ...entry, reservedPaths: [".example-ci", "ci/hooks"] }]));
+  const parsed = parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, reservedPaths: [".example-ci", "ci/hooks"] }]) });
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.descriptors[0]?.reservedPaths, [".example-ci", "ci/hooks"]);
   const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
   assert.deepEqual(provider.reservedPaths, [".example-ci", "ci/hooks"]);
 
-  const noneDeclared = parseSourceControlProvidersFile(descriptorJson([entry]));
+  const noneDeclared = parseSourceControlProvidersFile({ raw: descriptorJson([entry]) });
   assert.ok(noneDeclared.ok);
   assert.equal("reservedPaths" in noneDeclared.descriptors[0]!, false);
 
   const reason = "providers[0].reservedPaths must be a list of at most 20 relative folder paths";
   for (const reservedPaths of ["x", [""], ["/abs"], ["a/../b"], ["./a"], [1], Array.from({ length: 21 }, (_, i) => `d${i}`)]) {
-    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, reservedPaths }])), { ok: false, reason });
+    assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, reservedPaths }]) }), { ok: false, reason });
   }
 });
 
 test("findReservedPath matches the folder itself or anything under it, case-insensitively, and nothing that merely shares a prefix", () => {
-  assert.equal(findReservedPath(".example-ci", [".example-ci"]), ".example-ci");
-  assert.equal(findReservedPath(".Example-ci/workflows", [".example-ci"]), ".example-ci");
-  assert.equal(findReservedPath(".example-ci-backup", [".example-ci"]), undefined);
-  assert.equal(findReservedPath("site/.example-ci", [".example-ci"]), undefined);
-  assert.equal(findReservedPath(".example-ci", undefined), undefined);
+  assert.equal(findReservedPath({ folder: ".example-ci", reservedPaths: [".example-ci"] }), ".example-ci");
+  assert.equal(findReservedPath({ folder: ".Example-ci/workflows", reservedPaths: [".example-ci"] }), ".example-ci");
+  assert.equal(findReservedPath({ folder: ".example-ci-backup", reservedPaths: [".example-ci"] }), undefined);
+  assert.equal(findReservedPath({ folder: "site/.example-ci", reservedPaths: [".example-ci"] }), undefined);
+  assert.equal(findReservedPath({ folder: ".example-ci", reservedPaths: undefined }), undefined);
 });
 
 test("workflowPaths: parsed from the descriptor, carried on the built provider, and a malformed list refuses the file", () => {
   const entry = { id: "a", label: "A", apiOrigin: "https://a.test", module: "a.mjs" };
-  const parsed = parseSourceControlProvidersFile(descriptorJson([{ ...entry, workflowPaths: [".ci/pipelines"] }]));
+  const parsed = parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, workflowPaths: [".ci/pipelines"] }]) });
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.descriptors[0]?.workflowPaths, [".ci/pipelines"]);
   const provider = buildLoadedSourceControlProvider({ descriptor: parsed.descriptors[0]!, pluginId: "a", module: { create: () => ({}) as never } }, {} as never);
   assert.deepEqual(provider.workflowPaths, [".ci/pipelines"]);
 
-  const noneDeclared = parseSourceControlProvidersFile(descriptorJson([entry]));
+  const noneDeclared = parseSourceControlProvidersFile({ raw: descriptorJson([entry]) });
   assert.ok(noneDeclared.ok);
   assert.equal("workflowPaths" in noneDeclared.descriptors[0]!, false);
 
   const reason = "providers[0].workflowPaths must be a list of at most 20 relative folder paths";
   for (const workflowPaths of ["x", [""], ["/abs"], ["a/../b"], [1]]) {
-    assert.deepEqual(parseSourceControlProvidersFile(descriptorJson([{ ...entry, workflowPaths }])), { ok: false, reason });
+    assert.deepEqual(parseSourceControlProvidersFile({ raw: descriptorJson([{ ...entry, workflowPaths }]) }), { ok: false, reason });
   }
 });
 
 
 test("isUnderWorkflowPath matches exactly the declared directory, from the repository root, case-sensitively", () => {
   const exampleProvider = [".example-ci/workflows"];
-  assert.equal(isUnderWorkflowPath(".example-ci/workflows/example-host-deploy.yml", exampleProvider), true);
-  assert.equal(isUnderWorkflowPath("example-host.toml", exampleProvider), false);
-  assert.equal(isUnderWorkflowPath(".example-ci/workflow/example-host-deploy.yml", exampleProvider), false, "singular 'workflow' is not the real directory Example Git reads");
-  assert.equal(isUnderWorkflowPath("sub/.example-ci/workflows/example-host-deploy.yml", exampleProvider), false, "a nested .example-ci is not the repo-root one Example Git Actions reads");
-  assert.equal(isUnderWorkflowPath(".Example-ci/workflows/example-host-deploy.yml", exampleProvider), false, "Example Git reads only the exact spelling");
-  assert.equal(isUnderWorkflowPath(".example-ci/workflows/example-host-deploy.yml", undefined), false, "a host that declares none flags nothing");
+  assert.equal(isUnderWorkflowPath({ filePath: ".example-ci/workflows/example-host-deploy.yml", workflowPaths: exampleProvider }), true);
+  assert.equal(isUnderWorkflowPath({ filePath: "example-host.toml", workflowPaths: exampleProvider }), false);
+  assert.equal(isUnderWorkflowPath({ filePath: ".example-ci/workflow/example-host-deploy.yml", workflowPaths: exampleProvider }), false, "singular 'workflow' is not the real directory Example Git reads");
+  assert.equal(isUnderWorkflowPath({ filePath: "sub/.example-ci/workflows/example-host-deploy.yml", workflowPaths: exampleProvider }), false, "a nested .example-ci is not the repo-root one Example Git Actions reads");
+  assert.equal(isUnderWorkflowPath({ filePath: ".Example-ci/workflows/example-host-deploy.yml", workflowPaths: exampleProvider }), false, "Example Git reads only the exact spelling");
+  assert.equal(isUnderWorkflowPath({ filePath: ".example-ci/workflows/example-host-deploy.yml", workflowPaths: undefined }), false, "a host that declares none flags nothing");
 });
 
 test("a module whose validateTarget is not a function is refused", async () => {
@@ -255,12 +255,12 @@ test("a module whose validateTarget is not a function is refused", async () => {
 test("pickSourceControlProviderForApi matches by API origin, falls back to a sole provider, and otherwise says why", () => {
   const exampleProvider = { apiOrigin: "https://api.example-ci.com" } as SourceControlProvider;
   const other = { apiOrigin: "https://git.example.test" } as SourceControlProvider;
-  assert.deepEqual(pickSourceControlProviderForApi([exampleProvider, other], "https://api.example-ci.com/repos"), { ok: true, provider: exampleProvider });
-  assert.deepEqual(pickSourceControlProviderForApi([other], "https://self-hosted.test/api"), { ok: true, provider: other });
-  assert.deepEqual(pickSourceControlProviderForApi([exampleProvider, other], "https://nope.test"), { ok: false, message: "No enabled Agent Plugin provides source control for https://nope.test." });
-  assert.deepEqual(pickSourceControlProviderForApi([], "https://nope.test", "custom why"), { ok: false, message: "custom why" });
+  assert.deepEqual(pickSourceControlProviderForApi({ providers: [exampleProvider, other], baseUrl: "https://api.example-ci.com/repos" }), { ok: true, provider: exampleProvider });
+  assert.deepEqual(pickSourceControlProviderForApi({ providers: [other], baseUrl: "https://self-hosted.test/api" }), { ok: true, provider: other });
+  assert.deepEqual(pickSourceControlProviderForApi({ providers: [exampleProvider, other], baseUrl: "https://nope.test" }), { ok: false, message: "No enabled Agent Plugin provides source control for https://nope.test." });
+  assert.deepEqual(pickSourceControlProviderForApi({ providers: [], baseUrl: "https://nope.test" }, { noProviderMessage: "custom why" }), { ok: false, message: "custom why" });
   assert.equal(
-    noSourceControlProviderMessage({}),
+    noSourceControlProviderMessage({ registry: {} }),
     "No enabled Agent Plugin provides source control, and no installed one declares it. Open the admin's Add-Ons > Agent Plugins screen to install or turn on a plugin that provides it.",
   );
 });

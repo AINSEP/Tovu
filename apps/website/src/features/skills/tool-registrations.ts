@@ -110,7 +110,7 @@ interface SkillFrontmatter {
  * thrown error.
  * @complexity O(n) in the frontmatter block's own length.
  */
-function parseSkillFrontmatter(markdown: string): SkillFrontmatter | undefined {
+function parseSkillFrontmatter({ markdown }: { markdown: string }, _optional = {}): SkillFrontmatter | undefined {
   const name = readFrontmatterField(markdown, "name");
   const description = readFrontmatterField(markdown, "description");
   if (!name || !description) return undefined;
@@ -127,7 +127,7 @@ function parseSkillFrontmatter(markdown: string): SkillFrontmatter | undefined {
  *  of what an author wrote.
  *  @returns `undefined` when sanitizing leaves nothing usable (e.g. a name made entirely of symbols)
  *  — the caller treats that the same as unparseable frontmatter: skip and warn. */
-function toSkillToolId(name: string): string | undefined {
+function toSkillToolId({ name }: { name: string }, _optional = {}): string | undefined {
   const sanitized = name
     .trim()
     .toLowerCase()
@@ -158,10 +158,10 @@ export interface SkillBundledFile {
 async function listBundledFiles(input: { skillDir: string; siteDir: string }, _options = {}): Promise<readonly SkillBundledFile[]> {
   const files: SkillBundledFile[] = [];
   for (const kind of BUNDLED_SUBDIRS) {
-    await walkFiles(path.join(input.skillDir, kind), (absolutePath) => {
+    await walkFiles({ dir: path.join(input.skillDir, kind), onFile: (absolutePath) => {
       const relative = path.relative(input.siteDir, absolutePath).split(path.sep).join("/");
       if (relative && !relative.startsWith("../") && !path.isAbsolute(relative)) files.push({ kind, path: relative });
-    });
+    } });
   }
   return files;
 }
@@ -169,17 +169,17 @@ async function listBundledFiles(input: { skillDir: string; siteDir: string }, _o
 /** One directory's worth of recursion for {@link listBundledFiles}. A missing `dir` (the common case
  *  — most skills do not bundle all three subdirectories) is silently a no-op, not an error. Entries
  *  are visited in sorted order so the resulting file list is deterministic across filesystems. */
-async function walkFiles(dir: string, onFile: (absolutePath: string) => void): Promise<void> {
+async function walkFiles({ dir, onFile }: { dir: string; onFile: (absolutePath: string) => void }, _optional = {}): Promise<void> {
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch (error) {
-    if (isEnoent(error)) return;
+    if (isEnoent({ error })) return;
     throw error;
   }
   for (const entry of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
     const entryPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) await walkFiles(entryPath, onFile);
+    if (entry.isDirectory()) await walkFiles({ dir: entryPath, onFile });
     else if (entry.isFile()) onFile(entryPath);
     else {
       // Links and special entries are outside the skill file walk.
@@ -187,7 +187,7 @@ async function walkFiles(dir: string, onFile: (absolutePath: string) => void): P
   }
 }
 
-function isEnoent(error: unknown): boolean {
+function isEnoent({ error }: { error: unknown }, _optional = {}): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "ENOENT";
 }
 
@@ -211,8 +211,8 @@ export interface SkillToolSource {
 /** Human-readable reason a skill folder's `SKILL.md` could not be read — split out of
  *  {@link resolveSkillEntry} so its nested "missing vs. unreadable" ternary lives in its own function
  *  rather than adding two nested-ternary steps to that function's own complexity count. */
-function describeSkillMdReadFailure(error: unknown): string {
-  if (isEnoent(error)) return "no SKILL.md";
+function describeSkillMdReadFailure({ error }: { error: unknown }, _optional = {}): string {
+  if (isEnoent({ error })) return "no SKILL.md";
   return `SKILL.md could not be read (${error instanceof Error ? error.message : String(error)})`;
 }
 
@@ -243,23 +243,23 @@ async function resolveSkillEntry(input: {
   const { workspaceRoot, entry, seenDirById } = input;
   if (!entry.isDirectory()) return { kind: "skip" };
   const skillDir = path.join(workspaceRoot, entry.name);
-  if (!(await readSkillState(skillDir)).enabled && !input.includeDisabled) return { kind: "skip" };
+  if (!(await readSkillState({ directory: skillDir })).enabled && !input.includeDisabled) return { kind: "skip" };
 
   let markdown: string;
   try {
     markdown = await readFile(path.join(skillDir, "SKILL.md"), "utf8");
   } catch (error) {
-    console.warn(`[skills] '${entry.name}': ${describeSkillMdReadFailure(error)} — skipped`);
+    console.warn(`[skills] '${entry.name}': ${describeSkillMdReadFailure({ error })} — skipped`);
     return { kind: "skip" };
   }
 
-  const frontmatter = parseSkillFrontmatter(markdown);
+  const frontmatter = parseSkillFrontmatter({ markdown });
   if (!frontmatter) {
     console.warn(`[skills] '${entry.name}': SKILL.md has no parseable frontmatter with both 'name' and 'description' — skipped`);
     return { kind: "skip" };
   }
 
-  const id = toSkillToolId(frontmatter.name);
+  const id = toSkillToolId({ name: frontmatter.name });
   if (!id) {
     console.warn(`[skills] '${entry.name}': frontmatter name '${frontmatter.name}' could not be turned into a valid tool id — skipped`);
     return { kind: "skip" };
@@ -294,13 +294,13 @@ export async function loadInstalledSkillToolSources(ctx: {
   readonly skillLayout: SkillLayout;
   readonly siteBinding: { readonly dir: string };
 }, _optional = {}): Promise<readonly SkillToolSource[]> {
-  const workspaceRoot = ctx.skillLayout.forWorkspace(ctx.workspaceId).root;
+  const workspaceRoot = ctx.skillLayout.forWorkspace({ workspaceId: ctx.workspaceId }).root;
 
   let entries;
   try {
     entries = await readdir(workspaceRoot, { withFileTypes: true });
   } catch (error) {
-    if (isEnoent(error)) return [];
+    if (isEnoent({ error })) return [];
     throw error;
   }
 

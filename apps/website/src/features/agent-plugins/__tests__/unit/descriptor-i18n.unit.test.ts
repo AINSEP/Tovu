@@ -57,11 +57,11 @@ test("a deploy target carries its i18n block; a bad one refuses the file with th
 
 test("a git host carries its i18n block; a bad one refuses the file with the provider's path", () => {
   const base = { id: "fixture-git", label: "Fixture Git", apiOrigin: "https://git.example.com", module: "source-control/fixture.mjs" };
-  const ok = parseSourceControlProvidersFile(JSON.stringify({ schemaVersion: 1, providers: [{ ...base, i18n: { de: { "Fixture Git": "Vorrichtung" } } }] }));
+  const ok = parseSourceControlProvidersFile({ raw: JSON.stringify({ schemaVersion: 1, providers: [{ ...base, i18n: { de: { "Fixture Git": "Vorrichtung" } } }] }) });
   assert.equal(ok.ok, true);
   assert.deepEqual(ok.ok && ok.descriptors[0]?.i18n, { de: { "Fixture Git": "Vorrichtung" } });
 
-  const bad = parseSourceControlProvidersFile(JSON.stringify({ schemaVersion: 1, providers: [{ ...base, i18n: { "Bad Locale": {} } }] }));
+  const bad = parseSourceControlProvidersFile({ raw: JSON.stringify({ schemaVersion: 1, providers: [{ ...base, i18n: { "Bad Locale": {} } }] }) });
   assert.deepEqual(bad, { ok: false, reason: "providers[0].i18n has an invalid locale 'Bad Locale'" });
 });
 
@@ -112,7 +112,7 @@ for (const [{ file, absolute }, listKey] of [
 test("every bundled descriptor file still parses with its i18n blocks", () => {
   assert.ok(DEPLOY_TARGET_FILES.length > 0);
   for (const { file, absolute } of DEPLOY_TARGET_FILES) assert.equal(parseDeployTargetsFile({ raw: readFileSync(absolute, "utf8") }).ok, true, file);
-  assert.equal(parseSourceControlProvidersFile(readFileSync(SOURCE_CONTROL_FILE.absolute, "utf8")).ok, true);
+  assert.equal(parseSourceControlProvidersFile({ raw: readFileSync(SOURCE_CONTROL_FILE.absolute, "utf8") }).ok, true);
 });
 
 // L025a pins validation order and exact boundaries before splitting the locale loop.

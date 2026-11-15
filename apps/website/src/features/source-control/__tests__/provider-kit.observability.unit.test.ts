@@ -45,7 +45,7 @@ function capturingRegistry(): { registry: SourceControlProviderRegistry; kit: ()
 test("kit.fetch is one CLIENT span with the status and no path, query or token", async () => {
   const { exporter, port } = createInMemoryOtel();
   const kit = createSourceControlProviderKit({ observability: port, fetchFn: async () => new Response("{}", { status: 200 }) });
-  await kit.fetch(`https://api.github.com/repos/acme/site/git/refs?access_token=${TOKEN}`, { method: "GET", headers: { authorization: `token ${TOKEN}` } });
+  await kit.fetch({ url: `https://api.github.com/repos/acme/site/git/refs?access_token=${TOKEN}`, init: { method: "GET", headers: { authorization: `token ${TOKEN}` } } });
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.name, "GET api.github.com");
   assert.equal(span.kind, SpanKind.CLIENT);
@@ -56,7 +56,7 @@ test("kit.fetch is one CLIENT span with the status and no path, query or token",
 test("a rejected kit.fetch is an ERROR span with the error type only", async () => {
   const { exporter, port } = createInMemoryOtel();
   const kit = createSourceControlProviderKit({ observability: port, fetchFn: async () => { throw Object.assign(new Error(`getaddrinfo failed ${TOKEN}`), { code: "ENOTFOUND" }); } });
-  await assert.rejects(kit.fetch("https://api.github.com/user", { method: "GET" }), /getaddrinfo/);
+  await assert.rejects(kit.fetch({ url: "https://api.github.com/user", init: { method: "GET" } }), /getaddrinfo/);
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.status.code, SpanStatusCode.ERROR);
   assert.equal(span.attributes["error.type"], "ENOTFOUND");
@@ -71,10 +71,10 @@ test("buildSourceControlProvider and buildSourceControlProviderForApi hand the p
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/user`;
     const byId = capturingRegistry();
     assert.equal((await buildSourceControlProvider({ load: async () => byId.registry, workspaceId: "ws", providerId: "github", observability: port })).ok, true);
-    assert.equal((await byId.kit().fetch(url, { method: "GET" })).status, 401);
+    assert.equal((await byId.kit().fetch({ url, init: { method: "GET" } })).status, 401);
     const byApi = capturingRegistry();
     assert.equal((await buildSourceControlProviderForApi({ load: async () => byApi.registry, workspaceId: "ws", baseUrl: "https://api.github.com", httpClient, observability: port })).ok, true);
-    assert.equal((await byApi.kit().fetch(url, { method: "PUT" })).status, 401);
+    assert.equal((await byApi.kit().fetch({ url, init: { method: "PUT" } })).status, 401);
     const spans = exporter.getFinishedSpans();
     assert.deepEqual(spans.map((span) => span.name), ["GET 127.0.0.1", "PUT 127.0.0.1"]);
     assert.equal(spans[0].status.code, SpanStatusCode.ERROR, "a 401 from the git host is a failed client call");
@@ -87,7 +87,7 @@ test("buildSourceControlProvider and buildSourceControlProviderForApi hand the p
 test("without a port the kit sends through fetchFn unwrapped", async () => {
   const { exporter } = createInMemoryOtel();
   const kit = createSourceControlProviderKit({ fetchFn: async () => new Response(null, { status: 204 }) });
-  assert.equal((await kit.fetch("https://api.github.com/", {})).status, 204);
+  assert.equal((await kit.fetch({ url: "https://api.github.com/", init: {} })).status, 204);
   assert.equal(exporter.getFinishedSpans().length, 0);
 });
 
@@ -103,11 +103,11 @@ test("describeTransportError relays an egress refusal's caller-safe message and 
     { message: "host 'meta.internal' resolved to 169.254.169.254 (link-local)" },
     { callerSafeMessage: "host 'meta.internal' resolves to a non-public address" },
   );
-  assert.deepEqual(kit.describeTransportError(refusal), {
+  assert.deepEqual(kit.describeTransportError({ error: refusal }), {
     refusal: "host 'meta.internal' resolves to a non-public address",
     logDetail: "host 'meta.internal' resolved to 169.254.169.254 (link-local)",
   });
-  const plain = kit.describeTransportError(new TypeError("socket hang up"));
+  const plain = kit.describeTransportError({ error: new TypeError("socket hang up") });
   assert.equal(plain.refusal, undefined);
   assert.equal(plain.logDetail, "TypeError", "a non-refusal logs its error type only, never its message");
 });

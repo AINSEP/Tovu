@@ -18,7 +18,7 @@ export function exampleRegistry({ probe = true, ids = ['example-git', 'example-t
     }, create: ({ kit }) => ({
       readAccountLabel: async (token: string) => {
         if (!probe || index !== 0) return null;
-        const response = await kit.fetch('https://git.example.test/identity', { headers: { Authorization: `Bearer ${token}` } });
+        const response = await kit.fetch({ url: 'https://git.example.test/identity', init: { headers: { Authorization: `Bearer ${token}` } } });
         if (!response.ok) return null;
         const body = await response.json() as { account?: unknown } | null;
         return typeof body?.account === 'string' && body.account !== '' ? body.account : null;

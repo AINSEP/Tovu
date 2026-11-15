@@ -31,7 +31,7 @@ test("matching validators return an empty 304; changed skills return a private 2
   assert.equal(await unchanged.text(), "");
   assert.equal(unchanged.headers.get("etag"), etag);
   assert.equal(unchanged.headers.get("cache-control"), "private, no-cache");
-  const directory = path.join(fixture.deps.skillLayout.forWorkspace("workspace-local").root, "new-skill");
+  const directory = path.join(fixture.deps.skillLayout.forWorkspace({ workspaceId: "workspace-local" }).root, "new-skill");
   mkdirSync(directory, { recursive: true });
   writeFileSync(path.join(directory, "SKILL.md"), "---\nname: new-skill\ndescription: A new skill.\n---\nGuidance.\n");
   const changed = await fetch(url, { headers });

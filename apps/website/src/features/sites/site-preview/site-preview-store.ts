@@ -56,14 +56,14 @@ export function createSitePreviewStore(
   { fs = nodeFs, pid = process.pid }: { fs?: SitePreviewFs; pid?: number } = {},
 ): SitePreviewStore {
   /** `null` for anything that is not a valid site folder name — never a path built from it. */
-  function fileFor(name: string): string | null {
+  function fileFor({ name }: { name: string }, _optional = {}): string | null {
     if (name.length < 1 || name.length > 100 || !SITE_NAME_PATTERN.test(name)) return null;
     return path.join(root, `${name}${EXTENSION}`);
   }
 
   return {
     version({ name }) {
-      const file = fileFor(name);
+      const file = fileFor({ name });
       if (file === null) return null;
       try {
         return fs.statSync(file).mtimeMs;
@@ -73,7 +73,7 @@ export function createSitePreviewStore(
       }
     },
     read({ name }) {
-      const file = fileFor(name);
+      const file = fileFor({ name });
       if (file === null) return null;
       try {
         return fs.readFileSync(file);
@@ -82,7 +82,7 @@ export function createSitePreviewStore(
       }
     },
     write({ name, bytes }) {
-      const file = fileFor(name);
+      const file = fileFor({ name });
       if (file === null) return null;
       const temp = `${file}.${pid}.tmp`;
       try {

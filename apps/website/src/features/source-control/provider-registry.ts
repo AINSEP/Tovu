@@ -68,14 +68,14 @@ type ParseResult = { readonly ok: true; readonly descriptors: readonly SourceCon
 
 const providerContribution = defineExecutablePluginContribution<SourceControlProviderDescriptor, SourceControlProviderModule>({
   filename: SOURCE_CONTROL_PROVIDERS_FILENAME, contribution: "source-control providers",
-  parse: ({ raw }) => parseSourceControlProvidersFile(raw), modulePath: ({ descriptor }) => descriptor.module,
-  validate: ({ exported }) => asProviderModule(exported),
+  parse: ({ raw }) => parseSourceControlProvidersFile({ raw }), modulePath: ({ descriptor }) => descriptor.module,
+  validate: ({ exported }) => asProviderModule({ candidate: exported }),
   refusal: ({ plugin, descriptor, reason }) => `source-control provider '${descriptor.id}' from '${plugin.pluginId}' was not loaded: ${reason}`,
 });
 
 type ProviderPackage = TrustedPluginPackage;
 
-function toRegistry(providers: readonly LoadedSourceControlProvider[], refusals: readonly string[], switchedOff?: ReadonlyMap<string, string>): SourceControlProviderRegistry {
+function toRegistry({ providers, refusals }: { providers: readonly LoadedSourceControlProvider[]; refusals: readonly string[] }, { switchedOff }: { switchedOff?: ReadonlyMap<string, string> } = {}): SourceControlProviderRegistry {
   return { list: () => providers, get: (providerId) => providers.find((provider) => provider.descriptor.id === providerId), refusals, ...(switchedOff ? { switchedOff } : {}) };
 }
 
@@ -97,7 +97,7 @@ export async function loadSourceControlProviderRegistry(ctx: { readonly workspac
     },
   });
 
-  return toRegistry(load.items, load.refusals, switchedOff);
+  return toRegistry({ providers: load.items, refusals: load.refusals }, { switchedOff });
 }
 
 /**
@@ -108,7 +108,7 @@ export async function loadSourceControlProviderRegistry(ctx: { readonly workspac
  */
 export async function loadSourceControlProviderRegistryFromSource(plugin: ProviderPackage, _optional: Record<string, never> = {}): Promise<SourceControlProviderRegistry> {
   const load = await loadPluginContributionsFromSource({ plugin, definition: providerContribution });
-  return toRegistry(load.items, load.refusals);
+  return toRegistry({ providers: load.items, refusals: load.refusals });
 }
 
 /** Read all product-owned sources lazily, following the existing bundled contribution loader.
@@ -125,7 +125,7 @@ export async function loadBundledSourceControlProviderRegistry(
   try { sources = (optional.sources ?? bundledContributionSources)({ ...required, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }); }
   catch (error) {
     console.warn('[source-control] bundled source-control provider sources could not be read; providers remain unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS));
-    return toRegistry([], ['bundled source-control provider sources could not be read']);
+    return toRegistry({ providers: [], refusals: ['bundled source-control provider sources could not be read'] });
   }
   const providers = new Map<string, LoadedSourceControlProvider>();
   const duplicates = new Set<string>();
@@ -148,17 +148,17 @@ export async function loadBundledSourceControlProviderRegistry(
     providers.delete(id);
     refusals.push(`source-control provider '${id}' was not loaded: declared more than once`);
   }
-  return toRegistry([...providers.values()], refusals);
+  return toRegistry({ providers: [...providers.values()], refusals });
 }
 
 /** The provider ids a package declares, read as data only; none when its file is invalid. @complexity O(n). */
 async function declaredProviderIds(plugin: ProviderPackage): Promise<readonly string[]> {
-  const parsed = parseSourceControlProvidersFile(await readTrustedPluginFile({ plugin, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }));
+  const parsed = parseSourceControlProvidersFile({ raw: await readTrustedPluginFile({ plugin, filename: SOURCE_CONTROL_PROVIDERS_FILENAME }) });
   return parsed.ok ? parsed.descriptors.map((descriptor) => descriptor.id) : [];
 }
 
 /** Validate the default export after Jini's contained import. @complexity O(1). */
-function asProviderModule(candidate: unknown): SourceControlProviderModule | string {
+function asProviderModule({ candidate }: { candidate: unknown }, _optional = {}): SourceControlProviderModule | string {
   return sourceControl.sourceControlProviderModuleError({ value: candidate }) ?? candidate as SourceControlProviderModule;
 }
 
@@ -167,9 +167,9 @@ function asProviderModule(candidate: unknown): SourceControlProviderModule | str
  *
  * @complexity O(n) in the declared provider count.
  */
-export function parseSourceControlProvidersFile(raw: string): ParseResult {
+export function parseSourceControlProvidersFile({ raw }: { raw: string }, _optional = {}): ParseResult {
   return sourceControl.parseSourceControlProvidersFile({ raw, readExtensions: ({ entry, at }) => {
-    const credential = parseSourceControlCredentialForm(entry.credential, `${at}.credential`);
+    const credential = parseSourceControlCredentialForm({ value: entry.credential, at: `${at}.credential` });
     const i18n = parseDescriptorI18n({ value: entry.i18n, at: `${at}.i18n` });
     if (typeof credential === "string") return { ok: false, reason: credential };
     if (typeof i18n === "string") return { ok: false, reason: i18n };
@@ -187,7 +187,7 @@ export function parseSourceControlProvidersFile(raw: string): ParseResult {
  *
  * @complexity O(r) reserved paths.
  */
-export function findReservedPath(folder: string, reservedPaths: readonly string[] | undefined): string | undefined {
+export function findReservedPath({ folder, reservedPaths }: { folder: string; reservedPaths: readonly string[] | undefined }, _optional = {}): string | undefined {
   return sourceControl.findReservedPath({ folder }, { reservedPaths });
 }
 
@@ -198,7 +198,7 @@ export function findReservedPath(folder: string, reservedPaths: readonly string[
  *
  * @complexity O(w) workflow paths.
  */
-export function isUnderWorkflowPath(filePath: string, workflowPaths: readonly string[] | undefined): boolean {
+export function isUnderWorkflowPath({ filePath, workflowPaths }: { filePath: string; workflowPaths: readonly string[] | undefined }, _optional = {}): boolean {
   return sourceControl.isUnderWorkflowPath({ filePath }, { workflowPaths });
 }
 
@@ -234,7 +234,7 @@ export async function buildSourceControlProvider(
   return sourceControl.buildSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
     ...input, kit: createSourceControlProviderKit(input),
     load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
-    noProviderMessage: ({ registry, providerId }) => noSourceControlProviderMessage(registry, providerId),
+    noProviderMessage: ({ registry, providerId }) => noSourceControlProviderMessage({ registry }, { providerId }),
   });
 }
 
@@ -254,7 +254,7 @@ export async function buildSourceControlProviders(input: {
   return sourceControl.buildSourceControlProviders<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
     ...input, kit: createSourceControlProviderKit(input),
     load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
-    noProviderMessage: ({ registry }) => noSourceControlProviderMessage(registry),
+    noProviderMessage: ({ registry }) => noSourceControlProviderMessage({ registry }),
   });
 }
 
@@ -267,17 +267,17 @@ const AGENT_PLUGINS_SCREEN = "the admin's Add-Ons > Agent Plugins screen";
  *
  * @complexity O(p) switched-off providers.
  */
-export function noSourceControlProviderMessage(registry: Pick<SourceControlProviderRegistry, "switchedOff">, providerId?: string): string {
+export function noSourceControlProviderMessage({ registry }: { registry: Pick<SourceControlProviderRegistry, "switchedOff"> }, { providerId }: { providerId?: string } = {}): string {
   const subject = providerId === undefined ? "source control" : `'${providerId}' source control`;
   const plugins = providerId === undefined ? [...new Set(registry.switchedOff?.values() ?? [])] : [registry.switchedOff?.get(providerId)].filter((id): id is string => id !== undefined);
   if (plugins.length === 0) {
     return `No enabled Agent Plugin provides ${subject}, and no installed one declares it. Open ${AGENT_PLUGINS_SCREEN} to install or turn on a plugin that provides it.`;
   }
-  return `No enabled Agent Plugin provides ${subject}: ${switchedOffPluginSentence(...plugins)}`;
+  return `No enabled Agent Plugin provides ${subject}: ${switchedOffPluginSentence({ pluginIds: plugins })}`;
 }
 
 /** "the 'x' Agent Plugin is switched off. To switch it back on, open ... and turn on 'x'." @complexity O(p). */
-export function switchedOffPluginSentence(...pluginIds: readonly string[]): string {
+export function switchedOffPluginSentence({ pluginIds }: { pluginIds: readonly string[] }, _optional = {}): string {
   const name = pluginIds.map((id) => `'${id}'`).join(" or ");
   return `the ${name} Agent Plugin is switched off. To switch it back on, open ${AGENT_PLUGINS_SCREEN} and turn on ${name}.`;
 }
@@ -289,9 +289,8 @@ export function switchedOffPluginSentence(...pluginIds: readonly string[]): stri
  * @complexity O(p) providers.
  */
 export function pickSourceControlProviderForApi(
-  providers: readonly SourceControlProvider[],
-  baseUrl: string,
-  noProviderMessage: string = noSourceControlProviderMessage({}),
+  { providers, baseUrl }: { providers: readonly SourceControlProvider[]; baseUrl: string },
+  { noProviderMessage = noSourceControlProviderMessage({ registry: {} }) }: { noProviderMessage?: string } = {},
 ): { ok: true; provider: SourceControlProvider } | { ok: false; message: string } {
   return sourceControl.pickSourceControlProviderForApi({ providers, baseUrl, noProviderMessage }, {
     missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.`,
@@ -309,7 +308,7 @@ export async function buildSourceControlProviderForApi(input: {
   return sourceControl.buildSourceControlProviderForApi<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
     ...input, kit: createSourceControlProviderKit(input),
     load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
-    noProviderMessage: ({ registry }) => noSourceControlProviderMessage(registry),
+    noProviderMessage: ({ registry }) => noSourceControlProviderMessage({ registry }),
   }, { missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.` });
 }
 

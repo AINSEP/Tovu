@@ -360,7 +360,7 @@ async function resolveBackupCredential({ deps, requested }: { deps: SiteBackupTo
     throw err;
   }
   if (!resolved) return { ok: false, code: "CREDENTIAL_NOT_FOUND", message: `the credential '${picked.label}' was deleted while the backup was being prepared` };
-  const provider = pickSourceControlProviderForApi(providers.providers, resolved.baseUrl, providers.noProviderMessage);
+  const provider = pickSourceControlProviderForApi({ providers: providers.providers, baseUrl: resolved.baseUrl }, { noProviderMessage: providers.noProviderMessage });
   if (!provider.ok) return { ok: false, code: "NO_PROVIDER", message: provider.message };
   return { ok: true, label: picked.label, baseUrl: resolved.baseUrl, connection: resolved.connection, provider: provider.provider };
 }
@@ -461,7 +461,7 @@ function parseFolder({ raw }: { raw: string | undefined }, _optional: Record<str
  * @complexity O(r) reserved paths.
  */
 function requireUnreservedFolder({ folder, provider }: { folder: string; provider: SourceControlProvider }, _optional: Record<string, never> = {}): void {
-  const reserved = findReservedPath(folder, provider.reservedPaths);
+  const reserved = findReservedPath({ folder, reservedPaths: provider.reservedPaths });
   if (reserved !== undefined) throw new CustomCredentialValidationError(`the backup folder must not be inside '${reserved}': '${folder}'`);
 }
 

@@ -22,7 +22,7 @@ function dependencies(input: SkillSiteContext, optional: { fetchImpl?: typeof fe
   const binding = input.siteBinding;
   return { filesystem, ...preparationDependencies({}, optional),
     ids: { next: () => randomUUID() },
-    layout: { resolve: ({ workspaceId }) => ({ workspaceRoot: layout.forWorkspace(workspaceId).root, stagingRoot: path.join(layout.root, ".staging"), stateFileName: SKILL_STATE_FILE }) },
+    layout: { resolve: ({ workspaceId }) => ({ workspaceRoot: layout.forWorkspace({ workspaceId }).root, stagingRoot: path.join(layout.root, ".staging"), stateFileName: SKILL_STATE_FILE }) },
     toolSourceLoader: { load: async (input, optional) => (await loadInstalledSkillToolSources({ ...input, ...optional, skillLayout: layout, siteBinding: binding })).map(source => {
       if (source.directory === undefined) throw new Error("Installed skill tool source has no directory");
       return { ...source, directory: source.directory };

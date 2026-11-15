@@ -69,7 +69,7 @@ const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
 /** Git's own ref-name rules for the parts the pattern allows: no `..` anywhere (it would let fetch
  *  normalize `refs/heads/../../x` into another API path called with the user's token), no empty or
  *  dot-led component and no `.lock` component. @complexity O(n) in the (≤250-char) name. */
-function isValidBranchName(branch: string): boolean {
+function isValidBranchName({ branch }: { branch: string }, _optional = {}): boolean {
   return BRANCH_PATTERN.test(branch) && !branch.includes("..")
     && !branch.split("/").some(part => part === "" || part.startsWith(".") || part.endsWith(".lock"));
 }
@@ -97,7 +97,7 @@ export function validateCommitTarget(
   if (targetError !== null) return targetError;
   try { normalizeRepositoryFolder({ folder: input.folder }); }
   catch (error) { return (error as Error).message; }
-  if (input.branch !== undefined && !isValidBranchName(input.branch)) return `invalid branch name '${input.branch.slice(0, 60)}'`;
+  if (input.branch !== undefined && !isValidBranchName({ branch: input.branch })) return `invalid branch name '${input.branch.slice(0, 60)}'`;
   if (input.commitMessage.trim() === "" || input.commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH) {
     return `commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`;
   }
@@ -260,7 +260,7 @@ export function commitExportDir({ parent, providerId, runId }: { parent: string;
  *  `report.assets.succeeded`'s own `data` fields, never by re-reading this directory. Never throws —
  *  same best-effort, disclosed-rather-than-silent posture as its `static-publish` twin.
  * @complexity O(n) in the (typically small) exported file count — a recursive directory removal. */
-function cleanupCommitRunDir(outputDir: string): void {
+function cleanupCommitRunDir({ outputDir }: { outputDir: string }, _optional = {}): void {
   try {
     rmSync(outputDir, { recursive: true, force: true });
   } catch {
@@ -375,10 +375,10 @@ async function exportForCommit({ input, providerId }: { input: CommitSiteInput; 
     context = await input.staticSiteContext();
     report = await input.exportSiteBound({ outputDir, clean: true, includeThemePreviews: false, themeId: context.themeId });
   } catch (err) {
-    cleanupCommitRunDir(outputDir);
+    cleanupCommitRunDir({ outputDir });
     return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
   }
-  cleanupCommitRunDir(outputDir);
+  cleanupCommitRunDir({ outputDir });
 
   // Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
   // architecture audit) — this used to check only `routes.failed`, so a page could export fine

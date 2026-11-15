@@ -68,7 +68,7 @@ export const sitesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
  *  `SiteInspectionInputError` and `features/theme/tool-registrations.ts`'s `ThemeNotFoundError`
  *  already use. */
 class SitesInputError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "SitesInputError";
   }
@@ -77,7 +77,7 @@ class SitesInputError extends Error {
 /** Raised when `sourceName` names no real, registered site — a DIFFERENT `sourceName` argument
  *  would fix this, so it is classified as a shape rejection alongside `SitesInputError`. */
 class SourceSiteNotFoundError extends Error {
-  constructor(sourceName: string) {
+  constructor({ sourceName }: { sourceName: string }) {
     super(`sourceName '${sourceName}' does not name a real site under sites/`);
     this.name = "SourceSiteNotFoundError";
   }
@@ -134,14 +134,14 @@ const SHAPE_REJECTION_CLASSES = [
 ] as const;
 
 /** Worth publishing the tool's schema back with — see {@link SHAPE_REJECTION_CLASSES}'s own doc. */
-function isShapeRejection(error: unknown): boolean {
+function isShapeRejection({ error }: { error: unknown }, _optional = {}): boolean {
   if (error instanceof SiteAdminRefusalError) return SHAPE_REFUSAL_CODES.has(error.code);
   return SHAPE_REJECTION_CLASSES.some((errorClass) => error instanceof errorClass);
 }
 
 /** Runs the shared flag + binding gate, then the permission check — the same order the admin
  *  routes use — and returns the served tree's base. Throws the gate's refusal as-is. */
-async function gateSiteSwitchWrite(routeDeps: SitesToolDeps, switcherEnabled: boolean, principalId: string): Promise<string> {
+async function gateSiteSwitchWrite({ routeDeps, switcherEnabled, principalId }: { routeDeps: SitesToolDeps; switcherEnabled: boolean; principalId: string }, _optional = {}): Promise<string> {
   const gate = resolveSiteSwitchBase({ binding: routeDeps.siteBinding, switchingEnabled: switcherEnabled });
   if (!gate.ok) throw new SiteAdminRefusalError(gate);
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
@@ -149,17 +149,17 @@ async function gateSiteSwitchWrite(routeDeps: SitesToolDeps, switcherEnabled: bo
 }
 
 /** Unwraps a `site-admin.ts` outcome: the success value, or its refusal thrown. */
-function orThrowRefusal<T extends { ok: true }>(outcome: T | SiteAdminRefusal): T {
+function orThrowRefusal<T extends { ok: true }>({ outcome }: { outcome: T | SiteAdminRefusal }, _optional = {}): T {
   if (!outcome.ok) throw new SiteAdminRefusalError(outcome);
   return outcome;
 }
 
 /** Validates one folder-name argument against `SITE_NAME_PATTERN` — the one check that makes it
  *  safe to `path.join` under `sites/` at all. @complexity O(1); cyclomatic 2. */
-function requireSiteFolderName(input: Record<string, unknown>, field: string): string {
+function requireSiteFolderName({ input, field }: { input: Record<string, unknown>; field: string }, _optional = {}): string {
   const value = requireString({ input: input, key: field });
   if (!SITE_NAME_PATTERN.test(value)) {
-    throw new SitesInputError(`${field} must be 1..100 lowercase letters, digits, and dashes (got '${value}')`);
+    throw new SitesInputError({ message: `${field} must be 1..100 lowercase letters, digits, and dashes (got '${value}')` });
   }
   return value;
 }
@@ -173,8 +173,8 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
   const handlers: Record<string, ToolHandler> = {
     sites_duplicate_site: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      const sourceName = requireSiteFolderName(input, "sourceName");
-      const targetName = requireSiteFolderName(input, "targetName");
+      const sourceName = requireSiteFolderName({ input, field: "sourceName" });
+      const targetName = requireSiteFolderName({ input, field: "targetName" });
       const displayName = optionalString({ input: input, key: "displayName" });
 
       if (!switcherEnabled) {
@@ -193,13 +193,13 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
 
-      return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
         // The source lookup is rooted at the SERVED tree (`switcherBase`), never `process.cwd()` —
         // see `deps.ts`'s header for the wrong-tree copy the cwd default caused. home/home2 place
         // new copies in the shared home, which can differ from this legacy discovery root.
         const source = resolved.listSites({ cwd: switcherBase }).find((site) => site.name === sourceName);
         if (!source) {
-          throw new SourceSiteNotFoundError(sourceName);
+          throw new SourceSiteNotFoundError({ sourceName });
         }
 
         const workspace = routeDeps.sitesWorkspace ?? createSitesWorkspace({}, { cwd: switcherBase });
@@ -211,27 +211,27 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       } });
     },
     sites_create_site: async (ctx) => {
-      const name = requireSiteFolderName(requireInputRecord({ input: ctx.input }), "name");
-      const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
-      return withSchemaOnRejection({ toolId: "sites_create_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+      const name = requireSiteFolderName({ input: requireInputRecord({ input: ctx.input }), field: "name" });
+      const switcherBase = await gateSiteSwitchWrite({ routeDeps, switcherEnabled, principalId: ctx.principal.id });
+      return withSchemaOnRejection({ toolId: "sites_create_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
         // No access tokens from chat: a pasted token would sit in the transcript. The admin Create form takes them.
         ctx.signal.throwIfAborted();
-        const created = orThrowRefusal(await createSiteForOwner({ workspaceId: routeDeps.workspaceId, switcherBase, name, actorId: ctx.principal.id, source: "assistant" }, { createSite: routeDeps.createSite, tracker: routeDeps.tracker, bundledSourceRoot: routeDeps.bundledSourceRoot }));
+        const created = orThrowRefusal({ outcome: await createSiteForOwner({ workspaceId: routeDeps.workspaceId, switcherBase, name, actorId: ctx.principal.id, source: "assistant" }, { createSite: routeDeps.createSite, tracker: routeDeps.tracker, bundledSourceRoot: routeDeps.bundledSourceRoot }) });
         return created.site;
       } });
     },
 
     sites_switch_site: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      const name = requireSiteFolderName(input, "name");
+      const name = requireSiteFolderName({ input, field: "name" });
       const restartNow = optionalBoolean({ input, key: "restartNow" }) ?? true;
-      const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
-      return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const { ok: _ok, ...activated } = orThrowRefusal(await activateSiteWithWarmServer(
+      const switcherBase = await gateSiteSwitchWrite({ routeDeps, switcherEnabled, principalId: ctx.principal.id });
+      return withSchemaOnRejection({ toolId: "sites_switch_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const { ok: _ok, ...activated } = orThrowRefusal({ outcome: await activateSiteWithWarmServer(
           { switcherBase, name, currentSiteName: routeDeps.siteBinding.name, restartNow, dirOverridden: routeDeps.siteBinding.dirOverridden },
           { listSites: routeDeps.listSites, persistActiveSite: routeDeps.persistActiveSite, devRestart: routeDeps.devRestart, warmServer: routeDeps.warmServer,
             readSiteRunning: routeDeps.readSiteRunning, workspace: routeDeps.sitesWorkspace },
-        ));
+        ) });
         return activated;
       } });
     },
