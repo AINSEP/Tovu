@@ -65,7 +65,7 @@ function buildInstrumentedApp(): { app: express.Express; log: CallLog } {
   const deps: RouteDeps = createRouteDeps();
   const log = instrumentDeps(deps);
   const app = express();
-  createSeoModule(deps).registerRoutes?.(app);
+  createSeoModule(deps).registerRoutes?.({ app });
   registerProductRoutes(app, deps);
   registerSiteRoutes(app, deps);
   return { app, log };

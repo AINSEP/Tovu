@@ -3114,7 +3114,7 @@ export async function createSiteRouteDepsForWorkspace(
     return await createSiteRouteDeps(dbPath, { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole });
   }
 
-  const db = await openSiteContentDb(dbPath);
+  const db = await openSiteContentDb({ dbPath });
   try {
     const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: workspaceIdOverride });
     return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole,

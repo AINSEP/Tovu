@@ -23,7 +23,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createAssistantExecutionModule(deps: AssistantExecutionRouteDeps): ServerModuleHandle {
   return {
     name: "assistant-execution",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminAssistantDetectAgentsRoute(app, deps);
       registerAdminAssistantTestConnectionRoute(app, deps);
       registerAdminAssistantListModelsRoute(app, deps);

@@ -35,7 +35,7 @@ test("a copied current DB rejects an old history without losing data and reopens
     assert.deepEqual(await copy.query(sql`SELECT * FROM fixture_content`),
       [{ id: "draft", body: "keep this disposable content" }]);
   } finally { await copy.close(); }
-  const reopened = await openSiteContentDb(copyPath);
+  const reopened = await openSiteContentDb({ dbPath: copyPath });
   try {
     assert.deepEqual(reopened.$client.prepare("SELECT * FROM fixture_content").all(),
       [{ id: "draft", body: "keep this disposable content" }]);

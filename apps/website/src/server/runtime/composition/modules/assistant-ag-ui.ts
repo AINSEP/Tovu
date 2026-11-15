@@ -651,7 +651,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {
   return {
     name: "assistant-ag-ui",
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => {
       app.use(AG_UI_RUN_PATH, requireAdminSession(routeDeps));
       app.post(AG_UI_RUN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleAgUiRun(req, res, routeDeps).catch((error: unknown) => {

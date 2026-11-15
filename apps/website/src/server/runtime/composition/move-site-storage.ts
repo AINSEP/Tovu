@@ -52,7 +52,7 @@ export interface MoveSiteStorageResult {
   keptPgliteDir: string;
 }
 
-function readMeta(siteDir: string): Record<string, unknown> {
+function readMeta({ siteDir }: { siteDir: string }, _optional = {}): Record<string, unknown> {
   const metaPath = path.join(siteDir, SITE_META_FILENAME);
   try {
     return JSON.parse(fs.readFileSync(metaPath, "utf8")) as Record<string, unknown>;
@@ -98,7 +98,7 @@ function lockStoppedSite({ dataDir }: { dataDir: string }, _options = {}): () =>
  */
 export async function moveSiteStorage(required: MoveSiteStorageRequired, optional: MoveSiteStorageOptional = {}): Promise<MoveSiteStorageResult> {
   const { siteDir, connectionString, secretRef } = required;
-  const meta = readMeta(siteDir);
+  const meta = readMeta({ siteDir });
   const dataDir = requirePgliteDataDir({ siteDir, meta });
   const release = lockStoppedSite({ dataDir });
   let source: StorageKernel<unknown> | undefined;

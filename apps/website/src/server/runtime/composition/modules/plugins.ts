@@ -31,7 +31,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
     name: "plugins",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerChartProviderRoutes({ app, deps });
       registerPluginsListRoute(app, deps);
       registerPluginSetEnabledRoute(app, deps);

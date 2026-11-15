@@ -27,7 +27,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 test("createCoreModule(deps).registerRoutes wires /health, /healthz, /readyz", async (t) => {
   setReadinessSnapshot({ ok: true, modules: [] });
   const app = express();
-  createCoreModule(createRouteDeps()).registerRoutes?.(app);
+  createCoreModule(createRouteDeps()).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await fetch(`${baseUrl}/health`)).status, 200);

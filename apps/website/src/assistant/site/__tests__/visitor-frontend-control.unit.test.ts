@@ -21,7 +21,7 @@ function policyFixture() {
   registerSiteAssistantConfirm({ app, ports: {
     confirmations: { request: async () => false, confirm: async () => { deliveries++; return true; } },
     enabled: async () => true, allowsOrigin: async ({ origin }) => origin === 'https://public.test',
-    limiter: { check: async () => ({ allowed: true }) }, reportError: error => { throw error; },
+    limiter: { check: async () => ({ allowed: true }) }, reportError: ({ error }) => { throw error; },
   } });
   app.use('/origin-policy', async (req, res) => {
     const allowed = await allowsVisitorRequestOrigin({ req, method: req.method,

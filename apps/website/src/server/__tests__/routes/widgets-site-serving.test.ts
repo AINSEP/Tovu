@@ -60,7 +60,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  createWidgetsModule(deps).registerRoutes?.(app);
+  createWidgetsModule(deps).registerRoutes?.({ app });
   registerSiteRoutes(app, deps);
   return { app, deps };
 }

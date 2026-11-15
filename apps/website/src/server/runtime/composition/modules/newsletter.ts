@@ -41,7 +41,7 @@ export function createNewsletterModule(deps: {
 }): ServerModuleHandle {
   return {
     name: "newsletter",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       // Campaign routes.
       registerAdminNewsletterListCampaignsRoute(app, deps.admin);
       registerAdminNewsletterGetCampaignRoute(app, deps.admin);

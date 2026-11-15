@@ -351,19 +351,19 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     }
   };
   /** Close an evicted/idle entry exactly once. @complexity O(1), at most three handles. */
-  const remove = async (key: string, entry: PeerBag) => {
+  const remove = async ({ key, entry }: { key: string; entry: PeerBag }, _optional = {}) => {
     if (cache.get(key) !== entry || entry.busy) return;
     cache.delete(key);
     clearTimeout(entry.timer);
     await entry.close();
   };
   /** Reset an unref'd idle timer; an injected clock can also expire entries on the next resolve. */
-  const touch = (key: string, entry: PeerBag) => {
+  const touch = ({ key, entry }: { key: string; entry: PeerBag }, _optional = {}) => {
     entry.usedAt = now();
     cache.delete(key); cache.set(key, entry);
     clearTimeout(entry.timer);
     entry.timer = schedule(() => {
-      pending = pending.then(() => remove(key, entry)).catch((error: unknown) => console.error("[peer-sites] Could not close an idle site", describeErrorForLog({ err: error })));
+      pending = pending.then(() => remove({ key, entry })).catch((error: unknown) => console.error("[peer-sites] Could not close an idle site", describeErrorForLog({ err: error })));
     }, idleMs);
     entry.timer.unref();
   };
@@ -408,14 +408,14 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
   };
   /** Expire idle bags, then evict the least recently used idle bag only for a cold open. O(cache size). */
   const cachedOrMakeRoom = async ({ key }: { key: string }, _options = {}): Promise<PeerBag | undefined> => {
-    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove(id, entry);
+    for (const [id, entry] of cache) if (now() - entry.usedAt >= idleMs) await remove({ key: id, entry });
     const entry = cache.get(key);
     if (entry) return entry;
     while (cache.size >= maxSites) {
       const candidate = [...cache].find(([, bag]) => bag.busy === 0);
       if (!candidate) throw new ToolInputError({ message: 'Other-site reads are busy. Try again.' });
       const [id, oldest] = candidate;
-      await remove(id, oldest);
+      await remove({ key: id, entry: oldest });
     }
     return undefined;
   };
@@ -438,7 +438,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
           cache.set(key, entry);
         }
 
-        touch(key, entry);
+        touch({ key, entry });
         const registration = entry.registrations.get(required.toolId);
         if (!registration) throw new ToolInputError({ message: "This tool can't read another site." });
         const selected = entry;
@@ -450,7 +450,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
           const read = Promise.resolve().then(registration.handler.bind(registration, ctx, optional));
           running.add(read);
           try { return await read; }
-          finally { running.delete(read); selected.busy--; if (!closed) touch(key, selected); }
+          finally { running.delete(read); selected.busy--; if (!closed) touch({ key, entry: selected }); }
         } };
       } catch (error) {
         if (error instanceof ToolInputError) throw error;
@@ -463,6 +463,6 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     return work;
   };
   return { readDomains: CROSS_SITE_READ_DOMAINS, excludedReadTools: new Set(Object.keys(CROSS_SITE_EXCLUDED_TOOLS)), isCurrentSite, resolve,
-    async close() { closed = true; await pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove(key, entry))); },
+    async close() { closed = true; await pending; await Promise.allSettled([...running]); await Promise.all([...cache].map(([key, entry]) => remove({ key, entry }))); },
   };
 }

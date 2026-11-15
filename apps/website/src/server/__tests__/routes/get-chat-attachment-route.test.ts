@@ -100,7 +100,7 @@ async function boot(t: test.TestContext, staged: Staged) {
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.(app);
+  createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.({ app });
 
   const baseUrl = await startTestServer(app, t);
   const uploaderName = `uploader-${Math.random().toString(36).slice(2, 10)}`;

@@ -161,7 +161,10 @@ const DEFAULT_MODEL = "gemini-flash-latest";
  *
  * @complexity O(1).
  */
-function resolveModel(protocol: ByokProtocol, storedModel: string | null, envModel: string | undefined): string {
+function resolveModel(
+  { protocol, storedModel, envModel }: { protocol: ByokProtocol; storedModel: string | null; envModel: string | undefined },
+  _optional = {},
+): string {
   return storedModel?.trim() || envModel || (protocol === "google" ? DEFAULT_MODEL : "");
 }
 
@@ -196,7 +199,10 @@ function resolveModel(protocol: ByokProtocol, storedModel: string | null, envMod
  *
  * @complexity O(1).
  */
-function resolveBaseUrl(storedBaseUrl: string | null, envBaseUrl: string | undefined): string | undefined {
+function resolveBaseUrl(
+  { storedBaseUrl, envBaseUrl }: { storedBaseUrl: string | null; envBaseUrl: string | undefined },
+  _optional = {},
+): string | undefined {
   return storedBaseUrl?.trim() || envBaseUrl || undefined;
 }
 
@@ -225,7 +231,7 @@ export const SYSTEM_PREAMBLE = [
 ].join(" ");
 
 /** SSE framing. Kept in one place so the event names cannot drift between the branches below. */
-function sse(res: Response, event: string, data: unknown): void {
+function sse({ res, event, data }: { res: Response; event: string; data: unknown }, _optional = {}): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
@@ -326,7 +332,7 @@ async function guardMessageAndRateLimit(req: Request, res: Response, deps: Route
  *  accepts any string, so anything outside the four protocols `byok-provider-turn.ts` dispatches
  *  is a real operator mistake that has to be named rather than rounded to Google.
  *  @complexity O(n) in provider length. */
-function toByokProtocol(provider: string): ByokProtocol | null {
+function toByokProtocol({ provider }: { provider: string }, _optional = {}): ByokProtocol | null {
   return resolveByokProtocol({ provider });
 }
 
@@ -346,7 +352,7 @@ function toByokProtocol(provider: string): ByokProtocol | null {
  *
  * @complexity O(1).
  */
-function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): string {
+function describeMissingKey({ protocol, storedKeyPresent }: { protocol: ByokProtocol; storedKeyPresent: boolean }, _optional = {}): string {
   const unopenable = storedKeyPresent
     ? " A key IS stored for this workspace but could not be decrypted — check that the server's TOVU_SITE_KEY is the same one it was saved under, then re-save the key."
     : "";
@@ -363,7 +369,10 @@ function describeMissingKey(protocol: ByokProtocol, storedKeyPresent: boolean): 
 /** `res.status(503).json(...)`, in the one shape the site-chat widget's transport already reads off
  *  a failed `fetch()` (`site-assistant-transport.ts` reads `body.error`). Always returns `null` so
  *  each caller below is a single `return respondUnavailable(...)`. */
-function respondUnavailable(res: Response, reportError: SiteAssistantErrorReporter, code: string, error: unknown): null {
+function respondUnavailable(
+  { res, reportError, code, error }: { res: Response; reportError: SiteAssistantErrorReporter; code: string; error: unknown },
+  _optional = {},
+): null {
   respondPublicError({ res, status: 503, reportError, code, diagnostic: error });
   return null;
 }
@@ -394,11 +403,14 @@ function respondPublicError(
  *   read only on the fallback path, where the row is the sole record of which provider was chosen.
  */
 async function resolveProviderConfigOrRespond(
-  res: Response,
-  deps: RouteDeps,
-  env: NodeJS.ProcessEnv,
-  resolution: SiteAssistantModeResolution,
-  reportError: SiteAssistantErrorReporter,
+  { res, deps, env, resolution, reportError }: {
+    res: Response;
+    deps: RouteDeps;
+    env: NodeJS.ProcessEnv;
+    resolution: SiteAssistantModeResolution;
+    reportError: SiteAssistantErrorReporter;
+  },
+  _optional = {},
 ): Promise<SiteAssistantProviderConfig | null> {
   if (resolution.mode === "cli") {
     // Demo only. Reaching the daemon means matching its run-start contract, which this route
@@ -427,7 +439,7 @@ async function resolveProviderConfigOrRespond(
   const availability = await resolvePublicAssistantAvailability({
     repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, workspaceId: deps.workspaceId,
   }, { onCredentialFailure: error => { credentialFailure = error; } });
-  if (!availability.ready) return respondUnavailable(res, reportError, availability.code, credentialFailure ?? availability.error);
+  if (!availability.ready) return respondUnavailable({ res, reportError, code: availability.code, error: credentialFailure ?? availability.error });
   const stored = availability.credential;
   // Historical fallback rationale, superseded by visitorai's saved-credential requirement:
   // Read only when the key did NOT resolve. The row is then the sole surviving record of which
@@ -435,7 +447,7 @@ async function resolveProviderConfigOrRespond(
   // eligible fallback — without it this route cannot tell "no credential at all" (Google's env key
   // is the documented answer) from "an Anthropic workspace whose key is missing or unreadable"
   // (where spending a Google key is the bug). Never decrypts, never throws (ADR-058 §4).
-  return resolveProviderFromCredential(res, env, toCredentialChoice({ stored }), reportError);
+  return resolveProviderFromCredential({ res, env, choice: toCredentialChoice({ stored }), reportError });
 }
 
 /** The workspace's credential as the decision below needs to see it, folded from whichever of the
@@ -483,14 +495,14 @@ const NO_ENV_FALLBACKS: SiteAssistantEnvFallbacks = { apiKey: undefined, baseUrl
 export function siteAssistantEnvFallbacks(env: NodeJS.ProcessEnv, protocol: ByokProtocol): SiteAssistantEnvFallbacks {
   if (protocol !== "google") return NO_ENV_FALLBACKS;
   return {
-    apiKey: nonBlank(env.GEMINI_API_KEY),
-    baseUrl: nonBlank(env.TOVU_SITE_ASSISTANT_BASE_URL),
-    model: nonBlank(env.TOVU_SITE_ASSISTANT_MODEL),
+    apiKey: nonBlank({ value: env.GEMINI_API_KEY }),
+    baseUrl: nonBlank({ value: env.TOVU_SITE_ASSISTANT_BASE_URL }),
+    model: nonBlank({ value: env.TOVU_SITE_ASSISTANT_MODEL }),
   };
 }
 
 /** `value` trimmed, or `undefined` when absent or whitespace-only. @complexity O(n) in its length. */
-function nonBlank(value: string | undefined): string | undefined {
+function nonBlank({ value }: { value: string | undefined }, _optional = {}): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
@@ -502,34 +514,29 @@ function nonBlank(value: string | undefined): string | undefined {
  * @complexity O(1).
  */
 export function resolveProviderFromCredential(
-  res: Response,
-  env: NodeJS.ProcessEnv,
-  choice: SiteAssistantCredentialChoice,
-  reportError: SiteAssistantErrorReporter,
+  { res, env, choice, reportError }: {
+    res: Response;
+    env: NodeJS.ProcessEnv;
+    choice: SiteAssistantCredentialChoice;
+    reportError: SiteAssistantErrorReporter;
+  },
+  _optional = {},
 ): SiteAssistantProviderConfig | null {
-  const protocol = toByokProtocol(choice.provider);
+  const protocol = toByokProtocol({ provider: choice.provider });
   if (!protocol) {
-    return respondUnavailable(
-      res, reportError,
-      "PROVIDER_UNSUPPORTED",
-      `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.`,
-    );
+    return respondUnavailable({ res, reportError, code: "PROVIDER_UNSUPPORTED", error: `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.` });
   }
 
   const envFallbacks = siteAssistantEnvFallbacks(env, protocol);
 
   const apiKey = choice.apiKey ?? envFallbacks.apiKey;
   if (!apiKey) {
-    return respondUnavailable(res, reportError, "NOT_CONFIGURED", describeMissingKey(protocol, choice.keyStored));
+    return respondUnavailable({ res, reportError, code: "NOT_CONFIGURED", error: describeMissingKey({ protocol, storedKeyPresent: choice.keyStored }) });
   }
 
-  const model = resolveModel(protocol, choice.model, envFallbacks.model);
+  const model = resolveModel({ protocol, storedModel: choice.model, envModel: envFallbacks.model });
   if (!model) {
-    return respondUnavailable(
-      res, reportError,
-      "MODEL_NOT_CONFIGURED",
-      `site assistant is configured for the "${protocol}" provider but no model is set — choose one on the Visitor's AI Assistant admin tab (only Google has a safe default).`,
-    );
+    return respondUnavailable({ res, reportError, code: "MODEL_NOT_CONFIGURED", error: `site assistant is configured for the "${protocol}" provider but no model is set — choose one on the Visitor's AI Assistant admin tab (only Google has a safe default).` });
   }
 
   // t91 F3.1-A: a STORED baseUrl applies only together with that SAME row's stored key. `choice.apiKey`
@@ -538,7 +545,7 @@ export function resolveProviderFromCredential(
   // wrote, only against the matching env endpoint or the provider's own default. See
   // {@link resolveBaseUrl}'s doc for the full pairing rule.
   const usingEnvSourcedKey = choice.apiKey == null;
-  const baseUrl = usingEnvSourcedKey ? envFallbacks.baseUrl : resolveBaseUrl(choice.baseUrl, envFallbacks.baseUrl);
+  const baseUrl = usingEnvSourcedKey ? envFallbacks.baseUrl : resolveBaseUrl({ storedBaseUrl: choice.baseUrl, envBaseUrl: envFallbacks.baseUrl });
 
   return { protocol, apiKey, baseUrl, model };
 }
@@ -561,7 +568,7 @@ async function runSiteAssistantPreflight(
   const guard = await guardMessageAndRateLimit(req, res, deps, reportError);
   if (!guard.ok) return { ok: false };
 
-  const provider = await resolveProviderConfigOrRespond(res, deps, env, resolution, reportError);
+  const provider = await resolveProviderConfigOrRespond({ res, deps, env, resolution, reportError });
   if (!provider) return { ok: false };
 
   return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
@@ -612,7 +619,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       }
     },
 
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => {
       frontend.mount({ app });
       registerSiteAssistantConfirm({ app, ports: {
         confirmations, limiter: confirmLimiter, resolveOwner: frontend.resolveOwner,
@@ -624,7 +631,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           const canonical = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
           return isSameOrigin({ target, canonical });
         },
-        reportError: error => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
+        reportError: ({ error }) => { reporter({ code: "visitor_tools_confirm", diagnostic: error }); },
       } });
       // The app's public JSON parser runs before this module. Handle its errors here, before the
       // generic size/error middleware, so oversized/malformed visitor requests also get safe ids.
@@ -649,7 +656,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           // report on the stream if we can, and never leave a visitor's connection hanging.
           const publicError = reportError({ code: "unavailable", diagnostic: error });
           if (res.headersSent) {
-            sse(res, "error", publicError);
+            sse({ res, event: "error", data: publicError });
             res.end();
           } else {
             const { message, ...metadata } = publicError;
@@ -666,7 +673,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         const provenance = await visitorAnalyticsProvenance({ deps, request: req });
         const logicalRunId = deps.idGen.newId();
         let terminalNavigation = false;
-        const capture = async (name: string, properties: Record<string, string | number | boolean>) => {
+        const capture = async ({ name, properties }: { name: string; properties: Record<string, string | number | boolean> }, _optional = {}) => {
           if (!provenance?.consentProof || !await deps.visitorAnalyticsDeliveryAllowed?.({ proof: provenance.consentProof })) return;
           void (deps.visitorTracker ?? deps.tracker).capture({ name, userId: provenance.subjectId }, { properties: { chatSurface: "public", ...properties } });
         };
@@ -706,8 +713,8 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           ids: deps.idGen, sink: { async append(event: Parameters<typeof deps.toolAttemptAuditSink.append>[0], optional?: Parameters<typeof deps.toolAttemptAuditSink.append>[1]) {
             const sink = deps.toolAttemptAuditSink as typeof deps.toolAttemptAuditSink & Partial<CommittedToolAttemptAuditSink>;
             const committed = sink.appendCommitted ? await sink.appendCommitted(event, optional) : (await sink.append(event, optional), false);
-            if (committed && event.phase !== "requested") await capture("assistant_tool_used", { toolId: event.phase === "unknown-tool" || event.toolId === "unavailable" ? "unknown" : event.toolId,
-              outcome: event.phase, attemptId: event.attemptId, eventId: `assistant-tool:${event.attemptId}` });
+            if (committed && event.phase !== "requested") await capture({ name: "assistant_tool_used", properties: { toolId: event.phase === "unknown-tool" || event.toolId === "unavailable" ? "unknown" : event.toolId,
+              outcome: event.phase, attemptId: event.attemptId, eventId: `assistant-tool:${event.attemptId}` } });
           } }, signal: abort.signal,
           reportError: (error: unknown) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
         };
@@ -741,11 +748,11 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
           const outcome = await capabilities.invoke({ name: call.name, input, caller: "anonymous-visitor" });
           switch (outcome.kind) {
             case "ok":
-              if (outcome.directive) sse(res, "client_directive", outcome.directive);
+              if (outcome.directive) sse({ res, event: "client_directive", data: outcome.directive });
               if (isTerminalVisitorAction({ name: call.name, result: outcome.result })) {
                 terminalNavigation = true;
-                sse(res, 'text', { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' });
-                sse(res, 'end', { reason: 'navigation' });
+                sse({ res, event: 'text', data: { delta: call.name === 'page.navigate' ? 'Opening the page.' : 'Form submission accepted.' } });
+                sse({ res, event: 'end', data: { reason: 'navigation' } });
                 releaseFrontend();
                 res.end();
                 abort.abort();
@@ -768,8 +775,8 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         beginStream(req, res);
         // Hard-coded visitor policy: in-process HTTP plus this literal anonymous registry only.
         // Never spread admin CLI options or read the Full CLI access setting here (K1).
-        await capture("assistant_message_sent", { inputKind: "text", eventId: `assistant-message:${logicalRunId}` });
-        await capture("assistant_run_started", { logicalRunId, eventId: `assistant-start:${logicalRunId}` });
+        await capture({ name: "assistant_message_sent", properties: { inputKind: "text", eventId: `assistant-message:${logicalRunId}` } });
+        await capture({ name: "assistant_run_started", properties: { logicalRunId, eventId: `assistant-start:${logicalRunId}` } });
         let runOutcome = "completed";
         try { await runByokProviderTurn({
           protocol: provider.protocol,
@@ -807,15 +814,15 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             // resolves one, which is what keeps it a resolved-action-only channel rather than a
             // fourth kind of tool echo.
             if (terminalNavigation) return;
-            if (event.type === "text_delta") sse(res, "text", { delta: event.delta });
-            else if (event.type === "error") { runOutcome = "failed"; sse(res, "error", reportError({ code: "provider_error", diagnostic: event.message })); }
+            if (event.type === "text_delta") sse({ res, event: "text", data: { delta: event.delta } });
+            else if (event.type === "error") { runOutcome = "failed"; sse({ res, event: "error", data: reportError({ code: "provider_error", diagnostic: event.message }) }); }
             else {
-              if (event.type === "end") sse(res, "end", { reason: event.reason });
+              if (event.type === "end") sse({ res, event: "end", data: { reason: event.reason } });
             }
           },
         });
         } catch (error) { if (!terminalNavigation) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; } }
-        finally { releaseFrontend(); await capture("assistant_run_finished", { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` }); }
+        finally { releaseFrontend(); await capture({ name: "assistant_run_finished", properties: { logicalRunId, outcome: visitorRunOutcome({ terminalNavigation, aborted: abort.signal.aborted, runOutcome }), eventId: `assistant-finish:${logicalRunId}` } }); }
         res.end();
       }
     },
@@ -843,5 +850,5 @@ function visitorRunOutcome({ terminalNavigation, aborted, runOutcome }: { termin
 function visitorConfirmationChannel({ confirmations, res }: { confirmations: ReturnType<typeof createVisitorConfirmations>; res: Response }) {
   // Content tools still need Ask confirmation when page credentials/publication are absent.
   // The gate binds the request to its IP and adds the authenticated owner when available.
-  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse(res, 'client_directive', directive); } } };
+  return { confirmation: { ...confirmations, emit: (directive: ToolConfirmationDirective) => { sse({ res, event: 'client_directive', data: directive }); } } };
 }

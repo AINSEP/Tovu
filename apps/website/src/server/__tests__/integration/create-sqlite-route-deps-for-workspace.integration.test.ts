@@ -131,8 +131,8 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     const composeWithPorts: typeof createSiteRouteDepsForWorkspace = runInNewContext(`${compiled}\ncreateSiteRouteDepsForWorkspace`, {
       assertContentDbFileName, defaultContentDbPath, isInMemoryDbPath, basename: path.basename, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
       resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
-      openSiteContentDb: async (file: string) => {
-        const opened = await openSiteContentDb(file);
+      openSiteContentDb: async ({ dbPath: file }: { dbPath: string }) => {
+        const opened = await openSiteContentDb({ dbPath: file });
         openedHandles.push(opened);
         return opened;
       },

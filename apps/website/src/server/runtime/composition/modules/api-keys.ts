@@ -19,7 +19,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createApiKeysModule(deps: ApiKeysRouteDeps): ServerModuleHandle {
   return {
     name: "api-keys",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminApiKeyPrincipalCreateRoute(app, deps);
       registerAdminApiKeyIssueRoute(app, deps);
       registerAdminApiKeyRevokeRoute(app, deps);

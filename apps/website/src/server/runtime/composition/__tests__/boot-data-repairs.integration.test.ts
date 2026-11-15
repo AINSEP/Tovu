@@ -68,7 +68,7 @@ async function markerPresent(content: ContentKernel): Promise<boolean> {
 test("sqlite: openSiteContentDb runs the repair (its marker is written on a fresh site)", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-boot-data-repairs-sqlite-"));
   try {
-    const db = await openSiteContentDb(path.join(dir, "content.db"));
+    const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
     try {
       assert.equal(await markerPresent(contentKernel({ store: db })), true);
     } finally {
@@ -101,7 +101,7 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
   try {
     await initSite({ dir, name: "Repair Site" });
     const database = resolveSiteDatabasePaths({ dir }).contentDbPath;
-    const seeded = await openSiteContentDb(database);
+    const seeded = await openSiteContentDb({ dbPath: database });
     await contentKernel({ store: seeded }).run((db) =>
       db.deleteFrom("setting_values_global").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).execute()
     );

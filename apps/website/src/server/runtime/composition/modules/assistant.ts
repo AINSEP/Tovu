@@ -372,11 +372,14 @@ export async function respondWithEnrichedAgentList(
  * exchange may belong to the DAEMON's own store, a Local CLI run this process cannot see).
  */
 function tryLocalMcpUiDelivery(
-  res: Response,
-  byokSurfaceExchanges: SurfaceExchangeStore,
-  exchangeId: unknown,
-  params: Record<string, unknown>,
-  toolName: string,
+  { res, byokSurfaceExchanges, exchangeId, params, toolName }: {
+    res: Response;
+    byokSurfaceExchanges: SurfaceExchangeStore;
+    exchangeId: unknown;
+    params: Record<string, unknown>;
+    toolName: string;
+  },
+  _optional = {},
 ): boolean {
   if (typeof exchangeId !== "string" || exchangeId.length === 0) return false;
 
@@ -504,7 +507,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   const { toolName, params, exchangeId } = callback;
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
   const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
-  if (!restoreOnly && tryLocalMcpUiDelivery(res, byokSurfaceExchanges, target, params, toolName)) return;
+  if (!restoreOnly && tryLocalMcpUiDelivery({ res, byokSurfaceExchanges, exchangeId: target, params, toolName })) return;
   if (typeof target === 'string' && await tryRestoreSurface({
     res, store: byokSurfaceExchanges, exchangeId: target, principalId: getAuthedPrincipal(res).id, toolId: toolName,
   }, restoreOnly ? {} : { params })) return;
@@ -597,7 +600,7 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
   });
   return {
     name: "assistant",
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => {
       app.use("/api/runs", requireAdminSession(routeDeps));
       app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
         proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {

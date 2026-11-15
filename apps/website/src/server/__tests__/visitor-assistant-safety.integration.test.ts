@@ -39,7 +39,7 @@ async function boot(
   const app = express();
   app.use(parsePublicJsonBody);
   const routeDeps = { ...deps, siteAssistantErrorLog: (entry: SiteAssistantErrorLogEntry) => logs.push(entry) };
-  createSiteAssistantModule(routeDeps, {}).registerRoutes?.(app);
+  createSiteAssistantModule(routeDeps, {}).registerRoutes?.({ app });
   return { deps: routeDeps, logs, baseUrl: await startTestServer(app, t) };
 }
 

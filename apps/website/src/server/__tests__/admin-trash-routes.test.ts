@@ -221,7 +221,7 @@ function buildTrashHarness(): TrashHarness {
   app.use(express.json());
   registerAuthRoutes(app, base);
   app.use("/api/admin", requireAdminSession(base));
-  createTrashModule(trashDeps).registerRoutes?.(app);
+  createTrashModule(trashDeps).registerRoutes?.({ app });
 
   return { app, deps: base, client, trash };
 }

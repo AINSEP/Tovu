@@ -24,7 +24,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createRedirectsModule(deps: RedirectRouteDeps): ServerModuleHandle {
   return {
     name: "redirects",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminRedirectListRoute({ app, deps });
       registerAdminRedirectGetRoute({ app, deps });
       registerAdminRedirectCreateRoute({ app, deps });

@@ -37,7 +37,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createSeoModule(deps: SeoRouteDeps): ServerModuleHandle {
   return {
     name: "seo",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminSeoGetEntryRoute({ app, deps });
       registerAdminSeoPutEntryRoute({ app, deps });
       registerAdminSeoGetEntryAnalyzeRoute({ app, deps });

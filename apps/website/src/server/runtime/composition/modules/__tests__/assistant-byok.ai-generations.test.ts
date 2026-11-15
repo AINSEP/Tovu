@@ -18,7 +18,7 @@ for (const { includeAiContent, consent } of [{ includeAiContent: false, consent:
     const app = express();
     app.use(express.json());
     registerAuthRoutes(app, deps);
-    createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
+    createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.({ app });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const providerUrl = await startStubProviderServer(t, () => ({ status: 200, body: [
       'event: message_start\ndata: {"type":"message_start","message":{"id":"reply","role":"assistant","content":[],"model":"fixture-model","usage":{"input_tokens":3,"output_tokens":0}}}',

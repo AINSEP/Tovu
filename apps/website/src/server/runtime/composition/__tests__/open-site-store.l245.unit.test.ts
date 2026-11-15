@@ -24,9 +24,7 @@ for (const scenario of [
     let settled = false;
     const opening = openSiteStore({ storage: { kind: "pglite" }, dbPath: path.join(siteDir, "content.db"),
       chatDbPath: path.join(siteDir, "chat.db"), role: "client" }, { env, pgliteClientWaitMs: scenario.waitMs });
-    const rejected = assert.rejects(opening, new StorageNotAvailableError(
-      `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry`
-    ));
+    const rejected = assert.rejects(opening, new StorageNotAvailableError({ message: `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry` }));
     void opening.catch(() => { settled = true; });
     // Advance one poll at a time: the next poll is scheduled after the await resumes.
     for (let elapsed = 0; elapsed < scenario.duration; elapsed += 200) {

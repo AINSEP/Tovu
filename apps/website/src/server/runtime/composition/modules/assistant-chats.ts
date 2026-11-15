@@ -37,7 +37,7 @@ import { createNoopObservabilityPort } from "#src/platform/observability/index";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
  * the shared heuristic; injected guidance never enters the stored user message. */
-function deriveAssistantConversationTitle(text: string): string {
+function deriveAssistantConversationTitle({ text }: { text: string }, _optional = {}): string {
   return deriveContentConversationTitle({ prompt: text, deriveFallback: deriveConversationTitle });
 }
 
@@ -67,9 +67,8 @@ function bodyOf(req: Request): Record<string, unknown> {
  * the source of a conversation's title.
  */
 async function maybeNameFromFirstUserMessage(
-  store: ChatHistoryStore,
-  id: string,
-  message: ChatMessage,
+  { store, id, message }: { store: ChatHistoryStore; id: string; message: ChatMessage },
+  _optional = {},
 ): Promise<void> {
   if (message.role !== "user") return;
   try {
@@ -77,7 +76,7 @@ async function maybeNameFromFirstUserMessage(
     if (!conversation || conversation.title) return;
     // The already-redacted message, never the raw request body: a credential pasted into the first
     // prompt must not survive into the title, which is stored and listed in plain text.
-    const derived = deriveAssistantConversationTitle(message.content);
+    const derived = deriveAssistantConversationTitle({ text: message.content });
     if (derived) await store.rename({ id, title: derived }, { source: "fallback" });
   } catch {
     // Leave it untitled; the next user message gets another chance.
@@ -103,7 +102,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
   });
   return {
     name: "assistant-chats",
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => {
       /*
        * Serving-boot repair, before chat routes answer: a queued/running turn may still belong to
        * a live detached daemon, so dispatch each unfinished binding to the shared coordinator. It
@@ -153,7 +152,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         // A title derived from the first prompt, when the client sends one. Local and synchronous
         // — a conversation needs a name the moment it appears in the list, and a model call to
         // produce one would put a spinner in front of every "New chat".
-        const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle(redactUserText({ text: body.firstMessage }).text) : "";
+        const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle({ text: redactUserText({ text: body.firstMessage }).text }) : "";
         storeFor(res)
           .create({
             id,
@@ -266,7 +265,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
               return;
             }
             if (saved.role === "user") void deps.tracker.capture({ name: "assistant_message_sent", userId: getAuthedPrincipal(res).id }, { properties: { chatSurface: "admin", conversationId: id, inputKind: "text", eventId: `assistant-message:${saved.id}` } });
-            await maybeNameFromFirstUserMessage(store, id, message);
+            await maybeNameFromFirstUserMessage({ store, id, message });
             // The in-flight stub of a daemon run is the one moment the server learns which row a
             // run belongs to. From here the server saves the finished turn itself, so it no longer
             // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for

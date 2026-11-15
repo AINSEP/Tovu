@@ -51,7 +51,7 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
 
   return {
     name: "external-mcp",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       // No ordering hazard of the kind the connectors module documents: the collection route, the
       // `:serverId` routes, and the two new fixed-suffix routes (`/admissions`, `/:serverId/probe`)
       // all differ by HTTP method or by segment count, so no literal path can be swallowed as an id.

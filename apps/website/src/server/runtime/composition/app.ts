@@ -1781,7 +1781,7 @@ const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => expo
  * instead of once per call site.
  */
 function mountRoutes(app: Express, mod: ServerModuleHandle): void {
-  mod.registerRoutes?.(app);
+  mod.registerRoutes?.({ app });
 }
 
 /** Same hoisted-guard rationale as {@link mountRoutes}, for the `start?.()` half of

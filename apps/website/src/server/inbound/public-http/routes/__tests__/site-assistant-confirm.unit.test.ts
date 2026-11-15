@@ -13,7 +13,7 @@ function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: strin
       enabled: async () => { enabledCalls++; return options.enabled !== false; },
       allowsOrigin: async ({ origin }) => { origins.push(origin); return origin === "https://site.test" && options.allowed !== false; },
       limiter: { check: async () => options.budget === false ? { allowed: false, retryAfterSeconds: 60 } : { allowed: true } },
-      reportError: error => { errors.push(error); },
+      reportError: ({ error }) => { errors.push(error); },
     } });
   return { deliveries, errors, origins, enabledCalls: () => enabledCalls, send(body: unknown = { challengeId: "a".repeat(22), allow: true }) {
     return new Promise<{ status: number; body: unknown; cache: string }>(resolve => {

@@ -621,7 +621,7 @@ export function createAssistantByokModule(
         refusalPrefix: () => resolvedToolSurface.federation?.refusalPrefix() ?? "",
       },
     }, {}),
-    registerRoutes: (app: Express) => {
+    registerRoutes: ({ app }, _options = {}) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {
         void handleTurn(req, res).catch((error: unknown) => {

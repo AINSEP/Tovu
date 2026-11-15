@@ -35,11 +35,11 @@ const metaParsers = createTovuVaultKinds({ policy: { validateMeta: ({ meta }) =>
 type MetaRow = { id: string; kind: VaultKind; provider: string | null; label: string; meta: string | Record<string, unknown> };
 type Target = { siteId: string; name: string; dir: string; file: string | undefined };
 
-const refused = (message: string) => new ToolInputError({ message });
-const couldNotRead = (site: string) => `${site} can't be read right now. Open it in Tovu, then try again. Details: P25_SITE_KEYS_UNREADABLE; secret values omitted.`;
-const unlockHelp = (site: string) => `${site}'s keys can't be unlocked on this computer. Open ${site} in Tovu and recover its key, then try again. Details: P25_SITE_KEY_LOCKED.`;
-const upgradeHelp = (site: string) => `Open ${site} once in Tovu so it can update this key, then try again. Details: P25_SITE_KEY_NEEDS_UPGRADE.`;
-const renameHelp = (site: string) => `This key has an unsafe name. Rename it on ${site}, then try again. Details: P25_SITE_KEY_LABEL.`;
+const refused = ({ message }: { message: string }, _optional = {}) => new ToolInputError({ message });
+const couldNotRead = ({ site }: { site: string }, _optional = {}) => `${site} can't be read right now. Open it in Tovu, then try again. Details: P25_SITE_KEYS_UNREADABLE; secret values omitted.`;
+const unlockHelp = ({ site }: { site: string }, _optional = {}) => `${site}'s keys can't be unlocked on this computer. Open ${site} in Tovu and recover its key, then try again. Details: P25_SITE_KEY_LOCKED.`;
+const upgradeHelp = ({ site }: { site: string }, _optional = {}) => `Open ${site} once in Tovu so it can update this key, then try again. Details: P25_SITE_KEY_NEEDS_UPGRADE.`;
+const renameHelp = ({ site }: { site: string }, _optional = {}) => `This key has an unsafe name. Rename it on ${site}, then try again. Details: P25_SITE_KEY_LABEL.`;
 
 function parseMeta({ row }: { row: MetaRow }, _options = {}): Record<string, unknown> {
   return typeof row.meta === "string" ? JSON.parse(row.meta) as Record<string, unknown> : row.meta;
@@ -88,7 +88,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
 
   /** Open one source read-only, read its metadata, and always close it. */
   async function readSource<T>({ source, read }: { source: Source; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
-    if (resolveSiteStorage({ siteDir: source.dir }).kind !== "sqlite") throw refused(couldNotRead(source.name));
+    if (resolveSiteStorage({ siteDir: source.dir }).kind !== "sqlite") throw refused({ message: couldNotRead({ site: source.name }) });
     const resolved = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false });
     const kernel = openSource<SecretsVaultDatabase>(resolved.contentDbPath, { readOnly: true });
     try {
@@ -111,7 +111,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
   function readPlainly<T>(input: Parameters<typeof readSource<T>>[0]): Promise<T> {
     return readSource(input).catch(error => {
       if (error instanceof ToolInputError) throw error;
-      throw refused(couldNotRead(input.source.name));
+      throw refused({ message: couldNotRead({ site: input.source.name }) });
     });
   }
 
@@ -123,10 +123,10 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
 
   /** A row's reason it cannot be used yet, in plain words; undefined when it can. */
   function lockedReason({ row, source, keyStatus }: { row: MetaRow; source: Source; keyStatus: boolean }, _options = {}): string | undefined {
-    if (!keyStatus) return unlockHelp(source.name);
+    if (!keyStatus) return unlockHelp({ site: source.name });
     const meta = parseMeta({ row });
-    if (needsUpgrade({ kind: row.kind, meta })) return upgradeHelp(source.name);
-    return hasSafeNames({ row }) ? undefined : renameHelp(source.name);
+    if (needsUpgrade({ kind: row.kind, meta })) return upgradeHelp({ site: source.name });
+    return hasSafeNames({ row }) ? undefined : renameHelp({ site: source.name });
   }
 
   function keyId({ source, row }: { source: Source; row: { id: string } }, _options = {}): string {
@@ -141,7 +141,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
   function resolveKeyId({ keyId }: { keyId: string }, _options = {}): { source: Source; rowId: string } {
     const parsed = keyId.startsWith(SITE_KEY_ID_PREFIX) ? parseKeyId({ keyId }) : undefined;
     const source = parsed && sources().find(item => item.siteId === parsed.siteId);
-    if (!parsed || !source) throw refused("This saved key is no longer on any site here. Open Use a saved key again.");
+    if (!parsed || !source) throw refused({ message: "This saved key is no longer on any site here. Open Use a saved key again." });
     return { source, rowId: parsed.rowId };
   }
 
@@ -177,7 +177,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
             }
           } });
         } catch {
-          choices.push({ keyId: `${SITE_KEY_ID_PREFIX}${source.siteId}:`, kind: "vendor", name: `Keys saved on ${source.name}`, siteName: source.name, locked: couldNotRead(source.name) });
+          choices.push({ keyId: `${SITE_KEY_ID_PREFIX}${source.siteId}:`, kind: "vendor", name: `Keys saved on ${source.name}`, siteName: source.name, locked: couldNotRead({ site: source.name }) });
         }
       }
       return choices;
@@ -196,12 +196,12 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
       const { source, rowId } = resolveKeyId({ keyId });
       return readPlainly({ source, read: async ({ kernel, workspaceId, rows, keyStatus, keyring }) => {
         const row = rows.find(item => item.id === rowId);
-        if (!row) throw refused(`This saved key is no longer on ${source.name}. Open Use a saved key again.`);
+        if (!row) throw refused({ message: `This saved key is no longer on ${source.name}. Open Use a saved key again.` });
         const locked = lockedReason({ row, source, keyStatus });
-        if (locked) throw refused(locked);
+        if (locked) throw refused({ message: locked });
         const opened = await siteVaultService({ kernel, workspaceId, keyring }).get({ workspaceId, id: row.id, kind: row.kind, ownerKey: "tovu", principalId: null, binding: null })
-          .catch(() => { throw refused(unlockHelp(source.name)); });
-        if (!opened?.payload) throw refused(`This saved key on ${source.name} is empty. Save it there again, then try again. Details: P25_SITE_KEY_EMPTY.`);
+          .catch(() => { throw refused({ message: unlockHelp({ site: source.name }) }); });
+        if (!opened?.payload) throw refused({ message: `This saved key on ${source.name} is empty. Save it there again, then try again. Details: P25_SITE_KEY_EMPTY.` });
         return { keyId: await promote({ summary: opened.summary, payload: opened.payload, source }) };
       } });
     },

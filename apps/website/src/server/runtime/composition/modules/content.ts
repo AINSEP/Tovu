@@ -78,7 +78,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
     name: "content",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminPostListRoute({ app, deps });
       registerAdminPostCreateRoute({ app, deps });
       registerAdminPostGetRoute({ app, deps });

@@ -47,7 +47,7 @@ test("the real composition serves search from one runtime: 503 until a provider 
   assert.deepEqual(await res.json(), { error: "search_unavailable", reason: "not_configured" });
 
   const queue: (() => void)[] = [];
-  const timers: MaintenanceTimers = { set: run => { queue.push(run); return queue.length; }, clear: () => undefined };
+  const timers: MaintenanceTimers = { set: ({ run }) => { queue.push(run); return queue.length; }, clear: () => undefined };
   const loop = startSiteSearchMaintenance({ runtime }, { timers });
   queue.shift()!();
   // The pass reschedules itself only once it has finished.

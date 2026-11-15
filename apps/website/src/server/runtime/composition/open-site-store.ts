@@ -51,7 +51,7 @@ const PGLITE_CLIENT_WAIT_MS = 60_000;
 
 /** A storage kind this build cannot open yet. */
 export class StorageNotAvailableError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "StorageNotAvailableError";
   }
@@ -67,8 +67,8 @@ export class StorageNotAvailableError extends Error {
  */
 export async function openSiteStore(required: OpenSiteStoreRequired, optional: OpenSiteStoreOptional = {}): Promise<SiteStore> {
   const { storage } = required;
-  if (storage.kind === "pglite") return openPgliteSiteStore(storage, required, optional);
-  if (storage.kind === "postgres") return openPostgresSiteStore(storage, required, optional);
+  if (storage.kind === "pglite") return openPgliteSiteStore({ storage, required }, optional);
+  if (storage.kind === "postgres") return openPostgresSiteStore({ storage, required }, optional);
   const ownsDb = optional.db === undefined;
   const sqliteOptions = optional.sqliteOpen ? { open: optional.sqliteOpen } : {};
   const db = optional.db ?? (await openSiteContentDb({ dbPath: required.dbPath }, sqliteOptions));
@@ -96,8 +96,7 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
  * (`ai_chat`) → watermark row + first-run demo seed. Closes the pool when any step fails.
  */
 async function openPostgresSiteStore(
-  storage: Extract<SiteStorage, { kind: "postgres" }>,
-  required: OpenSiteStoreRequired,
+  { storage, required }: { storage: Extract<SiteStorage, { kind: "postgres" }>; required: OpenSiteStoreRequired },
   optional: OpenSiteStoreOptional
 ): Promise<SiteStore> {
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a postgres site");
@@ -113,8 +112,7 @@ async function openPostgresSiteStore(
  * to do). The owner stops serving when the store closes or any step fails.
  */
 async function openPgliteSiteStore(
-  storage: Extract<SiteStorage, { kind: "pglite" }>,
-  required: OpenSiteStoreRequired,
+  { storage, required }: { storage: Extract<SiteStorage, { kind: "pglite" }>; required: OpenSiteStoreRequired },
   optional: OpenSiteStoreOptional
 ): Promise<SiteStore> {
   if (optional.db !== undefined) throw new Error("openSiteStore: a caller-supplied SQLite db cannot back a pglite site");
@@ -159,9 +157,7 @@ async function waitForPgliteSocket(
   const deadline = Date.now() + (optional.waitMs ?? PGLITE_CLIENT_WAIT_MS);
   while (!existsSync(socketPath)) {
     if (Date.now() >= deadline) {
-      throw new StorageNotAvailableError(
-        `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry`
-      );
+      throw new StorageNotAvailableError({ message: `this site is stored on pglite and its owner (the site's API process) is not serving ${socketPath}; start the site, then retry` });
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }

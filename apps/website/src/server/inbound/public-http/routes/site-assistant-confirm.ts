@@ -12,7 +12,7 @@ interface ConfirmRoutePorts {
   readonly enabled: () => Promise<boolean>;
   readonly allowsOrigin: (required: { origin: string }) => Promise<boolean>;
   readonly limiter: RateLimiter;
-  readonly reportError: (error: unknown) => void;
+  readonly reportError: (required: { error: unknown }, optional?: Record<string, never>) => void;
 }
 
 /** Closed, bounded reply shape: only a visitor click's nonce and literal boolean are accepted. */
@@ -44,7 +44,7 @@ async function handle({ req, res, ports }: { req: Request; res: Response; ports:
 export function registerSiteAssistantConfirm({ app, ports }: { app: Express; ports: ConfirmRoutePorts }, _options = {}): void {
   app.post(SITE_ASSISTANT_CONFIRM_PATH, (req, res) => {
     void handle({ req, res, ports }).catch(error => {
-      ports.reportError(error);
+      ports.reportError({ error });
       res.status(400).json({ error: VISITOR_TOOL_REFUSAL });
     });
   });

@@ -46,7 +46,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
   return {
     name: "users",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminUserListRoute(app, deps);
       registerAdminUserCreateRoute(app, deps);
       registerAdminUserUpdateRoute(app, deps);

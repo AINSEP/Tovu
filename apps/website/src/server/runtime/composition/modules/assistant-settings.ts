@@ -34,7 +34,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createAssistantSettingsModule(deps: AssistantSettingsRouteDeps): ServerModuleHandle {
   return {
     name: "assistant-settings",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminAssistantGetSettingsRoute(app, deps);
       registerAdminVisitorToolsRoutes({ app, deps });
       registerAdminAssistantPutSettingsRoute(app, deps);

@@ -37,7 +37,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandle {
   return {
     name: "settings",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminSettingsRegisterDefinitionsRoute({ app, deps });
       registerAdminSettingsGetEffectiveRoute({ app, deps });
       registerAdminSettingsGetRawRoute({ app, deps });

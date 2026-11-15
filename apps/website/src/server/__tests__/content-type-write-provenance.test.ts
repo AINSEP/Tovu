@@ -64,7 +64,7 @@ function buildApp(): { app: express.Express; deps: ReturnType<typeof createRoute
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  createContentTypesModule(deps).registerRoutes?.(app);
+  createContentTypesModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 

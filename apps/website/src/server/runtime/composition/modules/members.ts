@@ -104,7 +104,7 @@ export function createMembersModule(deps: {
   const oidc = options.oidc ?? createMemberOidcRouteDeps(deps);
   return {
     name: "members",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminMemberListRoute(app, deps.admin);
       registerAdminMemberGetRoute(app, deps.admin);
       registerAdminMemberDisableRoute(app, deps.admin);

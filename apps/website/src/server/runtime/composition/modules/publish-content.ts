@@ -71,7 +71,7 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
 
   return {
     name: "publish-content",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerPublishContentExportRoute({ app, deps });
       registerPublishContentBlobsProbeRoute({ app, deps });
       registerPublishContentBlobPutRoute({ app, deps });

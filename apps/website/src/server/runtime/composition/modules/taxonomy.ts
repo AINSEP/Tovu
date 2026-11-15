@@ -30,7 +30,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createTaxonomyModule(deps: TaxonomyRouteDeps): ServerModuleHandle {
   return {
     name: "taxonomy",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminTaxonomyListRoute(app, deps);
       registerAdminTaxonomyCreateRoute(app, deps);
       registerAdminTaxonomyCreateTermRoute(app, deps);

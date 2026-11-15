@@ -137,7 +137,7 @@ describe("site boot on copies of real SQLite sites (R1h)", () => {
       const before = snapshot(dbPath);
       assert.equal(before.columns.tovu_migrations, undefined, "not adopted yet");
 
-      closeSqliteConnection(await openSiteContentDb(dbPath));
+      closeSqliteConnection(await openSiteContentDb({ dbPath }));
 
       const afterFirst = snapshot(dbPath);
       // A site at the chain's head keeps its shape exactly; one behind gets the tail's DDL. A table may
@@ -201,7 +201,7 @@ describe("site boot on copies of real SQLite sites (R1h)", () => {
       assert.deepEqual(backup.content, before.content, "the copy is the database as it was");
 
       const bytes = sha(dbPath);
-      closeSqliteConnection(await openSiteContentDb(dbPath));
+      closeSqliteConnection(await openSiteContentDb({ dbPath }));
       assert.equal(sha(dbPath), bytes, "a second boot writes nothing");
       assert.deepEqual(backupsIn(siteDir), backups, "and takes no new copy");
     });

@@ -118,7 +118,7 @@ test("sqlite: a chat.db that cannot open rejects, and the content.db this call o
 
 test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db open", async () => {
   const dir = mkSiteDir();
-  const db = await openSiteContentDb(path.join(dir, "content.db"));
+  const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
   try {
     const chatDbPath = path.join(dir, "chat.db");
     fs.mkdirSync(chatDbPath);
@@ -135,7 +135,7 @@ test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db ope
 
 test("sqlite: closing a store over a caller-supplied content.db closes chat.db and leaves content.db open", async () => {
   const dir = mkSiteDir();
-  const db = await openSiteContentDb(path.join(dir, "content.db"));
+  const db = await openSiteContentDb({ dbPath: path.join(dir, "content.db") });
   try {
     const store = await openSiteStore(
       { storage: { kind: "sqlite" }, dbPath: path.join(dir, "content.db"), chatDbPath: path.join(dir, "chat.db"), role: "owner" },

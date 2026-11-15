@@ -27,8 +27,7 @@ import { runBootDataRepairs } from "./boot-data-repairs.js";
  * @param dbPath - the content.db file (created when absent), or `:memory:`.
  * @returns the open, migrated, prepared handle; the caller owns it.
  */
-export async function openSiteContentDb(required: string | { dbPath: string }, options: ContentDbOpenOptions = {}): Promise<ContentDb> {
-  const dbPath = typeof required === "string" ? required : required.dbPath;
+export async function openSiteContentDb({ dbPath }: { dbPath: string }, options: ContentDbOpenOptions = {}): Promise<ContentDb> {
   let db = openSqliteContentConnection({ filePath: dbPath }, options);
   // Tracked here rather than read off the native handle: the restore closes it mid-sequence.
   let open = true;

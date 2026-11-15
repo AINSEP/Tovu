@@ -98,7 +98,7 @@ function buildTestApp(
   if (withAdmin) {
     registerAuthRoutes(app, deps);
     app.use("/api/admin", requireAdminSession(deps));
-    createContentModule(deps as never).registerRoutes?.(app);
+    createContentModule(deps as never).registerRoutes?.({ app });
   }
   registerSiteRoutes(app, deps);
   return { app, deps };

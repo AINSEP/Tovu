@@ -128,7 +128,7 @@ export interface AssistantRunFinalizer {
   activeCount(): number;
 }
 
-function daemonHeaders(principalId: string, token: string | undefined): Record<string, string> {
+function daemonHeaders({ principalId, token }: { principalId: string; token: string | undefined }, _optional = {}): Record<string, string> {
   const headers: Record<string, string> = { [RUN_PRINCIPAL_HEADER]: principalId, Accept: "text/event-stream" };
   if (token) headers.Authorization = `Bearer ${token}`;
   return headers;
@@ -195,7 +195,7 @@ export function createHttpRunDaemonClient(
   ): Promise<number | null> {
     try {
       const response = await send(`${url}/api/runs/${encodeURIComponent(runId)}`, {
-        headers: daemonHeaders(principalId, token), signal: signal ?? AbortSignal.timeout(5_000),
+        headers: daemonHeaders({ principalId, token }), signal: signal ?? AbortSignal.timeout(5_000),
       });
       // The response headers establish the status; a stalled body must not stall recovery.
       // The status is already known; disposing the unused response body is best effort.
@@ -214,7 +214,7 @@ export function createHttpRunDaemonClient(
       const response = await fetchWithDaemonParkRecovery({ send: () => {
         const address = current();
         return send(`${address.url}/api/runs`, {
-          method: "POST", headers: { ...daemonHeaders(principalId, address.token), "Content-Type": "application/json" },
+          method: "POST", headers: { ...daemonHeaders({ principalId, token: address.token }), "Content-Type": "application/json" },
           body: JSON.stringify({ ...request, runId: run.runId, idempotencyKey: run.runId }), signal: AbortSignal.timeout(10_000),
         });
       } }, optional);
@@ -224,14 +224,14 @@ export function createHttpRunDaemonClient(
     async cancel(required, _options) {
       const address = await replayOrigin(required);
       const response = await send(`${address.url}/api/runs/${encodeURIComponent(required.runId)}/cancel`, {
-        method: "POST", headers: { ...daemonHeaders(required.principalId, address.token), "Content-Type": "application/json" },
+        method: "POST", headers: { ...daemonHeaders({ principalId: required.principalId, token: address.token }), "Content-Type": "application/json" },
         body: JSON.stringify({ reason: "recovery-fence" }), signal: AbortSignal.timeout(5_000),
       });
       await response.body?.cancel();
     },
     openEvents: async (required, { signal } = {}) => {
       const address = await replayOrigin(required);
-      return send(`${address.url}/api/runs/${encodeURIComponent(required.runId)}/events`, { headers: daemonHeaders(required.principalId, address.token), signal });
+      return send(`${address.url}/api/runs/${encodeURIComponent(required.runId)}/events`, { headers: daemonHeaders({ principalId: required.principalId, token: address.token }), signal });
     },
     async runStatus(required, requestOptions = {}) {
       try {
@@ -306,11 +306,11 @@ function recoverySettings({ options }: { options: AssistantRunFinalizerOptions }
  * without serializing it (the point is to avoid another multi-MB string per checkpoint).
  * @complexity O(nodes) time, O(depth) stack.
  */
-function approximateJsonBytes(value: unknown): number {
+function approximateJsonBytes({ value }: { value: unknown }, _optional = {}): number {
   if (typeof value === "string") return value.length;
   if (value === null || typeof value !== "object") return 1;
   let total = 0;
-  for (const item of Array.isArray(value) ? value : Object.values(value)) total += approximateJsonBytes(item);
+  for (const item of Array.isArray(value) ? value : Object.values(value)) total += approximateJsonBytes({ value: item });
   return total;
 }
 
@@ -437,7 +437,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   });
 
   /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */
-  async function settle(watch: Watch, status: RunSettlement["status"], events: AgentEvent[]): Promise<void> {
+  async function settle({ watch, status, events }: { watch: Watch; status: RunSettlement["status"]; events: AgentEvent[] }, _optional = {}): Promise<void> {
     stopWatch({ watch });
     await options.ledger.settle({
       conversationId: watch.conversationId,
@@ -458,7 +458,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       // Only a fresh status 404 selects "stream". Reconnect/deadline exhaustion is uncertain;
       // without durable recovery's budget and session quarantine, retain this run's saved row.
       if (trigger !== "stream") return;
-      await settle(watch, "canceled", [...events, { kind: "status", label: "Stopped. Saved work is above." }]);
+      await settle({ watch, status: "canceled", events: [...events, { kind: "status", label: "Stopped. Saved work is above." }] });
       return;
     }
     // A launch can still be committing after durable acceptance. Space repeated missing-run
@@ -552,7 +552,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         watch.checkpointedTextCharacters = progress.textCharacters;
         watch.checkpointedExtensionEvents = progress.extensionEvents;
         for (const key of progress.tools) watch.checkpointedTools.add(key);
-        watch.checkpointedBytes = approximateJsonBytes(events);
+        watch.checkpointedBytes = approximateJsonBytes({ value: events });
       })
       .catch((error: unknown) => {
         console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error);
@@ -688,7 +688,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   async function resolveStreamOutcome(watch: Watch, result: StreamResult): Promise<AgentRunStatus | undefined> {
     if (result.kind === "ended") {
       if (result.status === "failed" && recovery) await recoverWatch(watch, "attempt-failed");
-      else await settle(watch, result.status, interruptionEvents(watch));
+      else await settle({ watch, status: result.status, events: interruptionEvents(watch) });
       return result.status;
     }
     if (result.kind === "unresolved") { await recoverWatch(watch, "timeout"); return "interrupted"; }
@@ -745,7 +745,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
         retainedEvents: [...(message.events ?? [])],
         failed: false,
         checkpointedAt: Number.NEGATIVE_INFINITY,
-        checkpointedBytes: approximateJsonBytes(message.events ?? []),
+        checkpointedBytes: approximateJsonBytes({ value: message.events ?? [] }),
         checkpointedTextCharacters: progress.textCharacters,
         checkpointedExtensionEvents: progress.extensionEvents,
         checkpointedTools: progress.tools,

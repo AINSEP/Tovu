@@ -97,7 +97,7 @@ const DAEMON_CONNECT_RETRY_INTERVAL_MS = 250;
 
 /** The socket-level code (`ECONNREFUSED`, `ECONNRESET`, …) behind a failed `fetch` — `undefined` for a
  *  daemon that answered with an error, which is a real failure and must not be retried. */
-function connectionErrorCode(error: unknown): unknown {
+function connectionErrorCode({ error }: { error: unknown }, _optional = {}): unknown {
   return (error as { cause?: { code?: unknown } } | undefined)?.cause?.code;
 }
 
@@ -185,7 +185,7 @@ function shouldRetryConnection(attempt: { code: unknown; method: string; deadlin
 
 /** Writes the terminal 502 for a genuinely unreachable daemon. The full error is kept here — this
  *  one IS a fault worth a stack, unlike the boot-window retries above. */
-function respondDaemonUnreachable(res: Response, error: unknown): null {
+function respondDaemonUnreachable({ res, error }: { res: Response; error: unknown }, _optional = {}): null {
   console.error(`[assistant] agent daemon unreachable at ${getAgentDaemonUrl()}`, error);
   daemonUnreachableSince = null;
   res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
@@ -233,9 +233,9 @@ export async function fetchAgentDaemon(
       markDaemonReachable();
       return upstream;
     } catch (error) {
-      const attempt = { code: connectionErrorCode(error), method, deadline };
+      const attempt = { code: connectionErrorCode({ error }), method, deadline };
       if (isUnsafeReset(attempt)) return respondOutcomeUnknown({ res, error });
-      if (!shouldRetryConnection(attempt)) return respondDaemonUnreachable(res, error);
+      if (!shouldRetryConnection(attempt)) return respondDaemonUnreachable({ res, error });
       noteDaemonUnreachableWaiting();
       await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
       if (!options.passive && !(await awaitDaemonForResponse({ res }, options))) return null;
@@ -276,7 +276,7 @@ export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRun
 /** The socket-level code from a raw `node:http` request error (`error.code` directly) — the
  *  `node:http` equivalent of {@link connectionErrorCode}, which reads `error.cause.code` because
  *  `fetch`'s own errors wrap the underlying cause one level deeper. */
-function nodeConnectionErrorCode(error: unknown): unknown {
+function nodeConnectionErrorCode({ error }: { error: unknown }, _optional = {}): unknown {
   return (error as { code?: unknown } | undefined)?.code;
 }
 
@@ -286,8 +286,8 @@ function nodeConnectionErrorCode(error: unknown): unknown {
  *  `fetch()`'s rejected promise, reproduced by hand here since `http.request` reports failure via an
  *  `"error"` event instead. */
 function requestDaemonEventStream(
-  target: string,
-  headers: Record<string, string>,
+  { target, headers }: { target: string; headers: Record<string, string> },
+  _optional = {},
 ): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | { error: unknown }> {
   return new Promise((resolve) => {
     const upstreamReq = http.request(target, { method: "GET", headers }, (upstreamRes) => {
@@ -330,15 +330,15 @@ export async function fetchAgentDaemonEventStream(
   for (;;) {
     // The span covers connect to response headers, not the (possibly hours-long) stream body.
     const tracker = observability.trackOutboundCall({ method: "GET", url: target });
-    const attempt = await requestDaemonEventStream(target, headers);
+    const attempt = await requestDaemonEventStream({ target, headers });
     tracker.end("error" in attempt ? { error: attempt.error } : { statusCode: attempt.statusCode });
     if (!("error" in attempt)) {
       markDaemonReachable();
       return attempt;
     }
     // Same retry rule as `fetchAgentDaemon`; this stream is always a GET, so a reset is retried too.
-    if (!shouldRetryConnection({ code: nodeConnectionErrorCode(attempt.error), method: "GET", deadline })) {
-      return respondDaemonUnreachable(res, attempt.error);
+    if (!shouldRetryConnection({ code: nodeConnectionErrorCode({ error: attempt.error }), method: "GET", deadline })) {
+      return respondDaemonUnreachable({ res, error: attempt.error });
     }
     noteDaemonUnreachableWaiting();
     await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));

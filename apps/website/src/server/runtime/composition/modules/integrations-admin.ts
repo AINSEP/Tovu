@@ -24,7 +24,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createIntegrationsAdminModule(deps: IntegrationsRouteDeps): ServerModuleHandle {
   return {
     name: "integrations-admin",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminIntegrationsListRoute(app, deps);
       registerAdminIntegrationsCreateRoute(app, deps);
       registerAdminIntegrationsPauseRoute(app, deps);

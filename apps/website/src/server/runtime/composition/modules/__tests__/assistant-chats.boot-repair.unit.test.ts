@@ -22,7 +22,7 @@ test("a repair that dispatched turns logs the count and is reported as boot work
   t.mock.method(console, "log", (...args: unknown[]) => { logs.push(args); });
   const work: Promise<void>[] = [];
   const { app, mounted } = fakeApp();
-  module(async () => 2, (pending) => { work.push(pending); }).registerRoutes!(app);
+  module(async () => 2, (pending) => { work.push(pending); }).registerRoutes!({ app });
   assert.equal(work.length, 1);
   await work[0];
   assert.deepEqual(logs, [["[assistant-chats] dispatched 2 unfinished chat turn(s) to recovery"]]);
@@ -36,7 +36,7 @@ test("a failed repair is logged and settles, so the routes stay up; no boot-work
   let settle!: () => void;
   const settled = new Promise<void>((resolve) => { settle = resolve; });
   const { app, mounted } = fakeApp();
-  module(async () => { setImmediate(settle); throw failure; }).registerRoutes!(app);
+  module(async () => { setImmediate(settle); throw failure; }).registerRoutes!({ app });
   await settled;
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(errors, [["[assistant-chats] boot-time repair of interrupted chat turns failed", failure]]);

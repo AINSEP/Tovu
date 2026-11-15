@@ -22,7 +22,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createCommentsModerationModule(deps: CommentsModerationRouteDeps): ServerModuleHandle {
   return {
     name: "comments-moderation",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminCommentsModerationQueueRoute(app, deps);
       registerAdminCommentsModerateRoutes(app, deps);
       registerAdminCommentsGetSettingsRoute(app, deps);

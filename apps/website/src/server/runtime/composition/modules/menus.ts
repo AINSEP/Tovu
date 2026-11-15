@@ -25,7 +25,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createMenusModule(deps: MenuRouteDeps): ServerModuleHandle {
   return {
     name: "menus",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminMenuListRoute(app, deps);
       registerAdminMenuGetRoute(app, deps);
       registerAdminMenuCreateRoute(app, deps);

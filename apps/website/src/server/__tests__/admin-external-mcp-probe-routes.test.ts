@@ -74,7 +74,7 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
   if (options.limiter) registerAdminExternalMcpProbeRoute(app, probeDeps, options.limiter);
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 
@@ -362,7 +362,7 @@ test("an exhausted probe budget returns 429 and Retry-After without another conn
 function recordRegisteredRoutes(deps: RouteDeps): string[] {
   const routes: string[] = [];
   const app = new Proxy({}, { get: (_target, method) => (path: unknown) => { routes.push(`${String(method)} ${String(path)}`); } });
-  createExternalMcpModule(deps).registerRoutes?.(app as never);
+  createExternalMcpModule(deps).registerRoutes?.({ app: app as never });
   return routes;
 }
 

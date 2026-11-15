@@ -604,7 +604,7 @@ async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, too
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, toolSurface).registerRoutes?.(app);
+  createAssistantByokModule(deps, toolSurface).registerRoutes?.({ app });
   return bootAuthenticated(app, t);
 }
 

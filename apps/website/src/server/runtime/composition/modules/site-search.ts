@@ -125,7 +125,7 @@ export interface SiteSearchRuntime {
   writeProviderSetting(required: { readonly principalId: string; readonly providerId: string }): Promise<void>;
 }
 
-const errorText = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+const errorText = ({ error }: { error: unknown }, _optional = {}): string => (error instanceof Error ? error.message : String(error));
 
 /** Tovu's guarded client is `send(request)`; Jini providers call `send({ request })`. */
 function toProviderHttpClient(client: HttpClientPort): JiniHttpClientPort {
@@ -180,7 +180,7 @@ export function createSearchContextResolver(
   let installId: Promise<string | null> | undefined;
   const readInstallId = () => {
     installId ??= required.installId().catch((error: unknown) => {
-      log(`[site-search] this install has no id (${errorText(error)}); search stays unconfigured until the site key is restored`);
+      log(`[site-search] this install has no id (${errorText({ error })}); search stays unconfigured until the site key is restored`);
       return null;
     });
     return installId;
@@ -193,7 +193,7 @@ export function createSearchContextResolver(
     try {
       saved = await required.resolveCredential({ label });
     } catch (error) {
-      log(`[site-search] the "${label}" credential could not be read (${errorText(error)})`);
+      log(`[site-search] the "${label}" credential could not be read (${errorText({ error })})`);
       return null;
     }
     if (saved === null) return null;
@@ -214,10 +214,10 @@ export function createSearchContextResolver(
    * Every provider call (query, write, reconcile, drop) resolves its context here first, so a
    * disabled plugin's provider is revoked at its very next use, and restored if it is re-enabled.
    */
-  const pluginStillActive = async (pluginId: string | undefined): Promise<boolean> => {
+  const pluginStillActive = async ({ pluginId }: { pluginId: string | undefined }, _optional = {}): Promise<boolean> => {
     if (pluginId === undefined) return true;
     const active = await required.isPluginActive({ pluginId }).catch((error: unknown) => {
-      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText(error)}); its search provider is not used`);
+      log(`[site-search] the activation of plugin '${pluginId}' could not be read (${errorText({ error })}); its search provider is not used`);
       return false;
     });
     if (active === revoked.has(pluginId)) log(`[site-search] plugin '${pluginId}' is ${active ? "active again; its search provider is restored" : "no longer active; its search provider is revoked"}`);
@@ -228,7 +228,7 @@ export function createSearchContextResolver(
 
   return async ({ target, workspaceId }) => {
     const registered = registry.get({ id: target.providerId });
-    if (!registered || !(await pluginStillActive(registered.pluginId))) return null;
+    if (!registered || !(await pluginStillActive({ pluginId: registered.pluginId }))) return null;
     const { provider } = registered;
     const credentials = await credentialsFor(provider);
     if (credentials === null) return null;
@@ -266,7 +266,7 @@ export function createSiteSearchRuntime(required: SiteSearchPorts, optional: Sit
       const { refusals } = contributeProviders({ registry, loaded: withoutReservedIds(await required.loadPluginProviders()) });
       for (const refusal of refusals) log(`[site-search] ${refusal}`);
     } catch (error) {
-      log(`[site-search] plugin search providers could not be loaded (${errorText(error)}); only the built-in provider is available`);
+      log(`[site-search] plugin search providers could not be loaded (${errorText({ error })}); only the built-in provider is available`);
     }
   })();
 
@@ -312,18 +312,18 @@ export function subscribeSiteSearchIndexer(required: { readonly bus: SiteSearchB
 
 /** Injected timers so tests control the schedule. */
 export interface MaintenanceTimers {
-  set(run: () => void, ms: number): unknown;
-  clear(handle: unknown): void;
+  set(required: { run: () => void; ms: number }, optional?: Record<string, never>): unknown;
+  clear(required: { handle: unknown }, optional?: Record<string, never>): void;
 }
 
 const defaultTimers: MaintenanceTimers = {
-  set: (run, ms) => {
+  set: ({ run, ms }, _options = {}) => {
     const handle = setTimeout(run, ms);
     // Never keeps the process alive on its own, like the outbox drainer's timer.
     handle.unref();
     return handle;
   },
-  clear: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
+  clear: ({ handle }, _options = {}) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
 export interface SiteSearchMaintenance {
@@ -372,7 +372,7 @@ export function startSiteSearchMaintenance(required: { readonly runtime?: SiteSe
   let running: Promise<void> = Promise.resolve();
 
   /** One bounded step; true when it completed. A stop between steps skips the rest of the pass. */
-  const step = async (name: string, run: () => Promise<unknown>): Promise<boolean> => {
+  const step = async ({ name, run }: { name: string; run: () => Promise<unknown> }, _optional = {}): Promise<boolean> => {
     if (stopped) return false;
     try {
       await run();
@@ -386,24 +386,24 @@ export function startSiteSearchMaintenance(required: { readonly runtime?: SiteSe
   const pass = async () => {
     await runtime.ready;
     // Retried on every pass until it succeeds once (e.g. the settings read failed at boot).
-    if (!booted) booted = await step("boot rebuild", () => ensureBootTarget(runtime));
-    await step("reconcile", () => runtime.indexer.reconcile(scope, { limit: reconcileLimit }));
-    await step("backfill", () => runtime.indexer.backfill(scope, { pageBudget }));
+    if (!booted) booted = await step({ name: "boot rebuild", run: () => ensureBootTarget(runtime) });
+    await step({ name: "reconcile", run: () => runtime.indexer.reconcile(scope, { limit: reconcileLimit }) });
+    await step({ name: "backfill", run: () => runtime.indexer.backfill(scope, { pageBudget }) });
   };
 
-  const schedule = (ms: number) => {
-    handle = timers.set(() => {
+  const schedule = ({ ms }: { ms: number }, _optional = {}) => {
+    handle = timers.set({ run: () => {
       running = pass()
         .catch((error: unknown) => log("[site-search] maintenance pass failed; retrying after the idle interval", error))
-        .finally(() => { if (!stopped) schedule(intervalMs); });
-    }, ms);
+        .finally(() => { if (!stopped) schedule({ ms: intervalMs }); });
+    }, ms });
   };
-  schedule(0);
+  schedule({ ms: 0 });
 
   return {
     async stop() {
       stopped = true;
-      timers.clear(handle);
+      timers.clear({ handle });
       await running;
     },
   };

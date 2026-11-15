@@ -57,7 +57,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createDatabaseRecoveryModule(deps: DatabaseRecoveryRouteDeps): ServerModuleHandle {
   return {
     name: "database-recovery",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminDatabaseTimelineRoute(app, deps);
       registerAdminDatabaseSchemaStateRoute(app, deps);
       registerAdminDatabaseRestorePointsListRoute(app, deps);

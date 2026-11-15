@@ -54,7 +54,7 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
 
   return {
     name: "core",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerHealthRoute(app);
       registerHealthzRoute(app);
       registerReadyzRoute(app);

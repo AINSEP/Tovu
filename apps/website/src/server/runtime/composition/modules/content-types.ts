@@ -28,7 +28,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createContentTypesModule(deps: ContentTypesRouteDeps): ServerModuleHandle {
   return {
     name: "content-types",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminContentTypeListRoute(app, deps);
       registerAdminContentTypeRegisterRoute(app, deps);
       registerAdminContentTypeUpdateFieldsRoute(app, deps);

@@ -43,7 +43,7 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
   const callbackLimiter = createRateLimiter({ profile: EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP, clock: deps.clock });
   return {
     name: "agent-plugins",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAgentPluginsListRoute(app, deps);
       registerAgentPluginSetEnabledRoute(app, deps);
       registerAgentPluginFilesRoute(app, deps);

@@ -59,7 +59,7 @@ import type { ServerModuleHandle } from "./types.js";
 export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps & MediaImportUrlRouteDeps & MediaWhereUsedDeps): ServerModuleHandle {
   return {
     name: "media",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerAdminMediaListRoute(app, deps);
       registerAdminMediaWhereUsedRoute({ app, deps });
       registerAdminMediaUploadRoute(app, deps);

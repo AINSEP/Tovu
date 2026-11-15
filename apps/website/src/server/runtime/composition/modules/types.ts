@@ -19,7 +19,7 @@ import type { BootModule } from "../../lifecycle/boot-lifecycle.js";
 export interface ServerModuleHandle {
   name: string;
   /** Registers this module's HTTP routes, if any, at the point `app.ts` calls it (route order is still owned by the caller). */
-  registerRoutes?: (app: Express) => void;
+  registerRoutes?: (required: { app: Express }, optional?: Record<string, never>) => void;
   /** Starts this module's subscriptions/workers, if any. Called once, at boot. */
   start?: () => void;
   /** Optional readiness participant, folded into the SAME `runBootLifecycle()` call as every other boot module (ADR-046 Phase 2). */

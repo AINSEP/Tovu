@@ -318,7 +318,7 @@ for (const c of CASES) {
     assert.equal(typeof handle.registerRoutes, "function");
 
     const app = express();
-    handle.registerRoutes!(app);
+    handle.registerRoutes!({ app });
     assert.deepEqual(routesOf(app), c.routes);
   });
 }

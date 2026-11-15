@@ -9,7 +9,7 @@ import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-appro
 export function createSkillsModule(deps: SkillsRouteDeps): ServerModuleHandle {
   return {
     name: "skills",
-    registerRoutes: (app) => {
+    registerRoutes: ({ app }, _options = {}) => {
       registerSkillsListRoute(app, deps);
       registerSkillFilesRoute(app, deps);
       registerSkillsManagementRoutes(app, { ...deps, withExtensionApprovalPolicy });

@@ -48,7 +48,7 @@ test("BYOK pins history, credential and attachment validation before opening SSE
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
+  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const messages = [{ role: "user", content: "Hello" }];
   const byok = { protocol: "anthropic", apiKey: "fixture-key", model: "fixture-model" };
@@ -74,7 +74,7 @@ test("BYOK pins absent and empty attachments, malformed plugin picks, and missin
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
+  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   let calls = 0;
   const providerUrl = await startStubProviderServer(t, () => {
@@ -117,7 +117,7 @@ test("BYOK repeats pinned guidance while retaining good picks around failures (r
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.(app);
+  createAssistantByokModule(deps, createByokToolSurface(deps, { installExtensions: false })).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const prompts: string[] = [];
   const providerUrl = await startStubProviderServer(t, (_count, body) => {

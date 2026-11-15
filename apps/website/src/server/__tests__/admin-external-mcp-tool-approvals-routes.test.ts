@@ -33,7 +33,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps; repo: InMemory
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps, repo };
 }
 
@@ -132,7 +132,7 @@ test("a composition with no Always-allow store lists nothing and revokes nothing
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  createExternalMcpModule(deps).registerRoutes?.(app);
+  createExternalMcpModule(deps).registerRoutes?.({ app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const list = await req(baseUrl, `${BASE}/tool-approvals`, cookie);

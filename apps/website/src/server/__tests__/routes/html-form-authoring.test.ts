@@ -161,6 +161,6 @@ test("forms-admin composition registers the dedicated authoring endpoint", () =>
   // A registration assertion catches the easy-to-miss production wiring gap independently of HTTP fixtures.
   const paths: string[] = [];
   const app = { get: () => {}, post: () => {}, delete: () => {}, put: (path: string) => { paths.push(path); } };
-  createFormsAdminModule({} as Parameters<typeof createFormsAdminModule>[0]).registerRoutes!(app as unknown as express.Express);
+  createFormsAdminModule({} as Parameters<typeof createFormsAdminModule>[0]).registerRoutes!({ app: app as unknown as express.Express });
   assert.ok(paths.includes("/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring"));
 });

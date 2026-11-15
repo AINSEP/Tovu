@@ -18,7 +18,7 @@ function harness() {
   };
   const app = { use() {}, ...Object.fromEntries(["get", "post", "put", "patch", "delete"].map(method => [method, (path: string, handler: Handler) => { routes.set(`${method} ${path}`, handler); }])) } as unknown as Express;
   const deps = { workspaceId: "ws", tracker: createTracker({}), chatHistory: () => store, chatRunLedger: { reconcileInterrupted: async () => 0 } } as unknown as RouteDeps;
-  createAssistantChatsModule(deps, { finalizer: { watch() {} } as unknown as AssistantRunFinalizer }).registerRoutes!(app);
+  createAssistantChatsModule(deps, { finalizer: { watch() {} } as unknown as AssistantRunFinalizer }).registerRoutes!({ app });
   const invoke = (route: string, body: object) => new Promise<Record<string, any>>((resolve, reject) => {
     const res = { locals: { principal: { id: "owner" } }, status() { return this; }, json: resolve } as unknown as Response;
     routes.get(route)!({ body, params: { id: "c", messageId: "u" } } as unknown as Request, res, reject);

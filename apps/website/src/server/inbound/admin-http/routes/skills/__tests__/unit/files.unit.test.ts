@@ -34,7 +34,7 @@ async function harness(work: (call: (toolId?: string, workspaceId?: string, over
       return { allowed, reason: "test" };
     } }));
     assert.ok(skillsModule.registerRoutes, "the skills module registers routes");
-    skillsModule.registerRoutes(app);
+    skillsModule.registerRoutes({ app });
     await work(async (toolId = "skill_example", workspaceId = "workspace-local", overrides = {}) => {
       const handler = handlers.get(`get ${route}`);
       assert.equal(typeof handler, "function", "files route is composed into the skills module");
