@@ -1509,23 +1509,7 @@ export function placeAfterCurrentContent(
 export async function renderViaTemplate({ deps, theme, post, staticMenus }: { deps: TemplateRenderDeps; theme: DiscoveredTheme; post: PostRecord; staticMenus: StaticMenuMap | undefined }, { pendingBodyJson, pendingBodyHtml, extraHead, siteAssistantEnabled = false, postPreviewsAccess }: { pendingBodyJson?: JsonObject; pendingBodyHtml?: string; extraHead?: string; siteAssistantEnabled?: SiteChatSelection; /* Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request, ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the home/related-posts listing gate; the admin preview supplies anonymous visitor access). A direct caller that omits it leaves any `{"type":"post-previews"}` marker's authored fallback untouched, byte-identical to before this marker existed, rather than querying with no way to gate the result correctly. Preview used to omit it too, which hid real lists and their See more button. */ postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext } } = {}): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
-    // `renderStaticPage`'s `| null` return (static-render.ts) is exactly its own `source ===
-    // undefined` case, where `source = htmlOverride ?? theme.pages[pageId]` — reachable only when
-    // BOTH are undefined. `htmlOverride` here is `buildMissingTemplateHtml(...)`'s return value,
-    // typed `string` (never `undefined`), so `source` can never be undefined at this call site and
-    // `renderStaticPage` can never return `null` here. The `?? ""` below is accordingly unreachable
-    // dead code by construction, not merely untested — proper fix is narrowing `renderStaticPage`'s
-    // own return type via an overload keyed on a required `htmlOverride`, which lives outside this
-    // file (static-render.ts) and is out of this pass's scope.
-    return injectExtraHeadIntoStaticPage(
-      renderStaticPage({
-        theme,
-        pageId: "template-missing",
-        htmlOverride: buildMissingTemplateHtml({ apiVersion: theme.manifest.apiVersion }),
-        menus: staticMenus,
-      }) ?? "",
-      (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
-    );
+    return renderMissingTemplatePage({ deps, theme, staticMenus });
   }
   const { pageId, html: rawTemplate } = resolution;
 
@@ -1586,6 +1570,30 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
     providers: deps.commentsProviders, siteId: deps.workspaceId,
     entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
   }, { cursor: deps.commentsCursor });
+}
+
+/**
+ * The operator-facing "template not configured" page for a diagnostic template resolution, with the
+ * theme's document assets folded into its head.
+ */
+async function renderMissingTemplatePage({ deps, theme, staticMenus }: { deps: TemplateRenderDeps; theme: DiscoveredTheme; staticMenus: StaticMenuMap | undefined }, _optional = {}): Promise<string> {
+  // `renderStaticPage`'s `| null` return (static-render.ts) is exactly its own `source ===
+  // undefined` case, where `source = htmlOverride ?? theme.pages[pageId]` — reachable only when
+  // BOTH are undefined. `htmlOverride` here is `buildMissingTemplateHtml(...)`'s return value,
+  // typed `string` (never `undefined`), so `source` can never be undefined at this call site and
+  // `renderStaticPage` can never return `null` here. The `?? ""` below is accordingly unreachable
+  // dead code by construction, not merely untested — proper fix is narrowing `renderStaticPage`'s
+  // own return type via an overload keyed on a required `htmlOverride`, which lives outside this
+  // file (static-render.ts) and is out of this pass's scope.
+  return injectExtraHeadIntoStaticPage(
+    renderStaticPage({
+      theme,
+      pageId: "template-missing",
+      htmlOverride: buildMissingTemplateHtml({ apiVersion: theme.manifest.apiVersion }),
+      menus: staticMenus,
+    }) ?? "",
+    (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
+  );
 }
 
 /**
