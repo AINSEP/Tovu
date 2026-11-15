@@ -47,6 +47,6 @@ test("static-tier template render keeps the landing page scripts and button SVGs
     pages: { post: `<html><head><title>{{title}}</title></head><body><main data-embed-config='{"type":"content"}'></main></body></html>` },
     partials: {}, css: "", source: "site", status: "valid", errors: [],
   } as unknown as DiscoveredTheme;
-  assertPageScriptsAndIcons(await renderViaTemplate(deps, theme, post, undefined), "saved");
-  assertPageScriptsAndIcons(await renderViaTemplate(deps, theme, post, undefined, undefined, body), "pending");
+  assertPageScriptsAndIcons(await renderViaTemplate({ deps, theme, post, staticMenus: undefined }), "saved");
+  assertPageScriptsAndIcons(await renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyJson: undefined, pendingBodyHtml: body }), "pending");
 });

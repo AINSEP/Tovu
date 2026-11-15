@@ -34,7 +34,7 @@ const MAX_REFERRER_LENGTH = 2048;
 const MAX_EVENT_NAME_LENGTH = 200;
 
 /** Truncates an untrusted string field to a bounded length; non-strings coerce to `""`. */
-function boundedString(value: unknown, maxLength: number): string {
+function boundedString({ value, maxLength }: { value: unknown; maxLength: number }, _optional = {}): string {
   const str = typeof value === "string" ? value : "";
   return str.slice(0, maxLength);
 }
@@ -51,19 +51,19 @@ function isJsonObject(value: unknown): value is JsonObject {
  * @complexity O(1) (plus the bounded string truncation above).
  * @overallScore 100/100
  */
-function parseBeacon(body: unknown, fallbackHost: string): IngestBeacon {
+function parseBeacon({ body, fallbackHost }: { body: unknown; fallbackHost: string }, _optional = {}): IngestBeacon {
   const raw = (body ?? {}) as Record<string, unknown>;
-  const host = boundedString(raw.host, MAX_HOST_LENGTH) || fallbackHost;
-  const referrer = typeof raw.referrer === "string" ? boundedString(raw.referrer, MAX_REFERRER_LENGTH) : null;
+  const host = boundedString({ value: raw.host, maxLength: MAX_HOST_LENGTH }) || fallbackHost;
+  const referrer = typeof raw.referrer === "string" ? boundedString({ value: raw.referrer, maxLength: MAX_REFERRER_LENGTH }) : null;
   const kind = raw.kind === "event" ? "event" : "pageview";
   const eventName =
     kind === "event" && typeof raw.eventName === "string"
-      ? boundedString(raw.eventName, MAX_EVENT_NAME_LENGTH)
+      ? boundedString({ value: raw.eventName, maxLength: MAX_EVENT_NAME_LENGTH })
       : undefined;
 
   return {
     host,
-    path: boundedString(raw.path, MAX_PATH_LENGTH),
+    path: boundedString({ value: raw.path, maxLength: MAX_PATH_LENGTH }),
     referrer,
     kind,
     eventName,
@@ -74,7 +74,7 @@ function parseBeacon(body: unknown, fallbackHost: string): IngestBeacon {
 }
 
 /** Builds the transient per-request context `ingestHit` consumes and then discards (no PII persisted). */
-function buildContext(req: Request, receivedAt: string): IngestContext {
+function buildContext({ req, receivedAt }: { req: Request; receivedAt: string }, _optional = {}): IngestContext {
   return {
     ip: req.ip ?? req.socket.remoteAddress ?? "",
     userAgent: req.get("user-agent") ?? "",
@@ -101,8 +101,8 @@ export function registerAnalyticsIngestRoute(app: Express, deps: AnalyticsIngest
     // Browser headers are authoritative even if the body omits or contradicts its privacy signal.
     if (req.get("dnt") === "1" || req.get("sec-gpc") === "1") { res.status(204).end(); return; }
     const receivedAt = new Date(deps.clock.nowMs()).toISOString();
-    const beacon = parseBeacon(req.body, req.hostname ?? "");
-    const context = buildContext(req, receivedAt);
+    const beacon = parseBeacon({ body: req.body, fallbackHost: req.hostname ?? "" });
+    const context = buildContext({ req, receivedAt });
 
     try {
       // Never throws (fails toward no vendor); resolved before ingest because consent is per request.

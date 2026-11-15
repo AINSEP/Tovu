@@ -44,13 +44,13 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
       void captureVisitorEvent({ deps: deps, request: req, name: "member_sign_in_requested", properties: { method: "challenge", realm: "member" } });
       res.json({ accepted: true, challengeId: prepared.challengeId });
       // Do not await per-address I/O or reflect its outcome in this anti-enumeration response.
-      setImmediate(() => { void prepared.deliver().catch(reportMemberDeliveryFailure); });
+      setImmediate(() => { void prepared.deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); });
     } catch (error) { respondToSignInError({ error, res }); }
   });
 }
 
 /** Detached failures are observable without logging addresses, bearer tokens or provider details. */
-export function reportMemberDeliveryFailure(_error: unknown): void {
+export function reportMemberDeliveryFailure(_required: { error: unknown }, _optional = {}): void {
   console.error("Member authentication delivery failed after acceptance");
 }
 

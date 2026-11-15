@@ -30,6 +30,6 @@ export const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback
  *
  * @complexity O(1).
  */
-export function externalMcpOAuthCallbackUrl(req: Request, serverId: string): string {
+export function externalMcpOAuthCallbackUrl({ req, serverId }: { req: Request; serverId: string }, _optional = {}): string {
   return `${resolvePublicOrigin(req)}${EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/${encodeURIComponent(serverId)}`;
 }

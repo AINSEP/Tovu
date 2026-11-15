@@ -135,7 +135,7 @@ export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter }
       const started = await deps.externalMcpOAuth.beginConnect({
         serverId, actorId: getAuthedPrincipal(res).id,
         ...(destination === 'shared' ? { destination } : {}),
-        redirectUri: externalMcpOAuthCallbackUrl(req, serverId),
+        redirectUri: externalMcpOAuthCallbackUrl({ req, serverId }),
         delivery: 'hosted',
       });
       res.json({ auth: started });
@@ -174,7 +174,7 @@ function registerExternalMcpBrowserSignInRoute({ app, deps, limiter }: { app: Ex
       if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? '');
       const browserBinding = generateOAuthState({ randomBytesFn: ({ byteLength }) => randomBytes(byteLength) }, { stateBytes: 32 });
-      const start = await deps.externalMcpOAuth.beginConnect({ serverId, actorId: getAuthedPrincipal(res).id, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), browserBinding });
+      const start = await deps.externalMcpOAuth.beginConnect({ serverId, actorId: getAuthedPrincipal(res).id, redirectUri: externalMcpOAuthCallbackUrl({ req, serverId }), browserBinding });
       if (start.kind !== 'redirect_required') {
         res.status(400).json({ error: 'This connection uses a device code. Close this window and start again from Settings → External MCP.', code: 'MCP_DEVICE_SIGN_IN_REQUIRED' });
         return;

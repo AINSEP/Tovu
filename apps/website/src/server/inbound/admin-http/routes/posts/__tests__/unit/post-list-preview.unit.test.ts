@@ -41,7 +41,7 @@ test("preview without a post-list keeps the existing output and performs no list
   const { deps, post, theme, writes } = postListPreviewDeps({ count: 25, slug: "writing" });
   deps.postRepo.listPublishedPreviews = async () => { throw new Error("unexpected listing read"); };
   const bodyHtml = "<p>Unsaved page without a listing</p>";
-  const previous = await renderViaTemplate(deps, theme, post, undefined, undefined, bodyHtml);
+  const previous = await renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyJson: undefined, pendingBodyHtml: bodyHtml });
   const preview = await renderPostPreview(deps, { post, bodyHtml });
   assert.equal(preview.html, previous);
   assert.match(preview.html, /Unsaved page without a listing/);

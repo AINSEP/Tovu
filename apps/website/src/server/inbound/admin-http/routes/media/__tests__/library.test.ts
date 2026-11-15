@@ -25,8 +25,8 @@ function appFixture() {
   for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register(app, deps);
   registerAdminMediaTextRoute({ app, deps });
   // Private documents must short-circuit before unrelated post/member lookups.
-  registerMediaRenditionRoute(app, deps as MediaRenditionRouteDeps);
-  registerMediaOriginalVideoRoute(app, deps as MediaRenditionRouteDeps);
+  registerMediaRenditionRoute({ app, deps: deps as MediaRenditionRouteDeps });
+  registerMediaOriginalVideoRoute({ app, deps: deps as MediaRenditionRouteDeps });
   return { app, deps, deny };
 }
 const root = '/api/admin/v1/workspaces/site-a/media';

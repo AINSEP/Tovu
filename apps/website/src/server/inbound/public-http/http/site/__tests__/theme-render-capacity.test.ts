@@ -25,9 +25,9 @@ test("Liquid and Handlebars visitors share a two-worker render limit and recover
   };
   // The injected worker ignores entry paths. Fixture names bypass source compilation so this
   // checks the shared host policy without spawning Node workers or an esbuild subprocess.
-  const render = (engine: string) => renderInWorkerSandbox(`${engine}-capacity-fixture`, engine, {
+  const render = (engine: string) => renderInWorkerSandbox({ workerBasename: `${engine}-capacity-fixture`, errorLabel: engine, input: {
     source: "hello", ctx,
-  }, { workerFactory, productRoot: process.cwd() });
+  } }, { workerFactory, productRoot: process.cwd() });
   const first = render("Liquid");
   const second = render("Handlebars");
   const refused = render("Liquid");

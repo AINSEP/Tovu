@@ -132,13 +132,7 @@ import { asyncRoute } from "../../../shared/async-route.js";
  * file header for why this lives there and not in `platform/routing`), same fix and same
  * degradation contract (no verified origin yet -> stays relative) as `seo.ts`'s `resolveCanonical`.
  */
-async function buildExtraHead(
-  deps: RouteDeps,
-  route: "home" | "post" | "page",
-  siteTitle: string,
-  post: PostRecord | undefined,
-  canonicalFallbackPath: string = "/"
-): Promise<string> {
+async function buildExtraHead({ deps, route, siteTitle, post }: { deps: RouteDeps; route: "home" | "post" | "page"; siteTitle: string; post: PostRecord | undefined }, { canonicalFallbackPath = "/" }: { canonicalFallbackPath?: string } = {}): Promise<string> {
   const canonical = post
     ? (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl
     : undefined;
@@ -180,12 +174,7 @@ async function buildExtraHead(
  * ADR-039 §1 documents. Issues the redirect and returns `true` if a phase
  * matched; the caller falls through to its own content/404 handling on `false`.
  */
-async function tryRedirectPhase(
-  phase: "pre_content" | "post_content",
-  path: string,
-  workspaceId: string,
-  res: Response
-): Promise<boolean> {
+async function tryRedirectPhase({ phase, path, workspaceId, res }: { phase: "pre_content" | "post_content"; path: string; workspaceId: string; res: Response }, _optional = {}): Promise<boolean> {
   const outcome =
     phase === "pre_content"
       ? await runPreContentPhase({ path: path, ctx: { workspaceId } })
@@ -413,15 +402,7 @@ export { resolveActiveThemeId, resolveActiveTheme };
  * `post.bodyJson` directly (`pageBodyJson`) instead of an id to re-fetch — this route already holds
  * `post` by the time it calls this, so no extra lookup is needed either way.
  */
-export async function resolveWidgetsForRender(
-  deps: RenderContextResolutionDeps,
-  // `null` when the operator turned the theme off. Region-bound widgets are declared BY a theme, so
-  // with no theme there are no regions to resolve into — the same empty-region answer a theme that
-  // declares none already gets. Inline (`widgetEmbed`) widgets are unaffected: they live in the
-  // post body, not in a theme region, and are resolved from `pageBodyJson` below either way.
-  theme: DiscoveredTheme | null,
-  post?: PostRecord
-): Promise<ResolvePageWidgetsResult> {
+export async function resolveWidgetsForRender({ deps, theme }: { deps: RenderContextResolutionDeps; /* `null` when the operator turned the theme off. Region-bound widgets are declared BY a theme, so with no theme there are no regions to resolve into — the same empty-region answer a theme that declares none already gets. Inline (`widgetEmbed`) widgets are unaffected: they live in the post body, not in a theme region, and are resolved from `pageBodyJson` below either way. */ theme: DiscoveredTheme | null }, { post }: { post?: PostRecord } = {}): Promise<ResolvePageWidgetsResult> {
   return resolvePageWidgets({
     deps: { bindingRepo: deps.widgetBindingRepo, entryRepo: deps.entryRepo },
     input: { workspaceId: deps.workspaceId, pageBodyJson: post?.bodyJson, resolvedRegions: theme?.manifest.regions ?? [] },
@@ -446,7 +427,7 @@ export async function resolveWidgetsForRender(
  * from a non-templated Page's own body is a disclosed, out-of-scope gap for this pass, not silently
  * unhandled — it degrades to the same honest placeholder any other unresolved reference gets.
  */
-export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
+export async function resolveHtmlEmbedsForRender({ deps, post }: { deps: RenderContextResolutionDeps; post: PostRecord | undefined }, _optional = {}): Promise<ResolveHtmlPageEmbedsResult | undefined> {
   if (!post || post.bodyFormat !== "html") return undefined;
   return resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
@@ -543,7 +524,7 @@ const CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID = "docs-current-page-sidebar";
  *
  * @complexity O(1).
  */
-function docsSidebarMenuSlugForPath(currentPath: string): string {
+function docsSidebarMenuSlugForPath({ currentPath }: { currentPath: string }, _optional = {}): string {
   const slug = currentPath.replace(/^\/+/, "");
   return `docs-${slug}-sidebar`;
 }
@@ -624,11 +605,8 @@ function flattenDocsPages(groups: readonly StaticMenuItem[]): readonly StaticMen
  *
  * @complexity O(1).
  */
-function buildDocsPagerItems(
-  flatPages: readonly StaticMenuItem[],
-  currentIndex: number
-): readonly StaticMenuItem[] {
-  const pagerItem = (item: StaticMenuItem, cssClass: string): StaticMenuItem => ({
+function buildDocsPagerItems({ flatPages, currentIndex }: { flatPages: readonly StaticMenuItem[]; currentIndex: number }, _optional = {}): readonly StaticMenuItem[] {
+  const pagerItem = ({ item, cssClass }: { item: StaticMenuItem; cssClass: string }, _optional = {}): StaticMenuItem => ({
     ...item,
     isCurrent: false,
     isActive: false,
@@ -639,8 +617,8 @@ function buildDocsPagerItems(
   const items: StaticMenuItem[] = [];
   const prev = flatPages[currentIndex - 1];
   const next = flatPages[currentIndex + 1];
-  if (prev) items.push(pagerItem(prev, DOCS_PAGER_PREV_CLASS));
-  if (next) items.push(pagerItem(next, DOCS_PAGER_NEXT_CLASS));
+  if (prev) items.push(pagerItem({ item: prev, cssClass: DOCS_PAGER_PREV_CLASS }));
+  if (next) items.push(pagerItem({ item: next, cssClass: DOCS_PAGER_NEXT_CLASS }));
   return items;
 }
 
@@ -648,11 +626,7 @@ function buildDocsPagerItems(
  * One stored menu's render content: its author-written HTML when the menu is in HTML mode (owner
  * 2026-10-08, Jini `menu-html.ts`), else its resolved item tree.
  */
-async function resolveMenuContent(
-  menu: NavMenuEntry,
-  context: { workspaceId: string; currentPath: string },
-  resolveTargetHref: ResolveTargetHrefFn
-): Promise<StaticMenuContent> {
+async function resolveMenuContent({ menu, context, resolveTargetHref }: { menu: NavMenuEntry; context: { workspaceId: string; currentPath: string }; resolveTargetHref: ResolveTargetHrefFn }, _optional = {}): Promise<StaticMenuContent> {
   if (menu.doc.mode === "html") return { html: menu.doc.html ?? "" };
   return resolveMenuDoc({ doc: menu.doc, context, resolveTargetHref });
 }
@@ -727,16 +701,16 @@ async function resolveOneStaticMenu({ menuId, env }: { menuId: string; env: Stat
   if (menuId === DOCS_PREV_NEXT_MENU_ID) return resolveDocsPrevNextMenu(menuId, env);
   const menu = await findStaticMenu({ menuId, deps: env.deps });
   if (!menu) return undefined;
-  return [menuId, await resolveMenuContent(menu, env.context, env.resolveTargetHref)] as const;
+  return [menuId, await resolveMenuContent({ menu, context: env.context, resolveTargetHref: env.resolveTargetHref })] as const;
 }
 
 async function resolveCurrentPageSidebarMenu(menuId: string, { deps, context, resolveTargetHref }: StaticMenuResolution): Promise<StaticMenuEntry | undefined> {
   const menu = await deps.menuRepo.findBySlug({
     workspaceId: deps.workspaceId,
-    slug: docsSidebarMenuSlugForPath(context.currentPath),
+    slug: docsSidebarMenuSlugForPath({ currentPath: context.currentPath }),
   });
   if (!menu) return undefined;
-  return [menuId, await resolveMenuContent(menu, context, resolveTargetHref)] as const;
+  return [menuId, await resolveMenuContent({ menu, context, resolveTargetHref })] as const;
 }
 
 async function resolveDocsSectionMenu(menuId: string, { deps, context, resolveTargetHref }: StaticMenuResolution): Promise<StaticMenuEntry | undefined> {
@@ -751,16 +725,10 @@ async function resolveDocsPrevNextMenu(menuId: string, { deps, context, resolveT
   const flatPages = flattenDocsPages(docsItem.children);
   const currentIndex = flatPages.findIndex((page) => page.isCurrent);
   if (currentIndex === -1) return undefined;
-  return [menuId, buildDocsPagerItems(flatPages, currentIndex)] as const;
+  return [menuId, buildDocsPagerItems({ flatPages, currentIndex })] as const;
 }
 
-export async function resolveStaticMenusForRender(
-  deps: TemplateRenderDeps,
-  /** `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */
-  theme: DiscoveredTheme | null,
-  currentPath: string,
-  extraMenuIds?: readonly string[]
-): Promise<StaticMenuMap> {
+export async function resolveStaticMenusForRender({ deps, theme, currentPath }: { deps: TemplateRenderDeps; /* `null` when the operator turned the theme off — no theme, no theme-owned menu embeds. */ theme: DiscoveredTheme | null; currentPath: string }, { extraMenuIds }: { extraMenuIds?: readonly string[] } = {}): Promise<StaticMenuMap> {
   if (theme === null || theme.manifest.tier !== "static") return {};
 
   const menuIds = Array.from(new Set([...scanMenuEmbedIds(theme), ...(extraMenuIds ?? [])]));
@@ -879,16 +847,16 @@ export async function finishStaticTierDocument(
   const menus =
     missingMenuIds.length === 0
       ? staticMenus
-      : { ...staticMenus, ...(await resolveStaticMenusForRender(deps, theme, currentPath, missingMenuIds)) };
+      : { ...staticMenus, ...(await resolveStaticMenusForRender({ deps, theme, currentPath }, { extraMenuIds: missingMenuIds })) };
 
   const postPreviews = postPreviewsAccess
-    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, assembled, currentPath)
+    ? await resolvePostPreviewsForRender({ deps, memberAccessResolver: postPreviewsAccess.resolver, memberContext: postPreviewsAccess.context, pageHtml: assembled, pagePath: currentPath })
     : undefined;
 
   // C5 (collections plan, 2026-09-23) — the SAME assembled html post-previews just scanned, so a
   // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
   // only one hand-authored directly into a theme file.
-  const collectionLists = await resolveCollectionListsForRender(deps, assembled, currentPath);
+  const collectionLists = await resolveCollectionListsForRender({ deps, html: assembled, pagePath: currentPath });
 
   return injectExtraHeadIntoStaticPage(
     renderStaticPage({
@@ -932,7 +900,7 @@ const MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE = 10;
  *
  * @complexity O(1).
  */
-function collectionEntryFieldValue(row: EntryRecord, field: string): unknown {
+function collectionEntryFieldValue({ row, field }: { row: EntryRecord; field: string }, _optional = {}): unknown {
   const fields = row.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null | undefined;
   return fields?.ext?.site?.[field];
 }
@@ -949,19 +917,19 @@ function collectionEntryFieldValue(row: EntryRecord, field: string): unknown {
  * @complexity O(f) over `fields`' length — one `collectionEntryFieldValue` lookup per displayed
  * field, f being the content type's own declared/authored field count, never user-collection-sized.
  */
-function toCollectionEntryListItem(row: EntryRecord, fields: readonly ContentTypeFieldDef[], timeZone: string): EntryListItem {
+function toCollectionEntryListItem({ row, fields, timeZone }: { row: EntryRecord; fields: readonly ContentTypeFieldDef[]; timeZone: string }, _optional = {}): EntryListItem {
   const dateIso = row.publishedAt ?? row.updatedAt;
   return {
     title: row.title,
     href: entryPublicHref({ _typeKey: row.type, _slug: row.slug }),
     dateIso,
-    dateLabel: formatPostPreviewDate(dateIso, timeZone),
+    dateLabel: formatPostPreviewDate({ iso: dateIso, timeZone }),
     fields: fields.map(
       (field): EntryListFieldValue => ({
         name: field.name,
         label: humanizeFieldName({ name: field.name }),
         kind: field.kind,
-        value: collectionEntryFieldValue(row, field.name),
+        value: collectionEntryFieldValue({ row, field: field.name }),
       })
     ),
   };
@@ -1013,11 +981,7 @@ async function resolveCollectionMarkerConfig(
 /** The published entries one collection marker lists: its whole bounded query for a plain marker,
  *  or — for a see-more marker — its batch (from `after` when this request asks for its key) plus
  *  whether a next batch exists. @complexity One bounded `listPublishedForDisplay` read. */
-async function readCollectionBatch(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "entryRepo" | "listingBatch">,
-  query: ParsedCollectionListConfig["query"],
-  listingKey: number | undefined
-) {
+async function readCollectionBatch({ deps, query, listingKey }: { deps: Pick<TemplateRenderDeps, "workspaceId" | "entryRepo" | "listingBatch">; query: ParsedCollectionListConfig["query"]; listingKey: number | undefined }, _optional = {}) {
   // A see-more marker reads its batch (from `after` when this request asks for its key) plus one row
   // to learn whether a next batch exists; entries carry no member access, so every row is visible.
   if (listingKey === undefined) {
@@ -1043,19 +1007,15 @@ async function readCollectionBatch(
  * one bounded `entryRepo.listPublishedForDisplay` query (capped at the marker's own clamped `limit`,
  * `parseCollectionListConfig`'s own resource bound) — never an unbounded scan.
  */
-async function resolveOneCollectionMarker(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch" | "siteTimeZone">,
-  marker: EmbedMarker,
-  pagePath: string
-): Promise<string | undefined> {
+async function resolveOneCollectionMarker({ deps, marker, pagePath }: { deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch" | "siteTimeZone">; marker: EmbedMarker; pagePath: string }, _optional = {}): Promise<string | undefined> {
   const config = await resolveCollectionMarkerConfig(deps, marker);
   if (config === undefined) return undefined;
   const { typeKey, parsed } = config;
 
   const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
-  const batch = await readCollectionBatch(deps, parsed.query, listingKey);
+  const batch = await readCollectionBatch({ deps, query: parsed.query, listingKey });
   const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
-  const items = batch.items.map((row) => toCollectionEntryListItem(row, parsed.display.fields, timeZone));
+  const items = batch.items.map((row) => toCollectionEntryListItem({ row, fields: parsed.display.fields, timeZone }));
   const { template } = splitCollectionMarkerInner(marker.inner);
   const { columns, layout, structuredData } = parsed.display;
   const list = renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) });
@@ -1087,11 +1047,7 @@ async function resolveOneCollectionMarker(
  * up to `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE` independent `resolveOneCollectionMarker` calls run
  * concurrently via `Promise.all` — never one query per marker OCCURRENCE, only per distinct config.
  */
-async function resolveCollectionListsForRender(
-  deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch">,
-  html: string,
-  pagePath: string
-): Promise<ReadonlyMap<string, string | undefined>> {
+async function resolveCollectionListsForRender({ deps, html, pagePath }: { deps: Pick<TemplateRenderDeps, "workspaceId" | "contentTypeRepo" | "entryRepo" | "listingBatch">; html: string; pagePath: string }, _optional = {}): Promise<ReadonlyMap<string, string | undefined>> {
   const markers = markersOfType({ html: html, type: COLLECTION_MARKER_TYPE });
   if (markers.length === 0) return new Map();
 
@@ -1109,7 +1065,7 @@ async function resolveCollectionListsForRender(
   }
 
   const resolvedEntries = await Promise.all(
-    withinCap.map(async ([key, marker]): Promise<readonly [string, string | undefined]> => [key, await resolveOneCollectionMarker(deps, marker, pagePath)])
+    withinCap.map(async ([key, marker]): Promise<readonly [string, string | undefined]> => [key, await resolveOneCollectionMarker({ deps, marker, pagePath })])
   );
 
   return new Map(resolvedEntries);
@@ -1139,7 +1095,7 @@ async function resolveCollectionListsForRender(
  * tokens silently fail to inject and `rewriteAssetPaths` rewrites the folder prefix onto a filename
  * that does not exist for a v2 theme (an extra 404 on top of the unstyled page).
  */
-function buildMissingTemplateHtml(apiVersion: 2 | undefined): string {
+function buildMissingTemplateHtml({ apiVersion }: { apiVersion: 2 | undefined }, _optional = {}): string {
   return [
     "<!doctype html>",
     '<html lang="en">',
@@ -1305,7 +1261,7 @@ function toContentMarkerRef(marker: EmbedMarker): ContentMarkerRef | undefined {
  * also cover a slug-only marker. Preserves that dedup's own guarantee (one fetch per distinct
  * reference, first-occurrence order) for the id-only case unchanged, which is what guard 3's own
  * fetch-count tests pin. */
-function distinctContentMarkerRefs(html: string): ContentMarkerRef[] {
+function distinctContentMarkerRefs({ html }: { html: string }, _optional = {}): ContentMarkerRef[] {
   const seen = new Map<string, ContentMarkerRef>();
   for (const marker of markersOfType({ html: html, type: "content" })) {
     const ref = toContentMarkerRef(marker);
@@ -1321,11 +1277,7 @@ function distinctContentMarkerRefs(html: string): ContentMarkerRef[] {
  * target has nothing here to recurse into, and an unresolved reference degrades to the same REQ-28
  * placeholder that pass already produces for any other miss.
  */
-async function fetchHtmlFormatBody(
-  deps: ContentMarkerResolutionDeps,
-  ref: ContentMarkerRef,
-  pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
-): Promise<string | undefined> {
+async function fetchHtmlFormatBody({ deps, ref }: { deps: ContentMarkerResolutionDeps; ref: ContentMarkerRef }, { pendingHtmlOverride }: { pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string } } = {}): Promise<string | undefined> {
   // Page HTML is spliced unmodified: only `pages.edit_html` holders write it and its inline scripts
   // are part of the page (`admin-http/routes/pages/update-html.ts`, Authorization). Sanitizing here
   // stripped tovu.dev's carousel scripts and icons (owner report, 2026-10-12).
@@ -1393,16 +1345,10 @@ async function fetchHtmlFormatBody(
  * — the testability seam this function's own dependency shape
  * ({@link ContentMarkerResolutionDeps}) was narrowed for.
  */
-export async function resolveHtmlFormatContentMarkers(
-  deps: ContentMarkerResolutionDeps,
-  html: string,
-  depth: number,
-  budget: { remaining: number },
-  pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string }
-): Promise<string> {
+export async function resolveHtmlFormatContentMarkers({ deps, html, depth, budget }: { deps: ContentMarkerResolutionDeps; html: string; depth: number; budget: { remaining: number } }, { pendingHtmlOverride }: { pendingHtmlOverride?: { id: string; slug: string; bodyHtml: string } } = {}): Promise<string> {
   if (depth >= MAX_CONTENT_EMBED_DEPTH || budget.remaining <= 0) return html;
 
-  const refs = distinctContentMarkerRefs(html);
+  const refs = distinctContentMarkerRefs({ html });
   if (refs.length === 0) return html;
   const refsToFetch = refs.slice(0, budget.remaining);
   budget.remaining -= refsToFetch.length;
@@ -1410,11 +1356,11 @@ export async function resolveHtmlFormatContentMarkers(
   const replacements = new Map<string, string>();
   await Promise.all(
     refsToFetch.map(async (ref) => {
-      const ownBody = await fetchHtmlFormatBody(deps, ref, pendingHtmlOverride);
+      const ownBody = await fetchHtmlFormatBody({ deps, ref }, { pendingHtmlOverride });
       if (ownBody === undefined) return;
       // No `pendingHtmlOverride` threaded into this recursive call — see this function's own doc on
       // why the override must never follow into a nested entity's own embeds.
-      const nestedHtml = await resolveHtmlFormatContentMarkers(deps, ownBody, depth + 1, budget);
+      const nestedHtml = await resolveHtmlFormatContentMarkers({ deps, html: ownBody, depth: depth + 1, budget });
       const nestedResolved = await resolveHtmlPageEmbeds({
         deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
           entryRepo: deps.entryRepo,
@@ -1560,23 +1506,7 @@ export function placeAfterCurrentContent(
  * `false` so both existing callers (the admin preview endpoint, which must never show the public
  * widget in a preview iframe, and the two direct tests) keep their prior behavior unchanged.
  */
-export async function renderViaTemplate(
-  deps: TemplateRenderDeps,
-  theme: DiscoveredTheme,
-  post: PostRecord,
-  staticMenus: StaticMenuMap | undefined,
-  pendingBodyJson?: JsonObject,
-  pendingBodyHtml?: string,
-  extraHead?: string,
-  siteAssistantEnabled: SiteChatSelection = false,
-  // Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request,
-  // ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the
-  // home/related-posts listing gate; the admin preview supplies anonymous visitor access). A direct
-  // caller that omits it leaves any `{"type":"post-previews"}` marker's authored fallback untouched,
-  // byte-identical to before this marker existed, rather than querying with no way to gate the
-  // result correctly. Preview used to omit it too, which hid real lists and their See more button.
-  postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
-): Promise<string> {
+export async function renderViaTemplate({ deps, theme, post, staticMenus }: { deps: TemplateRenderDeps; theme: DiscoveredTheme; post: PostRecord; staticMenus: StaticMenuMap | undefined }, { pendingBodyJson, pendingBodyHtml, extraHead, siteAssistantEnabled = false, postPreviewsAccess }: { pendingBodyJson?: JsonObject; pendingBodyHtml?: string; extraHead?: string; siteAssistantEnabled?: SiteChatSelection; /* Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request, ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the home/related-posts listing gate; the admin preview supplies anonymous visitor access). A direct caller that omits it leaves any `{"type":"post-previews"}` marker's authored fallback untouched, byte-identical to before this marker existed, rather than querying with no way to gate the result correctly. Preview used to omit it too, which hid real lists and their See more button. */ postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext } } = {}): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
     // `renderStaticPage`'s `| null` return (static-render.ts) is exactly its own `source ===
@@ -1591,7 +1521,7 @@ export async function renderViaTemplate(
       renderStaticPage({
         theme,
         pageId: "template-missing",
-        htmlOverride: buildMissingTemplateHtml(theme.manifest.apiVersion),
+        htmlOverride: buildMissingTemplateHtml({ apiVersion: theme.manifest.apiVersion }),
         menus: staticMenus,
       }) ?? "",
       (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
@@ -1612,13 +1542,7 @@ export async function renderViaTemplate(
     post,
     block: renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post)),
   });
-  const withNestedContent = await resolveHtmlFormatContentMarkers(
-    deps,
-    withTerms,
-    0,
-    { remaining: MAX_CONTENT_EMBED_FETCHES },
-    pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined
-  );
+  const withNestedContent = await resolveHtmlFormatContentMarkers({ deps, html: withTerms, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined });
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
       entryRepo: deps.entryRepo,
@@ -1709,7 +1633,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * that one. A legacy `image` node (only `attrs.src`/`attrs.title`, no `assetId`) is simply never
  * added — `render.ts`'s `image` case never reads `src`/`title` at all (see that case's own
  * comment), so there is nothing for a sizing override to key off for that shape anyway. */
-function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
+function collectMediaRefAssetIds({ root, out }: { root: unknown; out: Set<string> }, _optional = {}): void {
   // An explicit stack, not recursion: a stored document's nesting depth is attacker/import-controlled
   // and a 5000-deep list overflowed the call stack here (GET /:slug -> 500) before `render.ts`'s own
   // MAX_RENDER_DEPTH placeholder could ever apply. Children are pushed in reverse so the walk stays
@@ -1717,7 +1641,7 @@ function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
   const stack: unknown[] = [root];
   while (stack.length > 0) {
     const node = stack.pop();
-    if (Array.isArray(node)) pushReversed(stack, node);
+    if (Array.isArray(node)) pushReversed({ stack, items: node });
     if (!isPlainObject(node)) continue;
     const assetId = mediaRefAssetId(node);
     if (assetId !== undefined) out.add(assetId);
@@ -1726,7 +1650,7 @@ function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
 }
 
 /** Pushes `items` so they pop in their original order (the walk stays pre-order). */
-function pushReversed(stack: unknown[], items: readonly unknown[]): void {
+function pushReversed({ stack, items }: { stack: unknown[]; items: readonly unknown[] }, _optional = {}): void {
   for (let i = items.length - 1; i >= 0; i--) stack.push(items[i]);
 }
 
@@ -1779,16 +1703,12 @@ type PendingMediaAssetMeta = Omit<MediaAssetRenderMeta, "contentType"> & { reado
  * `resolveOneMediaEmbed`, which calls the same port but per-ref since it resolves refs one at a
  * time; this function already gathers every ref up front, so one batched call covers them all).
  */
-export async function resolveMediaAssetMetadataForRender(
-  deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore">,
-  post: PostRecord | undefined,
-  /** Featured image (2026-10-05): listed posts whose featured image a theme's post cards may show
+export async function resolveMediaAssetMetadataForRender({ deps, post }: { deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore">; post: PostRecord | undefined }, /** Featured image (2026-10-05): listed posts whose featured image a theme's post cards may show
    *  (`buildTemplateRenderData`'s `posts[].featuredImage`). The shared policy also collects body
    *  image refs when their featured slot is empty. */
-  optional: { listed?: readonly PostRecord[] } = {}
-): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
+  optional: { listed?: readonly PostRecord[] } = {}): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
   const assetIds = new Set<string>();
-  if (post) collectMediaRefAssetIds(post.bodyJson, assetIds);
+  if (post) collectMediaRefAssetIds({ root: post.bodyJson, out: assetIds });
   for (const entry of [...(post ? [post] : []), ...(optional.listed ?? [])]) {
     for (const ref of collectCoverMediaRefs({ post: entry })) assetIds.add(ref);
   }
@@ -1850,7 +1770,7 @@ async function resolveFeaturedImageForRender(
 ): Promise<StaticFeaturedImage | null> {
   if (collectCoverMediaRefs({ post }).length === 0) return null;
   const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
-    resolveMediaAssetMetadataForRender(deps, undefined, { listed: [post] }),
+    resolveMediaAssetMetadataForRender({ deps, post: undefined }, { listed: [post] }),
     resolveMediaTransformVersionsForRender(deps),
   ]);
   return featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post);
@@ -1904,7 +1824,7 @@ function sendNoThemesInstalled(res: Response): void {
  * @param err whatever the catch received, passed through unchanged so the stack survives.
  * @complexity O(1).
  */
-function reportSiteRenderFault(detail: string, err: unknown): void {
+function reportSiteRenderFault({ detail, err }: { detail: string; err: unknown }, _optional = {}): void {
   console.error(`[site/pages] ${detail}`, err);
 }
 
@@ -1938,7 +1858,7 @@ function resolveRequestedSlug(req: Request, next: NextFunction): string | undefi
 // doc in `features/theme/theme.ts`) — shared with `apps/website/src/features/site-export/route-manifest.ts` rather than respelled
 // here, which is what let this route serve `/blog-post` and `/404` as 200s while the exporter
 // correctly omitted both.
-function isMarketingPageSlug(theme: DiscoveredTheme, slug: string): boolean {
+function isMarketingPageSlug({ theme, slug }: { theme: DiscoveredTheme; slug: string }, _optional = {}): boolean {
   return theme.manifest.tier === "static" && isStandaloneThemePage(theme, slug);
 }
 
@@ -1969,19 +1889,7 @@ type MarketingPageResolution =
  * slug" is the overwhelmingly common case for a marketing-page route and must NOT 404 the theme
  * page that's about to render fine.
  */
-export async function resolveMarketingPageOrOverride(
-  /** `null` when the operator turned the theme off — see the early return at the top of the body. */
-  deps: RouteDeps,
-  theme: DiscoveredTheme | null,
-  slug: string,
-  staticMenus: StaticMenuMap | undefined,
-  siteAssistantEnabled: SiteChatSelection,
-  // Post-previews marker (2026-09-03) — see `renderViaTemplate`'s identically-shaped, identically
-  // optional parameter for the full rationale. This function's own only caller (`registerSiteRoutes`
-  // below) always supplies it; the parameter stays optional so a future direct caller that has no
-  // per-request member context isn't forced to fabricate one.
-  postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
-): Promise<MarketingPageResolution> {
+export async function resolveMarketingPageOrOverride({ deps, theme, slug, staticMenus, siteAssistantEnabled }: { /* `null` when the operator turned the theme off — see the early return at the top of the body. */ deps: RouteDeps; theme: DiscoveredTheme | null; slug: string; staticMenus: StaticMenuMap | undefined; siteAssistantEnabled: SiteChatSelection }, { postPreviewsAccess }: { /* Post-previews marker (2026-09-03) — see `renderViaTemplate`'s identically-shaped, identically optional parameter for the full rationale. This function's own only caller (`registerSiteRoutes` below) always supplies it; the parameter stays optional so a future direct caller that has no per-request member context isn't forced to fabricate one. */ postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext } } = {}): Promise<MarketingPageResolution> {
   // A marketing page IS a theme file (`theme.pages[slug]`). With no theme there is no file, so this
   // can only fall through — to the ordinary post/page lookup, or to the bare 404. This is the one
   // place the product constraint bites: on a `static`-tier site, turning the theme off takes the
@@ -1995,7 +1903,7 @@ export async function resolveMarketingPageOrOverride(
   // same guard (before the post lookup, not after it) so it is not a separate branch no request can
   // reach: `theme.pages` is never mutated in place, so reading it earlier changes nothing.
   const pageHtml = theme?.pages[slug];
-  if (theme === null || pageHtml === undefined || !isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
+  if (theme === null || pageHtml === undefined || !isMarketingPageSlug({ theme, slug })) return { kind: "fallthrough" };
 
   const candidate = await getPublishedPostBySlug({
     deps: { repo: deps.postRepo },
@@ -2029,7 +1937,7 @@ export async function resolveMarketingPageOrOverride(
   // site was the one flagged there and left unfixed. No backing `post`, so `buildExtraHead`'s
   // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
   // canonical fallback — never home's `"/"`.
-  const extraHead = await buildExtraHead(deps, "page", await resolveSiteTitleForRender(deps), undefined, postPublicPath({ slug: slug }));
+  const extraHead = await buildExtraHead({ deps, route: "page", siteTitle: await resolveSiteTitleForRender(deps), post: undefined }, { canonicalFallbackPath: postPublicPath({ slug: slug }) });
   // The display-name fallback must not displace an authored theme title. If the explicit-title
   // read fails, retain the existing fold-wins behavior rather than failing the page render.
   const preserveThemeTitle = await resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true })
@@ -2046,11 +1954,7 @@ export async function resolveMarketingPageOrOverride(
  *  lookup at this slug (which throws `PostNotFoundError`, caught by the route's own outer catch,
  *  when nothing exists there either). Never called with a `"responded"` resolution — that case
  *  already sent its own response and returns from the route handler before this would run. */
-export async function resolvePostAfterMarketingCheck(
-  deps: RouteDeps,
-  slug: string,
-  marketingResolution: Exclude<MarketingPageResolution, { kind: "responded" }>
-): Promise<PostRecord> {
+export async function resolvePostAfterMarketingCheck({ deps, slug, marketingResolution }: { deps: RouteDeps; slug: string; marketingResolution: Exclude<MarketingPageResolution, { kind: "responded" }> }, _optional = {}): Promise<PostRecord> {
   if (marketingResolution.kind === "overridingPost") return marketingResolution.post;
   const { post } = await getPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } });
   return post;
@@ -2073,11 +1977,11 @@ export async function resolvePostAfterMarketingCheck(
 async function renderBarePage(deps: RouteDeps, post: PostRecord): Promise<string> {
   const siteTitle = await resolveSiteTitleForRender(deps);
   const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead] = await Promise.all([
-    resolveWidgetsForRender(deps, null, post),
-    resolveHtmlEmbedsForRender(deps, post),
+    resolveWidgetsForRender({ deps, theme: null }, { post }),
+    resolveHtmlEmbedsForRender({ deps, post }),
     resolveMediaTransformVersionsForRender(deps),
-    resolveMediaAssetMetadataForRender(deps, post),
-    buildExtraHead(deps, "post", siteTitle, post),
+    resolveMediaAssetMetadataForRender({ deps, post }),
+    buildExtraHead({ deps, route: "post", siteTitle, post }),
   ]);
   return renderBareEntryDocument({
     documentAssets: await deps.documentAssets?.({ scripts: [] }),
@@ -2132,17 +2036,7 @@ async function renderBarePage(deps: RouteDeps, post: PostRecord): Promise<string
  * site (checked strictly BEFORE this function runs) still applies unchanged: a bare Page is gated
  * exactly like every other Page, never bypassed.
  */
-export async function renderTemplateBranchIfEligible(
-  deps: RouteDeps,
-  /** `null` when the operator turned the theme off — see the early return at the top of the body. */
-  theme: DiscoveredTheme | null,
-  post: PostRecord,
-  staticMenus: StaticMenuMap | undefined,
-  siteAssistantEnabled: SiteChatSelection,
-  // Post-previews marker (2026-09-03) — threaded straight through to `renderViaTemplate`'s own
-  // identically-shaped parameter; see that function's doc for the full rationale.
-  postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
-): Promise<string | undefined> {
+export async function renderTemplateBranchIfEligible({ deps, theme, post, staticMenus, siteAssistantEnabled }: { deps: RouteDeps; /* `null` when the operator turned the theme off — see the early return at the top of the body. */ theme: DiscoveredTheme | null; post: PostRecord; staticMenus: StaticMenuMap | undefined; siteAssistantEnabled: SiteChatSelection }, { postPreviewsAccess }: { /* Post-previews marker (2026-09-03) — threaded straight through to `renderViaTemplate`'s own identically-shaped parameter; see that function's doc for the full rationale. */ postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext } } = {}): Promise<string | undefined> {
   // Checked before the theme-off early return below: a bare Page renders identically with or
   // without an active theme, so this must not be gated on one being present. See this function's
   // own doc, "Bare page" paragraph.
@@ -2165,29 +2059,22 @@ export async function renderTemplateBranchIfEligible(
   // that branch this one DOES have a real backing `post`, so it folds through the same
   // entry-bearing `"post"` shape the generic (non-template) render below already uses. Same ADR-054
   // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
-  const extraHead = await buildExtraHead(deps, "post", await resolveSiteTitleForRender(deps), post);
+  const extraHead = await buildExtraHead({ deps, route: "post", siteTitle: await resolveSiteTitleForRender(deps), post });
   const renderedPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
-  return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, undefined, extraHead, siteAssistantEnabled, postPreviewsAccess);
+  return renderViaTemplate({ deps, theme, post: renderedPost, staticMenus }, { pendingBodyJson: undefined, pendingBodyHtml: undefined, extraHead, siteAssistantEnabled, postPreviewsAccess });
 }
 
 /** The generic (non-template) dynamic post render: resolves every widget/embed/media input
  *  `renderSite`'s `"post"` route needs and renders through it. This is the fallback path for any
  *  post that isn't eligible for {@link renderTemplateBranchIfEligible}'s template branch. */
-export async function renderGenericPostPage(
-  deps: RouteDeps,
-  /** `null` when the operator turned the theme off — `renderSite` renders the page unstyled. */
-  theme: DiscoveredTheme | null,
-  post: PostRecord,
-  posts: PostRecord[],
-  siteAssistantEnabled: SiteChatSelection
-): Promise<string> {
+export async function renderGenericPostPage({ deps, theme, post, posts, siteAssistantEnabled }: { deps: RouteDeps; /* `null` when the operator turned the theme off — `renderSite` renders the page unstyled. */ theme: DiscoveredTheme | null; post: PostRecord; posts: PostRecord[]; siteAssistantEnabled: SiteChatSelection }, _optional = {}): Promise<string> {
   const siteTitle = await resolveSiteTitleForRender(deps);
   const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead, assignedTerms] = await Promise.all([
-    resolveWidgetsForRender(deps, theme, post),
-    resolveHtmlEmbedsForRender(deps, post),
+    resolveWidgetsForRender({ deps, theme }, { post }),
+    resolveHtmlEmbedsForRender({ deps, post }),
     resolveMediaTransformVersionsForRender(deps),
-    resolveMediaAssetMetadataForRender(deps, post, { listed: posts }),
-    buildExtraHead(deps, "post", siteTitle, post),
+    resolveMediaAssetMetadataForRender({ deps, post }, { listed: posts }),
+    buildExtraHead({ deps, route: "post", siteTitle, post }),
     // Taxonomy render-surface gap fix (2026-09-03) — this is the generic (non-template) render path;
     // `renderTemplateBranchIfEligible`/`renderViaTemplate` above already resolves this same input for
     // the static-tier template branch. See `SiteRenderContext.assignedTerms`'s own doc for where this
@@ -2232,7 +2119,7 @@ export async function handlePostNotFoundOnSlugRoute(
   theme: DiscoveredTheme | null,
   staticMenus: StaticMenuMap | undefined
 ): Promise<void> {
-  if (await tryRedirectPhase("post_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
+  if (await tryRedirectPhase({ phase: "post_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
 
   // A static theme that ships its own pages/404.html gets a themed not-found page instead of
   // the bare fallback below — E4 (D2, 2026-09-23) runs it through the SAME
@@ -2280,7 +2167,7 @@ async function handlePostNotFoundInSlugCatch(input: {
   try {
     await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
   } catch (err) {
-    reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
+    reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
     res.status(500).type("html").send("<h1>Site error</h1>");
   }
 }
@@ -2300,11 +2187,7 @@ async function handlePostNotFoundInSlugCatch(input: {
  * context: `resolveContext` validates the token hash against the session repo and never trusts a
  * client-supplied claim, so none of those cases is distinguishable from "not signed in" here.
  */
-async function resolveMemberContextForRequest(
-  req: Request,
-  deps: RouteDeps,
-  resolver: MemberAccessResolver
-): Promise<MemberContext> {
+async function resolveMemberContextForRequest({ req, deps, resolver }: { req: Request; deps: RouteDeps; resolver: MemberAccessResolver }, _optional = {}): Promise<MemberContext> {
   return resolver.resolveContext({
     workspaceId: deps.workspaceId,
     sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }),
@@ -2325,11 +2208,7 @@ async function resolveMemberContextForRequest(
  * denies as `unknown_visibility`. A `NULL` column (every pre-existing row) decodes as
  * `{visibility: "public"}`, so an ungated post behaves exactly as it does today.
  */
-function decidePostMemberAccess(
-  resolver: MemberAccessResolver,
-  post: PostRecord,
-  context: MemberContext
-): MemberAccessDecision {
+function decidePostMemberAccess({ resolver, post, context }: { resolver: MemberAccessResolver; post: PostRecord; context: MemberContext }, _optional = {}): MemberAccessDecision {
   return resolver.decide({ access: resolvePostMemberAccess(post.memberAccessJson), context });
 }
 
@@ -2347,12 +2226,8 @@ function decidePostMemberAccess(
  * (the one I/O step, session/entitlement resolution, happened once in
  * {@link resolveMemberContextForRequest} before this is called).
  */
-function filterVisiblePosts(
-  resolver: MemberAccessResolver,
-  posts: readonly PostRecord[],
-  context: MemberContext
-): PostRecord[] {
-  return posts.filter((post) => decidePostMemberAccess(resolver, post, context).allowed);
+function filterVisiblePosts({ resolver, posts, context }: { resolver: MemberAccessResolver; posts: readonly PostRecord[]; context: MemberContext }, _optional = {}): PostRecord[] {
+  return posts.filter((post) => decidePostMemberAccess({ resolver, post, context }).allowed);
 }
 
 /** Pure display formatting for a post-previews card's date — the one place this file turns
@@ -2362,7 +2237,7 @@ function filterVisiblePosts(
  *  should not occur for a real stored row — degrades to the raw ISO string rather than
  *  "Invalid Date", a legible if ugly output over a broken one. Bug D: the day is the site's
  *  (`timeZone`, from `core.site.timezone`), not the server's UTC. */
-function formatPostPreviewDate(iso: string, timeZone: string): string {
+function formatPostPreviewDate({ iso, timeZone }: { iso: string; timeZone: string }, _optional = {}): string {
   return formatDateLabel({ iso }, { timeZone });
 }
 
@@ -2388,19 +2263,13 @@ function formatPostPreviewDate(iso: string, timeZone: string): string {
  * selection scans those visible bodies and resolves distinct media refs with one MIME batch;
  * it never adds an unbounded post query or resolves hidden posts' cover metadata.
  */
-async function resolvePostPreviewsForRender(
-  deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch" | "listingPage">,
-  memberAccessResolver: MemberAccessResolver,
-  memberContext: MemberContext,
-  pageHtml: string,
-  pagePath: string
-): Promise<{ previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>; page?: StaticPostPreviewsPage } | undefined> {
+async function resolvePostPreviewsForRender({ deps, memberAccessResolver, memberContext, pageHtml, pagePath }: { deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch" | "listingPage">; memberAccessResolver: MemberAccessResolver; memberContext: MemberContext; pageHtml: string; pagePath: string }, _optional = {}): Promise<{ previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>; page?: StaticPostPreviewsPage } | undefined> {
   const markers = markersOfType({ html: pageHtml, type: POST_PREVIEWS_MARKER_TYPE });
   if (markers.length === 0) return undefined;
 
   const source: ListingSource<PostRecord> = async ({ offset, limit }) =>
     (await listPublishedPostPreviews({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, limit, offset } })).posts;
-  const isVisible = (post: PostRecord): boolean => decidePostMemberAccess(memberAccessResolver, post, memberContext).allowed;
+  const isVisible = (post: PostRecord): boolean => decidePostMemberAccess({ resolver: memberAccessResolver, post, context: memberContext }).allowed;
 
   // Plain markers share one batch at the widest limit (each slices its own); a see-more marker
   // (`data-jini-listing`) reads its own batch, from `after` when this request asks for that key. A
@@ -2412,7 +2281,7 @@ async function resolvePostPreviewsForRender(
 
   const listed = [...plain, ...[...keyed.values()].flatMap((batch) => batch.posts), ...(paged?.posts ?? [])];
   const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
-    resolveMediaAssetMetadataForRender(deps, undefined, { listed }),
+    resolveMediaAssetMetadataForRender({ deps, post: undefined }, { listed }),
     resolveMediaTransformVersionsForRender(deps),
   ]);
   // Bug D: card dates are the site's calendar day. `deps` is the full route deps at runtime; its
@@ -2420,7 +2289,7 @@ async function resolvePostPreviewsForRender(
   const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
   const toPreview = (post: PostRecord): StaticPostPreview => {
     const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate(dateIso, timeZone), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
+    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate({ iso: dateIso, timeZone }), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
   };
   const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
   for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
@@ -2641,7 +2510,7 @@ function addPluginExportHostsToResponse({ req, hosts }: { req: Request; hosts: i
   if (hosts && response && typeof policy === "string") response.setHeader(REPORT_ONLY_HEADER, addDeclaredHostsToPolicy({ policy, hosts }));
 }
 
-async function finalizePublicPageHtml(req: Request, html: string, formResult: FormSubmissionRedirectResult | undefined, deps: RouteDeps): Promise<string> {
+async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Request; html: string; formResult: FormSubmissionRedirectResult | undefined; deps: RouteDeps }, _optional = {}): Promise<string> {
   const batchBody = listingBatchBody({ req, html });
   if (batchBody !== undefined) return batchBody;
   assertListingPageServed({ req, html });
@@ -2701,11 +2570,7 @@ function listingBatchBody({ req, html }: { req: Request; html: string }, _option
  *
  * @complexity O(1) plus the one `findBySlug` lookup's own cost.
  */
-async function resolveHomePageContent(
-  deps: RouteDeps,
-  memberAccessResolver: MemberAccessResolver,
-  memberContext: MemberContext
-): Promise<PostRecord | undefined> {
+async function resolveHomePageContent({ deps, memberAccessResolver, memberContext }: { deps: RouteDeps; memberAccessResolver: MemberAccessResolver; memberContext: MemberContext }, _optional = {}): Promise<PostRecord | undefined> {
   const found = await getPublishedPostBySlug({
     deps: { repo: deps.postRepo },
     input: { workspaceId: deps.workspaceId, slug: ROOT_SLUG },
@@ -2714,7 +2579,7 @@ async function resolveHomePageContent(
     throw err;
   });
   if (!found) return undefined;
-  return decidePostMemberAccess(memberAccessResolver, found.post, memberContext).allowed ? found.post : undefined;
+  return decidePostMemberAccess({ resolver: memberAccessResolver, post: found.post, context: memberContext }).allowed ? found.post : undefined;
 }
 
 /** See-more batch requests by request, set by the `/_more/` rewrite in {@link registerSiteRoutes}. */
@@ -2784,7 +2649,7 @@ async function listingBatchNotFound({ req, res, next, workspaceId }: {
   const numberedPage = listingPageRequests.has(req);
   req.url = req.originalUrl;
   try {
-    if (numberedPage && (await tryRedirectPhase("post_content", req.path, workspaceId, res))) return undefined;
+    if (numberedPage && (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId, res }))) return undefined;
   } catch (err) {
     return next(err);
   }
@@ -2804,13 +2669,13 @@ async function sendPublicPage({ req, res, deps, html, perVisitor }: {
 }): Promise<void> {
   // Live comments never enter browser/CDN caches; approval, selection and disable take effect on the next request.
   const cacheControl = html.includes('data-comments-surface') ? 'private, no-store' : perVisitor.cacheControl;
-  res.set("Cache-Control", cacheControl).type("html").send(await finalizePublicPageHtml(req, html, perVisitor.result, deps));
+  res.set("Cache-Control", cacheControl).type("html").send(await finalizePublicPageHtml({ req, html, formResult: perVisitor.result, deps }));
 }
 
 /** `GET /`'s whole response (redirects, content-owned home page, the static theme's `index.html`,
  *  or the theme's home route). Errors propagate to the route's catch. */
 async function serveHomePage({ req, res, deps }: { req: Request; res: Response; deps: SiteRequestDeps }): Promise<void> {
-  if (await tryRedirectPhase("pre_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
+  if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
 
   const memberAccessResolver = createMemberAccessResolver({ deps });
   const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
@@ -2822,14 +2687,14 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
     // `products.ts`'s two handlers), which also carves out static exports (see that
     // function's own doc).
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),
-    resolveMemberContextForRequest(req, deps, memberAccessResolver),
+    resolveMemberContextForRequest({ req, deps, resolver: memberAccessResolver }),
   ]);
 
   // ADR-030 §4 — the home listing is gated too, not just each post's own page. See
   // `filterVisiblePosts`'s own doc for why filtering only `/:slug` would be protection that
   // looks real and isn't.
   // Newest display date first, the order every post listing uses (it was insertion order).
-  const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext).sort(comparePostsByDisplayDate);
+  const visiblePosts = filterVisiblePosts({ resolver: memberAccessResolver, posts, context: memberContext }).sort(comparePostsByDisplayDate);
 
   const resolved = resolveActiveTheme(deps, activeThemeId);
   if (resolved === null) {
@@ -2847,7 +2712,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   // a Page below. Falls through to exactly the pre-existing code that follows, byte-identical,
   // when no page claims it (or the current visitor's member access denies the one that does) —
   // see `resolveHomePageContent`'s own doc.
-  const homePage = await resolveHomePageContent(deps, memberAccessResolver, memberContext);
+  const homePage = await resolveHomePageContent({ deps, memberAccessResolver, memberContext });
   if (homePage) {
     await serveContentHomePage({ req, res, deps, theme, homePage, visiblePosts, siteAssistantEnabled, access: { resolver: memberAccessResolver, context: memberContext } });
     return;
@@ -2855,10 +2720,10 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
 
   const siteTitle = await resolveSiteTitleForRender(deps);
   const [widgets, mediaTransformVersions, extraHead, staticMenus] = await Promise.all([
-    resolveWidgetsForRender(deps, theme),
+    resolveWidgetsForRender({ deps, theme }),
     resolveMediaTransformVersionsForRender(deps),
-    buildExtraHead(deps, "home", siteTitle, undefined),
-    resolveStaticMenusForRender(deps, theme, "/"),
+    buildExtraHead({ deps, route: "home", siteTitle, post: undefined }),
+    resolveStaticMenusForRender({ deps, theme, currentPath: "/" }),
   ]);
 
   // E4 (D2, 2026-09-23) — a static theme's own `index.html` goes through the SAME
@@ -2885,7 +2750,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
     widgets,
     mediaTransformVersions,
     // Featured image (2026-10-05): resolves only the listed posts' featured ids for post cards.
-    mediaAssetMetadata: await resolveMediaAssetMetadataForRender(deps, undefined, { listed: visiblePosts }),
+    mediaAssetMetadata: await resolveMediaAssetMetadataForRender({ deps, post: undefined }, { listed: visiblePosts }),
     extraHead,
     siteAssistantEnabled,
     staticMenus,
@@ -2904,9 +2769,9 @@ async function serveContentHomePage({ req, res, deps, theme, homePage, visiblePo
   req: Request; res: Response; deps: SiteRequestDeps; theme: DiscoveredTheme | null; homePage: PostRecord;
   visiblePosts: PostRecord[]; siteAssistantEnabled: SiteChatSelection; access: PostPreviewsAccess;
 }): Promise<void> {
-  const staticMenus = await resolveStaticMenusForRender(deps, theme, "/");
-  const templateHtml = await renderTemplateBranchIfEligible(deps, theme, homePage, staticMenus, siteAssistantEnabled, access);
-  const html = templateHtml ?? (await renderGenericPostPage(deps, theme, homePage, visiblePosts, siteAssistantEnabled));
+  const staticMenus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/" });
+  const templateHtml = await renderTemplateBranchIfEligible({ deps, theme, post: homePage, staticMenus, siteAssistantEnabled }, { postPreviewsAccess: access });
+  const html = templateHtml ?? (await renderGenericPostPage({ deps, theme, post: homePage, posts: visiblePosts, siteAssistantEnabled }));
   await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse(req, res) });
 }
 
@@ -2923,7 +2788,7 @@ async function handleSlugRouteError({ err, req, res, next, deps, theme, staticMe
     await handlePostNotFoundInSlugCatch({ req, res, deps, theme, staticMenus, slug });
     return undefined;
   }
-  reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
+  reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
   res.status(500).type("html").send("<h1>Site error</h1>");
   return undefined;
 }
@@ -2975,9 +2840,8 @@ export async function serveVirtualPage({ req, res, deps, post }: {
   const perVisitor = resolvePerVisitorResponse(req, res);
   const previewPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
   const html = theme && branch.kind !== "ineligible"
-    ? await renderViaTemplate(deps, theme, previewPost,
-      await resolveStaticMenusForRender(deps, theme, req.path), undefined, post.bodyHtml ?? "", undefined, siteAssistantEnabled)
-    : await renderGenericPostPage(deps, theme, post, [], siteAssistantEnabled);
+    ? await renderViaTemplate({ deps, theme, post: previewPost, staticMenus: await resolveStaticMenusForRender({ deps, theme, currentPath: req.path }) }, { pendingBodyJson: undefined, pendingBodyHtml: post.bodyHtml ?? "", extraHead: undefined, siteAssistantEnabled })
+    : await renderGenericPostPage({ deps, theme, post, posts: [], siteAssistantEnabled });
   await sendPublicPage({ req, res, deps, html, perVisitor });
   return undefined;
 }
@@ -3017,7 +2881,7 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
       await serveHomePage({ req, res, deps });
     } catch (err) {
       if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound({ req, res, next, workspaceId: deps.workspaceId });
-      reportSiteRenderFault("GET / failed", err);
+      reportSiteRenderFault({ detail: "GET / failed", err });
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
     return undefined;
@@ -3028,8 +2892,8 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
   app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
     if (checkSiteRelativeTarget(req.path).kind !== "ok") return next();
     try {
-      if (await tryRedirectPhase("pre_content", req.path, appDeps.workspaceId, res)) return undefined;
-      if (await tryRedirectPhase("post_content", req.path, appDeps.workspaceId, res)) return undefined;
+      if (await tryRedirectPhase({ phase: "pre_content", path: req.path, workspaceId: appDeps.workspaceId, res })) return undefined;
+      if (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId: appDeps.workspaceId, res })) return undefined;
       next();
     } catch (err) {
       next(err);
@@ -3045,20 +2909,20 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
     let theme: DiscoveredTheme | null = null;
     let staticMenus: StaticMenuMap | undefined;
     try {
-      if (await tryRedirectPhase("pre_content", redirectLookupPath({ req }), deps.workspaceId, res)) return;
+      if (await tryRedirectPhase({ phase: "pre_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
 
       const memberAccessResolver = createMemberAccessResolver({ deps });
       const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveRenderThemeId(res, deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         resolveSiteAssistantWidgetForRequest({ request: req, deps }),
-        resolveMemberContextForRequest(req, deps, memberAccessResolver),
+        resolveMemberContextForRequest({ req, deps, resolver: memberAccessResolver }),
       ]);
 
       // Same ADR-030 §4 listing filter the `GET /` handler applies — this list feeds the generic
       // post page's "more dispatches"/related regions, which print titles and links exactly like
       // the home grid does.
-      const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext);
+      const visiblePosts = filterVisiblePosts({ resolver: memberAccessResolver, posts, context: memberContext });
 
       const resolved = resolveActiveTheme(deps, activeThemeId);
       if (resolved === null) {
@@ -3072,7 +2936,7 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
       // path is the correct `currentPath` for `isCurrent` regardless of whether this request ends up
       // rendering a marketing page, a post-template page, or the themed 404 below; all three share
       // this one resolve rather than re-querying the same two locations per branch.
-      staticMenus = await resolveStaticMenusForRender(deps, theme, req.path);
+      staticMenus = await resolveStaticMenusForRender({ deps, theme, currentPath: req.path });
 
       // Post/Redirect/Get result for a form widget on THIS route (2026-08-31 fix, generalized the
       // same day) — resolved once and applied uniformly across all three branches below, the same
@@ -3084,16 +2948,16 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
       // body cookie-dependent. See `resolvePerVisitorResponse`'s own doc.
       const perVisitor = resolvePerVisitorResponse(req, res);
 
-      const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled, {
+      const marketingResolution = await resolveMarketingPageOrOverride({ deps, theme, slug, staticMenus, siteAssistantEnabled }, { postPreviewsAccess: {
         resolver: memberAccessResolver,
         context: memberContext,
-      });
+      } });
       if (marketingResolution.kind === "responded") {
         await sendPublicPage({ req, res, deps, html: marketingResolution.html, perVisitor });
         return;
       }
 
-      const post = await resolvePostAfterMarketingCheck(deps, slug, marketingResolution);
+      const post = await resolvePostAfterMarketingCheck({ deps, slug, marketingResolution });
 
       // ADR-030 §4 — the single-post gate. Kept as the whole `MemberAccessDecision`, not a boolean:
       // `decision.reason` (`sign_in_required` vs `upgrade_required`) and `decision.teaser` are the
@@ -3106,17 +2970,17 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
       // Placed BEFORE `renderTemplateBranchIfEligible` deliberately: that branch is a complete second
       // render path (`renderViaTemplate` -> `renderStaticPage`) that would otherwise serve the gated
       // body straight past a gate that only guarded the generic path below.
-      const decision = decidePostMemberAccess(memberAccessResolver, post, memberContext);
+      const decision = decidePostMemberAccess({ resolver: memberAccessResolver, post, context: memberContext });
       if (!decision.allowed) {
         await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
         return;
       }
 
-      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled, {
+      const templateHtml = await renderTemplateBranchIfEligible({ deps, theme, post, staticMenus, siteAssistantEnabled }, { postPreviewsAccess: {
         resolver: memberAccessResolver,
         context: memberContext,
-      });
-      const html = templateHtml ?? (await renderGenericPostPage(deps, theme, post, visiblePosts, siteAssistantEnabled));
+      } });
+      const html = templateHtml ?? (await renderGenericPostPage({ deps, theme, post, posts: visiblePosts, siteAssistantEnabled }));
       await sendPublicPage({ req, res, deps, html, perVisitor });
     } catch (err) {
       await handleSlugRouteError({ err, req, res, next, deps, theme, staticMenus, slug });

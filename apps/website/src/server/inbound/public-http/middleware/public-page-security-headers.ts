@@ -29,7 +29,7 @@ import { publicPageSecurityHeaders as defaultSecurityHeaders } from "#src/featur
  * config, rendered by its plugin, or a `<meta name="referrer">` where the host has no header config).
  */
 
-function isAdminPath(path: string): boolean {
+function isAdminPath({ path }: { path: string }, _optional = {}): boolean {
   return path === "/admin" || path.startsWith("/admin/") || path.startsWith("/api/admin");
 }
 
@@ -43,7 +43,7 @@ function isAdminPath(path: string): boolean {
  */
 export function createPublicPageSecurityHeaders(headers?: SecurityHeaderSet, { readHeaders = () => headers ?? defaultSecurityHeaders({}) }: { readHeaders?: () => SecurityHeaderSet } = {}) {
   return function publicPageSecurityHeaders(req: Request, res: Response, next: NextFunction): void {
-    if (!isAdminPath(req.path)) {
+    if (!isAdminPath({ path: req.path })) {
       const entries = Object.entries(readHeaders());
       for (const [name, value] of entries) res.setHeader(name, value);
     }

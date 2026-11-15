@@ -10,13 +10,13 @@ test("T6: per-IP limiting precedes contribution loads, covers unknown paths, and
   let loads = 0;
   const clock = { nowMs: () => now };
   const app = express();
-  registerAdminSurfaceFilesRoute(app, {
+  registerAdminSurfaceFilesRoute({ app, deps: {
     workspaceId: "ws-1", clock,
     agentPluginLifecycle: {
       loadPluginContributions: async () => { loads += 1; return { items: [], refusals: [] }; },
       readTrustedPluginFile: async () => { throw new Error("unknown surfaces must not reach disk"); },
     },
-  }, { limiter: createRateLimiter({ clock, profile: { windowSeconds: 60, max: 2, burst: 0 } }) });
+  } }, { limiter: createRateLimiter({ clock, profile: { windowSeconds: 60, max: 2, burst: 0 } }) });
   const origin = await startTestServer(app, t);
   const path = `${origin}/api/agent-plugin-surfaces/v1/unknown/settings/index.html`;
   assert.equal((await fetch(path)).status, 404);
@@ -35,13 +35,13 @@ test("T6: per-IP limiting precedes contribution loads, covers unknown paths, and
 test("T6: a failed limiter cannot fall through to a contribution load", async (t) => {
   const app = express();
   let loads = 0;
-  registerAdminSurfaceFilesRoute(app, {
+  registerAdminSurfaceFilesRoute({ app, deps: {
     workspaceId: "ws-1", clock: { nowMs: () => 0 },
     agentPluginLifecycle: {
       loadPluginContributions: async () => { loads += 1; return { items: [], refusals: [] }; },
       readTrustedPluginFile: async () => "unused",
     },
-  }, { limiter: { check: async () => { throw new Error("counter storage unavailable"); } } });
+  } }, { limiter: { check: async () => { throw new Error("counter storage unavailable"); } } });
   const origin = await startTestServer(app, t);
   assert.equal((await fetch(`${origin}/api/agent-plugin-surfaces/v1/unknown/settings/index.html`)).status, 404);
   assert.equal(loads, 0);

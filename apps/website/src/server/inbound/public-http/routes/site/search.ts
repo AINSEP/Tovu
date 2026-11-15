@@ -42,14 +42,14 @@ export interface SiteSearchRouteDeps extends VisitorAnalyticsDeps {
 type Parsed = { readonly query: Omit<SearchQuery, "audiences"> } | { readonly error: string };
 
 /** One query-string value as a string; a repeated parameter (an array) is malformed. */
-function single(value: unknown, name: string): string | undefined | { error: string } {
+function single({ value, name }: { value: unknown; name: string }, _optional = {}): string | undefined | { error: string } {
   if (value === undefined) return undefined;
   if (typeof value !== "string") return { error: `'${name}' must be given once` };
   return value;
 }
 
-function readText(raw: unknown): string | { error: string } {
-  const value = single(raw, "q");
+function readText({ raw }: { raw: unknown }, _optional = {}): string | { error: string } {
+  const value = single({ value: raw, name: "q" });
   if (typeof value === "object") return value;
   const text = (value ?? "").trim();
   if (text.length === 0) return { error: "'q' is required" };
@@ -58,8 +58,8 @@ function readText(raw: unknown): string | { error: string } {
 }
 
 /** `collection=post` or `collection=post,page`. */
-function readCollections(raw: unknown): readonly string[] | undefined | { error: string } {
-  const value = single(raw, "collection");
+function readCollections({ raw }: { raw: unknown }, _optional = {}): readonly string[] | undefined | { error: string } {
+  const value = single({ value: raw, name: "collection" });
   if (typeof value !== "string") return value;
   const collections = value.split(",").map(part => part.trim());
   if (collections.length > MAX_COLLECTIONS || !collections.every(part => COLLECTION.test(part))) {
@@ -68,16 +68,16 @@ function readCollections(raw: unknown): readonly string[] | undefined | { error:
   return collections;
 }
 
-function readLimit(raw: unknown): number | undefined | { error: string } {
-  const value = single(raw, "limit");
+function readLimit({ raw }: { raw: unknown }, _optional = {}): number | undefined | { error: string } {
+  const value = single({ value: raw, name: "limit" });
   if (typeof value !== "string") return value;
   const limit = LIMIT.test(value) ? Number(value) : 0;
   if (limit < 1 || limit > SEARCH_ROUTE_MAX_LIMIT) return { error: `'limit' must be an integer from 1 to ${SEARCH_ROUTE_MAX_LIMIT}` };
   return limit;
 }
 
-function readCursor(raw: unknown): string | undefined | { error: string } {
-  const value = single(raw, "cursor");
+function readCursor({ raw }: { raw: unknown }, _optional = {}): string | undefined | { error: string } {
+  const value = single({ value: raw, name: "cursor" });
   if (typeof value !== "string") return value;
   if (value.length === 0 || value.length > MAX_CURSOR_LENGTH) return { error: "'cursor' must be the nextCursor of a previous page" };
   return value;
@@ -92,10 +92,10 @@ const isError = (value: unknown): value is { error: string } => typeof value ===
  */
 export function parseSearchRequest(required: { readonly query: Request["query"] }, _optional: Record<string, never> = {}): Parsed {
   const { query } = required;
-  const text = readText(query.q);
-  const collections = readCollections(query.collection);
-  const limit = readLimit(query.limit);
-  const cursor = readCursor(query.cursor);
+  const text = readText({ raw: query.q });
+  const collections = readCollections({ raw: query.collection });
+  const limit = readLimit({ raw: query.limit });
+  const cursor = readCursor({ raw: query.cursor });
   const failed = [text, collections, limit, cursor].find(isError);
   if (failed) return { error: failed.error };
   return {

@@ -37,7 +37,7 @@ export type MediaRenditionRouteDeps = MediaRouteDeps &
   Pick<RouteDeps, "postRepo" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo"> &
   Partial<Pick<RouteDeps, "entryRepo">>;
 
-export type MediaRenditionRouteRegistrar = (app: Express, deps: MediaRenditionRouteDeps) => void;
+export type MediaRenditionRouteRegistrar = (required: { app: Express; deps: MediaRenditionRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * Slice for the two media-PROVIDER-credential routes (`get-providers.ts`/`put-providers.ts`).

@@ -113,7 +113,7 @@ function parseCallbackQuery(query: Record<string, unknown>): { state: string; co
  *
  * @complexity O(1).
  */
-function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
+function classifyCallbackFailure({ error }: { error: unknown }, _optional = {}): OAuthCallbackFailureReason {
   if (error instanceof ExternalMcpValidationError) return "server_unknown";
   if (error instanceof OAuthError) {
     if (error.code === "OAUTH_INVALID_STATE") return "state_expired";
@@ -154,7 +154,7 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
 
     try {
       const serverId = String(req.params.serverId ?? "");
-      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), params, browserBinding });
+      await deps.oauth.completeAuthorizationCallback({ serverId, redirectUri: externalMcpOAuthCallbackUrl({ req, serverId }), params, browserBinding });
       // The seal-and-persist is already awaited inside `completeAuthorizationCallback`, so by the
       // time this responds the token is durable — the operator's next action is to close the window,
       // and reporting success over a write still in flight would report a connection that is one
@@ -171,7 +171,7 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
     } catch (error) {
       consoleLogger.error({ message: `external-mcp oauth callback failed: ${error instanceof Error ? error.message : String(error)}` });
       res.status(400).type("html").send(
-        renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure(error), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
+        renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure({ error }), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
       );
     }
   } }));

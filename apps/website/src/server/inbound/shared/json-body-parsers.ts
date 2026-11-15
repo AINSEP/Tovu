@@ -60,7 +60,7 @@ const LARGE_UPLOAD_ROUTES: ReadonlyArray<{ method: string; pattern: RegExp }> = 
  *
  * @complexity O(prefixes).
  */
-export function isAuthenticatedBodyPath(path: string): boolean {
+export function isAuthenticatedBodyPath({ path }: { path: string }, _optional = {}): boolean {
   const lower = path.toLowerCase();
   if (lower.startsWith(UNGATED_ADMIN_AUTH_PREFIX)) return false;
   return AUTHENTICATED_PATH_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(`${prefix}/`));
@@ -71,7 +71,7 @@ export function isAuthenticatedBodyPath(path: string): boolean {
  *
  * @complexity O(large routes).
  */
-export function jsonBodyLimitForAuthenticatedRequest(method: string, path: string): string {
+export function jsonBodyLimitForAuthenticatedRequest({ method, path }: { method: string; path: string }, _optional = {}): string {
   const lower = path.toLowerCase();
   if (/^\/api\/admin\/v1\/telemetry\/?$/.test(lower)) return TELEMETRY_JSON_BODY_LIMIT;
   if (lower === "/api/p" || lower.startsWith("/api/p/")) return PUBLIC_JSON_BODY_LIMIT;
@@ -86,7 +86,7 @@ const largeUploadParser = express.json({ limit: LARGE_UPLOAD_JSON_BODY_LIMIT });
 
 /** App-level parser for every route; session-gated paths are left for {@link parseAuthenticatedJsonBody}. */
 export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
-  if (isAuthenticatedBodyPath(req.path)) {
+  if (isAuthenticatedBodyPath({ path: req.path })) {
     next();
     return;
   }
@@ -96,7 +96,7 @@ export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
 /** Called by `requireAdminSession` once the caller is authenticated. `req.baseUrl + req.path` is
  *  the full path whichever prefix the gate is mounted under. */
 export function parseAuthenticatedJsonBody(req: Request, res: Response, next: NextFunction): void {
-  const limit = jsonBodyLimitForAuthenticatedRequest(req.method, `${req.baseUrl}${req.path}`);
+  const limit = jsonBodyLimitForAuthenticatedRequest({ method: req.method, path: `${req.baseUrl}${req.path}` });
   if (limit === TELEMETRY_JSON_BODY_LIMIT) { telemetryParser(req, res, next); return; }
   const largerParser = limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
   const parser = limit === PUBLIC_JSON_BODY_LIMIT ? publicParser : largerParser;

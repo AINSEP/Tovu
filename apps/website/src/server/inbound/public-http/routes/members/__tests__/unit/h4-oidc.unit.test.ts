@@ -127,7 +127,7 @@ test('me keeps linked identities readable when provider discovery is unavailable
     ] }) }),
     listProviders: async () => { throw new Error('plugin disabled'); },
   });
-  registerPublicMemberMeRoute(app, members, { login });
+  registerPublicMemberMeRoute({ app, deps: members }, { login });
   const { res, capture } = createCapturingResponse(); res.setHeader = (() => res) as typeof res.setHeader;
   await extractRouteHandler(app, 'get', '/api/members/v1/workspaces/:workspaceId/me')({ params: { workspaceId: 'ws' }, headers: { cookie: 'tovu_member_session=token' } }, res);
   assert.equal(capture.statusCode, 200);

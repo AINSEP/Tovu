@@ -100,7 +100,7 @@ function resolveStaticTheme(
  *
  * @complexity O(1).
  */
-function liquidTemplateContextRoute(templateId: string): "home" | "post" | "products" | "product" | null {
+function liquidTemplateContextRoute({ templateId }: { templateId: string }, _optional = {}): "home" | "post" | "products" | "product" | null {
   if (templateId === "home") return "home";
   if (templateId === "products") return "products";
   if (templateId === "product") return "product";
@@ -137,7 +137,7 @@ function resolveTemplatedPreviewTarget(
     res.status(404).type(PLAIN_TEXT).send(`template '${templateId}' was not found in theme '${themeId}'`);
     return null;
   }
-  const route = liquidTemplateContextRoute(templateId);
+  const route = liquidTemplateContextRoute({ templateId });
   if (!route) {
     res
       .status(422)
@@ -225,10 +225,10 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
         const product = route === "product" ? products[0] : undefined;
 
         const [widgets, mediaTransformVersions, mediaAssetMetadata, pageHtmlEmbeds] = await Promise.all([
-          resolveWidgetsForRender(deps, theme, post),
+          resolveWidgetsForRender({ deps, theme }, { post }),
           resolveMediaTransformVersionsForRender(deps),
-          resolveMediaAssetMetadataForRender(deps, post),
-          resolveHtmlEmbedsForRender(deps, post),
+          resolveMediaAssetMetadataForRender({ deps, post }),
+          resolveHtmlEmbedsForRender({ deps, post }),
         ]);
 
         const html = await renderSite({

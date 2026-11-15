@@ -16,7 +16,7 @@ export function registerPublicMemberForgotPasswordRoute(app: Express, deps: Memb
         input: { workspaceId: deps.workspaceId, email: body.email } });
       res.json({ accepted: true });
       // Per-address lookup and mail latency must never delay public acceptance.
-      setImmediate(() => { void prepared.deliver().catch(reportMemberDeliveryFailure); });
+      setImmediate(() => { void prepared.deliver().catch((error: unknown) => reportMemberDeliveryFailure({ error })); });
     } catch (error) { respondToSignInError({ error, res }); }
   });
 }

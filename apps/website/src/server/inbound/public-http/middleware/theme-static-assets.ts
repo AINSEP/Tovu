@@ -77,7 +77,7 @@ export function registerThemeStaticAssets(
     const themeDirs = resolveThemeDirs({ roots, themeId: req.params.themeId }, {});
     const requestedRevision = req.params.revision;
     const preview = typeof requestedRevision === "string";
-    const serveFrom = (index: number): void => {
+    const serveFrom = ({ index }: { index: number }, _optional?: Record<string, never>): void => {
       const themeDir = themeDirs[index];
       if (themeDir === undefined) {
         next();
@@ -86,7 +86,7 @@ export function registerThemeStaticAssets(
       if (preview) res.set("Cache-Control", "no-store");
       const nextDir = (): void => {
         if (sendInheritedTemplate({ themes: required.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
-        serveFrom(index + 1);
+        serveFrom({ index: index + 1 });
       };
       const revision = preview
         ? trustedPreviewRevision(
@@ -99,7 +99,7 @@ export function registerThemeStaticAssets(
       // Explicit dotfiles policy makes send check every segment; its legacy default allows hidden directories.
       serveStatic(themeDir, { dotfiles: "deny", ...(preview ? { cacheControl: false, etag: false, lastModified: false } : {}) })(req, res, (err?: unknown) => (err ? next(err) : nextDir()));
     };
-    serveFrom(0);
+    serveFrom({ index: 0 });
   });
 }
 
@@ -158,7 +158,7 @@ function sendPreviewCss(required: { res: Response; themeDir: string; url: string
   try { relativePath = decodeURIComponent(required.url.replace(/\?[\s\S]*/, "")).replace(/^\/+/, ""); }
   catch { required.next(); return true; }
   const cssPath = resolvePathWithin({ root: required.themeDir, segment: relativePath }, {});
-  if (!cssPath || !isRewritableCssPath(relativePath)) return false;
+  if (!cssPath || !isRewritableCssPath({ relativePath })) return false;
   try {
     const css = readFileSync(cssPath, "utf8");
     required.res.type("css").send(previewCss({ css, revision: required.revision }));
@@ -167,7 +167,7 @@ function sendPreviewCss(required: { res: Response; themeDir: string; url: string
 }
 
 /** A `.css` file (any case) with no dot-prefixed segment anywhere in its theme-relative path. */
-function isRewritableCssPath(relativePath: string): boolean {
+function isRewritableCssPath({ relativePath }: { relativePath: string }, _optional = {}): boolean {
   return relativePath.toLowerCase().endsWith(".css") && !relativePath.split(/[\\/]/).some((segment) => segment.startsWith("."));
 }
 

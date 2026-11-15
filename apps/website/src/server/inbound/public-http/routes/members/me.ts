@@ -8,7 +8,7 @@ import { MemberLoginError } from "#src/features/member-login/index";
 import { uniqueMemberCookie, sendMemberOidcError, type MemberOidcRouteDeps } from "./oidc-deps.js";
 
 /** Never cache identity; resolver validates sessions, then the member row enforces current status. */
-export function registerPublicMemberMeRoute(app: Express, deps: MemberPublicRouteDeps, options: { login?: MemberOidcRouteDeps } = {}): void {
+export function registerPublicMemberMeRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, options: { login?: MemberOidcRouteDeps } = {}): void {
   const resolver = createMemberAccessResolver({ deps });
   app.get("/api/members/v1/workspaces/:workspaceId/me", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");

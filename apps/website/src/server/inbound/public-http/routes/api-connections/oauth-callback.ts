@@ -47,7 +47,7 @@ function stringParams(query: Record<string, unknown>): Record<string, string> {
 }
 
 /** Code-only classification: never reads `message`, so no provider text can be rendered. @complexity O(1). */
-function classify(error: unknown): OAuthCallbackFailureReason {
+function classify({ error }: { error: unknown }, _optional = {}): OAuthCallbackFailureReason {
   if (!(error instanceof ApiConnectionError)) return "exchange_failed";
   if (error.code === "invalid-attempt" || error.code === "attempt-superseded") return "state_expired";
   if (error.code === "access-denied") return "provider_denied";
@@ -67,7 +67,7 @@ function callbackUrl(req: Request): string {
 }
 
 /** The attempt's connection in this workspace, or null; the attempt itself is not consumed here. */
-async function routeAttempt(host: ApiConnectionHost, state: string) {
+async function routeAttempt({ host, state }: { host: ApiConnectionHost; state: string }, _optional = {}) {
   const attempt = await host.records.peekAttempt({ state });
   if (!attempt || attempt.workspaceId !== host.workspaceId) return null;
   const connection = (await host.listConnections({ pluginId: attempt.pluginId })).find((candidate) => candidate.descriptor.connectionId === attempt.connectionId);
@@ -87,7 +87,7 @@ function depositCallbackFields(host: ApiConnectionHost, input: { readonly attemp
 }
 
 /** Codes are closed vocabularies; messages and causes may carry provider text and stay out of logs. */
-function safeErrorLabel(error: unknown): string {
+function safeErrorLabel({ error }: { error: unknown }, _optional = {}): string {
   if (!(error instanceof Error)) return "unknown";
   const code = (error as { code?: unknown }).code;
   return `${error.name} ${typeof code === "string" ? code : "unknown"}`;
@@ -109,7 +109,7 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
     const browserBinding = readBrowserBinding({ cookieHeader: req.get("cookie") });
     if (state === "" || state.length > MAX_STATE_LENGTH) return send(res, 400, "no_state");
     try {
-      const routed = await routeAttempt(deps.host, state);
+      const routed = await routeAttempt({ host: deps.host, state });
       // Unknown, used, foreign-workspace or no-longer-declared: the same answer for each.
       if (!routed) return send(res, 400, "state_expired");
       const { attempt, connection } = routed;
@@ -119,8 +119,8 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
       depositCallbackFields(deps.host, { attempt, attemptId: done.attemptId, fields: done.callbackFields });
       return send(res, 200);
     } catch (error) {
-      log(`api-connection oauth callback failed: ${safeErrorLabel(error)}`);
-      return send(res, 400, classify(error));
+      log(`api-connection oauth callback failed: ${safeErrorLabel({ error })}`);
+      return send(res, 400, classify({ error }));
     }
   } }));
 }

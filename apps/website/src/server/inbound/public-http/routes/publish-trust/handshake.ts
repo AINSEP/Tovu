@@ -105,7 +105,7 @@ function originOf(req: Request): string {
  *
  * @complexity O(1).
  */
-function asChallengeResponse(body: unknown): PublishChallengeResponse | null {
+function asChallengeResponse({ body }: { body: unknown }, _optional?: Record<string, never>): PublishChallengeResponse | null {
   if (typeof body !== "object" || body === null) return null;
   const candidate = body as Record<string, unknown>;
   if (typeof candidate.nonce !== "string") return null;
@@ -207,7 +207,7 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
   app.post("/api/publish-trust/v1/session", answered(async (req, res) => {
     if (!(await withinRateLimit(req, res))) return;
 
-    const response = asChallengeResponse(req.body);
+    const response = asChallengeResponse({ body: req.body });
     if (!response) {
       res.status(401).json(HANDSHAKE_REFUSAL);
       return;

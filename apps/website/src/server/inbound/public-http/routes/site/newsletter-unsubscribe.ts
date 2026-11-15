@@ -26,16 +26,16 @@ export function registerPublicNewsletterUnsubscribeRoute(app: Express, deps: New
       res
         .status(200)
         .type("html")
-        .send(renderPage("You're unsubscribed", "You will no longer receive this newsletter. If this was a mistake, you can re-subscribe at any time."));
+        .send(renderPage({ title: "You're unsubscribed", message: "You will no longer receive this newsletter. If this was a mistake, you can re-subscribe at any time." }));
     } catch (err) {
       if (err instanceof NewsletterUnsubscribeTokenInvalidError) {
         res
           .status(400)
           .type("html")
-          .send(renderPage("Unsubscribe link invalid", "This unsubscribe link is invalid or has expired."));
+          .send(renderPage({ title: "Unsubscribe link invalid", message: "This unsubscribe link is invalid or has expired." }));
         return;
       }
-      res.status(500).type("html").send(renderPage("Something went wrong", "Unexpected server error."));
+      res.status(500).type("html").send(renderPage({ title: "Something went wrong", message: "Unexpected server error." }));
     }
   };
 
@@ -43,7 +43,7 @@ export function registerPublicNewsletterUnsubscribeRoute(app: Express, deps: New
   app.post("/newsletter/unsubscribe", asyncRoute({ handler: handler }));
 }
 
-function renderPage(title: string, message: string): string {
+function renderPage({ title, message }: { title: string; message: string }, _optional = {}): string {
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>

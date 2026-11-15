@@ -66,7 +66,7 @@ function buildApp(options: { readonly handler?: AdminSurfaceActionHandler<AdminS
   // machine credential kind), without minting a key through the api-keys module.
   app.use("/api/admin", (req, res, next) => { if (req.get("x-test-credential-kind") === "api_key") res.locals.authCredentialKind = "api_key"; next(); });
   registerAgentPluginAdminSurfaceRoutes({ app, deps });
-  registerAdminSurfaceFilesRoute(app, deps);
+  registerAdminSurfaceFilesRoute({ app, deps });
   return { app, harness, baseDeps };
 }
 

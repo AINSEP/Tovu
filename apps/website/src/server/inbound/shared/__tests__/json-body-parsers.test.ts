@@ -92,20 +92,20 @@ test("login stays reachable (parsed at the public limit, ahead of the gate)", as
 
 test("isAuthenticatedBodyPath matches every session-gated prefix on a segment boundary, case-insensitively", () => {
   for (const p of ["/api/admin/v1/x", "/API/Admin/v1/x", "/api/runs", "/api/runs/1/cancel", "/api/assistant/chats/9", "/api/agents/rescan", "/api/tools", "/api/frontend-sessions/s/responses", "/api/attachments"]) {
-    assert.equal(isAuthenticatedBodyPath(p), true, p);
+    assert.equal(isAuthenticatedBodyPath({ path: p }), true, p);
   }
   for (const p of ["/api/admin/v1/auth/login", "/api/admin/v1/auth/boot-session", "/api/adminx", "/api/members/v1/workspaces/w/sign-in", "/forms/a/submit", "/api/site-assistant/chat"]) {
-    assert.equal(isAuthenticatedBodyPath(p), false, p);
+    assert.equal(isAuthenticatedBodyPath({ path: p }), false, p);
   }
 });
 
 test("jsonBodyLimitForAuthenticatedRequest gives the upload limit only to the three large-body routes", () => {
-  assert.equal(jsonBodyLimitForAuthenticatedRequest("POST", "/api/admin/v1/workspaces/w/media"), LARGE_UPLOAD_JSON_BODY_LIMIT);
-  assert.equal(jsonBodyLimitForAuthenticatedRequest("PUT", "/api/admin/v1/workspaces/w/publish-content/blobs/abc"), LARGE_UPLOAD_JSON_BODY_LIMIT);
-  assert.equal(jsonBodyLimitForAuthenticatedRequest("POST", "/api/admin/v1/workspaces/w/publish-content/bundles"), LARGE_UPLOAD_JSON_BODY_LIMIT);
-  assert.equal(jsonBodyLimitForAuthenticatedRequest("PATCH", "/api/admin/v1/workspaces/w/media"), AUTHENTICATED_JSON_BODY_LIMIT);
-  assert.equal(jsonBodyLimitForAuthenticatedRequest("POST", "/api/admin/v1/workspaces/w/media/1/extra"), AUTHENTICATED_JSON_BODY_LIMIT);
-  assert.equal(jsonBodyLimitForAuthenticatedRequest("POST", "/api/runs"), AUTHENTICATED_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "PUT", path: "/api/admin/v1/workspaces/w/publish-content/blobs/abc" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/publish-content/bundles" }), LARGE_UPLOAD_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "PATCH", path: "/api/admin/v1/workspaces/w/media" }), AUTHENTICATED_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/admin/v1/workspaces/w/media/1/extra" }), AUTHENTICATED_JSON_BODY_LIMIT);
+  assert.equal(jsonBodyLimitForAuthenticatedRequest({ method: "POST", path: "/api/runs" }), AUTHENTICATED_JSON_BODY_LIMIT);
 });
 
 

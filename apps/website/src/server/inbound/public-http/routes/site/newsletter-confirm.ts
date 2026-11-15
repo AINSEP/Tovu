@@ -28,21 +28,21 @@ export function registerPublicNewsletterConfirmRoute(app: Express, deps: Newslet
       if (result.changed) void captureVisitorEvent({ deps, request: req, name: "newsletter_subscribed", properties: {
         listId: result.subscription.listId, method: "double_opt_in", eventId: result.eventId,
       } });
-      res.status(200).type("html").send(renderPage("Subscription confirmed", "Your subscription is confirmed. You're all set."));
+      res.status(200).type("html").send(renderPage({ title: "Subscription confirmed", message: "Your subscription is confirmed. You're all set." }));
     } catch (err) {
       if (err instanceof NewsletterConfirmTokenInvalidError) {
         res
           .status(400)
           .type("html")
-          .send(renderPage("Confirmation link invalid", "This confirmation link is invalid or has expired. Please request a new one."));
+          .send(renderPage({ title: "Confirmation link invalid", message: "This confirmation link is invalid or has expired. Please request a new one." }));
         return;
       }
-      res.status(500).type("html").send(renderPage("Something went wrong", "Unexpected server error."));
+      res.status(500).type("html").send(renderPage({ title: "Something went wrong", message: "Unexpected server error." }));
     }
   } }));
 }
 
-function renderPage(title: string, message: string): string {
+function renderPage({ title, message }: { title: string; message: string }, _optional = {}): string {
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>

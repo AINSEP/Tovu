@@ -29,7 +29,7 @@ test('docs pager crosses group boundaries and preserves both neighbours authored
     navLocationBindingRepo: { findByLocation: async () => null },
     menuRepo: { findBySlug: async () => null, findById: async ({ id }: { id: string }) => id === 'menu-header-nav' ? menu : null },
   });
-  const menus = await resolveStaticMenusForRender(deps, theme, '/middle', ['docs-prev-next']);
+  const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: '/middle' }, { extraMenuIds: ['docs-prev-next'] });
   const neighbours = menus['docs-prev-next'] as readonly StaticMenuItem[];
   assert.ok(Array.isArray(neighbours));
   assert.deepEqual(neighbours.map(({ label, href, attrs, children, isCurrent, isActive }) => ({ label, href, cssClass: attrs?.cssClass, children, isCurrent, isActive })), [
@@ -52,7 +52,7 @@ test('media metadata batches only live distinct assets and retains a missing con
     { type: 'image', attrs: { assetId: 'first' } }, { type: 'media', attrs: { assetId: 'missing' } },
     { type: 'media', attrs: { assetId: 'trashed' } },
   ] } });
-  const result = await resolveMediaAssetMetadataForRender(deps, post);
+  const result = await resolveMediaAssetMetadataForRender({ deps, post });
   assert.deepEqual(reads, [{ workspaceId: 'ws', sha256s: ['first-sha', 'second-sha'] }]);
   assert.deepEqual([...result], [
     ['first', { width: 320, height: 200, cssClass: 'cover', htmlAttributes: null, slug: 'first-slug', sha256: 'first-sha', contentType: 'image/png' }],

@@ -58,17 +58,17 @@ async function admit(context: RequestContext): Promise<{ memberId: string; comme
   const { req, res, deps, limiter } = context;
   res.set("Cache-Control", "no-store");
   if (req.params.workspaceId && req.params.workspaceId !== deps.workspaceId) {
-    await reject(context, 404, "This shop was not found.", "SHOP_NOT_FOUND"); return null;
+    await reject({ context, status: 404, error: "This shop was not found.", code: "SHOP_NOT_FOUND" }); return null;
   }
   const commerce = requestCommerce({ req, deps });
-  if (!commerce) { await reject(context, 503, "Checkout is not enabled for this shop.", "COMMERCE_UNAVAILABLE"); return null; }
+  if (!commerce) { await reject({ context, status: 503, error: "Checkout is not enabled for this shop.", code: "COMMERCE_UNAVAILABLE" }); return null; }
   const limit = await limiter.check({ key: resolveClientIp(req) });
   if (!limit.allowed) {
     res.set("Retry-After", String(limit.retryAfterSeconds));
-    await reject(context, 429, "Too many checkout requests. Please wait a minute and try again.", "RATE_LIMIT_EXCEEDED"); return null;
+    await reject({ context, status: 429, error: "Too many checkout requests. Please wait a minute and try again.", code: "RATE_LIMIT_EXCEEDED" }); return null;
   }
   const memberId = await buyer(context);
-  if (!memberId) { await reject(context, 401, "Sign in as a shop member to view or pay for your order.", "MEMBER_SIGN_IN_REQUIRED"); return null; }
+  if (!memberId) { await reject({ context, status: 401, error: "Sign in as a shop member to view or pay for your order.", code: "MEMBER_SIGN_IN_REQUIRED" }); return null; }
   if (req.method === "POST" && !await admitWrite({ req, res, commerce })) return null;
   return { memberId, commerce };
 }
@@ -84,7 +84,7 @@ async function buyerPage({ req, res, deps }: Pick<RequestContext, "req" | "res" 
   res.status(status).set("Cache-Control", "no-store").type("html").send(html);
 }
 
-async function reject(context: RequestContext, status: number, error: string, code: string): Promise<void> {
+async function reject({ context, status, error, code }: { context: RequestContext; status: number; error: string; code: string }, _optional = {}): Promise<void> {
   if (context.page) { await buyerPage(context, { status, title: "Check your order", message: error }); return; }
   context.res.status(status).json({ error, code });
 }
@@ -95,7 +95,7 @@ async function admitWrite({ req, res, commerce }: { req: Request; res: Response;
     res.status(403).json({ error: "Open this shop to complete your purchase.", code: "SAME_ORIGIN_REQUIRED" }); return false;
   }
   const origin = await commerce.checkoutOrigin();
-  if (!origin) { unavailable(res); return false; }
+  if (!origin) { unavailable({ res }); return false; }
   const requestOrigin = req.get("origin") ?? `${resolveProtocol(req)}://${req.get("host")}`;
   if (requestOrigin !== origin) {
     res.status(403).json({ error: "Open the deployed shop to complete your purchase. The desktop app manages the catalog.",
@@ -103,16 +103,16 @@ async function admitWrite({ req, res, commerce }: { req: Request; res: Response;
   }
   const status = await commerce.activate();
   if (status.ready) return true;
-  unavailable(res, status.reason ?? undefined);
+  unavailable({ res }, { reason: status.reason ?? undefined });
   return false;
 }
 
-function unavailable(res: Response, reason = "Checkout is not enabled for this shop."): void {
+function unavailable({ res }: { res: Response }, { reason = "Checkout is not enabled for this shop." }: { reason?: string } = {}): void {
   res.status(503).json({ error: reason, code: "COMMERCE_UNAVAILABLE" });
 }
 
 /** Allow only catalog choice and bounded quantity; prices/account/mode/identity are server-owned. O(k) keys. */
-function orderInput(body: unknown): { priceId: string; quantity?: number } | null {
+function orderInput({ body }: { body: unknown }, _optional = {}): { priceId: string; quantity?: number } | null {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const value = body as Record<string, unknown>;
   if (!Object.keys(value).every(key => key === "priceId" || key === "quantity") || !identifier(value.priceId)) return null;
@@ -125,7 +125,7 @@ function validQuantity(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100;
 }
 
-function emptyObject(value: unknown): boolean {
+function emptyObject({ value }: { value: unknown }, _optional = {}): boolean {
   return value !== null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
 }
 
@@ -137,7 +137,7 @@ function failure({ res, error }: { res: Response; error: unknown }): void {
   if (error instanceof CommerceCheckoutValidationError) {
     res.status(400).json({ error: error.message, code: "CHECKOUT_INVALID" }); return;
   }
-  if (error instanceof Error && "code" in error && error.code === "COMMERCE_UNAVAILABLE") { unavailable(res, error.message); return; }
+  if (error instanceof Error && "code" in error && error.code === "COMMERCE_UNAVAILABLE") { unavailable({ res }, { reason: error.message }); return; }
   res.status(503).json({ error: "The shop could not check your order. Retry this same order shortly; its payment status may still be updating.", code: "CHECKOUT_RETRY" });
 }
 
@@ -148,7 +148,7 @@ export function registerCommerceRoutes({ app, deps }: { app: IRouter; deps: Comm
   const limiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
   app.post(ORDERS, async (req, res) => {
     try {
-      const input = orderInput(req.body);
+      const input = orderInput({ body: req.body });
       if (!input) { res.status(400).json({ error: "Choose a price and a whole quantity from 1 to 100.", code: "CHECKOUT_INVALID" }); return; }
       const admitted = await admit({ req, res, deps, limiter }); if (!admitted) return;
       res.status(201).json(await admitted.commerce.createOrder({ memberId: admitted.memberId, ...input }));
@@ -156,7 +156,7 @@ export function registerCommerceRoutes({ app, deps }: { app: IRouter; deps: Comm
   });
   app.post(`${ORDERS}/:orderId/pay`, async (req, res) => {
     try {
-      if (!identifier(req.params.orderId) || !emptyObject(req.body)) {
+      if (!identifier(req.params.orderId) || !emptyObject({ value: req.body })) {
         res.status(400).json({ error: "Pay an existing order with an empty request body.", code: "CHECKOUT_INVALID" }); return;
       }
       const admitted = await admit({ req, res, deps, limiter }); if (!admitted) return;
@@ -179,13 +179,13 @@ export function registerCommerceRoutes({ app, deps }: { app: IRouter; deps: Comm
     const context = { req, res, deps, limiter, page: true };
     try {
       const orderId = req.query.orderId;
-      if (!identifier(orderId)) { await reject(context, 400, "Open your saved order link to check its payment status.", "ORDER_ID_REQUIRED"); return; }
+      if (!identifier(orderId)) { await reject({ context, status: 400, error: "Open your saved order link to check its payment status.", code: "ORDER_ID_REQUIRED" }); return; }
       const admitted = await admit(context); if (!admitted) return;
       const view = toCommerceBuyerOrder({ view: await admitted.commerce.readOrder({ memberId: admitted.memberId, orderId }) as CommerceOrderView });
       await buyerPage(context, { status: 200, ...commerceBuyerStatus({ view }), order: view.order });
     } catch (error) {
       const missing = error instanceof CommerceOrderNotFoundError;
-      await reject(context, missing ? 404 : 503, missing ? "This order is unavailable for your account." : "The shop could not check your order. Retry this same order shortly; its payment status may still be updating.", missing ? "COMMERCE_NOT_FOUND" : "CHECKOUT_RETRY");
+      await reject({ context, status: missing ? 404 : 503, error: missing ? "This order is unavailable for your account." : "The shop could not check your order. Retry this same order shortly; its payment status may still be updating.", code: missing ? "COMMERCE_NOT_FOUND" : "CHECKOUT_RETRY" });
     }
   };
   app.get("/commerce/return", asyncRoute({ handler: page }));

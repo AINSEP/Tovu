@@ -41,7 +41,7 @@ const ALWAYS_ALLOWED_PREFIXES = [
   // path-segment bounded and let such slugs bypass the block via the site's GET /:slug catch-all).
 ];
 
-function isAlwaysAllowed(path: string): boolean {
+function isAlwaysAllowed({ path }: { path: string }, _optional = {}): boolean {
   if (ALWAYS_ALLOWED_EXACT_PATHS.has(path)) return true;
   return ALWAYS_ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
@@ -52,7 +52,7 @@ function isAlwaysAllowed(path: string): boolean {
 export function applySiteServingGate(app: Express, deps: { siteStatusRepo: SiteStatusPort; workspaceId: string }): void {
   app.use(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (isAlwaysAllowed(req.path)) {
+      if (isAlwaysAllowed({ path: req.path })) {
         next();
         return;
       }

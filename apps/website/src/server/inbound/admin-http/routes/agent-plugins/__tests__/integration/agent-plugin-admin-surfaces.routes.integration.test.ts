@@ -85,7 +85,7 @@ function buildApp(options: BuildOptions = {}) {
   registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerAgentPluginAdminSurfaceRoutes({ app, deps });
-  registerAdminSurfaceFilesRoute(app, deps);
+  registerAdminSurfaceFilesRoute({ app, deps });
   return { app, baseDeps, reads };
 }
 

@@ -6,9 +6,9 @@ import { getReadinessSnapshot, isAssistantDaemonKnownFailed } from "#src/server/
 /** These 3 routes need no `RouteDeps` at all (health is dependency-free; readyz reads the
  * module-level readiness-state singleton) — a narrower type than `RouteRegistrar`, and the shape
  * `modules/core.ts` composes directly (ADR-046 Phase 3). */
-export type NoDepsRouteRegistrar = (app: Express) => void;
+export type NoDepsRouteRegistrar = (required: { app: Express }, optional?: Record<string, never>) => void;
 
-export const registerHealthRoute: NoDepsRouteRegistrar = (app) => {
+export const registerHealthRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
@@ -18,7 +18,7 @@ export const registerHealthRoute: NoDepsRouteRegistrar = (app) => {
  * ADR-046 Phase 2 (SPEC-030 REQ-08) — process liveness only, no dependency checks. Mirrors
  * `/health`'s exact behavior (both remain registered; `/health` is not removed).
  */
-export const registerHealthzRoute: NoDepsRouteRegistrar = (app) => {
+export const registerHealthzRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
   app.get("/healthz", (_req, res) => {
     res.json({ ok: true });
   });
@@ -39,7 +39,7 @@ export const registerHealthzRoute: NoDepsRouteRegistrar = (app) => {
  * connect to the daemon's own port cannot make that distinction, since a leaked port can still be
  * squatted by an unrelated, healthy-looking orphaned process from a previous run.
  */
-export const registerReadyzRoute: NoDepsRouteRegistrar = (app) => {
+export const registerReadyzRoute: NoDepsRouteRegistrar = ({ app }, _options = {}) => {
   app.get("/readyz", (_req, res) => {
     const snapshot = getReadinessSnapshot();
     const daemonField = isAssistantDaemonKnownFailed() ? { assistantDaemonKnownFailed: true as const } : {};
