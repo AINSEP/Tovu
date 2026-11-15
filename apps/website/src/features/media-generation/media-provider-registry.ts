@@ -138,13 +138,20 @@ export function parseMediaProvidersFile({ raw }: { readonly raw: string }, _opti
 }
 
 /** One descriptor entry, or the reason it is invalid. @complexity O(1). */
-function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optional?: Record<string, never>): ProviderContributionDescriptor | string {
+function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optional = {}): ProviderContributionDescriptor | string {
   if (!isPlainObject(entry)) return `${at} must be an object`;
   const { id, module, label } = entry;
   if (typeof id !== "string") return `${at}.id must be a string`;
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
-  if (label !== undefined && (typeof label !== "string" || label.trim() === "")) return `${at}.label must be a non-empty string when present`;
+  const labelRefusal = refuseLabel({ label, at });
+  if (labelRefusal !== undefined) return labelRefusal;
   return { id, module, ...(label === undefined ? {} : { label }) };
+}
+
+/** The reason a descriptor's optional `label` is invalid, or `undefined` when absent or fine. @complexity O(1). */
+function refuseLabel({ label, at }: { label: unknown; at: string }, _optional = {}): string | undefined {
+  if (label !== undefined && (typeof label !== "string" || label.trim() === "")) return `${at}.label must be a non-empty string when present`;
+  return undefined;
 }
 
 function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {

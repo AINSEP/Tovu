@@ -122,17 +122,24 @@ export function parseRevocationDocument({ text }: { text: string }, _optional = 
  * @returns The record, or a reason string.
  * @complexity O(1) — every string is bounded by `MAX_FIELD_LENGTH`.
  */
-function parseRevocationEntry({ entry }: { entry: unknown }, _optional?: Record<string, never>): PublishTrustRevocation | string {
+function parseRevocationEntry({ entry }: { entry: unknown }, _optional = {}): PublishTrustRevocation | string {
   if (typeof entry !== "object" || entry === null) return "each revocation must be an object";
   const { sourceInstallationId, revokedAt, note } = entry as Record<string, unknown>;
   if (!isBoundedString(sourceInstallationId)) return "each revocation needs a 'sourceInstallationId'";
   if (!isBoundedString(revokedAt) || Number.isNaN(Date.parse(revokedAt))) {
     return "each revocation needs an ISO-8601 'revokedAt'";
   }
+  const noteRefusal = refuseNote({ note });
+  if (noteRefusal !== undefined) return noteRefusal;
+  return { sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null };
+}
+
+/** The reason a stored record's optional `note` is invalid, or `undefined` when absent, null or fine. @complexity O(1). */
+function refuseNote({ note }: { note: unknown }, _optional = {}): string | undefined {
   if (note !== undefined && note !== null && !isBoundedString(note)) {
     return "a revocation 'note' must be a non-empty string when present";
   }
-  return { sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null };
+  return undefined;
 }
 
 /**
