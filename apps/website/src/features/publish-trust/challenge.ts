@@ -176,7 +176,7 @@ function grantRefusal({ grant, nowIso, response }: {
   nowIso: string;
   response: PublishChallengeResponse;
 }, _options = {}): string | null {
-  if (!isGrantActive(grant, nowIso)) return "the publishing grant has expired or been revoked";
+  if (!isGrantActive({ grant, nowIso })) return "the publishing grant has expired or been revoked";
   if (response.sourceInstallationId !== grant.sourceInstallationId) {
     return "the response names an installation this grant is not for";
   }
@@ -197,7 +197,7 @@ function capabilityRefusal({ grant, capabilities }: {
   // Intersect, do not accept: a caller asking for something the grant does not hold is refused
   // outright rather than quietly narrowed, so a widening attempt is visible in the log.
   for (const capability of capabilities) {
-    if (!grantAllowsCapability(grant, capability)) return `'${String(capability)}' is outside this grant`;
+    if (!grantAllowsCapability({ grant, capability })) return `'${String(capability)}' is outside this grant`;
   }
   return null;
 }

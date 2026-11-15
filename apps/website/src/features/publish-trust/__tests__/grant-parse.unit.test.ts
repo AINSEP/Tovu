@@ -26,7 +26,7 @@ function doc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 }
 
 function reasonFor(raw: unknown): string | null {
-  const parsed = parsePublishTrustGrant(raw);
+  const parsed = parsePublishTrustGrant({ raw });
   return parsed.ok ? null : parsed.reason;
 }
 
@@ -35,7 +35,7 @@ function keysReason(publicKeys: unknown): string | null {
 }
 
 test("a well-formed document parses into exactly the grant fields", () => {
-  assert.deepEqual(parsePublishTrustGrant({ ...doc({ capabilities: ["publish_content.read", "publish_content.read"] }), extra: "dropped" }), {
+  assert.deepEqual(parsePublishTrustGrant({ raw: { ...doc({ capabilities: ["publish_content.read", "publish_content.read"] }), extra: "dropped" } }), {
     ok: true,
     grant: {
       version: PUBLISH_TRUST_GRANT_VERSION,
@@ -175,7 +175,7 @@ test("the first bad entry decides the reason", () => {
 });
 
 test("parsed keys carry only the key and generation, in document order", () => {
-  const parsed = parsePublishTrustGrant(doc({ publicKeys: [{ publicKeyB64u: "b", generation: 2, note: "x" }, { publicKeyB64u: "a", generation: 1 }] }));
+  const parsed = parsePublishTrustGrant({ raw: doc({ publicKeys: [{ publicKeyB64u: "b", generation: 2, note: "x" }, { publicKeyB64u: "a", generation: 1 }] }) });
   assert.ok(parsed.ok);
   assert.deepEqual(parsed.grant.publicKeys, [{ publicKeyB64u: "b", generation: 2 }, { publicKeyB64u: "a", generation: 1 }]);
 });

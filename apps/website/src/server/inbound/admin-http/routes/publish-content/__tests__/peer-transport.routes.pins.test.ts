@@ -45,7 +45,7 @@ const FAILURE_COPY: Record<string, { message: string; action: string; step: stri
 
 const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [
   [new PublishContentPeerNotFoundError({ message: "peer 'peer-1' was not found" }), 404, "PEER_NOT_FOUND"],
-  [new PublishTrustHandshakeError("live.example does not accept publishes from this computer yet", "not-connected"), 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
+  [new PublishTrustHandshakeError({ message: "live.example does not accept publishes from this computer yet", failure: "not-connected" }), 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
   [new PublishContentPeerCredentialMissingError({ message: "peer 'peer-1' has no saved credential" }), 409, "PEER_CREDENTIAL_MISSING"],
   [new PublishContentPeerSecretStoreUnconfiguredError({ message: "peer 'Live' credential could not be opened" }), 503, "SECRET_STORE_UNCONFIGURED"],
   [new PublishContentPeerTransportError({ message: "peer answered 401", code: "PEER_REJECTED" }, { peerStatus: 401 }), 502, "PEER_REJECTED"],

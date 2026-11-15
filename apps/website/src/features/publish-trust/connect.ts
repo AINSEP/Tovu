@@ -110,7 +110,7 @@ export interface ConnectedDestination {
 
 /** Thrown when the grant could not be written. `message` is a sentence for the owner. */
 export class PublishTrustConnectError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishTrustConnectError";
   }
@@ -162,7 +162,7 @@ export async function connectDestination(
   };
 
   const written = await deps.provisioning.connect({ grant });
-  if (!written.ok) throw new PublishTrustConnectError(`This site's publishing settings could not be saved: ${written.reason}`);
+  if (!written.ok) throw new PublishTrustConnectError({ message: `This site's publishing settings could not be saved: ${written.reason}` });
 
   return {
     identity,
@@ -190,7 +190,7 @@ export async function disconnectDestination(
 ): Promise<{ changed: boolean; target: ProvisioningTarget }> {
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: deps.workspaceId });
   const written = await deps.provisioning.disconnect({ sourceInstallationId });
-  if (!written.ok) throw new PublishTrustConnectError(`This site's publishing settings could not be saved: ${written.reason}`);
+  if (!written.ok) throw new PublishTrustConnectError({ message: `This site's publishing settings could not be saved: ${written.reason}` });
   return { changed: written.changed, target: written.target };
 }
 

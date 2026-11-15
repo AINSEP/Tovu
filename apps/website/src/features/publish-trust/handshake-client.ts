@@ -74,7 +74,7 @@ export type PublishTrustHandshakeFailure =
 export class PublishTrustHandshakeError extends Error {
   readonly failure: PublishTrustHandshakeFailure;
 
-  constructor(message: string, failure: PublishTrustHandshakeFailure) {
+  constructor({ message, failure }: { message: string; failure: PublishTrustHandshakeFailure }) {
     super(message);
     this.name = "PublishTrustHandshakeError";
     this.failure = failure;
@@ -109,7 +109,7 @@ export interface HandshakeClientDeps {
 /** The host part of a base URL, for a message a person reads. Falls back to the whole string when
  *  it somehow does not parse (it is normalized before it reaches here).
  *  @complexity O(n) in the URL length. */
-function siteNameOf(baseUrl: string): string {
+function siteNameOf({ baseUrl }: { baseUrl: string }, _optional = {}): string {
   try {
     return new URL(baseUrl).host;
   } catch {
@@ -120,7 +120,7 @@ function siteNameOf(baseUrl: string): string {
 /** True when a destination's 503 body carries the code `handshake.ts` sends for a missing site key.
  *  Only the code is read; the destination's own wording never reaches the owner.
  *  @complexity O(n) in the body length. */
-function isNoSiteKeyBody(bodyText: string): boolean {
+function isNoSiteKeyBody({ bodyText }: { bodyText: string }, _optional = {}): boolean {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     return typeof parsed === "object" && parsed !== null && (parsed as { code?: unknown }).code === "SECRET_STORE_UNCONFIGURED";
@@ -131,8 +131,8 @@ function isNoSiteKeyBody(bodyText: string): boolean {
 
 /** The one "answered, but not a Tovu site" refusal, for a host already reduced to its name.
  *  @complexity O(1). */
-function notATovuSite(site: string): PublishTrustHandshakeError {
-  return new PublishTrustHandshakeError(`${site} answered, but it does not look like a Tovu site.`, "not-a-tovu-site");
+function notATovuSite({ site }: { site: string }, _optional = {}): PublishTrustHandshakeError {
+  return new PublishTrustHandshakeError({ message: `${site} answered, but it does not look like a Tovu site.`, failure: "not-a-tovu-site" });
 }
 
 /** @complexity O(1). */
@@ -146,11 +146,7 @@ function isNonEmptyString(value: unknown): value is string {
  * @throws {PublishTrustHandshakeError} `unreachable` when the transport itself fails.
  * @complexity O(1) plus one round trip.
  */
-async function sendHandshake(
-  deps: HandshakeClientDeps,
-  request: { method: "GET" | "POST"; baseUrl: string; path: string; body?: unknown },
-  site: string
-): Promise<HttpResponse> {
+async function sendHandshake({ deps, request, site }: { deps: HandshakeClientDeps; request: { method: "GET" | "POST"; baseUrl: string; path: string; body?: unknown }; site: string }, _optional = {}): Promise<HttpResponse> {
   try {
     return await deps.httpClient.send({
       method: request.method,
@@ -160,10 +156,7 @@ async function sendHandshake(
       timeoutMs: HANDSHAKE_TIMEOUT_MS,
     });
   } catch (err) {
-    throw new PublishTrustHandshakeError(
-      `${site} could not be reached: ${err instanceof Error ? err.message : String(err)}`,
-      "unreachable"
-    );
+    throw new PublishTrustHandshakeError({ message: `${site} could not be reached: ${err instanceof Error ? err.message : String(err)}`, failure: "unreachable" });
   }
 }
 
@@ -172,35 +165,23 @@ async function sendHandshake(
  *
  * @complexity O(n) in the body length (only a 503 body is read).
  */
-function statusError(site: string, response: HttpResponse): PublishTrustHandshakeError | null {
+function statusError({ site, response }: { site: string; response: HttpResponse }, _optional = {}): PublishTrustHandshakeError | null {
   if (response.status === 404) {
-    return new PublishTrustHandshakeError(
-      `${site} answered, but it does not look like a Tovu site. Check the address.`,
-      "not-a-tovu-site"
-    );
+    return new PublishTrustHandshakeError({ message: `${site} answered, but it does not look like a Tovu site. Check the address.`, failure: "not-a-tovu-site" });
   }
   if (response.status === 401) {
     // The destination refuses every handshake failure with one flat 401 on purpose, so this source
     // genuinely cannot tell "no grant here" from "bad signature" — and must not guess. The sentence
     // names the only action that resolves any of them.
-    return new PublishTrustHandshakeError(
-      `${site} doesn't recognise this computer yet. Connect it, then deploy the site once.`,
-      "not-connected"
-    );
+    return new PublishTrustHandshakeError({ message: `${site} doesn't recognise this computer yet. Connect it, then deploy the site once.`, failure: "not-connected" });
   }
-  if (response.status === 503 && isNoSiteKeyBody(response.bodyText)) {
+  if (response.status === 503 && isNoSiteKeyBody({ bodyText: response.bodyText })) {
     // `handshake.ts` answers this when the destination has no usable site key. No retry fixes it,
     // so the sentence names the fix instead of "try again".
-    return new PublishTrustHandshakeError(
-      `${site} has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again.`,
-      "refused"
-    );
+    return new PublishTrustHandshakeError({ message: `${site} has no Site key set up yet, so it cannot accept publishes. Set one up on that site, then try again.`, failure: "refused" });
   }
   if (response.status < 200 || response.status >= 300) {
-    return new PublishTrustHandshakeError(
-      `${site} refused to set up publishing right now. Try again in a moment.`,
-      "refused"
-    );
+    return new PublishTrustHandshakeError({ message: `${site} refused to set up publishing right now. Try again in a moment.`, failure: "refused" });
   }
   return null;
 }
@@ -212,17 +193,14 @@ function statusError(site: string, response: HttpResponse): PublishTrustHandshak
  *   {@link MAX_QUOTED_BODY} characters) or for JSON that is not an object.
  * @complexity O(n) in the body length.
  */
-function parseHandshakeBody(site: string, bodyText: string): Record<string, unknown> {
+function parseHandshakeBody({ site, bodyText }: { site: string; bodyText: string }, _optional = {}): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(bodyText);
   } catch {
-    throw new PublishTrustHandshakeError(
-      `${site} answered, but it does not look like a Tovu site (${bodyText.slice(0, MAX_QUOTED_BODY)}).`,
-      "not-a-tovu-site"
-    );
+    throw new PublishTrustHandshakeError({ message: `${site} answered, but it does not look like a Tovu site (${bodyText.slice(0, MAX_QUOTED_BODY)}).`, failure: "not-a-tovu-site" });
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw notATovuSite(site);
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw notATovuSite({ site });
   return parsed as Record<string, unknown>;
 }
 
@@ -238,11 +216,11 @@ async function callHandshake(
   deps: HandshakeClientDeps,
   request: { method: "GET" | "POST"; baseUrl: string; path: string; body?: unknown }
 ): Promise<Record<string, unknown>> {
-  const site = siteNameOf(request.baseUrl);
-  const response = await sendHandshake(deps, request, site);
-  const refusal = statusError(site, response);
+  const site = siteNameOf({ baseUrl: request.baseUrl });
+  const response = await sendHandshake({ deps, request, site });
+  const refusal = statusError({ site, response });
   if (refusal !== null) throw refusal;
-  return parseHandshakeBody(site, response.bodyText);
+  return parseHandshakeBody({ site, bodyText: response.bodyText });
 }
 
 /**
@@ -261,7 +239,7 @@ export async function fetchDestinationIdentity(
 ): Promise<DestinationIdentity> {
   const body = await callHandshake(deps, { method: "GET", baseUrl: input.baseUrl, path: "/identity" });
   const { installationId, workspaceId, origin } = body;
-  if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite(siteNameOf(input.baseUrl));
+  if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });
   return { installationId, workspaceId, origin: typeof origin === "string" ? origin : input.baseUrl };
 }
 
@@ -292,7 +270,7 @@ export async function openPublishSession(
 
   const challenge = await callHandshake(deps, { method: "POST", baseUrl: input.baseUrl, path: "/challenge", body: {} });
   const { nonce, targetInstallationId } = challenge;
-  if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw notATovuSite(siteNameOf(input.baseUrl));
+  if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });
 
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: input.workspaceId });
   const signingKey = await derivePublishSigningKey({
@@ -305,9 +283,7 @@ export async function openPublishSession(
 
   const capabilities: readonly PublishingCapability[] = input.backstop
     ? [...DEFAULT_PUBLISHING_CAPABILITIES, "publish_content.backstop"] : DEFAULT_PUBLISHING_CAPABILITIES;
-  const signatureB64u = signingKey.sign(
-    buildChallengeMessage({ nonce, targetInstallationId, sourceInstallationId, generation, capabilities })
-  );
+  const signatureB64u = signingKey.sign({ message: buildChallengeMessage({ nonce, targetInstallationId, sourceInstallationId, generation, capabilities }) });
 
   const minted = await callHandshake(deps, {
     method: "POST",
@@ -316,7 +292,7 @@ export async function openPublishSession(
     body: { nonce, sourceInstallationId, generation, capabilities, signatureB64u },
   });
   const token = minted.token;
-  if (!isNonEmptyString(token)) throw notATovuSite(siteNameOf(input.baseUrl));
+  if (!isNonEmptyString(token)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });
 
   return sessionFrom({ token, minted, requested: capabilities, identity });
 }

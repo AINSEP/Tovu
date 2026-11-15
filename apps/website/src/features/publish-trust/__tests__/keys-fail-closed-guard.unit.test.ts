@@ -63,7 +63,7 @@ test("verifyPublishSignature: a malformed public key never reaches createPublicK
     generation: 1,
   });
   const message = "message-to-verify";
-  const goodSignature = key.sign(message);
+  const goodSignature = key.sign({ message });
 
   assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: goodSignature }), true);
   assert.equal(verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: goodSignature }, cryptoEffect), true);

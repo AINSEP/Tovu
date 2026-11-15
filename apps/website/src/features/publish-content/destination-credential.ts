@@ -85,10 +85,7 @@ export async function resolvePublishDestinationCredential(
   // above would not have caught this on its own — a grant is bound to the destination's
   // installation, and a restore can change the workspace while the grant still verifies.
   if (session.identity.workspaceId !== record.remoteWorkspaceId) {
-    throw new PublishTrustHandshakeError(
-      `${record.label} is not the site this computer was connected to. Connect it again to confirm.`,
-      "refused"
-    );
+    throw new PublishTrustHandshakeError({ message: `${record.label} is not the site this computer was connected to. Connect it again to confirm.`, failure: "refused" });
   }
 
   return {
