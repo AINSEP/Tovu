@@ -229,3 +229,47 @@ test("the drain arms the force-exit deadline itself, so a held quit cannot outli
   assert.match(handler.slice(draining), /const drainDeadline = setTimeout\(\(\) => app\.exit\(1\), QUIT_DEADLINE_MS\);\s*drainDeadline\.unref\(\);/);
   assert.match(source, /deadlineMs: QUIT_DEADLINE_MS,/, "a signal and a Cmd+Q must get the same bound");
 });
+
+test("a failed agent-service shutdown still waits for every tracked teardown before quitting", async () => {
+  // REGRESSION: a rejected `desktopAgentService.shutdown` skipped `pendingTeardowns.drain()`, so the
+  // app quit without waiting for logouts and site stops.
+  const teardown = deferred();
+  const pendingTeardowns = createShutdownTracker({});
+  pendingTeardowns.track({ promise: teardown.promise });
+  let onQuit!: (event: { preventDefault: () => void }) => void;
+  let finalQuits = 0;
+  const logged: string[] = [];
+  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+    console: { error: (line: string) => { logged.push(line); } },
+    lastWindowQuit: { onQuitStarted: () => {} },
+    stopSiteLifecycle: () => {},
+    app: {
+      on: (_event: string, listener: typeof onQuit) => { onQuit = listener; },
+      quit: () => { finalQuits++; },
+      exit: () => { assert.fail("the pending teardown must settle before the deadline"); },
+    },
+    productState: { disposers: [], product: { dispose: async () => {} } },
+    siteThemePreviews: { dispose: () => {} },
+    desktopAgentRuntime: { dispose: async () => {} },
+    desktopMcpHttp: { close: async () => {} },
+    stopRunningImports: async () => {},
+    desktopAgentService: { shutdown: async () => { throw new Error("agent service stuck"); } },
+    siteDiscovery: { abortAll: () => {} },
+    quitPhase: "idle", openSites: new Map(), pendingTeardowns,
+    decideBeforeQuit, finalQuitHeldForUpdate: () => false,
+    setTimeout, clearTimeout, QUIT_DEADLINE_MS: 30_000,
+  });
+  onQuit({ preventDefault: () => {} });
+  try {
+    await flush();
+    assert.equal(finalQuits, 0, "the drain must still wait for the tracked teardown");
+  } finally {
+    teardown.resolve();
+    await pendingTeardowns.drain();
+    await flush();
+  }
+  assert.equal(finalQuits, 1);
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /agent service shutdown failed/);
+  assert.match(logged[0], /agent service stuck/);
+});

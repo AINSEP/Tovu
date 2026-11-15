@@ -1134,7 +1134,11 @@ app.on("before-quit", (event) => {
     .catch((error) => console.error(`[tovu-desktop] site shutdown failed: ${error.message}`)));
   Promise.all(stops)
     .then(() => desktopAgentService.shutdown({}, {}))
+    // A failed agent-service shutdown must not skip the drain below: quit would stop waiting for
+    // logouts and site stops, and the rejection would go unhandled in the main process.
+    .catch((error: unknown) => console.error(`[tovu-desktop] agent service shutdown failed: ${error instanceof Error ? error.message : String(error)}`))
     .then(() => pendingTeardowns.drain())
+    .catch((error: unknown) => console.error(`[tovu-desktop] teardown drain failed: ${error instanceof Error ? error.message : String(error)}`))
     .finally(() => {
       clearTimeout(drainDeadline);
       quitPhase = "drained";
