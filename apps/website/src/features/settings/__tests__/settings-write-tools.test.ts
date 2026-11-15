@@ -17,6 +17,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../../contracts/headless/index.js";
 import { set } from "../site-title-write.js";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
+import { unwrapRouteHandle } from "#src/server/__tests__/helpers/unwrap-route-handle";
 
 const pickerAgents: DetectedAgent[] = [{
   id: "new", name: "Fixture Agent", bin: "fixture-agent", versionArgs: ["--version"], streamFormat: "plain",
@@ -387,7 +388,7 @@ for (const toolId of ["settings_set_value", "settings_clear_value"] as const) {
       let executions = 0;
       // Only the HTTP transport is replaced. The route's allowlist, identity parsing,
       // exchange delivery, card classification and settings write remain real.
-      const app = { post: (path: string, handler: typeof callback) => { assert.equal(path, MCP_UI_TOOL_CALLS_PATH); callback = handler; } } as unknown as Express;
+      const app = { post: (path: string, handler: typeof callback) => { assert.equal(path, MCP_UI_TOOL_CALLS_PATH); callback = unwrapRouteHandle(handler); } } as unknown as Express;
       const toolExecutor = { execute: async () => { executions++; throw new Error("a reply must not start another tool call"); } } as unknown as ToolExecutor;
       registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges: f.surfaceExchanges });
       const reply = async (toolName: string, principalId: string | undefined, params: Record<string, unknown>) => {
