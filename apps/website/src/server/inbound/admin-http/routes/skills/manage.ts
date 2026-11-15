@@ -17,12 +17,18 @@ function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): 
   });
 }
 
-function installationInput({ body, workspaceId }: { body: unknown; workspaceId: string }, _optional?: Record<string, never>): SkillInstallInput {
+/** Validates the request shape (one object, confirmed, exactly one known source) and returns its fields. */
+function validatedInstallFields({ body }: { body: unknown }, _optional = {}): Record<string, unknown> {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
   const fields = body as Record<string, unknown>;
   if (fields.confirmed !== true) throw new SkillInputError({ message: "Confirm the skill installation first." });
   const sources = ["githubUrl", "files", "archiveBase64"].filter(key => fields[key] !== undefined);
   if (sources.length !== 1 || Object.keys(fields).some(key => !["confirmed", "githubUrl", "files", "archiveBase64"].includes(key))) throw new SkillInputError({ message: "Choose exactly one source: GitHub URL, files, or ZIP." });
+  return fields;
+}
+
+function installationInput({ body, workspaceId }: { body: unknown; workspaceId: string }, _optional = {}): SkillInstallInput {
+  const fields = validatedInstallFields({ body });
   if (typeof fields.githubUrl === "string") return { workspaceId, githubUrl: fields.githubUrl };
   if (typeof fields.archiveBase64 === "string") return { workspaceId, archiveBase64: fields.archiveBase64 };
   if (hasUploadedSkillFiles(fields)) return { workspaceId, files: fields.files };
