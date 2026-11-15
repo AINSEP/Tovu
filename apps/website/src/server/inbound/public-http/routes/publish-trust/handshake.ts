@@ -96,6 +96,11 @@ function originOf(req: Request): string {
   return host === "" ? "" : `${req.protocol}://${host}`;
 }
 
+/** True for an array whose every element is a string. */
+function isStringArray({ value }: { value: unknown }, _optional = {}): boolean {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
 /**
  * Narrows an untrusted request body to the challenge-response shape.
  *
@@ -105,13 +110,13 @@ function originOf(req: Request): string {
  *
  * @complexity O(1).
  */
-function asChallengeResponse({ body }: { body: unknown }, _optional?: Record<string, never>): PublishChallengeResponse | null {
+function asChallengeResponse({ body }: { body: unknown }, _optional = {}): PublishChallengeResponse | null {
   if (typeof body !== "object" || body === null) return null;
   const candidate = body as Record<string, unknown>;
   if (typeof candidate.nonce !== "string") return null;
   if (typeof candidate.sourceInstallationId !== "string") return null;
   if (typeof candidate.generation !== "number" || !Number.isInteger(candidate.generation)) return null;
-  if (!Array.isArray(candidate.capabilities) || candidate.capabilities.some((c) => typeof c !== "string")) return null;
+  if (!isStringArray({ value: candidate.capabilities })) return null;
   if (typeof candidate.signatureB64u !== "string") return null;
   return {
     nonce: candidate.nonce,
