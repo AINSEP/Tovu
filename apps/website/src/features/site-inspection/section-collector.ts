@@ -64,7 +64,7 @@ export const DEFAULT_SECTION_TIMEOUT_MS = 5_000;
 export class SectionUnavailableError extends Error {
   readonly reason: string;
 
-  constructor(reason: string) {
+  constructor({ reason }: { reason: string }) {
     super(`section unavailable: ${reason}`);
     this.name = "SectionUnavailableError";
     this.reason = reason;
@@ -80,7 +80,7 @@ export class SectionUnavailableError extends Error {
  * @throws {Error} Named `SectionTimeoutError` when `ms` elapses first.
  * @complexity O(1) beyond `work`.
  */
-async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+async function withTimeout<T>({ work, ms, label }: { work: Promise<T>; ms: number; label: string }, _optional = {}): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([
@@ -142,7 +142,7 @@ export async function authorizeAndCollectSection<T>(spec: {
       return { status: "forbidden", reason: decision.reason };
     }
 
-    const collected = await withTimeout(spec.collect(), spec.timeoutMs, spec.logLabel);
+    const collected = await withTimeout({ work: spec.collect(), ms: spec.timeoutMs, label: spec.logLabel });
     return collected.truncated
       ? { status: "ok", data: collected.data, truncated: true }
       : { status: "ok", data: collected.data };

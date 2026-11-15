@@ -23,18 +23,18 @@ import { CMS_SEARCH_COLLECTIONS, MEMBER_AUDIENCE, cmsSearchVisibility, isRowLive
 export function memberSearchAudiences(required: { context: MemberContext }, _optional: Record<string, never> = {}): string[] {
   const { context } = required;
   if (!context.isAuthenticated) return [];
-  return [MEMBER_AUDIENCE.members, ...(context.isPaid ? [MEMBER_AUDIENCE.paid] : []), ...context.activeTierIds.map(MEMBER_AUDIENCE.tier)];
+  return [MEMBER_AUDIENCE.members, ...(context.isPaid ? [MEMBER_AUDIENCE.paid] : []), ...context.activeTierIds.map((tierId) => MEMBER_AUDIENCE.tier({ tierId }))];
 }
 
 /** Whether a gated row is open to any of `audiences`. @complexity O(r·a), both small. */
-function audienceAllows(memberAccessJson: string | null, audiences: readonly string[]): boolean {
+function audienceAllows({ memberAccessJson, audiences }: { memberAccessJson: string | null; audiences: readonly string[] }, _optional = {}): boolean {
   const visibility = cmsSearchVisibility({ memberAccessJson });
   return visibility.kind === "public" || visibility.audiences.some(audience => audiences.includes(audience));
 }
 
 /** Keys grouped by known collection; keys of other sites and unknown collections are dropped here.
  *  @complexity O(k). */
-function groupKeys(siteId: string, keys: readonly SearchDocumentKey[], collections: readonly PostKind[]): Map<PostKind, SearchDocumentKey[]> {
+function groupKeys({ siteId, keys, collections }: { siteId: string; keys: readonly SearchDocumentKey[]; collections: readonly PostKind[] }, _optional = {}): Map<PostKind, SearchDocumentKey[]> {
   const groups = new Map<PostKind, SearchDocumentKey[]>();
   for (const key of keys) {
     const collection = key.collection as PostKind;
@@ -57,9 +57,9 @@ export function createCmsSearchAccessPort(
   const collections = optional.collections ?? CMS_SEARCH_COLLECTIONS;
   return {
     async visibleKeys({ siteId, keys, audiences }) {
-      const nowIso = toNowIso(now());
+      const nowIso = toNowIso({ nowMs: now() });
       const visible = new Set<string>();
-      for (const [collection, group] of groupKeys(siteId, keys, collections)) {
+      for (const [collection, group] of groupKeys({ siteId, keys, collections })) {
         const rows = await kernel.run(db => db.selectFrom("posts")
           .select(["id", "workspace_id", "status", "publish_at", "deleted_at", "member_access_json"])
           .where("kind", "=", collection).where("id", "in", group.map(key => key.documentId)).execute());
@@ -67,7 +67,7 @@ export function createCmsSearchAccessPort(
         for (const key of group) {
           const row = byId.get(key.documentId);
           // The workspace is part of the key: a hit can never borrow another workspace's row.
-          if (row?.workspace_id !== key.workspaceId || !isRowLive(row, nowIso) || !audienceAllows(row.member_access_json, audiences)) continue;
+          if (row?.workspace_id !== key.workspaceId || !isRowLive({ row, nowIso }) || !audienceAllows({ memberAccessJson: row.member_access_json, audiences })) continue;
           visible.add(encodeSearchKey({ key }));
         }
       }

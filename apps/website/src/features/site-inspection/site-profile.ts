@@ -393,7 +393,7 @@ function authorizeAndCollect<T>(
 
 /** Tally of one field's values across rows — the `countsBy*` maps' single implementation.
  *  @complexity O(N) in `rows`. */
-function tally<T>(rows: readonly T[], pick: (row: T) => string): Record<string, number> {
+function tally<T>({ rows, pick }: { rows: readonly T[]; pick: (row: T) => string }, _optional = {}): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {
     const key = pick(row);
@@ -444,15 +444,15 @@ function toThemeSummary(row: SiteProfileThemeRow): SiteProfileThemeSummary {
  * @throws Whatever `listPosts()` throws — the caller converts it to `unavailable`.
  * @complexity O(N) in the workspace's post count; `PostRepoPort.list()` has no limit parameter, so
  *   the READ is unbounded by that port's design and only the response is capped.
- * @example await collectPages(deps, 50);
+ * @example await collectPages({ deps, limit: 50 });
  */
-async function collectPages(deps: SiteProfileDeps, limit: number): Promise<CollectedSection<SiteProfilePages>> {
+async function collectPages({ deps, limit }: { deps: SiteProfileDeps; limit: number }, _optional = {}): Promise<CollectedSection<SiteProfilePages>> {
   const rows = (await deps.listPosts()).filter((row) => row.deletedAt === undefined || row.deletedAt === null);
   const items = rows.slice(0, limit).map(toPageSummary);
   const data: SiteProfilePages = {
     total: rows.length,
-    countsByKind: tally(rows, (row) => row.kind),
-    countsByStatus: tally(rows, (row) => row.status),
+    countsByKind: tally({ rows, pick: (row) => row.kind }),
+    countsByStatus: tally({ rows, pick: (row) => row.status }),
     items,
   };
   return rows.length > items.length ? { data, truncated: true } : { data };
@@ -588,7 +588,7 @@ async function collectContentTypes(deps: SiteProfileDeps): Promise<CollectedSect
 /** Clamps a caller-supplied page limit into `[1, MAX_PAGE_ITEMS]`, defaulting when absent.
  *  Non-integers and out-of-range values fall back to the default rather than propagating into a
  *  `slice()` that would silently return nothing. */
-function resolvePageLimit(requested: number | undefined): number {
+function resolvePageLimit({ requested }: { requested: number | undefined }, _optional = {}): number {
   if (requested === undefined || !Number.isInteger(requested) || requested < 1) return DEFAULT_PAGE_ITEMS;
   return Math.min(requested, MAX_PAGE_ITEMS);
 }
@@ -614,23 +614,22 @@ function resolvePageLimit(requested: number | undefined): number {
  * @complexity O(N + T + P + A + C + S) — one read per section, run concurrently; `N` (posts)
  * dominates on a large site.
  * @example
- * const profile = await buildSiteProfile(deps, { principalId: "p-1" }, { sections: ["theme", "settings"] });
+ * const profile = await buildSiteProfile({ deps, input: { principalId: "p-1" } }, { sections: ["theme", "settings"] });
  */
 export async function buildSiteProfile(
-  deps: SiteProfileDeps,
-  input: { principalId: string },
+  { deps, input }: { deps: SiteProfileDeps; input: { principalId: string } },
   options: BuildSiteProfileOptions = {},
 ): Promise<SiteProfile> {
   const capturedAt = deps.clock.nowIso();
   // Key order follows the closed vocabulary, however the caller ordered or repeated `sections`.
   const requested = resolveRequestedSections({ vocabulary: SITE_PROFILE_SECTION_NAMES, requested: options.sections });
-  const pageLimit = resolvePageLimit(options.pageLimit);
+  const pageLimit = resolvePageLimit({ requested: options.pageLimit });
   const timeoutMs = options.sectionTimeoutMs ?? DEFAULT_SECTION_TIMEOUT_MS;
   const principalId = input.principalId;
 
   const collectors: Record<SiteProfileSectionName, () => Promise<SiteProfileSection<unknown>>> = {
     pages: () =>
-      authorizeAndCollect(deps, { principalId, section: "pages", timeoutMs, collect: () => collectPages(deps, pageLimit) }),
+      authorizeAndCollect(deps, { principalId, section: "pages", timeoutMs, collect: () => collectPages({ deps, limit: pageLimit }) }),
     theme: () => authorizeAndCollect(deps, { principalId, section: "theme", timeoutMs, collect: () => collectTheme(deps) }),
     plugins: () =>
       authorizeAndCollect(deps, { principalId, section: "plugins", timeoutMs, collect: () => collectPlugins(deps) }),

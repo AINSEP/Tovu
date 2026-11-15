@@ -107,7 +107,7 @@ export interface SiteInspectionToolDeps extends SiteProfileSourceDeps, LiveOrigi
  * @returns The narrow port bag. Pure: constructing it performs no I/O.
  * @throws Nothing. The closures throw whatever their underlying repo throws, when invoked.
  * @complexity O(1) — closure construction only.
- * @example const profile = await buildSiteProfile(toSiteProfileDeps(routeDeps), { principalId });
+ * @example const profile = await buildSiteProfile({ deps: toSiteProfileDeps(routeDeps), input: { principalId } });
  */
 export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps {
   return {
@@ -152,7 +152,7 @@ export function toSiteProfileDeps(deps: SiteProfileSourceDeps): SiteProfileDeps 
  * @returns The narrow port bag. Pure: constructing it performs no I/O.
  * @throws Nothing. The closures throw whatever their underlying reads throw, when invoked.
  * @complexity O(1) — closure construction only.
- * @example const capabilities = await buildSiteCapabilities(toSiteCapabilitiesDeps(routeDeps), { principalId });
+ * @example const capabilities = await buildSiteCapabilities({ deps: toSiteCapabilitiesDeps(routeDeps), input: { principalId } });
  */
 export function toSiteCapabilitiesDeps(deps: SiteInspectionToolDeps): SiteCapabilitiesDeps {
   return {

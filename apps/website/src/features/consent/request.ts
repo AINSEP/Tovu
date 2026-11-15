@@ -21,6 +21,6 @@ export function consentRevisionToken({ input, key }: { input: Record<string, unk
 /** Use the existing local-render path boundary before allocating a loopback server. O(path length).
  * @example consentPagePath({ path: '/privacy' }) */
 export function consentPagePath({ path }: { path: string }, _options = {}): string {
-  try { return resolveSameOriginPath(path, 'http://127.0.0.1'); }
+  try { return resolveSameOriginPath({ raw: path, base: 'http://127.0.0.1' }); }
   catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }
 }

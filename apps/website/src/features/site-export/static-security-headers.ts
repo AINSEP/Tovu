@@ -41,7 +41,7 @@ const HEAD_OPEN_TAG = /<head(\s[^>]*)?>/i;
  *
  * @complexity O(n) in the length of `html` (one regex scan).
  */
-export function withSecurityMeta(html: string, headers: SecurityHeaderSet = publicPageSecurityHeaders({})): string {
+export function withSecurityMeta({ html }: { html: string }, { headers = publicPageSecurityHeaders({}) }: { headers?: SecurityHeaderSet } = {}): string {
   const referrerPolicy = headers["Referrer-Policy"];
   if (referrerPolicy === undefined) return html;
   return html.replace(HEAD_OPEN_TAG, (tag) => `${tag}<meta name="referrer" content="${escapeHtml(referrerPolicy)}">`);

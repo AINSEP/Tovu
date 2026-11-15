@@ -98,7 +98,7 @@ function makeDeps(
 
 test("site capabilities: a fully granted principal gets every section, each authorized against its own permission", async () => {
   const logs: Logs = { permissions: [], reads: [] };
-  const result = await buildSiteCapabilities(makeDeps({ logs }), { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps: makeDeps({ logs }), input: { principalId: PRINCIPAL_ID } });
 
   assert.equal(result.schemaVersion, "1");
   assert.equal(result.capturedAt, "2026-09-15T00:00:00.000Z");
@@ -126,7 +126,7 @@ test("site capabilities: section permissions reuse the existing vocabulary rathe
 });
 
 test("tools section: grouped by the reader's source, sorted, counted, and pointing at describe_tool/search_tools", async () => {
-  const result = await buildSiteCapabilities(makeDeps(), { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } });
   const data = result.sections.tools?.data;
   assert.ok(data);
 
@@ -152,19 +152,19 @@ test("tools section: read from the injected registry reader on every call — no
   const rows = toolRows();
   const deps = makeDeps({ tools: rows });
 
-  const first = await buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
+  const first = await buildSiteCapabilities({ deps, input: { principalId: PRINCIPAL_ID } }, { sections: ["tools"] });
   assert.equal(first.sections.tools?.data?.total, 4);
 
   // A tool registered after the deps were built (a federated MCP reload, an Agent Plugin install)
   // must show up on the very next call.
   rows.push({ id: "media_list_assets", source: "media", description: "Lists media assets." });
-  const second = await buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
+  const second = await buildSiteCapabilities({ deps, input: { principalId: PRINCIPAL_ID } }, { sections: ["tools"] });
   assert.equal(second.sections.tools?.data?.total, 5);
   assert.ok(second.sections.tools?.data?.domains.some((domain) => domain.domain === "media"));
 });
 
 test("tools section: no injected registry reader is 'unavailable'/'not-wired' — never an empty catalog", async () => {
-  const result = await buildSiteCapabilities(makeDeps({ withoutToolReader: true }), { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps: makeDeps({ withoutToolReader: true }), input: { principalId: PRINCIPAL_ID } });
 
   assert.deepEqual(result.sections.tools, { status: "unavailable", reason: "not-wired" });
   assert.equal(result.sections.adminScreens?.status, "ok");
@@ -172,7 +172,7 @@ test("tools section: no injected registry reader is 'unavailable'/'not-wired' �
 });
 
 test("admin screens section: id, label and route path exactly as the injected list gives them", async () => {
-  const result = await buildSiteCapabilities(makeDeps(), { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } });
   const data = result.sections.adminScreens?.data;
   assert.ok(data);
 
@@ -182,7 +182,7 @@ test("admin screens section: id, label and route path exactly as the injected li
 });
 
 test("content types section: key and label only, tombstoned types excluded", async () => {
-  const result = await buildSiteCapabilities(makeDeps(), { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } });
 
   assert.deepEqual(result.sections.contentTypes?.data, {
     total: 2,
@@ -195,10 +195,7 @@ test("content types section: key and label only, tombstoned types excluded", asy
 
 test("a denied section is 'forbidden', performs no read, and leaves the other sections intact", async () => {
   const logs: Logs = { permissions: [], reads: [] };
-  const result = await buildSiteCapabilities(
-    makeDeps({ logs, allow: (permission) => permission !== "admin.collections.read" }),
-    { principalId: PRINCIPAL_ID },
-  );
+  const result = await buildSiteCapabilities({ deps: makeDeps({ logs, allow: (permission) => permission !== "admin.collections.read" }), input: { principalId: PRINCIPAL_ID } });
 
   assert.deepEqual(result.sections.contentTypes, { status: "forbidden", reason: "no-grant" });
   assert.ok(!logs.reads.includes("contentTypes"), "a forbidden section must not read");
@@ -208,10 +205,7 @@ test("a denied section is 'forbidden', performs no read, and leaves the other se
 });
 
 test("a failing read is 'unavailable' with the error CLASS name only, and the other sections still return", async () => {
-  const result = await buildSiteCapabilities(
-    makeDeps({ contentTypesError: new TypeError("row data CANARY_CT_ERROR_77aa") }),
-    { principalId: PRINCIPAL_ID },
-  );
+  const result = await buildSiteCapabilities({ deps: makeDeps({ contentTypesError: new TypeError("row data CANARY_CT_ERROR_77aa") }), input: { principalId: PRINCIPAL_ID } });
 
   assert.deepEqual(result.sections.contentTypes, { status: "unavailable", reason: "TypeError" });
   assert.ok(!JSON.stringify(result).includes("CANARY_CT_ERROR_77aa"), "an error message must never reach the output");
@@ -229,7 +223,7 @@ test("omitting sectionTimeoutMs waits five seconds before reporting a held secti
   const started = new Promise<void>((resolve) => { entered = resolve; });
   deps.listContentTypes = () => { entered(); return work; };
   let settled = false;
-  const pending = buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID })
+  const pending = buildSiteCapabilities({ deps, input: { principalId: PRINCIPAL_ID } })
     .then((result) => { settled = true; return result; });
   try {
     await started;
@@ -251,11 +245,7 @@ test("omitting sectionTimeoutMs waits five seconds before reporting a held secti
 
 test("sections limits the call to the requested ones, in vocabulary order, reading nothing else", async () => {
   const logs: Logs = { permissions: [], reads: [] };
-  const result = await buildSiteCapabilities(
-    makeDeps({ logs }),
-    { principalId: PRINCIPAL_ID },
-    { sections: ["contentTypes", "tools"] },
-  );
+  const result = await buildSiteCapabilities({ deps: makeDeps({ logs }), input: { principalId: PRINCIPAL_ID } }, { sections: ["contentTypes", "tools"] });
 
   assert.deepEqual(Object.keys(result.sections), ["tools", "contentTypes"]);
   assert.deepEqual([...logs.reads].sort(), ["contentTypes", "tools"]);
@@ -263,32 +253,32 @@ test("sections limits the call to the requested ones, in vocabulary order, readi
 });
 
 test("summarizeToolDescription: first sentence, whitespace collapsed, capped at MAX_TOOL_SUMMARY_CHARS", () => {
-  assert.equal(summarizeToolDescription("Creates a thing. Then explains more."), "Creates a thing.");
-  assert.equal(summarizeToolDescription("  Lists\n   every   row.  "), "Lists every row.");
-  assert.equal(summarizeToolDescription("No terminal punctuation here"), "No terminal punctuation here");
-  assert.equal(summarizeToolDescription(""), "");
+  assert.equal(summarizeToolDescription({ description: "Creates a thing. Then explains more." }), "Creates a thing.");
+  assert.equal(summarizeToolDescription({ description: "  Lists\n   every   row.  " }), "Lists every row.");
+  assert.equal(summarizeToolDescription({ description: "No terminal punctuation here" }), "No terminal punctuation here");
+  assert.equal(summarizeToolDescription({ description: "" }), "");
 
-  const summary = summarizeToolDescription(`${"word ".repeat(80).trim()}.`);
+  const summary = summarizeToolDescription({ description: `${"word ".repeat(80).trim()}.` });
   assert.ok(summary.length <= MAX_TOOL_SUMMARY_CHARS, `summary is ${summary.length} chars`);
   assert.ok(summary.endsWith("…"));
 });
 
 test("summarizeToolDescription: an over-long sentence is cut at the last whole word, not mid-word", () => {
   // The 120-char cap lands inside "beta" ("alpha bet|a"): a mid-word cut would end "alpha bet…".
-  assert.equal(summarizeToolDescription(`${"alpha beta ".repeat(20)}.`), `${"alpha beta ".repeat(10)}alpha…`);
+  assert.equal(summarizeToolDescription({ description: `${"alpha beta ".repeat(20)}.` }), `${"alpha beta ".repeat(10)}alpha…`);
 });
 
 test("summarizeToolDescription: 'e.g.' and a decimal point do not end the first sentence", () => {
   assert.equal(
-    summarizeToolDescription("Creates one, e.g. custom_credential_create. Next."),
+    summarizeToolDescription({ description: "Creates one, e.g. custom_credential_create. Next." }),
     "Creates one, e.g. custom_credential_create.",
   );
-  assert.equal(summarizeToolDescription("Scales rows by 1.5 at once. Next."), "Scales rows by 1.5 at once.");
+  assert.equal(summarizeToolDescription({ description: "Scales rows by 1.5 at once. Next." }), "Scales rows by 1.5 at once.");
 });
 
 test("tools section: a long description is still one capped line in the output", async () => {
   const rows = [{ id: "site_get_profile", source: "site", description: `${"Returns a very long description ".repeat(20)}.` }];
-  const result = await buildSiteCapabilities(makeDeps({ tools: rows }), { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
+  const result = await buildSiteCapabilities({ deps: makeDeps({ tools: rows }), input: { principalId: PRINCIPAL_ID } }, { sections: ["tools"] });
 
   const summary = result.sections.tools?.data?.domains[0]?.tools[0]?.summary ?? "";
   assert.ok(summary.length > 0 && summary.length <= MAX_TOOL_SUMMARY_CHARS, `summary is ${summary.length} chars`);
@@ -304,7 +294,7 @@ test("an authorization-service rejection affects only its section and performs n
     if (params.entityId === "contentTypes") throw new TypeError("PRIVATE_AUTH_SERVICE_FAILURE");
     return authorize(params);
   };
-  const result = await buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps, input: { principalId: PRINCIPAL_ID } });
   assert.deepEqual(result.sections.contentTypes, { status: "unavailable", reason: "TypeError" });
   assert.equal(logs.reads.includes("contentTypes"), false);
   assert.equal(result.sections.tools?.status, "ok");
@@ -315,7 +305,7 @@ test("an authorization-service rejection affects only its section and performs n
 
 test("summarizeToolDescription: one enormous token is cut mid-word at the cap", () => {
   const token = "x".repeat(MAX_TOOL_SUMMARY_CHARS * 2);
-  assert.equal(summarizeToolDescription(`Run ${token}.`), `${`Run ${token}`.slice(0, MAX_TOOL_SUMMARY_CHARS - 1)}…`);
+  assert.equal(summarizeToolDescription({ description: `Run ${token}.` }), `${`Run ${token}`.slice(0, MAX_TOOL_SUMMARY_CHARS - 1)}…`);
 });
 
 test("tools section: rows sharing one id stay listed side by side in a stable sorted domain", async () => {
@@ -324,14 +314,14 @@ test("tools section: rows sharing one id stay listed side by side in a stable so
     { id: "site_a", source: "site", description: "First copy." },
     { id: "site_a", source: "site", description: "First again." },
   ];
-  const result = await buildSiteCapabilities(makeDeps({ tools: rows }), { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
+  const result = await buildSiteCapabilities({ deps: makeDeps({ tools: rows }), input: { principalId: PRINCIPAL_ID } }, { sections: ["tools"] });
   assert.deepEqual(result.sections.tools?.data?.domains[0]?.tools.map((tool) => tool.id), ["site_a", "site_a", "site_b"]);
 });
 
 test("admin screens expose each panel purpose and its entity/query contract to the assistant", async () => {
   const { ADMIN_SCREENS: published } = await import("../admin-screens.generated.js");
   const deps = { ...makeDeps(), listAdminScreens: () => published };
-  const result = await buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps, input: { principalId: PRINCIPAL_ID } });
   const screen = result.sections.adminScreens?.data?.screens.find(row => row.id === "agent-plugins");
   assert.ok(screen);
   assert.equal(screen.description, "Manage agent plugins: install, view details, turn on/off.");
@@ -342,7 +332,7 @@ test("admin screens expose each panel purpose and its entity/query contract to t
 
 test("admin screens expose the unsaved-post route without reserving a post slug", async () => {
   const { ADMIN_SCREENS: published } = await import("../admin-screens.generated.js");
-  const result = await buildSiteCapabilities({ ...makeDeps(), listAdminScreens: () => published }, { principalId: PRINCIPAL_ID });
+  const result = await buildSiteCapabilities({ deps: { ...makeDeps(), listAdminScreens: () => published }, input: { principalId: PRINCIPAL_ID } });
   const screen = result.sections.adminScreens?.data?.screens.find(row => row.id === "posts");
   assert.ok(screen, "the posts screen must be exposed to the assistant");
   assert.deepEqual(screen.allowedQueryParams?.create, ["1"]);

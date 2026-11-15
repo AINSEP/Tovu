@@ -28,7 +28,7 @@ export function isSearchProviderId(value: unknown): value is string {
   return typeof value === "string" && PROVIDER_ID.test(value);
 }
 
-const rejection = (value: unknown) =>
+const rejection = ({ value }: { value: unknown }, _optional = {}) =>
   new ValueValidationFailedError(`value for '${SEARCH_SETTINGS_NAMESPACE}.${SEARCH_PROVIDER_KEY}' must match ${PROVIDER_ID.source}; got ${JSON.stringify(value).slice(0, 80)}`);
 
 /**
@@ -60,7 +60,7 @@ export function readSearchProviderSetting(
       namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scopeContext: { workspaceId },
     });
     const value = found?.value ?? BUILTIN_SEARCH_PROVIDER_ID;
-    if (!isSearchProviderId(value)) throw rejection(value);
+    if (!isSearchProviderId(value)) throw rejection({ value });
     return value;
   };
 }
@@ -77,7 +77,7 @@ export function writeSearchProviderSetting(
   _optional: Record<string, never> = {},
 ): (input: { workspaceId: string; callerPrincipalId: string; providerId: string }) => Promise<{ value: JsonValue; revisionSeq: number }> {
   return async ({ workspaceId, callerPrincipalId, providerId }) => {
-    if (!isSearchProviderId(providerId)) throw rejection(providerId);
+    if (!isSearchProviderId(providerId)) throw rejection({ value: providerId });
     return set({ deps: required.deps, input: {
       namespace: SEARCH_SETTINGS_NAMESPACE, key: SEARCH_PROVIDER_KEY, scope: "workspace", workspaceId, callerPrincipalId, value: providerId,
     } });

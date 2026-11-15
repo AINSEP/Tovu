@@ -65,10 +65,10 @@ const DEPS = { createSiteApp: () => makeFakeSiteApp() };
 // ---------------------------------------------------------------------------
 
 test("resolveSameOriginPath: accepts ordinary root-relative site paths", () => {
-  assert.equal(resolveSameOriginPath("/", BASE), "/");
-  assert.equal(resolveSameOriginPath("/about", BASE), "/about");
-  assert.equal(resolveSameOriginPath("/blog/hello?page=2", BASE), "/blog/hello?page=2");
-  assert.equal(resolveSameOriginPath("/robots.txt", BASE), "/robots.txt");
+  assert.equal(resolveSameOriginPath({ raw: "/", base: BASE }), "/");
+  assert.equal(resolveSameOriginPath({ raw: "/about", base: BASE }), "/about");
+  assert.equal(resolveSameOriginPath({ raw: "/blog/hello?page=2", base: BASE }), "/blog/hello?page=2");
+  assert.equal(resolveSameOriginPath({ raw: "/robots.txt", base: BASE }), "/robots.txt");
 });
 
 test("resolveSameOriginPath: refuses an absolute URL, whatever the scheme", () => {
@@ -80,59 +80,59 @@ test("resolveSameOriginPath: refuses an absolute URL, whatever the scheme", () =
     "gopher://127.0.0.1:11211/",
     "http://169.254.169.254/latest/meta-data/",
   ]) {
-    assert.throws(() => resolveSameOriginPath(candidate, BASE), PublishedPagePathError, `should refuse '${candidate}'`);
+    assert.throws(() => resolveSameOriginPath({ raw: candidate, base: BASE }), PublishedPagePathError, `should refuse '${candidate}'`);
   }
 });
 
 test("resolveSameOriginPath: refuses a protocol-relative path — the classic same-origin bypass", () => {
-  assert.throws(() => resolveSameOriginPath("//evil.example/x", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath("//169.254.169.254/", BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "//evil.example/x", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "//169.254.169.254/", base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: refuses a backslash, which URL parsers treat as a slash", () => {
-  assert.throws(() => resolveSameOriginPath("/\\evil.example/x", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath("\\\\evil.example/x", BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/\\evil.example/x", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "\\\\evil.example/x", base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: refuses control characters, including CR/LF request splitting", () => {
   const cr = String.fromCharCode(13);
   const lf = String.fromCharCode(10);
   const nul = String.fromCharCode(0);
-  assert.throws(() => resolveSameOriginPath(`/ok${cr}${lf}X-Injected: 1`, BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath(`/ok${nul}`, BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath(`/ok${String.fromCharCode(127)}`, BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: `/ok${cr}${lf}X-Injected: 1`, base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: `/ok${nul}`, base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: `/ok${String.fromCharCode(127)}`, base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: refuses traversal, raw and percent-encoded", () => {
-  assert.throws(() => resolveSameOriginPath("/a/../../etc/passwd", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath("/a/%2e%2e/%2e%2e/etc/passwd", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath("/a/%2E%2E/b", BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/a/../../etc/passwd", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/a/%2e%2e/%2e%2e/etc/passwd", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/a/%2E%2E/b", base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: refuses a malformed percent-encoding rather than silently repairing it", () => {
-  assert.throws(() => resolveSameOriginPath("/a/%zz", BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/a/%zz", base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: refuses the authenticated API surface", () => {
-  assert.throws(() => resolveSameOriginPath("/api/admin/v1/workspaces/x/settings", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath("/API/admin/v1/x", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath("/%61pi/admin/v1/x", BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/api/admin/v1/workspaces/x/settings", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/API/admin/v1/x", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "/%61pi/admin/v1/x", base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: refuses empty, non-string and oversized paths", () => {
-  assert.throws(() => resolveSameOriginPath("", BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath(undefined, BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath(42, BASE), PublishedPagePathError);
-  assert.throws(() => resolveSameOriginPath(`/${"a".repeat(MAX_PATH_LENGTH)}`, BASE), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: "", base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: undefined, base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: 42, base: BASE }), PublishedPagePathError);
+  assert.throws(() => resolveSameOriginPath({ raw: `/${"a".repeat(MAX_PATH_LENGTH)}`, base: BASE }), PublishedPagePathError);
 });
 
 test("resolveSameOriginPath: a rejection names the rule so a model can fix the input in one turn", () => {
   assert.throws(
-    () => resolveSameOriginPath("https://evil.example/x", BASE),
+    () => resolveSameOriginPath({ raw: "https://evil.example/x", base: BASE }),
     (err: unknown) => err instanceof PublishedPagePathError && err.message.includes("must start with '/'"),
   );
   assert.throws(
-    () => resolveSameOriginPath("//evil.example/x", BASE),
+    () => resolveSameOriginPath({ raw: "//evil.example/x", base: BASE }),
     (err: unknown) => err instanceof PublishedPagePathError && err.message.includes("different host"),
   );
 });
@@ -164,7 +164,7 @@ test("readBoundedBody: stops at the cap and reports it, rather than buffering th
     },
     cancel() { cancellations += 1; },
   }, { highWaterMark: 0 }));
-  const read = await readBoundedBody(response, 10);
+  const read = await readBoundedBody({ response, maxBytes: 10 });
   assert.equal(read.bodyBytes, 10);
   assert.equal(read.body.length, 10);
   assert.equal(read.body, "alpha-beta");
@@ -174,7 +174,7 @@ test("readBoundedBody: stops at the cap and reports it, rather than buffering th
 });
 
 test("readBoundedBody: a response under the cap is returned whole and not flagged", async () => {
-  const read = await readBoundedBody(new Response("hello"), 100);
+  const read = await readBoundedBody({ response: new Response("hello"), maxBytes: 100 });
   assert.deepEqual(read, { body: "hello", bodyBytes: 5, truncated: false });
 });
 
@@ -183,7 +183,7 @@ test("readBoundedBody: a response under the cap is returned whole and not flagge
 // ---------------------------------------------------------------------------
 
 test("fetchPublishedPage: returns the live status, headers and body of a real route", async () => {
-  const result = await fetchPublishedPage(DEPS, { path: "/" });
+  const result = await fetchPublishedPage({ deps: DEPS, input: { path: "/" } });
 
   assert.equal(result.status, 200);
   assert.equal(result.ok, true);
@@ -196,7 +196,7 @@ test("fetchPublishedPage: returns the live status, headers and body of a real ro
 });
 
 test("fetchPublishedPage: reports cookie SHAPES and never a cookie value, in headers or anywhere else", async () => {
-  const result = await fetchPublishedPage(DEPS, { path: "/" });
+  const result = await fetchPublishedPage({ deps: DEPS, input: { path: "/" } });
 
   assert.deepEqual(
     result.cookies.map((cookie) => cookie.name).sort(),
@@ -212,47 +212,47 @@ test("fetchPublishedPage: reports cookie SHAPES and never a cookie value, in hea
 });
 
 test("fetchPublishedPage: preserves the query string through validation", async () => {
-  const result = await fetchPublishedPage(DEPS, { path: "/echo?q=hello" });
+  const result = await fetchPublishedPage({ deps: DEPS, input: { path: "/echo?q=hello" } });
   assert.equal(result.path, "/echo?q=hello");
   assert.equal(result.body, "query=hello");
 });
 
 test("fetchPublishedPage: a 404 is a RESULT, not a thrown error", async () => {
-  const result = await fetchPublishedPage(DEPS, { path: "/nope" });
+  const result = await fetchPublishedPage({ deps: DEPS, input: { path: "/nope" } });
   assert.equal(result.status, 404);
   assert.equal(result.ok, false);
   assert.match(result.body ?? "", /not found/);
 });
 
 test("fetchPublishedPage: a redirect is reported, never followed", async () => {
-  const result = await fetchPublishedPage(DEPS, { path: "/old" });
+  const result = await fetchPublishedPage({ deps: DEPS, input: { path: "/old" } });
   assert.equal(result.status, 301);
   assert.equal(result.ok, false);
   assert.equal(result.headers["location"], "/new");
 });
 
 test("fetchPublishedPage: caps the body at maxBytes and flags the truncation", async () => {
-  const result = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: 1_000 });
+  const result = await fetchPublishedPage({ deps: DEPS, input: { path: "/big" } }, { maxBytes: 1_000 });
   assert.equal(result.bodyBytes, 1_000);
   assert.equal(result.body, "z".repeat(1_000));
   assert.equal(result.truncated, true);
 
-  const defaulted = await fetchPublishedPage(DEPS, { path: "/big" });
+  const defaulted = await fetchPublishedPage({ deps: DEPS, input: { path: "/big" } });
   assert.equal(defaulted.bodyBytes, DEFAULT_MAX_BODY_BYTES);
   assert.equal(defaulted.truncated, true);
 
-  const requested = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: 60_000 });
+  const requested = await fetchPublishedPage({ deps: DEPS, input: { path: "/big" } }, { maxBytes: 60_000 });
   assert.equal(requested.bodyBytes, 50_000);
   assert.equal(requested.truncated, false);
 });
 
 test("fetchPublishedPage: maxBytes is clamped to the hard maximum and defaulted for nonsense", async () => {
-  const huge = await fetchPublishedPage(DEPS, { path: "/over-hard-cap" }, { maxBytes: MAX_MAX_BODY_BYTES * 10 });
+  const huge = await fetchPublishedPage({ deps: DEPS, input: { path: "/over-hard-cap" } }, { maxBytes: MAX_MAX_BODY_BYTES * 10 });
   assert.equal(huge.bodyBytes, 1_000_000);
   assert.equal(huge.body, "abcdef".repeat(200_000).slice(0, 1_000_000));
   assert.equal(huge.truncated, true);
 
-  const negative = await fetchPublishedPage(DEPS, { path: "/big" }, { maxBytes: -1 });
+  const negative = await fetchPublishedPage({ deps: DEPS, input: { path: "/big" } }, { maxBytes: -1 });
   assert.equal(negative.bodyBytes, DEFAULT_MAX_BODY_BYTES);
 });
 
@@ -271,14 +271,14 @@ test("fetchPublishedPage: refuses an off-site path and never issues the request"
   };
 
   for (const candidate of ["https://evil.example/x", "//evil.example/x", "/a/../../etc/passwd", "/api/admin/v1/x"]) {
-    await assert.rejects(() => fetchPublishedPage(spyDeps, { path: candidate }), PublishedPagePathError);
+    await assert.rejects(() => fetchPublishedPage({ deps: spyDeps, input: { path: candidate } }), PublishedPagePathError);
   }
   assert.deepEqual(attempted, [], "a refused path must never reach the app");
 });
 
 test("fetchPublishedPage: the /api guard holds even though the admin API is mounted on the same app", async () => {
   await assert.rejects(
-    () => fetchPublishedPage(DEPS, { path: "/api/admin/v1/secret" }),
+    () => fetchPublishedPage({ deps: DEPS, input: { path: "/api/admin/v1/secret" } }),
     (err: unknown) =>
       err instanceof PublishedPagePathError &&
       err.message ===
@@ -293,7 +293,7 @@ test("fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on
   // as the API is.
   for (const path of ["/admin", "/admin/settings", "/%61dmin", "/ADMIN/settings"]) {
     await assert.rejects(
-      () => fetchPublishedPage(DEPS, { path }),
+      () => fetchPublishedPage({ deps: DEPS, input: { path } }),
       (err: unknown) =>
         err instanceof PublishedPagePathError &&
         err.message ===
@@ -304,7 +304,7 @@ test("fetchPublishedPage: the same guard covers /admin, the admin SPA mounted on
 });
 
 test("fetchPublishedPage: a published page whose slug merely starts with 'admin' still fetches", async () => {
-  const ok = await fetchPublishedPage(DEPS, { path: "/administer-survey" });
+  const ok = await fetchPublishedPage({ deps: DEPS, input: { path: "/administer-survey" } });
   assert.equal(ok.status, 200);
   assert.equal(ok.body, "<h1>Survey</h1>");
 });
@@ -318,16 +318,16 @@ test("fetchPublishedPage: closes the server after success, validation rejection 
       callback?.(error);
     });
   });
-  const ok = await fetchPublishedPage(DEPS, { path: "/" });
+  const ok = await fetchPublishedPage({ deps: DEPS, input: { path: "/" } });
   assert.equal(ok.status, 200);
-  await assert.rejects(() => fetchPublishedPage(DEPS, { path: "//evil.example" }), PublishedPagePathError);
+  await assert.rejects(() => fetchPublishedPage({ deps: DEPS, input: { path: "//evil.example" } }), PublishedPagePathError);
   let reached = false;
   const stalled = { createSiteApp: () => {
     const app = express();
     app.get("/stalled", (_req, _res) => { reached = true; });
     return app;
   } };
-  await assert.rejects(() => fetchPublishedPage(stalled, { path: "/stalled" }, { timeoutMs: 500 }),
+  await assert.rejects(() => fetchPublishedPage({ deps: stalled, input: { path: "/stalled" } }, { timeoutMs: 500 }),
     { name: "PublishedPageTimeoutError", message: "rendering '/stalled' exceeded 500ms" });
   assert.equal(reached, true);
   assert.equal(closed.length, 3);

@@ -74,7 +74,7 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
       }
       const rendered = await renderer.renderPostPreview(deps, { post, ...overrides });
       const availableTemplates = await readPostTemplateOptions({ deps, kind: post.kind });
-      const shaped: ShapedPageBody = shapePageBody(rendered.html, options);
+      const shaped: ShapedPageBody = shapePageBody({ body: rendered.html, options });
       return { postId: post.id, title: post.title, status: post.status, templateChoice: rendered.templateChoice, availableTemplates, ...shaped };
     },
   } });

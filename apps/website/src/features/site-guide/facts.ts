@@ -29,7 +29,7 @@ async function readProfileFacts({ deps, caller, requested }: {
   deps: SiteGuideFactsDeps; caller: { principalId: string }; requested: ReadonlySet<string>;
 }, _options: Record<string, never> = {}): Promise<Record<string, SiteFact>> {
   const sections = PROFILE_TOPICS.filter(([topic]) => requested.has(topic)).map(([, section]) => section);
-  const profile = sections.length ? await buildSiteProfile(toSiteProfileDeps(deps), caller, { sections }) : undefined;
+  const profile = sections.length ? await buildSiteProfile({ deps: toSiteProfileDeps(deps), input: caller }, { sections }) : undefined;
   const facts: Record<string, SiteFact> = {};
   for (const [topic, section] of PROFILE_TOPICS) {
     const read = profile?.sections[section];

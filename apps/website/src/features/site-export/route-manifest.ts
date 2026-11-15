@@ -213,9 +213,12 @@ function buildPostRoutes(posts: readonly PostRecord[], shadowedSlugs: ReadonlySe
  * human-readable sentence distinguishes them.
  */
 function resolveThemeAndPostRoutes(
-  theme: DiscoveredTheme | undefined | "deliberate",
-  posts: readonly PostRecord[],
-  skipped: ManifestSkip[]
+  { theme, posts, skipped }: {
+    theme: DiscoveredTheme | undefined | "deliberate";
+    posts: readonly PostRecord[];
+    skipped: ManifestSkip[];
+  },
+  _optional = {}
 ): { activeTheme?: RouteManifest["activeTheme"]; routes: ManifestRoute[] } {
   if (theme === undefined || theme === "deliberate") {
     skipped.push({
@@ -245,7 +248,7 @@ function buildProductRoutes(products: readonly RouteManifestProduct[]): Manifest
 }
 
 /** `exact` redirect rules become routes; every other match type is recorded in `skipped` (see file header). */
-function buildRedirectRoutes(redirectRules: readonly RedirectRecord[], skipped: ManifestSkip[]): ManifestRoute[] {
+function buildRedirectRoutes({ redirectRules, skipped }: { redirectRules: readonly RedirectRecord[]; skipped: ManifestSkip[] }, _optional = {}): ManifestRoute[] {
   const routes: ManifestRoute[] = [];
   for (const rule of redirectRules) {
     if (rule.matchType !== "exact") {
@@ -307,11 +310,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   // (`| undefined`). Both mean the same absent-theme case, so normalize rather than widening the
   // helper's signature to accept two spellings of nothing. `NO_THEME_ID` is NOT normalized with
   // them — it is a third state that reports differently (see the helper's own doc).
-  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes(
-    theme === NO_THEME_ID ? "deliberate" : (theme ?? undefined),
-    posts,
-    skipped
-  );
+  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes({ theme: theme === NO_THEME_ID ? "deliberate" : (theme ?? undefined), posts, skipped });
   // Content-owned homepage (SPEC-0XX): a `kind: "page"` row may claim the reserved "/" slug and
   // `buildPostRoutes` above already resolves its path through the same `postPublicPath` the live
   // `GET /` handler uses, so it can appear in `themeAndPostRoutes` at path "/" too. The seeded
@@ -330,7 +329,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   routes.push(...buildProductRoutes(products));
 
   const redirectRules = await deps.redirectRepo.list({ workspaceId: deps.workspaceId, status: "active" });
-  routes.push(...buildRedirectRoutes(redirectRules, skipped));
+  routes.push(...buildRedirectRoutes({ redirectRules, skipped }));
 
   const claimedPaths = new Set(routes.map((route) => route.path));
   routes.push({ path: chooseNotFoundProbePath(claimedPaths), kind: "not-found", label: "404" });

@@ -71,7 +71,7 @@ const LOOPBACK_HOST = "http://127.0.0.1";
  * publish the input schema back with it: every rejection here is one a DIFFERENT `path` would fix.
  */
 export class PublishedPagePathError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishedPagePathError";
   }
@@ -147,27 +147,27 @@ export interface FetchPublishedPageOptions extends PageBodyOptions {
  * double-encoded `%252e%252e` decodes to the literal text `%2e%2e`, which a static-file handler
  * treats as a filename, not as traversal.
  *
- * @param pathOnly - The raw path with any query string already removed.
- * @param raw - The caller's original string, for the error message.
+ * @param required.pathOnly - The raw path with any query string already removed.
+ * @param required.raw - The caller's original string, for the error message.
  * @throws {PublishedPagePathError} On a raw or singly-encoded `..` segment, or on a malformed
  * percent-encoding (which cannot be decoded and therefore cannot be cleared).
  * @complexity O(L) in the path length.
- * @example assertNoTraversalSegment("/a/%2e%2e/b", "/a/%2e%2e/b"); // throws
+ * @example assertNoTraversalSegment({ pathOnly: "/a/%2e%2e/b", raw: "/a/%2e%2e/b" }); // throws
  */
-function assertNoTraversalSegment(pathOnly: string, raw: string): void {
+function assertNoTraversalSegment({ pathOnly, raw }: { pathOnly: string; raw: string }, _optional = {}): void {
   for (const segment of pathOnly.split("/")) {
     if (segment === "..") {
-      throw new PublishedPagePathError(`path must not contain a '..' segment (encoded or not): '${raw}'.`);
+      throw new PublishedPagePathError({ message: `path must not contain a '..' segment (encoded or not): '${raw}'.` });
     }
     if (!segment.includes("%")) continue;
     let decoded: string;
     try {
       decoded = decodeURIComponent(segment);
     } catch {
-      throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
+      throw new PublishedPagePathError({ message: `path contains a malformed percent-encoding: '${raw}'.` });
     }
     if (decoded === "..") {
-      throw new PublishedPagePathError(`path must not contain a '..' segment (encoded or not): '${raw}'.`);
+      throw new PublishedPagePathError({ message: `path must not contain a '..' segment (encoded or not): '${raw}'.` });
     }
   }
 }
@@ -180,34 +180,30 @@ function assertNoTraversalSegment(pathOnly: string, raw: string): void {
  * @throws {PublishedPagePathError} On the first rule `raw` fails.
  * @returns `raw`, narrowed to `string`, once every rule has passed.
  */
-function assertRawPathShape(raw: unknown): string {
+function assertRawPathShape({ raw }: { raw: unknown }, _optional = {}): string {
   if (typeof raw !== "string" || raw.length === 0) {
-    throw new PublishedPagePathError("path must be a non-empty string, e.g. '/' or '/blog/hello'.");
+    throw new PublishedPagePathError({ message: "path must be a non-empty string, e.g. '/' or '/blog/hello'." });
   }
   if (raw.length > MAX_PATH_LENGTH) {
-    throw new PublishedPagePathError(`path must be at most ${MAX_PATH_LENGTH} characters, got ${raw.length}.`);
+    throw new PublishedPagePathError({ message: `path must be at most ${MAX_PATH_LENGTH} characters, got ${raw.length}.` });
   }
   if (!raw.startsWith("/")) {
-    throw new PublishedPagePathError(
-      `path must start with '/' — this tool fetches a route on THIS site and never accepts a full URL or a remote host. Got '${raw}'.`,
-    );
+    throw new PublishedPagePathError({ message: `path must start with '/' — this tool fetches a route on THIS site and never accepts a full URL or a remote host. Got '${raw}'.` });
   }
   if (raw.startsWith("//")) {
-    throw new PublishedPagePathError(
-      "path must not start with '//' — a protocol-relative path resolves to a different host, which this tool never fetches.",
-    );
+    throw new PublishedPagePathError({ message: "path must not start with '//' — a protocol-relative path resolves to a different host, which this tool never fetches." });
   }
   if (raw.includes("\\")) {
-    throw new PublishedPagePathError("path must not contain a backslash — URL parsers treat '\\' as '/'.");
+    throw new PublishedPagePathError({ message: "path must not contain a backslash — URL parsers treat '\\' as '/'." });
   }
   if (hasControlCharacter(raw)) {
-    throw new PublishedPagePathError("path must not contain control characters (including CR/LF).");
+    throw new PublishedPagePathError({ message: "path must not contain control characters (including CR/LF)." });
   }
   // BEFORE `new URL()`, because the URL parser RESOLVES `..` away rather than reporting it:
   // `new URL("/a/../../etc/passwd", base).pathname` is already `/etc/passwd`, so a check on the
   // parsed pathname sees nothing to reject. Silent normalization is exactly the "rewrite rather
   // than refuse" behavior this validator must not have — a caller that wrote `..` gets told so.
-  assertNoTraversalSegment(raw.split("?")[0] ?? "", raw);
+  assertNoTraversalSegment({ pathOnly: raw.split("?")[0] ?? "", raw });
   return raw;
 }
 
@@ -218,18 +214,16 @@ function assertRawPathShape(raw: unknown): string {
  *
  * @throws {PublishedPagePathError} If `raw` does not parse, or parses off-origin.
  */
-function resolveWithinOrigin(raw: string, base: string): URL {
+function resolveWithinOrigin({ raw, base }: { raw: string; base: string }, _optional = {}): URL {
   const baseUrl = new URL(base);
   let resolved: URL;
   try {
     resolved = new URL(raw, baseUrl);
   } catch {
-    throw new PublishedPagePathError(`path is not a valid URL path: '${raw}'.`);
+    throw new PublishedPagePathError({ message: `path is not a valid URL path: '${raw}'.` });
   }
   if (resolved.origin !== baseUrl.origin) {
-    throw new PublishedPagePathError(
-      `path resolved off-origin (to '${resolved.origin}') — this tool only fetches routes on this site.`,
-    );
+    throw new PublishedPagePathError({ message: `path resolved off-origin (to '${resolved.origin}') — this tool only fetches routes on this site.` });
   }
   return resolved;
 }
@@ -247,12 +241,12 @@ function resolveWithinOrigin(raw: string, base: string): URL {
  * exactly the same surfaces for a stored redirect target, and two copies of a denylist is how one
  * of them ends up a decode or a case-fold behind the other.
  *
- * @param check - The verdict from `checkSitePathname`.
- * @param raw - The original caller-supplied path, for the error message only.
+ * @param required.check - The verdict from `checkSitePathname`.
+ * @param required.raw - The original caller-supplied path, for the error message only.
  * @returns The refusal message, or `null` when the path is allowed.
  * @complexity O(1).
  */
-function disallowedFormReason(check: SitePathCheck, raw: string): string | null {
+function disallowedFormReason({ check, raw }: { check: SitePathCheck; raw: string }, _optional = {}): string | null {
   switch (check.kind) {
     case "ok":
       return null;
@@ -277,9 +271,9 @@ function disallowedFormReason(check: SitePathCheck, raw: string): string | null 
  * @throws {PublishedPagePathError} On a malformed encoding, a decoded backslash/control character,
  * or a path that resolves onto `/admin` or `/api`.
  */
-function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
-  const reason = disallowedFormReason(checkSitePathname(resolved), raw);
-  if (reason !== null) throw new PublishedPagePathError(reason);
+function assertNoDisallowedDecodedForm({ resolved, raw }: { resolved: URL; raw: string }, _optional = {}): void {
+  const reason = disallowedFormReason({ check: checkSitePathname(resolved), raw });
+  if (reason !== null) throw new PublishedPagePathError({ message: reason });
 }
 
 /**
@@ -319,12 +313,12 @@ function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
  * @throws {PublishedPagePathError} With a message naming the specific rule that rejected it, so the
  * model can fix the input in one turn instead of guessing.
  * @complexity O(L) in the path length, bounded by {@link MAX_PATH_LENGTH}.
- * @example resolveSameOriginPath("/blog/hello", "http://127.0.0.1:53142"); // => "/blog/hello"
+ * @example resolveSameOriginPath({ raw: "/blog/hello", base: "http://127.0.0.1:53142" }); // => "/blog/hello"
  */
-export function resolveSameOriginPath(raw: unknown, base: string): string {
-  const path = assertRawPathShape(raw);
-  const resolved = resolveWithinOrigin(path, base);
-  assertNoDisallowedDecodedForm(resolved, path);
+export function resolveSameOriginPath({ raw, base }: { raw: unknown; base: string }, _optional = {}): string {
+  const path = assertRawPathShape({ raw });
+  const resolved = resolveWithinOrigin({ raw: path, base });
+  assertNoDisallowedDecodedForm({ resolved, raw: path });
   return `${resolved.pathname}${resolved.search}`;
 }
 
@@ -364,11 +358,11 @@ export function toCookieShapes(headers: Headers): PublishedPageCookieShape[] {
  * @param maxBytes - Cap, already clamped by the caller.
  * @returns The decoded text, how many bytes were read, and whether the cap stopped the read.
  * @complexity O(min(B, maxBytes)) in the response size.
- * @example await readBoundedBody(res, 200_000);
+ * @example await readBoundedBody({ response: res, maxBytes: 200_000 });
  */
 export async function readBoundedBody(
-  response: Response,
-  maxBytes: number,
+  { response, maxBytes }: { response: Response; maxBytes: number },
+  _optional = {},
 ): Promise<{ body: string; bodyBytes: number; truncated: boolean }> {
   if (!response.body) return { body: "", bodyBytes: 0, truncated: false };
 
@@ -401,7 +395,7 @@ export async function readBoundedBody(
 }
 
 /** Clamps `maxBytes` into `[1, MAX_MAX_BODY_BYTES]`, defaulting when absent or nonsensical. */
-function resolveMaxBytes(requested: number | undefined): number {
+function resolveMaxBytes({ requested }: { requested: number | undefined }, _optional = {}): number {
   if (requested === undefined || !Number.isInteger(requested) || requested < 1) return DEFAULT_MAX_BODY_BYTES;
   return Math.min(requested, MAX_MAX_BODY_BYTES);
 }
@@ -488,15 +482,14 @@ async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
  * @throws {Error} Named `PublishedPageTimeoutError` when the render exceeds `timeoutMs`.
  * @complexity O(min(B, maxBytes)) in the rendered response size, plus one Express app construction.
  * @example
- * const live = await fetchPublishedPage(routeDeps, { path: "/privacy" }, { maxBytes: 50_000 });
+ * const live = await fetchPublishedPage({ deps: routeDeps, input: { path: "/privacy" } }, { maxBytes: 50_000 });
  * if (live.status === 404) console.log("no privacy policy is published");
  */
 export async function fetchPublishedPage(
-  deps: FetchPublishedPageDeps,
-  input: { path: string },
+  { deps, input }: { deps: FetchPublishedPageDeps; input: { path: string } },
   options: FetchPublishedPageOptions = {},
 ): Promise<PublishedPageResult> {
-  const maxBytes = resolveMaxBytes(options.maxBytes);
+  const maxBytes = resolveMaxBytes({ requested: options.maxBytes });
   const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
 
   const site = await openLoopbackSiteServer({ deps });
@@ -504,7 +497,7 @@ export async function fetchPublishedPage(
 
   try {
     // Validated against the origin this call just minted — see `resolveSameOriginPath`'s doc.
-    const path = resolveSameOriginPath(input.path, baseUrl);
+    const path = resolveSameOriginPath({ raw: input.path, base: baseUrl });
 
     const response = await requestPublishedPage({ deps, baseUrl, path, timeoutMs });
 
@@ -514,10 +507,10 @@ export async function fetchPublishedPage(
       if (key.toLowerCase() !== "set-cookie") headers[key.toLowerCase()] = value;
     });
 
-    const raw = await readBoundedBody(response, options.textOnly || options.find !== undefined ? MAX_MAX_BODY_BYTES : maxBytes);
+    const raw = await readBoundedBody({ response, maxBytes: options.textOnly || options.find !== undefined ? MAX_MAX_BODY_BYTES : maxBytes });
     // Preserve exact byte accounting/decoding for legacy reads, including split UTF-8.
     const legacy = !options.textOnly && options.find === undefined;
-    const shaped = legacy ? raw : shapePageBody(raw.body, { ...options, maxBytes });
+    const shaped = legacy ? raw : shapePageBody({ body: raw.body, options: { ...options, maxBytes } });
 
     return {
       path,

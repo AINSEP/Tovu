@@ -309,7 +309,7 @@ test("fetch_published_page: preserves the collector path error and surfaces the 
   await assert.rejects(
     async () => {
       const { fetchPublishedPage } = await import("../published-page.js");
-      await fetchPublishedPage(deps, { path: "//evil.example" });
+      await fetchPublishedPage({ deps, input: { path: "//evil.example" } });
     },
     PublishedPagePathError,
   );

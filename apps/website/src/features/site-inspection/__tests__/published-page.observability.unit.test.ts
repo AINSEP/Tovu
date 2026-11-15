@@ -32,7 +32,7 @@ function renderer(status: number): RequestListener {
 test("fetchPublishedPage traces the loopback render as one CLIENT span: host, port and status, never the path or query", async () => {
   const { exporter, port } = createInMemoryOtel();
 
-  const result = await fetchPublishedPage({ createSiteApp: () => renderer(200), observability: port }, { path: PAGE });
+  const result = await fetchPublishedPage({ deps: { createSiteApp: () => renderer(200), observability: port }, input: { path: PAGE } });
 
   assert.equal(result.status, 200);
   const spans = exporter.getFinishedSpans();
@@ -49,7 +49,7 @@ test("fetchPublishedPage traces the loopback render as one CLIENT span: host, po
 test("fetchPublishedPage: a 500 render is an ERROR span with the status, and still returned to the caller", async () => {
   const { exporter, port } = createInMemoryOtel();
 
-  const result = await fetchPublishedPage({ createSiteApp: () => renderer(500), observability: port }, { path: "/" });
+  const result = await fetchPublishedPage({ deps: { createSiteApp: () => renderer(500), observability: port }, input: { path: "/" } });
 
   assert.equal(result.status, 500);
   const [span] = exporter.getFinishedSpans();
@@ -60,7 +60,7 @@ test("fetchPublishedPage: a 500 render is an ERROR span with the status, and sti
 test("fetchPublishedPage: a transport failure ends the span as ERROR with the error type and rethrows", async () => {
   const { exporter, port } = createInMemoryOtel();
 
-  await assert.rejects(fetchPublishedPage({ createSiteApp: () => (req) => { req.socket.destroy(); }, observability: port }, { path: PAGE }));
+  await assert.rejects(fetchPublishedPage({ deps: { createSiteApp: () => (req) => { req.socket.destroy(); }, observability: port }, input: { path: PAGE } }));
 
   const [span] = exporter.getFinishedSpans();
   assert.equal(span.status.code, SpanStatusCode.ERROR);
@@ -69,7 +69,7 @@ test("fetchPublishedPage: a transport failure ends the span as ERROR with the er
 });
 
 test("fetchPublishedPage: with no port the render is untraced and unchanged", async () => {
-  const result = await fetchPublishedPage({ createSiteApp: () => renderer(200) }, { path: "/" });
+  const result = await fetchPublishedPage({ deps: { createSiteApp: () => renderer(200) }, input: { path: "/" } });
   assert.equal(result.status, 200);
   assert.equal(result.body, "<!doctype html><html><body>page</body></html>");
 });

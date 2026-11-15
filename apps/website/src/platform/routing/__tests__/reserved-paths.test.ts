@@ -173,12 +173,12 @@ test("published_page_fetch's path validator refuses exactly what the shared rule
 
   for (const pathname of pinned) {
     assert.throws(
-      () => resolveSameOriginPath(pathname, base),
+      () => resolveSameOriginPath({ raw: pathname, base }),
       /must not target '\/(admin|api)'/,
       `expected resolveSameOriginPath to refuse '${pathname}' by naming the reserved surface`
     );
   }
   for (const pathname of ORDINARY) {
-    assert.equal(resolveSameOriginPath(pathname, base), new URL(pathname, base).pathname);
+    assert.equal(resolveSameOriginPath({ raw: pathname, base }), new URL(pathname, base).pathname);
   }
 });

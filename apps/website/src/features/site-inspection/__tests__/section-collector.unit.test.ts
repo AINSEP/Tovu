@@ -28,7 +28,7 @@ test("collection waits for authorization, preserves truncation, and scopes the d
 test("known unavailable reasons and non-Error throws are safe, and the next read can recover", async (t) => {
   t.mock.method(console, "error", () => {});
   const authorize = async () => ({ allowed: true, reason: "matched" });
-  assert.deepEqual(await authorizeAndCollectSection({ ...spec, authorize, collect: async () => { throw new SectionUnavailableError("not-wired"); } }), { status: "unavailable", reason: "not-wired" });
+  assert.deepEqual(await authorizeAndCollectSection({ ...spec, authorize, collect: async () => { throw new SectionUnavailableError({ reason: "not-wired" }); } }), { status: "unavailable", reason: "not-wired" });
   assert.deepEqual(await authorizeAndCollectSection({ ...spec, authorize, collect: async () => { throw "SECRET"; } }), { status: "unavailable", reason: "UnknownError" });
   assert.deepEqual(await authorizeAndCollectSection({ ...spec, authorize, collect: async () => ({ data: 0, truncated: false }) }), { status: "ok", data: 0 });
 });

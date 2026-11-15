@@ -43,7 +43,7 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
       // Search beyond the output window, within the existing reader ceiling; maxChars bounds snippets.
       const page = await fetchWebPage({ input: find === undefined ? input : { ...input, maxChars: MAX_MAX_CHARS }, ports, rateLimitScope: routeDeps.workspaceId }, { signal: ctx.signal });
       const { content, ...pageFacts } = page;
-      const shaped = find === undefined ? undefined : shapePageBody(content, { find, maxBytes: input.maxChars });
+      const shaped = find === undefined ? undefined : shapePageBody({ body: content, options: { find, maxBytes: input.maxChars } });
       const result = shaped ? { ...pageFacts, ...shaped, truncated: page.truncated || shaped.truncated } : page;
       if (!result.screenshot) return result;
       const { screenshot, ...facts } = result;

@@ -525,7 +525,7 @@ export interface ExportSiteOptions {
 
 
 /** Legacy decision signature, forwarded to the one export owner. */
-export function redirectOutcomeFor(status: number, locationHeader: string | null, manifestTarget: string | undefined) {
+export function redirectOutcomeFor({ status, locationHeader, manifestTarget }: { status: number; locationHeader: string | null; manifestTarget: string | undefined }, _optional = {}) {
   return redirectDecision({ status, locationHeader }, { ...(manifestTarget !== undefined ? { manifestTarget } : {}) });
 }
 
@@ -588,7 +588,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/", "/_consent/"],
     assetUrls: async () => [...declaredThemeAssets({ routeDeps, activeThemeId: manifest.activeTheme?.id }), ...(await routeDeps.cookieConsent?.exportAssets?.() ?? [])],
     requestHeaders: { "x-tovu-static-export": "1" },
-    security: { transformHtml: ({ html }) => withSecurityMeta(exportHtml({ html, publicOrigin: publicBaseUrl })) },
+    security: { transformHtml: ({ html }) => withSecurityMeta({ html: exportHtml({ html, publicOrigin: publicBaseUrl }) }) },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
       rejectionReason: ({ status }) => `expected a 4xx response for the 404 probe, got ${status}` },
     assetPathFailureReason: "asset URL resolved outside the output directory — refused",

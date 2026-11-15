@@ -35,7 +35,7 @@ export const CMS_SEARCH_COLLECTIONS: readonly PostKind[] = ["post", "page"];
  * Audience tokens for member-gated entries. A viewer's audiences are built from the same tokens by
  * `memberSearchAudiences` (`access.ts`); prefixed so a tier id can never spell `members` or `paid`.
  */
-export const MEMBER_AUDIENCE = { members: "members", paid: "paid", tier: (tierId: string) => `tier:${tierId}` } as const;
+export const MEMBER_AUDIENCE = { members: "members", paid: "paid", tier: ({ tierId }: { tierId: string }, _optional = {}) => `tier:${tierId}` } as const;
 
 /**
  * Who may see an entry, from its raw `member_access_json`. Mirrors `DefaultMemberAccessResolver.decide`:
@@ -49,16 +49,16 @@ export function cmsSearchVisibility(required: { memberAccessJson: string | null 
     case "public": return { kind: "public" };
     case "members": return { kind: "restricted", audiences: [MEMBER_AUDIENCE.members] };
     case "paid": return { kind: "restricted", audiences: [MEMBER_AUDIENCE.paid] };
-    case "tiers": return { kind: "restricted", audiences: (Array.isArray(access.tierIds) ? access.tierIds : []).map(MEMBER_AUDIENCE.tier) };
+    case "tiers": return { kind: "restricted", audiences: (Array.isArray(access.tierIds) ? access.tierIds : []).map((tierId) => MEMBER_AUDIENCE.tier({ tierId })) };
     default: return { kind: "restricted", audiences: [] };
   }
 }
 
 /** The ISO instant `isLiveAt` compares `publishAt` against. */
-export const toNowIso = (nowMs: number): string => new Date(nowMs).toISOString();
+export const toNowIso = ({ nowMs }: { nowMs: number }, _optional = {}): string => new Date(nowMs).toISOString();
 
 /** Whether a stored row is publicly visible right now (`isLiveAt` on its raw columns). @complexity O(1). */
-export function isRowLive(row: Pick<PostRow, "status" | "publish_at" | "deleted_at">, nowIso: string): boolean {
+export function isRowLive({ row, nowIso }: { row: Pick<PostRow, "status" | "publish_at" | "deleted_at">; nowIso: string }, _optional = {}): boolean {
   return isLiveAt({ record: { status: row.status, publishAt: row.publish_at, deletedAt: row.deleted_at }, nowIso });
 }
 
@@ -79,8 +79,8 @@ export function isRowLive(row: Pick<PostRow, "status" | "publish_at" | "deleted_
  * - A MISSING row (permanently deleted) uses `occurredAt` with the top tie-break, outranking every
  *   revision of that millisecond.
  */
-const scaled = (instantMs: number, tieBreak: number) => instantMs * 1000 + tieBreak;
-const ms = (iso: string | null) => (iso === null ? 0 : Date.parse(iso));
+const scaled = ({ instantMs, tieBreak }: { instantMs: number; tieBreak: number }, _optional = {}) => instantMs * 1000 + tieBreak;
+const ms = ({ iso }: { iso: string | null }, _optional = {}) => (iso === null ? 0 : Date.parse(iso));
 
 /** @complexity O(1). */
 export function cmsSearchRevision(
@@ -88,9 +88,9 @@ export function cmsSearchRevision(
   _optional: Record<string, never> = {},
 ): number {
   const { row, live, occurredAtMs } = required;
-  if (row === null) return scaled(occurredAtMs, 999);
-  const instant = Math.max(ms(row.updated_at), live ? ms(row.publish_at) : occurredAtMs);
-  return scaled(instant, row.version % 1000);
+  if (row === null) return scaled({ instantMs: occurredAtMs, tieBreak: 999 });
+  const instant = Math.max(ms({ iso: row.updated_at }), live ? ms({ iso: row.publish_at }) : occurredAtMs);
+  return scaled({ instantMs: instant, tieBreak: row.version % 1000 });
 }
 
 /** The indexable document for a live row. Title and body are plain text (the post FTS projection's
@@ -113,7 +113,7 @@ function toSourceRecord(required: { siteId: string; workspaceId: string; collect
   const { siteId, workspaceId, collection, documentId, nowMs, occurredAtMs } = required;
   // A row of the other kind is not a document of this collection: treat it as missing here.
   const row = required.row?.kind === collection ? required.row : null;
-  const live = row !== null && isRowLive(row, toNowIso(nowMs));
+  const live = row !== null && isRowLive({ row, nowIso: toNowIso({ nowMs }) });
   const revision = cmsSearchRevision({ row, live, occurredAtMs });
   const key = { siteId, workspaceId, collection, documentId };
   return { key, revision, document: live ? toDocument({ siteId, collection, row, revision }) : null };
@@ -141,7 +141,7 @@ function createSource(required: { kernel: ContentKernel; now: () => number; coll
     },
     async scan({ siteId, workspaceId, limit }, optional = {}) {
       const nowMs = now();
-      const nowIso = toNowIso(nowMs);
+      const nowIso = toNowIso({ nowMs });
       const rows = await kernel.run(db => {
         let query = db.selectFrom("posts").selectAll()
           .where("workspace_id", "=", workspaceId).where("kind", "=", collection)

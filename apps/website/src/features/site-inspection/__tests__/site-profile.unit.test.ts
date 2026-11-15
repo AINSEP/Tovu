@@ -178,7 +178,7 @@ function makeDeps(overrides: {
 
 test("site profile: every section is authorized against its OWN domain permission, never one blanket check", async () => {
   const authorizeLog: AuthorizeLog = { calls: [] };
-  await buildSiteProfile(makeDeps({ authorizeLog }), { principalId: PRINCIPAL_ID });
+  await buildSiteProfile({ deps: makeDeps({ authorizeLog }), input: { principalId: PRINCIPAL_ID } });
 
   const asked = authorizeLog.calls.map((call) => call.permission).sort();
   assert.deepEqual(asked, Object.values(SITE_PROFILE_SECTION_PERMISSIONS).slice().sort());
@@ -200,10 +200,7 @@ test("site profile: every section is authorized against its OWN domain permissio
 });
 
 test("site profile: a denied section is 'forbidden' with a reason, and the other sections still return data", async () => {
-  const profile = await buildSiteProfile(
-    makeDeps({ allow: (permission) => permission === "theme.set" }),
-    { principalId: PRINCIPAL_ID },
-  );
+  const profile = await buildSiteProfile({ deps: makeDeps({ allow: (permission) => permission === "theme.set" }), input: { principalId: PRINCIPAL_ID } });
 
   assert.equal(profile.sections.theme?.status, "ok");
   assert.equal(profile.sections.theme?.data?.activeThemeId, "basic");
@@ -220,10 +217,7 @@ test("site profile: a denied section is 'forbidden' with a reason, and the other
 
 test("site profile: a denied section performs no read at all — authorization runs before collection", async () => {
   const readLog: ReadLog = { reads: [] };
-  await buildSiteProfile(
-    makeDeps({ allow: (permission) => permission === "theme.set", readLog }),
-    { principalId: PRINCIPAL_ID },
-  );
+  await buildSiteProfile({ deps: makeDeps({ allow: (permission) => permission === "theme.set", readLog }), input: { principalId: PRINCIPAL_ID } });
 
   assert.ok(readLog.reads.includes("theme"), "the permitted section should have read");
   for (const denied of ["pages", "plugins", "contentTypes"]) {
@@ -233,7 +227,7 @@ test("site profile: a denied section performs no read at all — authorization r
 });
 
 test("site profile: a principal with no grants gets a well-formed response in which every section is forbidden", async () => {
-  const profile = await buildSiteProfile(makeDeps({ allow: () => false }), { principalId: PRINCIPAL_ID });
+  const profile = await buildSiteProfile({ deps: makeDeps({ allow: () => false }), input: { principalId: PRINCIPAL_ID } });
 
   assert.equal(profile.schemaVersion, "1");
   assert.equal(profile.completeness, "partial");
@@ -244,11 +238,7 @@ test("site profile: a principal with no grants gets a well-formed response in wh
 
 test("site profile: 'sections' scopes the response, and only the requested sections are authorized", async () => {
   const authorizeLog: AuthorizeLog = { calls: [] };
-  const profile = await buildSiteProfile(
-    makeDeps({ authorizeLog }),
-    { principalId: PRINCIPAL_ID },
-    { sections: ["settings", "theme"] },
-  );
+  const profile = await buildSiteProfile({ deps: makeDeps({ authorizeLog }), input: { principalId: PRINCIPAL_ID } }, { sections: ["settings", "theme"] });
 
   assert.deepEqual(Object.keys(profile.sections), ["theme", "settings"], "key order follows the closed vocabulary");
   assert.equal(profile.sections.pages, undefined);
@@ -261,7 +251,7 @@ test("site profile: 'sections' scopes the response, and only the requested secti
 });
 
 test("site profile: an empty 'sections' array means all sections, not none", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: [] });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } }, { sections: [] });
   assert.deepEqual(Object.keys(profile.sections).sort(), [...SITE_PROFILE_SECTION_NAMES].sort());
 });
 
@@ -269,10 +259,7 @@ test("site profile: a section whose read throws is 'unavailable' with the error 
   const leaky = new Error("connection string is postgres://user:CANARY_DB_PASSWORD_1234@host/db");
   leaky.name = "RepoUnavailableError";
 
-  const profile = await buildSiteProfile(
-    makeDeps({ failing: { plugins: leaky } }),
-    { principalId: PRINCIPAL_ID },
-  );
+  const profile = await buildSiteProfile({ deps: makeDeps({ failing: { plugins: leaky } }), input: { principalId: PRINCIPAL_ID } });
 
   assert.equal(profile.sections.plugins?.status, "unavailable");
   assert.equal(profile.sections.plugins?.reason, "RepoUnavailableError");
@@ -294,7 +281,7 @@ test("site profile: a section that hangs past its timeout is 'unavailable' with 
     }),
   };
 
-  const profile = await buildSiteProfile(hanging, { principalId: PRINCIPAL_ID }, { sectionTimeoutMs: 20 });
+  const profile = await buildSiteProfile({ deps: hanging, input: { principalId: PRINCIPAL_ID } }, { sectionTimeoutMs: 20 });
   assert.equal(profile.sections.contentTypes?.status, "unavailable");
   assert.equal(profile.sections.contentTypes?.reason, "timed-out");
   assert.equal(profile.sections.pages?.status, "ok");
@@ -311,7 +298,7 @@ test("site profile: pages reports totals over EVERY live row while capping the l
     updatedAt: "2026-01-01T00:00:00.000Z",
   }));
 
-  const profile = await buildSiteProfile(makeDeps({ posts: many }), { principalId: PRINCIPAL_ID }, { pageLimit: 5 });
+  const profile = await buildSiteProfile({ deps: makeDeps({ posts: many }), input: { principalId: PRINCIPAL_ID } }, { pageLimit: 5 });
   const pages = profile.sections.pages;
 
   assert.equal(pages?.status, "ok");
@@ -333,21 +320,21 @@ test("site profile: pageLimit is clamped to the hard maximum and defaulted for n
     updatedAt: "2026-01-01T00:00:00.000Z",
   }));
 
-  const capped = await buildSiteProfile(makeDeps({ posts: many }), { principalId: PRINCIPAL_ID }, { pageLimit: 10_000 });
+  const capped = await buildSiteProfile({ deps: makeDeps({ posts: many }), input: { principalId: PRINCIPAL_ID } }, { pageLimit: 10_000 });
   assert.equal(capped.sections.pages?.data?.items.length, MAX_PAGE_ITEMS);
 
-  const nonsense = await buildSiteProfile(makeDeps({ posts: many }), { principalId: PRINCIPAL_ID }, { pageLimit: -3 });
+  const nonsense = await buildSiteProfile({ deps: makeDeps({ posts: many }), input: { principalId: PRINCIPAL_ID } }, { pageLimit: -3 });
   assert.equal(nonsense.sections.pages?.data?.items.length, 50, "a negative limit falls back to the default");
 });
 
 test("site profile: trashed rows are excluded from both the listing and the counts", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: ["pages"] });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } }, { sections: ["pages"] });
   assert.equal(profile.sections.pages?.data?.total, 2);
   assert.ok(!JSON.stringify(profile).includes(CANARY.trashedPageTitle));
 });
 
 test("site profile: plugin activation is scoped to THIS workspace, never another tenant's row", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: ["plugins"] });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } }, { sections: ["plugins"] });
   const plugins = profile.sections.plugins?.data ?? [];
 
   assert.deepEqual(
@@ -364,14 +351,14 @@ test("site profile: theme reports the configured id even when it names nothing d
   const deps = makeDeps();
   const drifted: SiteProfileDeps = { ...deps, readActiveThemeId: async () => "deleted-theme" };
 
-  const profile = await buildSiteProfile(drifted, { principalId: PRINCIPAL_ID }, { sections: ["theme"] });
+  const profile = await buildSiteProfile({ deps: drifted, input: { principalId: PRINCIPAL_ID } }, { sections: ["theme"] });
   assert.equal(profile.sections.theme?.data?.activeThemeId, "deleted-theme");
   assert.equal(profile.sections.theme?.data?.active, null, "a missing active theme is reported, not silently substituted");
   assert.equal(profile.sections.theme?.data?.installed.length, 2);
 });
 
 test("site profile: settings reports exactly the inventory-safe allowlist, in allowlist order", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: ["settings"] });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } }, { sections: ["settings"] });
   const rows = profile.sections.settings?.data ?? [];
 
   assert.deepEqual(rows.map((row) => `${row.namespace}.${row.key}`), [
@@ -380,7 +367,7 @@ test("site profile: settings reports exactly the inventory-safe allowlist, in al
     "site.seo.default_robots_nofollow", "site.seo.sitemap_enabled", "site.seo.robots_rules",
   ]);
   const valuedDeps = { ...makeDeps(), readSetting: async ({ namespace, key }: { namespace: string; key: string }) => `${namespace}:${key}` };
-  const valued = await buildSiteProfile(valuedDeps, { principalId: PRINCIPAL_ID }, { sections: ["settings"] });
+  const valued = await buildSiteProfile({ deps: valuedDeps, input: { principalId: PRINCIPAL_ID } }, { sections: ["settings"] });
   assert.deepEqual(valued.sections.settings?.data, [
     ...["title_template", "default_description", "default_og_image", "twitter_site", "default_robots_noindex", "default_robots_nofollow", "sitemap_enabled", "robots_rules"]
       .map((key) => ({ namespace: "site.seo", key, configured: true, value: `site.seo:${key}` })),
@@ -391,11 +378,7 @@ test("site profile: settings reports exactly the inventory-safe allowlist, in al
 });
 
 test("site profile: an oversized setting value is dropped and flagged, never inlined", async () => {
-  const profile = await buildSiteProfile(
-    makeDeps({ settingValue: "x".repeat(5_000) }),
-    { principalId: PRINCIPAL_ID },
-    { sections: ["settings"] },
-  );
+  const profile = await buildSiteProfile({ deps: makeDeps({ settingValue: "x".repeat(5_000) }), input: { principalId: PRINCIPAL_ID } }, { sections: ["settings"] });
 
   const rows = profile.sections.settings?.data ?? [];
   assert.ok(rows.every((row) => row.truncated === true));
@@ -405,7 +388,7 @@ test("site profile: an oversized setting value is dropped and flagged, never inl
 });
 
 test("site profile: no canary planted on a dropped domain field survives serialization", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } });
   const serialized = JSON.stringify(profile);
 
   for (const [field, canary] of Object.entries(CANARY)) {
@@ -414,7 +397,7 @@ test("site profile: no canary planted on a dropped domain field survives seriali
 });
 
 test("site profile: the DTOs expose exactly the declared fields, so a new upstream field cannot appear silently", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } });
 
   assert.deepEqual(profile.sections.pages?.data?.items, [
     { id: "p1", title: "Home", slug: "home", kind: "page", status: "published", bodyFormat: "json", updatedAt: "2026-01-01T00:00:00.000Z" },
@@ -469,7 +452,7 @@ test("site profile: the DTOs expose exactly the declared fields, so a new upstre
 });
 
 test("site profile: capturedAt comes from the injected clock, never from wall time", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID }, { sections: ["theme"] });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } }, { sections: ["theme"] });
   assert.equal(profile.capturedAt, "2026-08-26T00:00:00.000Z");
 });
 
@@ -479,10 +462,10 @@ test("site profile: a DELIBERATELY themeless site is not reported as theme drift
   // so without a discriminator a profile reader (human or agent) sees a site whose operator turned
   // the theme off and reports a misconfiguration that does not exist. Two causes, one field, and
   // the reader cannot tell them apart: the profile cries wolf.
-  const disabled = await buildSiteProfile(makeDeps({ activeThemeId: NO_THEME_ID }), { principalId: PRINCIPAL_ID });
-  const stranded = await buildSiteProfile(makeDeps({ activeThemeId: "deleted-theme" }), {
+  const disabled = await buildSiteProfile({ deps: makeDeps({ activeThemeId: NO_THEME_ID }), input: { principalId: PRINCIPAL_ID } });
+  const stranded = await buildSiteProfile({ deps: makeDeps({ activeThemeId: "deleted-theme" }), input: {
     principalId: PRINCIPAL_ID,
-  });
+  } });
 
   assert.equal(disabled.sections.theme?.data?.active, null, "control: both states share `active: null`");
   assert.equal(stranded.sections.theme?.data?.active, null, "control: both states share `active: null`");
@@ -492,7 +475,7 @@ test("site profile: a DELIBERATELY themeless site is not reported as theme drift
 });
 
 test("site profile: an ordinary, healthy site is not reported as themeless either", async () => {
-  const profile = await buildSiteProfile(makeDeps(), { principalId: PRINCIPAL_ID });
+  const profile = await buildSiteProfile({ deps: makeDeps(), input: { principalId: PRINCIPAL_ID } });
   assert.equal(profile.sections.theme?.data?.themeDisabled, false);
   assert.equal(profile.sections.theme?.data?.active?.id, "basic");
 });
@@ -501,10 +484,10 @@ test("theme switches are visible immediately and the obsolete boot mirror is nev
   let activeThemeId = "basic";
   const deps = { ...makeDeps(), readActiveThemeId: async () => activeThemeId,
     readSetting: async ({ namespace }: { namespace: string; key: string }) => namespace === "core.presentation" ? "old-boot-theme" : null };
-  const before = await buildSiteProfile(deps, { principalId: PRINCIPAL_ID });
+  const before = await buildSiteProfile({ deps, input: { principalId: PRINCIPAL_ID } });
   assert.equal(before.sections.theme?.data?.activeThemeId, "basic");
   activeThemeId = "new-theme";
-  const after = await buildSiteProfile(deps, { principalId: PRINCIPAL_ID });
+  const after = await buildSiteProfile({ deps, input: { principalId: PRINCIPAL_ID } });
   assert.equal(after.sections.theme?.data?.activeThemeId, "new-theme");
   assert.equal(after.sections.settings?.data?.some(row => row.namespace === "core.presentation"), false);
 });
@@ -512,7 +495,7 @@ test("theme switches are visible immediately and the obsolete boot mirror is nev
 test("site profile: a site with no configured theme id reports no active theme and is not themeless", async () => {
   const unset: SiteProfileDeps = { ...makeDeps(), readActiveThemeId: async () => null };
 
-  const profile = await buildSiteProfile(unset, { principalId: PRINCIPAL_ID }, { sections: ["theme"] });
+  const profile = await buildSiteProfile({ deps: unset, input: { principalId: PRINCIPAL_ID } }, { sections: ["theme"] });
 
   assert.equal(profile.sections.theme?.data?.activeThemeId, null);
   assert.equal(profile.sections.theme?.data?.active, null);

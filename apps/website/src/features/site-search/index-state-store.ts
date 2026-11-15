@@ -74,7 +74,7 @@ function toStateColumns(row: SearchIndexStateRow): StateTable {
 }
 
 /** A stored pointer pair, or `null` when that half is empty (the CHECK keeps both columns in step). */
-function toTarget(siteId: string, providerId: string | null, generation: number | null): SearchTarget | null {
+function toTarget({ siteId, providerId, generation }: { siteId: string; providerId: string | null; generation: number | null }, _optional = {}): SearchTarget | null {
   return providerId === null || generation === null ? null : { siteId, providerId, generation: Number(generation) };
 }
 
@@ -189,22 +189,22 @@ async function swapPointers(
 }
 
 /** The pointer half. `promote` is the atomic generation switch. @complexity O(1) per call. */
-function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => number): SearchTargetPort {
+function createTargets({ kernel, now }: { kernel: StorageKernel<SearchIndexDatabase>; now: () => number }, _optional = {}): SearchTargetPort {
   const retainRetired = async ({ siteId, active }: { siteId: string; active: SearchTarget }, _options = {}) => {
     await kernel.run(db => db.insertInto("search_index_retired")
       .values({ site_id: siteId, provider_id: active.providerId, generation: active.generation, retired_at_ms: now() })
       .onConflict(oc => oc.columns(["site_id", "provider_id", "generation"]).doNothing()).execute());
   };
-  const read = async (siteId: string): Promise<SearchSiteTargets> => {
+  const read = async ({ siteId }: { siteId: string }, _optional = {}): Promise<SearchSiteTargets> => {
     const row = await kernel.run(db => db.selectFrom("search_index_targets").selectAll().where("site_id", "=", siteId).executeTakeFirst());
     if (!row) return { active: null, building: null };
     return {
-      active: toTarget(siteId, row.active_provider_id, row.active_generation),
-      building: toTarget(siteId, row.building_provider_id, row.building_generation),
+      active: toTarget({ siteId, providerId: row.active_provider_id, generation: row.active_generation }),
+      building: toTarget({ siteId, providerId: row.building_provider_id, generation: row.building_generation }),
     };
   };
   return {
-    get: ({ siteId }) => read(siteId),
+    get: ({ siteId }) => read({ siteId }),
     async setBuilding({ target }) {
       const building = { building_provider_id: target.providerId, building_generation: target.generation, updated_at_ms: now() };
       await kernel.run(db => db.insertInto("search_index_targets")
@@ -212,7 +212,7 @@ function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => nu
         .onConflict(oc => oc.column("site_id").doUpdateSet(building)).execute());
     },
     promote: ({ siteId, expected }) => kernel.transaction(async () => {
-      const { active } = await read(siteId);
+      const { active } = await read({ siteId });
       const swapped = await swapPointers(kernel, { siteId, expected, active, nowMs: now() });
       if (!swapped) return false;
       // Same transaction as the switch: the replaced index is dropped later even if this process dies now.
@@ -250,5 +250,5 @@ export function createSqlSearchIndexStore<DB>(
   // The content kernel is typed against the generated schema, which never lists 0027's raw-SQL
   // tables; the same kernel is re-typed for them (Kysely types are compile-time only).
   const kernel = required.kernel as unknown as StorageKernel<SearchIndexDatabase>;
-  return { indexState: createIndexState(kernel), targets: createTargets(kernel, required.now) };
+  return { indexState: createIndexState(kernel), targets: createTargets({ kernel, now: required.now }) };
 }
