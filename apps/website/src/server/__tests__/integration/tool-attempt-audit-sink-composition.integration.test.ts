@@ -52,7 +52,7 @@ test("createSiteRouteDeps composes the SQLite audit sink itself, over the SAME c
   const dbPath = path.join(dir, "content.db");
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
-    deps = await createSiteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps({ dbPath });
 
     // The root wraps the SQLite sink (`withToolUseEvents`), so the class is not the contract: a write
     // through the composed port landing in this content.db proves the root built the sink itself.
@@ -90,7 +90,7 @@ test("the SQLite audit sink follows the root's OWN ContentDb HANDLE, not its dbP
     // So a sink built from `openContentDb(dbPath)` instead of from the handle would write to — and
     // create — a DIFFERENT file. That is what distinguishes injecting the port from threading a path.
     const handle = openContentDb(handleDbPath);
-    deps = await createSiteRouteDeps(neverOpenedDbPath, { db: handle, workspaceId: "workspace-local" });
+    deps = await createSiteRouteDeps({ dbPath: neverOpenedDbPath, overrides: { db: handle, workspaceId: "workspace-local" } });
 
     await deps.toolAttemptAuditSink.append(APPENDED_EVENT);
 
@@ -139,7 +139,7 @@ test("app.ts's hermetic root composes the in-memory audit sink — it owns no co
   );
   await sink.append(APPENDED_EVENT);
   assert.deepEqual(sink.events, [APPENDED_EVENT]);
-  const module = createAssistantByokModule(deps);
+  const module = createAssistantByokModule({ routeDeps: deps });
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-04T00:00:00.000Z") });
   const result = await module.toolSurface.executeMetaTool(
     { principal: { id: "principal-memory-audit" },
@@ -187,7 +187,7 @@ test("createAssistantByokModule logs meta-tool attempts through the INJECTED sin
       },
     };
 
-    const module = createAssistantByokModule(deps);
+    const module = createAssistantByokModule({ routeDeps: deps });
     const result = await module.toolSurface.executeMetaTool(
       { principal: { id: "principal-byok-audit-1" },
       run: { id: "run-byok-audit-1" },

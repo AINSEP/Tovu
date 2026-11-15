@@ -130,7 +130,7 @@ test("pinned preflight always inlines text and carries its identity, even with p
   await deps.chatRunLedger.durable!.accept({ conversationId, messageId: "pinned-pointer-answer", runId, principalId, workspaceId: deps.workspaceId,
     now: Date.now(), request: { contextRef: JSON.stringify({ prompt: "Read notes", pluginRefIds: [pluginId] }) } }, {});
   const app = express();
-  createAssistantByokModule(deps).registerToolExecRoutes({ router: app });
+  createAssistantByokModule({ routeDeps: deps }).registerToolExecRoutes({ router: app });
   const baseUrl = await startTestServer(app, t);
   const response = await fetch(`${baseUrl}/internal/agent-plugin-preflight`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${ensureToolExecToken({}, {})}` }, body: JSON.stringify({ runId }) });
   assert.equal(response.status, 200);

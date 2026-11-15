@@ -55,11 +55,14 @@ export interface InstalledExtensionToolDeps extends Omit<PluginCapabilityToolDep
  *  prefixed with `log`. See `server/runtime/composition/installed-extension-tools.ts` for the real
  *  one. */
 export type InstalledExtensionRegistrar = (
+  required: {
   registry: { readonly register: (registration: ToolRegistration) => void; readonly has?: ToolRegistry["has"]; readonly list?: ToolRegistry["list"];
     refreshInstalledAgentPlugins?: () => Promise<void>;
-    replaceAgentPluginRegistrations?: (required: { registrations: readonly ToolRegistration[] }, optional?: Record<string, never>) => void },
-  deps: InstalledExtensionToolDeps,
-  log: string,
+    replaceAgentPluginRegistrations?: (required: { registrations: readonly ToolRegistration[] }, optional?: Record<string, never>) => void };
+  deps: InstalledExtensionToolDeps;
+  log: string;
+  },
+  optional?: Record<string, never>,
 ) => Promise<void>;
 
 /** The federation half of {@link attachAssistantToolExtensions}'s deps — everything
@@ -130,7 +133,7 @@ export function attachAssistantToolExtensions(
       registry.register(registration);
     },
   };
-  const installed = deps.registerInstalled(installedRegistry, { ...deps, executablePluginToolRegistry: registry }, log);
+  const installed = deps.registerInstalled({ registry: installedRegistry, deps: { ...deps, executablePluginToolRegistry: registry }, log });
   const federation = createFederationRuntime({
     registry,
     presetRegistry: deps.federation.presetRegistry,

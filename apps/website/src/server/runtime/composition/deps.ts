@@ -444,7 +444,7 @@ export function siteThemesDir(optional: SitePathResolverOptional & { siteDir?: s
  * seed applies. It used to default to `basename(siteDir())`, the env/cwd site, which is a different
  * one for any composition that does not pin `TOVU_SITE_DIR` (see {@link resolveExportOutputRootDir}).
  */
-export function builtInContentSeedDbPath(siteName: string): string {
+export function builtInContentSeedDbPath({ siteName }: { siteName: string }, _optional = {}): string {
   const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot({}), "content", "seed-sites");
   return join(stockRoot, siteName, "content.seed.db");
 }
@@ -460,7 +460,7 @@ export function builtInContentSeedDbPath(siteName: string): string {
  * tops up the live `blobStore` one content-addressed key at a time rather than copying this
  * directory wholesale the way {@link builtInThemesDir}/`seedSiteThemes()` copy `themes/`.
  */
-export function builtInSeedUploadsDir(siteName: string): string {
+export function builtInSeedUploadsDir({ siteName }: { siteName: string }, _optional = {}): string {
   const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot({}), "content", "seed-sites");
   return join(stockRoot, siteName, "uploads");
 }
@@ -494,7 +494,7 @@ export function pluginsInstallDir(required: { siteDir: string }, optional: SiteP
  * content.db>/ops/database-journal.db`; overridable independently via `TOVU_DATABASE_JOURNAL_DB`
  * for deployments that relocate the sidecar journal on its own.
  */
-export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultContentDbPath()): string {
+export function defaultDatabaseJournalDbPath({ contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}): string {
   return process.env.TOVU_DATABASE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "database-journal.db");
 }
 
@@ -504,7 +504,7 @@ export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultCont
  * whole-file restore/duplicate of `content.db` must never carry (or erase) conversation history.
  * Defaults to `<dirname of content.db>/chat.db`; overridable independently via `TOVU_CHAT_DB`.
  */
-export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()): string {
+export function defaultChatDbPath({ contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}): string {
   if (process.env.TOVU_CHAT_DB !== undefined) return process.env.TOVU_CHAT_DB;
   if (isInMemoryDbPath(contentDbPath)) return join(dirname(contentDbPath), "chat.db");
   const root = resolveSiteDirForDatabase({ dbPath: contentDbPath });
@@ -526,15 +526,15 @@ export function defaultChatDbPath(contentDbPath: string = defaultContentDbPath()
  */
 function resolveShareDirectory(required: { siteDir: string; dbPath: string; contentRoots: readonly string[] }): string {
   const shareDirectory = resolve(isInMemoryDbPath(required.dbPath) ? required.siteDir : dirname(required.dbPath), "ops", "shares");
-  const refuse = (target: string): void => {
+  const refuse = ({ target }: { target: string }, _optional = {}): void => {
     if (isInsideAny({ target, roots: required.contentRoots })) throw new Error("A site's ops/shares must not be inside a served content folder; give its database its own folder.");
   };
   // Checked before anything is created, so a refused folder is never made inside a served root;
   // checked again on the real path, so a symlink cannot smuggle it back in.
-  refuse(shareDirectory);
+  refuse({ target: shareDirectory });
   mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
   const physicalShares = realpathSync(shareDirectory);
-  refuse(physicalShares);
+  refuse({ target: physicalShares });
   return physicalShares;
 }
 
@@ -671,11 +671,11 @@ function pluginFailureThresholdOverride(
  * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
  * read in that branch.
  */
-function hydrateContentDbIfNeeded(dbPath: string, storage: SiteStorage, overrides?: Partial<CreateSiteRouteDepsOverrides>): void {
+function hydrateContentDbIfNeeded({ dbPath, storage }: { dbPath: string; storage: SiteStorage }, { overrides }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}): void {
   if (overrides?.db !== undefined || storage.kind !== "sqlite") return;
   // The served site's stock seed, by its binding's name, not `basename(siteDir())`: see
   // {@link resolveExportOutputRootDir}'s doc for why the env/cwd site can be a different one.
-  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(resolveSiteBindingOverride(overrides).name), dbPath });
+  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath({ siteName: resolveSiteBindingOverride(overrides).name }), dbPath });
 }
 
 /**
@@ -740,7 +740,7 @@ function readTovuVersion(): string {
  * `undefined` while that directory holds no valid `config.json` (a bare `TOVU_CONTENT_DB`, a temp test
  * database) and always for `:memory:`; the site title then falls back to `workspaces.name`.
  */
-function createSiteDisplayNameSource(dbPath: string, siteDir?: string): SiteDisplayNameSource {
+function createSiteDisplayNameSource({ dbPath }: { dbPath: string }, { siteDir }: { siteDir?: string } = {}): SiteDisplayNameSource {
   if (dbPath === ":memory:") return { read: () => undefined };
   // Database relocation must not relocate the site's name/configuration.
   return createLiveSiteDisplayName({ dir: resolveSiteDirForDatabase({ dbPath, siteDir }) });
@@ -813,18 +813,18 @@ type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
  * closed site's handler stays on every request's path, querying a database that is no longer open.
  */
 async function openCompositionStore(
-  dbPath: string,
-  overrides: Partial<CreateSiteRouteDepsOverrides> = {}
-): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (registration: StoreCloseRegistration) => void; beforeClose: (drain: () => Promise<void>) => void }> {
+  { dbPath }: { dbPath: string },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> }
+): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void }> {
   const storage = prepareCompositionStorage({ dbPath, overrides });
-  hydrateContentDbIfNeeded(dbPath, storage, overrides);
+  hydrateContentDbIfNeeded({ dbPath, storage }, { overrides });
   const role = overrides.storeRole ?? "owner";
   const supplied = overrides.store;
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
-  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: overrides.chatDbPath ?? defaultChatDbPath(dbPath), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
-  const stopChatSweep = startOwnerChatExpirySweep(role, opened.chat, overrides.chatExpirySweep);
+  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: overrides.chatDbPath ?? defaultChatDbPath({ contentDbPath: dbPath }), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
+  const stopChatSweep = startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep });
   // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
   // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
   const stopSubmissionIpSweep = role === "owner"
@@ -850,16 +850,15 @@ async function openCompositionStore(
   return {
     store,
     release: supplied === undefined ? store.close : stopStoreUsers,
-    onClose: (registration) => { registrations.push(registration); },
-    beforeClose: (drain) => { bootDrains.push(drain); },
+    onClose: ({ registration }, _optional = {}) => { registrations.push(registration); },
+    beforeClose: ({ drain }, _optional = {}) => { bootDrains.push(drain); },
   };
 }
 
 /** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
 function startOwnerChatExpirySweep(
-  role: SiteStoreRole,
-  chat: SiteStore["chat"],
-  timing: CreateSiteRouteDepsOverrides["chatExpirySweep"] = {}
+  { role, chat }: { role: SiteStoreRole; chat: SiteStore["chat"] },
+  { timing = {} }: { timing?: CreateSiteRouteDepsOverrides["chatExpirySweep"] } = {}
 ): () => Promise<void> {
   return role === "owner" ? startChatExpirySweep({ store: chat }, timing) : async () => {};
 }
@@ -934,14 +933,13 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
  * boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
  */
 export async function createSiteRouteDeps(
-  dbPath: string = defaultContentDbPath(),
-  overrides?: Partial<CreateSiteRouteDepsOverrides>
+  { dbPath = defaultContentDbPath(), overrides }: { dbPath?: string; overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   assertOverridesPairedOrAbsent(overrides);
   assertContentDbFileName(dbPath);
-  const opened = await openCompositionStore(dbPath, overrides);
+  const opened = await openCompositionStore({ dbPath }, { overrides });
   try {
-    return await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose }, overrides);
+    return await composeSiteRouteDeps({ dbPath, opened: { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose } }, { overrides });
   } catch (err) {
     await opened.release();
     throw err;
@@ -959,14 +957,14 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
  * independently owned local keys remain usable. No key rows are moved during boot.
  */
 async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding, references }: {
-  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (close: () => void) => void; site: ProviderConfigSource; binding: { dir: string; name: string }; references: SiteKeyReferences;
+  overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (required: { registration: () => void }, optional?: Record<string, never>) => void; site: ProviderConfigSource; binding: { dir: string; name: string }; references: SiteKeyReferences;
 }): Promise<{ siteId: string; projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
-  const siteId = acceptedSiteId(readSiteMetaId(binding.dir), "site meta") ?? "";
+  const siteId = acceptedSiteId({ value: readSiteMetaId(binding.dir), source: "site meta" }) ?? "";
   if (!siteId) return { siteId, providerConfigSource: site, projectId: undefined };
   const projectStore = await projectStoreFor({ overrides, runtimeMode });
   if (!projectStore) return { siteId, providerConfigSource: site, projectId: undefined };
   if ("unavailable" in projectStore) return { siteId, providerConfigSource: withUnavailableProject({ site, reason: projectStore.unavailable }), projectId: undefined };
-  onStoreClose(() => projectStore.close({}));
+  onStoreClose({ registration: () => projectStore.close({}) });
   if (siteId) await projectStore.attachments.renameSite({ siteId, siteName: binding.name }).catch(error => {
     console.warn(`[project-store] Site name could not be refreshed; local keys remain available. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`);
   });
@@ -983,14 +981,14 @@ async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, sit
  * store is configured — remote production keeps its site store. Unavailable Shared Keys contributes
  * no shared half; local rows retain their independent ownership.
  */
-function credentialProject<R>(projectVault: ProjectVaultScope | undefined, repo: (vault: ProjectVaultScope["repo"]) => R): { project?: { workspaceId: string; repo: R; createRepo?: R; replaceRepo?: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
+function credentialProject<R>({ projectVault, repo }: { projectVault: ProjectVaultScope | undefined; repo: (vault: ProjectVaultScope["repo"]) => R }, _optional = {}): { project?: { workspaceId: string; repo: R; createRepo?: R; replaceRepo?: R; sealer: ProjectVaultScope["sealer"]; keyring: ProjectVaultScope["keyring"] } } {
   if (!projectVault) return {};
   const { workspaceId, sealer, keyring } = projectVault;
   return { project: { workspaceId, repo: repo(projectVault.repo), ...(projectVault.createRepo ? { createRepo: repo(projectVault.createRepo) } : {}), ...(projectVault.replaceRepo ? { replaceRepo: repo(projectVault.replaceRepo) } : {}), sealer, keyring } };
 }
 
 /** A site id from `source`, or undefined (warned) when it is not a short token. */
-function acceptedSiteId(value: string | undefined, source: string): string | undefined {
+function acceptedSiteId({ value, source }: { value: string | undefined; source: string }, _optional = {}): string | undefined {
   if (value === undefined || isSiteIdToken(value)) return value;
   console.warn(`[site-identity] ${source} holds ${JSON.stringify(value.slice(0, 80))}, which is not a valid site id; it is ignored`);
   return undefined;
@@ -1008,8 +1006,8 @@ function acceptedSiteId(value: string | undefined, source: string): string | und
  */
 export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
   const environment = telemetryEnvironment({ env, runtimeMode });
-  const siteId = acceptedSiteId(readSiteMetaId(binding.dir), `${binding.dir}/.site-meta.json`)
-    ?? acceptedSiteId(env.TOVU_SITE_ID || undefined, "TOVU_SITE_ID") ?? workspaceId;
+  const siteId = acceptedSiteId({ value: readSiteMetaId(binding.dir), source: `${binding.dir}/.site-meta.json` })
+    ?? acceptedSiteId({ value: env.TOVU_SITE_ID || undefined, source: "TOVU_SITE_ID" }) ?? workspaceId;
   return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
 }
 
@@ -1047,9 +1045,8 @@ function logMediaProviderRefusals({ refusals }: { refusals: readonly string[] },
  * promise, so the body still runs to its return synchronously.
  */
 async function composeSiteRouteDeps(
-  dbPath: string,
-  opened: { store: SiteStore; onStoreClose: (registration: StoreCloseRegistration) => void; beforeStoreClose: (drain: () => Promise<void>) => void },
-  overrides: Partial<CreateSiteRouteDepsOverrides> = {}
+  { dbPath, opened }: { dbPath: string; opened: { store: SiteStore; onStoreClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeStoreClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void } },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> }
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
   // Plugin recovery may commit a quarantine while providers are still booting. Keep these small
@@ -1058,7 +1055,7 @@ async function composeSiteRouteDeps(
   const pendingLifecycleEvents: Array<Parameters<RouteDeps['tracker']['capture']>> = [];
   let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: (input, options = {}) => { pendingLifecycleEvents.push([input, options]); } };
   const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });
-  onStoreClose(() => assistantAgentInventory.dispose({}));
+  onStoreClose({ registration: () => assistantAgentInventory.dispose({}) });
 
   // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
   // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
@@ -1137,7 +1134,7 @@ async function composeSiteRouteDeps(
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
   // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
-  const chatDbPath = overrides.chatDbPath ?? defaultChatDbPath(dbPath);
+  const chatDbPath = overrides.chatDbPath ?? defaultChatDbPath({ contentDbPath: dbPath });
   const chat = store.chat;
   await warnCompositionChatOrphans({}, {});
 
@@ -1376,7 +1373,7 @@ async function composeSiteRouteDeps(
   // `resolvedUploadsDir`/`blobStore` are resolved in the prelude above (a bad
   // TOVU_MEDIA_BLOB_STORE config must throw before any fire-and-forget boot promise starts).
   const blobHydrationReady = hydrateBlobStoreFromSeed({
-    seedUploadsDir: builtInSeedUploadsDir(resolvedSiteBinding.name),
+    seedUploadsDir: builtInSeedUploadsDir({ siteName: resolvedSiteBinding.name }),
     blobStore,
   }).catch((err) => {
     consoleLogger.error({ message: `hydrateBlobStoreFromSeed failed at boot: ${(err as Error).message}` });
@@ -1674,23 +1671,23 @@ async function composeSiteRouteDeps(
   // Disposed with the store: the resolver and the slug capture close over this site's
   // `redirectRepo`, and the phase registry and capture slot are process-wide, so neither may outlive
   // the database it queries. The hit fold's bus is this site's own; it leaves with the site too.
-  onStoreClose(registerRedirectsPhaseHandlers({
+  onStoreClose({ registration: registerRedirectsPhaseHandlers({
     repo: redirectRepo,
     matcher: redirectMatcher,
     originRegistry,
     reservedSegments: RESERVED_SEGMENTS,
-  }, { hits: { outbox, clock, idGen } }));
-  onStoreClose(registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) }));
-  onStoreClose(registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }));
+  }, { hits: { outbox, clock, idGen } }) });
+  onStoreClose({ registration: registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) }) });
+  onStoreClose({ registration: registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }) });
 
   // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
   // required first: unlike `openContentDb`'s target (the process cwd, which already exists),
   // `ops/` is a new subdirectory better-sqlite3 will not create for us.
-  const databaseJournalDbPath = defaultDatabaseJournalDbPath(dbPath);
+  const databaseJournalDbPath = defaultDatabaseJournalDbPath({ contentDbPath: dbPath });
   mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
   const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
   // The ops journal owns a separate SQLite connection on every content dialect.
-  onStoreClose(() => databaseJournalDb.close());
+  onStoreClose({ registration: () => databaseJournalDb.close() });
   // `siteId` reuses `workspaceId` for v1's single-workspace-per-content.db topology — ADR-041 §7
   // names `siteId` vs `workspaceId` as SPEC-003 OQ-04, explicitly unresolved by that ADR; this
   // composition root does not resolve it either, it just picks the only value available today.
@@ -1935,7 +1932,7 @@ async function composeSiteRouteDeps(
   /** Bind site credentials to the optional project inventory without changing local ownership.
    * @complexity O(1) adapter construction; no repository reads. */
   function compositionCustomCredentials() {
-    const customProject = credentialProject(projectVault, vault => new CustomCredentialVaultRepo({ vault }));
+    const customProject = credentialProject({ projectVault, repo: vault => new CustomCredentialVaultRepo({ vault }) });
     return new SqliteCustomCredentialSetRepo(kernel, customProject.project && projectStore
       ? { project: { ...customProject.project, inventoryRepo: new CustomCredentialVaultRepo({ vault: projectStore.vault.repo }) } }
       : customProject);
@@ -1948,12 +1945,12 @@ async function composeSiteRouteDeps(
     site: siteIdentityFor({ workspaceId, binding: resolvedSiteBinding, runtimeMode, projectId }),
     ...createTelemetryConsent({ settingsRepo, workspaceId }),
   });
-  onStoreClose(async () => {
+  onStoreClose({ registration: async () => {
     // Provider disposal may perform late imports from its retained graph. Release copies only
     // after those users have stopped; a failed teardown leaves them for a later dead-owner reap.
     await providerPlugins.dispose({});
     await pluginRuntime.dispose({});
-  });
+  } });
   let bindSharedApiOAuth: ((input: { keyId: string; use: boolean }) => Promise<void>) | undefined;
   const projectKeys = compositionProjectKeys();
 
@@ -1974,9 +1971,9 @@ async function composeSiteRouteDeps(
         return bindSharedApiOAuth(input);
       } }) : undefined;
   }
-  onStoreClose(watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
+  onStoreClose({ registration: watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
-    reapply: input => providerPlugins.reapply(input) }));
+    reapply: input => providerPlugins.reapply(input) }) });
   const { observability, tracker, aiTraceSink } = providerPlugins;
   formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});
   // Local logging reads only the current site tracing scope, through the live gated provider ports.
@@ -2087,7 +2084,7 @@ async function composeSiteRouteDeps(
   // D1 — ONE seed lookup for both the import route's planner and the apply loop's re-verification
   // (`RouteDeps.publishContentSeedHash`), so the two can never disagree on "untouched since seed".
   const publishContentSeedHash = createSqlitePublishContentSeedHash({
-    seedDbPath: builtInContentSeedDbPath(resolvedSiteBinding.name),
+    seedDbPath: builtInContentSeedDbPath({ siteName: resolvedSiteBinding.name }),
     workspaceId,
     clock,
     idGen,
@@ -2774,7 +2771,7 @@ async function composeSiteRouteDeps(
     // `EnvOrFileKeyring` instance).
     // Its rows: this site's own, then the project's (owner 2026-10-25).
     sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(kernel, {
-      ...credentialProject(projectVault, vault => new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" })),
+      ...credentialProject({ projectVault, repo: vault => new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" }) }),
       canonical: sourceControlKeyBinding({ credentials: { repo: customCredentialSetRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, idGen },
         loadProviders: workspaceId => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     }),
@@ -2785,7 +2782,7 @@ async function composeSiteRouteDeps(
     // 2026-08-16 (Phase 3) — see `routes/types.ts`'s `vendorCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the two legacy credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance). Its rows: this site's own, then the project's (owner 2026-10-25).
-    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(kernel, credentialProject(projectVault, vault => new VendorCredentialSetVaultRepo({ vault, kind: "vendor", vendor: true }))),
+    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(kernel, credentialProject({ projectVault, repo: vault => new VendorCredentialSetVaultRepo({ vault, kind: "vendor", vendor: true }) })),
     // 2026-08-17 — see `routes/types.ts`'s `customCredentialSetRepo` doc. Sealed via the same
     // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
     // instance). Same instance `resolvedMailer` above was built from — not a second repo.
@@ -2841,7 +2838,7 @@ async function composeSiteRouteDeps(
     formDefinitionRepo: routeDeps.formDefinitionRepo, formSubmissionRepo: routeDeps.formSubmissionRepo,
     receipts: new SqlFormSubmissionReceiptRepo(kernel), pullLeases: new SqlFormPullLeaseRepo({ kernel }), outbox, bus, clock, idGen,
     credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock, idGen },
-    loadFormDestinations: (workspaceId) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadFormDestinations: ({ workspaceId }, _optional = {}) => loadFormDestinationRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     settingsRepo,
   }, { observability });
   routeDeps.formDestination = formSubmissions.destination;
@@ -2910,7 +2907,7 @@ async function composeSiteRouteDeps(
   }
   routeDeps.commerce = commerceBinding.commerce;
   routeDeps.commerceCatalog = commerceBinding.commerceCatalog;
-  onStoreClose(() => commerceBinding.close());
+  onStoreClose({ registration: () => commerceBinding.close() });
 
   siteAppBootWorkByDeps.set(routeDeps, siteAppBootWork);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
@@ -2918,14 +2915,14 @@ async function composeSiteRouteDeps(
   // Start re-attachment only after its SDK's host getter is safe. Earlier composition awaits
   // (including vault normalization) must never race this pass. Boot awaits this before serving.
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();
-  opened.beforeStoreClose(async () => {
+  opened.beforeStoreClose({ drain: async () => {
     await Promise.allSettled([
       routeDeps.pluginRuntimeReady, widgetAdoptionReady, blobHydrationReady,
       adminPasswordResetReady, postSearchBackfillReady, originReady, adminSurfaceHandlersReady,
     ]);
     // A boot pass can start another app (for example during export); drain until none remain.
     while (siteAppBootWork.size > 0) await Promise.allSettled([...siteAppBootWork]);
-  });
+  } });
   provideMediaCredentials(composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
     dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } }));
   // Shared by share capture/reveal and import restore; both nested configurators read this one port.
@@ -3035,7 +3032,7 @@ function compositionSiteDisplaySources(
   { dbPath, overrides, settingsRepo }: { dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>; settingsRepo: RouteDeps["settingsRepo"] },
   _optional = {},
 ) {
-  const siteDisplayName = createSiteDisplayNameSource(dbPath, overrides.siteBinding?.dir);
+  const siteDisplayName = createSiteDisplayNameSource({ dbPath }, { siteDir: overrides.siteBinding?.dir });
   // Bug D: post dates render in `core.site.timezone`, else the zone recorded when the site was created.
   const siteTimeZone = createSiteTimeZonePort({
     settingsRepo,
@@ -3107,17 +3104,17 @@ export async function createSiteRouteDepsForWorkspace(
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   // Before the workspace check below opens, migrates and seeds the file.
   assertContentDbFileName(dbPath);
-  if (workspaceIdOverride === undefined) return await createSiteRouteDeps(dbPath, { onStoreOpened, storeRole });
+  if (workspaceIdOverride === undefined) return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, storeRole } });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
   if (!isInMemoryDbPath(dbPath) && resolveSiteStorage({ siteDir: resolveSiteDirForDatabase({ dbPath }) }).kind !== "sqlite") {
-    return await createSiteRouteDeps(dbPath, { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole });
+    return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole } });
   }
 
   const db = await openSiteContentDb({ dbPath });
   try {
     const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: workspaceIdOverride });
-    return await createSiteRouteDeps(dbPath, { db, workspaceId: workspace.id, storeRole,
+    return await createSiteRouteDeps({ dbPath, overrides: { db, workspaceId: workspace.id, storeRole,
       onStoreOpened: ({ store }, _optional = {}) => onStoreOpened?.({ store: {
         ...store,
         close: async () => {
@@ -3125,7 +3122,7 @@ export async function createSiteRouteDepsForWorkspace(
           finally { closeSqliteConnection(db); }
         },
       } }),
-    });
+    } });
   } catch (error) {
     // Validation/composition failure still belongs to this opener, not the borrowed store.
     closeSqliteConnection(db);

@@ -22,11 +22,11 @@ test("Trash hide and restore clear the media access evidence once they commit", 
   await initSite({ dir, name: "Trash Evidence Site" });
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db, workspaceId: boot.workspaceId, onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Trash Evidence Site", dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   t.after(async () => { await closeSiteDirBoot(boot, composed); fs.rmSync(parent, { recursive: true, force: true }); });
 
   const workspaceId = boot.workspaceId;

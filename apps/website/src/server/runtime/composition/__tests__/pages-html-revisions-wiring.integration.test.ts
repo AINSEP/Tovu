@@ -75,7 +75,7 @@ async function assertLedgered(routeDeps: RootDeps, id: string): Promise<void> {
 test("createSiteRouteDeps: pages_write_html on a doc page appends its html state to post_revisions, attributed to the caller", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-pages-revisions-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db") });
   await deps.identityReady;
 
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: deps.workspaceId, id: "page-w", title: "Landing", kind: "page", bodyJson: DOC } });

@@ -94,10 +94,10 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     for (const name of layoutEnv) delete process.env[name];
     plantSitePlugin(path.join(siteA, "plugins"), probePluginId);
     // No uploadsDir/themesDir overrides: their defaults are under test too.
-    deps = await createSiteRouteDeps(path.join(siteA, "content.db"), {
+    deps = await createSiteRouteDeps({ dbPath: path.join(siteA, "content.db"), overrides: {
       siteBinding: bindingFor(siteA),
       onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
-    });
+    } });
   });
 
   after(async () => {
@@ -267,14 +267,14 @@ test("stock seed: blob hydration and the publish-content seed hash read the SERV
   let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
-      createSiteRouteDeps(path.join(siteA, "content.db"), {
+      createSiteRouteDeps({ dbPath: path.join(siteA, "content.db"), overrides: {
         db: liveDb,
         workspaceId,
         onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
-      })
+      } })
     );
     const hydration = await deps.blobHydrationReady;
     assert.equal(hydration?.status, "seeded", `blob hydration must find stock/${siteName}/uploads, got ${JSON.stringify(hydration)}`);
@@ -308,12 +308,12 @@ test("stock seed: a first boot with no content.db hydrates it from the SERVED si
   let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
-      createSiteRouteDeps(path.join(siteA, "content.db"), {
+      createSiteRouteDeps({ dbPath: path.join(siteA, "content.db"), overrides: {
         onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),
         themesDir: path.join(siteA, "themes"),
-      })
+      } })
     );
     const found = await deps.workspaceRepo.findById({ id: "served-seed-marker" });
     assert.ok(found, "content.db must be hydrated from the served site's own stock seed");

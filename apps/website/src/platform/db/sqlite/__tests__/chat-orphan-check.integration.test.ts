@@ -273,7 +273,7 @@ test("deps.ts wires the check into createSiteRouteDeps right where chat.db is op
     source.includes("warnOnOrphanedChatRows("),
     "createSiteRouteDeps must call warnOnOrphanedChatRows; the detector is useless unwired"
   );
-  const openIndex = source.indexOf("await openCompositionStore(dbPath, overrides)");
+  const openIndex = source.indexOf("await openCompositionStore({ dbPath }, { overrides })");
   const warnIndex = source.indexOf("warnOnOrphanedChatRows(");
   assert.ok(openIndex !== -1, "guard: the store open must still exist");
   assert.ok(warnIndex > openIndex, "the check must run after chat.db is opened, per its own contract");
@@ -301,11 +301,11 @@ test("createSiteRouteDeps emits the orphan warning with this isolated site's cou
     try { seedChatRows(legacy, 2, "boot-orphan"); } finally { legacy.close(); }
     const chat = openChatDb(chatDbPath);
     try { seedChatRows(chat, 5, "already-in-chat"); } finally { chat.close(); }
-    const deps = await createSiteRouteDeps(contentDbPath, {
+    const deps = await createSiteRouteDeps({ dbPath: contentDbPath, overrides: {
       db, workspaceId: "ws-1", themesDir: path.join(tmpDir, "themes"), uploadsDir: path.join(tmpDir, "uploads"),
       siteBinding: { dir: tmpDir, name: "Orphan Test", dirOverridden: true, switcherCompatible: false },
       storeRole: "client", onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
-    });
+    } });
     await Promise.all(Object.entries(deps).filter(([key]) => key.endsWith("Ready")).map(([, value]) => value));
     // Finish the remaining SQLite boot writes chained from those readiness promises before close.
     await new Promise<void>((resolve) => setImmediate(resolve));

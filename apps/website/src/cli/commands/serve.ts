@@ -296,7 +296,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
   reportSitesSyncWarning({});
   const paths = resolveSiteDatabasePaths({ dir: target });
   const dbPath = paths.contentDbPath;
-  const deps = await createSiteRouteDeps(dbPath, {
+  const deps = await createSiteRouteDeps({ dbPath, overrides: {
     db: bootResult.db,
     chatDbPath: paths.chatDbPath,
     store: bootResult.store,
@@ -324,7 +324,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
       dirOverridden: true,
       switcherCompatible: false,
     },
-  });
+  } });
   if (deps.legacyPublishCredentialsReady) owned.bootWork.push(deps.legacyPublishCredentialsReady);
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });

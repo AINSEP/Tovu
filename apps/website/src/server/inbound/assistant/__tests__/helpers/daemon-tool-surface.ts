@@ -10,7 +10,7 @@ import { daemonInitializer, evaluateDaemonExpression } from "./daemon-source.js"
  * Return a detached descriptor view and dispose the principal's native search index immediately.
  */
 export async function buildDaemonToolSurface(routeDeps: Parameters<typeof createAssistantByokModule>[0]): Promise<Pick<ToolRegistry, "list" | "has">> {
-  const server = createAssistantByokModule(routeDeps);
+  const server = createAssistantByokModule({ routeDeps });
   await server.toolSurface.ready;
   const registry = createToolRegistry({});
   const host = evaluateDaemonExpression<ReturnType<typeof createDaemonSiteTools>>(daemonInitializer("siteTools"), {

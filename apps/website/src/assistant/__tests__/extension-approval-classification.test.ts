@@ -44,7 +44,7 @@ test('installed registration rejects a new unclassified family and admits explic
   const extensions=attachAssistantToolExtensions({ registry: registry,deps: testSiteLayoutContext({ ...siteLayouts.deps,
    workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'}),postRepo:{} as never,pluginActivationRepo:{} as never,discoverPlugins:async()=>[],
    federation:{deps:testSiteLayoutContext({ ...siteLayouts.deps,workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'})}),resolveConnections:async()=>[]},
-   registerInstalled:async target=>{target.register(classified?withExtensionApprovalPolicy({registration,family:'installed-guidance'}):registration);},
+   registerInstalled:async ({ registry: target }, _optional = {})=>{target.register(classified?withExtensionApprovalPolicy({registration,family:'installed-guidance'}):registration);},
   }),log: '[approval-policy-test]' });
   if(classified) await extensions.installed;
   else await assert.rejects(extensions.installed,{message:'new_dynamic_tool has no approval classification'});

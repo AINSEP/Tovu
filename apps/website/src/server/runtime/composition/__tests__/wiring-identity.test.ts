@@ -58,14 +58,14 @@ before(async () => {
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Wiring Identity Site" });
   const boot = await bootSiteDir({ dir });
-  deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => { composed = store as unknown as ComposedStore; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: "Wiring Identity Site", dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   await drainBootReadiness(deps);
   closeAll = async () => {
     try { await closeSiteDirBoot(boot, composed); }

@@ -159,14 +159,14 @@ async function bootSiteDeps(t: TestContext, dir: string, beforeBootChain?: (stor
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
   siteClosers.get(t)!.push(() => closeSiteDirBoot(boot, composed));
-  const deps = await createSiteRouteDeps(siteContentDbPath(dir), {
+  const deps = await createSiteRouteDeps({ dbPath: siteContentDbPath(dir), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
     uploadsDir: path.join(dir, "uploads"),
     themesDir: path.join(dir, "themes"),
     siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   publishPricingPage(deps);
   return deps;
 }

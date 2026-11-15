@@ -59,7 +59,7 @@ test("index.ts main(): the content.db schema guard and site key run before the c
   const siteKey = indexOfAnchor(prepare, "await ensureSiteKeyForBoot(");
   const main = functionBody(index, "async function main(");
   const prepared = indexOfAnchor(main, "await prepareSiteBoot({ useMemory }, {})");
-  const compose = indexOfAnchor(main, "await createSiteRouteDeps(defaultContentDbPath(),");
+  const compose = indexOfAnchor(main, "await createSiteRouteDeps({ dbPath: defaultContentDbPath(),");
   assert.ok(guard < siteKey, "the schema guard must run before the site-key step");
   assert.ok(prepared < compose, "the site key must be resolved before createSiteRouteDeps reads it");
 });
@@ -112,16 +112,16 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
 test("createSiteRouteDeps: storage choice, then hydration, then the store open (the recovering site opener), then the chat sweep", () => {
   const deps = readCode("server/runtime/composition/deps.ts");
   const body = functionBody(deps, "export async function createSiteRouteDeps(");
-  indexOfAnchor(body, "await openCompositionStore(dbPath, overrides)");
+  indexOfAnchor(body, "await openCompositionStore({ dbPath }, { overrides })");
 
   const prelude = functionBody(deps, "async function openCompositionStore(");
   // why: 20d451f6 (complexity <=10) moved the storage choice into prepareCompositionStorage(),
   // which still resolves it with resolveSiteStorage; `overrides` now defaults to `{}` (no `?.`).
   assert.match(functionBody(deps, "function prepareCompositionStorage("), /const storage = resolveSiteStorage\(/);
   const storage = indexOfAnchor(prelude, "const storage = prepareCompositionStorage({ dbPath, overrides })");
-  const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded(dbPath, storage, overrides)");
+  const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded({ dbPath, storage }, { overrides })");
   const open = indexOfAnchor(prelude, "await openSiteStore(");
-  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep(role, opened.chat, overrides.chatExpirySweep)");
+  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })");
   assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
@@ -142,8 +142,8 @@ test("openSiteContentDb: crash recovery runs on the fresh connection before the 
 test("createSiteRouteDeps prelude: store open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise", () => {
   const deps = readCode("server/runtime/composition/deps.ts");
   const root = functionBody(deps, "export async function createSiteRouteDeps(");
-  const openStore = indexOfAnchor(root, "await openCompositionStore(dbPath, overrides)");
-  const compose = indexOfAnchor(root, "await composeSiteRouteDeps(dbPath, { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose }, overrides)");
+  const openStore = indexOfAnchor(root, "await openCompositionStore({ dbPath }, { overrides })");
+  const compose = indexOfAnchor(root, "await composeSiteRouteDeps({ dbPath, opened: { store: opened.store, onStoreClose: opened.onClose, beforeStoreClose: opened.beforeClose } }, { overrides })");
   const release = indexOfAnchor(root, "await opened.release()");
   assert.ok(openStore < compose && compose < release, "the store opens first; a failed composition releases it");
   const body = functionBody(deps, "async function composeSiteRouteDeps(");

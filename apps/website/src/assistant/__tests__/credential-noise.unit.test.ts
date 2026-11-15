@@ -52,16 +52,16 @@ test('a real current secret is sanitized before acceptance and warns on both CLI
 });
 
 test('BYOK sanitizes old secrets but warns only for the current user turn', () => {
-  const messages = resolveMessages([{ role: 'user', content: `Save ${secret}`, secretRedacted: true },
-    { role: 'assistant', content: 'Use the configured connection.' }, { role: 'user', content: 'deploy to vercel please' }]);
+  const messages = resolveMessages({ raw: [{ role: 'user', content: `Save ${secret}`, secretRedacted: true },
+    { role: 'assistant', content: 'Use the configured connection.' }, { role: 'user', content: 'deploy to vercel please' }] });
   assert.deepEqual(messages.map(message => message.content), ['Save [token removed]', 'Use the configured connection.', 'deploy to vercel please']);
-  const current = resolveMessages([{ role: 'user', content: 'hello' }, { role: 'user', content: `Save ${secret}` }]);
+  const current = resolveMessages({ raw: [{ role: 'user', content: 'hello' }, { role: 'user', content: `Save ${secret}` }] });
   assert.equal(current[1]?.content, `Save [token removed]\n\n${CREDENTIAL_PASTE_MODEL_NOTE}`);
 });
 
 test('BYOK current-message selection tolerates invalid entries and repeated message references', () => {
   const message = { role: 'user', content: `Save ${secret}`, secretRedacted: true };
-  const result = resolveMessages([message, message, { role: 'user', content: '' }, null]);
+  const result = resolveMessages({ raw: [message, message, { role: 'user', content: '' }, null] });
   assert.deepEqual(result.map(entry => entry.content), ['Save [token removed]', `Save [token removed]\n\n${CREDENTIAL_PASTE_MODEL_NOTE}`]);
 });
 

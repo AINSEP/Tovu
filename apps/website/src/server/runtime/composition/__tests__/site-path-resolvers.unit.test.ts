@@ -72,10 +72,10 @@ for (const { name, resolve, envVar, subpath } of DEFAULTED_RESOLVERS) {
 }
 
 test("builtInContentSeedDbPath / builtInSeedUploadsDir: keyed by the site name they are given", () => {
-  assert.equal(path.basename(path.dirname(builtInContentSeedDbPath("site-a"))), "site-a");
-  assert.equal(path.basename(builtInContentSeedDbPath("site-a")), "content.seed.db");
-  assert.equal(path.basename(path.dirname(builtInSeedUploadsDir("site-a"))), "site-a");
-  assert.equal(path.basename(builtInSeedUploadsDir("site-a")), "uploads");
+  assert.equal(path.basename(path.dirname(builtInContentSeedDbPath({ siteName: "site-a" }))), "site-a");
+  assert.equal(path.basename(builtInContentSeedDbPath({ siteName: "site-a" })), "content.seed.db");
+  assert.equal(path.basename(path.dirname(builtInSeedUploadsDir({ siteName: "site-a" }))), "site-a");
+  assert.equal(path.basename(builtInSeedUploadsDir({ siteName: "site-a" })), "uploads");
 });
 
 // Hardwiring audit #19: the chat-attachment directory used to be derived from

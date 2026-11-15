@@ -10,26 +10,26 @@ import { resolveMessages, toWireSurfacePayload } from "../assistant-byok.js";
 
 test("history keeps only well-formed user/assistant turns with non-empty text, guarding user text", () => {
   const user = "please draft the post";
-  assert.deepEqual(resolveMessages([
+  assert.deepEqual(resolveMessages({ raw: [
     null, "text", { role: "system", content: "x" }, { role: "user", content: 7 }, { role: "assistant", content: "" },
     { role: "user", content: user }, { role: "assistant", content: "Done." },
-  ]), [
+  ] }), [
     { role: "user", content: guardUserText({ text: user }, { modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: false }) },
     { role: "assistant", content: "Done." },
   ]);
 });
 
 test("a non-array history is empty and a long one keeps only the newest 40 turns", () => {
-  assert.deepEqual(resolveMessages({ role: "user", content: "x" }), []);
+  assert.deepEqual(resolveMessages({ raw: { role: "user", content: "x" } }), []);
   const many = Array.from({ length: 45 }, (_, index) => ({ role: "assistant", content: `turn ${index}` }));
-  const kept = resolveMessages(many);
+  const kept = resolveMessages({ raw: many });
   assert.equal(kept.length, 40);
   assert.deepEqual([kept[0]?.content, kept.at(-1)?.content], ["turn 5", "turn 44"]);
 });
 
 test("a surface emission's own type/toolUseId never leak; only mcp-ui carries the route's tool-use id", () => {
   const payload = { type: "spoofed", toolUseId: "spoofed-id", html: "<b>ok</b>" };
-  assert.deepEqual(toWireSurfacePayload({ channel: "mcp-ui", payload } as never, "tool-1"), { html: "<b>ok</b>", type: "mcp-ui", toolUseId: "tool-1" });
-  assert.deepEqual(toWireSurfacePayload({ channel: "a2ui", payload } as never, "tool-1"), { html: "<b>ok</b>", type: "a2ui" });
+  assert.deepEqual(toWireSurfacePayload({ emission: { channel: "mcp-ui", payload } as never, toolUseId: "tool-1" }), { html: "<b>ok</b>", type: "mcp-ui", toolUseId: "tool-1" });
+  assert.deepEqual(toWireSurfacePayload({ emission: { channel: "a2ui", payload } as never, toolUseId: "tool-1" }), { html: "<b>ok</b>", type: "a2ui" });
   assert.deepEqual(payload, { type: "spoofed", toolUseId: "spoofed-id", html: "<b>ok</b>" }, "the emission itself is not mutated");
 });

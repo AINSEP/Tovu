@@ -23,7 +23,7 @@ type SiteDeps = Awaited<ReturnType<typeof createSiteRouteDeps>>;
 
 async function boot(t: TestContext): Promise<SiteDeps> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-search-"));
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db") });
   t.after(async () => {
     await Promise.all([deps.identityReady, deps.siteTitleReady, deps.pluginRuntimeReady, deps.legacyPublishCredentialsReady, deps.siteSearch?.ready]
       .map(ready => Promise.resolve(ready).catch(() => undefined)));

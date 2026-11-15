@@ -74,7 +74,7 @@ async function serve(siteDir: string): Promise<Running> {
     }
   };
   try {
-    deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+    deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,
@@ -82,7 +82,7 @@ async function serve(siteDir: string): Promise<Running> {
       uploadsDir: path.join(siteDir, "uploads"),
       themesDir: path.join(siteDir, "themes"),
       siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     await drainBootReadiness(deps);
     server = createServer(createApp(deps, { onBootWork: work => appBootWork.push(work) }));
     const baseUrl = await listen(server);

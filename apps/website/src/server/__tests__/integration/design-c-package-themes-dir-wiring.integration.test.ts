@@ -67,7 +67,7 @@ test("admin HTTP routes path: createSiteRouteDeps wires packageThemesDir to the 
   const dbPath = mkTempDbPath();
   const themesDir = mkTempThemesDir();
   try {
-    const deps = await createSiteRouteDeps(dbPath, { themesDir });
+    const deps = await createSiteRouteDeps({ dbPath, overrides: { themesDir } });
 
     assert.equal(
       deps.packageThemesDir,

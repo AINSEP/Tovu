@@ -2347,7 +2347,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // both fan-in and fan-out above the graph median) — this file already transitively reaches that
   // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule(routeDeps, options.assistantToolSurface);
+  const byokAssistantModule = createAssistantByokModule({ routeDeps }, { toolSurface: options.assistantToolSurface });
   trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps: siteAppBootWorkByDeps }, options);
   // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
   byokAssistantModule.registerToolExecRoutes({ router: internalRouter });

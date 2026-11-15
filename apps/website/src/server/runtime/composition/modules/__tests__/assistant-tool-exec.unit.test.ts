@@ -30,7 +30,7 @@ test("the chat-attachment tools read the daemon's store over the lookup, and onl
       return [{ ref: "attachment:pending-1", name: "notes.txt", kind: "file", size: 3, createdAt: 1 }];
     },
   };
-  const module = createAssistantByokModule(deps, undefined, { attachmentLookup: attachmentLookup as never });
+  const module = createAssistantByokModule({ routeDeps: deps }, { attachmentLookup: attachmentLookup as never });
   const app = express();
   const router = express.Router();
   app.use(router);

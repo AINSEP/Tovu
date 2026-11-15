@@ -48,7 +48,7 @@ export interface DomainBindingSweeperOptional {
 }
 
 /** One log line: the error's name and capped message, never the object (no stack or extra fields). */
-function describeSweepError(error: unknown): string {
+function describeSweepError({ error }: { error: unknown }, _optional = {}): string {
   if (!(error instanceof Error)) return `${DOMAIN_BINDING_SWEEP_FAILED_LINE}: a non-Error value was thrown`;
   return `${DOMAIN_BINDING_SWEEP_FAILED_LINE}: ${error.name}: ${error.message.slice(0, MAX_LOGGED_MESSAGE_CHARS)}`;
 }
@@ -77,7 +77,7 @@ export function startDomainBindingSweeper(
 
   const tick = (): Promise<void> => {
     if (stopped) return Promise.resolve();
-    running ??= sweep({ limit }).then(() => undefined, (error: unknown) => log(describeSweepError(error))).finally(() => { running = undefined; });
+    running ??= sweep({ limit }).then(() => undefined, (error: unknown) => log(describeSweepError({ error }))).finally(() => { running = undefined; });
     return running;
   };
 

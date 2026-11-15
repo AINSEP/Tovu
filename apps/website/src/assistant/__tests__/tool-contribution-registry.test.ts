@@ -469,7 +469,7 @@ test("daemon remote discovery and the real BYOK root expose the identical tool-i
   const byokDeps = createRouteDeps();
   await byokDeps.identityReady;
   const daemonRegistry = await buildDaemonToolSurface(daemonDeps);
-  const byok = createAssistantByokModule(byokDeps);
+  const byok = createAssistantByokModule({ routeDeps: byokDeps });
   await byok.toolSurface.ready;
   const daemonIds = daemonRegistry.list({}).map(({ id }) => id).sort();
   const byokIds = byok.toolSurface.registry.list({}).map(({ id }) => id).sort();

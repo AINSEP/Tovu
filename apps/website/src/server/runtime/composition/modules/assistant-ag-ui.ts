@@ -88,7 +88,7 @@ function isPlainMessage(value: unknown): value is { role: unknown; content: unkn
  *  `null` for anything malformed rather than throwing, since history is passive background context,
  *  not something the caller just authored this instant. Split out of `resolveAgUiMessages` so the
  *  per-entry branching is scored in this function's own complexity budget, not the loop's. */
-function parseAgUiMessage(entry: unknown): AgUiChatMessage | null {
+function parseAgUiMessage({ entry }: { entry: unknown }, _optional = {}): AgUiChatMessage | null {
   if (!isPlainMessage(entry)) return null;
   const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
   const content = typeof entry.content === "string" ? entry.content : null;
@@ -99,11 +99,11 @@ function parseAgUiMessage(entry: unknown): AgUiChatMessage | null {
 /** Validates and bounds the client-supplied `messages` array — same fail-soft-on-malformed-entries
  *  posture as `assistant-byok.ts`'s `resolveMessages` (history is passive background context, not
  *  something the caller just authored this instant). */
-export function resolveAgUiMessages(raw: unknown): AgUiChatMessage[] {
+export function resolveAgUiMessages({ raw }: { raw: unknown }, _optional = {}): AgUiChatMessage[] {
   if (!Array.isArray(raw)) return [];
   const messages: AgUiChatMessage[] = [];
   for (const entry of raw) {
-    const message = parseAgUiMessage(entry);
+    const message = parseAgUiMessage({ entry });
     if (message) messages.push(message);
   }
   return messages.slice(-MAX_HISTORY_MESSAGES);
@@ -117,7 +117,7 @@ export function resolveAgUiMessages(raw: unknown): AgUiChatMessage[] {
  * AG-UI POST from a client this project also controls, not replayed from persisted storage. A known
  * simplification for this first canary slice, not an oversight.
  */
-function flattenMessagesToPrompt(messages: AgUiChatMessage[]): string {
+function flattenMessagesToPrompt({ messages }: { messages: AgUiChatMessage[] }, _optional = {}): string {
   return messages.map((m) => `## ${m.role}\n${m.content}`).join("\n\n");
 }
 
@@ -130,7 +130,7 @@ interface RunAgentWirePayload {
   readonly [key: string]: unknown;
 }
 
-function asString(v: unknown): string {
+function asString({ v }: { v: unknown }, _optional = {}): string {
   if (typeof v === "string") return v;
   return v == null ? "" : JSON.stringify(v);
 }
@@ -150,18 +150,18 @@ function reduceUsagePayload(payload: RunAgentWirePayload): AgentEvent {
  * puts the floor at 11 before any real branching, over this repo's ≤9 gate by construction.
  */
 const WIRE_PAYLOAD_REDUCERS: Record<string, (payload: RunAgentWirePayload) => AgentEvent | null> = {
-  status: (payload) => ({ kind: "status", label: asString(payload.label), detail: payload.detail ? asString(payload.detail) : undefined }),
-  text_delta: (payload) => ({ kind: "text", text: asString(payload.delta) }),
-  thinking_delta: (payload) => ({ kind: "thinking", text: asString(payload.delta) }),
-  tool_use: (payload) => ({ kind: "tool_use", id: asString(payload.id), name: asString(payload.name), input: payload.input }),
+  status: (payload) => ({ kind: "status", label: asString({ v: payload.label }), detail: payload.detail ? asString({ v: payload.detail }) : undefined }),
+  text_delta: (payload) => ({ kind: "text", text: asString({ v: payload.delta }) }),
+  thinking_delta: (payload) => ({ kind: "thinking", text: asString({ v: payload.delta }) }),
+  tool_use: (payload) => ({ kind: "tool_use", id: asString({ v: payload.id }), name: asString({ v: payload.name }), input: payload.input }),
   tool_result: (payload) => ({
     kind: "tool_result",
-    toolUseId: asString(payload.toolUseId),
-    content: asString(payload.content),
+    toolUseId: asString({ v: payload.toolUseId }),
+    content: asString({ v: payload.content }),
     isError: Boolean(payload.isError),
   }),
   usage: reduceUsagePayload,
-  raw: (payload) => ({ kind: "raw", line: asString(payload.line) }),
+  raw: (payload) => ({ kind: "raw", line: asString({ v: payload.line }) }),
   // Inert on the AG-UI path for this slice — no renderer exists for it here (ADR-059 Decision 5).
   // Routed through `ext` -> `CUSTOM` below so the stream doesn't silently drop the event.
   "mcp-ui": (payload) => ({ kind: "ext", name: "mcp-ui", data: payload.resource }),
@@ -192,7 +192,7 @@ export function reduceAgentWirePayload(payload: RunAgentWirePayload): AgentEvent
  * when the reason speaks for itself. Mirrors `assistant-transport.ts`'s `terminalReasonNotice`
  * exactly — see that function's doc for why `max_tool_turns` specifically needs a notice.
  */
-export function terminalReasonNotice(reason: string): AgentEvent | null {
+export function terminalReasonNotice({ reason }: { reason: string }, _optional = {}): AgentEvent | null {
   if (reason !== "max_tool_turns") return null;
   return {
     kind: "status",
@@ -286,7 +286,7 @@ interface DaemonFrame {
  *  `assistant-transport.ts`'s `parseFrame`, not an import, for the same cross-app-boundary reason
  *  {@link reduceAgentWirePayload} is a port. `id:` is intentionally ignored: this path has no
  *  reattach story to resume a cursor for. */
-function parseDaemonFrame(rawFrame: string): DaemonFrame | null {
+function parseDaemonFrame({ rawFrame }: { rawFrame: string }, _optional = {}): DaemonFrame | null {
   let event = "message";
   const dataLines: string[] = [];
   for (const line of rawFrame.split("\n")) {
@@ -319,7 +319,7 @@ async function* readDaemonSseFrames(reader: ReadableStreamDefaultReader<Uint8Arr
     while (boundary !== -1) {
       const rawFrame = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
-      const frame = parseDaemonFrame(rawFrame);
+      const frame = parseDaemonFrame({ rawFrame });
       if (frame) yield frame;
       boundary = buffer.indexOf("\n\n");
     }
@@ -339,7 +339,7 @@ async function* readDaemonSseFrames(reader: ReadableStreamDefaultReader<Uint8Arr
  *  frame's contents (see its `source.addEventListener("agent", ...)` and `readTerminalReason`'s
  *  `wrapped` parameter); this port must do the same or every field access below reads properties of
  *  the wrong object. */
-function unwrapDaemonEnvelope(raw: string): Record<string, unknown> {
+function unwrapDaemonEnvelope({ raw }: { raw: string }, _optional = {}): Record<string, unknown> {
   const parsed = JSON.parse(raw) as { payload?: unknown };
   return (parsed.payload ?? {}) as Record<string, unknown>;
 }
@@ -354,39 +354,39 @@ interface AgUiFrameContext {
 /** Writes every event in `events` to `res`, in order — the repeated `for (const e of events)
  *  writeAgUiEvent(res, e)` pattern below, named once so each frame handler is a flat sequence of
  *  statements rather than its own loop. */
-function writeAllAgUiEvents(res: Response, events: AgUiEvent[]): void {
+function writeAllAgUiEvents({ res, events }: { res: Response; events: AgUiEvent[] }, _optional = {}): void {
   for (const event of events) writeAgUiEvent(res, event);
 }
 
 /** The `"agent"` case of {@link handleDaemonFrame}. */
-function handleAgentDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const payload = unwrapDaemonEnvelope(data) as RunAgentWirePayload;
+function handleAgentDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
+  const payload = unwrapDaemonEnvelope({ raw: data }) as RunAgentWirePayload;
   const reduced = reduceAgentWirePayload(payload);
-  if (reduced) writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi(reduced, ctx.state));
+  if (reduced) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi(reduced, ctx.state) });
 }
 
 /** The `"stdout"` case of {@link handleDaemonFrame}. */
-function handleStdoutDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const chunk = asString((unwrapDaemonEnvelope(data) as { chunk?: unknown }).chunk);
-  writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi({ kind: "raw", line: chunk }, ctx.state));
+function handleStdoutDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
+  const chunk = asString({ v: (unwrapDaemonEnvelope({ raw: data }) as { chunk?: unknown }).chunk });
+  writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi({ kind: "raw", line: chunk }, ctx.state) });
 }
 
 /** The `"error"` case of {@link handleDaemonFrame} — a terminal frame, so it also closes any open
  *  message/reasoning segment before emitting `RUN_ERROR` (same reasoning as
  *  {@link handleEndDaemonFrame}). */
-function handleErrorDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const message = asString((unwrapDaemonEnvelope(data) as { message?: unknown }).message);
-  writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
+function handleErrorDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
+  const message = asString({ v: (unwrapDaemonEnvelope({ raw: data }) as { message?: unknown }).message });
+  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
   writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: message || "agent run failed" });
 }
 
 /** The `"end"` case of {@link handleDaemonFrame} — a terminal frame: emits a terminal-reason notice
  *  when one applies, closes any open message/reasoning segment, then `RUN_FINISHED`. */
-function handleEndDaemonFrame(data: string, ctx: AgUiFrameContext): void {
-  const reason = asString((unwrapDaemonEnvelope(data || "{}") as { reason?: unknown }).reason);
-  const notice = terminalReasonNotice(reason);
-  if (notice) writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi(notice, ctx.state));
-  writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
+function handleEndDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
+  const reason = asString({ v: (unwrapDaemonEnvelope({ raw: data || "{}" }) as { reason?: unknown }).reason });
+  const notice = terminalReasonNotice({ reason });
+  if (notice) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi(notice, ctx.state) });
+  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
   writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: reason || "stop" } });
 }
 
@@ -402,19 +402,19 @@ function handleEndDaemonFrame(data: string, ctx: AgUiFrameContext): void {
  */
 function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): AgentRunStatus | null {
   if (frame.event === "agent") {
-    handleAgentDaemonFrame(frame.data, ctx);
+    handleAgentDaemonFrame({ data: frame.data, ctx });
     return null;
   }
   if (frame.event === "stdout") {
-    handleStdoutDaemonFrame(frame.data, ctx);
+    handleStdoutDaemonFrame({ data: frame.data, ctx });
     return null;
   }
   if (frame.event === "error") {
-    handleErrorDaemonFrame(frame.data, ctx);
+    handleErrorDaemonFrame({ data: frame.data, ctx });
     return "failed";
   }
   if (frame.event === "end") {
-    handleEndDaemonFrame(frame.data, ctx);
+    handleEndDaemonFrame({ data: frame.data, ctx });
     return "succeeded";
   }
   return null;
@@ -433,7 +433,7 @@ interface AgUiRunRequest {
 
 /** `value` when it's a non-empty string, else `undefined` — the shared shape behind `threadId`,
  *  `runId`, and `agentId`'s "caller-supplied or minted" resolution below. */
-function resolveNonEmptyString(value: unknown): string | undefined {
+function resolveNonEmptyString({ value }: { value: unknown }, _optional = {}): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
@@ -441,9 +441,9 @@ function resolveNonEmptyString(value: unknown): string | undefined {
  *  it's the schema's documented passthrough extension point, and Tovu's agent-selector value rides
  *  there as `forwardedProps.agentId` (there is no top-level `agentId` field on a real
  *  `RunAgentInput`; that's a separate, unrelated `AgentConfig`-level concept in `@ag-ui/client`). */
-function resolveForwardedAgentId(forwardedProps: unknown): string | undefined {
+function resolveForwardedAgentId({ forwardedProps }: { forwardedProps: unknown }, _optional = {}): string | undefined {
   if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
-  return resolveNonEmptyString((forwardedProps as { agentId?: unknown }).agentId);
+  return resolveNonEmptyString({ value: (forwardedProps as { agentId?: unknown }).agentId });
 }
 
 /** Read only the bounded attachment identity fields, never a surface id or tool handler. The
@@ -467,13 +467,13 @@ function resolveAgUiRunRequest(body: {
   messages?: unknown;
   forwardedProps?: unknown;
 }): AgUiRunRequest | null {
-  const messages = resolveAgUiMessages(body.messages);
+  const messages = resolveAgUiMessages({ raw: body.messages });
   if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") return null;
   return {
-    threadId: resolveNonEmptyString(body.threadId) ?? randomUUID(),
-    runId: resolveNonEmptyString(body.runId) ?? randomUUID(),
+    threadId: resolveNonEmptyString({ value: body.threadId }) ?? randomUUID(),
+    runId: resolveNonEmptyString({ value: body.runId }) ?? randomUUID(),
     requestId: randomUUID(),
-    agentId: resolveForwardedAgentId(body.forwardedProps),
+    agentId: resolveForwardedAgentId({ forwardedProps: body.forwardedProps }),
     frontendBindToken: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendBindToken" }),
     frontendTabId: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendTabId" }),
     secretRedacted: typeof body.forwardedProps === "object" && body.forwardedProps !== null
@@ -496,7 +496,7 @@ async function startDaemonRun(
   principalId: string,
   daemon: DaemonCallOptions,
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
-  const prompt = flattenMessagesToPrompt(run.messages);
+  const prompt = flattenMessagesToPrompt({ messages: run.messages });
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
@@ -551,12 +551,12 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
         return { status };
       }
     }
-    writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
+    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
     writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
     ctx.res.end();
     return { status: "succeeded" };
   } catch (error) {
-    writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
+    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
     writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
     ctx.res.end();
     return { status: "failed", error };

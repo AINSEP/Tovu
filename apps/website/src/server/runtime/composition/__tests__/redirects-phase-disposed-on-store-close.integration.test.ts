@@ -31,9 +31,9 @@ test("closing the site store removes its redirect resolver from both resolve pha
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-redirects-phase-close-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   let store: SiteStore | undefined;
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
     onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
-  });
+  } });
   await bootSettled(deps);
   const ctx = { workspaceId: deps.workspaceId };
   const errorLog = t.mock.method(console, "error", () => {});

@@ -154,7 +154,7 @@ const BYOK_MAX_TOOL_TURNS = 24;
 /** SSE framing. Local to this module, same convention (and same reason: kept in one place so event
  *  names cannot drift between branches) as `site-assistant.ts`'s identical helper — not shared
  *  cross-module because both are a few lines and neither has a second real caller yet. */
-function sse(res: Response, event: string, data: unknown): void {
+function sse({ res, event, data }: { res: Response; event: string; data: unknown }, _optional = {}): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
@@ -196,7 +196,7 @@ function isPlainMessage(value: unknown): value is { role: unknown; content: unkn
  * @complexity O(k) in `emission.payload`'s own key count.
  * @overallScore 100
  */
-export function toWireSurfacePayload(emission: SurfaceEmission, toolUseId: string): Record<string, unknown> {
+export function toWireSurfacePayload({ emission, toolUseId }: { emission: SurfaceEmission; toolUseId: string }, _optional = {}): Record<string, unknown> {
   const safePayload: Record<string, unknown> = { ...emission.payload };
   delete safePayload.type;
   delete safePayload.toolUseId;
@@ -245,7 +245,7 @@ function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; current
  *  just author this instant, so a malformed entry degrades the turn's context rather than the whole
  *  request.
  *  @complexity O(n) entries plus per-message redaction cost; O(n) output space, no I/O. */
-export function resolveMessages(raw: unknown): ByokChatMessage[] {
+export function resolveMessages({ raw }: { raw: unknown }, _optional = {}): ByokChatMessage[] {
   if (!Array.isArray(raw)) return [];
   // Redact every user turn, but notify only for the latest valid user message. Historical flags
   // and raw historical secrets must not turn an unrelated request into another rotation warning.
@@ -415,7 +415,7 @@ async function resolveTurnInputsOrRespond(
   routeDeps: RouteDeps,
 ): Promise<ByokTurnInputs | null> {
   const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown; attachmentIds?: unknown; folders?: unknown };
-  const history = resolveMessages(body.messages);
+  const history = resolveMessages({ raw: body.messages });
   if (history.length === 0 || history[history.length - 1]?.role !== "user") {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
     return null;
@@ -487,20 +487,20 @@ function rememberByokSources(run: LiveByokToolRun, sources: ReturnType<typeof ad
 
 /** Access revocation is an owner's Stop even when a provider reports its aborted socket as error. */
 function endByokResponse({ res, lowered, reason }: { res: Response; lowered: boolean; reason: string }): void {
-  sse(res, 'end', { reason: lowered ? 'stop' : reason });
+  sse({ res, event: 'end', data: { reason: lowered ? 'stop' : reason } });
   res.end();
 }
 
 /** Preserve partial answer text and the access-change status emitted through the existing stream. */
 function endFailedByokResponse({ res, error, lowered }: { res: Response; error: unknown; lowered: boolean }): void {
-  if (!lowered) sse(res, 'error', { type: 'error', message: error instanceof Error ? error.message : String(error) });
+  if (!lowered) sse({ res, event: 'error', data: { type: 'error', message: error instanceof Error ? error.message : String(error) } });
   endByokResponse({ res, lowered, reason: 'error' });
 }
 
 /** A provider ignoring Stop must produce a failure rather than leave the OFF request hanging.
  * Existing handlers receive the aborted turn signal; this deadline never claims they completed.
  * @complexity O(1), one cleared timer per affected live provider turn. */
-async function awaitByokCleanup(done: Promise<void>): Promise<void> {
+async function awaitByokCleanup({ done }: { done: Promise<void> }, _optional = {}): Promise<void> {
   let timer: NodeJS.Timeout | undefined;
   try {
     await Promise.race([done, new Promise<void>((_resolve, reject) => {
@@ -512,9 +512,8 @@ async function awaitByokCleanup(done: Promise<void>): Promise<void> {
 /** @param optional.attachmentLookup Test seam for the daemon's attachment store (`assistant-tool-exec.ts`).
  * @param optional.federationConnect Existing transport port, forwarded for hermetic federation tests. */
 export function createAssistantByokModule(
-  routeDeps: RouteDeps & ByokToolSurfaceDeps,
-  toolSurface?: ByokToolSurface,
-  { attachmentLookup, federationConnect }: { attachmentLookup?: AttachmentLookup;
+  { routeDeps }: { routeDeps: RouteDeps & ByokToolSurfaceDeps },
+  { toolSurface, attachmentLookup, federationConnect }: { toolSurface?: ByokToolSurface; attachmentLookup?: AttachmentLookup;
     federationConnect?: NonNullable<Parameters<typeof createByokToolSurface>[1]>["federationConnect"] } = {},
 ): AssistantByokModuleHandle {
   // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
@@ -539,8 +538,8 @@ export function createAssistantByokModule(
     const result = await stopRunsForToolAccessChange({ runs: [...selected.values()], change,
       revoke: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to revoke"); entry.lowered = true; entry.abort.abort(); },
       cancel: async ({ runId }) => { automaticPluginRuns.forget({ runId }); },
-      waitForCleanup: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to await"); return awaitByokCleanup(entry.done); },
-      notice: async ({ runId, message }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to notify"); const response = entry.res; sse(response, 'agent', { type: 'status', label: message }); sse(response, 'agent', { type: 'text_delta', delta: `\n\n${message}` }); },
+      waitForCleanup: ({ runId }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to await"); return awaitByokCleanup({ done: entry.done }); },
+      notice: async ({ runId, message }) => { const entry = selected.get(runId); if (!entry) throw new Error("tool access change has no selected run to notify"); const response = entry.res; sse({ res: response, event: 'agent', data: { type: 'status', label: message } }); sse({ res: response, event: 'agent', data: { type: 'text_delta', delta: `\n\n${message}` } }); },
     }, {});
     if (result.failedRunIds.length) throw new ToolAccessLoweringError();
   }
@@ -576,8 +575,8 @@ export function createAssistantByokModule(
       // consumers must not open their own database. A supplied toolSurface bypasses this branch.
       toolAttemptAudit: { sink: routeDeps.toolAttemptAuditSink, workspaceId: routeDeps.workspaceId },
       // Feature registrars `assistant/` must not import by value (module cycles) — injected here.
-      registerInstalledExtensions: async (registry, deps, log) => {
-        await registerInstalledExtensionTools(registry, deps, log);
+      registerInstalledExtensions: async ({ registry, deps, log }, _optional = {}) => {
+        await registerInstalledExtensionTools({ registry, deps, log });
         // The awaited extension pass also lets the run controller bind to this surface below.
         registry.register(automaticPluginRuns.loadRegistration);
       },
@@ -627,7 +626,7 @@ export function createAssistantByokModule(
         void handleTurn(req, res).catch((error: unknown) => {
           console.error("[assistant-byok] unhandled error", error);
           if (res.headersSent) {
-            sse(res, "error", { message: "assistant failed" });
+            sse({ res, event: "error", data: { message: "assistant failed" } });
             res.end();
           } else {
             next(error);
@@ -667,8 +666,8 @@ export function createAssistantByokModule(
       const guidance = await automaticPluginRuns.start({ runId: run.id, context: {
         principal, conversationId, state: readChatAgentPluginState({ value: pluginBody.agentPluginState }),
         query: typeof pluginBody.userPrompt === 'string' ? pluginBody.userPrompt.slice(0, 16000) : messages[messages.length - 1]?.content ?? '', pinned, signal: abort.signal,
-        emitSurface: async emission => { sse(res, 'agent', toWireSurfacePayload(emission, `agent-plugins:${run.id}`)); },
-        publish: async value => { sse(res, 'agent', { type: 'agent_plugins', ...value }); },
+        emitSurface: async emission => { sse({ res, event: 'agent', data: toWireSurfacePayload({ emission, toolUseId: `agent-plugins:${run.id}` }) }); },
+        publish: async value => { sse({ res, event: 'agent', data: { type: 'agent_plugins', ...value } }); },
       } });
       if (guidance) system += `\n\n${guidance}`;
     } catch (error) { console.warn('[agent-plugins] automatic BYOK preflight unavailable', formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)); }
@@ -688,7 +687,7 @@ export function createAssistantByokModule(
     const pinned = Array.isArray(pluginBody.pluginRefIds) ? pluginBody.pluginRefIds.filter((id): id is string => typeof id === 'string') : [];
     const { prefix, skippedPinned } = await loadPinnedPluginGuidance({ pinned });
     system += prefix;
-    if (skippedPinned) sse(res, 'agent', { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' });
+    if (skippedPinned) sse({ res, event: 'agent', data: { type: 'status', label: 'Some selected Agent Plugins could not be loaded and were skipped.' } });
     res.on('close', () => automaticPluginRuns.forget({ runId: run.id }));
     if (!conversationId) return system;
     return appendAutomaticPluginGuidance({ run, principal, conversationId, pluginBody, messages, pinned, abort, res, system });
@@ -757,7 +756,7 @@ export function createAssistantByokModule(
         abort.signal.throwIfAborted();
         rememberByokSources(liveToolRun, admittedToolSources({ tools: resolvedToolSurface.registry.list({}) }));
         const emitSurface: SurfaceEmitter = async (emission) => {
-          sse(res, "agent", toWireSurfacePayload(emission, call.id));
+          sse({ res, event: "agent", data: toWireSurfacePayload({ emission, toolUseId: call.id }) });
         };
         if (toolRun) return toolRun.executeTool(call, { signal: abort.signal, emitSurface });
         return resolvedToolSurface.executeMetaTool({ principal: principal, run: run, call: call }, { signal: abort.signal, emitSurface: emitSurface });
@@ -771,14 +770,14 @@ export function createAssistantByokModule(
         let reportedError = false;
         // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
         // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
-        const reportRunFailure = (error: unknown) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
+        const reportRunFailure = ({ error }: { error: unknown }, _optional = {}) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
         const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
         function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
           aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
           aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
           void routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
           span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
-          if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
+          if (!abort.signal.aborted && !reportedError) reportRunFailure({ error });
           endFailedByokResponse({ res, error, lowered: liveToolRun.lowered });
         }
         let result: ByokProviderTurnResult;
@@ -811,8 +810,8 @@ export function createAssistantByokModule(
               if (liveToolRun.lowered) return;
               aiTrace?.observe(event as unknown as Record<string, unknown>);
               // Reporting a disconnect's AbortError would mark this active span failed despite its canceled outcome.
-              if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure(new Error(event.message)); }
-              sse(res, event.type === "error" ? "error" : "agent", stampUsage(event));
+              if (event.type === "error" && !abort.signal.aborted && !reportedError) { reportedError = true; reportRunFailure({ error: new Error(event.message) }); }
+              sse({ res, event: event.type === "error" ? "error" : "agent", data: stampUsage(event) });
             },
           });
         } catch (error) {

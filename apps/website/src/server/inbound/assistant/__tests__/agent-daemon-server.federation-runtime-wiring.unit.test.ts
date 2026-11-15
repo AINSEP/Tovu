@@ -27,7 +27,7 @@ test("onStarted reads the site's federation refusal prefix afresh for each run",
 
 test("the server executor diagnoses a refusal introduced after construction", async () => {
   const deps = createRouteDeps();
-  const { toolSurface } = createAssistantByokModule(deps);
+  const { toolSurface } = createAssistantByokModule({ routeDeps: deps });
   await toolSurface.ready;
   assert.ok(toolSurface.federation);
   // Registry readiness does not settle the federation roster. Before that separate boot pass,

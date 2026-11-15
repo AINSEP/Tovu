@@ -1213,7 +1213,7 @@ test("with no federation, an mcp__ id the registry does not know is reported as 
 });
 
 test("an installed-skills refresh that reports a change makes a tool it registered searchable on the next call", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async (registry) => {
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
     Object.assign(registry, { refreshInstalledSkills: async () => {
       if (!s.registry.has({ toolId: "branch_pin_refreshed_skill" })) {
         s.registry.register({ descriptor: { id: "branch_pin_refreshed_skill", description: "Zyxwv refreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
@@ -1229,7 +1229,7 @@ test("an installed-skills refresh that reports a change makes a tool it register
 // refresh that registers a tool yet reports `false` still surfaces it — the explicit rebuild in
 // `executeMetaTool` is belt-and-braces, not the only path.
 test("an installed-skills refresh that reports no change still leaves a tool it registered searchable", async () => {
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async (registry) => {
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, registerInstalledExtensions: async ({ registry }, _optional = {}) => {
     Object.assign(registry, { refreshInstalledSkills: async () => {
       if (!s.registry.has({ toolId: "branch_pin_unrefreshed_skill" })) {
         s.registry.register({ descriptor: { id: "branch_pin_unrefreshed_skill", description: "Qxjvb unrefreshed skill probe", readOnly: true, inputSchema: { type: "object" } }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
@@ -1313,7 +1313,7 @@ test("BYOK federation: a reload that admits a new server makes its tools searcha
 test("BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport", async () => {
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const seen: unknown[] = [];
-  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async (_registry, deps) => { seen.push(deps.surfaces?.surfaceExchanges); } });
+  const s = createByokToolSurface(fakeRouteDeps(), { contributions, surfaceExchangeStore: store, registerInstalledExtensions: async ({ deps }, _optional = {}) => { seen.push(deps.surfaces?.surfaceExchanges); } });
   await s.ready;
   assert.equal(seen.length, 1);
   assert.equal(seen[0], store, "the same store the surface's MCP-UI answers are delivered to");

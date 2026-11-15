@@ -44,7 +44,7 @@ import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
  *  common case, and costs three fast, empty reads.
  *  @complexity O(p + s + c) in the installed-plugin, installed-skill, and enabled-capability counts
  *  for this one workspace — each family's own loader is the cost driver, not this function. */
-export const registerInstalledExtensionTools: InstalledExtensionRegistrar = async (registry, deps, log) => {
+export const registerInstalledExtensionTools: InstalledExtensionRegistrar = async ({ registry, deps, log }, _optional = {}) => {
   registry.refreshInstalledAgentPlugins = async () => {
     try {
       // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
@@ -68,7 +68,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
     warnFamilySkipped({ log, family: "skill tools", error });
   }
 
-  await registerExecutableAgentPluginTools(deps, log);
+  await registerExecutableAgentPluginTools({ deps, log });
 
   try {
     await registerEnabledPluginCapabilityTools(registry, {
@@ -95,7 +95,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
 /** Registers executable Agent Plugin tools when the composition bound their host ports and a
  *  confirmation transport; otherwise the family is skipped. Fails open like the other families.
  *  @complexity O(t) in the contributed tool count; see `registerAgentPluginExecutableTools`. */
-async function registerExecutableAgentPluginTools(deps: Parameters<InstalledExtensionRegistrar>[1], log: string): Promise<void> {
+async function registerExecutableAgentPluginTools({ deps, log }: { deps: Parameters<InstalledExtensionRegistrar>[0]["deps"]; log: string }, _optional = {}): Promise<void> {
   const { agentPluginTools: host, surfaces, executablePluginToolRegistry: registry } = deps;
   if (!host || !surfaces || !registry) return;
   try {

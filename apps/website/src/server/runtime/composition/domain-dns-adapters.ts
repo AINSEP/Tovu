@@ -26,7 +26,7 @@ function readAnswerFields({ row }: { row: Record<string, unknown> }, _options = 
   return row as DnsAnswer;
 }
 /** Validates untrusted record shape and address class; bounded DNS strings are returned only as data. */
-function readAnswer(answer: unknown): { type: number; value: string; ttl: number } {
+function readAnswer({ answer }: { answer: unknown }, _optional = {}): { type: number; value: string; ttl: number } {
   if (typeof answer !== "object" || answer === null) throw dnsUnavailable();
   const valid = readAnswerFields({ row: answer as Record<string, unknown> });
   let value = valid.data;
@@ -46,14 +46,14 @@ function readDnsEnvelope({ payload }: { payload: unknown }, _options = {}): Reco
   return body;
 }
 /** Parses a capped public DoH response. No-data/NXDOMAIN remain distinct from failures. O(answers). */
-function readDnsResponse(bodyText: string, type: DnsRecordType): DnsQuery {
+function readDnsResponse({ bodyText, type }: { bodyText: string; type: DnsRecordType }, _optional = {}): DnsQuery {
   let payload: unknown;
   try { payload = JSON.parse(bodyText); } catch { throw dnsUnavailable(); }
   const body = readDnsEnvelope({ payload });
   if (body.Status === 3) return { type, status: "not-found", records: [] };
   const raw = body.Answer ?? [];
   if (!Array.isArray(raw) || raw.length > 50) throw dnsUnavailable();
-  const records = raw.map(readAnswer).filter(row => row.type === TYPE_CODES[type]).map(({ value, ttl }) => ({ value, ttl }));
+  const records = raw.map((answer) => readAnswer({ answer })).filter(row => row.type === TYPE_CODES[type]).map(({ value, ttl }) => ({ value, ttl }));
   return { type, status: records.length ? "ok" : "no-data", records };
 }
 type DiagnosticOutcome = DnsQuery["status"] | TlsStatus["status"] | "refused";
@@ -71,7 +71,7 @@ export function createPublicDnsResolver({ client, url }: { readonly client: Http
     try {
       const response = await client.send({ method: "GET", url: `${url}?${new URLSearchParams({ name: hostname, type })}`, headers: { Accept: "application/dns-json" }, timeoutMs: 15000, signal: options.createDeadline?.() ?? AbortSignal.timeout(15000), maxResponseBytes: 65536 });
       if (response.status !== 200 || response.bodyTruncated || Buffer.byteLength(response.bodyText) > 65536) throw dnsUnavailable();
-      const result = readDnsResponse(response.bodyText, type);
+      const result = readDnsResponse({ bodyText: response.bodyText, type });
       outcome = result.status;
       return result;
     } catch (error) {
@@ -87,7 +87,7 @@ export function createPublicDnsResolver({ client, url }: { readonly client: Http
 }
 const CERTIFICATE_FAILURES = new Set(["CERT_HAS_EXPIRED", "CERT_NOT_YET_VALID", "ERR_TLS_CERT_ALTNAME_INVALID", "DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN", "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "CERT_REVOKED", "CERT_SIGNATURE_FAILURE"]);
 /** Classifies certificate errors by code, including wrapped causes, without reflecting raw messages. */
-function isCertificateFailure(error: unknown): boolean {
+function isCertificateFailure({ error }: { error: unknown }, _optional = {}): boolean {
   for (let depth = 0; depth < 4 && typeof error === "object" && error !== null; depth++) {
     const record = error as { code?: unknown; cause?: unknown };
     if (typeof record.code === "string" && CERTIFICATE_FAILURES.has(record.code)) return true;
@@ -109,7 +109,7 @@ export function createTlsProbe(client: HttpClientPort, options: DiagnosticOption
         outcome = "refused";
         throw new ToolInputError({ message: `domain_tls_status: ${error.callerSafeMessage}` });
       }
-      outcome = isCertificateFailure(error) ? "invalid" : "unavailable";
+      outcome = isCertificateFailure({ error }) ? "invalid" : "unavailable";
       return { status: outcome, httpStatus: null };
     } finally {
       options.observe?.({ operation: "tls", outcome });
@@ -117,7 +117,7 @@ export function createTlsProbe(client: HttpClientPort, options: DiagnosticOption
   };
 }
 /** Extracts safe HTTPS hostnames from saved URLs; credentials, ports, and private-name forms are discarded. */
-function hostingHostname(value: string): string | null {
+function hostingHostname({ value }: { value: string }, _optional = {}): string | null {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.port || url.username || url.password) return null;
@@ -139,7 +139,7 @@ export async function listSavedHostingHosts(deps: SavedHostingDeps): Promise<str
     seen.add(row.target);
     urls.push(row.url);
   }
-  return [...new Set(urls.map(hostingHostname).filter((host): host is string => host !== null))].sort();
+  return [...new Set(urls.map((value) => hostingHostname({ value })).filter((host): host is string => host !== null))].sort();
 }
 
 /** Reads the shipped public resolver declaration without activating or executing plugin code.

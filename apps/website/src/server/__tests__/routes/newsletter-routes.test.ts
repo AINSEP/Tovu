@@ -15,7 +15,7 @@ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes
 /**
  * @file SPEC-011 (Newsletter) Stage 5 — route-level happy-path integration tests for each route
  * group (campaigns, lists, subscriptions), against the REAL SQLite adapter
- * (`createSiteRouteDeps(":memory:")`, `server/runtime/composition/deps.ts`), mirroring `settings-principal-check.
+ * (`createSiteRouteDeps({ dbPath: ":memory:" })`, `server/runtime/composition/deps.ts`), mirroring `settings-principal-check.
  * test.ts`'s real-SQLite pattern and `admin-widgets-routes.test.ts`'s create -> read -> mutate flow
  * shape. Domain-layer edge cases are already covered by `src/newsletter/__tests__/**`'s 83 tests —
  * these focus on HTTP wiring across the real chokepoints end to end.
@@ -28,7 +28,7 @@ import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes
  * this test file or the routes it exercises.
  */
 async function buildTestApp(): Promise<{ app: express.Express; deps: NewsletterRouteDeps }> {
-  const deps = await createSiteRouteDeps(":memory:");
+  const deps = await createSiteRouteDeps({ dbPath: ":memory:" });
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

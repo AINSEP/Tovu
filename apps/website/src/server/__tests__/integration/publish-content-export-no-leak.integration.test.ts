@@ -39,7 +39,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
  * and the run FAILS LOUDLY (via `assert.ok` per marker, not a single aggregate check) naming exactly
  * which table's marker leaked if the allowlist is ever bypassed.
  *
- * Uses `createSiteRouteDeps(dbPath, {db, workspaceId})` (`create-sqlite-route-deps-overrides.
+ * Uses `createSiteRouteDeps({ dbPath, overrides: {db, workspaceId} })` (`create-sqlite-route-deps-overrides.
  * integration.test.ts`'s own established pattern) against an `openContentDb(":memory:")` handle, so
  * the canary rows are written directly via Drizzle table objects — bypassing every repo/port
  * entirely, which is the point: this proves the ROUTE never reads these tables, independent of
@@ -290,11 +290,11 @@ test("GET .../publish-content/export never leaks a row from any sensitive table,
     }
   });
   plantCanaries(db);
-  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
     db, workspaceId: WORKSPACE,
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
     onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
-  });
+  } });
   await deps.identityReady;
 
   server = createServer(createApp(deps));

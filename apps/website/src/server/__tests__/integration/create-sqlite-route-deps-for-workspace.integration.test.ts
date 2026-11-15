@@ -56,7 +56,7 @@ async function settle(deps: BootReadiness): Promise<void> {
   await drainBootReadiness(deps);
 }
 
-test("workspaceIdOverride undefined: behaves byte-identical to createSiteRouteDeps(dbPath) — the daemon's existing single-workspace behavior is unaffected when TOVU_WORKSPACE is unset", async () => {
+test("workspaceIdOverride undefined: behaves byte-identical to createSiteRouteDeps({ dbPath }) — the daemon's existing single-workspace behavior is unaffected when TOVU_WORKSPACE is unset", async () => {
   const dbPath = mkTempDbPath();
   try {
     const deps = await createSiteRouteDepsForWorkspace({ workspaceIdOverride: undefined }, { dbPath });

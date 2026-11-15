@@ -104,7 +104,7 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
     realClearInterval(timer);
   });
   try {
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
       store: boot.store,
       onStoreOpened: ({ store }, _optional = {}) => { composed = store; },
       db: boot.db,
@@ -112,7 +112,7 @@ test("createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass
       uploadsDir: path.join(dir, "uploads"),
       themesDir: path.join(dir, "themes"),
       siteBinding: { dir, name: "Postgres Boot Site", dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     assert.equal(deps.contentKernel, boot.store?.content, "the composition runs on the booted store, not a second pool");
     assert.equal(deps.workspaceId, boot.workspaceId);
     await Promise.allSettled(Object.values(deps).filter((value) => value instanceof Promise));
@@ -142,7 +142,7 @@ test("createSiteRouteDeps refuses overrides.store without workspaceId (the pair 
   const boot = await bootSiteDir({ dir });
   try {
     await assert.rejects(
-      createSiteRouteDeps(path.join(dir, "content.db"), { store: boot.store }),
+      createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: { store: boot.store } }),
       /overrides\.db \(or overrides\.store\) and overrides\.workspaceId must be supplied together/
     );
   } finally {

@@ -96,7 +96,7 @@ test("createApp(createSiteRouteDeps()) — the REAL SQLite composition root both
   const { port: spy, calls } = createSpyObservabilityPort();
   // No `uploadsDir`/`themesDir` overrides — mirrors `create-sqlite-route-deps-overrides.
   // integration.test.ts`'s own precedent (a fresh temp `dbPath`, default everything else).
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db") });
   // Mutate in place, not a spread copy — `routes/types.ts`'s `RouteDeps` doc (the "TEST GOTCHA"
   // note on `exportSiteBound`/`createSiteApp`) documents this as the general-safe override style
   // for this composition root's returned object; `observability` is a plain data field (not one of
@@ -128,7 +128,7 @@ test("createSiteRouteDeps() defaults RouteDeps.observability to the no-op port (
   const originalEnv = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   try {
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"));
+    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db") });
     // Behavioral proof, not an identity/type check: the no-op port's own contract test
     // (`platform/observability/__tests__/unit/noop.unit.test.ts`) already proves repeated calls
     // return the SAME tracker instance — a property only the no-op adapter has (the OTel adapter

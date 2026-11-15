@@ -19,7 +19,7 @@ test("the server's actual catalog reader exposes a late tool and applies the dae
   const deps = createRouteDeps();
   await deps.identityReady;
   const owner = { id: await deps.ownerPrincipalId };
-  const { toolSurface } = createAssistantByokModule(deps);
+  const { toolSurface } = createAssistantByokModule({ routeDeps: deps });
   await toolSurface.ready;
   toolSurface.registry.register({ descriptor: { id: "audit_distinctive_late_tool", description: "Distinctive late registration" },
     policy: { authorize: () => "allow" }, handler: async () => ({}) });

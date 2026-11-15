@@ -108,9 +108,9 @@ test("reduceAgentWirePayload — an unrecognized type (e.g. tool_input_delta) fa
 });
 
 test("terminalReasonNotice — only max_tool_turns produces a notice", () => {
-  assert.equal(terminalReasonNotice("stop"), null);
-  assert.equal(terminalReasonNotice("end_turn"), null);
-  const notice = terminalReasonNotice("max_tool_turns");
+  assert.equal(terminalReasonNotice({ reason: "stop" }), null);
+  assert.equal(terminalReasonNotice({ reason: "end_turn" }), null);
+  const notice = terminalReasonNotice({ reason: "max_tool_turns" });
   assert.equal(notice?.kind, "status");
   assert.match((notice as { detail?: string }).detail ?? "", /continue/i);
 });

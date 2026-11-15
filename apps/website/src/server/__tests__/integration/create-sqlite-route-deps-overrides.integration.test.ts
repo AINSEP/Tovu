@@ -56,11 +56,11 @@ function mkTempDbPath(): string {
   return path.join(dir, "content.db");
 }
 
-test("legacy default path (no overrides): createSiteRouteDeps(dbPath) still resolves workspaceId to \"workspace-local\" — REQ-10/AC-13 byte-for-byte parity", async () => {
+test("legacy default path (no overrides): createSiteRouteDeps({ dbPath }) still resolves workspaceId to \"workspace-local\" — REQ-10/AC-13 byte-for-byte parity", async () => {
   const dbPath = mkTempDbPath();
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
-    deps = await createSiteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps({ dbPath });
     assert.equal(deps.workspaceId, "workspace-local", "the additive signature change must not alter the legacy default path's resolved workspace id");
   } finally {
     await settleBoot(deps);
@@ -103,11 +103,11 @@ test("new overrides path: a pre-opened db + explicit workspaceId is honored verb
   const customWorkspaceId = "custom-override-workspace";
   db.insert(workspaces).values({ id: customWorkspaceId, name: "Custom Override", slug: "custom-override", createdAt: "2026-07-28T00:00:00.000Z" }).run();
 
-  const deps = await createSiteRouteDeps(dbPath, {
+  const deps = await createSiteRouteDeps({ dbPath, overrides: {
     db, workspaceId: customWorkspaceId,
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
     onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
-  });
+  } });
 
   assert.equal(deps.workspaceId, customWorkspaceId, "REQ-06: the override's workspaceId must be honored verbatim, not the legacy literal");
 
@@ -134,7 +134,7 @@ test("overrides.themesDir is honored verbatim — the install-dir-relative theme
     fs.writeFileSync(path.join(themeDir, "tokens.json"), "{}");
     fs.writeFileSync(path.join(themeDir, "templates/home.liquid"), "Override home");
     fs.writeFileSync(path.join(themeDir, "templates/entry.liquid"), "Override entry");
-    const deps = await createSiteRouteDeps(dbPath, { themesDir });
+    const deps = await createSiteRouteDeps({ dbPath, overrides: { themesDir } });
     assert.equal(deps.themesDir, themesDir, "overrides.themesDir must be honored verbatim, not the process.cwd()-relative siteThemesDir() default");
     const discovered = deps.themes.find((theme) => theme.manifest.id === "override-only");
     assert.ok(discovered, "the override directory must be scanned");
@@ -151,7 +151,7 @@ test("overrides.themesDir is honored verbatim — the install-dir-relative theme
 test("overrides.db supplied without overrides.workspaceId -> throws (must be supplied together or not at all)", async () => {
   const db = openContentDb(":memory:");
   await assert.rejects(
-    () => createSiteRouteDeps(undefined, { db }),
+    () => createSiteRouteDeps({ dbPath: undefined, overrides: { db } }),
     /overrides/i,
     "Contract Map C-010: overrides.db and overrides.workspaceId must be supplied together or not at all"
   );
@@ -159,7 +159,7 @@ test("overrides.db supplied without overrides.workspaceId -> throws (must be sup
 
 test("overrides.workspaceId supplied without overrides.db -> throws (must be supplied together or not at all)", async () => {
   await assert.rejects(
-    () => createSiteRouteDeps(undefined, { workspaceId: "some-id" }),
+    () => createSiteRouteDeps({ dbPath: undefined, overrides: { workspaceId: "some-id" } }),
     /overrides/i,
     "Contract Map C-010: overrides.db and overrides.workspaceId must be supplied together or not at all"
   );
@@ -174,7 +174,7 @@ test("B1 regression: legacy default path (no overrides) with a pre-existing 2nd 
     seedDb.insert(workspaces).values({ id: "ws-added-later", name: "Added Later", slug: "added-later", createdAt: "2026-01-02T00:00:00.000Z" }).run();
     seedDb.$client.close();
 
-    deps = await createSiteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps({ dbPath });
     assert.equal(deps.workspaceId, "ws-original", "the oldest pre-existing row must win — this must not throw SiteCorruptError (B1)");
   } finally {
     await settleBoot(deps);
@@ -186,7 +186,7 @@ test("F1833: boot tail no longer runs the recurring legacy credential copy", asy
   const dbPath = mkTempDbPath();
   let deps: Awaited<ReturnType<typeof createSiteRouteDeps>> | undefined;
   try {
-    deps = await createSiteRouteDeps(dbPath);
+    deps = await createSiteRouteDeps({ dbPath });
     assert.ok(deps.legacyPublishCredentialsReady instanceof Promise);
     let registryReads = 0;
     const original = deps.loadDeployTargets;

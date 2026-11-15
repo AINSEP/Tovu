@@ -203,14 +203,14 @@ test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per ac
     const dir = await mkdtemp(path.join(tmpdir(), "tovu-toggle-composition-"));
     let close = async () => {};
     t.after(async () => { await close(); await forceRemove(dir); });
-    const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
       siteBinding: { dir, name: "toggle-fixture", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
       bootProviderPlugins: async () => ({ observability: createNoopObservabilityPort({}), tracker, aiTraceSink: undefined,
         paymentProviders: () => [],
         telemetryStatus: () => [], sendTelemetryTest: async () => ({ providers: [] }),
         reapply: async () => "now", appliesAt: () => "now", dispose: async () => {} }),
-    });
+    } });
     const app = express();
     app.use(express.json());
     registerAuthRoutes(app, deps);

@@ -220,7 +220,7 @@ async function buildByokRole(routeDeps: ReturnType<typeof createRouteDeps>): Pro
   contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
-  const byok = createAssistantByokModule(routeDeps); // calls installFirstPartyToolContributors() itself
+  const byok = createAssistantByokModule({ routeDeps }); // calls installFirstPartyToolContributors() itself
   await byok.toolSurface.ready;
   const ids = new Set(byok.toolSurface.registry.list({}).map((d) => d.id));
   return { ids, publishContentTypes: currentPublishContentTypes(), duplicateResources: currentDuplicateResources() };
@@ -304,7 +304,7 @@ test("BYOK's search_tools catalog finds an installed skill's tool once ready res
       contributions.contributors.clear({});
       resetPublishContentContributorsForTests();
       resetDuplicateResourceHandlersForTests();
-      const byok = createAssistantByokModule(routeDeps); // calls installFirstPartyToolContributors() itself
+      const byok = createAssistantByokModule({ routeDeps }); // calls installFirstPartyToolContributors() itself
       await byok.toolSurface.ready;
 
       const result = await byok.toolSurface.executeMetaTool(
@@ -333,7 +333,7 @@ test("BYOK's federation is a real, non-stubbed FederationRuntime that boots lazi
     contributions.contributors.clear({});
     resetPublishContentContributorsForTests();
     resetDuplicateResourceHandlersForTests();
-    const { toolSurface } = createAssistantByokModule(routeDeps);
+    const { toolSurface } = createAssistantByokModule({ routeDeps });
 
     // Proves federation is attached at all (S1-S6 above wired it into `createByokToolSurface` itself
     // — see that file's own header — not merely typed as optional and left `undefined` for every real

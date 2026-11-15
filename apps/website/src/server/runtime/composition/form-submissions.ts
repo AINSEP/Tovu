@@ -35,7 +35,7 @@ export interface FormSubmissionsCompositionDeps {
   readonly clock: Clock & { nowIso(): string };
   readonly idGen: IdGenerator;
   readonly credentials: CustomCredentialWriteDeps;
-  readonly loadFormDestinations: (workspaceId: string) => Promise<FormDestinationRegistry>;
+  readonly loadFormDestinations: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<FormDestinationRegistry>;
   /** For the site's `core.forms` `receiver` read (`features/settings/form-destination.ts`). */
   readonly settingsRepo: SettingsRepoPort;
 }
@@ -87,7 +87,7 @@ async function pullAll(
   // target id for a co-hosted receiver.
   const saved = await listFormDestinations({ credentials: deps.credentials, workspaceId }, optional.targetId ? { scope: optional.targetId } : {});
   if (saved.length === 0) return { message: "No published site receives form submissions yet. Publish the site with its forms to a hosting target that supports them, then pull again.", destinations: [], forms: [], totals: { imported: 0, alreadyImported: 0, unmapped: 0, failed: 0 }, ran: true };
-  const registry = await deps.loadFormDestinations(workspaceId);
+  const registry = await deps.loadFormDestinations({ workspaceId });
   const kit = optional.kit ?? createDeployHostKit({ observability: optional.observability });
   const receivers: ReceiverPull[] = [];
   for (const { scope, destination } of saved) {

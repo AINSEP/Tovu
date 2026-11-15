@@ -97,7 +97,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   try {
     await initSite({ dir: siteDir, name: `Unrun ${dialect} site`, storage: { kind: dialect } });
     boot = await bootSiteDir({ dir: siteDir });
-    deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, {
+    deps = await createSiteRouteDeps({ dbPath: resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, overrides: {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,
@@ -105,7 +105,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
       uploadsDir: path.join(siteDir, "uploads"),
       themesDir: path.join(siteDir, "themes"),
       siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-    });
+    } });
     await drainBootReadiness(deps);
     optional.configureDeps?.(deps);
     const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);

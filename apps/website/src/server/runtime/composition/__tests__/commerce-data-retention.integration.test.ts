@@ -58,7 +58,7 @@ function snapshot(filePath: string) {
 /** Drain every boot task before comparison and close the composition's complete store (chat too). */
 async function bootAndClose(filePath: string): Promise<void> {
   let closeStore: (() => Promise<void>) | undefined;
-  const deps = await createSiteRouteDeps(filePath, { onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); } });
+  const deps = await createSiteRouteDeps({ dbPath: filePath, overrides: { onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); } } });
   try {
     const modules = buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => filePath });
     assert.equal(modules.some(module => module.name === "store-plugin"), false);

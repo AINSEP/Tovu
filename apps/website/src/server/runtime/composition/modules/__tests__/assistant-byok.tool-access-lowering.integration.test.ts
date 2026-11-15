@@ -35,7 +35,7 @@ test('plugin OFF aborts an affected provider stream, awaits cleanup, and preserv
   const deps = createRouteDeps();
   const surface = createByokToolSurface(deps, { installExtensions: false });
   surface.registry.register({ descriptor: { id: 'mcp__mail__read', description: 'Read mail', inputSchema: { type: 'object' }, metadata: { mcpSource: { id: 'mail', host: 'mail.example', pluginId: 'mail-plugin' } } }, policy: { authorize: async () => "allow" as const }, handler: async () => ({ ok: true }) });
-  const module = createAssistantByokModule(deps, surface);
+  const module = createAssistantByokModule({ routeDeps: deps }, { toolSurface: surface });
   const app = express(); app.use(express.json()); registerAuthRoutes(app, deps);
   module.registerRoutes?.({ app }); module.activateServerFederation?.({ router: app });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

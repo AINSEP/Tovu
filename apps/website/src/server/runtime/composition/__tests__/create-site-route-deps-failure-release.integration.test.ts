@@ -36,11 +36,11 @@ after(() => {
 async function composeMissingWorkspace(siteDir: string): Promise<SiteStore | undefined> {
   let opened: SiteStore | undefined;
   await assert.rejects(
-    createSiteRouteDeps(path.join(siteDir, "content.db"), {
+    createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
       requestedWorkspaceId: "no-such-workspace",
       themesDir: path.join(siteDir, "themes"),
       onStoreOpened: ({ store }, _optional = {}) => (opened = store),
-    })
+    } })
   );
   return opened;
 }
@@ -76,7 +76,7 @@ test("L005: failure on a supplied client store releases users without closing th
   process.env.TOVU_MEDIA_BLOB_STORE = "l005-invalid";
   t.after(() => { if (backend === undefined) delete process.env.TOVU_MEDIA_BLOB_STORE; else process.env.TOVU_MEDIA_BLOB_STORE = backend; });
   try {
-    await assert.rejects(createSiteRouteDeps(dbPath, { store, workspaceId: "caller-workspace", storeRole: "client", themesDir: path.join(siteDir, "themes") }));
+    await assert.rejects(createSiteRouteDeps({ dbPath, overrides: { store, workspaceId: "caller-workspace", storeRole: "client", themesDir: path.join(siteDir, "themes") } }));
     assert.ok(store.sqliteDb);
     assert.equal(sqliteClientOf(store.sqliteDb).open, true);
     assert.equal(sqliteConnectionOf(store.chat)?.open, true);

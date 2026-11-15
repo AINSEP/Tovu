@@ -111,14 +111,14 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   t.after(async () => {
     if (!closed) await closeSiteDirBoot(boot, composed).catch(() => undefined);
   });
-  const deps = await createSiteRouteDeps(path.join(siteDir, "content.db"), {
+  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
     store: boot.store,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => (composed = store),
     uploadsDir: path.join(siteDir, "uploads"),
     themesDir: path.join(siteDir, "themes"),
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-  });
+  } });
   await drainBootReadiness(deps);
 
   const owner = runningPgliteOwner(dataDir);

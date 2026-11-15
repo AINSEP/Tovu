@@ -24,7 +24,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * against the real SQLite-backed route.
  */
 async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
-  const deps = await createSiteRouteDeps(":memory:");
+  const deps = await createSiteRouteDeps({ dbPath: ":memory:" });
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
