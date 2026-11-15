@@ -20,13 +20,16 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 
 const isOptionalString = ({ value }: { value: unknown }, _optional = {}): boolean => value === undefined || typeof value === "string";
 
+/** True when every given value is absent or a string (the draft's optional string fields). */
+const areOptionalStrings = ({ values }: { values: unknown[] }, _optional = {}): boolean => values.every((value) => isOptionalString({ value }));
+
 /** The body's draft, including the editor's unsaved meta description, or `null` when invalid.
  * @complexity O(1). */
-function parsePreviewDraft({ body }: { body: unknown }, _optional?: Record<string, never>): PreviewDraft | null {
+function parsePreviewDraft({ body }: { body: unknown }, _optional = {}): PreviewDraft | null {
   if (!isPlainObject(body)) return null;
   const { postId, title, slug, bodyJson, metaDescription } = body;
   if (typeof title !== "string" || !isPlainObject(bodyJson)) return null;
-  if (!isOptionalString({ value: postId }) || !isOptionalString({ value: slug }) || !isOptionalString({ value: metaDescription })) return null;
+  if (!areOptionalStrings({ values: [postId, slug, metaDescription] })) return null;
   return {
     title,
     bodyJson,
