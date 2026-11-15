@@ -9,7 +9,7 @@ import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
 
 type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
-  authenticate: (req: Request) => Promise<{ principal: { id: string }; kind: string } | null>;
+  authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null>;
   signedIn: (req: Request, res: Response, result: Awaited<ReturnType<typeof completeOwnerPasskeyLogin>>) => Promise<void> };
 type Action = 'enroll' | 'confirm' | 'begin-login' | 'login' | 'remove';
 
@@ -52,7 +52,7 @@ function failure({ res, error }: { res: Response; error: unknown }, _optional = 
 /** Authenticate management calls separately; login calls require the password-created pending proof. */
 async function admit({ admission, req, action, deps }: { admission: Admission; req: Request; action: Action; deps: OwnerPasskeyDeps }, _optional = {}) {
   if (action === 'begin-login' || action === 'login') return;
-  const caller = await admission.authenticate(req);
+  const caller = await admission.authenticate({ req });
   if (caller?.kind !== 'session' || caller.principal.id !== deps.mfa.seededOwnerPrincipalId) {
     throw new OwnerRequiredError({ message: 'Sign in as the site owner to manage passkeys.' });
   }
@@ -102,7 +102,7 @@ export function registerOwnerPasskeyRoutes(admission: Admission, _options: Recor
   admission.app.get('/api/admin/v1/auth/passkeys', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
-      const caller = await admission.authenticate(req);
+      const caller = await admission.authenticate({ req });
       const isOwner = caller?.kind === 'session' && caller.principal.id === await admission.deps.ownerPrincipalId;
       if (!isOwner) { res.json({ isOwner: false, credentials: [] }); return; }
       const deps = await passkeyDeps(admission, req);

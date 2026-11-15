@@ -589,14 +589,14 @@ export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDep
   const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
 
   registerOwnerRecoveryRoutes({ app, deps, limiter: loginRateLimiter,
-    authenticate: req => currentPrincipal({ deps, req }, { localOwnerSignIn }),
+    authenticate: ({ req }) => currentPrincipal({ deps, req }, { localOwnerSignIn }),
     desktopOwnerReset: localOwnerSignIn.enabled && !!localOwnerSignIn.acceptsCapability,
     ...(localOwnerSignIn.acceptsCapability ? { acceptsDesktopCapability: localOwnerSignIn.acceptsCapability } : {}) });
 
   registerOwnerMfaRoutes({ app, deps, limiter: loginRateLimiter,
-    authenticate: req => currentCredential({ deps, req }, { localOwnerSignIn }) });
+    authenticate: ({ req }) => currentCredential({ deps, req }, { localOwnerSignIn }) });
   registerOwnerPasskeyRoutes({ app, deps, limiter: loginRateLimiter,
-    authenticate: req => currentCredential({ deps, req }, { localOwnerSignIn }),
+    authenticate: ({ req }) => currentCredential({ deps, req }, { localOwnerSignIn }),
     signedIn: async (req, res, result) => {
       await revokeRequestSessions({ deps, req });
       setSessionCookie({ res, rawToken: result.rawToken, expiresAtIso: result.session.expiresAt });

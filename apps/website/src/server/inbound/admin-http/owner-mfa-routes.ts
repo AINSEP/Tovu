@@ -9,7 +9,7 @@ import { resolveSiteConsentOrigin } from '../public-http/middleware/site-consent
 import { ownerMfaDepsFrom } from './owner-mfa-deps.js';
 
 type Admission = { app: Express; deps: RouteDeps; limiter: RateLimiter;
-  authenticate: (req: Request) => Promise<{ principal: { id: string }; kind: string } | null> };
+  authenticate: ({ req }: { req: Request }, _optional?: Record<string, never>) => Promise<{ principal: { id: string }; kind: string } | null> };
 type Action = 'enroll' | 'confirm' | 'remove';
 
 /** Only known domain refusals reach the browser; storage exceptions never disclose secrets.
@@ -38,7 +38,7 @@ async function admit({ req, res, admission }: { req: Request; res: Response; adm
     res.status(403).json({ error: 'Open this site’s security settings and submit the authenticator action there.', code: 'MFA_ORIGIN_REFUSED' });
     return null;
   }
-  const caller = await admission.authenticate(req);
+  const caller = await admission.authenticate({ req });
   const ownerId = await admission.deps.ownerPrincipalId;
   if (caller?.kind !== 'session' || caller.principal.id !== ownerId) {
     throw new OwnerRequiredError({ message: 'Sign in as the site owner to change this authenticator.' });
@@ -96,7 +96,7 @@ export function registerOwnerMfaRoutes(admission: Admission, _options: Record<st
   admission.app.get('/api/admin/v1/auth/mfa', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     try {
-      const caller = await admission.authenticate(req);
+      const caller = await admission.authenticate({ req });
       const isOwner = caller?.kind === 'session' && caller.principal.id === await admission.deps.ownerPrincipalId;
       const factor = isOwner ? await admission.deps.mfaStore?.factor({ workspaceId: admission.deps.workspaceId,
         principalId: caller.principal.id }) : null;
