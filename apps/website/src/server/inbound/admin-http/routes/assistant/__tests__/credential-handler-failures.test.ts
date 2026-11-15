@@ -56,7 +56,7 @@ async function invoke(
   method: "get" | "put" | "delete", suffix: string, body: unknown = {},
 ) {
   const app = express();
-  register(app, deps);
+  register({ app, deps });
   const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "admin-9" };
@@ -318,7 +318,7 @@ for (const { label, register, method, suffix } of [
     const authorizations: unknown[] = [];
     deps.authorize = async (params) => { authorizations.push(params); return { allowed: true, reason: "test_grant" }; };
     const app = express();
-    register(app, deps);
+    register({ app, deps });
     const handler = extractRouteHandler(app, method, `${BASE}/${suffix}`);
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "admin-9" };
