@@ -11,7 +11,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `grant-service.ts`), since no separate `role.read` permission exists in the catalog (2026-07-16
  * authz sweep: this route previously had zero permission check beyond session auth).
  */
-export const registerAdminRoleListRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminRoleListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/roles", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

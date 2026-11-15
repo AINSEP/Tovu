@@ -21,10 +21,7 @@ export function parseWidgetPreviewBody({ raw }: { raw: unknown }, _optional: Rec
 /** Admin middleware authenticates this route, just like saved-widget routes. This local guard
  * also fails closed for direct invocation; permission/workspace checks precede rendering.
  */
-export function registerAdminWidgetPreviewRoute(
-  app: Parameters<RouteRegistrar>[0], deps: RouteDeps,
-  { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {},
-): void {
+export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Parameters<RouteRegistrar>[0]; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
   app.post('/api/admin/v1/workspaces/:workspaceId/widgets/preview', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     if (!res.locals.principal) { res.status(401).json({ error: 'authentication required' }); return; }

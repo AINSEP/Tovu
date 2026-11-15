@@ -52,7 +52,7 @@ export interface AgentDaemonCoreOptions {
   importDriver?: ImportSiteDbDriver;
   openClient?: typeof openSiteDbClient;
   resolvePostgresConnectionString?: ResolvePostgresConnectionString;
-  onStoreOpened?: (resource: AgentDaemonResource) => void;
+  onStoreOpened?: (required: { resource: AgentDaemonResource }, optional?: Record<string, never>) => void;
 }
 
 /** Build the daemon's retained ports over the configured leaf client, closing it on failure.
@@ -86,7 +86,7 @@ export async function createAgentDaemonCoreDeps(required: { env: NodeJS.ProcessE
       aiTraceSink: snapshot.traceEnabled ? site.trace({ capture: snapshot.traceCapture }) : undefined,
       close,
     };
-    optional.onStoreOpened?.({ close });
+    optional.onStoreOpened?.({ resource: { close } });
     return deps;
   } catch (error) {
     // Preserve the composition error even if a failing server also refuses the final telemetry drain.

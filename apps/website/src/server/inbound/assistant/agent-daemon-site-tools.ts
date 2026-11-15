@@ -147,8 +147,8 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
     } }, {}) : query;
   }
   const catalog = {
-    search: (...args: Parameters<ReturnType<typeof buildToolCatalogQuery>["search"]>) => scopedCatalog().search(...args),
-    describe: (...args: Parameters<ReturnType<typeof buildToolCatalogQuery>["describe"]>) => scopedCatalog().describe(...args),
+    search: (required: Parameters<ReturnType<typeof buildToolCatalogQuery>["search"]>[0], optional?: Parameters<ReturnType<typeof buildToolCatalogQuery>["search"]>[1]) => scopedCatalog().search(required, optional),
+    describe: (required: Parameters<ReturnType<typeof buildToolCatalogQuery>["describe"]>[0]) => scopedCatalog().describe(required),
   };
   /** A failed refresh cannot expose either a previous principal's providers or the core fallback. */
   function components() {
@@ -158,8 +158,8 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
   }
   return { start, finish, withRun, registry, catalog, refreshComponents, preflight,
     components: {
-      search: (...args: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>) => components().search(...args),
-      describe: (...args: Parameters<ReturnType<typeof buildComponentCatalogQuery>["describe"]>) => components().describe(...args),
+      search: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[0], optional?: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[1]) => components().search(required, optional),
+      describe: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["describe"]>[0]) => components().describe(required),
     },
     remote: createRemoteToolExecutor({ baseUrl, token }, { contextFor: ({ run }) => ({ ...contextFor({ runId: run.id }), localToolIds: localRegistry.list({}).map(tool => tool.id) }) }),
   };

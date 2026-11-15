@@ -10,7 +10,7 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
  * and outbox-flush path requires AUTH_SESSION (mounted on /api/admin by core.ts) plus
  * `workspace.manage` authorization; unauthenticated callers must not create workspace rows.
  */
-export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

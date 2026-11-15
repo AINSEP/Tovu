@@ -14,7 +14,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *  refusal (the owner may reset its own password), so no current service path raises
  *  `SelfDeleteError` here — the mapping stays as defence-in-depth should that exemption change.
  *  @complexity O(1). */
-export function sendResetPasswordError(res: Response, err: unknown): void {
+export function sendResetPasswordError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof UserInTrashError) {
     res.status(409).json({ error: err.message, code: "USER_IN_TRASH" });
     return;
@@ -51,7 +51,7 @@ export function sendResetPasswordError(res: Response, err: unknown): void {
  * `seededOwnerPrincipalId` is resolved here exactly as `disable.ts` resolves it for
  * `DISABLE_PRINCIPAL`.
  */
-export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -85,7 +85,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
 
       res.status(204).send();
     } catch (err) {
-      sendResetPasswordError(res, err);
+      sendResetPasswordError({ res, err });
     }
   });
 };

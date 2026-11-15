@@ -56,7 +56,7 @@ function harness({ allowed = true }: { allowed?: boolean } = {}) {
     registerAdminWidgetRegionBindRoute, registerAdminWidgetRegionGetRoute, registerAdminWidgetRegionMutatePlacementsRoute,
     registerAdminWidgetRegionsListRoute, registerAdminWidgetTrashRoute, registerAdminWidgetAgentToolsRoutes,
   ]) register({ app, deps });
-  registerAdminWidgetPreviewRoute(app, deps);
+  registerAdminWidgetPreviewRoute({ app, deps });
   return {
     entryRepo,
     widgetBindingRepo,

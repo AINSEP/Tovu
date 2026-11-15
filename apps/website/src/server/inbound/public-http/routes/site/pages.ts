@@ -2649,7 +2649,7 @@ async function finalizePublicPageHtml(req: Request, html: string, formResult: Fo
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
-  const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab(html, req.hostname), formResult);
+  const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), formResult);
   // Member sign-in needs this server's API, which an exported file never has: its header keeps the
   // theme's plain "Sign in" link.
   if (isStaticExportRequest(req)) return finished;

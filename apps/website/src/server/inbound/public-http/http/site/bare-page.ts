@@ -44,7 +44,7 @@ const EMPTY_MEDIA_ASSET_METADATA: ReadonlyMap<string, MediaAssetRenderMeta> = ne
  * @complexity O(n) over `html`'s length — one linear scan stripping alternating whitespace/comment
  * runs, each consumed exactly once, plus one bounded regex test against the remaining prefix.
  */
-export function isFullHtmlDocument(html: string): boolean {
+export function isFullHtmlDocument({ html }: { html: string }, _optional = {}): boolean {
   let rest = html.charCodeAt(0) === 0xfeff ? html.slice(1) : html;
   for (;;) {
     const withoutLeadingSpace = rest.replace(/^\s+/, "");
@@ -136,7 +136,7 @@ export function renderBareEntryDocument(required: RenderBareEntryDocumentRequire
   if (post.bodyFormat === "html") {
     const rawBodyHtml = post.bodyHtml ?? "";
     const resolvedBody = renderHtmlPageBody(rawBodyHtml, required.pageHtmlEmbeds);
-    if (isFullHtmlDocument(rawBodyHtml)) return resolvedBody;
+    if (isFullHtmlDocument({ html: rawBodyHtml })) return resolvedBody;
     return wrapBareFragment({ title, extraHead: required.extraHead, body: resolvedBody, documentAssets: required.documentAssets });
   }
   const body = renderDocNode(

@@ -248,7 +248,7 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // Site writes now execute in the server: its bus/drainer delivers their outbox events. There is
 // no enqueue-only outbox or disconnected durable ledger in this process, including memory mode.
 const routeDeps = await createAgentDaemonCoreDeps({ env, token: siteToolToken }, { ...optional.coreOptions,
-  onStoreOpened: (store) => { daemonStore = store; optional.coreOptions?.onStoreOpened?.(store); } });
+  onStoreOpened: ({ resource }, _optional = {}) => { daemonStore = resource; optional.coreOptions?.onStoreOpened?.({ resource }); } });
 // Provider plugins stay at the site owner (including project settings/migrations). Forward process
 // diagnostics with their daemon attribution; a fatal drain never disposes the server's providers.
 // Process error handlers belong to the entry; this scope retains its own tracker and trace sink.
@@ -474,7 +474,7 @@ const assistantPromptAugmenter: PromptAugmenter = {
     // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
     // why this had to move (direct unit-testability without booting this whole daemon process) and
     // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
-    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled, {
+    const baseOverlay = buildBaseSystemOverlay({ bashProhibitionEnabled }, {
       nativeToolAccess: assistantNativeToolsContext.getStore() === true,
       // Mirrors Jini's `supportsMessageRelay` (agent-executor/message-relay.ts), which the package
       // does not export: MCP-bridged defs relay, native stream-json input (Claude) always wins and
@@ -1029,18 +1029,18 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // The admin screen this message was sent from goes AFTER the marker (the marker only works as
       // the prompt's first line) and directly before the operator's words, so "this page" has
       // something to refer to — see `run-page-context.ts`. `""` (no context) leaves the prompt as is.
-      prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix(prompt, buildPageContextPromptBlock({ context: pageContext }))}`;
+      prompt = `<<SUBAGENT_DISPATCH>>\n\n${assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock({ context: pageContext }) })}`;
       prompt += attachmentRunFields.attachmentNotice ?? "";
       // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
       // prepended BEFORE the plugin prefix. Off by default; a no-op unless a probe sets
       // `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
-      prompt = assemblePromptWithPluginPrefix(prompt, buildCapabilityManifestPrefix(resolveCapabilityManifestArm(env)));
+      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: buildCapabilityManifestPrefix(resolveCapabilityManifestArm(env)) });
       // What this boot REFUSED to admit from external MCP servers, in the one channel a model does
       // not have to go looking for. Not a tool, deliberately: a model that does not know it is
       // missing anything never calls the tool that would tell it — see `refusal-notice.ts`. `""`
       // on a clean boot, in which case `assemblePromptWithPluginPrefix` is a no-op.
-      prompt = assemblePromptWithPluginPrefix(prompt, pluginPreparation.refusalPrefix);
-      prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
+      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix: pluginPreparation.refusalPrefix });
+      prompt = assemblePromptWithPluginPrefix({ basePrompt: prompt, pluginPromptPrefix });
       if (!(await durableAttemptStillOwnsAnswer())) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "This execution attempt no longer owns the answer." }, {}); return;
       }
@@ -1135,7 +1135,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       // See ASSISTANT_SETTING_SOURCES for why these layers are excluded in locked runs.
       ...(nativeCapabilities.userSettings ? {} : { settingSources: ASSISTANT_SETTING_SOURCES }),
       // Site runs retain the host's auto-memory/no-system-search policy rather than user hooks; Full CLI cannot omit it.
-      settings: resolveAssistantRunSettings((env.HOME ?? env.USERPROFILE ?? homedir()), existsSync),
+      settings: resolveAssistantRunSettings({ homeDir: (env.HOME ?? env.USERPROFILE ?? homedir()), fileExists: existsSync }),
       ...(model !== undefined ? { model } : {}),
       // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
       // def's own `buildArgs` options, which is where it becomes real argv.

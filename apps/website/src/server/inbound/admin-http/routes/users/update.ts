@@ -11,7 +11,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** This route's writable PATCH fields — `undefined` means "leave unchanged" — read off an
  *  untyped body in one place. @complexity O(1). */
-function parseUserUpdateBody(rawBody: unknown): { email: string | undefined; username: string | undefined } {
+function parseUserUpdateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { email: string | undefined; username: string | undefined } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   if (body.username !== undefined && typeof body.username !== "string") {
     throw new IdentityValidationError({ message: "username must be a string" });
@@ -27,7 +27,7 @@ function parseUserUpdateBody(rawBody: unknown): { email: string | undefined; use
  *
  * @complexity O(1) plus three repo reads.
  */
-async function assembleUpdatedUserResponse(deps: UsersRouteDeps, principalId: string, user: Parameters<typeof toAdminUserResponse>[0]["user"]) {
+async function assembleUpdatedUserResponse({ deps, principalId, user }: { deps: UsersRouteDeps; principalId: string; user: Parameters<typeof toAdminUserResponse>[0]["user"] }, _optional = {}) {
   const principal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: principalId });
   if (!principal) throw new IdentityNotFoundError({ message: `principal '${principalId}' was not found` });
   const [roleLinks, policyLinks] = await Promise.all([
@@ -43,7 +43,7 @@ async function assembleUpdatedUserResponse(deps: UsersRouteDeps, principalId: st
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendUserUpdateError(res: Response, err: unknown): void {
+function sendUserUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityConflictError) {
     res.status(409).json({ error: err.message, code: err.code ?? "RESOURCE_CONFLICT", details: { field: "username" } });
     return;
@@ -76,7 +76,7 @@ function sendUserUpdateError(res: Response, err: unknown): void {
  * existing self-profile edits also accept `member.manage`. Only owners may edit owner targets.
  * Username changes require `user.manage`; other unknown fields, including password, stay ignored.
  */
-export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserUpdateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/users/:principalId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -91,7 +91,7 @@ export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => 
       }
 
       const serviceDeps = identityServiceDepsFrom(deps);
-      const { email, username } = parseUserUpdateBody(req.body);
+      const { email, username } = parseUserUpdateBody({ rawBody: req.body });
       const { user } = await deps.transactions.run({
         workspaceId: deps.workspaceId,
         execute: async () => {
@@ -107,9 +107,9 @@ export const registerAdminUserUpdateRoute: UsersRouteRegistrar = (app, deps) => 
         },
       });
 
-      res.json({ user: await assembleUpdatedUserResponse(deps, principalId, user) });
+      res.json({ user: await assembleUpdatedUserResponse({ deps, principalId, user }) });
     } catch (err) {
-      sendUserUpdateError(res, err);
+      sendUserUpdateError({ res, err });
     }
   });
 };

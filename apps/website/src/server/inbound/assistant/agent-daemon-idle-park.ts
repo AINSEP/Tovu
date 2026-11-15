@@ -29,7 +29,7 @@ export function isPassiveDaemonStream({ method, path }: { method: string; path: 
  * @example const idle = createAgentDaemonIdlePark({ isBusy, exit }); app.use(idle.middleware);
  * @complexity O(1) per activity; O(open passive streams) only at parking. No remote I/O.
  */
-export function createAgentDaemonIdlePark({ isBusy, exit }: { isBusy: () => boolean; exit: (code: number) => void }, {
+export function createAgentDaemonIdlePark({ isBusy, exit }: { isBusy: () => boolean; exit: (required: { code: number }, optional?: Record<string, never>) => void }, {
   env = process.env, clock = createSystemClock(), scheduler = createTimeoutScheduler({}), warn = console.warn,
 }: { env?: NodeJS.ProcessEnv; clock?: Clock; scheduler?: SchedulerPort; warn?: (message: string) => void } = {}) {
   const idleMs = daemonIdleMs({ value: env.TOVU_AGENT_DAEMON_IDLE_MINUTES }, { warn });
@@ -48,7 +48,7 @@ export function createAgentDaemonIdlePark({ isBusy, exit }: { isBusy: () => bool
       } catch { /* A disconnected passive observer has no work to preserve. */ }
     }
     passive.clear();
-    exit(AGENT_DAEMON_EXIT_CODE.IDLE_PARK);
+    exit({ code: AGENT_DAEMON_EXIT_CODE.IDLE_PARK });
   }
 
   const middleware: RequestHandler = (req, res, next) => {

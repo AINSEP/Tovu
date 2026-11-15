@@ -10,7 +10,7 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
  * running process (see feature.spec.md's Architectural Finding section). Gated by
  * `workspace.manage`.
  */
-export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

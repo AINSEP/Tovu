@@ -204,7 +204,7 @@ test("policy and role lists preserve picker metadata and scope repository reads 
     [registerAdminRoleListRoute, "roles", "roleRepo", roles, { roles }],
   ] as const) {
     const reads: unknown[] = [];
-    const capture = await invoke(({ app, deps }, _options = {}) => register(app, deps), { workspaceId: WS, authorize: allow, [repoName]: { async list(input: unknown) {
+    const capture = await invoke(({ app, deps }, _options = {}) => register({ app, deps }), { workspaceId: WS, authorize: allow, [repoName]: { async list(input: unknown) {
       reads.push(input);
       return rows.map((row) => ({ ...row, privateStorageField: "hidden" }));
     } } }, `${ROOT}/${suffix}`);
@@ -221,11 +221,11 @@ test("policy permission listing refuses an absent parent and conceals repository
     policyRepo: { async findById(input: unknown) { reads.push(input); return null; } },
     policyPermissionRepo: { async listByPolicyId() { permissionReads++; return []; } },
   };
-  const missing = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute(app, deps), deps, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
+  const missing = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ app, deps }), deps, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   assert.deepEqual(reads, [{ workspaceId: WS, id: "absent-b07" }]);
   assert.equal(permissionReads, 0);
   assert.deepEqual(missing, { statusCode: 404, jsonBody: { error: "policy 'absent-b07' was not found", code: "RESOURCE_NOT_FOUND" } });
-  const failed = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute(app, deps), { ...deps, policyRepo: { async findById() {
+  const failed = await invoke(({ app, deps }, _options = {}) => registerAdminPolicyPermissionListRoute({ app, deps }), { ...deps, policyRepo: { async findById() {
     throw new Error("private connection string");
   } } }, `${ROOT}/policies/:policyId/permissions`, { policyId: "absent-b07" });
   // Shared admin failure envelope: a correlatable id, never the repository's cause.

@@ -21,7 +21,7 @@ async function invoke(register: WorkspaceRouteRegistrar, workspaceRepo: Partial<
   const fakes: Pick<WorkspaceRouteDeps, "workspaceId" | "authorize"> & { workspaceRepo: typeof workspaceRepo } = {
     workspaceId: WS, workspaceRepo, authorize: async () => ({ allowed: true, reason: "granted" }),
   };
-  register(app, fakes as WorkspaceRouteDeps);
+  register({ app, deps: fakes as WorkspaceRouteDeps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-b07" };
   const list = register === registerAdminWorkspaceListRoute;

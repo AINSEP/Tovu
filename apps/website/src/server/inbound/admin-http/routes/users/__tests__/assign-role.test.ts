@@ -78,7 +78,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserAssignRoleRoute(app, deps);
+  registerAdminUserAssignRoleRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

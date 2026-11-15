@@ -12,7 +12,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** This route's three body fields, read off an untyped body in one place.
  *  @complexity O(1). */
-function parseUserCreateBody(rawBody: unknown): { username: string; email: string | undefined; password: string } {
+function parseUserCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { username: string; email: string | undefined; password: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     username: String(body.username ?? ""),
@@ -23,7 +23,7 @@ function parseUserCreateBody(rawBody: unknown): { username: string; email: strin
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendUserCreateError(res: Response, err: unknown): void {
+function sendUserCreateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof UsernameInTrashError) {
     res.status(409).json({ error: err.message, code: "USERNAME_IN_TRASH" });
     return;
@@ -55,7 +55,7 @@ function sendUserCreateError(res: Response, err: unknown): void {
  *
  * @complexity O(1): one normalize, one indexed `findByUsername`, one `isInTrash` check.
  */
-async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: string): Promise<boolean> {
+async function usernameHeldByTrashedUser({ deps, rawUsername }: { deps: UsersRouteDeps; rawUsername: string }, _optional = {}): Promise<boolean> {
   const username = normalizeUsername({ raw: rawUsername });
   if (!username) return false;
   const existingUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username });
@@ -74,11 +74,11 @@ async function usernameHeldByTrashedUser(deps: UsersRouteDeps, rawUsername: stri
  * natural inverse-capture/revert story — same reasoning as
  * `members/disable.ts` calling identity functions directly.
  */
-export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users", asyncRoute({ handler: async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const body = parseUserCreateBody(req.body);
+    const body = parseUserCreateBody({ rawBody: req.body });
     try {
       // Inside the try: requireAdminSession always sets res.locals.principal before this
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
@@ -100,11 +100,11 @@ export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => 
       // OWNER DECISION 2026-09-24 (decision 7) — a username conflict `createUser` itself already
       // found and rejected may belong to a TRASHED user; see `usernameHeldByTrashedUser`'s doc for
       // why this re-check runs only here, after `createUser`'s own permission gate has passed.
-      if (err instanceof IdentityConflictError && (await usernameHeldByTrashedUser(deps, body.username))) {
-        sendUserCreateError(res, new UsernameInTrashError("a user with this username is in the Trash; restore or delete them permanently first"));
+      if (err instanceof IdentityConflictError && (await usernameHeldByTrashedUser({ deps, rawUsername: body.username }))) {
+        sendUserCreateError({ res, err: new UsernameInTrashError("a user with this username is in the Trash; restore or delete them permanently first") });
         return;
       }
-      sendUserCreateError(res, err);
+      sendUserCreateError({ res, err });
     }
   } }));
 };

@@ -16,7 +16,7 @@ test("the catalog lists publish.backstop, but role.manage cannot grant it", asyn
   assert.equal(isKnownPermission({ id: "publish.backstop" }), true);
   const app = express(); app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminPolicyWritePermissionRoute(app, { workspaceId: "ws" } as UsersRouteDeps);
+  registerAdminPolicyWritePermissionRoute({ app, deps: { workspaceId: "ws" } as UsersRouteDeps });
   const server = await startTestServer(app, t);
   const response = await fetch(`${server}/api/admin/v1/workspaces/ws/policies/custom/permissions`, {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ permission: "publish.backstop" }),

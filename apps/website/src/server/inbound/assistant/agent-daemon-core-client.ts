@@ -38,9 +38,9 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
   }
   let traceCapture: AiContentCapture = "metadata";
   /** One owner call, never retrying an uncertain write. The envelope distinguishes null from refusal. */
-  async function call(request: DaemonCoreRequest): Promise<unknown> { return transmit(JSON.stringify(request)); }
+  async function call(request: DaemonCoreRequest): Promise<unknown> { return transmit({ body: JSON.stringify(request) }); }
   /** Send an already serialized host envelope without retaining a second object graph. */
-  async function transmit(body: string, signal?: AbortSignal): Promise<unknown> {
+  async function transmit({ body }: { body: string }, { signal }: { signal?: AbortSignal } = {}): Promise<unknown> {
     if (Buffer.byteLength(body) > 16 * 1024 * 1024) throw new DaemonCoreError({ reason: "retained-state request exceeds 16 MiB" });
     const { response, text } = await fetchTextWithTimeout({ url: endpoint, timeoutMs: 5_000, init: {
       method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body, redirect: "error", cache: "no-store", ...(signal ? { signal } : {}),
@@ -83,7 +83,7 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
     const bytes = Buffer.byteLength(body);
     if (queued >= 128 || bytes > 2 * 1024 * 1024 || queuedBytes + bytes > 4 * 1024 * 1024) { console.warn("[agent-daemon] telemetry queue is full"); return; }
     queued++; queuedBytes += bytes;
-    tail = tail.then(() => transmit(body, telemetryAbort.signal)).then(() => {}, () => {
+    tail = tail.then(() => transmit({ body }, { signal: telemetryAbort.signal })).then(() => {}, () => {
       console.warn("[agent-daemon] telemetry delivery failed");
     }).finally(() => { queued--; queuedBytes -= bytes; });
   }
@@ -105,7 +105,7 @@ export function createDaemonCoreClient({ baseUrl, token }: { baseUrl: string; to
       stopped = true; telemetryAbort.abort();
       console.warn("[agent-daemon] telemetry drain exceeded one second"); resolve();
     }, 1_000); });
-    const drain = tail.then(() => transmit(JSON.stringify({ operation: "telemetryFlush", input: {} }), telemetryAbort.signal)).then(() => {});
+    const drain = tail.then(() => transmit({ body: JSON.stringify({ operation: "telemetryFlush", input: {} }) }, { signal: telemetryAbort.signal })).then(() => {});
     try { await Promise.race([drain, expired]); }
     finally { clearTimeout(deadline); }
   }

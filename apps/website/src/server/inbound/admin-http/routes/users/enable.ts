@@ -47,7 +47,7 @@ function sendUserEnableError({ res, err }: { res: Response; err: unknown }, _opt
  * must be `kind='user'` (EC-14). See `disable.ts`'s doc for why the paired-user lookup below is
  * defensive, not an expected runtime path.
  */
-export const registerAdminUserEnableRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/enable", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

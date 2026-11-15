@@ -17,7 +17,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `deps.authorize` shape that file uses rather than the service-layer helper — this is a read, so
  * there is no identity transition to call.
  */
-export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

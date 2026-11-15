@@ -8,7 +8,7 @@ import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendRoleDeleteError(res: Response, err: unknown): void {
+function sendRoleDeleteError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -33,7 +33,7 @@ function sendRoleDeleteError(res: Response, err: unknown): void {
  * built-in target is refused `VALIDATION_ERROR`, a still-referenced target `RESOURCE_CONFLICT`
  * (AC-31).
  */
-export const registerAdminRoleDeleteRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminRoleDeleteRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/roles/:roleId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -51,7 +51,7 @@ export const registerAdminRoleDeleteRoute: UsersRouteRegistrar = (app, deps) => 
 
       res.status(204).send();
     } catch (err) {
-      sendRoleDeleteError(res, err);
+      sendRoleDeleteError({ res, err });
     }
   });
 };

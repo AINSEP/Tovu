@@ -14,4 +14,4 @@ import type { RouteDeps } from "#src/server/routes/types";
 export type WorkspaceRouteDeps = Pick<RouteDeps, "workspaceId" | "workspaceRepo" | "authorize" | "clock" | "idGen" | "outbox" | "bus">;
 
 /** Registrar signature for the workspace route modules (mirrors `UsersRouteRegistrar`). */
-export type WorkspaceRouteRegistrar = (app: Express, deps: WorkspaceRouteDeps) => void;
+export type WorkspaceRouteRegistrar = (required: { app: Express; deps: WorkspaceRouteDeps }, optional?: Record<string, never>) => void;

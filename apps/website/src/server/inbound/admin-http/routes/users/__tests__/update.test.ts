@@ -75,7 +75,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserUpdateRoute(app, deps);
+  registerAdminUserUpdateRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -233,7 +233,7 @@ test("UPDATE_USER route: 404 RESOURCE_NOT_FOUND when the principal row is missin
     res.locals.principal = { id: ownerId };
     next();
   });
-  registerAdminUserUpdateRoute(patchedApp, { ...deps, principalRepo: patchedPrincipalRepo });
+  registerAdminUserUpdateRoute({ app: patchedApp, deps: { ...deps, principalRepo: patchedPrincipalRepo } });
   const baseUrl = await startTestServer(patchedApp, t);
 
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, {

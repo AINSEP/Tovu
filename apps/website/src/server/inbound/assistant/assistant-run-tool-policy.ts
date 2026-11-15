@@ -18,7 +18,7 @@ export async function readAssistantRunToolPolicy(required: AssistantRunToolPolic
   const hostSignals = resolveHostSignals({ env });
   const unlocked = resolveFullCliAccess({ isOwner, env }, { hostSignals });
   let settingsSource: "site" | "default" = "default";
-  const settings = unlocked ? await readAssistantCliPermissions({ ...deps, principalId, settingsReady: deps.settingsUiTabsReady }, { onSource: source => { settingsSource = source; } }) : assistantCliPermissions({ enabled: false });
+  const settings = unlocked ? await readAssistantCliPermissions({ ...deps, principalId, settingsReady: deps.settingsUiTabsReady }, { onSource: ({ source }, _optional = {}) => { settingsSource = source; } }) : assistantCliPermissions({ enabled: false });
   const effective = resolveAssistantCliPermissions({ isOwner, env, settings, agentId }, { hostSignals });
   const def = required.getDef({ id: agentId });
   const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { nativeToolAccess: effective.enabled, nativeCapabilities: effective.capabilities } });

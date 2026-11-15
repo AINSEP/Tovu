@@ -35,7 +35,7 @@ async function modelTurn({ prompt, tools, executeTool }: {
   let answer = '';
   const result = await runByokProviderTurn({ protocol, model, apiKey, tools,
     ...(process.env.TOVU_GUIDANCE_BASE_URL ? { baseUrl: process.env.TOVU_GUIDANCE_BASE_URL } : {}),
-    system: buildBaseSystemOverlay(false), messages: [{ role: 'user', content: prompt }],
+    system: buildBaseSystemOverlay({ bashProhibitionEnabled: false }), messages: [{ role: 'user', content: prompt }],
     maxToolTurns: 6, maxTokens: 2_000, signal: AbortSignal.timeout(110_000),
     executeTool: async call => { calls.push(call); return executeTool(call); },
     onEvent: event => {

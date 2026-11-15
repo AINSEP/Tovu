@@ -12,9 +12,9 @@ const own = { id: "ws-7", name: "Original Site", slug: "original-site", createdA
 function harness(repo: any) {
   const app = express();
   const deps = { workspaceId: "ws-7", workspaceRepo: repo, authorize: async () => ({ allowed: true, reason: "matched" }) } as any;
-  registerAdminWorkspaceGetRoute(app, deps);
-  registerAdminWorkspaceListRoute(app, deps);
-  registerAdminWorkspaceUpdateRoute(app, deps);
+  registerAdminWorkspaceGetRoute({ app, deps });
+  registerAdminWorkspaceListRoute({ app, deps });
+  registerAdminWorkspaceUpdateRoute({ app, deps });
   return async (method: "get" | "patch", path: string, body?: unknown) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };

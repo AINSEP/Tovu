@@ -10,7 +10,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** This route's `name`/`description` POST fields, read off an untyped body in one place.
  *  @complexity O(1). */
-function parsePolicyCreateBody(rawBody: unknown): { name: string; description: string | undefined } {
+function parsePolicyCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { name: string; description: string | undefined } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     name: String(body.name ?? ""),
@@ -19,7 +19,7 @@ function parsePolicyCreateBody(rawBody: unknown): { name: string; description: s
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPolicyCreateError(res: Response, err: unknown): void {
+function sendPolicyCreateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -35,13 +35,13 @@ function sendPolicyCreateError(res: Response, err: unknown): void {
  * POST policies — `CREATE_POLICY` (state.spec §3). Gated by `role.manage`;
  * always mints `isBuiltin=false` and `isFrozen=false`.
  */
-export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/policies", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const caller = getAuthedPrincipal(res);
-      const { name, description } = parsePolicyCreateBody(req.body);
+      const { name, description } = parsePolicyCreateBody({ rawBody: req.body });
 
       const { policy } = await createPolicy({
         deps: identityServiceDepsFrom(deps),
@@ -54,7 +54,7 @@ export const registerAdminPolicyCreateRoute: UsersRouteRegistrar = (app, deps) =
 
       res.status(201).json({ policy: toAdminPolicyResponse(policy) });
     } catch (err) {
-      sendPolicyCreateError(res, err);
+      sendPolicyCreateError({ res, err });
     }
   });
 };

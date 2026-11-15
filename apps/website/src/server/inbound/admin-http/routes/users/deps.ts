@@ -67,7 +67,7 @@ export type UsersRouteDeps = Pick<
 > & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the users/roles/policies route modules (mirrors `RouteRegistrar`). */
-export type UsersRouteRegistrar = (app: Express, deps: UsersRouteDeps) => void;
+export type UsersRouteRegistrar = (required: { app: Express; deps: UsersRouteDeps }, optional?: Record<string, never>) => void;
 
 type IdentityServiceRouteDeps = Pick<UsersRouteDeps,
   "transactions" | "userRepo" | "sessionRepo" | "roleRepo" | "policyRepo" | "policyPermissionRepo" |

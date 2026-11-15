@@ -73,7 +73,7 @@ function writeRequestedPolicyPermission(
  * (`VALIDATION_ERROR`, INV-06/AC-26), or a permission the caller does not hold unconstrained
  * (`GRANT_EXCEEDS_ISSUER`, INV-07/AC-24).
  */
-export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

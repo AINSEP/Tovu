@@ -29,7 +29,7 @@ const ABSOLUTE_HTTP_HREF = /^https?:\/\//i;
 /** Reads one double- or single-quoted HTML attribute's value out of a tag string, or `undefined` if
  *  the attribute is absent. Case-insensitive on the attribute name (`HREF`/`href` both match), as
  *  HTML itself is. @complexity O(tag length). */
-function readAttrValue(tag: string, attrName: string): string | undefined {
+function readAttrValue({ tag, attrName }: { tag: string; attrName: string }, _optional = {}): string | undefined {
   const match = new RegExp(`[\\s"']${attrName}\\s*=\\s*("([^"]*)"|'([^']*)')`, "i").exec(` ${tag}`);
   if (!match) return undefined;
   // The pattern's `"…"|'…'` alternation guarantees exactly one of groups 2/3 participated in the
@@ -40,7 +40,7 @@ function readAttrValue(tag: string, attrName: string): string | undefined {
 /** `true` when the tag already carries a `target` attribute at all — the author's own explicit
  *  choice, which this rule must never override (owner instruction: "don't override an explicit
  *  target the author set"), regardless of what value it carries. */
-function hasTargetAttr(tag: string): boolean {
+function hasTargetAttr({ tag }: { tag: string }, _optional = {}): boolean {
   return /[\s"']target\s*=/i.test(` ${tag}`);
 }
 
@@ -48,7 +48,7 @@ function hasTargetAttr(tag: string): boolean {
  *  equal — an author linking `https://www.<own-domain>/…` (or the reverse: the site itself served
  *  under `www.`, linking to its own bare-domain form) must not be treated as off-site over a `www.`
  *  mismatch alone. Every other subdomain is a genuinely different host and stays distinct. */
-function normalizeHost(host: string): string {
+function normalizeHost({ host }: { host: string }, _optional = {}): string {
   const lower = host.trim().toLowerCase();
   return lower.startsWith("www.") ? lower.slice(4) : lower;
 }
@@ -61,7 +61,7 @@ function normalizeHost(host: string): string {
  *
  * @complexity O(1) — one regex test plus, only on a match, one `URL` parse.
  */
-function isOffSiteHref(href: string, siteHost: string): boolean {
+function isOffSiteHref({ href, siteHost }: { href: string; siteHost: string }, _optional = {}): boolean {
   if (!ABSOLUTE_HTTP_HREF.test(href)) return false;
   let hostname: string;
   try {
@@ -69,7 +69,7 @@ function isOffSiteHref(href: string, siteHost: string): boolean {
   } catch {
     return false;
   }
-  return normalizeHost(hostname) !== normalizeHost(siteHost);
+  return normalizeHost({ host: hostname }) !== normalizeHost({ host: siteHost });
 }
 
 /** Merges `add` into whatever tokens `existingRel` (a raw, possibly-`undefined` `rel` attribute
@@ -77,7 +77,7 @@ function isOffSiteHref(href: string, siteHost: string): boolean {
  *  already authored with `rel="nofollow"` becomes `rel="nofollow noopener noreferrer"`, never a
  *  second `rel` attribute and never a duplicated token if the author already wrote `noopener`
  *  themselves. @complexity O(tokens). */
-function mergeRelTokens(existingRel: string | undefined, add: readonly string[]): string {
+function mergeRelTokens({ existingRel, add }: { existingRel: string | undefined; add: readonly string[] }, _optional = {}): string {
   const tokens = (existingRel ?? "").split(/\s+/).filter((t) => t.length > 0);
   for (const token of add) {
     if (!tokens.includes(token)) tokens.push(token);
@@ -88,9 +88,9 @@ function mergeRelTokens(existingRel: string | undefined, add: readonly string[])
 /** Replaces an existing attribute's value in `tag`, or appends `name="value"` before the tag's own
  *  closing `>` (or `/>` for a self-closed anchor, though real markup never writes one) when the
  *  attribute is absent. @complexity O(tag length). */
-function withAttr(tag: string, name: string, value: string, options: { replaceIfPresent: boolean }): string {
+function withAttr({ tag, name, value, options }: { tag: string; name: string; value: string; options: { replaceIfPresent: boolean } }, _optional = {}): string {
   const escaped = escapeHtml(value);
-  if (options.replaceIfPresent && readAttrValue(tag, name) !== undefined) {
+  if (options.replaceIfPresent && readAttrValue({ tag, attrName: name }) !== undefined) {
     return tag.replace(new RegExp(`([\\s"'])(${name})\\s*=\\s*("[^"]*"|'[^']*')`, "i"), (_match, leading: string, attribute: string) => `${leading}${attribute}="${escaped}"`);
   }
   const insertion = ` ${name}="${escaped}"`;
@@ -105,10 +105,10 @@ function withAttr(tag: string, name: string, value: string, options: { replaceIf
  *
  * @complexity O(tag length).
  */
-function withOffSiteLinkAttrs(tag: string): string {
-  const mergedRel = mergeRelTokens(readAttrValue(tag, "rel"), ["noopener", "noreferrer"]);
-  const withRel = withAttr(tag, "rel", mergedRel, { replaceIfPresent: true });
-  return hasTargetAttr(withRel) ? withRel : withAttr(withRel, "target", "_blank", { replaceIfPresent: false });
+function withOffSiteLinkAttrs({ tag }: { tag: string }, _optional = {}): string {
+  const mergedRel = mergeRelTokens({ existingRel: readAttrValue({ tag, attrName: "rel" }), add: ["noopener", "noreferrer"] });
+  const withRel = withAttr({ tag, name: "rel", value: mergedRel, options: { replaceIfPresent: true } });
+  return hasTargetAttr({ tag: withRel }) ? withRel : withAttr({ tag: withRel, name: "target", value: "_blank", options: { replaceIfPresent: false } });
 }
 
 /**
@@ -125,10 +125,10 @@ function withOffSiteLinkAttrs(tag: string): string {
  *   attribute work per tag found (bounded by the page's own authored link count, never
  *   user-collection-sized).
  */
-export function markOffSiteLinksOpenInNewTab(html: string, siteHost: string): string {
+export function markOffSiteLinksOpenInNewTab({ html, siteHost }: { html: string; siteHost: string }, _optional = {}): string {
   return html.replace(ANCHOR_OPEN_TAG, (tag) => {
-    const href = readAttrValue(tag, "href");
-    if (href === undefined || !isOffSiteHref(href, siteHost)) return tag;
-    return withOffSiteLinkAttrs(tag);
+    const href = readAttrValue({ tag, attrName: "href" });
+    if (href === undefined || !isOffSiteHref({ href, siteHost })) return tag;
+    return withOffSiteLinkAttrs({ tag });
   });
 }

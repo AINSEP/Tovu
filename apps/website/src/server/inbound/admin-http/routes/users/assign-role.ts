@@ -8,7 +8,7 @@ import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendAssignRoleError(res: Response, err: unknown): void {
+function sendAssignRoleError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -38,7 +38,7 @@ function sendAssignRoleError(res: Response, err: unknown): void {
  * INV-07 grant clamp must pass over every permission carried by the role's
  * policies. See `grant-service.ts`'s `assignRole` for the full contract.
  */
-export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/roles", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -57,7 +57,7 @@ export const registerAdminUserAssignRoleRoute: UsersRouteRegistrar = (app, deps)
 
       res.status(201).json({ assignment });
     } catch (err) {
-      sendAssignRoleError(res, err);
+      sendAssignRoleError({ res, err });
     }
   });
 };

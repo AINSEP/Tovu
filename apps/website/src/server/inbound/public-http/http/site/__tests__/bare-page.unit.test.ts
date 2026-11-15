@@ -102,18 +102,18 @@ test("renderBareEntryDocument: no theme CSS/JS, no data-theme, no site header/fo
 // ---------------------------------------------------------------------------
 
 test("isFullHtmlDocument: recognizes a plain doctype, an <html> tag, a leading HTML comment, a leading BOM, and an uppercase DOCTYPE", () => {
-  assert.equal(isFullHtmlDocument("<!doctype html><html><body>x</body></html>"), true);
-  assert.equal(isFullHtmlDocument("<html><body>x</body></html>"), true);
-  assert.equal(isFullHtmlDocument("<!-- authored by me --><!doctype html><html></html>"), true);
-  assert.equal(isFullHtmlDocument("﻿<!doctype html><html></html>"), true);
-  assert.equal(isFullHtmlDocument("<!DOCTYPE HTML><HTML></HTML>"), true);
-  assert.equal(isFullHtmlDocument("   \n  <!doctype html><html></html>"), true);
+  assert.equal(isFullHtmlDocument({ html: "<!doctype html><html><body>x</body></html>" }), true);
+  assert.equal(isFullHtmlDocument({ html: "<html><body>x</body></html>" }), true);
+  assert.equal(isFullHtmlDocument({ html: "<!-- authored by me --><!doctype html><html></html>" }), true);
+  assert.equal(isFullHtmlDocument({ html: "﻿<!doctype html><html></html>" }), true);
+  assert.equal(isFullHtmlDocument({ html: "<!DOCTYPE HTML><HTML></HTML>" }), true);
+  assert.equal(isFullHtmlDocument({ html: "   \n  <!doctype html><html></html>" }), true);
 });
 
 test("isFullHtmlDocument: an ordinary fragment that merely mentions doctype/html in prose is NOT a full document", () => {
-  assert.equal(isFullHtmlDocument("<p>Read about &lt;!doctype html&gt; sometime.</p>"), false);
-  assert.equal(isFullHtmlDocument("<div>hello</div>"), false);
-  assert.equal(isFullHtmlDocument(""), false);
+  assert.equal(isFullHtmlDocument({ html: "<p>Read about &lt;!doctype html&gt; sometime.</p>" }), false);
+  assert.equal(isFullHtmlDocument({ html: "<div>hello</div>" }), false);
+  assert.equal(isFullHtmlDocument({ html: "" }), false);
 });
 
 test("renderBareEntryDocument: a full-document 'html'-format body is served through unchanged — no SEO fold, no wrapping, no injected <title>", () => {

@@ -12,7 +12,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *  `delete-policy.ts` uses, minus `IdentityConflictError`: `removePolicyPermission` has no
  *  reference guard to violate (a permission row is a leaf, nothing points at it).
  *  @complexity O(1). */
-function sendRemovePolicyPermissionError(res: Response, err: unknown): void {
+function sendRemovePolicyPermissionError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof OwnerRequiredError) {
     res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
     return;
@@ -50,7 +50,7 @@ function sendRemovePolicyPermissionError(res: Response, err: unknown): void {
  *
  * Returns 204, matching `delete-policy.ts`'s convention for a delete with nothing to echo back.
  */
-export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions/:policyPermissionId",
     async (req, res) => {
@@ -81,7 +81,7 @@ export const registerAdminPolicyPermissionRemoveRoute: UsersRouteRegistrar = (ap
 
         res.status(204).send();
       } catch (err) {
-        sendRemovePolicyPermissionError(res, err);
+        sendRemovePolicyPermissionError({ res, err });
       }
     }
   );

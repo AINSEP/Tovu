@@ -10,7 +10,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  *  `widgetType` is cast, not validated, against the real `WidgetTypeKey` union here —
  *  `createWidgetInstance` (`getWidgetTypeRegistration`) is what rejects an unregistered type at
  *  runtime. @complexity O(1). */
-function parseWidgetCreateBody(rawBody: unknown): {
+function parseWidgetCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   widgetType: WidgetTypeKey;
   title: string;
   config: Record<string, unknown>;
@@ -37,7 +37,7 @@ export const registerAdminWidgetCreateRoute: RouteRegistrar = ({ app, deps }, _o
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseWidgetCreateBody(req.body);
+    const parsedBody = parseWidgetCreateBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({ error: "widgetType and title are required strings", code: "VALIDATION_ERROR" });
       return;

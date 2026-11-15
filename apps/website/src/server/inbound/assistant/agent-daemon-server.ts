@@ -34,7 +34,7 @@ let stopDaemonServing: () => Promise<void> = async () => {};
  * so even a failed publication can already be visible. Ownership guarding prevents an old daemon
  * from erasing a replacement daemon's record during a fast restart. The durability and race
  * rationale lives in @jini-ai/sidecar's daemon-registry and json-file implementations. */
-async function exitDaemon(exitCode: number): Promise<void> {
+async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): Promise<void> {
   if (daemonExiting) return;
   daemonExiting = true;
   stopIdleMonitor();
@@ -60,12 +60,12 @@ async function exitDaemon(exitCode: number): Promise<void> {
 // Keep the conventional signal exit codes while giving the owned discovery record cleanup.
 // Jini's tree-stop signals the group, then each PID. Keep listeners installed so a second
 // SIGTERM cannot take Node's default immediate-exit path while the first is closing databases.
-process.on("SIGTERM", () => { void exitDaemon(143); });
-process.on("SIGINT", () => { void exitDaemon(130); });
+process.on("SIGTERM", () => { void exitDaemon({ exitCode: 143 }); });
+process.on("SIGINT", () => { void exitDaemon({ exitCode: 130 }); });
 
 // Windows has no graceful signal: Jini's sidecar closes its stdin pipe to run the same disposal.
 if (process.env.JINI_STOP_ON_STDIN_EOF === "1") {
-  process.stdin.once("end", () => { void exitDaemon(0); });
+  process.stdin.once("end", () => { void exitDaemon({ exitCode: 0 }); });
   // A paused stream never reports EOF.
   process.stdin.resume();
 }
@@ -142,7 +142,7 @@ function startParentWatchdog(): void {
       console.error(
         `[agent-daemon] parent process ${parentPid} is gone and reap() never reached this process — self-terminating`,
       );
-      void exitDaemon(1);
+      void exitDaemon({ exitCode: 1 });
     }
   }, POLL_INTERVAL_MS);
 }
@@ -186,7 +186,7 @@ installUnhandledRejectionGuard();
 installServerLogCapture({ source: "daemon", release: processBuildRelease({}), environment: telemetryEnvironment({ env: process.env }) });
 
 const app = express();
-const idlePark = createAgentDaemonIdlePark({ isBusy: () => [...scopedExchanges.values()].some(isBusy => isBusy()), exit: code => { void exitDaemon(code); } }, { env: process.env });
+const idlePark = createAgentDaemonIdlePark({ isBusy: () => [...scopedExchanges.values()].some(isBusy => isBusy()), exit: ({ code }, _optional = {}) => { void exitDaemon({ exitCode: code }); } }, { env: process.env });
 stopIdleMonitor = () => idlePark.stop({}, {});
 // Express removes the mount prefix before the existing scope middleware runs. A forged prefix
 // therefore meets that scope's OWN bearer/run-credential gate before parsing or route effects.
@@ -239,10 +239,10 @@ async function mountStandaloneScope({ url }: { url: string }, _optional = {}): P
 const startup = start();
 if (process.send) {
   const channel = sharedHost ? createNodeIpcChannel({ peer: process }, { handle: async payload => { await startup; return control(payload); } }) : undefined;
-  process.once("disconnect", () => { channel?.dispose({}); void exitDaemon(0); });
+  process.once("disconnect", () => { channel?.dispose({}); void exitDaemon({ exitCode: 0 }); });
 }
 void startup.catch(error => {
   // Never forward a bootstrap/control payload (which contains per-site secrets) into diagnostics.
   console.error("[agent-daemon] failed to start", redactSecretShapes({ text: error instanceof Error ? error.message : "startup failed" }).text);
-  void exitDaemon((error as NodeJS.ErrnoException).code === "EADDRINUSE" ? AGENT_DAEMON_EXIT_CODE.PORT_IN_USE : 1);
+  void exitDaemon({ exitCode: (error as NodeJS.ErrnoException).code === "EADDRINUSE" ? AGENT_DAEMON_EXIT_CODE.PORT_IN_USE : 1 });
 });

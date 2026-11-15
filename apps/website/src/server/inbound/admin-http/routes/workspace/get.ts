@@ -12,7 +12,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * authorization so a mismatched id never discloses whether a permission grant exists). Gated by
  * `workspace.manage`.
  */
-export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -21,7 +21,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * authz sweep: this route previously had zero permission check beyond session auth, letting any
  * authenticated admin session read the full user roster regardless of role.
  */
-export const registerAdminUserListRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/users", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

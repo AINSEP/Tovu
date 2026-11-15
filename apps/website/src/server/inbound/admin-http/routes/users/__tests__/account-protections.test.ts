@@ -56,7 +56,7 @@ async function setup() {
     return policyId;
   };
   const app = express();
-  for (const register of [registerAdminUserDisableRoute, registerAdminUserDeleteRoute, registerAdminUserResetPasswordRoute, registerAdminUserUpdateRoute, registerAdminUserEnableRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute, registerAdminPolicyPermissionRemoveRoute, registerAdminUserListRoute]) register(app, deps);
+  for (const register of [registerAdminUserDisableRoute, registerAdminUserDeleteRoute, registerAdminUserResetPasswordRoute, registerAdminUserUpdateRoute, registerAdminUserEnableRoute, registerAdminRoleDeleteRoute, registerAdminRoleUpdateRoute, registerAdminPolicyPermissionRemoveRoute, registerAdminUserListRoute]) register({ app, deps });
   const invoke = async (method: "post" | "delete" | "patch", suffix: string, callerId: string, principalId: string, body = {}) => {
     const { res, capture } = createCapturingResponse();
     res.send = () => res;

@@ -124,7 +124,7 @@ export const ASSISTANT_SETTING_SOURCES: readonly string[] = [];
  * with Write, which ASSISTANT_DISALLOWED_TOOLS correctly denies. Only the hooks block is omitted
  * when the hook file is absent; autoMemoryEnabled is false on every machine.
  */
-export function resolveAssistantRunSettings(homeDir: string, fileExists: (path: string) => boolean): string {
+export function resolveAssistantRunSettings({ homeDir, fileExists }: { homeDir: string; fileExists: (path: string) => boolean }, _optional = {}): string {
   const command = `${homeDir}/.claude/hooks/no-system-search`;
   return JSON.stringify({
     autoMemoryEnabled: false,
@@ -153,7 +153,7 @@ export function resolveBashProhibitionEnabled(
  * mutually exclusive variants of the same slot in {@link buildBaseSystemOverlay}, not a base text
  * plus an addition.
  */
-export function buildBashProhibitionBlock(enabled: boolean): string {
+export function buildBashProhibitionBlock({ enabled }: { enabled: boolean }, _optional = {}): string {
   return enabled ? BASH_PROHIBITION_BLOCK : BASH_GUIDANCE_BLOCK;
 }
 
@@ -191,7 +191,7 @@ const ATTACHMENT_RESULT_POLL_GUIDANCE =
  *
  * @complexity O(1) — string concatenation of a fixed number of fixed-size literals.
  */
-export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean; messageRelayEnabled?: boolean } = {}): string {
+export function buildBaseSystemOverlay({ bashProhibitionEnabled }: { bashProhibitionEnabled: boolean }, optional: { nativeToolAccess?: boolean; messageRelayEnabled?: boolean } = {}): string {
   return (
     SITE_GUIDE_POINTER +
     ASSISTANT_CONTENT_EDIT_GUIDANCE +
@@ -234,7 +234,7 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional
     "call mcp__chrome-devtools__list_pages or mcp__chrome-devtools__new_page first and use only a pageId returned in the current run. " +
     "Never reuse a pageId from an earlier run or before a server/daemon restart. On 'No page found', list pages again or open a new page before navigating. " +
     SEARCH_SCOPE_GUIDANCE + ATTACHMENT_RESULT_POLL_GUIDANCE +
-    (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock(bashProhibitionEnabled)) +
+    (optional.nativeToolAccess ? TOOLS_FIRST_RULE + " " : buildBashProhibitionBlock({ enabled: bashProhibitionEnabled })) +
     PERMANENT_DELETE_GUIDANCE + " " + CREDENTIAL_GUIDANCE +
     (optional.nativeToolAccess ? "If no Tovu tool fits after searching, use the CLI fallback. Report a Tool gap for Bash/direct file edits only; other native tool use is recorded separately. " :
     "What to do instead when you believe no tool fits: search_tools again with different phrasing and a " +

@@ -29,7 +29,7 @@ function buildApp(depsOverrides: Partial<WorkspaceRouteDeps> = {}): express.Expr
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminWorkspaceCreateRoute(app, deps);
+  registerAdminWorkspaceCreateRoute({ app, deps });
   return app;
 }
 

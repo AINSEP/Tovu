@@ -30,7 +30,7 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps 
       const params = { principalId: principal.id, permission: TRASH_READ_PERMISSION, workspaceId: deps.workspaceId };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const items = readItems(req.body);
+      const items = readItems({ body: req.body });
       if (!items) {
         res.status(400).json({
           error: `expected { items: [{ entityType, entityId }] } with 1..${MAX_TRASH_SELECTION} entries`,
@@ -74,7 +74,7 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = ({ app, deps 
  *
  * @complexity O(n) in the selection's length.
  */
-function readItems(body: unknown): { entityType: string; entityId: string }[] | null {
+function readItems({ body }: { body: unknown }, _optional = {}): { entityType: string; entityId: string }[] | null {
   if (typeof body !== "object" || body === null) return null;
   const raw = (body as { items?: unknown }).items;
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TRASH_SELECTION) return null;

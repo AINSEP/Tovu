@@ -9,7 +9,7 @@ import { assistantCliPermissions } from "#src/assistant/assistant-subagents-poli
 export async function readAssistantCliPermissions(required: {
   settingsRepo: SettingsRepoPort; getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>; workspaceId: string; principalId: string;
-}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (source: "site" | "default") => void } = {}): Promise<AssistantCliPermissions> {
+}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<AssistantCliPermissions> {
   try {
     await required.settingsReady;
     const stored = await required.getEffective({ repo: required.settingsRepo }, {
@@ -17,7 +17,7 @@ export async function readAssistantCliPermissions(required: {
       scopeContext: { workspaceId: required.workspaceId, principalId: required.principalId },
     });
     // The definition default means no owner preference; inherit the legacy Full CLI access grant.
-    if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.("site"); return parseCliPermissionsSnapshot({ value: stored.value }); }
+    if (stored?.value != null && stored.sourceLayer !== "default") { optional.onSource?.({ source: "site" }); return parseCliPermissionsSnapshot({ value: stored.value }); }
     return assistantCliPermissions({ enabled: await readAssistantSubagentsEnabled(required, { readFailure: "throw", ...(optional.onSource ? { onSource: optional.onSource } : {}) }) });
   } catch (error) {
     denyOrRethrow({ error }, optional);
@@ -62,14 +62,14 @@ export async function readAssistantSubagentsEnabled(required: {
   getEffective: typeof import("@jini-ai/core/settings").getEffective;
   settingsReady: Promise<void>;
   workspaceId: string;
-}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (source: "site" | "default") => void } = {}): Promise<boolean> {
+}, optional: { readFailure?: "deny" | "throw"; warn?: (message: string) => void; onSource?: (required: { source: "site" | "default" }, optional?: Record<string, never>) => void } = {}): Promise<boolean> {
   try {
     await required.settingsReady;
     const setting = await required.getEffective({ repo: required.settingsRepo }, {
       namespace: ASSISTANT_SUBAGENTS_NAMESPACE, key: ASSISTANT_SUBAGENTS_KEY,
       scopeContext: { workspaceId: required.workspaceId },
     });
-    optional.onSource?.(setting && setting.sourceLayer !== "default" ? "site" : "default");
+    optional.onSource?.({ source: setting && setting.sourceLayer !== "default" ? "site" : "default" });
     return setting === null ? true : setting.value === true;
   } catch (error) {
     denyOrRethrow({ error }, optional);

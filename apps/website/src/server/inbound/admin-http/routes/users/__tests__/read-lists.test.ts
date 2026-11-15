@@ -13,9 +13,9 @@ const base = "/api/admin/v1/workspaces/:workspaceId";
 function harness(overrides: Record<string, unknown>) {
   const app = express();
   const deps = { workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }), ...overrides } as any;
-  registerAdminPolicyListRoute(app, deps);
-  registerAdminRoleListRoute(app, deps);
-  registerAdminPolicyPermissionListRoute(app, deps);
+  registerAdminPolicyListRoute({ app, deps });
+  registerAdminRoleListRoute({ app, deps });
+  registerAdminPolicyPermissionListRoute({ app, deps });
   return async (suffix: string, workspaceId = "ws-7") => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };
@@ -96,9 +96,9 @@ test("denied role.manage returns the standard 403 before any repository access",
 test("absent workspaceId param falls back to empty string and 404s on every list route", async () => {
   const app = express();
   const deps = portFake<UsersRouteDeps>({ workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }) });
-  registerAdminPolicyListRoute(app, deps);
-  registerAdminRoleListRoute(app, deps);
-  registerAdminPolicyPermissionListRoute(app, deps);
+  registerAdminPolicyListRoute({ app, deps });
+  registerAdminRoleListRoute({ app, deps });
+  registerAdminPolicyPermissionListRoute({ app, deps });
   for (const suffix of ["/roles", "/policies", "/policies/:policyId/permissions"]) {
     const { res, capture } = createCapturingResponse();
     await extractRouteHandler(app, "get", base + suffix)({ params: {} }, res);
@@ -110,7 +110,7 @@ test("absent policyId param falls back to empty string and looks up policy ''", 
   const deps = portFake<UsersRouteDeps>({ workspaceId: "ws-7", authorize: async () => ({ allowed: true, reason: "matched" }), policyRepo: {
     findById: async (input: unknown) => { assert.deepEqual(input, { workspaceId: "ws-7", id: "" }); return null; },
   } });
-  registerAdminPolicyPermissionListRoute(app, deps);
+  registerAdminPolicyPermissionListRoute({ app, deps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-7" };
   await extractRouteHandler(app, "get", base + "/policies/:policyId/permissions")({ params: { workspaceId: "ws-7" } }, res);

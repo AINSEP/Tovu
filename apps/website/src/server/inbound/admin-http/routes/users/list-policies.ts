@@ -11,7 +11,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * (`createPolicy` is also gated by `role.manage`, not a separate `policy.manage`; 2026-07-16
  * authz sweep: this route previously had zero permission check beyond session auth).
  */
-export const registerAdminPolicyListRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminPolicyListRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/policies", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

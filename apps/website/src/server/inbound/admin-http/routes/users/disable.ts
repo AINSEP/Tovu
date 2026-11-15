@@ -36,7 +36,7 @@ async function assembleDisabledUserResponse(
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendUserDisableError(res: Response, err: unknown): void {
+function sendUserDisableError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof SelfDeleteError) {
     res.status(409).json({ error: err.message, code: "SELF_DELETE" });
     return;
@@ -70,7 +70,7 @@ function sendUserDisableError(res: Response, err: unknown): void {
  * the paired `UserRecord` (every `kind='user'` principal has one by construction, CREATE_USER's
  * atomicity guarantee, so the second lookup below is defensive, not an expected runtime path).
  */
-export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) => {
+export const registerAdminUserDisableRoute: UsersRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/disable", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -96,7 +96,7 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) =>
 
       res.json({ user: await assembleDisabledUserResponse(deps, principal) });
     } catch (err) {
-      sendUserDisableError(res, err);
+      sendUserDisableError({ res, err });
     }
   });
 };

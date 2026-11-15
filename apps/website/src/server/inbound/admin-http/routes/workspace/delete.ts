@@ -17,7 +17,7 @@ import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "./deps.js";
  *
  * @complexity O(1).
  */
-export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
+export function sendDeleteWorkspaceError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof WorkspaceLastRemainingError) {
     res.status(409).json({ error: err.message, code: "LAST_WORKSPACE" });
     return;
@@ -45,11 +45,7 @@ export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
  *
  * @complexity O(1) plus `deleteWorkspace`'s own O(workspaces) roster check.
  */
-export async function deleteWorkspaceUnlessBound(
-  res: Response,
-  deps: Pick<WorkspaceRouteDeps, "workspaceId" | "workspaceRepo">,
-  targetWorkspaceId: string
-): Promise<void> {
+export async function deleteWorkspaceUnlessBound({ res, deps, targetWorkspaceId }: { res: Response; deps: Pick<WorkspaceRouteDeps, "workspaceId" | "workspaceRepo">; targetWorkspaceId: string }, _optional = {}): Promise<void> {
   if (targetWorkspaceId === deps.workspaceId) {
     res.status(409).json({
       error: "the workspace this server is bound to cannot be deleted while it is serving that workspace",
@@ -98,7 +94,7 @@ export async function deleteWorkspaceUnlessBound(
  * Placed AFTER `authorize()` on purpose, in the position the count guard occupied, preserving
  * EC-04: an unauthorized caller still learns nothing about workspace count or bindings.
  */
-export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, deps) => {
+export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId", async (req, res) => {
     const targetWorkspaceId = String(req.params.workspaceId ?? "");
     if (targetWorkspaceId !== deps.workspaceId) {
@@ -117,9 +113,9 @@ export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, 
       )
         return;
 
-      await deleteWorkspaceUnlessBound(res, deps, targetWorkspaceId);
+      await deleteWorkspaceUnlessBound({ res, deps, targetWorkspaceId });
     } catch (err) {
-      sendDeleteWorkspaceError(res, err);
+      sendDeleteWorkspaceError({ res, err });
     }
   });
 };
