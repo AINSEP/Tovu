@@ -132,20 +132,20 @@ const UNWIRED_RECOVERY_TOOL_IDS = new Set([
 
 /** One field's "must be typeof number" check for {@link requireDeepLinkEnvelope} — same rejection
  *  style as the kit's own `requireNumber`, just scoped to a nested envelope field path. */
-function requireEnvelopeNumber(value: unknown, fieldPath: string): number {
+function requireEnvelopeNumber({ value, fieldPath }: { value: unknown; fieldPath: string }, _optional = {}): number {
   if (typeof value !== "number") throw new ToolInputError({ message: `'${fieldPath}' (number) is required` });
   return value;
 }
 
 /** One field's "must be typeof string" check for {@link requireDeepLinkEnvelope}. */
-function requireEnvelopeString(value: unknown, fieldPath: string): string {
+function requireEnvelopeString({ value, fieldPath }: { value: unknown; fieldPath: string }, _optional = {}): string {
   if (typeof value !== "string") throw new ToolInputError({ message: `'${fieldPath}' (string) is required` });
   return value;
 }
 
 /** One field's "must be a string, or explicitly null" check — `ledgerEventId`/`restorePointId`
  *  are the only two nullable fields on the envelope. */
-function requireEnvelopeStringOrNull(value: unknown, fieldPath: string): string | null {
+function requireEnvelopeStringOrNull({ value, fieldPath }: { value: unknown; fieldPath: string }, _optional = {}): string | null {
   if (value !== null && typeof value !== "string") throw new ToolInputError({ message: `'${fieldPath}' must be a string or null` });
   return value;
 }
@@ -163,20 +163,20 @@ function requireEnvelopeStringOrNull(value: unknown, fieldPath: string): string 
  * @complexity O(1) — a fixed number of field checks.
  * @overallScore 100
  */
-function requireDeepLinkEnvelope(raw: unknown): DatabaseContextEnvelope {
+function requireDeepLinkEnvelope({ raw }: { raw: unknown }, _optional = {}): DatabaseContextEnvelope {
   const candidate = { value: raw };
   if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
   const value = candidate.value;
 
   return {
-    v: requireEnvelopeNumber(value.v, "envelope.v"),
-    correlationId: requireEnvelopeString(value.correlationId, "envelope.correlationId"),
-    siteId: requireEnvelopeString(value.siteId, "envelope.siteId"),
-    ledgerEventId: requireEnvelopeStringOrNull(value.ledgerEventId, "envelope.ledgerEventId"),
-    restorePointId: requireEnvelopeStringOrNull(value.restorePointId, "envelope.restorePointId"),
-    drift: requireEnvelopeString(value.drift, "envelope.drift"),
-    intent: requireEnvelopeString(value.intent, "envelope.intent"),
-    issuedAt: requireEnvelopeString(value.issuedAt, "envelope.issuedAt"),
+    v: requireEnvelopeNumber({ value: value.v, fieldPath: "envelope.v" }),
+    correlationId: requireEnvelopeString({ value: value.correlationId, fieldPath: "envelope.correlationId" }),
+    siteId: requireEnvelopeString({ value: value.siteId, fieldPath: "envelope.siteId" }),
+    ledgerEventId: requireEnvelopeStringOrNull({ value: value.ledgerEventId, fieldPath: "envelope.ledgerEventId" }),
+    restorePointId: requireEnvelopeStringOrNull({ value: value.restorePointId, fieldPath: "envelope.restorePointId" }),
+    drift: requireEnvelopeString({ value: value.drift, fieldPath: "envelope.drift" }),
+    intent: requireEnvelopeString({ value: value.intent, fieldPath: "envelope.intent" }),
+    issuedAt: requireEnvelopeString({ value: value.issuedAt, fieldPath: "envelope.issuedAt" }),
   };
 }
 
@@ -184,7 +184,7 @@ export function buildRecoveryRegistrations(
   routeDeps: RecoveryToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const restoreHooks = (actorId: string, restorePointId: string) =>
+  const restoreHooks = ({ actorId, restorePointId }: { actorId: string; restorePointId: string }, _optional = {}) =>
     buildRestoreHooks({
       workspaceId: routeDeps.workspaceId,
       actorId,
@@ -200,7 +200,7 @@ export function buildRecoveryRegistrations(
 
   // Plans a restore as the agent and folds in the discarded-write-window disclosure — shared by
   // `backup_plan_restore` and the confirm dialog of `backup_execute_restore`.
-  const planRestoreWithDisclosure = async (actorId: string, restorePointId: string) => {
+  const planRestoreWithDisclosure = async ({ actorId, restorePointId }: { actorId: string; restorePointId: string }, _optional = {}) => {
     const result = await planRestore({
       deps: {
         dbOps: {
@@ -216,7 +216,7 @@ export function buildRecoveryRegistrations(
                 deps: routeDeps.gatedMutations.gatewayDeps,
                 principalId: input.principalId,
                 principalKind: input.principalKind,
-                hooks: restoreHooks(actorId, input.restorePointId),
+                hooks: restoreHooks({ actorId, restorePointId: input.restorePointId }),
               }) }, {},
             ),
         },
@@ -276,7 +276,7 @@ export function buildRecoveryRegistrations(
       // Folds in the discarded-write-window disclosure, matching this tool's own catalog
       // description ("including the discarded-write-window disclosure") — the human admin UI reads
       // this from a separate `/recovery/disclosure` request; a tool call composes both in one turn.
-      return planRestoreWithDisclosure(ctx.principal.id, restorePointId);
+      return planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
     },
 
     recovery_get_status: async (ctx) => {
@@ -303,7 +303,7 @@ export function buildRecoveryRegistrations(
     recovery_resolve_deep_link: async (ctx) => {
       const candidate = { value: ctx.input };
       if (!isRecord(candidate)) throw new ToolInputError({ message: "'envelope' (object) is required" });
-      const envelope = requireDeepLinkEnvelope(candidate.value.envelope);
+      const envelope = requireDeepLinkEnvelope({ raw: candidate.value.envelope });
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: BACKUP_READ_PERMISSION }, { entityType: RESTORE_POINT_ENTITY });
 
@@ -324,7 +324,7 @@ export function buildRecoveryRegistrations(
         refuseUnexpectedKeys(input, ["restorePointId"]);
         const restorePointId = requireString({ input: input, key: "restorePointId" });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "backup.restore" }, { entityType: RESTORE_POINT_ENTITY });
-        const { plan } = await planRestoreWithDisclosure(ctx.principal.id, restorePointId);
+        const { plan } = await planRestoreWithDisclosure({ actorId: ctx.principal.id, restorePointId });
         const { items } = await listRestorePoints({ repo: routeDeps.restorePointsRepo });
         const createdAt = items.find((item) => item.id === restorePointId)?.createdAt;
         return { restorePointId, plan: plan as { planId: string; planHash: string }, createdAt };
@@ -341,7 +341,7 @@ export function buildRecoveryRegistrations(
         confirmLabel: "Replace current data",
       }),
       run: async ({ ctx, prepared: { restorePointId, plan }, confirmer }) => {
-        const hooks = restoreHooks(ctx.principal.id, restorePointId);
+        const hooks = restoreHooks({ actorId: ctx.principal.id, restorePointId });
         const confirmed = await confirmRestore({
           deps: {
             gateway: {

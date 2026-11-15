@@ -41,7 +41,7 @@ type ValueRow = Pick<
  * Postgres, which rejects a bare tag. A SQLite row written before that holds the bare tag itself;
  * migration `0003_coercion_json_as_json` rewrites those, and this still reads one as-is.
  */
-function decodeCoercionTag(text: string | null): string | null {
+function decodeCoercionTag({ text }: { text: string | null }, _optional = {}): string | null {
   if (text == null) return null;
   try {
     const parsed: unknown = JSON.parse(text);
@@ -67,7 +67,7 @@ function toDefinitionRecord(row: Selectable<SettingDefinitionsTable>): SettingDe
     status: row.status as DefinitionStatus,
     aliasOfNamespace: row.alias_of_ns,
     aliasOfKey: row.alias_of_key,
-    coercionTag: decodeCoercionTag(row.coercion_json),
+    coercionTag: decodeCoercionTag({ text: row.coercion_json }),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -95,7 +95,10 @@ function toDefinitionRow(record: SettingDefinitionRecord): Insertable<SettingDef
   };
 }
 
-function toValueRecord(row: ValueRow, scope: SettingScope, workspaceId: string | null, principalId: string | null): SettingValueRecord {
+function toValueRecord(
+  { row, scope, workspaceId, principalId }: { row: ValueRow; scope: SettingScope; workspaceId: string | null; principalId: string | null },
+  _optional = {}
+): SettingValueRecord {
   return {
     settingId: row.setting_id,
     scope,
@@ -217,7 +220,7 @@ export class SqlSettingsRepo implements SettingsRepoPort {
     const row = await this.kernel.run((db) =>
       db.selectFrom("setting_values_global").selectAll().where("setting_id", "=", settingId).limit(1).executeTakeFirst()
     );
-    return row ? toValueRecord(row, "global", null, null) : null;
+    return row ? toValueRecord({ row, scope: "global", workspaceId: null, principalId: null }) : null;
   }
 
   async getWorkspaceValue(required: { workspaceId: string; settingId: string }): Promise<SettingValueRecord | null> {
@@ -230,7 +233,7 @@ export class SqlSettingsRepo implements SettingsRepoPort {
         .limit(1)
         .executeTakeFirst()
     );
-    return row ? toValueRecord(row, "workspace", required.workspaceId, null) : null;
+    return row ? toValueRecord({ row, scope: "workspace", workspaceId: required.workspaceId, principalId: null }) : null;
   }
 
   async getUserValue(required: {
@@ -248,7 +251,7 @@ export class SqlSettingsRepo implements SettingsRepoPort {
         .limit(1)
         .executeTakeFirst()
     );
-    return row ? toValueRecord(row, "user", required.workspaceId, required.principalId) : null;
+    return row ? toValueRecord({ row, scope: "user", workspaceId: required.workspaceId, principalId: required.principalId }) : null;
   }
 
   async saveGlobalValue(record: SettingValueRecord): Promise<void> {
@@ -294,7 +297,7 @@ export class SqlSettingsRepo implements SettingsRepoPort {
     const rows = await this.kernel.run((db) =>
       db.selectFrom("setting_values_workspace").selectAll().where("workspace_id", "=", required.workspaceId).execute()
     );
-    return rows.map((r) => toValueRecord(r, "workspace", required.workspaceId, null));
+    return rows.map((r) => toValueRecord({ row: r, scope: "workspace", workspaceId: required.workspaceId, principalId: null }));
   }
 
   async listUserValues(required: { workspaceId: string; principalId: string }): Promise<SettingValueRecord[]> {
@@ -306,14 +309,14 @@ export class SqlSettingsRepo implements SettingsRepoPort {
         .where("principal_id", "=", required.principalId)
         .execute()
     );
-    return rows.map((r) => toValueRecord(r, "user", required.workspaceId, required.principalId));
+    return rows.map((r) => toValueRecord({ row: r, scope: "user", workspaceId: required.workspaceId, principalId: required.principalId }));
   }
 
   async listUserValuesByWorkspace(required: { workspaceId: string }): Promise<SettingValueRecord[]> {
     const rows = await this.kernel.run((db) =>
       db.selectFrom("setting_values_user").selectAll().where("workspace_id", "=", required.workspaceId).execute()
     );
-    return rows.map((r) => toValueRecord(r, "user", required.workspaceId, r.principal_id));
+    return rows.map((r) => toValueRecord({ row: r, scope: "user", workspaceId: required.workspaceId, principalId: r.principal_id }));
   }
 
   async deleteWorkspaceValue(required: { workspaceId: string; settingId: string }): Promise<void> {

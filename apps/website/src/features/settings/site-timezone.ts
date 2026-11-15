@@ -51,7 +51,7 @@ export interface ResolveSiteTimeZoneDeps {
 }
 
 /** `value` trimmed when `Intl` accepts it (an explicit "UTC" included), else undefined. */
-function validTimeZone(value: unknown): string | undefined {
+function validTimeZone({ value }: { value: unknown }, _optional = {}): string | undefined {
   if (typeof value !== "string") return undefined;
   const zone = normalizeTimeZone({ timeZone: value });
   // `normalizeTimeZone` returns the trimmed input only for a valid zone; anything else became UTC.
@@ -62,12 +62,12 @@ function validTimeZone(value: unknown): string | undefined {
 function creationOrDefault(deps: ResolveSiteTimeZoneDeps): string {
   // Legacy sites have no recorded zone. Pin the server's local zone before shared rendering so
   // article markers, Liquid workers and static exports all use the same calendar day.
-  return validTimeZone(deps.creationTimeZone?.read()) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return validTimeZone({ value: deps.creationTimeZone?.read() }) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 /** A usable owner value: a workspace-layer string `Intl` accepts. */
-function ownerTimeZone(resolved: { sourceLayer: string; value: unknown } | null): string | undefined {
-  return resolved?.sourceLayer === "workspace" ? validTimeZone(resolved.value) : undefined;
+function ownerTimeZone({ resolved }: { resolved: { sourceLayer: string; value: unknown } | null }, _optional = {}): string | undefined {
+  return resolved?.sourceLayer === "workspace" ? validTimeZone({ value: resolved.value }) : undefined;
 }
 
 /**
@@ -81,7 +81,7 @@ export async function resolveSiteTimeZone(deps: ResolveSiteTimeZoneDeps, input: 
       { repo: deps.settingsRepo },
       { namespace: SITE_TIMEZONE_NAMESPACE, key: SITE_TIMEZONE_KEY, scopeContext: { workspaceId: input.workspaceId } }
     );
-    return ownerTimeZone(resolved) ?? creationOrDefault(deps);
+    return ownerTimeZone({ resolved }) ?? creationOrDefault(deps);
   } catch (err) {
     consoleLogger.error({ message: `resolveSiteTimeZone: using the creation zone for workspace '${input.workspaceId}': ${(err as Error).message}` });
     return creationOrDefault(deps);

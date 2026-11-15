@@ -37,7 +37,7 @@ function barrier() {
 async function fixture(required: { t: TestContext; initial?: readonly FormDeliveryBinding[] }, _optional: Record<string, never> = {}) {
   const db = openContentDb(":memory:");
   required.t.after(() => db.$client.close());
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const clock = { nowIso: () => "2026-10-20T10:00:00.000Z", nowMs: () => Date.parse("2026-10-20T10:00:00.000Z") };
   let nextId = 0;
   const ids = { newId: () => `id-${++nextId}` };

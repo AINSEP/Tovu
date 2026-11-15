@@ -40,35 +40,35 @@ export interface ServerLogsResult {
 
 /** A filter value the caller sent that cannot be used. The message names the field. */
 export class ServerLogFilterError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ServerLogFilterError";
   }
 }
 
-function parseLevel(raw: unknown): ServerLogLevel | undefined {
+function parseLevel({ raw }: { raw: unknown }, _optional = {}): ServerLogLevel | undefined {
   if (raw === undefined || raw === "") return undefined;
   if (typeof raw === "string" && (SERVER_LOG_LEVELS as readonly string[]).includes(raw)) return raw as ServerLogLevel;
-  throw new ServerLogFilterError(`level must be one of ${SERVER_LOG_LEVELS.join(", ")}`);
+  throw new ServerLogFilterError({ message: `level must be one of ${SERVER_LOG_LEVELS.join(", ")}` });
 }
 
-function parseSince(raw: unknown): string | undefined {
+function parseSince({ raw }: { raw: unknown }, _optional = {}): string | undefined {
   if (raw === undefined || raw === "") return undefined;
   if (typeof raw === "string" && !Number.isNaN(Date.parse(raw))) return new Date(raw).toISOString();
-  throw new ServerLogFilterError("sinceIso must be an ISO-8601 date-time, e.g. 2026-10-05T12:00:00Z");
+  throw new ServerLogFilterError({ message: "sinceIso must be an ISO-8601 date-time, e.g. 2026-10-05T12:00:00Z" });
 }
 
-function parseContains(raw: unknown): string | undefined {
+function parseContains({ raw }: { raw: unknown }, _optional = {}): string | undefined {
   if (raw === undefined || raw === "") return undefined;
   if (typeof raw === "string" && raw.length <= MAX_CONTAINS_LENGTH) return raw;
-  throw new ServerLogFilterError(`contains must be a string of at most ${MAX_CONTAINS_LENGTH} characters`);
+  throw new ServerLogFilterError({ message: `contains must be a string of at most ${MAX_CONTAINS_LENGTH} characters` });
 }
 
-function parseLimit(raw: unknown): number | undefined {
+function parseLimit({ raw }: { raw: unknown }, _optional = {}): number | undefined {
   if (raw === undefined || raw === "") return undefined;
   const value = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : raw;
   if (typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= MAX_SERVER_LOG_LIMIT) return value;
-  throw new ServerLogFilterError(`limit must be an integer from 1 to ${MAX_SERVER_LOG_LIMIT}`);
+  throw new ServerLogFilterError({ message: `limit must be an integer from 1 to ${MAX_SERVER_LOG_LIMIT}` });
 }
 
 /**
@@ -80,10 +80,13 @@ function parseLimit(raw: unknown): number | undefined {
  */
 export function parseServerLogFilters(required: { raw: Record<string, unknown> }): ServerLogFilters {
   const { raw } = required;
-  return { level: parseLevel(raw.level), sinceIso: parseSince(raw.sinceIso), contains: parseContains(raw.contains), limit: parseLimit(raw.limit) };
+  return { level: parseLevel({ raw: raw.level }), sinceIso: parseSince({ raw: raw.sinceIso }), contains: parseContains({ raw: raw.contains }), limit: parseLimit({ raw: raw.limit }) };
 }
 
-function matches(entry: ServerLogEntry, filters: ServerLogFilters, sinceMs: number | null, needle: string | null): boolean {
+function matches(
+  { entry, filters, sinceMs, needle }: { entry: ServerLogEntry; filters: ServerLogFilters; sinceMs: number | null; needle: string | null },
+  _optional = {}
+): boolean {
   if (filters.level && SEVERITY[entry.level] < SEVERITY[filters.level]) return false;
   if (sinceMs !== null && Date.parse(entry.at) < sinceMs) return false;
   return needle === null || entry.message.toLowerCase().includes(needle);
@@ -101,7 +104,7 @@ export function readServerLogs(required: { logs: ServerLogSourcePort }, optional
   const { entries: all, capturing } = required.logs.read();
   const sinceMs = optional.sinceIso ? Date.parse(optional.sinceIso) : null;
   const needle = optional.contains ? optional.contains.toLowerCase() : null;
-  const matching = all.filter(entry => matches(entry, optional, sinceMs, needle));
+  const matching = all.filter(entry => matches({ entry, filters: optional, sinceMs, needle }));
   const limit = optional.limit ?? DEFAULT_SERVER_LOG_LIMIT;
   return {
     entries: matching.slice(-limit),

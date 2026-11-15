@@ -38,13 +38,16 @@ export async function readMailSenderSetting(
   required: { settingsRepo: SettingsRepoPort; workspaceId: string },
   _optional: Record<string, never> = {}
 ): Promise<{ email?: string; name?: string }> {
-  const read = (key: string) => getEffective({ repo: required.settingsRepo }, { namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId: required.workspaceId } });
-  const [email, name] = await Promise.all([read(MAIL_SENDER_EMAIL_KEY), read(MAIL_SENDER_NAME_KEY)]);
-  return { ...nonBlank("email", email?.value), ...nonBlank("name", name?.value) };
+  const read = ({ key }: { key: string }, _optional = {}) => getEffective({ repo: required.settingsRepo }, { namespace: MAIL_SENDER_NAMESPACE, key, scopeContext: { workspaceId: required.workspaceId } });
+  const [email, name] = await Promise.all([read({ key: MAIL_SENDER_EMAIL_KEY }), read({ key: MAIL_SENDER_NAME_KEY })]);
+  return { ...nonBlank({ field: "email", value: email?.value }), ...nonBlank({ field: "name", value: name?.value }) };
 }
 
 /** `{ [field]: trimmed }` for a non-blank string, else `{}`. Pure. */
-function nonBlank(field: "email" | "name", value: JsonValue | undefined): { email?: string; name?: string } {
+function nonBlank(
+  { field, value }: { field: "email" | "name"; value: JsonValue | undefined },
+  _optional = {}
+): { email?: string; name?: string } {
   const trimmed = typeof value === "string" ? value.trim() : "";
   return trimmed ? { [field]: trimmed } : {};
 }

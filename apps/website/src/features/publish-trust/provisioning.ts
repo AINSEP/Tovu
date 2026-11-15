@@ -95,7 +95,7 @@ export type GrantDocumentParse =
  * @complexity O(n²) in the grant count for the duplicate scan, bounded by
  *   {@link MAX_PROVISIONED_GRANTS} — a pairwise scan reads clearer than a set at eight elements.
  */
-export function parseGrantDocument(text: string): GrantDocumentParse {
+export function parseGrantDocument({ text }: { text: string }, _optional = {}): GrantDocumentParse {
   if (text.length > MAX_DOCUMENT_BYTES) {
     return { ok: false, reason: `grant document exceeds ${MAX_DOCUMENT_BYTES} bytes` };
   }
@@ -180,7 +180,10 @@ export function mergeGrant(existing: readonly PublishTrustGrant[], incoming: Pub
  *
  * @complexity O(n) in the existing grant count.
  */
-export function removeGrant(existing: readonly PublishTrustGrant[], sourceInstallationId: string): GrantListEdit {
+export function removeGrant(
+  { existing, sourceInstallationId }: { existing: readonly PublishTrustGrant[]; sourceInstallationId: string },
+  _optional = {}
+): GrantListEdit {
   const grants = existing.filter((g) => g.sourceInstallationId !== sourceInstallationId);
   return { ok: true, grants, changed: grants.length !== existing.length };
 }
@@ -190,8 +193,11 @@ export function removeGrant(existing: readonly PublishTrustGrant[], sourceInstal
  *
  * @complexity O(1).
  */
-export function grantNotAfterFrom(nowIso: string, options?: { readonly lifetimeDays?: number }): string {
-  const days = options?.lifetimeDays ?? GRANT_LIFETIME_DAYS;
+export function grantNotAfterFrom(
+  { nowIso }: { nowIso: string },
+  { lifetimeDays }: { readonly lifetimeDays?: number } = {}
+): string {
+  const days = lifetimeDays ?? GRANT_LIFETIME_DAYS;
   return new Date(Date.parse(nowIso) + days * MS_PER_DAY).toISOString();
 }
 
@@ -216,30 +222,31 @@ export interface PublishTrustResolution {
  *  `configured` can authorise anything" a property of the type rather than of a guard someone has
  *  to remember to write.
  *  @complexity O(1). */
-function configured(origin: "env" | "file", grants: readonly PublishTrustGrant[]): PublishTrustResolution {
+function configured(
+  { origin, grants }: { origin: "env" | "file"; grants: readonly PublishTrustGrant[] },
+  _optional = {}
+): PublishTrustResolution {
   return { state: "configured", origin, grants, reason: null };
 }
 
 /** @complexity O(1). */
 function withoutGrants(
-  state: Exclude<PublishTrustState, "configured">,
-  origin: PublishTrustResolution["origin"],
-  reason: string | null = null
+  { state, origin }: { state: Exclude<PublishTrustState, "configured">; origin: PublishTrustResolution["origin"] },
+  { reason = null }: { reason?: string | null } = {}
 ): PublishTrustResolution {
   return { state, origin, grants: [], reason };
 }
 
 /** @complexity O(n) in the document's grant count. */
 function resolveText(
-  text: string,
-  origin: "env" | "file",
-  emptyState: Exclude<PublishTrustState, "configured">
+  { text, origin, emptyState }: { text: string; origin: "env" | "file"; emptyState: Exclude<PublishTrustState, "configured"> },
+  _optional = {}
 ): PublishTrustResolution {
-  if (text.trim().length === 0) return withoutGrants(emptyState, origin);
-  const parsed = parseGrantDocument(text);
-  if (!parsed.ok) return withoutGrants("invalid", origin, parsed.reason);
-  if (parsed.grants.length === 0) return withoutGrants("revoked", origin);
-  return configured(origin, parsed.grants);
+  if (text.trim().length === 0) return withoutGrants({ state: emptyState, origin });
+  const parsed = parseGrantDocument({ text });
+  if (!parsed.ok) return withoutGrants({ state: "invalid", origin }, { reason: parsed.reason });
+  if (parsed.grants.length === 0) return withoutGrants({ state: "revoked", origin });
+  return configured({ origin, grants: parsed.grants });
 }
 
 /**
@@ -269,9 +276,9 @@ export function resolvePublishTrust(input: {
   readonly envValue: string | undefined;
   readonly fileContents: string | null;
 }): PublishTrustResolution {
-  if (input.envValue !== undefined) return resolveText(input.envValue, "env", "revoked");
-  if (input.fileContents !== null) return resolveText(input.fileContents, "file", "absent");
-  return withoutGrants("absent", "none");
+  if (input.envValue !== undefined) return resolveText({ text: input.envValue, origin: "env", emptyState: "revoked" });
+  if (input.fileContents !== null) return resolveText({ text: input.fileContents, origin: "file", emptyState: "absent" });
+  return withoutGrants({ state: "absent", origin: "none" });
 }
 
 /**
@@ -285,8 +292,8 @@ export function resolvePublishTrust(input: {
  * @complexity O(n) in the resolved grant count.
  */
 export function findGrantForSource(
-  res: PublishTrustResolution,
-  sourceInstallationId: string
+  { res, sourceInstallationId }: { res: PublishTrustResolution; sourceInstallationId: string },
+  _optional = {}
 ): PublishTrustGrant | null {
   if (res.state !== "configured") return null;
   return res.grants.find((g) => g.sourceInstallationId === sourceInstallationId) ?? null;
@@ -336,7 +343,7 @@ export interface ConnectionStatus {
 }
 
 /** @complexity O(1). */
-function daysUntil(iso: string, nowIso: string): number {
+function daysUntil({ iso, nowIso }: { iso: string; nowIso: string }, _optional = {}): number {
   return Math.floor((Date.parse(iso) - Date.parse(nowIso)) / MS_PER_DAY);
 }
 
@@ -364,7 +371,7 @@ export function describeConnection(input: {
     return { verdict: "unavailable", message: `${siteLabel}: ${describePublishTrustState(res)}` };
   }
 
-  const grant = findGrantForSource(res, input.sourceInstallationId);
+  const grant = findGrantForSource({ res, sourceInstallationId: input.sourceInstallationId });
   if (grant === null) {
     return {
       verdict: "not-connected",
@@ -384,7 +391,7 @@ export function describeConnection(input: {
     };
   }
 
-  const remaining = daysUntil(grant.notAfter, nowIso);
+  const remaining = daysUntil({ iso: grant.notAfter, nowIso });
   if (remaining <= RENEWAL_WARNING_DAYS) {
     return {
       verdict: "expiring-soon",
@@ -469,7 +476,7 @@ export interface ProvisioningCodec {
   readonly pretty: boolean;
   readonly nextStep: string;
   /** Extract the grant document from the config file's text; `null` when it carries none. */
-  decode(fileContents: string | null): string | null;
+  decode(required: { fileContents: string | null }, optional?: Record<string, never>): string | null;
   /** Put `document` back, preserving everything else in the file. */
   encode(input: { readonly fileContents: string | null; readonly document: string }):
     | { readonly ok: true; readonly contents: string }
@@ -484,7 +491,7 @@ export const COMMITTED_JSON_CODEC: ProvisioningCodec = {
   defaultPath: PUBLISH_TRUST_CONFIG_PATH,
   pretty: true,
   nextStep: `Commit ${PUBLISH_TRUST_CONFIG_PATH} and deploy. It holds public keys only — there is nothing secret in it.`,
-  decode: (fileContents) => fileContents,
+  decode: ({ fileContents }) => fileContents,
   encode: ({ document }) => ({ ok: true, contents: document }),
 };
 
@@ -508,8 +515,8 @@ export function createFileProvisioning(deps: {
   const { io, codec, path, onEvent } = deps;
   const target: ProvisioningTarget = { kind: codec.kind, path, nextStep: codec.nextStep };
 
-  const grantsIn = (fileContents: string | null): ProvisionedRead => {
-    const parsed = parseGrantDocument(codec.decode(fileContents) ?? "");
+  const grantsIn = ({ fileContents }: { fileContents: string | null }, _optional = {}): ProvisionedRead => {
+    const parsed = parseGrantDocument({ text: codec.decode({ fileContents }) ?? "" });
     if (!parsed.ok) {
       onEvent?.({ kind: "error", target, reason: parsed.reason });
       return { ok: false, reason: parsed.reason };
@@ -518,16 +525,16 @@ export function createFileProvisioning(deps: {
   };
 
   const readGrants = async (): Promise<ProvisionedRead> => {
-    const current = grantsIn(await io.read(path));
+    const current = grantsIn({ fileContents: await io.read(path) });
     if (current.ok) onEvent?.({ kind: "read", target, grants: current.grants.length });
     return current;
   };
 
-  const applyEdit = async (edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit): Promise<ProvisioningWrite> => {
+  const applyEdit = async ({ edit }: { edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit }, _optional = {}): Promise<ProvisioningWrite> => {
     // One read, reused for both the parse and the re-encode: reading twice could decode one
     // version of the file and write its edit back into another.
     const fileContents = await io.read(path);
-    const current = grantsIn(fileContents);
+    const current = grantsIn({ fileContents });
     if (!current.ok) return current;
 
     const next = edit(current.grants);
@@ -556,7 +563,7 @@ export function createFileProvisioning(deps: {
   return {
     target,
     readProvisioned: readGrants,
-    connect: ({ grant }) => applyEdit((grants) => mergeGrant(grants, grant)),
-    disconnect: ({ sourceInstallationId }) => applyEdit((grants) => removeGrant(grants, sourceInstallationId)),
+    connect: ({ grant }) => applyEdit({ edit: (grants) => mergeGrant(grants, grant) }),
+    disconnect: ({ sourceInstallationId }) => applyEdit({ edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
   };
 }

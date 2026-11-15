@@ -118,7 +118,7 @@ export function createSeoDeps({ deps }: { deps: FeaturedImageDeps & {
         { repo: deps.settingsRepo },
         { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId } },
       );
-      return setting?.sourceLayer === "workspace" ? normalizeSiteTitle(setting.value) : undefined;
+      return setting?.sourceLayer === "workspace" ? normalizeSiteTitle({ value: setting.value }) : undefined;
     },
     // The daemon outbox is enqueue-only; the existing host owner controls actual delivery.
     dispatch: (input) => processOutbox(input),

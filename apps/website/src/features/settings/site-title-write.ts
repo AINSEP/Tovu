@@ -35,7 +35,7 @@ export function enforceSiteTitleWriteBounds(input: SetValueRequired["input"]): S
   if (input.namespace !== SITE_TITLE_NAMESPACE || input.key !== SITE_TITLE_KEY || typeof input.value !== "string") {
     return input;
   }
-  const title = normalizeSiteTitle(input.value);
+  const title = normalizeSiteTitle({ value: input.value });
   if (title === undefined) throw new ValueValidationFailedError(SITE_TITLE_REJECTION);
   return { ...input, value: title };
 }

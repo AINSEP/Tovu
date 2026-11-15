@@ -67,7 +67,7 @@ const LOCAL_HOSTS = [
 
 /** An absolute URL whose host is this computer or its private network. A media ref (`<id>:<transform>`)
  *  or a public URL is fine. @complexity O(n) in the value's length. */
-export function pointsAtThisComputer(value: unknown): boolean {
+export function pointsAtThisComputer({ value }: { value: unknown }, _optional = {}): boolean {
   if (typeof value !== "string" || !/^[a-z][a-z\d+.-]*:\/\//i.test(value.trim())) return false;
   try {
     const hostname = new URL(value.trim()).hostname;
@@ -77,15 +77,18 @@ export function pointsAtThisComputer(value: unknown): boolean {
   }
 }
 
-function splitKey(id: string): { namespace: string; key: string } {
+function splitKey({ id }: { id: string }, _optional = {}): { namespace: string; key: string } {
   const at = id.indexOf(":");
   return { namespace: id.slice(0, at), key: id.slice(at + 1) };
 }
 
 /** The definition, when `id` is allowlisted and it is non-secret, active and workspace-scoped. */
-async function publishableDefinition(ports: Ports, workspaceId: string, id: string): Promise<SettingDefinitionRecord | null> {
+async function publishableDefinition(
+  { ports, workspaceId, id }: { ports: Ports; workspaceId: string; id: string },
+  _optional = {}
+): Promise<SettingDefinitionRecord | null> {
   if (!Object.hasOwn(PUBLISHABLE_SETTINGS, id)) return null;
-  const definition = await resolveDefinitionRaw({ repo: ports.settings }, { ...splitKey(id), workspaceId });
+  const definition = await resolveDefinitionRaw({ repo: ports.settings }, { ...splitKey({ id }), workspaceId });
   const ok = definition && definition.status === "active" && !definition.secret && (definition.scopes & SCOPE_BIT.workspace) !== 0;
   return ok ? definition : null;
 }
@@ -93,7 +96,7 @@ async function publishableDefinition(ports: Ports, workspaceId: string, id: stri
 /** The workspace row, set or cleared; `null` when the key was never written here.
  *  @complexity two indexed reads. */
 async function findSetting({ ports, workspaceId, id }: { ports: Ports; workspaceId: string; id: string }, _optional: Record<string, never> = {}): Promise<SiteSettingRow | null> {
-  const definition = await publishableDefinition(ports, workspaceId, id);
+  const definition = await publishableDefinition({ ports, workspaceId, id });
   if (!definition) return null;
   const row = await ports.settings.getWorkspaceValue({ workspaceId, settingId: definition.settingId });
   if (!row) return null;
@@ -103,8 +106,8 @@ async function findSetting({ ports, workspaceId, id }: { ports: Ports; workspace
 }
 
 /** Plain refusals, rewritten for the owner by `ui/report-rows.ts`. */
-const notPublishable = (id: string) => `site-setting '${id}' is not one this site publishes`;
-const localOnly = (id: string) => `site-setting '${id}' points at this computer`;
+const notPublishable = ({ id }: { id: string }, _optional = {}) => `site-setting '${id}' is not one this site publishes`;
+const localOnly = ({ id }: { id: string }, _optional = {}) => `site-setting '${id}' points at this computer`;
 
 export const contributeSiteSettingPublish = (): PublishContentContributor =>
   createRepoPublishHandler<SiteSettingRow, Ports>({
@@ -121,7 +124,7 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     },
     find: ({ ports, workspaceId, id }) => findSetting({ ports, workspaceId, id }),
     idOf: ({ row }, _optional = {}) => row.key,
-    include: ({ row }, _optional = {}) => !(row.key === OG_IMAGE && pointsAtThisComputer(row.value)),
+    include: ({ row }, _optional = {}) => !(row.key === OG_IMAGE && pointsAtThisComputer({ value: row.value })),
     fields: { key: "local", label: "provenance", value: "transferred", cleared: "transferred", version: "local" },
     omitWhenAbsent: ["cleared"],
     references: ({ entity }) => {
@@ -131,16 +134,16 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
       return mediaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mediaId) ? [{ entityType: "media", key: mediaId }] : [];
     },
     validate: async ({ ports, workspaceId, entity }) => {
-      if (!(await publishableDefinition(ports, workspaceId, entity.id))) return notPublishable(entity.id);
-      return entity.id === OG_IMAGE && pointsAtThisComputer(entity.state.value) ? localOnly(entity.id) : null;
+      if (!(await publishableDefinition({ ports, workspaceId, id: entity.id }))) return notPublishable({ id: entity.id });
+      return entity.id === OG_IMAGE && pointsAtThisComputer({ value: entity.state.value }) ? localOnly({ id: entity.id }) : null;
     },
     write: async ({ ports, deps, workspaceId, id, state, principalId }) => {
       // Precheck already refused these; checked again because this is the one write.
-      if (!(await publishableDefinition(ports, workspaceId, id))) throw new PublishContentApplyRowError("blocked", notPublishable(id));
-      if (id === OG_IMAGE && pointsAtThisComputer(state.value)) throw new PublishContentApplyRowError("blocked", localOnly(id));
+      if (!(await publishableDefinition({ ports, workspaceId, id }))) throw new PublishContentApplyRowError("blocked", notPublishable({ id }));
+      if (id === OG_IMAGE && pointsAtThisComputer({ value: state.value })) throw new PublishContentApplyRowError("blocked", localOnly({ id }));
       const { authorize } = gatewayDeps(deps, "site-setting");
       const writeDeps = { repo: ports.settings, clock: deps.clock, ids: deps.idGen, authorize, principals: createSettingsPrincipalLookup({ repo: ports.principals }) };
-      const target = { ...splitKey(id), scope: "workspace" as const, workspaceId, callerPrincipalId: principalId, authWorkspaceId: workspaceId };
+      const target = { ...splitKey({ id }), scope: "workspace" as const, workspaceId, callerPrincipalId: principalId, authWorkspaceId: workspaceId };
       const { revisionSeq } =
         state.cleared === true
           ? await clear({ deps: writeDeps, input: target })

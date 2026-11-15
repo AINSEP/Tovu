@@ -116,7 +116,7 @@ test("PURGE_REQUIRED is resolved by running the purge service first: after purge
     db.delete(workspaces).where(eq(workspaces.id, "ws-fk-3")).run();
   }, /FOREIGN KEY constraint failed/);
 
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
   const clock = { nowMs: () => Date.parse(NOW) };
   const result = await purgeTenantSettings({

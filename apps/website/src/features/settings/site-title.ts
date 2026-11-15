@@ -78,7 +78,7 @@ export async function ensureSiteTitleSettingDefinition(
  *
  * @complexity O(n) in the value's length.
  */
-export function normalizeSiteTitle(value: JsonValue | undefined): string | undefined {
+export function normalizeSiteTitle({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= SITE_TITLE_MAX_LENGTH ? trimmed : undefined;
@@ -93,7 +93,7 @@ export interface SiteTitlePreservationStorePort {
   /** Recorded workspaces whose pin has not landed yet, sorted by id. */
   listPendingWorkspaceIds(): Promise<UUID[]>;
   /** True only for a recorded workspace whose pin has not landed yet. */
-  isPending(workspaceId: UUID): Promise<boolean>;
+  isPending(required: { workspaceId: UUID }, optional?: Record<string, never>): Promise<boolean>;
   /** Resolves one pending workspace. A no-op for an unrecorded or already resolved id. */
   markPreserved(required: { workspaceId: UUID; preservedAt: string }): Promise<void>;
 }
@@ -110,7 +110,7 @@ export class InMemorySiteTitlePreservationStore implements SiteTitlePreservation
     return [...this.pending].sort();
   }
 
-  async isPending(workspaceId: UUID): Promise<boolean> {
+  async isPending({ workspaceId }: { workspaceId: UUID }, _optional = {}): Promise<boolean> {
     return this.pending.has(workspaceId);
   }
 
@@ -164,7 +164,7 @@ export async function preserveLegacySiteTitles(
   for (const workspaceId of pendingWorkspaceIds) {
     const outcome: PinOutcome = definition
       ? await pinOneWorkspace(deps, { settingId: definition.settingId, workspaceId, systemPrincipalId: input.systemPrincipalId })
-      : logPinFailure(workspaceId, "core.site/title is not registered");
+      : logPinFailure({ workspaceId, reason: "core.site/title is not registered" });
     if (outcome === "pinned") result.pinnedWorkspaceIds.push(workspaceId);
     else if (outcome === "skipped") result.skippedWorkspaceIds.push(workspaceId);
     else result.failedWorkspaceIds.push(workspaceId);
@@ -199,11 +199,11 @@ async function pinOneWorkspace(
     await deps.preservationStore.markPreserved({ workspaceId, preservedAt: clockNowIso({ clock: deps.clock }) });
     return existing ? "skipped" : "pinned";
   } catch (err) {
-    return logPinFailure(workspaceId, (err as Error).message);
+    return logPinFailure({ workspaceId, reason: (err as Error).message });
   }
 }
 
-function logPinFailure(workspaceId: UUID, reason: string): "failed" {
+function logPinFailure({ workspaceId, reason }: { workspaceId: UUID; reason: string }, _optional = {}): "failed" {
   consoleLogger.error({ message: `preserveLegacySiteTitles: workspace '${workspaceId}' stays pending, pin failed: ${reason}` });
   return "failed";
 }
@@ -253,13 +253,13 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
     // second, so a pending marker can only be followed by no value or the pin, and both render the
     // legacy title. In the other order, a pin landing between the two reads would render the
     // display name for that request.
-    const pending = await deps.preservationStore.isPending(input.workspaceId);
+    const pending = await deps.preservationStore.isPending({ workspaceId: input.workspaceId });
     const resolved = await getEffective(
       { repo: deps.settingsRepo },
       { namespace: SITE_TITLE_NAMESPACE, key: SITE_TITLE_KEY, scopeContext: { workspaceId: input.workspaceId } }
     );
     if (resolved === null) return LEGACY_SITE_TITLE;
-    const workspaceTitle = resolved.sourceLayer === "workspace" ? normalizeSiteTitle(resolved.value) : undefined;
+    const workspaceTitle = resolved.sourceLayer === "workspace" ? normalizeSiteTitle({ value: resolved.value }) : undefined;
     if (workspaceTitle !== undefined) return workspaceTitle;
     if (pending) return LEGACY_SITE_TITLE;
     return (await resolveSiteDisplayName(deps, input.workspaceId)) ?? LEGACY_SITE_TITLE;
@@ -271,8 +271,8 @@ export async function resolveSiteTitle(deps: ResolveSiteTitleDeps, input: { work
 
 /** NC-2 = B: the configured display name as it stands now (REQ-13), else the workspace row's name, each only if renderable. */
 async function resolveSiteDisplayName(deps: ResolveSiteTitleDeps, workspaceId: UUID): Promise<string | undefined> {
-  const configured = normalizeSiteTitle(deps.siteDisplayName.read());
+  const configured = normalizeSiteTitle({ value: deps.siteDisplayName.read() });
   if (configured !== undefined) return configured;
   const workspace = await deps.workspaceRepo.findById({ id: workspaceId });
-  return normalizeSiteTitle(workspace?.name);
+  return normalizeSiteTitle({ value: workspace?.name });
 }

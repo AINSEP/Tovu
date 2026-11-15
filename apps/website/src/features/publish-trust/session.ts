@@ -53,7 +53,7 @@ export type PublishSessionVerification =
   | { readonly ok: false; readonly reason: string };
 
 /** @complexity O(1). */
-function refuse(reason: string): PublishSessionVerification {
+function refuse({ reason }: { reason: string }, _optional = {}): PublishSessionVerification {
   return { ok: false, reason };
 }
 
@@ -68,7 +68,7 @@ async function sessionKey(deps: { keyring: KeyringPort; workspaceId: string }): 
 }
 
 /** @complexity O(n) in the payload length. */
-function macOf(key: Buffer, encodedPayload: string): string {
+function macOf({ key, encodedPayload }: { key: Buffer; encodedPayload: string }, _optional = {}): string {
   return createHmac("sha256", key).update(encodedPayload).digest("base64url");
 }
 
@@ -100,7 +100,7 @@ export async function mintPublishSession(
 
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const key = await sessionKey(deps);
-  return { token: `${encoded}.${macOf(key, encoded)}`, payload };
+  return { token: `${encoded}.${macOf({ key, encodedPayload: encoded })}`, payload };
 }
 
 /**
@@ -109,7 +109,7 @@ export async function mintPublishSession(
  *
  * @complexity O(n) in the token length.
  */
-function splitToken(token: unknown): { encoded: string; presentedMac: string } | string {
+function splitToken({ token }: { token: unknown }, _optional = {}): { encoded: string; presentedMac: string } | string {
   if (typeof token !== "string" || token === "") return "no session token supplied";
 
   const parts = token.split(".");
@@ -127,7 +127,7 @@ function splitToken(token: unknown): { encoded: string; presentedMac: string } |
  * @complexity O(n) in the payload length, plus one HMAC.
  */
 function macMatches({ key, encoded, presentedMac }: { key: Buffer; encoded: string; presentedMac: string }): boolean {
-  const expectedMac = macOf(key, encoded);
+  const expectedMac = macOf({ key, encodedPayload: encoded });
   const presented = Buffer.from(presentedMac, "base64url");
   const expected = Buffer.from(expectedMac, "base64url");
   return presented.length === expected.length && timingSafeEqual(presented, expected);
@@ -139,7 +139,7 @@ function macMatches({ key, encoded, presentedMac }: { key: Buffer; encoded: stri
  *
  * @complexity O(n) in the payload length.
  */
-function decodePayload(encoded: string): PublishSessionPayload | string {
+function decodePayload({ encoded }: { encoded: string }, _optional = {}): PublishSessionPayload | string {
   let payload: PublishSessionPayload;
   try {
     payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as PublishSessionPayload;
@@ -191,14 +191,14 @@ export async function verifyPublishSession(
   deps: { keyring: KeyringPort; workspaceId: string; clock: { nowIso(): string } },
   input: { token: string; expectedAudience: string }
 ): Promise<PublishSessionVerification> {
-  const split = splitToken(input.token);
-  if (typeof split === "string") return refuse(split);
+  const split = splitToken({ token: input.token });
+  if (typeof split === "string") return refuse({ reason: split });
 
   const key = await sessionKey(deps);
-  if (!macMatches({ key, ...split })) return refuse("session token signature is invalid");
+  if (!macMatches({ key, ...split })) return refuse({ reason: "session token signature is invalid" });
 
-  const payload = decodePayload(split.encoded);
-  if (typeof payload === "string") return refuse(payload);
+  const payload = decodePayload({ encoded: split.encoded });
+  if (typeof payload === "string") return refuse({ reason: payload });
 
   const refusal = claimRefusal({
     payload,
@@ -206,7 +206,7 @@ export async function verifyPublishSession(
     expectedAudience: input.expectedAudience,
     workspaceId: deps.workspaceId,
   });
-  if (refusal !== null) return refuse(refusal);
+  if (refusal !== null) return refuse({ reason: refusal });
 
   return { ok: true, payload };
 }
