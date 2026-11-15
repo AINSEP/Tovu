@@ -8,7 +8,7 @@ import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 /** DELETE moves one submission to the Trash (`FORMS_DELETE_SUBMISSION`). A submission of another
  *  form reads as not-found, same as a missing one (`deleteFormSubmission`). */
-export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
@@ -25,7 +25,7 @@ export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app
         // Slug first, id second — same rationale as `list-submissions.ts`/`get-by-id.ts`: the
         // Submissions tab URL is /admin/forms/:slug, and `FormEditor.tsx` passes that same route
         // param straight through as `formId` here.
-        const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+        const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
         if (!definition) {
           res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
           return;

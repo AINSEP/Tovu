@@ -26,10 +26,10 @@ function parseImportInput(required: { body: unknown }, _optional: Record<string,
   }
   return {
     url: input.url.trim(),
-    filename: parseOptionalStringField(input.filename, "filename"),
-    alt: parseOptionalStringField(input.alt, "alt"),
-    caption: parseOptionalStringField(input.caption, "caption"),
-    credit: parseOptionalStringField(input.credit, "credit"),
+    filename: parseOptionalStringField({ raw: input.filename, field: "filename" }),
+    alt: parseOptionalStringField({ raw: input.alt, field: "alt" }),
+    caption: parseOptionalStringField({ raw: input.caption, field: "caption" }),
+    credit: parseOptionalStringField({ raw: input.credit, field: "credit" }),
   };
 }
 

@@ -9,7 +9,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `ui.spec.md` §3.7's `RegionPlacementEditorScreen` loaded state ("an operator must be able to
  * identify what's placed without a second lookup", §5).
  */
-export const registerAdminWidgetRegionGetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

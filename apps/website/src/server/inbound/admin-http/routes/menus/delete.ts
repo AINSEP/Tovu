@@ -13,7 +13,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
  * against an already-trashed menu 404s like any other not-found — there is no separate
  * `admin.menus.delete.force` permission or `?force=true` behavior left to gate.
  */
-export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const menuId = String(req.params.menuId ?? "");

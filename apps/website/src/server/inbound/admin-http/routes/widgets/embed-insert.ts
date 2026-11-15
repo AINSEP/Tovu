@@ -9,7 +9,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * POST insert a `widgetEmbed` node into a host entry's body (SPEC-043 REQ-44/45, ADR-047 Debate
  * Fold-In Amendment 6) — the server-side, no-live-editor-required mutation path. `widgets.place`-gated.
  */
-export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

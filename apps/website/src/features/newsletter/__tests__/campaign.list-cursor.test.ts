@@ -82,7 +82,7 @@ test("campaign HTTP response keeps data and exposes the next page", async () => 
   await deps.newsletterCampaignRepo.saveCampaignRow(campaign("c2"));
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "principal" }; next(); });
-  registerAdminNewsletterListCampaignsRoute(app, deps);
+  registerAdminNewsletterListCampaignsRoute({ app, deps });
   // The sandbox disallows listening sockets, so send an actual Express request over an in-memory stream.
   async function request(query: string): Promise<{ status: number; body: unknown }> {
     const socket = new PassThrough();

@@ -29,11 +29,7 @@ const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
  * @throws {FormDefinitionNotFoundError} if neither write ran and the form id doesn't exist either.
  * @complexity O(1) — at most two writes and one read.
  */
-async function resolveFormUpdateResult(
-  writeDeps: FormWriteServiceDeps,
-  repo: FormDefinitionRepoPort,
-  params: { workspaceId: string; actor: { id: string; kind: "user" }; formId: string; body: Record<string, unknown> }
-): Promise<FormDefinitionRecord> {
+async function resolveFormUpdateResult({ writeDeps, repo, params }: { writeDeps: FormWriteServiceDeps; repo: FormDefinitionRepoPort; params: { workspaceId: string; actor: { id: string; kind: "user" }; formId: string; body: Record<string, unknown> } }, _optional?: Record<string, never>): Promise<FormDefinitionRecord> {
   const { workspaceId, actor, formId, body } = params;
 
   const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
@@ -70,7 +66,7 @@ async function resolveFormUpdateResult(
  * REQ-04). `slug` is deliberately ignored if present in the body (behavior.spec.md §1.1 — handled
  * inside `write-service.ts`'s `updateFormDefinition`, which never reads `patch.slug`).
  */
-export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -101,12 +97,12 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
         authorize: deps.authorize,
       };
 
-      const definition = await resolveFormUpdateResult(writeDeps, deps.formDefinitionRepo, {
+      const definition = await resolveFormUpdateResult({ writeDeps, repo: deps.formDefinitionRepo, params: {
         workspaceId: deps.workspaceId,
         actor,
         formId,
         body,
-      });
+      } });
 
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (err) {

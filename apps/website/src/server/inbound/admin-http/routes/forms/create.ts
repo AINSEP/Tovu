@@ -10,7 +10,7 @@ import type { FormsRouteRegistrar } from "./deps.js";
 
 /** This route's four writable POST fields, read off an untyped body in one place.
  *  @complexity O(1). */
-function parseFormCreateBody(rawBody: unknown): {
+function parseFormCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   name: string;
   slug: string;
   fields: FieldDescriptor[];
@@ -33,7 +33,7 @@ function parseFormCreateBody(rawBody: unknown): {
  * `write-service.ts`'s `createFormDefinition`, which wraps `executeCommand` (authorizes
  * `admin.forms.manage` internally — mirrors `posts/create.ts`, no separate pre-check needed).
  */
-export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -55,7 +55,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
         input: {
           workspaceId: deps.workspaceId,
           actor: { id: principal.id, kind: "user" },
-          ...parseFormCreateBody(req.body),
+          ...parseFormCreateBody({ rawBody: req.body }),
           idempotencyKey,
         },
       });

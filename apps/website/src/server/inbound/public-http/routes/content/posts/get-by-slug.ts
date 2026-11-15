@@ -28,7 +28,7 @@ function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
   });
 }
 
-export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {
+export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/content/v1/workspaces/:workspaceId/posts/:slug", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

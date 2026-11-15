@@ -25,7 +25,7 @@ interface UploadRequestFields {
 
 /** An omitted `kind` is an ordinary media upload; anything other than `media`/`document` is refused.
  *  @complexity O(1). */
-function parseUploadKind(raw: unknown): MediaKind {
+function parseUploadKind({ raw }: { raw: unknown }, _optional = {}): MediaKind {
   const kind = raw ?? "media";
   if (kind !== "media" && kind !== "document") throw new MediaValidationError({ message: "invalid media kind" });
   return kind;
@@ -42,9 +42,9 @@ function parseUploadKind(raw: unknown): MediaKind {
  *  `uploadMedia`'s `input.alt?.trim() ?? ""`), unlike `update.ts`'s PATCH route where `null` clears
  *  a possibly-non-empty existing value.
  *  @complexity O(1). */
-function parseUploadRequestFields(rawBody: unknown): UploadRequestFields | null {
+function parseUploadRequestFields({ rawBody }: { rawBody: unknown }, _optional = {}): UploadRequestFields | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  const kind = parseUploadKind(body.kind);
+  const kind = parseUploadKind({ raw: body.kind });
   const filename = typeof body.filename === "string" ? body.filename : "";
   const contentType = String(body.contentType ?? "");
   const dataBase64 = body.dataBase64;
@@ -57,9 +57,9 @@ function parseUploadRequestFields(rawBody: unknown): UploadRequestFields | null 
     filename,
     contentType,
     dataBase64,
-    alt: parseOptionalStringField(body.alt, "alt"),
-    caption: parseOptionalStringField(body.caption, "caption"),
-    credit: parseOptionalStringField(body.credit, "credit"),
+    alt: parseOptionalStringField({ raw: body.alt, field: "alt" }),
+    caption: parseOptionalStringField({ raw: body.caption, field: "caption" }),
+    credit: parseOptionalStringField({ raw: body.credit, field: "credit" }),
   };
 }
 
@@ -82,7 +82,7 @@ function parseUploadRequestFieldsOrRespond(
 ): ReturnType<typeof parseUploadRequestFields> {
   let fields: ReturnType<typeof parseUploadRequestFields>;
   try {
-    fields = parseUploadRequestFields(req.body);
+    fields = parseUploadRequestFields({ rawBody: req.body });
   } catch (error) {
     sendValidationOrInternalError({ res, error });
     return null;
@@ -141,7 +141,7 @@ function sendUploadFailure({ res, error }: { res: Response; error: unknown }): v
  * base64-inflate them through JSON. `express.json()`'s body-size limit was
  * bumped in `server/runtime/composition/app.ts` to accommodate this (see that file's comment).
  */
-export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

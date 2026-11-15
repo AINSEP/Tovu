@@ -125,10 +125,10 @@ test('forms create: unexpected command failure is private and leaves no definiti
 });
 
 test('forms authoring: supplied patch fields persist, absent fields and an absent body preserve them', async () => {
-  const { app, deps } = fixture((app, deps) => {
-    registerAdminFormsCreateRoute(app, deps);
-    registerAdminFormsAuthoringRoute(app, deps);
-    registerAdminFormsUpdateRoute(app, deps);
+  const { app, deps } = fixture(({ app, deps }) => {
+    registerAdminFormsCreateRoute({ app, deps });
+    registerAdminFormsAuthoringRoute({ app, deps });
+    registerAdminFormsUpdateRoute({ app, deps });
   });
   // Start with a valid field; the authoring patch must change its label and required flag.
   const created = await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, {

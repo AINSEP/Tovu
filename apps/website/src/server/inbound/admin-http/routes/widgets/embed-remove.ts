@@ -6,7 +6,7 @@ import type { RouteRegistrar } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** DELETE a `widgetEmbed` placement from a host entry's body (SPEC-043 REQ-44/45), `widgets.place`-gated. */
-export const registerAdminWidgetEmbedRemoveRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetEmbedRemoveRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds/:placementId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -44,7 +44,7 @@ function buildApp({ admissions, allowed = true }: { admissions?: ExternalMcpOper
   app.use(express.json());
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminExternalMcpAdmissionsRoute(app, { ...deps, authorize: allowed ? deps.authorize : async () => ({ allowed: false, reason: "no_grant" }) });
+  registerAdminExternalMcpAdmissionsRoute({ app, deps: { ...deps, authorize: allowed ? deps.authorize : async () => ({ allowed: false, reason: "no_grant" }) } });
   return app;
 }
 

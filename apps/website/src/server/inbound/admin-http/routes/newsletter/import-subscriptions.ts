@@ -10,7 +10,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * routes through the identical `saveSubscription` path (REQ-31) — one invalid `subscriberId` never
  * blocks the valid rows in the same batch.
  */
-export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterImportSubscriptionsRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/import", async (req, res) => {

@@ -10,7 +10,7 @@ import type { MembersRouteDeps } from "./deps.js";
  * transaction; only the existing Trash flows may restore or permanently delete it.
  * @complexity One permission check, one member read and the bound Trash operation.
  */
-export const registerAdminMemberDeleteRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
   app.delete("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;

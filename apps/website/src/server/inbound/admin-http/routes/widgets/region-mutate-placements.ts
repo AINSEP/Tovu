@@ -40,7 +40,7 @@ export function parseWidgetRegionPlacements({ raw }: { raw: readonly unknown[] }
  * whole-document, version-guarded write (INV-03) — never a per-placement patch endpoint, matching
  * `ui.spec.md` §4.6/§4.7's single `onSave` event over the full `placements` array.
  */
-export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

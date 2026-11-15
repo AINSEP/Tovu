@@ -17,7 +17,7 @@ import type { Response } from "express";
 /** The PUT body's fields, read off an untyped body, or `null` if `items` is not an array. `items` may
  *  be omitted only by an HTML-mode write (`mode`/`html` sent), which keeps the stored tree.
  *  @complexity O(1). */
-function parseMenuTreeRequestBody(rawBody: unknown): {
+function parseMenuTreeRequestBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   items: NavItemNode[] | undefined;
   expectedVersion: number;
   title: string | undefined;
@@ -51,7 +51,7 @@ function parseMenuTreeRequestBody(rawBody: unknown): {
  * body is deliberately unchanged — only the server-side diagnostic is added.
  *
  *  @complexity O(1). */
-function sendUpdateMenuTreeError(res: Response, err: unknown): void {
+function sendUpdateMenuTreeError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   const live = entityNotLiveResponse(err);
   if (live) {
     res.status(live.status).json(live.body);
@@ -94,11 +94,11 @@ function sendUpdateMenuTreeError(res: Response, err: unknown): void {
  * checked directly via `authorize()` (same in-route pattern as `members/disable.ts`, appropriate
  * here since this bypasses the gateway).
  */
-export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseMenuTreeRequestBody(req.body);
+    const parsedBody = parseMenuTreeRequestBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({ error: "items must be an array" });
       return;
@@ -127,7 +127,7 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
 
       res.json(toAdminMenuResponse(menu));
     } catch (err) {
-      sendUpdateMenuTreeError(res, err);
+      sendUpdateMenuTreeError({ res, err });
     }
   });
 };

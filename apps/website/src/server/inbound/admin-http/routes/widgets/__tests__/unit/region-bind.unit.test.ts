@@ -52,7 +52,7 @@ test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and
     idGen: { newId: () => `region-bind-${++counter}` },
   } as unknown as RouteDeps;
 
-  registerAdminWidgetRegionBindRoute(mockApp as any, deps);
+  registerAdminWidgetRegionBindRoute({ app: mockApp as any, deps });
   assert.ok(routeHandler, "route handler was registered");
 
   function createMockRes() {

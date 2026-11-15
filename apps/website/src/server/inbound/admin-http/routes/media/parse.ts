@@ -11,7 +11,7 @@ import { MediaValidationError } from "#src/features/media/index";
 /** Describes a rejected field's actual runtime shape for an error message — bare `typeof` collapses
  *  an array into `"object"`, which reads as misleading in a "must be a string" message.
  *  @complexity O(1). */
-function describeType(raw: unknown): string {
+function describeType({ raw }: { raw: unknown }, _optional = {}): string {
   return Array.isArray(raw) ? "array" : typeof raw;
 }
 
@@ -30,11 +30,11 @@ function describeType(raw: unknown): string {
  *
  * @complexity O(1).
  */
-export function parseOptionalStringField(raw: unknown, field: string): string | undefined {
+export function parseOptionalStringField({ raw, field }: { raw: unknown; field: string }, _optional = {}): string | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) return "";
   if (typeof raw !== "string") {
-    throw new MediaValidationError({ message: `media.${field} must be a string or null, got ${describeType(raw)}` });
+    throw new MediaValidationError({ message: `media.${field} must be a string or null, got ${describeType({ raw })}` });
   }
   return raw;
 }
@@ -51,13 +51,13 @@ export function parseOptionalStringField(raw: unknown, field: string): string | 
  *
  * @complexity O(1).
  */
-export function parseOptionalTitleField(raw: unknown): string | undefined {
+export function parseOptionalTitleField({ raw }: { raw: unknown }, _optional = {}): string | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) {
     throw new MediaValidationError({ message: "media.title cannot be cleared to null; title is required and cannot be empty" });
   }
   if (typeof raw !== "string") {
-    throw new MediaValidationError({ message: `media.title must be a string, got ${describeType(raw)}` });
+    throw new MediaValidationError({ message: `media.title must be a string, got ${describeType({ raw })}` });
   }
   return raw;
 }
@@ -72,13 +72,13 @@ export function parseOptionalTitleField(raw: unknown): string | undefined {
  *
  * @complexity O(1).
  */
-export function parseOptionalSlugField(raw: unknown): string | undefined {
+export function parseOptionalSlugField({ raw }: { raw: unknown }, _optional = {}): string | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) {
     throw new MediaValidationError({ message: "media.slug cannot be cleared to null; slug is required and cannot be empty" });
   }
   if (typeof raw !== "string") {
-    throw new MediaValidationError({ message: `media.slug must be a string, got ${describeType(raw)}` });
+    throw new MediaValidationError({ message: `media.slug must be a string, got ${describeType({ raw })}` });
   }
   return raw;
 }

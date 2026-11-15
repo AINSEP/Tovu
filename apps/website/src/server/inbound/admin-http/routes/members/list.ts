@@ -40,7 +40,7 @@ function parseMembersListQuery(query: Request["query"]): { limit?: number; curso
  * authorization gap by requiring `member.manage`, copying `disable.ts`'s
  * exact call shape (workspace-id 404 check first, then authorize).
  */
-export const registerAdminMemberListRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/members", async (req, res) => {

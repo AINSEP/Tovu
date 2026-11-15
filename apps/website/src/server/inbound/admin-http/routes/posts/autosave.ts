@@ -34,7 +34,7 @@ const REQUIRED_PERMISSION = "content.write";
  * every handler below already treats as a safe "no such row" no-op (`writeAutosave`/`readAutosave`/
  * `clearAutosave` — see `PostRepoPort`'s own doc), so no separate 404 branch is needed here.
  */
-async function resolvePostId(repo: PostRepoPort, workspaceId: string, rawParam: string): Promise<string> {
+async function resolvePostId({ repo, workspaceId, rawParam }: { repo: PostRepoPort; workspaceId: string; rawParam: string }, _optional = {}): Promise<string> {
   const resolved = await getAdminPostByIdOrSlug({ deps: { repo }, input: { workspaceId, idOrSlug: rawParam } }).catch(
     (error: unknown) => {
       // A missing post is a safe no-op for the autosave store; other lookup failures are not.
@@ -109,7 +109,7 @@ function parseAutosaveByline(
  *  reaching the repo. Author validation throws PostValidationError with the shared write error.
  *  @complexity O(n) in author length — delegates to {@link parseAutosaveCommonFields} and
  *  {@link parseAutosaveContent}. */
-function parseAutosaveBody(rawBody: unknown): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion" | "author" | "showAuthor"> | null {
+function parseAutosaveBody({ rawBody }: { rawBody: unknown }, _optional = {}): Pick<PostAutosaveSnapshot, "bodyFormat" | "bodyJson" | "bodyHtml" | "title" | "slug" | "baseVersion" | "author" | "showAuthor"> | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const common = parseAutosaveCommonFields(body);
   if (!common) return null;
@@ -150,7 +150,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
 
     let parsed: ReturnType<typeof parseAutosaveBody>;
     try {
-      parsed = parseAutosaveBody(req.body);
+      parsed = parseAutosaveBody({ rawBody: req.body });
     } catch (error) {
       if (!(error instanceof PostValidationError)) throw error;
       res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
@@ -168,7 +168,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
       savedByPrincipalId: principal.id,
     };
     try {
-      const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
+      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
       const result = await deps.postRepo.writeAutosave({ workspaceId: deps.workspaceId, id: postId, snapshot });
       res.json(result);
     } catch (error) {
@@ -181,7 +181,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
     if (!(await allowedToWrite(deps, res))) return;
 
     try {
-      const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
+      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
       const autosave = await deps.postRepo.readAutosave({ workspaceId: deps.workspaceId, id: postId });
       res.json({ autosave });
     } catch (error) {
@@ -194,7 +194,7 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
     if (!(await allowedToWrite(deps, res))) return;
 
     try {
-      const postId = await resolvePostId(deps.postRepo, deps.workspaceId, String(req.params.postId ?? ""));
+      const postId = await resolvePostId({ repo: deps.postRepo, workspaceId: deps.workspaceId, rawParam: String(req.params.postId ?? "") });
       await deps.postRepo.clearAutosave({ workspaceId: deps.workspaceId, id: postId });
       res.json({ ok: true });
     } catch (error) {

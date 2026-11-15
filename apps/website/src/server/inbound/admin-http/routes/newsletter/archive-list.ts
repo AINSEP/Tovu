@@ -5,7 +5,7 @@ import { toListsDeps, type NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** `ARCHIVE_LIST` (api.spec.md §1) — `POST .../newsletter/lists/:id/archive`. `admin.newsletter.list.manage`-gated. Rejects the default list (`NEWSLETTER_DEFAULT_LIST_PROTECTED`). */
-export const registerAdminNewsletterArchiveListRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterArchiveListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:id/archive", async (req, res) => {

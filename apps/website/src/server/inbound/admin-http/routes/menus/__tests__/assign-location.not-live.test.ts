@@ -37,7 +37,7 @@ test("assign-location: a trashed menu is refused with 409 ENTITY_IN_TRASH", asyn
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminMenuAssignLocationRoute(app, deps);
+  registerAdminMenuAssignLocationRoute({ app, deps });
 
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus/m1/locations`, {

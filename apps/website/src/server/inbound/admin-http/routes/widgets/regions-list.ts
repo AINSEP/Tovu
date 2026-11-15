@@ -11,7 +11,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `repo.memory.ts`'s `markInactive`) — a separate "list every widget_area entry including
  * currently-unbound ones" view is not built in this pass, disclosed rather than silently omitted.
  */
-export const registerAdminWidgetRegionsListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionsListRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/regions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

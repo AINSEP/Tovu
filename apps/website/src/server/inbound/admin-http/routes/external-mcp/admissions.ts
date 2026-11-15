@@ -10,7 +10,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * The legacy failure code remains until the admin client's unavailable-state contract migrates.
  * @complexity O(1) dispatch plus the server reader's bounded federation wait.
  */
-export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers/admissions", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;

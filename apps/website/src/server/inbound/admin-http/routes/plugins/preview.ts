@@ -18,15 +18,15 @@ interface PreviewDraft {
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isOptionalString = (value: unknown): boolean => value === undefined || typeof value === "string";
+const isOptionalString = ({ value }: { value: unknown }, _optional = {}): boolean => value === undefined || typeof value === "string";
 
 /** The body's draft, including the editor's unsaved meta description, or `null` when invalid.
  * @complexity O(1). */
-function parsePreviewDraft(body: unknown): PreviewDraft | null {
+function parsePreviewDraft({ body }: { body: unknown }, _optional?: Record<string, never>): PreviewDraft | null {
   if (!isPlainObject(body)) return null;
   const { postId, title, slug, bodyJson, metaDescription } = body;
   if (typeof title !== "string" || !isPlainObject(bodyJson)) return null;
-  if (!isOptionalString(postId) || !isOptionalString(slug) || !isOptionalString(metaDescription)) return null;
+  if (!isOptionalString({ value: postId }) || !isOptionalString({ value: slug }) || !isOptionalString({ value: metaDescription })) return null;
   return {
     title,
     bodyJson,
@@ -40,7 +40,7 @@ function parsePreviewDraft(body: unknown): PreviewDraft | null {
  *  (422 — the draft could not be processed), in the save routes' `PLUGIN_HOOK_FAILED` envelope with
  *  fixed preview text — never the plugin's own error; anything else names no internals.
  *  @complexity O(1). */
-function sendPluginPreviewError(res: Response, err: unknown): void {
+function sendPluginPreviewError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof PluginHookFailedError) {
     res.status(422).json(pluginHookFailedBody(err, { publicText: `a site plugin (${err.pluginId}) failed on this draft; nothing was saved` }));
     return;
@@ -68,7 +68,7 @@ function sendPluginPreviewError(res: Response, err: unknown): void {
  * without the admin plugin list (`admin.plugins.read`, which a built-in editor lacks). `enabled` is
  * the activation row's, exactly as `PLUGINS_LIST` projects it.
  */
-export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => {
+export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -96,7 +96,7 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
       const activation = await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId });
       res.json({ pluginId, enabled: activation?.enabled ?? false });
     } catch (err) {
-      sendPluginPreviewError(res, err);
+      sendPluginPreviewError({ res, err });
     }
   });
 
@@ -119,7 +119,7 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
       )
         return;
 
-      const draft = parsePreviewDraft(req.body);
+      const draft = parsePreviewDraft({ body: req.body });
       if (!draft) {
         res.status(400).json({
           error: "title (string) and bodyJson (object) are required; postId, slug and metaDescription must be strings",
@@ -149,7 +149,7 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = (app, deps) => 
       }
       res.json({ pluginId, fields });
     } catch (err) {
-      sendPluginPreviewError(res, err);
+      sendPluginPreviewError({ res, err });
     }
   });
 };

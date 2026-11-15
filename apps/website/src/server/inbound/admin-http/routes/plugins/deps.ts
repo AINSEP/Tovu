@@ -56,4 +56,4 @@ export interface PluginsRouteDeps {
   previewPluginBeforeSave: PluginBeforeSavePreview;
 }
 
-export type PluginsRouteRegistrar = (app: Express, deps: PluginsRouteDeps) => void;
+export type PluginsRouteRegistrar = (required: { app: Express; deps: PluginsRouteDeps }, optional?: Record<string, never>) => void;

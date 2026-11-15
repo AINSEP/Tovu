@@ -24,10 +24,10 @@ for (const [error, status, body] of [
     const order: unknown[] = [];
     send = async ({ input }) => { order.push(input); throw error; };
     const app = express();
-    registerAdminMemberRequestMagicLinkRoute(app, portFake<MembersRouteDeps>({ workspaceId: 'ws',
+    registerAdminMemberRequestMagicLinkRoute({ app, deps: portFake<MembersRouteDeps>({ workspaceId: 'ws',
       authorize: async input => { order.push(input); return { allowed: true, reason: 'owner' }; },
       magicLinkPerEmailLimiter: { check: async (input: Parameters<MembersRouteDeps['magicLinkPerEmailLimiter']['check']>[0]) => { order.push(input); return { allowed: true }; } },
-    }));
+    }) });
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'operator' };
     await extractRouteHandler(app, 'post', PATH)({ params: { workspaceId: 'ws' }, body: { email: ' Person@Example.com ', redirectPath: '/account' } }, res);
@@ -42,10 +42,10 @@ for (const [error, status, body] of [
 
 test('admin magic link refuses rate-limited mail without requesting delivery', async () => {
   const app = express();
-  registerAdminMemberRequestMagicLinkRoute(app, portFake<MembersRouteDeps>({ workspaceId: 'ws',
+  registerAdminMemberRequestMagicLinkRoute({ app, deps: portFake<MembersRouteDeps>({ workspaceId: 'ws',
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     magicLinkPerEmailLimiter: { check: async () => ({ allowed: false, retryAfterSeconds: 23 }) },
-  }));
+  }) });
   const { res, capture } = createCapturingResponse();
   const headers: Record<string, unknown> = {};
   res.setHeader = ((name: string, value: unknown) => { headers[name] = value; return res; }) as typeof res.setHeader;

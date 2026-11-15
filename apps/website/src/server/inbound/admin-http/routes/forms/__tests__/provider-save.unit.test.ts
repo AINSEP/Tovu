@@ -22,7 +22,7 @@ function fixture(register: FormsRouteRegistrar, overrides: Partial<FormsRouteDep
   } as FormsRouteDeps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  register(app, deps);
+  register({ app, deps });
   return { app, deps };
 }
 
@@ -33,10 +33,10 @@ test('form editor rejects provider settings before creating or replacing a saved
       ? { kind: 'embed', url: config.url, title: 'Remote', capabilities: { answers: 'Remote', validation: 'Remote', spamProtection: 'Remote' } }
       : { kind: 'unavailable', code: 'invalid_configuration', message: 'Enter the public form link supplied by your form provider.' },
   } } });
-  const { app, deps } = fixture((app, deps) => {
-    registerAdminFormsCreateRoute(app, deps);
-    registerAdminFormsAuthoringRoute(app, deps);
-    registerAdminFormsUpdateRoute(app, deps);
+  const { app, deps } = fixture(({ app, deps }) => {
+    registerAdminFormsCreateRoute({ app, deps });
+    registerAdminFormsAuthoringRoute({ app, deps });
+    registerAdminFormsUpdateRoute({ app, deps });
   }, { formCollectionProviders: () => providers });
   const body = { name: 'Contact', slug: 'contact', fields: [{ id: 'message', type: 'text', label: 'Message', required: false }] };
   const invalid = { id: 'remote', config: { url: 'invalid' } };

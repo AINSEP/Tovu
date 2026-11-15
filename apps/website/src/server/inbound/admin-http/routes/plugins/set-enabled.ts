@@ -14,7 +14,7 @@ import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** OFF commits before the existing serving runtime stops affected answers. */
-async function stopPluginAnswers(deps: PluginsRouteDeps, pluginId: string, enabled: boolean): Promise<void> {
+async function stopPluginAnswers({ deps, pluginId, enabled }: { deps: PluginsRouteDeps; pluginId: string; enabled: boolean }, _optional = {}): Promise<void> {
   if (!enabled) await lowerPluginToolAccess({ pluginId, notifyRosterChanged: deps.notifyRosterChanged, ...(deps.providerFaces ? { providerFaces: deps.providerFaces } : {}) }, {});
 }
 
@@ -47,7 +47,7 @@ async function rollbackPluginActivation(
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendSetPluginEnabledError(res: Response, err: unknown): void {
+function sendSetPluginEnabledError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ToolAccessLoweringError) {
     res.status(503).json({ error: err.message, code: err.code });
     return;
@@ -105,7 +105,7 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
  * effect so hook attachment stays consistent with the restored row. Verified against
  * `__tests__/integration/plugins-http.integration.test.ts`.
  */
-export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) => {
+export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -179,7 +179,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
         },
       });
 
-      await stopPluginAnswers(deps, pluginId, result.activation.enabled);
+      await stopPluginAnswers({ deps, pluginId, enabled: result.activation.enabled });
 
       // `setPluginEnabled` throws `PluginNotFoundError` for an id absent from this same `discovery`
       // snapshot, so reaching this line means the record is in it.
@@ -191,7 +191,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
         changeSetId,
       });
     } catch (err) {
-      sendSetPluginEnabledError(res, err);
+      sendSetPluginEnabledError({ res, err });
     }
   });
 };

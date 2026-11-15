@@ -5,7 +5,7 @@ import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** `PAUSE_CAMPAIGN` (api.spec.md §1) — `POST .../campaigns/:id/pause`, `sending` -> `paused`. `admin.newsletter.campaign.send`-gated. */
-export const registerAdminNewsletterPauseCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterPauseCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/pause", async (req, res) => {

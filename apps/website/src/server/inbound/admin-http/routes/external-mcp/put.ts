@@ -10,14 +10,14 @@ import { guardExternalMcpRequest } from "./guard.js";
 
 /** `undefined`/non-string collapses to `""` — the ordinary (non tri-state) field default this
  *  route uses for `command`/`args`/`allowedToolNames`. @complexity O(1). */
-function asStringField(value: unknown): string {
+function asStringField({ value }: { value: unknown }, _optional = {}): string {
   return typeof value === "string" ? value : "";
 }
 
 /** Carries a string field ONLY when the caller actually sent one, so `undefined` (keep what is
  *  stored) stays distinguishable from `""` (clear it). The `env` rule, applied to every field that
  *  shares its three-way meaning. @complexity O(1). */
-function optionalStringField(value: unknown, key: string): Record<string, string> {
+function optionalStringField({ value, key }: { value: unknown; key: string }, _optional = {}): Record<string, string> {
   return typeof value === "string" ? { [key]: value } : {};
 }
 
@@ -33,20 +33,20 @@ function optionalStringField(value: unknown, key: string): Record<string, string
  *
  * @complexity O(1).
  */
-function parseExternalMcpOAuthBody(rawOAuth: unknown): { oauth?: SaveExternalMcpOAuthInput } {
+function parseExternalMcpOAuthBody({ rawOAuth }: { rawOAuth: unknown }, _optional = {}): { oauth?: SaveExternalMcpOAuthInput } {
   if (rawOAuth === null || typeof rawOAuth !== "object" || Array.isArray(rawOAuth)) return {};
   const oauth = rawOAuth as Record<string, unknown>;
 
   const parsed: SaveExternalMcpOAuthInput = {
-    ...optionalStringField(oauth.providerId, "providerId"),
-    ...optionalStringField(oauth.grant, "grant"),
-    ...optionalStringField(oauth.clientId, "clientId"),
-    ...optionalStringField(oauth.clientSecret, "clientSecret"),
-    ...optionalStringField(oauth.scopes, "scopes"),
-    ...optionalStringField(oauth.tokenEnvName, "tokenEnvName"),
-    ...optionalStringField(oauth.authorizationEndpoint, "authorizationEndpoint"),
-    ...optionalStringField(oauth.tokenEndpoint, "tokenEndpoint"),
-    ...optionalStringField(oauth.deviceAuthorizationEndpoint, "deviceAuthorizationEndpoint"),
+    ...optionalStringField({ value: oauth.providerId, key: "providerId" }),
+    ...optionalStringField({ value: oauth.grant, key: "grant" }),
+    ...optionalStringField({ value: oauth.clientId, key: "clientId" }),
+    ...optionalStringField({ value: oauth.clientSecret, key: "clientSecret" }),
+    ...optionalStringField({ value: oauth.scopes, key: "scopes" }),
+    ...optionalStringField({ value: oauth.tokenEnvName, key: "tokenEnvName" }),
+    ...optionalStringField({ value: oauth.authorizationEndpoint, key: "authorizationEndpoint" }),
+    ...optionalStringField({ value: oauth.tokenEndpoint, key: "tokenEndpoint" }),
+    ...optionalStringField({ value: oauth.deviceAuthorizationEndpoint, key: "deviceAuthorizationEndpoint" }),
   };
 
   return Object.keys(parsed).length === 0 ? {} : { oauth: parsed };
@@ -60,7 +60,7 @@ function parseExternalMcpOAuthBody(rawOAuth: unknown): { oauth?: SaveExternalMcp
  *
  * @complexity O(1).
  */
-function parseExternalMcpPutBody(rawBody: unknown) {
+function parseExternalMcpPutBody({ rawBody }: { rawBody: unknown }, _optional = {}) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     ...(typeof body.label === "string" ? { label: body.label } : {}),
@@ -69,27 +69,27 @@ function parseExternalMcpPutBody(rawBody: unknown) {
     // choice it was never offered.
     transport: typeof body.transport === "string" ? body.transport : "stdio",
     enabled: body.enabled !== false,
-    command: asStringField(body.command),
+    command: asStringField({ value: body.command }),
     // Only meaningful for a remote transport, and tri-state so a stdio-shaped PUT does not clear a
     // stored endpoint.
-    ...optionalStringField(body.url, "url"),
+    ...optionalStringField({ value: body.url, key: "url" }),
     // Absent keeps an existing row's mode rather than silently demoting an OAuth connection to
     // `static_env` — which is what a toggle or rename would otherwise do.
-    ...optionalStringField(body.authMode, "authMode"),
-    args: asStringField(body.args),
-    allowedToolNames: asStringField(body.allowedToolNames),
+    ...optionalStringField({ value: body.authMode, key: "authMode" }),
+    args: asStringField({ value: body.args }),
+    allowedToolNames: asStringField({ value: body.allowedToolNames }),
     // Same `asStringField` treatment as `allowedToolNames` above — resent in full on every save, not
     // tri-state. NOTE (task #30, R-3): a non-string body value (e.g. an array) collapses to `""`
     // here, which for THIS field silently clears every write grant. Known, pre-existing behaviour of
     // `asStringField` on the sibling field too — undesirable, but it fails CLOSED, so it is not fixed
     // in this change. See `admin-external-mcp-routes.test.ts` for the pinned regression.
-    writeAllowedToolNames: asStringField(body.writeAllowedToolNames),
+    writeAllowedToolNames: asStringField({ value: body.writeAllowedToolNames }),
     // Deliberately NOT `asStringField` — see this route's doc comment. `undefined` must survive.
-    ...optionalStringField(body.env, "env"),
+    ...optionalStringField({ value: body.env, key: "env" }),
     // Same three-way meaning as `env`, and write-only: no read model returns the token.
-    ...optionalStringField(body.accessToken, "accessToken"),
-    ...optionalStringField(body.accessTokenEnvName, "accessTokenEnvName"),
-    ...parseExternalMcpOAuthBody(body.oauth),
+    ...optionalStringField({ value: body.accessToken, key: "accessToken" }),
+    ...optionalStringField({ value: body.accessTokenEnvName, key: "accessTokenEnvName" }),
+    ...parseExternalMcpOAuthBody({ rawOAuth: body.oauth }),
   };
 }
 
@@ -130,7 +130,7 @@ function parseExternalMcpPutBody(rawBody: unknown) {
  * exactly the "operator save/approve" trigger the feature's own spec calls out as the SECONDARY path,
  * next to a completed OAuth sign-in as the primary one.
  */
-export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
@@ -149,7 +149,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
           // `res.locals` (`getAuthedPrincipal` does no I/O), used ONLY to attribute a change to
           // `writeAllowedToolNames` if this save makes one.
           principalId: getAuthedPrincipal(res).id,
-          ...parseExternalMcpPutBody(req.body),
+          ...parseExternalMcpPutBody({ rawBody: req.body }),
         },
       );
 

@@ -27,7 +27,7 @@ function parseCreateSubscriptionInput(req: Request): { label: string; targetUrl:
  * `authorize()` — mirrors `members/disable.ts`'s pattern since subscription mutations are a direct
  * feature call, not routed through the SPEC-001 command gateway.
  */
-export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = (app, deps) => {
+export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

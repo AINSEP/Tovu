@@ -6,7 +6,7 @@ import type { RouteRegistrar } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** PUT an existing widget instance's config (SPEC-043 REQ-05/06), `widgets.update`-gated, OCC via `baseVersion`. */
-export const registerAdminWidgetUpdateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetUpdateRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/widgets/:id", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

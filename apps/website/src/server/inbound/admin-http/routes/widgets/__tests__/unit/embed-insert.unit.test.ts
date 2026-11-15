@@ -18,10 +18,10 @@ async function harness() {
   const entryRepo = new InMemoryEntryRepo();
   await entryRepo.save(structuredClone(host));
   let authorizations = 0;
-  registerAdminWidgetEmbedInsertRoute(app, {
+  registerAdminWidgetEmbedInsertRoute({ app, deps: {
     workspaceId: "ws-7", entryRepo,
     authorize: async () => { authorizations++; return { allowed: true, reason: "matched" }; },
-  } as any);
+  } as any });
   return {
     entryRepo,
     authorizations: () => authorizations,

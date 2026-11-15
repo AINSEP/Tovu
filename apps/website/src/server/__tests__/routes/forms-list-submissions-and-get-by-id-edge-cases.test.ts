@@ -25,9 +25,9 @@ function buildTestApp(deps: RouteDeps = createRouteDeps()): { app: express.Expre
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminFormsCreateRoute(app, deps);
-  registerAdminFormsGetRoute(app, deps);
-  registerAdminFormsListSubmissionsRoute(app, deps);
+  registerAdminFormsCreateRoute({ app, deps });
+  registerAdminFormsGetRoute({ app, deps });
+  registerAdminFormsListSubmissionsRoute({ app, deps });
   return { app, deps };
 }
 

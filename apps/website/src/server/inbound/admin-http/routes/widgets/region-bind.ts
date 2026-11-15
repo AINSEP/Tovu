@@ -11,7 +11,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * counterpart to REQ-13's (currently unwired, see the implementation-outline addendum) automatic
  * on-theme-activation seeding.
  */
-export const registerAdminWidgetRegionBindRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetRegionBindRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/regions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

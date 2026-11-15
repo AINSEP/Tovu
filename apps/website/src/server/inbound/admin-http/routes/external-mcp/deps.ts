@@ -19,4 +19,4 @@ export type ExternalMcpRouteDeps = Pick<
   "workspaceId" | "authorize" | "clock" | "externalMcpServerRepo" | "builtInExternalMcpServerIds" | "externalMcpToolApprovalRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "observability" | "externalMcpAdmissions"
 >;
 
-export type ExternalMcpRouteRegistrar = (app: Express, deps: ExternalMcpRouteDeps) => void;
+export type ExternalMcpRouteRegistrar = (required: { app: Express; deps: ExternalMcpRouteDeps }, optional?: Record<string, never>) => void;

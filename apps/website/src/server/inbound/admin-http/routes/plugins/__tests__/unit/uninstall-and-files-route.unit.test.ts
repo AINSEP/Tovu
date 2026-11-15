@@ -58,8 +58,8 @@ function appWith(deps: PluginsRouteDeps) {
     res.locals.principal = { id: "owner" };
     next();
   });
-  registerPluginUninstallRoute(app, deps);
-  registerPluginFilesRoute(app, deps);
+  registerPluginUninstallRoute({ app, deps });
+  registerPluginFilesRoute({ app, deps });
   return app;
 }
 

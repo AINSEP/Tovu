@@ -9,7 +9,7 @@ import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entit
 
 /** Reads+trims `locationKey` off the body in one place; `null` means missing or blank.
  *  @complexity O(1). */
-function parseLocationKey(rawBody: unknown): string | null {
+function parseLocationKey({ rawBody }: { rawBody: unknown }, _optional = {}): string | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   const locationKey = String(body.locationKey ?? "").trim();
   return locationKey || null;
@@ -52,11 +52,11 @@ function sendAssignLocationError(
  * Gated by `admin.menus.assign` (ADR-PIPE-012 D-1/D-2/D-9 — renamed/split from the old flat
  * navigation permission), checked directly via `authorize()` (same pattern as `create.ts`).
  */
-export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus/:menuId/locations", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const locationKey = parseLocationKey(req.body);
+    const locationKey = parseLocationKey({ rawBody: req.body });
     if (!locationKey) {
       res.status(400).json({ error: "locationKey is required" });
       return;

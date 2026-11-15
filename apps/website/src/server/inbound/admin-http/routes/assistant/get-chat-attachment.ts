@@ -93,10 +93,10 @@ export function registerAdminChatAttachmentReadRoute(
 
       const sniffed = sniffContentType({ bytes: result.bytes });
       const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
-      sendMediaOriginalResponse(res, result.bytes, parseRangeHeader({ header: req.get("range"), totalLength: result.bytes.byteLength }), {
+      sendMediaOriginalResponse({ res, bytes: result.bytes, range: parseRangeHeader({ header: req.get("range"), totalLength: result.bytes.byteLength }), contentType: {
         safe: forceDownload ? "application/octet-stream" : sniffed,
         forceDownload,
-      });
+      } });
     } catch (error) {
       // `readChatAttachmentForOwner` classifies every expected failure as a refusal rather than
       // throwing, so anything reaching here is genuinely unexpected (a filesystem fault between the

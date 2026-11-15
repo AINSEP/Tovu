@@ -9,7 +9,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 /** This route's three body fields, read off an untyped body in one place, or `null` if a present
  *  `items` isn't an array.
  *  @complexity O(1). */
-function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; items: NavItemNode[] | undefined; authoring: MenuHtmlAuthoring } | null {
+function parseMenuCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { title: string; slug: string; items: NavItemNode[] | undefined; authoring: MenuHtmlAuthoring } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   if (body.items !== undefined && !Array.isArray(body.items)) {
     return null;
@@ -35,11 +35,11 @@ function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; i
  * are a direct feature call, not routed through the SPEC-001 command gateway (see `update-tree.ts`'s
  * doc for why).
  */
-export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuCreateRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/menus", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseMenuCreateBody(req.body);
+    const parsedBody = parseMenuCreateBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({ error: "items must be an array" });
       return;

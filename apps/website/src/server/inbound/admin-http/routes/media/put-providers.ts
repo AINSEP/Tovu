@@ -28,7 +28,7 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  * id, wrong field type, oversized field), 503 `SECRET_STORE_UNCONFIGURED` (missing
  * `TOVU_SITE_KEY`, detected before any write lands), 500 everything else.
  */
-export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = (app, deps) => {
+export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/media/providers", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

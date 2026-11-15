@@ -21,7 +21,7 @@ const LAST_DELIVERY_LOOKUP_LIMIT = 50;
  * Gated by `admin.integrations.manage`, same reasoning as `deliveries.ts` (no split `.read` permission
  * exists for this domain).
  */
-export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = (app, deps) => {
+export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

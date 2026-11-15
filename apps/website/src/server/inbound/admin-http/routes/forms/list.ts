@@ -6,7 +6,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 
 /** GET the workspace's form definitions (`FORMS_LIST_DEFINITIONS`, api.spec.md §1). */
-export const registerAdminFormsListRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsListRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

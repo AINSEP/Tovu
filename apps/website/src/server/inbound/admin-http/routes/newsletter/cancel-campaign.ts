@@ -10,7 +10,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * campaign.compose`-gated (cancel is a compose-tier transition per `campaign.ts`'s
  * `transitionCampaignStatus`). Returns the canceled campaign (200), not `204`.
  */
-export const registerAdminNewsletterCancelCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterCancelCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/cancel", async (req, res) => {

@@ -7,7 +7,7 @@ import type { FormsRouteRegistrar } from "./deps.js";
 /** List public settings from the same current registry the assistant uses; no vendor or database I/O.
  * Registered before the form-id route so the discovery name cannot resolve as a form slug.
  * @complexity O(p) time/space for registered providers and their bounded public descriptions. */
-export const registerAdminFormsProvidersRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsProvidersRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/_providers", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {

@@ -12,7 +12,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `NewsletterCampaignRepoPort.list`), mirroring `members/list.ts`'s identical "no read-service
  * wrapper, call the repo directly" precedent.
  */
-export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns", async (req, res) => {

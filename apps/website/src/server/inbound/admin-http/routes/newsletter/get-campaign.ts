@@ -5,7 +5,7 @@ import type { NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** `GET_CAMPAIGN` (api.spec.md §1) — fetch a single campaign. `admin.newsletter.read`-gated. */
-export const registerAdminNewsletterGetCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterGetCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id", async (req, res) => {

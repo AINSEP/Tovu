@@ -92,7 +92,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   // structural supertype of it — same cast the existing `post-template-site-serving.test.ts` uses at
   // its own identical call site.
   createContentModule(deps as never).registerRoutes?.(app);
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

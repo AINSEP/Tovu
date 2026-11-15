@@ -98,14 +98,14 @@ function isProjectKeyUseInput(input: Record<string, unknown> | null, _optional =
   return !!input && typeof input.use === "boolean" && !Object.keys(input).some(key => key !== "use");
 }
 
-const internalError = (res: Response, error: unknown) => sendAdminFailure({ res, error });
+const internalError = ({ res, error }: { res: Response; error: unknown }, _optional = {}) => sendAdminFailure({ res, error });
 
 export function registerPluginProviderSettingsRoutes(app: Express, deps: ProviderSettingsRouteDeps): void {
   app.get(PATH, async (req, res) => {
     try {
       const card = await resolveCard({ req, res, deps, permission: "admin.plugins.read" });
       if (card) res.json(await cardOf(card));
-    } catch (error) { internalError(res, error); }
+    } catch (error) { internalError({ res, error }); }
   });
   app.put(PATH, async (req, res) => {
     try {
@@ -115,7 +115,7 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
       if ("refusal" in saved) { res.status(saved.refusal.code === "PROVIDER_SETTINGS_UNAVAILABLE" ? 503 : 400).json(saved.refusal); return; }
       const attached = deps.projectKeys ? await deps.projectKeys.savedResult({ result: saved }) as typeof saved : saved;
       res.json({ ...(await cardOf(card)), appliesAt: attached.appliesAt, ...(attached.message ? { message: attached.message } : {}) });
-    } catch (error) { internalError(res, error); }
+    } catch (error) { internalError({ res, error }); }
   });
   registerProjectKeyUseRoute(app, deps);
 }
@@ -144,7 +144,7 @@ function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDep
       res.json(await deps.projectKeys.use({ keyId, use: input.use }));
     } catch (error) {
       if (error instanceof Error && error.name === "ToolInputError") { res.status(400).json({ error: error.message }); return; }
-      internalError(res, error);
+      internalError({ res, error });
     }
   });
 }

@@ -105,7 +105,7 @@ test("widget list filters type and only the literal true query includes inactive
     [{ widgetType: ["text"], includeInactive: true }, ["nav-active", "text-active"]],
   ] as const;
   for (const [query, ids] of cases) {
-    const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute(app, deps), { workspaceId: WS, entryRepo, authorize: allow }, `${ROOT}/widgets`, {}, query);
+    const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute({ app, deps }), { workspaceId: WS, entryRepo, authorize: allow }, `${ROOT}/widgets`, {}, query);
     assert.equal(capture.statusCode, 200);
     const body = capture.jsonBody as { widgets: { id: string; config: object }[] };
     assert.deepEqual(body.widgets.map((widget) => widget.id).sort(), ids);
@@ -121,14 +121,14 @@ test("widget list identifies corrupt rows and removes diagnostic keys after the 
     bodyJson: null, fieldsJson: {}, publishedAt: "2026-09-01T00:00:00Z", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 3 };
   await entryRepo.save(bad);
   const deps = { workspaceId: WS, entryRepo, authorize: allow };
-  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute(app, deps), deps, `${ROOT}/widgets`);
+  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute({ app, deps }), deps, `${ROOT}/widgets`);
   assert.equal(capture.statusCode, 200);
   const body = capture.jsonBody as { widgets: { id: string }[]; skippedCount: number; skippedIds: string[] };
   assert.deepEqual(body.widgets.map((widget) => widget.id).sort(), ["nav-active", "text-active"]);
   assert.equal(body.skippedCount, 1);
   assert.deepEqual(body.skippedIds, ["corrupt"]);
   await entryRepo.save({ ...bad, fieldsJson: { ext: { widget: { payload: '{"widgetType":"text","status":"active","config":{"body":"Repaired"}}' } } } });
-  const repaired = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute(app, deps), deps, `${ROOT}/widgets`);
+  const repaired = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetListRoute({ app, deps }), deps, `${ROOT}/widgets`);
   assert.equal(repaired.statusCode, 200);
   assert.deepEqual(Object.keys(repaired.jsonBody as object), ["widgets"]);
   assert.deepEqual((repaired.jsonBody as { widgets: { id: string }[] }).widgets.map((widget) => widget.id).sort(), ["corrupt", "nav-active", "text-active"]);
@@ -149,7 +149,7 @@ test("widget get resolves a slug and discloses the resolved instance's region an
   await entryRefsRepo.rebuildForWorkspace({ workspaceId: "foreign", refs: [
     { workspaceId: "foreign", sourceEntryId: "private-page", sourceKind: "widget-embed", fieldPath: "bodyJson.content[0]", targetKind: "entry", targetId: "text-active" },
   ] });
-  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetGetRoute(app, deps), { workspaceId: WS, entryRepo, entryRefsRepo, authorize: allow }, `${ROOT}/widgets/:id`, { id: "footer-note" });
+  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetGetRoute({ app, deps }), { workspaceId: WS, entryRepo, entryRefsRepo, authorize: allow }, `${ROOT}/widgets/:id`, { id: "footer-note" });
   assert.equal(capture.statusCode, 200);
   assert.deepEqual(capture.jsonBody, {
     widget: { id: "text-active", workspaceId: WS, slug: "footer-note", title: "Title text-active", status: "active", widgetType: "text",
@@ -174,7 +174,7 @@ test("widget region get resolves healthy widget types and retains disabled, miss
     fieldsJson: { ext: { widgets: { payload: JSON.stringify({ regionKey: "footer", doc: { schemaVersion: 1, placements } }) } } },
     bodyJson: null, publishedAt: "2026-09-01T00:00:00Z", createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 4 });
   const reads: unknown[] = [];
-  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetRegionGetRoute(app, deps), { workspaceId: WS, entryRepo, authorize: allow,
+  const capture = await invoke(({ app, deps }, _options = {}) => registerAdminWidgetRegionGetRoute({ app, deps }), { workspaceId: WS, entryRepo, authorize: allow,
     widgetBindingRepo: { async findByRegion(input: unknown) {
       reads.push(input);
       return { areaEntryId: "footer-area" };

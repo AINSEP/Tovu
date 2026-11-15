@@ -44,12 +44,12 @@ function buildTestApp(): { app: express.Express; deps: MenuRouteDeps } {
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMenuListRoute(app, deps);
-  registerAdminMenuGetRoute(app, deps);
-  registerAdminMenuCreateRoute(app, deps);
-  registerAdminMenuUpdateTreeRoute(app, deps);
-  registerAdminMenuAssignLocationRoute(app, deps);
-  registerAdminMenuDeleteRoute(app, deps);
+  registerAdminMenuListRoute({ app, deps });
+  registerAdminMenuGetRoute({ app, deps });
+  registerAdminMenuCreateRoute({ app, deps });
+  registerAdminMenuUpdateTreeRoute({ app, deps });
+  registerAdminMenuAssignLocationRoute({ app, deps });
+  registerAdminMenuDeleteRoute({ app, deps });
   return { app, deps };
 }
 
@@ -783,7 +783,7 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute(app, deps);
+  registerAdminMenuUpdateTreeRoute({ app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -852,7 +852,7 @@ test("update-tree logs the original error with or without a stack and returns an
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute(app, deps);
+  registerAdminMenuUpdateTreeRoute({ app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
@@ -944,7 +944,7 @@ test("update-tree: a thrown non-Error value is logged via String() and still ans
     navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}),
   };
   const app = express();
-  registerAdminMenuUpdateTreeRoute(app, deps);
+  registerAdminMenuUpdateTreeRoute({ app, deps });
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
   assert.ok(ownerUser, "expected the seeded admin user");
@@ -1040,7 +1040,7 @@ test("assign-location returns 400 for an absent body when mounted without a body
   const { deps } = buildTestApp();
   await deps.identityReady;
   const app = express();
-  registerAdminMenuAssignLocationRoute(app, deps);
+  registerAdminMenuAssignLocationRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   // A parser failure occurs before the route's catch; bound the request if it never responds.
@@ -1094,7 +1094,7 @@ test("assign-location: a menu save that loses its compare-and-set is a 409 VERSI
   };
   const deps: MenuRouteDeps = { ...createRouteDeps(), menuRepo: losingMenuRepo, navLocationBindingRepo: new InMemoryNavLocationBindingRepo({}) };
   const app = express();
-  registerAdminMenuAssignLocationRoute(app, deps);
+  registerAdminMenuAssignLocationRoute({ app, deps });
 
   await deps.identityReady;
   const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });

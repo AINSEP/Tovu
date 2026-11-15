@@ -34,14 +34,14 @@ function buildDeps(rows: FormDefinitionRecord[]) {
         return rows.find((r) => r.id === input.id) ?? null;
       },
     },
-  } as unknown as Parameters<typeof resolveFormDefinitionByIdOrSlug>[0];
+  } as unknown as Parameters<typeof resolveFormDefinitionByIdOrSlug>[0]["deps"];
   return { deps, slugLookups, idLookups };
 }
 
 test("resolveFormDefinitionByIdOrSlug: a mixed-case, padded slug in the URL resolves the lowercase slug", async () => {
   const { deps, slugLookups, idLookups } = buildDeps([definition("def-1", "contact-form")]);
 
-  const found = await resolveFormDefinitionByIdOrSlug(deps, "  Contact-Form ");
+  const found = await resolveFormDefinitionByIdOrSlug({ deps, formId: "  Contact-Form " });
 
   assert.equal(found?.id, "def-1");
   assert.deepEqual(slugLookups, ["contact-form"]);
@@ -51,7 +51,7 @@ test("resolveFormDefinitionByIdOrSlug: a mixed-case, padded slug in the URL reso
 test("resolveFormDefinitionByIdOrSlug: falls back to the raw, un-normalized id when no slug matches", async () => {
   const { deps, idLookups } = buildDeps([definition("Def-ABC", "newsletter")]);
 
-  const found = await resolveFormDefinitionByIdOrSlug(deps, "Def-ABC");
+  const found = await resolveFormDefinitionByIdOrSlug({ deps, formId: "Def-ABC" });
 
   assert.equal(found?.slug, "newsletter");
   assert.deepEqual(idLookups, ["Def-ABC"]);
@@ -60,7 +60,7 @@ test("resolveFormDefinitionByIdOrSlug: falls back to the raw, un-normalized id w
 test("resolveFormDefinitionByIdOrSlug: when one row's slug equals another row's id, the slug wins", async () => {
   const { deps } = buildDeps([definition("shared", "other-slug"), definition("def-2", "shared")]);
 
-  const found = await resolveFormDefinitionByIdOrSlug(deps, "shared");
+  const found = await resolveFormDefinitionByIdOrSlug({ deps, formId: "shared" });
 
   assert.equal(found?.id, "def-2");
 });
@@ -68,5 +68,5 @@ test("resolveFormDefinitionByIdOrSlug: when one row's slug equals another row's 
 test("resolveFormDefinitionByIdOrSlug: neither a slug nor an id is null", async () => {
   const { deps } = buildDeps([definition("def-1", "contact-form")]);
 
-  assert.equal(await resolveFormDefinitionByIdOrSlug(deps, "nothing-here"), null);
+  assert.equal(await resolveFormDefinitionByIdOrSlug({ deps, formId: "nothing-here" }), null);
 });

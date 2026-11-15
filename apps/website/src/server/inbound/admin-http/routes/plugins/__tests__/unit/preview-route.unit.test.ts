@@ -39,7 +39,7 @@ async function boot(
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
   app.use(express.json());
-  registerPluginPreviewRoute(app, deps);
+  registerPluginPreviewRoute({ app, deps });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   t.after(() => server.close());

@@ -116,12 +116,7 @@ export const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
  * exists but its source blob does not (see the inline comment at the throw site).
  * @complexity O(1) — at most two indexed lookups for the media row (slug, then id), plus one blob lookup.
  */
-export async function resolveMediaOriginalBlob(
-  deps: Pick<MediaRouteDeps, "mediaRepo" | "assetBlobRepo">,
-  res: Response,
-  params: { workspaceId: string; mediaId: string },
-  onNotFound?: (res: Response) => void
-): Promise<{ media: MediaRecord; blob: NonNullable<Awaited<ReturnType<MediaRouteDeps["assetBlobRepo"]["findByHash"]>>> } | null> {
+export async function resolveMediaOriginalBlob({ deps, res, params }: { deps: Pick<MediaRouteDeps, "mediaRepo" | "assetBlobRepo">; res: Response; params: { workspaceId: string; mediaId: string } }, { onNotFound }: { onNotFound?: (res: Response) => void } = {}): Promise<{ media: MediaRecord; blob: NonNullable<Awaited<ReturnType<MediaRouteDeps["assetBlobRepo"]["findByHash"]>>> } | null> {
   const media = await findMediaByIdOrSlug({ deps: { mediaRepo: deps.mediaRepo }, input: { workspaceId: params.workspaceId, idOrSlug: params.mediaId } });
   if (!media) {
     if (onNotFound) {
@@ -156,12 +151,7 @@ export async function resolveMediaOriginalBlob(
  *
  * @complexity O(1) aside from the byte copy for a partial range.
  */
-export function sendMediaOriginalResponse(
-  res: Response,
-  bytes: Uint8Array,
-  range: ParsedRange,
-  contentType: { safe: string; forceDownload: boolean }
-): void {
+export function sendMediaOriginalResponse({ res, bytes, range, contentType }: { res: Response; bytes: Uint8Array; range: ParsedRange; contentType: { safe: string; forceDownload: boolean } }, _optional = {}): void {
   const totalLength = bytes.byteLength;
   res.set("X-Content-Type-Options", "nosniff");
   res.set("Content-Security-Policy", contentType.safe === "image/svg+xml"
@@ -189,7 +179,7 @@ export function sendMediaOriginalResponse(
   res.status(200).send(Buffer.from(bytes));
 }
 
-export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/original", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -205,7 +195,7 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
       } });
       if (!authorized) return;
 
-      const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId });
+      const resolved = await resolveMediaOriginalBlob({ deps, res, params: { workspaceId: deps.workspaceId, mediaId } });
       if (!resolved) {
         return;
       }
@@ -249,9 +239,9 @@ async function sendDocumentOriginal({ req, res, deps, media, blob }: SendOrigina
   // `encodeURIComponent` would otherwise reject with a URIError.
   const encoded = encodeURIComponent(Buffer.from(filename).toString("utf8")).replace(/[!'()*]/g, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
   res.set("Content-Disposition", `attachment; filename="document"; filename*=UTF-8''${encoded}`);
-  sendMediaOriginalResponse(res, sourceBytes, parseRangeHeader({ header: req.get("range"), totalLength: sourceBytes.byteLength }), {
+  sendMediaOriginalResponse({ res, bytes: sourceBytes, range: parseRangeHeader({ header: req.get("range"), totalLength: sourceBytes.byteLength }), contentType: {
     safe: documentContentType({ filename: media.originalFilename ?? "" }), forceDownload: false,
-  });
+  } });
 }
 
 /**
@@ -273,8 +263,8 @@ async function sendInlineOriginal({ req, res, deps, blob }: SendOriginalInput): 
   // since none of its bytes are safe to cache across principals/permission changes). See
   // `sendMediaOriginalResponse` for the rest of the security headers.
   const range = parseRangeHeader({ header: req.get("range"), totalLength });
-  sendMediaOriginalResponse(res, bytes, range, {
+  sendMediaOriginalResponse({ res, bytes, range, contentType: {
     safe: forceDownload ? "application/octet-stream" : sniffed,
     forceDownload,
-  });
+  } });
 }

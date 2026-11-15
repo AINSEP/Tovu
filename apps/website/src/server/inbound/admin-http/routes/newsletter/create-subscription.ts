@@ -11,7 +11,7 @@ const VALID_SOURCES = new Set(["admin", "import", "api"]);
  * `admin.newsletter.subscriber.manage`-gated. `subscriberId` must resolve to an existing Members
  * principal (REQ-10); `source` defaults to `admin`.
  */
-export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions", async (req, res) => {

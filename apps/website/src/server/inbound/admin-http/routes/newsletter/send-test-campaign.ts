@@ -10,7 +10,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * subscriber list (REQ-20) — `sendTestCampaign` itself enforces the 1-10 bound and evaluates the
  * Launch Gate with `isTestSend: true` (only preconditions (c)/(d), never (a)/(b)).
  */
-export const registerAdminNewsletterSendTestCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterSendTestCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send-test", async (req, res) => {

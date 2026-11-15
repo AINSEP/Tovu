@@ -32,7 +32,7 @@ test("update-tree: a trashed menu is refused with 409 ENTITY_IN_TRASH", async (t
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminMenuUpdateTreeRoute(app, deps);
+  registerAdminMenuUpdateTreeRoute({ app, deps });
 
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/ws-1/menus/m1`, {
@@ -57,7 +57,7 @@ test("update-tree persists changed live metadata and ordered items; missing-vers
   const app = express();
   app.use(express.json());
   app.use((_req: Request, res: Response, next: NextFunction) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminMenuUpdateTreeRoute(app, deps as any);
+  registerAdminMenuUpdateTreeRoute({ app, deps: deps as any });
   const baseUrl = await startTestServer(app, t);
   const items = [
     { id: "second", label: "About", target: { kind: "url" as const, href: "/about" } },

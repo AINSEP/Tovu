@@ -729,9 +729,8 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       // just above (2026-09-23 oracle close, S2b) — `resolveMediaOriginalBlob`'s own default 404
       // (a bare `{error: "media '<x>' was not found"}`, no Cache-Control at all) stays reserved for
       // its authenticated admin caller; see that function's `onNotFound` doc.
-      const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId: assetId }, (r) =>
-        sendMediaNotFound(r, "video rendition not found")
-      );
+      const resolved = await resolveMediaOriginalBlob({ deps, res, params: { workspaceId: deps.workspaceId, mediaId: assetId } }, { onNotFound: (r) =>
+        sendMediaNotFound(r, "video rendition not found") });
       if (!resolved) {
         return;
       }
@@ -753,10 +752,10 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       const bytes = sniffed === "image/svg+xml" ? await sanitizeSvg({ bytes: sourceBytes }) : sourceBytes;
       const totalLength = bytes.byteLength;
       const range = parseRangeHeader({ header: req.get("range"), totalLength });
-      sendMediaOriginalResponse(res, bytes, range, {
+      sendMediaOriginalResponse({ res, bytes, range, contentType: {
         safe: sniffed,
         forceDownload: DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed),
-      });
+      } });
     } catch {
       res.status(500).json({ error: "internal error" });
     }

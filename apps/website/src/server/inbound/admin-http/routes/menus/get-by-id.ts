@@ -10,7 +10,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
  * Gated by `admin.menus.read` (ADR-PIPE-012 D-1/D-2/D-9 — renamed/split from
  * the old flat navigation permission).
  */
-export const registerAdminMenuGetRoute: MenuRouteRegistrar = (app, deps) => {
+export const registerAdminMenuGetRoute: MenuRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/menus/:menuId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

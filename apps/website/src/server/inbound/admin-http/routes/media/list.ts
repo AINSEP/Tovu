@@ -13,7 +13,7 @@ import type { MediaRouteRegistrar } from "./deps.js";
  * GET all media in the workspace (all statuses — active + trashed; mirrors `listAdminPosts`).
  * Gated by `media.read` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
-export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaListRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -22,7 +22,7 @@ import type { MembersRouteDeps } from "./deps.js";
  * exact call shape (workspace-id 404 check first, then authorize, with
  * `entityId: memberId`).
  */
-export const registerAdminMemberGetRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberGetRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/members/:memberId", async (req, res) => {

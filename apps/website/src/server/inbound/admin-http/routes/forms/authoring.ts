@@ -22,7 +22,7 @@ function authoringPatch({ body }: { body: Record<string, unknown> }, _options = 
 
 /** Separate authoring endpoint avoids changing the shared-tree CRUD route. Both permissions and
  * the audit boundary live in the write service, covering route and future tool callers alike. */
-export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/forms/:formId/authoring", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {

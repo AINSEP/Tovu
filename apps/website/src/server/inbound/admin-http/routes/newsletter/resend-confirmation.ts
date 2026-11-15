@@ -16,7 +16,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * caller-supplied email, so that 404 does not itself leak subscriber existence the way an
  * email-keyed public route's 404 would).
  */
-export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterResendConfirmationRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/subscriptions/:id/resend-confirmation", async (req, res) => {

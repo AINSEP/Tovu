@@ -13,7 +13,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * 2026-08-03) — present only when `listWidgetInstances` dropped malformed records, so a client
  * can identify the records that could not be read without every caller handling new keys.
  */
-export const registerAdminWidgetListRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetListRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

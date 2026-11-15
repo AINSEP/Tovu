@@ -7,7 +7,7 @@ import type { FormsRouteRegistrar } from "./deps.js";
 import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 /** GET one form definition by id (`FORMS_GET_DEFINITION`, REQ-04). */
-export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsGetRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -26,7 +26,7 @@ export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
       // Every WRITE below resolves through the loaded record's real `.id` instead of this route
       // param, so the PUT route needs no matching id-or-slug support (see `use-form-editor.hooks.ts`'s
       // own comment on its update mutation).
-      const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+      const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
       if (!definition) {
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;

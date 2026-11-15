@@ -16,7 +16,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * because the running assistant still holds the open connection and lists the tools until it
  * restarts. The delete itself is unchanged and permanent.
  */
-export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;

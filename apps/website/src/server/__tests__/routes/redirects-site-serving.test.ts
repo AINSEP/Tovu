@@ -34,7 +34,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRedirectCreateRoute({ app, deps });
   registerAdminRedirectUpdateRoute({ app, deps });
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

@@ -16,7 +16,7 @@ const ranked = [
   { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminAssistantGetSettingsRoute(app, deps), method: "GET", path: "assistant/settings", step: "assistant.settings.load", message: "Assistant settings could not be loaded." },
   { register: registerAdminPageListRoute, method: "GET", path: "pages", step: "pages.list", message: "Pages could not be loaded." },
   { register: registerAdminPageUpdateRoute, method: "PUT", path: "pages/p1", step: "pages.save", message: "The page could not be saved." },
-  { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminMediaListRoute(app, deps), method: "GET", path: "media", step: "media.list", message: "The media library could not be loaded." },
+  { register: ({ app, deps }: { app: express.Express; deps: never }, _options: Record<string, never> = {}) => registerAdminMediaListRoute({ app, deps }), method: "GET", path: "media", step: "media.list", message: "The media library could not be loaded." },
   { register: registerAdminPostUpdateRoute, method: "PUT", path: "posts/p1", step: "posts.save", message: "The post could not be saved." },
 ];
 

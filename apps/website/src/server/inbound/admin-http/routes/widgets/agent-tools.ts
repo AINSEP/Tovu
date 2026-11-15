@@ -185,7 +185,7 @@ function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["f
 
 /** `widgets.place` — reference an EXISTING widget instance into a target. Distinct from
  * `widgets.create` (REQ-35, AC-25): this call never creates a new instance. */
-const registerPlaceTool: RouteRegistrar = (app, deps) => {
+const registerPlaceTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/place", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
@@ -207,7 +207,7 @@ const registerPlaceTool: RouteRegistrar = (app, deps) => {
 
 /** `widgets.create` — create a NEW widget instance and place it in one call. Distinct from
  * `widgets.place` (REQ-35, AC-25). */
-const registerCreateTool: RouteRegistrar = (app, deps) => {
+const registerCreateTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/create", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
@@ -252,7 +252,7 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
 
 /** `widgets.remove` — remove a PLACEMENT (region entry or embed node), never the widget instance
  * itself (that's `widgets.delete`/`.delete.force` via the ordinary CRUD routes). */
-const registerRemoveTool: RouteRegistrar = (app, deps) => {
+const registerRemoveTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets/tools/remove", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     const body = req.body ?? {};
@@ -276,7 +276,7 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
 /** `widgets.diagnose` — read-only: where-used + broken-reference state for one instance, sourced
  * entirely from the already-queryable `entry_refs` index (ADR-047 §5: "a broken widget reference
  * is already a queryable, first-class state, not new detection logic to build"). */
-const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
+const registerDiagnoseTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
@@ -299,9 +299,9 @@ const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
   });
 };
 
-export const registerAdminWidgetAgentToolsRoutes: RouteRegistrar = (app, deps) => {
-  registerPlaceTool(app, deps);
-  registerCreateTool(app, deps);
-  registerRemoveTool(app, deps);
-  registerDiagnoseTool(app, deps);
+export const registerAdminWidgetAgentToolsRoutes: RouteRegistrar = ({ app, deps }, _options = {}) => {
+  registerPlaceTool({ app, deps });
+  registerCreateTool({ app, deps });
+  registerRemoveTool({ app, deps });
+  registerDiagnoseTool({ app, deps });
 };

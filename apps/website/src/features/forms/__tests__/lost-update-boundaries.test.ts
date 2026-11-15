@@ -46,7 +46,7 @@ test("form authoring maps a stale version to 409 and malformed versions to 400",
   repo.update = async () => { throw new RecordVersionConflictError({ recordKind: "form", recordId: "form", expectedVersion: 1, currentVersion: 2 }); };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "editor" }; next(); });
-  registerAdminFormsAuthoringRoute(app, deps as FormsRouteDeps);
+  registerAdminFormsAuthoringRoute({ app, deps: deps as FormsRouteDeps });
   const path = "/api/admin/v1/workspaces/ws/forms/form/authoring";
   const stale = await dispatchJsonRequest(app, "PUT", path, { name: "Edit", expectedVersion: 1 });
   assert.equal(stale.status, 409);

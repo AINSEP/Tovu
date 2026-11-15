@@ -15,7 +15,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
-function sendPageCreateError(res: Response, err: unknown): void {
+function sendPageCreateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (sendPluginHookFailedError(res, err)) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({
@@ -116,7 +116,7 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = ({ app, deps 
 
         res.status(201).json(toAdminPostResponse(result.post));
       } catch (err) {
-        sendPageCreateError(res, err);
+        sendPageCreateError({ res, err });
       }
     }
   );

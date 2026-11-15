@@ -14,7 +14,7 @@ export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "remo
   ClockDeps &
   MediaDeps;
 
-export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
+export type MediaRouteRegistrar = (required: { app: Express; deps: MediaRouteDeps }, optional?: Record<string, never>) => void;
 
 /**
  * Widened (not narrowed) slice for the TWO public routes typed against it via
@@ -62,4 +62,4 @@ export type MediaProviderRouteDeps = Pick<
   | "siteAssistantSecretKeyring"
 >;
 
-export type MediaProviderRouteRegistrar = (app: Express, deps: MediaProviderRouteDeps) => void;
+export type MediaProviderRouteRegistrar = (required: { app: Express; deps: MediaProviderRouteDeps }, optional?: Record<string, never>) => void;

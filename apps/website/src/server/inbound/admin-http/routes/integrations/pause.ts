@@ -26,7 +26,7 @@ function resolvePausedFlag(req: Request): boolean {
  *
  * Gated by `admin.integrations.manage`, checked directly via `authorize()` (same pattern as `create.ts`).
  */
-export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (app, deps) => {
+export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause",
     async (req, res) => {

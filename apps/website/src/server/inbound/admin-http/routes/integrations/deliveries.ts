@@ -11,7 +11,7 @@ const DEFAULT_DELIVERIES_PAGE_SIZE = 50;
 const MAX_DELIVERIES_PAGE_SIZE = 200;
 
 /** Parses and clamps the `?limit=` query param into `[1, MAX_DELIVERIES_PAGE_SIZE]`. */
-function resolvePageSize(rawLimit: unknown): number {
+function resolvePageSize({ rawLimit }: { rawLimit: unknown }, _optional = {}): number {
   const parsed = Number(rawLimit);
   if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_DELIVERIES_PAGE_SIZE;
   return Math.min(Math.floor(parsed), MAX_DELIVERIES_PAGE_SIZE);
@@ -26,7 +26,7 @@ function resolvePageSize(rawLimit: unknown): number {
  * permission that gates subscription mutations also gates this read, mirroring `member.manage`'s
  * coverage of its whole domain.
  */
-export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistrar = (app, deps) => {
+export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/deliveries",
     async (req, res) => {
@@ -51,7 +51,7 @@ export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistra
         const deliveries = await deps.webhookDeliveryRepo.listBySubscription({
           workspaceId: deps.workspaceId,
           subscriptionId,
-          limit: resolvePageSize(req.query.limit),
+          limit: resolvePageSize({ rawLimit: req.query.limit }),
         });
 
         // Newest-first for the log view — the repo orders before limiting (with id breaking ties).

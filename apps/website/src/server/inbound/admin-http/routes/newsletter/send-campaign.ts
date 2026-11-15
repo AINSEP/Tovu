@@ -41,7 +41,7 @@ export interface SendCampaignRouteOptions {
  */
 export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRouteOptions = {}): RouteRegistrar {
   const { buildSendPipelineDeps = toSendPipelineDeps } = optional;
-  return (app, routeDeps) => {
+  return ({ app, deps: routeDeps }, _options = {}) => {
     const deps = routeDeps as NewsletterRouteDeps;
 
     app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/send", async (req, res) => {

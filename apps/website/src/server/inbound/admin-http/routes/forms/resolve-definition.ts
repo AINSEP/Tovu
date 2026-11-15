@@ -18,10 +18,7 @@ import type { FormsRouteDeps } from "./deps.js";
  *
  * @complexity O(1) — at most two point reads.
  */
-export async function resolveFormDefinitionByIdOrSlug(
-  deps: Pick<FormsRouteDeps, "workspaceId" | "formDefinitionRepo">,
-  formId: string
-): Promise<FormDefinitionRecord | null> {
+export async function resolveFormDefinitionByIdOrSlug({ deps, formId }: { deps: Pick<FormsRouteDeps, "workspaceId" | "formDefinitionRepo">; formId: string }, _optional = {}): Promise<FormDefinitionRecord | null> {
   const bySlug = await deps.formDefinitionRepo.findBySlug({
     workspaceId: deps.workspaceId,
     slug: formId.trim().toLowerCase(),

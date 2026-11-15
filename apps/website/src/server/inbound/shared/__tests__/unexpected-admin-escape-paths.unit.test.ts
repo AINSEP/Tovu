@@ -34,8 +34,8 @@ test("analytics retains its canonical error and the shared incident reference", 
 test("forms pull gives its formatter the concrete explanation and correlated reference", async t => {
   const logged = t.mock.method(console, "error", () => {});
   const app = appWithPrincipal();
-  registerAdminFormsPullSubmissionsRoute(app, { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
-    formSubmissionsPull: { pull: async () => { throw new Error("PRIVATE_PULL password=SECRET_CANARY"); } } } as never);
+  registerAdminFormsPullSubmissionsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    formSubmissionsPull: { pull: async () => { throw new Error("PRIVATE_PULL password=SECRET_CANARY"); } } } as never });
   const response = await dispatchJsonRequest(app, "POST", "/api/admin/v1/workspaces/ws/forms/submissions/pull");
   assert.equal(response.status, 500);
   const body = response.body as any;

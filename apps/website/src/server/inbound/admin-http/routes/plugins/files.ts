@@ -9,7 +9,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 /** Maps this route's thrown error types onto the admin error envelope. The path error's own message
  *  names absolute server paths, so it is replaced with fixed text rather than echoed.
  *  @complexity O(1). */
-function sendPluginFilesError(res: Response, err: unknown): void {
+function sendPluginFilesError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof PluginPackagePathError) {
     res.status(400).json({ error: "plugin id or version is not a safe path", code: "PLUGIN_ID_INVALID" });
     return;
@@ -37,7 +37,7 @@ function sendPluginFilesError(res: Response, err: unknown): void {
  * this reads the disk: a `.tovu-plugin` is dropped into the install directory at runtime, so no
  * build-time list could know its files.
  */
-export const registerPluginFilesRoute: PluginsRouteRegistrar = (app, deps) => {
+export const registerPluginFilesRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/files", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -63,7 +63,7 @@ export const registerPluginFilesRoute: PluginsRouteRegistrar = (app, deps) => {
       const { files, truncated } = await deps.readPluginPackageFiles(record);
       res.json({ pluginId, source: record.source, files, truncated, limits: PLUGIN_PACKAGE_FILE_LIMITS });
     } catch (err) {
-      sendPluginFilesError(res, err);
+      sendPluginFilesError({ res, err });
     }
   });
 };

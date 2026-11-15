@@ -5,7 +5,7 @@ import type { NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** `LIST_SEND_LOG` (api.spec.md §1) — `GET .../newsletter/campaigns/:id/sends`. `admin.newsletter.subscriber.read`-gated (PII-adjacent). */
-export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.get("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/sends", async (req, res) => {

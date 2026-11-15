@@ -2987,7 +2987,7 @@ export async function serveVirtualPage({ req, res, deps, post }: {
  * declarative theme. Registered LAST — GET /:slug handles single-segment
  * pages; unmatched nested public paths consult redirects before the normal 404.
  */
-export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
+export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
   // See-more batch URLs (`<page>/_more/<key>/<after>`): rewrite to the page itself so the `/` and
   // `/:slug` handlers below render it through every one of their branches unchanged (Express 4
   // re-matches the rewritten `req.url`); `finalizePublicPageHtml` then cuts out the one batch.

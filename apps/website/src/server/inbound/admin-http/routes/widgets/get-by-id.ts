@@ -10,7 +10,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * data `ui.spec.md`'s `WhereUsedBanner` needs, folded into the same response so the editor screen
  * needs one round-trip, not two.
  */
-export const registerAdminWidgetGetRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetGetRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/:id", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

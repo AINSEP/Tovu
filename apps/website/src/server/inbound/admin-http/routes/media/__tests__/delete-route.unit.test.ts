@@ -12,7 +12,7 @@ import { forbiddenBody, mediaApp, seedPng } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId';
 const register = (app: Parameters<typeof registerAdminMediaDeleteRoute>[0], deps: Deps) => {
-  registerAdminMediaTrashRoute(app, deps);
+  registerAdminMediaTrashRoute({ app, deps });
   registerAdminMediaDeleteRoute(app, deps);
 };
 

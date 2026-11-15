@@ -46,7 +46,7 @@ export interface MenuRouteDeps extends RouteDeps {
 }
 
 /** Registrar signature for the menus route modules (mirrors `RouteRegistrar`). */
-export type MenuRouteRegistrar = (app: Express, deps: MenuRouteDeps) => void;
+export type MenuRouteRegistrar = (required: { app: Express; deps: MenuRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Wire-format link target — structurally identical to `navigation`'s `NavTarget`. */
 export type AdminMenuTargetDto = NavItemNode["target"];

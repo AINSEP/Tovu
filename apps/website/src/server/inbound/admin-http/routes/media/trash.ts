@@ -21,7 +21,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * this route already loaded — columns only, no payload parse, so an asset whose metadata is corrupt
  * is still deletable and still listable in the Trash.
  */
-export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaTrashRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/trash", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

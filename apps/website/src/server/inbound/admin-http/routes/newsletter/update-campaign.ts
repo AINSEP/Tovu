@@ -116,7 +116,7 @@ function mergeCampaignPatchFields(
  * The envelope-only table previously caused bodyJson to be discarded here too. The document now
  * travels through the write chokepoint into revision JSON; an omitted document remains unchanged.
  */
-export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.patch("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id", async (req, res) => {

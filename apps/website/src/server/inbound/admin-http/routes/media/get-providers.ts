@@ -17,7 +17,7 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  * resolves the `MediaProviderMap` directly and `{}` is a meaningful answer ("reached, manages
  * nothing") that must stay distinguishable from the unreachable case the client models as `null`.
  */
-export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = (app, deps) => {
+export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media/providers", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

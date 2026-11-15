@@ -41,7 +41,7 @@ function parseSubmissionsQuery(query: Request["query"]): ParsedSubmissionsQuery 
 }
 
 /** GET submissions for a form definition, newest-first (`FORMS_LIST_SUBMISSIONS`, REQ-13). */
-export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -55,7 +55,7 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
       // Slug first, id second — the Submissions tab URL is /admin/forms/:slug, and
       // `FormEditor.tsx` passes that same route param straight through as `formId` here (see
       // `resolve-definition.ts`), same as the sibling GET-by-id route already does.
-      const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+      const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
       if (!definition) {
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;

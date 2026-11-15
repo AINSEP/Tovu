@@ -25,8 +25,8 @@ function harness() {
     outbox: { async enqueue() {} },
   };
   const app = express();
-  registerAdminWidgetCreateRoute(app, deps as unknown as RouteDeps);
-  registerAdminWidgetGetRoute(app, deps as unknown as RouteDeps);
+  registerAdminWidgetCreateRoute({ app, deps: deps as unknown as RouteDeps });
+  registerAdminWidgetGetRoute({ app, deps: deps as unknown as RouteDeps });
   async function invoke(method: "post" | "get", body?: unknown, id?: string) {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "operator-b07" };

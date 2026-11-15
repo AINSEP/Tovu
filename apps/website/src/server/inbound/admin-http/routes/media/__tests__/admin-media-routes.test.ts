@@ -34,10 +34,10 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes(app, deps);
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMediaListRoute(app, deps);
-  registerAdminMediaUploadRoute(app, deps);
-  registerAdminMediaUpdateRoute(app, deps);
-  registerAdminMediaTrashRoute(app, deps);
+  registerAdminMediaListRoute({ app, deps });
+  registerAdminMediaUploadRoute({ app, deps });
+  registerAdminMediaUpdateRoute({ app, deps });
+  registerAdminMediaTrashRoute({ app, deps });
   registerAdminMediaDeleteRoute(app, deps);
   return { app, deps };
 }

@@ -53,7 +53,7 @@ async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<bo
 /** Map a store-layer failure onto its HTTP shape. Extracted from the handler's `catch` for the same
  * complexity reason as {@link allowedToWrite}; behavior is unchanged except for the new
  * `entityNotLiveResponse` arm (S5, web-high fix plan 2026-09-24). */
-function sendStoreError(res: Response, err: unknown): void {
+function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof PluginEmbedValidationError) {
     res.status(400).json({ error: err.message, code: err.code });
     return;
@@ -201,7 +201,7 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, d
 
         res.json(withEmbedWarnings({ post: toAdminPostResponse(updated), store }));
       } catch (err) {
-        sendStoreError(res, err);
+        sendStoreError({ res, err });
       }
     }
   );

@@ -90,9 +90,9 @@ test('pull characterization: logger failure cannot prevent the private error res
 
 test('pull characterization: missing principal falls back before authorization', async () => {
   let authorizations = 0;
-  const { app } = fixture((app, deps) => {
+  const { app } = fixture(({ app, deps }) => {
     app.use((_req, res, next) => { delete res.locals.principal; next(); });
-    registerAdminFormsPullSubmissionsRoute(app, deps);
+    registerAdminFormsPullSubmissionsRoute({ app, deps });
   }, { authorize: async () => { authorizations++; return { allowed: true }; } });
   const response = await dispatchJsonRequest(app, 'POST', PATH);
   const body = response.body as any;

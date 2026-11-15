@@ -5,7 +5,7 @@ import { toListsDeps, type NewsletterRouteDeps } from "./deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** `CREATE_LIST` (api.spec.md §1/§4) — `POST .../newsletter/lists`. `admin.newsletter.list.manage`-gated. */
-export const registerAdminNewsletterCreateListRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterCreateListRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/lists", async (req, res) => {

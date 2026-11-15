@@ -23,50 +23,50 @@ type InstallOptions = Readonly<Record<string, unknown>>;
 type InstallerInput = Parameters<PluginInstallerPort["preview"]>[0];
 interface InstallContext { readonly deps: PluginInstallRouteDeps; readonly route: InstallRoute; readonly parseZip: ZipParser }
 
-const refused = (status: number, code: string, error: string): Refused => ({ refusal: { status, code, error } });
-const LOCAL_INSTALL_DISABLED = refused(403, "PLUGIN_LOCAL_INSTALL_DISABLED", "Local folder installs are disabled on this server.");
-const OPTIONS_INVALID = refused(400, INPUT_INVALID, "Valid replacement options and the reviewed digest are required.");
+const refused = ({ status, code, error }: { status: number; code: string; error: string }, _optional = {}): Refused => ({ refusal: { status, code, error } });
+const LOCAL_INSTALL_DISABLED = refused({ status: 403, code: "PLUGIN_LOCAL_INSTALL_DISABLED", error: "Local folder installs are disabled on this server." });
+const OPTIONS_INVALID = refused({ status: 400, code: INPUT_INVALID, error: "Valid replacement options and the reviewed digest are required." });
 
 function respondRefused(res: Response, { refusal }: Refused): void {
   res.status(refusal.status).json({ code: refusal.code, error: refusal.error });
 }
 
 /** `replace` may be absent, a JSON boolean (folder body) or "true"/"false" (ZIP query string). */
-function validReplacement(replacement: unknown, zip: boolean): boolean {
+function validReplacement({ replacement, zip }: { replacement: unknown; zip: boolean }, _optional = {}): boolean {
   if (replacement === undefined) return true;
   return zip ? replacement === "true" || replacement === "false" : typeof replacement === "boolean";
 }
 
 /** A preview needs no digest; an install needs the sha256 digest the admin reviewed. */
-function validDigest(expectedDigest: unknown, preview: boolean): boolean {
+function validDigest({ expectedDigest, preview }: { expectedDigest: unknown; preview: boolean }, _optional = {}): boolean {
   return preview || (typeof expectedDigest === "string" && REVIEWED_DIGEST.test(expectedDigest));
 }
 
 function validOptions(options: InstallOptions | undefined, route: InstallRoute): options is InstallOptions {
   // `!options` is a wiring guard: `req.body` is undefined when the route is mounted without express.json().
   if (!options) return false;
-  return validReplacement(options.replace, route.zip) && validDigest(options.expectedDigest, route.preview);
+  return validReplacement({ replacement: options.replace, zip: route.zip }) && validDigest({ expectedDigest: options.expectedDigest, preview: route.preview });
 }
 
 /** Anything but `{ kind: "folder", path: <non-blank string> }` is refused; the path goes on untrimmed. */
-function readFolderSource(source: unknown): Refused | { sourceDir: string } {
+function readFolderSource({ source }: { source: unknown }, _optional = {}): Refused | { sourceDir: string } {
   const folder = source as { kind?: unknown; path?: unknown } | null | undefined;
-  if (folder?.kind !== "folder" || typeof folder.path !== "string" || !folder.path.trim()) return refused(400, INPUT_INVALID, "A folder source is required.");
+  if (folder?.kind !== "folder" || typeof folder.path !== "string" || !folder.path.trim()) return refused({ status: 400, code: INPUT_INVALID, error: "A folder source is required." });
   return { sourceDir: folder.path };
 }
 
-function zipParseRefusal(parseError: unknown): Refused {
+function zipParseRefusal({ parseError }: { parseError: unknown }, _optional = {}): Refused {
   return (parseError as { type?: string }).type === "entity.too.large"
-    ? refused(413, "PLUGIN_PACKAGE_TOO_LARGE", "ZIP exceeds the 32 MiB upload limit.")
-    : refused(400, "PLUGIN_ARCHIVE_INVALID", "ZIP upload could not be read.");
+    ? refused({ status: 413, code: "PLUGIN_PACKAGE_TOO_LARGE", error: "ZIP exceeds the 32 MiB upload limit." })
+    : refused({ status: 400, code: "PLUGIN_ARCHIVE_INVALID", error: "ZIP upload could not be read." });
 }
 
 async function readZipUpload(req: Request, res: Response, parseZip: ZipParser): Promise<Refused | { archive: Buffer }> {
   // req.is() is true only for a non-empty application/zip body, and raw() then always leaves
   // a Buffer in req.body, so the archive below needs no separate Buffer check.
-  if (!req.is("application/zip")) return refused(400, INPUT_INVALID, "An application/zip upload is required.");
+  if (!req.is("application/zip")) return refused({ status: 400, code: INPUT_INVALID, error: "An application/zip upload is required." });
   const parseError = await new Promise<unknown>((resolve) => parseZip(req, res, (error?: unknown) => resolve(error)));
-  if (parseError) return zipParseRefusal(parseError);
+  if (parseError) return zipParseRefusal({ parseError });
   return { archive: req.body as Buffer };
 }
 
@@ -75,7 +75,7 @@ async function readInstallInput(req: Request, res: Response, context: InstallCon
   // ZIP options ride the query string; folder options are the JSON body.
   const options: InstallOptions | undefined = context.route.zip ? req.query : req.body;
   if (!validOptions(options, context.route)) return OPTIONS_INVALID;
-  const source = context.route.zip ? await readZipUpload(req, res, context.parseZip) : readFolderSource(options.source);
+  const source = context.route.zip ? await readZipUpload(req, res, context.parseZip) : readFolderSource({ source: options.source });
   if ("refusal" in source) return source;
   return { input: { ...source, replace: options.replace === true || options.replace === "true" }, expectedDigest: options.expectedDigest };
 }
@@ -96,13 +96,13 @@ async function handleInstall(req: Request, res: Response, context: InstallContex
   res.status(route.preview ? 200 : 201).json({ plugin: result });
 }
 
-function installErrorStatus(code: string): number {
+function installErrorStatus({ code }: { code: string }, _optional = {}): number {
   if (code === "PLUGIN_INSTALL_RECOVERY_REQUIRED") return 500;
   return conflicts.has(code) ? 409 : 400;
 }
 
-function respondInstallFailure(res: Response, error: unknown): void {
-  if (error instanceof PluginInstallError) { res.status(installErrorStatus(error.code)).json({ code: error.code, error: error.message }); return; }
+function respondInstallFailure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
+  if (error instanceof PluginInstallError) { res.status(installErrorStatus({ code: error.code })).json({ code: error.code, error: error.message }); return; }
   sendAdminFailure({ res, error }, { operation: "routes/plugins/install", code: "INTERNAL_ERROR" });
 }
 
@@ -117,7 +117,7 @@ export const registerPluginInstallRoutes = (app: Express, deps: PluginInstallRou
         await handleInstall(req, res, context);
       } catch (error) {
         if (!preview) void deps.tracker.capture({ name: "operation_failed", userId: getAuthedPrincipal(res).id }, { properties: { operationKind: "plugin_install", reasonClass: error instanceof PluginInstallError ? "refused" : "internal", surface: "admin", retryable: false } });
-        respondInstallFailure(res, error);
+        respondInstallFailure({ res, error });
       }
     });
   }

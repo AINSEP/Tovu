@@ -7,7 +7,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** True when `scheduledAt` is a valid request value: absent, `null`, or a string.
  *  @complexity O(1). */
-function isValidScheduledAt(rawBody: unknown): boolean {
+function isValidScheduledAt({ rawBody }: { rawBody: unknown }, _optional = {}): boolean {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return body.scheduledAt === undefined || body.scheduledAt === null || typeof body.scheduledAt === "string";
 }
@@ -15,7 +15,7 @@ function isValidScheduledAt(rawBody: unknown): boolean {
 /** Resolves the request's `scheduledAt` to the caller's string, or `nowIso` when absent/null —
  *  see the route doc above for why "as soon as the pipeline picks it up" defaults to "now" here.
  *  @complexity O(1). */
-function resolveScheduledAt(rawBody: unknown, nowIso: string): string {
+function resolveScheduledAt({ rawBody, nowIso }: { rawBody: unknown; nowIso: string }, _optional = {}): string {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return typeof body.scheduledAt === "string" ? body.scheduledAt : nowIso;
 }
@@ -28,13 +28,13 @@ function resolveScheduledAt(rawBody: unknown, nowIso: string): string {
  * "as soon as the pipeline picks it up" — the write chokepoint's own type does not model a null
  * `scheduledAt`, and changing that type is out of this dispatch's scope).
  */
-export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/schedule", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    if (!isValidScheduledAt(req.body)) {
+    if (!isValidScheduledAt({ rawBody: req.body })) {
       res.status(400).json({ error: "scheduledAt must be a date-time string when provided", code: "NEWSLETTER_VALIDATION_ERROR" });
       return;
     }
@@ -50,7 +50,7 @@ export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = (app
       if (!principal) return;
 
       await deps.newsletterReady;
-      const scheduledAt = resolveScheduledAt(req.body, deps.clock.nowIso());
+      const scheduledAt = resolveScheduledAt({ rawBody: req.body, nowIso: deps.clock.nowIso() });
       const { campaign } = await scheduleCampaign({
         deps: toCampaignWriteServiceDeps(deps),
         input: { workspaceId: deps.workspaceId, id: String(req.params.id), actorId: getAuthedPrincipal(res).id, scheduledAt },

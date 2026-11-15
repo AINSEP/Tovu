@@ -33,7 +33,7 @@ function parseWidgetCreateBody(rawBody: unknown): {
  * `WidgetInstanceEditorScreen` create flow and the `widgets.create` half of `WidgetPickerDialog`'s
  * "create new" path (REQ-33/35).
  */
-export const registerAdminWidgetCreateRoute: RouteRegistrar = (app, deps) => {
+export const registerAdminWidgetCreateRoute: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/widgets", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

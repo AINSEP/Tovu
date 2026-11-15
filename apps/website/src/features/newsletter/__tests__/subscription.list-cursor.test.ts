@@ -79,7 +79,7 @@ test("subscription route keeps its data envelope and continues through cursor", 
     authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "principal" }; next(); });
-  registerAdminNewsletterListSubscriptionsRoute(app, deps);
+  registerAdminNewsletterListSubscriptionsRoute({ app, deps });
   async function request(query: string): Promise<{ status: number; body: unknown }> {
     const socket = new PassThrough();
     let text = "";

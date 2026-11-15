@@ -27,9 +27,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 
 /** This route's five writable PUT fields, read off an untyped body in one place.
  *  @complexity O(1). */
-function parsePageUpdateBody(
-  rawBody: unknown
-): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion" | "publishAt" | "featuredMediaId"> {
+function parsePageUpdateBody({ rawBody }: { rawBody: unknown }, _optional = {}): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "expectedVersion" | "publishAt" | "featuredMediaId"> {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: String(body.title ?? ""),
@@ -48,7 +46,7 @@ function parsePageUpdateBody(
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPageUpdateError(res: Response, err: unknown): void {
+function sendPageUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (sendPluginHookFailedError(res, err)) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
@@ -185,7 +183,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
               };
             },
             execute: async () => {
-              const body = parsePageUpdateBody(req.body);
+              const body = parsePageUpdateBody({ rawBody: req.body });
               return updatePost({
                 deps: {
                   repo: deps.postRepo,
@@ -235,7 +233,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = ({ app, deps 
         // Owner-action product event on the draft → published transition only (consent-gated port).
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
-        sendPageUpdateError(res, err);
+        sendPageUpdateError({ res, err });
       }
     }
   );

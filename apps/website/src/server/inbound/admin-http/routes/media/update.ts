@@ -22,7 +22,7 @@ import { parseOptionalSlugField, parseOptionalStringField, parseOptionalTitleFie
  *
  * @complexity O(1).
  */
-function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) => T): T | null | undefined {
+function parseOptionalNullableField<T>({ raw, convert }: { raw: unknown; convert: (value: unknown) => T }, _optional = {}): T | null | undefined {
   if (raw === undefined) return undefined;
   if (raw === null) return null;
   return convert(raw);
@@ -41,21 +41,21 @@ function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) =
  *
  * @complexity O(1) — reads nine fixed properties.
  */
-function parseMediaMetadataPatch(rawBody: unknown) {
+function parseMediaMetadataPatch({ rawBody }: { rawBody: unknown }, _optional = {}) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
-    title: parseOptionalTitleField(body.title),
-    slug: parseOptionalSlugField(body.slug),
-    alt: parseOptionalStringField(body.alt, "alt"),
-    caption: parseOptionalStringField(body.caption, "caption"),
-    credit: parseOptionalStringField(body.credit, "credit"),
-    width: parseOptionalNullableField(body.width, Number),
-    height: parseOptionalNullableField(body.height, Number),
-    cssClass: parseOptionalNullableField(body.cssClass, String),
+    title: parseOptionalTitleField({ raw: body.title }),
+    slug: parseOptionalSlugField({ raw: body.slug }),
+    alt: parseOptionalStringField({ raw: body.alt, field: "alt" }),
+    caption: parseOptionalStringField({ raw: body.caption, field: "caption" }),
+    credit: parseOptionalStringField({ raw: body.credit, field: "credit" }),
+    width: parseOptionalNullableField({ raw: body.width, convert: Number }),
+    height: parseOptionalNullableField({ raw: body.height, convert: Number }),
+    cssClass: parseOptionalNullableField({ raw: body.cssClass, convert: String }),
     // Format/allowlist validation happens entirely in `updateMediaMetadata`
     // (`@jini-ai/cms/media`'s `resolveHtmlAttributesForUpdate`) — this parser's only job is the same
     // undefined-vs-provided/wrong-JSON-type boundary every other field parser in this file owns.
-    htmlAttributes: parseOptionalNullableField(body.htmlAttributes, String),
+    htmlAttributes: parseOptionalNullableField({ raw: body.htmlAttributes, convert: String }),
   };
 }
 
@@ -76,7 +76,7 @@ interface MediaUpdateErrorResponse {
  *
  * @complexity O(1) — four `instanceof` checks.
  */
-function mapMediaUpdateError(err: unknown, options: AdminFailurePorts = {}): MediaUpdateErrorResponse {
+function mapMediaUpdateError({ err }: { err: unknown }, { options = {} }: { options?: AdminFailurePorts } = {}): MediaUpdateErrorResponse {
   const live = entityNotLiveResponse(err);
   if (live) return live;
   if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
@@ -94,7 +94,7 @@ function mapMediaUpdateError(err: unknown, options: AdminFailurePorts = {}): Med
  * write-once and this route's input shape has no field for it, matching
  * `updateMediaMetadata`'s contract). Gated by `media.update` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  */
-export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -108,7 +108,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
         input: {
           workspaceId: deps.workspaceId,
           id: String(req.params.mediaId ?? ""),
-          ...parseMediaMetadataPatch(req.body),
+          ...parseMediaMetadataPatch({ rawBody: req.body }),
         },
       });
       const [contentType, publicUrl, byteSizes] = await Promise.all([
@@ -118,7 +118,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
       ]);
       res.json({ media: toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null }) });
     } catch (err) {
-      const { status, body } = mapMediaUpdateError(err, { tracker: res.locals?.adminFailureTracker });
+      const { status, body } = mapMediaUpdateError({ err }, { options: { tracker: res.locals?.adminFailureTracker } });
       res.status(status).json(body);
     }
   });

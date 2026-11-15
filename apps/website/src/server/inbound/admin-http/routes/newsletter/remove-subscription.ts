@@ -16,7 +16,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
  * `NewsletterSubscriptionRepoPort.remove()`, is a hard delete, which would have contradicted this
  * endpoint's documented response). See that function's own doc comment for the full rationale.
  */
-export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.delete("/api/admin/v1/workspaces/:workspaceId/newsletter/lists/:listId/subscriptions/:id", async (req, res) => {

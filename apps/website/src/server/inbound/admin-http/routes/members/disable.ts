@@ -19,7 +19,7 @@ import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
  * to this spec, see the Programmer handoff), so `authorize()` is called
  * directly rather than via `executeCommand`'s `deps.authorize` hook.
  */
-export const registerAdminMemberDisableRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as MembersRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/members/:memberId/disable", async (req, res) => {

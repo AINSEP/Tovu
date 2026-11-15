@@ -18,7 +18,7 @@ export function registerAdminMediaTextRoute(required: { app: Express; deps: Medi
       const access = await deps.authorize({ principalId: principal.id, permission: 'media.read', workspaceId: deps.workspaceId, entityType: 'media', entityId: id });
       if (!access.allowed) { res.status(403).json({ error: 'media.read is required', code: 'FORBIDDEN' }); return; }
       res.json(await readDocumentText({ deps: { mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, blobStore: deps.blobStore, documentTextExtractors: deps.documentTextExtractors },
-        input: { workspaceId: deps.workspaceId, id, offset: parseTextOffset(req.query.offset) } }));
+        input: { workspaceId: deps.workspaceId, id, offset: parseTextOffset({ rawOffset: req.query.offset }) } }));
     } catch (error) {
       sendTextReadFailure({ res, error });
     }
@@ -27,7 +27,7 @@ export function registerAdminMediaTextRoute(required: { app: Express; deps: Medi
 
 /** An omitted offset pages from byte 0; anything but a run of decimal digits is refused before any read.
  *  @complexity O(n) in the offset's length. */
-function parseTextOffset(rawOffset: unknown): number {
+function parseTextOffset({ rawOffset }: { rawOffset: unknown }, _optional = {}): number {
   if (rawOffset === undefined) return 0;
   if (typeof rawOffset !== 'string' || !/^\d+$/u.test(rawOffset)) throw new MediaValidationError({ message: 'offset must be a non-negative byte offset' });
   return Number(rawOffset);

@@ -13,11 +13,7 @@ import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
  * call site (cyclomatic-complexity gate, not a behavior change — see forms-submissions.test.ts's
  * cross-form-mismatch regression test for the behavior this preserves).
  */
-async function findSubmissionScopedToDefinition(
-  deps: Pick<FormsRouteDeps, "workspaceId" | "formSubmissionRepo">,
-  definitionId: string,
-  submissionId: string
-) {
+async function findSubmissionScopedToDefinition({ deps, definitionId, submissionId }: { deps: Pick<FormsRouteDeps, "workspaceId" | "formSubmissionRepo">; definitionId: string; submissionId: string }, _optional = {}) {
   const submission = await deps.formSubmissionRepo.findById({ workspaceId: deps.workspaceId, id: submissionId });
   return submission && submission.formDefinitionId === definitionId ? submission : undefined;
 }
@@ -31,7 +27,7 @@ async function withNotificationDelivery({ deps, response, submissionId }: {
 }
 
 /** GET one submission's full field values (`FORMS_GET_SUBMISSION`, REQ-13). */
-export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
+export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get(
     "/api/admin/v1/workspaces/:workspaceId/forms/:formId/submissions/:submissionId",
     async (req, res) => {
@@ -48,13 +44,13 @@ export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, d
         // Slug first, id second — same rationale as `list-submissions.ts`/`get-by-id.ts`: the
         // Submissions tab URL is /admin/forms/:slug, and `FormEditor.tsx` passes that same route
         // param straight through as `formId` here.
-        const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+        const definition = await resolveFormDefinitionByIdOrSlug({ deps, formId });
         if (!definition) {
           res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
           return;
         }
 
-        const submission = await findSubmissionScopedToDefinition(deps, definition.id, submissionId);
+        const submission = await findSubmissionScopedToDefinition({ deps, definitionId: definition.id, submissionId });
         if (!submission) {
           res
             .status(404)

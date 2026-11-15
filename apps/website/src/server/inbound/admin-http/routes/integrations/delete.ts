@@ -13,7 +13,7 @@ import { toWebhookSubscriptionDeps, type IntegrationsRouteRegistrar } from "./de
  *
  * Gated by `admin.integrations.manage`, checked directly via `authorize()` (same pattern as `create.ts`).
  */
-export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = (app, deps) => {
+export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete(
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId",
     async (req, res) => {

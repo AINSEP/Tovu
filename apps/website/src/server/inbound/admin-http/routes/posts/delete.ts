@@ -17,7 +17,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPostDeleteError(res: Response, err: unknown): void {
+function sendPostDeleteError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;
@@ -83,7 +83,7 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ app, deps 
       })).post.id;
     } catch (error) {
       if (!(error instanceof PostNotFoundError)) {
-        sendPostDeleteError(res, error);
+        sendPostDeleteError({ res, err: error });
         return;
       }
       // A missing post keeps the existing raw-id lookup and not-found response.
@@ -156,7 +156,7 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = ({ app, deps 
 
       res.json(toAdminPostResponse(result.post));
     } catch (err) {
-      sendPostDeleteError(res, err);
+      sendPostDeleteError({ res, err });
     }
   });
 };

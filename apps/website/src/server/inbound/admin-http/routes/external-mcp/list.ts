@@ -17,7 +17,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * Owner 2026-10-07: safe hints now unseal on the server, without returning secret values. Missing
  * keys still degrade to metadata-only reads; they must not make this settings list unavailable.
  */
-export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = (app, deps) => {
+export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;

@@ -11,7 +11,7 @@ const REQUIRED_CAMPAIGN_STRING_FIELDS = ["subject", "fromName", "fromEmail", "re
 /** This route's campaign fields, validated and read off an untyped body in one place, or `null` if
  *  a required field is missing or the wrong shape.
  *  @complexity O(1) — iterates a fixed 5-entry field list. */
-function parseCreateCampaignBody(rawBody: unknown): {
+function parseCreateCampaignBody({ rawBody }: { rawBody: unknown }, _optional = {}): {
   subject: string;
   bodyJson: Record<string, unknown>;
   preheader: string | null;
@@ -49,13 +49,13 @@ function parseCreateCampaignBody(rawBody: unknown): {
  * the document in its existing same-transaction revision state_json; detail reads project the
  * latest document alongside the live envelope; list reads keep only the envelope. No new column or alternate content owner is needed.
  */
-export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, routeDeps) => {
+export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = ({ app, deps: routeDeps }, _options = {}) => {
   const deps = routeDeps as NewsletterRouteDeps;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
-    const parsedBody = parseCreateCampaignBody(req.body);
+    const parsedBody = parseCreateCampaignBody({ rawBody: req.body });
     if (!parsedBody) {
       res.status(400).json({
         error: "subject, fromName, fromEmail, replyTo, listId (strings) and bodyJson (object) are required",

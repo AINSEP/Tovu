@@ -1739,4 +1739,4 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string; publicUrl?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
 };
 
-export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
+export type RouteRegistrar = (required: { app: Express; deps: RouteDeps }, optional?: Record<string, never>) => void;
