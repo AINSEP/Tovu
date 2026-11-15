@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import express from "express";
-import type { Express, NextFunction, Response } from "express";
+import type { Express, NextFunction, Request, Response } from "express";
 
 import { resolvePathWithin } from "#src/contracts/core/path-containment";
 
@@ -77,7 +77,7 @@ export function registerThemeStaticAssets(
     const themeDirs = resolveThemeDirs({ roots, themeId: req.params.themeId }, {});
     const requestedRevision = req.params.revision;
     const preview = typeof requestedRevision === "string";
-    const serveFrom = ({ index }: { index: number }, _optional?: Record<string, never>): void => {
+    const serveFrom = ({ index }: { index: number }, _optional = {}): void => {
       const themeDir = themeDirs[index];
       if (themeDir === undefined) {
         next();
@@ -88,19 +88,30 @@ export function registerThemeStaticAssets(
         if (sendInheritedTemplate({ themes: required.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
         serveFrom({ index: index + 1 });
       };
-      const revision = preview
-        ? trustedPreviewRevision(
-          { requestedRevision, localsRevision: res.locals?.themePreviewRevision },
-          { isAuthenticatedPreviewRevision: required.isAuthenticatedPreviewRevision },
-        )
-        : undefined;
-      if (revision !== undefined && (req.method === "GET" || req.method === "HEAD") && sendPreviewCss({ res, themeDir, url: req.url, revision, next, nextDir })) return;
+      if (sendAuthenticatedPreviewCss({ req, res, themeDir, requestedRevision, next, nextDir }, { isAuthenticatedPreviewRevision: required.isAuthenticatedPreviewRevision })) return;
 
       // Explicit dotfiles policy makes send check every segment; its legacy default allows hidden directories.
       serveStatic(themeDir, { dotfiles: "deny", ...(preview ? { cacheControl: false, etag: false, lastModified: false } : {}) })(req, res, (err?: unknown) => (err ? next(err) : nextDir()));
     };
     serveFrom({ index: 0 });
   });
+}
+
+/**
+ * Answers a GET/HEAD for rewritable CSS under a `/theme-preview-assets/:revision/` URL when that
+ * revision is trusted; `false` for non-preview requests and everything the caller must serve statically.
+ */
+function sendAuthenticatedPreviewCss(
+  required: { req: Request; res: Response; themeDir: string; requestedRevision: unknown; next: NextFunction; nextDir: () => void },
+  optional: { isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
+): boolean {
+  const { req, res, themeDir, requestedRevision, next, nextDir } = required;
+  if (typeof requestedRevision !== "string") return false;
+  const revision = trustedPreviewRevision(
+    { requestedRevision, localsRevision: res.locals?.themePreviewRevision },
+    { isAuthenticatedPreviewRevision: optional.isAuthenticatedPreviewRevision },
+  );
+  return revision !== undefined && (req.method === "GET" || req.method === "HEAD") && sendPreviewCss({ res, themeDir, url: req.url, revision, next, nextDir });
 }
 
 /** Serve only sources the loader actually inherited, after physical files have had precedence.
