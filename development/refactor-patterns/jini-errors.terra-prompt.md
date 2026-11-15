@@ -1,12 +1,21 @@
 - BOOTSTRAP: dispatched job (<<PEER_DISPATCH>>). Bootstrap files (AI-Dev-Shop/AGENTS.md, CLAUDE.md/AGENTS.md startup steps) do not apply and may be missing; expected. This prompt is complete; proceed.
 
-# Terra prompt: Jini errors rev 5, burn down the log-safety debt list
+# Terra prompt: Jini errors rev 6, burn down the log-safety debt list
 
-STATUS: DRAFT rev 5 (2026-11-13), NOT READY until the coordinator's re-review. Self-contained.
+STATUS: DRAFT rev 6 (2026-11-15), NOT READY until the coordinator's re-review (review d5r4 findings 1-6). Self-contained.
 **Part A** = Jini monorepo, five batch jobs (A1-A5, section 6); each job runs ONE batch, named in its dispatch.
 **Part B** = Tovu (section 8), run only after Part A is reviewed and Jini is released; it lands in the SAME
 commit as Tovu's `@jini-ai/*` bump. Paths were read on Jini `design-d5` (head a4472d838) and Tovu 5ea85d833;
 if a line moved, find the quoted text in the same file.
+
+**What changed in rev 6 (review d5r4).** Plain thrown objects are described, not printed (core `describeLogMeta`
+treats any object with its own `message`/`stack` as a thrown value); the gate also sees member interpolation,
+`String(ctx.error)`, stored `ctx.error.message`, a bare `report(...)` sink, process stdio writes and raw nested bags
+outside a named `Logger` port; the configured-origin warning no longer echoes the refused value; new helpers take
+`(requiredObj, optionalObj = {})`. Part B's diagnostic sink redacts BEFORE it caps, and the console summary carries
+fixed ID fields only (section 8). Package manifests and the lockfile are the coordinator's (section 1). Part A runs
+as five Sonnet lane recipes (L1-L5, the coordinator's local artifacts) built from this prompt and the P4 work list;
+where a lane recipe and section 6 disagree, the lane recipe (made on the merged tree) wins.
 
 **What changed in rev 5.** The shared pieces are safe by construction (rev 4) and now also project nested
 metadata (`describeLogMeta`, desktop-host `projectForLog`), so no default sink can print a caught value's text.
@@ -24,10 +33,15 @@ may only shrink. Part A clears that list file by file. Rows the gate cannot see 
   `packages/agent-runtime/src/skills/web-clone/scripts/lib/diagnostic-labels.mjs` exist.
 - **P3 red, then green, recorded** for every pair in `jini-errors.md` section 6 (the cloud gate's records; ask
   for them, do not run anything).
-- **P4 gate adopted on the merged base** (coordinator, before dispatch): branch from `refactor/terra` with
-  `design-d5` merged; `LOG_SAFETY_BASE_REF=<refactor/terra tip before the merge> node scripts/check-log-safety.mjs --update`
-  committed; CI step `log safety (blocking ratchet)` after `size (blocking ratchet)` (env `LOG_SAFETY_BASE_REF` /
-  `LOG_SAFETY_FIRST_PUSH_COMMIT` like the `SIZE_*` pair, run `pnpm check:log-safety`).
+- **P4 gate adopted on the merged base** (coordinator, before dispatch): on `refactor/terra` (tip d4bfc6ceb when
+  rev 6 was written) merge `design-d5` (2d04400a9). The merge conflicts in 3 files: take design-d5's side in each,
+  but keep refactor/terra's doc-comment line in `packages/daemon/src/http/model-proxy.ts` (~:61, the line citing
+  `` `f0a771d88^:packages/deploy/source-map.md`'s precedent ``). Then
+  `LOG_SAFETY_BASE_REF=d4bfc6ceb node scripts/check-log-safety.mjs --update`, expected output
+  `Log-safety ratchet passed: 370 raw log paths in 237 file/rule entries.`; commit `scripts/log-safety-debt.json`.
+  CI: step `log safety (blocking ratchet)` right after `size (blocking ratchet)` in refactor/terra's ci.yml, env
+  `LOG_SAFETY_BASE_REF` / `LOG_SAFETY_FIRST_PUSH_COMMIT` set exactly like the `SIZE_*` pair, running
+  `pnpm check:log-safety`. A different count: STOP and regenerate the work lists before dispatch.
 - **P5 work list.** The dispatch carries the `node scripts/check-log-safety.mjs --list` lines (with line numbers)
   for this batch's files, generated on the P4 base. If they differ from section 6, the dispatch's list wins. No
   list attached: use section 6 and find each entry by reading the file for its rule's pattern (section 3).
@@ -48,9 +62,16 @@ may only shrink. Part A clears that list file by file. Rows the gate cannot see 
   `lib/diagnostic-labels.mjs`. Never `formatErrorForLog`, `inspect(x)`, `String(x)`, `x.message`, `x.name`,
   `x.stack`, `x.constructor` or a raw `x.code` of a caught value in a log line, report, telemetry attribute,
   manifest or stored diagnostic.
-- A package that imports a Jini package it does not declare gets the declaration (package.json + the
-  `pnpm-lock.yaml` importer entry copied from a sibling). Never a dynamic `import()` or optional peer.
+- `package.json` and `pnpm-lock.yaml` are the coordinator's: a job never edits them. A package that would import
+  a Jini package it does not declare: make the import as the recipe gives it and report `NEEDS DECLARATION <pkg>
+  -> <dep>`; the coordinator adds every declaration (manifest + lockfile importer entry) in one commit after the
+  batches. Never a dynamic `import()` or optional peer.
   Agent-plugin `.mjs` files and skill `scripts/*.mjs` import nothing from `@jini-ai/*`.
+- Caller closure: a signature a job changes is changed at EVERY caller in the same job (rg across
+  `packages/*/src`, tests included, and Tovu `apps/` `packages/`). A caller outside the batch's files is named in
+  the dispatch and belongs to that job (e.g. `errorType({ error })`: `diagnostics/src/observability/errors.ts:28`,
+  `observability/__tests__/unit/provider-boundaries.unit.test.ts:203`, `src/__tests__/observability-operations.test.ts:177-182`).
+  No caller list in the dispatch: keep the old signature.
 - **Skip rather than improvise.** An entry that fits no variant, or would need a design choice this prompt does
   not make, is left unchanged and reported with one line why.
 - **Tests: write, do not run.** Per changed source file, one test in the nearest existing test file (new file
@@ -110,7 +131,8 @@ Why: a caught error's text can quote untrusted input or a credential no redactio
   and the raw code; delete constants nothing else uses). The `:130` caller is unchanged; update `worker.test.ts:109-113`.
 - A2 `diagnostics/src/observability/otel.ts:15-22` `errorType`: returns
   `describeErrorForLog({ err: error }).split(" cause=")[0]`, redacted and capped as today; delete
-  `fallbackErrorLabel` and the inline code regex; update the doc comment and the pinned tests in
+  `fallbackErrorLabel` and the inline code regex; the signature becomes `errorType({ error })` and every caller
+  follows (`otel.ts` x4, `errors.ts:28`, `provider-boundaries.unit.test.ts:203`); update the doc comment and the pinned tests in
   `src/__tests__/observability-operations.test.ts` (`:164` -> `"TypeError"`, `:177` -> `"TypeError(ECONNRESET)"`,
   `:181` -> `"Error"`; `:178`, `:182` unchanged).
 - A2 `diagnostics/src/observability/delivery.ts:36` `describeTelemetryFailure`: read `name`, `statusCode`,
@@ -265,17 +287,21 @@ now `warn({ message }, { error })`. Same ground rules (no runs). Test input
 - **T1** new `apps/website/src/platform/server-logs/jini-incident.ts`, two exports, each never throws:
   - `logJiniIncident(incident: { readonly error: unknown; readonly correlationId?: string } & Readonly<Record<string, unknown>>, { buffer = getServerLogBuffer(), source = "server" }: { readonly buffer?: Pick<ServerLogBuffer, "append">; readonly source?: ServerLogSource } = {}): string`
     1. `id = incident.correlationId ?? randomUUID()` (a route keeps Jini's request ID; a lifecycle incident gets one).
-    2. `context` = `key=value` for each of `logSource, source, operation, provider, method, path, runId, batchId,
-       taskId, ownerRef, toolId, status, recoveryMessage` whose value is a string or finite number (a value with
-       whitespace or `=` is JSON-quoted).
-    3. Stored record, own try/catch: `buffer.append({ level: "error", source, message: \`[jini incident ${id}] ${context} ${formatErrorForLog({ error: incident.error }, TOVU_ERROR_REDACTION_OPTIONS)}\` })`
-       (`TOVU_ERROR_REDACTION_OPTIONS` from `@tovu/contracts/secret-redaction`; the buffer redacts again and
-       persists to the rotating site log when attached). D8: full text stored, never on the console.
-    4. Console summary, own try/catch: `console.error(\`[jini] internal error (${context}, correlationId=${id})\`, describeErrorForLog({ err: incident.error }))`.
+    2. Two context strings, `key=value` for each listed key whose value is a string or finite number (a value with
+       whitespace or `=` is JSON-quoted): `idContext` from the FIXED ID keys `logSource, source, operation, provider,
+       method, path, runId, batchId, taskId, toolId, status`; `storedContext` = `idContext` plus `ownerRef` and
+       `recoveryMessage` (free text: stored only, never printed).
+    3. Stored record, own try/catch: `buffer.append({ level: "error", source, message: \`[jini incident ${id}] ${storedContext} ${formatErrorForLog({ error: incident.error }, TOVU_ERROR_REDACTION_OPTIONS)}\` })`
+       (`TOVU_ERROR_REDACTION_OPTIONS` from `@tovu/contracts/secret-redaction`; the buffer redacts the whole message
+       before it caps it, and persists to the rotating site log when attached). D8: full text stored, never on the console.
+    4. Console summary, own try/catch: `console.error(redactSecretShapes({ text: \`[jini] internal error (${idContext}, correlationId=${id})\` }).text, describeErrorForLog({ err: incident.error }))`
+       (`redactSecretShapes` from `@tovu/contracts/secret-redaction`; an ID value can still carry a token shape).
     5. Return `id`. Assignable to every one-argument `onInternalError` port.
   - `logJiniDiagnostic(record: LogDiagnosticRecord, { buffer, source }: same optional = {}): void` (the type from
     `@jini-ai/core`): stores `[jini ${record.level}] ${record.message}`, the meta as guarded `JSON.stringify`
-    (failure -> `[meta unreadable]`, capped at 2,000 chars) and, when `record.error !== undefined`,
+    (failure -> `[meta unreadable]`), REDACTED FIRST and capped second:
+    `redactSecretShapes({ text: json }).text.slice(0, 2_000)` (a cap before redaction can leave 1-19 characters of
+    a `tovu_ak_<id>.<secret>` secret part, shorter than the 20 the pattern needs), and, when `record.error !== undefined`,
     `formatErrorForLog` under Tovu's options; `level` = the record's level; no console (the default logger already
     printed the metadata line).
 - **Wiring** `onInternalError: incident => { logJiniIncident(incident); }` at: `server/inbound/assistant/agent-daemon-scope.ts`
@@ -303,7 +329,14 @@ now `warn({ message }, { error })`. Same ground rules (no runs). Test input
   shape, and say so. (b) lifecycle `logJiniIncident({ source: "inactivity-timeout", runId: "run-1", error }, { buffer })`:
   record and summary share the returned ID and `runId=run-1`. (c) a throwing `buffer.append` still prints the
   summary and does not throw. (d) `logJiniDiagnostic` stores message + meta + `boom`, no `SECRETSECRET`, writes no
-  console; hostile meta (throwing getter) stores `[meta unreadable]`. Source-text wiring test (style of
+  console; hostile meta (throwing getter) stores `[meta unreadable]`. (e) token at the cap: meta
+  `{ pad: "x".repeat(n), token: "tovu_ak_0123456789ab.SECRETSECRETSECRETSECRETSECRET01" }` with `n` chosen so the
+  2,000-character cut falls 5 characters after the token's `.`; the stored entry does not match
+  `/tovu_ak_0123456789ab\.[A-Za-z0-9_-]/` (the public key ID before the `.` stays visible by design; after it comes
+  the redaction marker). (f) context split: `logJiniIncident({ runId: "run-1", ownerRef: "owner-1", recoveryMessage:
+  "retry with tovu_ak_0123456789ab.SECRETSECRETSECRETSECRETSECRET01", error }, { buffer })`: the console summary
+  has `runId=run-1` and neither `ownerRef`, `recoveryMessage`, `owner-1` nor `tovu_ak_`; the stored record has
+  `ownerRef=owner-1` and `recoveryMessage=` with the token redacted. Source-text wiring test (style of
   `main-owner-store-wiring.test.ts`): both `createFrontendControl` calls pass `session.onInternalError`, the
   visitor `adapter` has `onInternalError`, the outbox logger has `diagnostics`, `onBindError` calls
   `logJiniIncident` and `noteBindError`. Commerce: the worker port test in the existing commerce composition test.

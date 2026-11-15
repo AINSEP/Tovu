@@ -1,8 +1,22 @@
 # Jini errors: the owner's error rule applied to a library
 
-Status 2026-11-13, rev 5 (after review `review-d5r3`), DRAFT until the coordinator's re-review. Code on Jini
+Status 2026-11-15, rev 6 (after review `review-d5r4`), DRAFT until the coordinator's re-review. Code on Jini
 clone `jini-terra-d5` branch `design-d5` (rev 4: 76801d6ed, 74867d4cc, 3c06a063f, 9a2bcb954; rev 5: 5fcbb3ca1,
-62fcaf2e0, f5a070fa4, 877b2624d, a4472d838). Terra prompt: `jini-errors.terra-prompt.md` (Part A Jini in five
+62fcaf2e0, f5a070fa4, 877b2624d, a4472d838; rev 6: 372ccda02, 62f16f7df, ddaedbf80, e12c5184a, 732244667,
+2d04400a9).
+
+**Rev 6 (review d5r4 findings 1-6).** (1) Core `describeLogMeta` treats any object with its own `message` or
+`stack` as a thrown value and prints its class label, so a plain thrown object's text never reaches a default
+sink. (2) The gate also sees member interpolation, `String(ctx.error)`, stored `ctx.error.message`, a bare
+`report(...)` sink, process stdio writes and raw nested bags outside a `Logger` port (receivers named `logger`,
+`*Logger`, `required`, `deps`, `createConsoleLogger(...)`; describer arguments are not bags). (3) The
+configured-origin warning names the refusal in fixed words and never echoes the refused value. (4) Part B's
+diagnostic sink redacts the serialized meta BEFORE it caps it at 2,000 characters; the console summary carries
+fixed ID fields only (no `recoveryMessage`, no `ownerRef`) and is redacted; `recoveryMessage` lives in the stored
+record only. (5) A changed signature takes its whole caller closure in the same job (`errorType({ error })`
+includes `diagnostics/src/observability/errors.ts:28`); `package.json` and `pnpm-lock.yaml` are the coordinator's,
+jobs report `NEEDS DECLARATION`. (6) New helpers and gate exports take `(requiredObj, optionalObj = {})`.
+Part A now runs as five Sonnet lane recipes made on the merged tree (refactor/terra d4bfc6ceb + design-d5). Terra prompt: `jini-errors.terra-prompt.md` (Part A Jini in five
 batch jobs, Part B Tovu). Rev 3 (the 293-site plan) is kept at Tovu 9286dc3f5. Tovu counterpart:
 `user-facing-errors.md`.
 
@@ -45,19 +59,22 @@ lost, nothing added). The gate does not trace data flow through variables; jobs 
 ## 3. Host channel: Tovu's T1 (Part B)
 `apps/website/src/platform/server-logs/jini-incident.ts`:
 - `logJiniIncident(incident)`: ID = the incident's `correlationId` unchanged (what the user copied), else fresh.
-  Full record (message + stack under Tovu's redaction) appended to the server log buffer (redacts again,
-  persists to the site's rotating log when attached), with string/number context `logSource, source, operation,
-  provider, method, path, runId, batchId, taskId, ownerRef, toolId, status, recoveryMessage`. Console: one
-  metadata-only summary with the same ID. Each step contained; never throws.
+  Full record (message + stack under Tovu's redaction) appended to the server log buffer (redacts the whole
+  message before capping it, persists to the site's rotating log when attached), with string/number context
+  `logSource, source, operation, provider, method, path, runId, batchId, taskId, toolId, status` plus the free-text
+  `ownerRef, recoveryMessage` (stored only). Console: one redacted summary with the same ID and the fixed ID keys
+  only. Each step contained; never throws.
 - `logJiniDiagnostic(record)`: the `diagnostics` sink for Jini's default loggers; stores message, meta and
-  error under Tovu's redaction; no console.
+  error under Tovu's redaction (meta: `JSON.stringify`, redacted, THEN capped at 2,000 characters, so a cut can
+  never leave a token fragment too short to match); no console.
 - Wired at every `onInternalError` Tovu passes Jini (12 places) plus 4 new: the outbox logger's `diagnostics`, the
   visitor frontend `session` AND `adapter` sinks, the bind-error callback through T1 (keeping
   `lostFrontendBindings.noteBindError`, dropping its raw console line), and the commerce worker adapter
   `warn({ message }, { error })`.
 - T3: Electron main gets a redacting console (`installMainConsoleRedaction`).
 Tests: response ID -> exactly one stored record through the real attachment, media and delegated-tool routes;
-lifecycle `runId` correlation; throwing buffer still prints the summary; diagnostic sink stores, never prints.
+lifecycle `runId` correlation; throwing buffer still prints the summary; diagnostic sink stores, never prints;
+a token cut at the 2,000-character cap is still redacted; `ownerRef`/`recoveryMessage` stored, never printed.
 
 ## 4. Not this lane
 - **Server-port plan:** Express contracts (`http-kit/src/adapter.ts`, `daemon/src/http/frontend-request-route.ts`)
@@ -68,13 +85,18 @@ lifecycle `runId` correlation; throwing buffer still prints the summary; diagnos
   comment-only drops (C), object-first error constructors (R-API, D7), chat's protocol dependency (D6), T4/T6.
 
 ## 5. Release order
-1. Branch from Jini `refactor/terra`, merge `design-d5`.
+1. On Jini `refactor/terra` (d4bfc6ceb) merge `design-d5` (2d04400a9). It conflicts in 3 files: take
+   design-d5's side, but keep refactor/terra's doc-comment line in `packages/daemon/src/http/model-proxy.ts` (~:61,
+   citing `` `f0a771d88^:packages/deploy/source-map.md`'s precedent ``).
 2. Cloud gate red -> green on the pairs (section 6); Part A waits for every record (prompt P3).
-3. Gate adoption on the merged base: `LOG_SAFETY_BASE_REF=<refactor/terra tip before the merge> node scripts/check-log-safety.mjs --update`,
-   commit; CI step `log safety (blocking ratchet)` after `size (blocking ratchet)`, env like `SIZE_*`, runs
-   `pnpm check:log-safety` (wired on refactor/terra's ci.yml, not d5's). Then `--list` -> per-batch work lists.
-4. Part A: A1-A5 on Codex Terra in parallel (at most 6 at once). Per batch the coordinator commits test files
-   first, sources second, by explicit paths. One batched reviewer for the round.
+3. Gate adoption on the merged base: `LOG_SAFETY_BASE_REF=d4bfc6ceb node scripts/check-log-safety.mjs --update`
+   must print `Log-safety ratchet passed: 370 raw log paths in 237 file/rule entries.`; commit the debt list. CI
+   step `log safety (blocking ratchet)` right after `size (blocking ratchet)`, env `LOG_SAFETY_BASE_REF` /
+   `LOG_SAFETY_FIRST_PUSH_COMMIT` set like the `SIZE_*` pair, runs `pnpm check:log-safety` (wired on
+   refactor/terra's ci.yml, not d5's). Then `--list` -> per-lane work lists.
+4. Part A: five Sonnet lanes (L1 daemon, L2 core/hosts, L3 data/platform/plugins, L4 agent, L5 UI/chat/CMS) in
+   parallel on that tree, each committing its test files first and its sources second, by explicit paths. The
+   coordinator then adds any `NEEDS DECLARATION` manifest/lockfile entries. One batched reviewer for the round.
 5. Cloud gate: red on each test commit, green on each source commit, per touched test file; no-emit tsc of every
    touched package; then one `check:log-safety --update`, committed; the gate must pass.
 6. Jini release. Tovu bumps `@jini-ai/*` AND lands Part B in the same commit (otherwise `composeCommerce`'s
@@ -93,6 +115,9 @@ args `(requiredObj, optionalObj = {})`; jobs skip rather than improvise.
 | 74867d4cc + 3c06a063f | 9a2bcb954 | core `describe-error-for-log`, `model-facing-tool-errors`, `primitives/defaults`; desktop-host `logging`; daemon `tool-execution-rpc`; commerce `settlement-worker.unit` |
 | 5fcbb3ca1 | 62fcaf2e0 | core `primitives/__tests__/defaults`; desktop-host `src/__tests__/logging`; daemon `src/http/__tests__/model-proxy`; commerce `settlement-worker.unit` (node:test); agent-runtime web-clone `mirror-site.unit`, `asset-harvest`, `diagnostic-labels.unit` |
 | none (tests new code) | 877b2624d | root `scripts/__tests__/check-log-safety.test.ts` (green only) |
+| 372ccda02 | 62f16f7df | core `primitives/__tests__/defaults` (plain thrown objects); desktop-host `src/__tests__/logging`; http-kit `verified-origin-configured`, `verified-origin-branches`, `verified-origin.hostile` (refused value not echoed); root `scripts/__tests__/check-log-safety.test.ts` (member/sink/bag shapes) |
+| ddaedbf80 | e12c5184a | root `scripts/__tests__/check-log-safety.test.ts` (`createConsoleLogger(...)` call is a Logger port) |
+| 732244667 | 2d04400a9 | root `scripts/__tests__/check-log-safety.test.ts` (describer arguments and `required`/`deps` ports are not raw bags) |
 Plus no-emit tsc of core, desktop-host, http-kit, daemon, commerce, mcp. Unverified by any run: model-proxy
 `reportRouteInternalError` inference + adapter sink assignability, `exactOptionalPropertyTypes` on optional
 sinks, the gate test's relative filenames, esquery `:nth-child` argument positions.
