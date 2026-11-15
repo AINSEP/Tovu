@@ -108,7 +108,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
     } });
     await drainBootReadiness(deps);
     optional.configureDeps?.(deps);
-    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
+    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: ({ work }) => appBootWork.push(work) }), t);
     return { deps, baseUrl, cookie, ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, siteDir };
   } finally {
     // Register after HTTP teardown, even if login fails: node:test skips hooks after one throws.

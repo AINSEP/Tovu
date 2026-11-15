@@ -88,7 +88,7 @@ export interface AssistantChatsModuleOptions {
   readonly finalizer?: AssistantRunFinalizer;
   /** Only the site-serving composition opts in; export apps must never repair live turns. */
   readonly recoverInterrupted?: boolean;
-  readonly onBootWork?: (work: Promise<void>) => void;
+  readonly onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
 }
 
 export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
@@ -121,7 +121,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           console.error("[assistant-chats] boot-time repair of interrupted chat turns failed", error);
         }
       );
-      if (options.recoverInterrupted) options.onBootWork?.(reconciled);
+      if (options.recoverInterrupted) options.onBootWork?.({ work: reconciled });
 
       app.use("/api/assistant/chats", requireAdminSession(deps));
       // The repair is async now (storage kernel); no chat route answers until it has finished.

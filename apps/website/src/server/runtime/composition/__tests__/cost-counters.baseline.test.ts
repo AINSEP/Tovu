@@ -159,7 +159,7 @@ async function countingMailer(initial: MailProviderSetting) {
   } as never }] };
   let value: MailProviderSetting | null = initial;
   const deps: ResolveMailerDeps = {
-    providerSetting: { read: async () => { counts.settingReads += 1; return value; }, write: async (next) => { value = next; } },
+    providerSetting: { read: async () => { counts.settingReads += 1; return value; }, write: async ({ value: next }) => { value = next; } },
     log: () => {}, workspaceId: MAIL_WORKSPACE, customCredentialRepo: countingRepo, sealer: countingSealer, httpClient: http, mode: "production",
     loadMailAdapters: async () => { counts.catalogLoads += 1; return registry; },
     createSmtpTransport: () => { throw new Error("SMTP is not selected in this baseline"); }, warn: () => {},

@@ -41,11 +41,11 @@ const bindings = {
   },
   resolveSiteDatabasePaths: () => ({ contentDbPath: "fake.db" }),
   drainBootReadiness: async () => { if (fault === "readiness") throw new Error("readiness failed"); },
-  createApp: (_deps: unknown, options: { onBootWork(work: Promise<void>): void }) => {
+  createApp: (_deps: unknown, options: { onBootWork({ work }: { work: Promise<void> }): void }) => {
     const work = fault === "work" ? Promise.reject(new Error("background boot failed")) : Promise.resolve();
     void work.catch(() => {}); // The real app observes its boot pass too; teardown still sees the rejection.
-    options.onBootWork(work);
-    if (fault === "work") options.onBootWork(new Promise(resolve => setImmediate(() => { console.log("sibling work settled"); resolve(); })));
+    options.onBootWork({ work });
+    if (fault === "work") options.onBootWork({ work: new Promise(resolve => setImmediate(() => { console.log("sibling work settled"); resolve(); })) });
     const app = express();
     app.post("/api/admin/v1/auth/login", (_req, res) => { res.setHeader("set-cookie", "session=fixture"); res.json({}); });
     return app;

@@ -89,7 +89,7 @@ export type { MailStatusReport } from "#src/platform/mail/index";
 /** Where `core.mail.provider` lives; `read()` returns null while it was never stored. */
 export interface MailProviderSettingPort {
   read(): Promise<MailProviderSetting | null>;
-  write(value: MailProviderSetting): Promise<void>;
+  write({ value }: { value: MailProviderSetting }, optional?: Record<string, never>): Promise<void>;
 }
 
 export interface ResolveMailerDeps extends MailProviderCatalogDeps {
@@ -155,7 +155,7 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
   const resolved = createJiniResolvedMailer({
     workspaceId: deps.workspaceId,
     mode: deps.mode,
-    providerSetting: { read: () => deps.providerSetting.read(), write: ({ setting }) => deps.providerSetting.write(setting) },
+    providerSetting: { read: () => deps.providerSetting.read(), write: ({ setting }) => deps.providerSetting.write({ value: setting }) },
     credentials: {
       readFact: ({ label }) => readCredentialFact({ deps, label }),
       resolve: ({ catalog, id }) => resolveMailCredential({ deps, catalog, id }),

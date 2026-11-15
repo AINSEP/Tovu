@@ -56,19 +56,19 @@ export interface SiteKeyRecoveryInput {
 async function checkKey(input: SiteKeyRecoveryInput): Promise<SiteKeyKeyCheck> {
   const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.hex));
   const keyring = new FixedSiteKeyKeyring(input.hex);
-  const counts = await withSiteKernel(input, async kernel => {
+  const counts = await withSiteKernel({ input, use: async kernel => {
     const inventory = await inventoryVaultCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, aadFor: recoveryAad });
     return { sealed: inventory.totals.sealed, opens: inventory.totals.opens, metadataOnly: inventory.metadataOnly.length,
       legacy: inventory.legacySealed };
-  }, { sealed: 0, opens: 0, metadataOnly: 0, legacy: 0 });
-  return { ...counts, storageSecret: await checkStorageSecret(input.siteDir, sealer) };
+  }, empty: { sealed: 0, opens: 0, metadataOnly: 0, legacy: 0 } });
+  return { ...counts, storageSecret: await checkStorageSecret({ siteDir: input.siteDir, sealer }) };
 }
 
 /** Removes every sealed value that does not open under `input.hex`. The caller takes a restore point
  *  first. @complexity {@link discardVaultCredentialsNotOpening}'s cost. */
 async function discardNotOpening(input: SiteKeyRecoveryInput): Promise<{ discarded: number; kept: number }> {
   const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.hex));
-  return withSiteKernel(input, (kernel) => discardVaultCredentialsNotOpening({ kernel, sealer, aadFor: recoveryAad }), { discarded: 0, kept: 0 });
+  return withSiteKernel({ input, use: (kernel) => discardVaultCredentialsNotOpening({ kernel, sealer, aadFor: recoveryAad }), empty: { discarded: 0, kept: 0 } });
 }
 
 export interface SiteKeyResealInput extends SiteKeyRecoveryInput {
@@ -84,14 +84,10 @@ async function resealFrom(input: SiteKeyResealInput): Promise<{ resealed: number
   const sealer = new AesGcmSecretSealer(keyring);
   const previous = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.previousHex));
   const key = await keyring.activeKey();
-  const counts = await withSiteKernel(
-    input,
-    (kernel) => resealVaultCredentialsOpeningUnder({ kernel, sealer, key, previous, aadFor: recoveryAad,
+  const counts = await withSiteKernel({ input, use: (kernel) => resealVaultCredentialsOpeningUnder({ kernel, sealer, key, previous, aadFor: recoveryAad,
       resealRecord: ({ record, previous }) => resealRecord({ kernel, siteDir: input.siteDir, keyring, sealer, record, previous }),
-    }),
-    { resealed: 0, unreadable: 0 }
-  );
-  if ((await checkStorageSecret(input.siteDir, sealer)) !== "locked") return counts;
+    }), empty: { resealed: 0, unreadable: 0 } });
+  if ((await checkStorageSecret({ siteDir: input.siteDir, sealer })) !== "locked") return counts;
   let connectionString: string;
   try {
     connectionString = await readSealedConnectionString({ siteDir: input.siteDir }, { sealer: previous });
@@ -102,7 +98,7 @@ async function resealFrom(input: SiteKeyResealInput): Promise<{ resealed: number
   return { ...counts, resealed: counts.resealed + 1 };
 }
 
-async function checkStorageSecret(siteDir: string, sealer: AesGcmSecretSealer): Promise<StorageSecretCheck> {
+async function checkStorageSecret({ siteDir, sealer }: { siteDir: string; sealer: AesGcmSecretSealer }, _optional = {}): Promise<StorageSecretCheck> {
   if (!existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return "absent";
   try {
     await readSealedConnectionString({ siteDir }, { sealer });
@@ -114,7 +110,7 @@ async function checkStorageSecret(siteDir: string, sealer: AesGcmSecretSealer): 
 
 /** Runs `use` on the site's open store, or on its `content.db` opened for this call; `empty` when
  *  the site has no database yet. */
-async function withSiteKernel<R>(input: SiteKeyRecoveryInput, use: (kernel: ContentKernel) => Promise<R>, empty: R): Promise<R> {
+async function withSiteKernel<R>({ input, use, empty }: { input: SiteKeyRecoveryInput; use: (kernel: ContentKernel) => Promise<R>; empty: R }, _optional = {}): Promise<R> {
   if (input.contentKernel !== undefined) return use(input.contentKernel);
   const dbPath = resolveSiteDatabasePaths({ dir: input.siteDir }).contentDbPath;
   if (!existsSync(dbPath)) return empty;

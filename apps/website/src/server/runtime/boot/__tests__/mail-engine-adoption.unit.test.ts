@@ -66,7 +66,7 @@ async function fixture(required: { setting: engine.MailProviderSetting | null },
   const resolved = createResolvedMailer({
     workspaceId: "ws", mode: "production", customCredentialRepo: repo, sealer,
     httpClient: fakeGuardedHttp({ calls }), loadMailAdapters: async () => adapters, warn: () => {},
-    providerSetting: { read: async () => state.setting, write: async setting => { writes.push(setting); state.setting = setting; } },
+    providerSetting: { read: async () => state.setting, write: async ({ value: setting }) => { writes.push(setting); state.setting = setting; } },
     readSenderEmail: async () => "news@Example.COM",
     resolvePluginAccountToken: async input => { accounts.push(input); return "account-key"; },
     wrapProviderMailer: createMailPolicyWrapper({

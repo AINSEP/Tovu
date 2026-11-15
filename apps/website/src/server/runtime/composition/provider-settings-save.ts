@@ -37,7 +37,7 @@ function requestValues({ values, fields }: { values: unknown; fields: ReadonlyMa
 }
 
 /** Labels of the fields `pick` selects, joined for a message. */
-const labelsOf = (fields: readonly PluginProviderSettingField[], pick: (field: PluginProviderSettingField) => boolean) =>
+const labelsOf = ({ fields, pick }: { fields: readonly PluginProviderSettingField[]; pick: (field: PluginProviderSettingField) => boolean }, _optional = {}) =>
   fields.filter(pick).map((field) => field.label).join(", ");
 
 /**
@@ -56,9 +56,9 @@ export function nextProviderConfig({ values, fields, current }: { values: unknow
   const secrets: Record<string, string> = { ...current?.secrets };
   for (const [name, value] of Object.entries(entered)) if (value !== "") secrets[name] = value;
   // A blank public field means the plugin's declared default, so filling in that default is no change.
-  const effective = (field: PluginProviderSettingField, value: string | undefined) => value || field.default || "";
-  const changed = labelsOf(fields, (field) => !field.secret && effective(field, settings[field.name]) !== effective(field, current?.settings[field.name]));
-  const kept = labelsOf(fields, (field) => !entered[field.name] && Boolean(current?.secrets[field.name]));
+  const effective = ({ field, value }: { field: PluginProviderSettingField; value: string | undefined }, _optional = {}) => value || field.default || "";
+  const changed = labelsOf({ fields, pick: (field) => !field.secret && effective({ field, value: settings[field.name] }) !== effective({ field, value: current?.settings[field.name] }) });
+  const kept = labelsOf({ fields, pick: (field) => !entered[field.name] && Boolean(current?.secrets[field.name]) });
   if (changed && kept) return { refusal: { code: "PROVIDER_SETTINGS_SECRET_REENTRY", error: `Changing ${changed} needs ${kept} entered again.` } };
   return { config: { settings, secrets } };
 }

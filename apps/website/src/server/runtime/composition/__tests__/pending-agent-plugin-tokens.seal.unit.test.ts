@@ -45,7 +45,7 @@ test("tokens are sealed with the new site's sealer and import back through the a
   assert.deepEqual(keyIds, ["k-new"]);
   const raw = fs.readFileSync(path.join(dir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), "utf8");
   assert.equal(raw.includes("tok-a") || raw.includes("tok-b"), false);
-  assert.deepEqual([...listPendingAgentPluginTokenIds(dir)], ["plugin-a", "plugin-b"]);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir: dir })], ["plugin-a", "plugin-b"]);
   const imported: Array<[string, string]> = [];
   await applyPendingAgentPluginTokens({ siteDir: dir, sealer: sealing.sealer, importToken: async ({ pluginId, token }) => { imported.push([pluginId, token]); return "saved"; } },
     { info: () => {}, warn: () => {} });
@@ -56,7 +56,7 @@ for (const [name, contents] of [["null", "null"], ["an array of tokens", '{"vers
   test(`listing pending token ids of a file holding ${name} is empty`, (t) => {
     const dir = siteDir(t);
     fs.writeFileSync(path.join(dir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), contents);
-    assert.deepEqual([...listPendingAgentPluginTokenIds(dir)], []);
+    assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir: dir })], []);
   });
 }
 

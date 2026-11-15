@@ -22,7 +22,7 @@ test("View Template reads the replacement theme roster after a refresh without r
   deps.themesDir = themesDir;
   deps.themes = [theme("before refresh")];
   const work: Promise<void>[] = [];
-  const app = createApp(deps, { onBootWork: promise => work.push(promise) });
+  const app = createApp(deps, { onBootWork: ({ work: promise }) => work.push(promise) });
   t.after(async () => { await Promise.allSettled(work); });
   for (const prefix of ["/theme-assets/live", "/theme-preview-assets/rev/live"]) {
     const response = await dispatchHttpRequest({ app, method: "GET", url: `${prefix}/pages/blank.html` });

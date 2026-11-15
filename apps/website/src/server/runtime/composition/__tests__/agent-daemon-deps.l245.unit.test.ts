@@ -19,7 +19,7 @@ test("L245: reconciliation filters rows, retains attachment order, reloads chang
     onPluginEnabled: async id => { calls.push(`enable:${id}`); },
     onPluginDisabled: id => { calls.push(`disable:${id}`); },
   };
-  await reconcilePluginActivationsOnce(deps, attached);
+  await reconcilePluginActivationsOnce({ deps, attachedIds: attached });
   assert.deepEqual(calls, ["version:same", "version:changed", "enable:changed", "version:unknown", "enable:unknown",
     "version:new", "enable:new", "disable:disabled", "disable:foreign", "disable:removed"]);
   assert.deepEqual([...attached], ["same", "changed", "unknown", "new"]);
@@ -32,19 +32,19 @@ test("L245: without a version reader attached IDs stay loaded; duplicate rows at
     workspaceId: "site", pluginActivationRepo: { listAll: async () => [row({ id: "attached" }), row({ id: "new", version: "1" }), row({ id: "new" })] },
     onPluginEnabled: async id => { calls.push(id); }, onPluginDisabled: () => assert.fail("nothing stale"),
   };
-  await reconcilePluginActivationsOnce(deps, attached);
+  await reconcilePluginActivationsOnce({ deps, attachedIds: attached });
   assert.deepEqual(calls, ["new"]);
   assert.deepEqual([...attached], ["attached", "new"]);
 });
 
 test("L245: duplicate enabled rows use the last version and ignore a later disabled row", async () => {
   const calls: string[] = [];
-  await reconcilePluginActivationsOnce({
+  await reconcilePluginActivationsOnce({ deps: {
     workspaceId: "site", pluginActivationRepo: { listAll: async () => [row({ id: "plugin", version: "1" }),
       row({ id: "plugin", version: "2" }), row({ id: "plugin", version: "3", enabled: false })] },
     pluginLoadedVersion: () => "2", onPluginEnabled: async id => { calls.push(id); },
     onPluginDisabled: () => assert.fail("the enabled row remains authoritative"),
-  }, new Set(["plugin"]));
+  }, attachedIds: new Set(["plugin"]) });
   assert.deepEqual(calls, []);
 });
 
@@ -53,7 +53,7 @@ test("L245: Error and non-Error attach failures are logged, preserve existing ID
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   const attached = new Set(["broken", "stale"]);
   const calls: string[] = [];
-  await reconcilePluginActivationsOnce({
+  await reconcilePluginActivationsOnce({ deps: {
     workspaceId: "site", pluginActivationRepo: { listAll: async () => [row({ id: "broken" }), row({ id: "string-error" }), row({ id: "good" })] },
     pluginLoadedVersion: () => "1",
     onPluginEnabled: async id => {
@@ -62,7 +62,7 @@ test("L245: Error and non-Error attach failures are logged, preserve existing ID
       if (id === "string-error") throw "not installed";
     },
     onPluginDisabled: id => { calls.push(`disable:${id}`); },
-  }, attached);
+  }, attachedIds: attached });
   assert.deepEqual(warnings, [["[plugin-runtime] plugin activation poll failed to attach 'broken': missing package"],
     ["[plugin-runtime] plugin activation poll failed to attach 'string-error': not installed"]]);
   assert.deepEqual(calls, ["broken", "string-error", "good", "disable:stale"]);
@@ -76,8 +76,8 @@ test("L245: repository and detach failures propagate without deleting the failed
     workspaceId: "site", pluginActivationRepo: { listAll: async () => { throw failure; } },
     onPluginEnabled: async () => assert.fail("no attach"), onPluginDisabled: () => { throw failure; },
   };
-  await assert.rejects(reconcilePluginActivationsOnce(deps, attached), error => error === failure);
+  await assert.rejects(reconcilePluginActivationsOnce({ deps, attachedIds: attached }), error => error === failure);
   deps.pluginActivationRepo.listAll = async () => [];
-  await assert.rejects(reconcilePluginActivationsOnce(deps, attached), error => error === failure);
+  await assert.rejects(reconcilePluginActivationsOnce({ deps, attachedIds: attached }), error => error === failure);
   assert.deepEqual([...attached], ["stale"]);
 });

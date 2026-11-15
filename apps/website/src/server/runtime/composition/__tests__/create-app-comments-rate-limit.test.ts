@@ -56,7 +56,7 @@ for (const builder of ["createApp", "createSiteApp"] as const) {
       status: "published", title: "Live budget", bodyJson: null, fieldsJson: {}, publishedAt: now,
       createdAt: now, updatedAt: now, version: 1 });
     const bootWork: Promise<void>[] = [];
-    const app = builder === "createApp" ? createApp(deps, { onBootWork: work => bootWork.push(work) }) : deps.createSiteApp();
+    const app = builder === "createApp" ? createApp(deps, { onBootWork: ({ work }) => bootWork.push(work) }) : deps.createSiteApp();
     t.after(async () => { await Promise.allSettled(bootWork); });
     app.set("trust proxy", false);
     const baseUrl = await startTestServer(app, t);
@@ -134,7 +134,7 @@ for (const builder of ["createApp", "createSiteApp"] as const) {
 
 test("createApp with default dependencies mounts the required comment handler", async (t) => {
   const bootWork: Promise<void>[] = [];
-  const app = createApp(undefined, { onBootWork: work => bootWork.push(work) });
+  const app = createApp(undefined, { onBootWork: ({ work }) => bootWork.push(work) });
   await Promise.all(bootWork);
   const baseUrl = await startTestServer(app, t);
   assert.deepEqual(await submitComment({ baseUrl, forwardedFor: "203.0.113.1" }), {

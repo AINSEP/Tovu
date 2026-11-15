@@ -57,7 +57,7 @@ const UNREADABLE_VIEW: ProviderSettingsView = Object.freeze({ settings: Object.f
 
 const CONFIG_KEY = "provider.config";
 
-const stringRecord = (value: unknown): Record<string, string> | null => {
+const stringRecord = ({ value }: { value: unknown }, _optional = {}): Record<string, string> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 };
@@ -70,7 +70,7 @@ const stringRecord = (value: unknown): Record<string, string> | null => {
  * (SQLITE_BUSY, a dropped connection) or any other vault code is the store failing and is false.
  * @complexity O(1).
  */
-function isOpenFailure(error: unknown): boolean {
+function isOpenFailure({ error }: { error: unknown }, _optional = {}): boolean {
   if (!(error instanceof Error)) return false;
   const code = (error as { code?: unknown }).code;
   // By name + code, not `instanceof`: Jini's VaultError can load as more than one module copy.
@@ -100,13 +100,13 @@ export function createVaultProviderConfigSource(
    * over a valid key.
    */
   async function unreadableOr({ pluginId, error }: { pluginId: string; error: unknown }): Promise<never> {
-    const listed = isOpenFailure(error) && await exists({ pluginId }).catch(() => false);
+    const listed = isOpenFailure({ error }) && await exists({ pluginId }).catch(() => false);
     throw listed ? new ProviderConfigUnreadableError({ pluginId, cause: error }) : error;
   }
   async function read({ pluginId }: { pluginId: string }): Promise<ProviderPluginConfig | null> {
     const row = (await store({ pluginId }).get({ key: CONFIG_KEY }).catch((error: unknown) => unreadableOr({ pluginId, error }))) as { settings?: unknown; secrets?: unknown } | null;
     if (!row || typeof row !== "object") return null;
-    return { settings: stringRecord(row.settings) ?? {}, secrets: stringRecord(row.secrets) ?? {} };
+    return { settings: stringRecord({ value: row.settings }) ?? {}, secrets: stringRecord({ value: row.secrets }) ?? {} };
   }
   return {
     scope: required.scope,

@@ -28,7 +28,7 @@ interface PendingTokensFile {
 }
 
 /** Binds a ciphertext to its plugin id, so one plugin's token never opens as another's. */
-function pendingTokenAad(pluginId: string): string {
+function pendingTokenAad({ pluginId }: { pluginId: string }, _optional = {}): string {
   return `tovu:agent-plugin-pending-token:v1:${pluginId}`;
 }
 
@@ -62,14 +62,14 @@ export async function sealPendingAgentPluginTokensForNewSite(
   const key = await keyring.activeKey();
   const file: PendingTokensFile = { version: 1, tokens: {} };
   for (const [pluginId, token] of Object.entries(tokens)) {
-    file.tokens[pluginId] = await sealer.seal({ plaintext: token, key, aad: pendingTokenAad(pluginId) });
+    file.tokens[pluginId] = await sealer.seal({ plaintext: token, key, aad: pendingTokenAad({ pluginId }) });
   }
-  writePendingTokensFile(siteDir, file);
+  writePendingTokensFile({ siteDir, file });
 }
 
 /** Writes the file 0600 via a temp file and rename, so a rewrite never leaves it half-written and
  *  never inherits a wider mode from the file it replaces. */
-function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void {
+function writePendingTokensFile({ siteDir, file }: { siteDir: string; file: PendingTokensFile }, _optional = {}): void {
   writeJsonFileAtomic({ filePath: path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), data: file, fs: createNodeAtomicFilesystem({}, {}) }, { mode: 0o600 });
 }
 
@@ -80,7 +80,7 @@ function writePendingTokensFile(siteDir: string, file: PendingTokensFile): void 
  *
  * @complexity One small file read.
  */
-export function listPendingAgentPluginTokenIds(siteDir: string): ReadonlySet<string> {
+export function listPendingAgentPluginTokenIds({ siteDir }: { siteDir: string }, _optional = {}): ReadonlySet<string> {
   try {
     const file = JSON.parse(fs.readFileSync(path.join(siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME), "utf8")) as Partial<PendingTokensFile> | null;
     const tokens = file?.tokens;
@@ -129,7 +129,7 @@ export async function applyPendingAgentPluginTokens(
     fs.rmSync(target, { force: true });
     return;
   }
-  writePendingTokensFile(required.siteDir, { version: 1, tokens: remaining });
+  writePendingTokensFile({ siteDir: required.siteDir, file: { version: 1, tokens: remaining } });
 }
 
 /** Handle one sealed credential; true retains it for retry, false consumes it. O(1) plus import I/O. */
@@ -144,7 +144,7 @@ async function applyPendingToken(
 ): Promise<boolean> {
   let token: string;
   try {
-    token = await required.sealer.open({ sealed }, { aad: pendingTokenAad(pluginId) });
+    token = await required.sealer.open({ sealed }, { aad: pendingTokenAad({ pluginId }) });
   } catch {
     log.warn(`[agent-plugins] the access token saved for '${pluginId}' when this site was created does not open with this site's key; it was dropped. Connect '${pluginId}' from chat instead.`);
     return false;

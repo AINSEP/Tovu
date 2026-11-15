@@ -98,8 +98,8 @@ export function providerInputOf({ declaration, saved }: { declaration: PluginPro
   if (!saved || fields.length === 0) return undefined;
   const defaults = Object.fromEntries(fields.flatMap((field) => !field.secret && field.default ? [[field.name, field.default]] : []));
   const values: Record<string, string | undefined> = { ...defaults, ...Object.fromEntries(Object.entries(saved.settings).filter(([, value]) => value.trim() !== "")), ...saved.secrets };
-  const present = (name: string) => (values[name] ?? "").trim() !== "";
-  if (fields.some((field) => isProviderSettingRequired({ field, values }) && !present(field.name))) return undefined;
+  const present = ({ name }: { name: string }, _optional = {}) => (values[name] ?? "").trim() !== "";
+  if (fields.some((field) => isProviderSettingRequired({ field, values }) && !present({ name: field.name }))) return undefined;
   return Object.fromEntries(fields.flatMap((field) => {
     const value = values[field.name];
     return value !== undefined && value.trim() !== "" ? [[field.name, value]] : [];
@@ -359,7 +359,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     else initializations.push(event);
   }
   let closed = false;
-  async function replaceSlot(slot: ProviderSlot, saved: ProviderPluginConfig | null): Promise<void> {
+  async function replaceSlot({ slot, saved }: { slot: ProviderSlot; saved: ProviderPluginConfig | null }, _optional?: Record<string, never>): Promise<void> {
     const input = providerInputOf({ declaration: slot.declaration, saved });
     const signature = input === undefined ? undefined : JSON.stringify(input);
     if (unchangedSlot({ slot, signature })) {
@@ -401,7 +401,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     for (const slot of selected) {
       const input = providerInputOf({ declaration: slot.declaration, saved });
       if (!unchangedSlot({ slot, signature: input === undefined ? undefined : JSON.stringify(input) })) changed.push(slot);
-      await replaceSlot(slot, saved);
+      await replaceSlot({ slot, saved });
     }
     for (const slot of changed) initialization({ slot, outcome: slot.lease ? 'success' : 'noop', reasonClass: slot.lease ? 'ready' : 'not_configured' });
   }

@@ -12,7 +12,7 @@ function fakeApp() {
   return { app: app as never, mounted };
 }
 
-function module(reconcile: () => Promise<number>, onBootWork?: (work: Promise<void>) => void) {
+function module(reconcile: () => Promise<number>, onBootWork?: ({ work }: { work: Promise<void> }) => void) {
   const finalizer = { reconcileInterrupted: reconcile } as never;
   return createAssistantChatsModule({ workspaceId: "ws" } as never, { finalizer, recoverInterrupted: true, ...(onBootWork ? { onBootWork } : {}) });
 }
@@ -22,7 +22,7 @@ test("a repair that dispatched turns logs the count and is reported as boot work
   t.mock.method(console, "log", (...args: unknown[]) => { logs.push(args); });
   const work: Promise<void>[] = [];
   const { app, mounted } = fakeApp();
-  module(async () => 2, (pending) => { work.push(pending); }).registerRoutes!({ app });
+  module(async () => 2, ({ work: pending }) => { work.push(pending); }).registerRoutes!({ app });
   assert.equal(work.length, 1);
   await work[0];
   assert.deepEqual(logs, [["[assistant-chats] dispatched 2 unfinished chat turn(s) to recovery"]]);

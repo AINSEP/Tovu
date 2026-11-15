@@ -140,11 +140,11 @@ test("a file that is not valid JSON is removed with a warning", async () => {
 });
 
 test("listPendingAgentPluginTokenIds: the plugin ids in the file, without opening a token; none for a missing or unreadable file", async () => {
-  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir })], []);
   await writePending({ supabase: TOKEN, other: "tok-other" });
-  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)].sort(), ["other", "supabase"]);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir })].sort(), ["other", "supabase"]);
   fs.writeFileSync(target(), "{not json");
-  assert.deepEqual([...listPendingAgentPluginTokenIds(siteDir)], []);
+  assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir })], []);
 });
 
 test("production onboarding writer round-trips multiple tokens through a freshly constructed boot sealer", async (t) => {

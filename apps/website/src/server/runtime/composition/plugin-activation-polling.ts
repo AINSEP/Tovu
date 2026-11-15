@@ -29,7 +29,7 @@ export interface PluginActivationPollDeps {
  * has that is no longer durably enabled. A single plugin's `onPluginEnabled` failure (its package
  * removed from disk, a tamper, …) is logged and skipped — it can never block reconciling the rest.
  */
-export async function reconcilePluginActivationsOnce(deps: PluginActivationPollDeps, attachedIds: Set<string>): Promise<void> {
+export async function reconcilePluginActivationsOnce({ deps, attachedIds }: { deps: PluginActivationPollDeps; attachedIds: Set<string> }, _optional = {}): Promise<void> {
   const records = await deps.pluginActivationRepo.listAll();
   const enabledVersions = new Map(records.filter(record => record.workspaceId === deps.workspaceId && record.enabled).map(record => [record.pluginId, record.version]));
 
@@ -94,7 +94,7 @@ export function startPluginActivationPolling(
   const timer = setInterval(() => {
     if (stopped) return;
     void seeded
-      .then(() => stopped ? undefined : reconcilePluginActivationsOnce(pollingDeps, attachedIds))
+      .then(() => stopped ? undefined : reconcilePluginActivationsOnce({ deps: pollingDeps, attachedIds }))
       .catch((error: unknown) => {
             console.warn(`[plugin-runtime] plugin activation poll failed: ${error instanceof Error ? error.message : String(error)}`);
       });

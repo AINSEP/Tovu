@@ -72,7 +72,7 @@ export function createSiteMailer(required: SiteMailerRequired, options: { durabl
     ...resolve,
     providerSetting: {
       read: async () => { await ready(); return readMailProviderSetting({ settingsRepo: settings.repo, workspaceId }); },
-      write: async (value) => {
+      write: async ({ value }) => {
         await ready();
         await writeMailProviderSetting({ deps: { ...settings.deps, repo: settings.repo, authorize: allowSystemMailMigration }, workspaceId, callerPrincipalId: settings.systemPrincipalId, value });
       },

@@ -112,7 +112,7 @@ function memorySetting(initial: MailProviderSetting | null = null): MailProvider
     value: initial,
     writes: [] as MailProviderSetting[],
     read: async () => port.value,
-    write: async (value: MailProviderSetting) => { port.writes.push(value); port.value = value; },
+    write: async ({ value }: { value: MailProviderSetting }) => { port.writes.push(value); port.value = value; },
   };
   return port;
 }

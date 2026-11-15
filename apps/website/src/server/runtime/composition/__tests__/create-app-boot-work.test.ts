@@ -30,7 +30,7 @@ test("createApp hands onBootWork the installed-extension pass, which settles onl
   };
   const work: Promise<void>[] = [];
 
-  createApp(deps, { onBootWork: (pending) => work.push(pending) });
+  createApp(deps, { onBootWork: ({ work: pending }) => work.push(pending) });
 
   assert.equal(work.length, 1);
   const [pass] = work;

@@ -9,7 +9,7 @@ for (const consentAudit of [undefined, true] as const) {
     const deps = createRouteDeps();
     deps.siteStatusRepo = { get: async () => 'BLOCKED_PENDING_RECOVERY', set: async () => {} };
     const work: Promise<void>[] = [];
-    const app = createApp(deps, { consentAudit, themeIdOverride: 'fixture-theme', onBootWork: pending => { work.push(pending); } });
+    const app = createApp(deps, { consentAudit, themeIdOverride: 'fixture-theme', onBootWork: ({ work: pending }) => { work.push(pending); } });
     await Promise.all(work);
     const baseUrl = await startTestServer(app, t);
     const response = await fetch(`${baseUrl}/fixture-page`);
@@ -25,7 +25,7 @@ test('L058a BYOK boot pass is still tracked when admin assistant routes are off'
   const deps = createRouteDeps();
   deps.adminAssistantEnabled = false;
   const work: Promise<void>[] = [];
-  createApp(deps, { onBootWork: pending => { work.push(pending); } });
+  createApp(deps, { onBootWork: ({ work: pending }) => { work.push(pending); } });
   assert.equal(work.length, 1);
   await Promise.all(work);
 });
@@ -35,7 +35,7 @@ for (const enabled of [true, false]) {
     const deps = createRouteDeps();
     deps.adminAssistantEnabled = enabled;
     const work: Promise<void>[] = [];
-    const app = createApp(deps, { onBootWork: pending => { work.push(pending); } });
+    const app = createApp(deps, { onBootWork: ({ work: pending }) => { work.push(pending); } });
     await Promise.all(work);
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     for (const endpoint of ['/api/runs', '/api/assistant/chats']) {

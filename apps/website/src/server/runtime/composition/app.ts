@@ -1919,7 +1919,7 @@ export interface CreateAppOptions {
    * from the store. Whoever closes the store soon after composing an app awaits these first, so the
    * close does not land under those reads. Never rejects (the pass is fail-open).
    */
-  onBootWork?: (work: Promise<void>) => void;
+  onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
   /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
    *  apps never pass it, so signing in to them pulls nothing. */
   onAdminSignIn?: AdminSignInPort;
@@ -1945,7 +1945,7 @@ function trackByokBootWork(
   const pendingBootWork = bootWorkByDeps.get(routeDeps);
   pendingBootWork?.add(bootWork);
   void bootWork.then(() => pendingBootWork?.delete(bootWork), () => pendingBootWork?.delete(bootWork));
-  options.onBootWork?.(byokAssistantModule.toolSurface.ready);
+  options.onBootWork?.({ work: byokAssistantModule.toolSurface.ready });
 }
 
 /** Install the ordered public request guards before any normal routes. O(1) setup. */

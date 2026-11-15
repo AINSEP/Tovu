@@ -70,7 +70,7 @@ async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<vo
 /** The three steps of {@link importAgentPluginTokensAtBoot}, injectable for tests. */
 export interface AgentPluginTokenBootSteps {
   /** Plugin ids with a create-site onboarding token waiting in `siteDir`. */
-  readonly pendingPluginIds: (siteDir: string) => ReadonlySet<string>;
+  readonly pendingPluginIds: ({ siteDir }: { siteDir: string }, optional?: Record<string, never>) => ReadonlySet<string>;
   readonly applyPending: ({ siteDir }: { siteDir: string }, optional?: Record<string, never>) => Promise<void>;
   readonly importFromEnv: ({ skipPluginIds }: { skipPluginIds: ReadonlySet<string> }, optional?: Record<string, never>) => Promise<void>;
 }
@@ -103,7 +103,7 @@ export async function importAgentPluginTokensAtBoot(
   let pending: ReadonlySet<string> = new Set();
   if (!options.useMemory) {
     const siteDir = path.dirname(options.defaultContentDbPath());
-    pending = steps.pendingPluginIds(siteDir);
+    pending = steps.pendingPluginIds({ siteDir });
     try {
       await steps.applyPending({ siteDir });
     } catch (err) {

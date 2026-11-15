@@ -56,7 +56,7 @@ export interface CreateSqlitePublishContentSeedHashInput {
  * rather than silently returning wrong data.
  * @complexity O(1).
  */
-function unusedBySeedInspect<T extends object>(label: string): T {
+function unusedBySeedInspect<T extends object>({ label }: { label: string }, _optional = {}): T {
   return new Proxy(
     {},
     {
@@ -99,30 +99,30 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
       post: { repo: seedPostRepo },
       media: {
         repo: new SqliteMediaRepo({ store: seedDb }),
-        assetBlobRepo: unusedBySeedInspect("media.assetBlobRepo"),
-        blobStore: unusedBySeedInspect("media.blobStore"),
-        contentTypeStore: unusedBySeedInspect("media.contentTypeStore"),
+        assetBlobRepo: unusedBySeedInspect({ label: "media.assetBlobRepo" }),
+        blobStore: unusedBySeedInspect({ label: "media.blobStore" }),
+        contentTypeStore: unusedBySeedInspect({ label: "media.contentTypeStore" }),
       },
-      menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect("menu.bindingRepo") },
+      menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect({ label: "menu.bindingRepo" }) },
       redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
       ...buildContentPublishPorts({
         formDefinitionRepo: new SqliteFormDefinitionRepo({ store: seedDb }),
         contentTypeRepo: new SqliteContentTypeRepo({ store: seedDb }),
-        contentTypeIndexProvisioner: unusedBySeedInspect("contentTypeIndexProvisioner"),
+        contentTypeIndexProvisioner: unusedBySeedInspect({ label: "contentTypeIndexProvisioner" }),
         workspaceId,
         postRepo: seedPostRepo,
         taxonomyRepo: new SqliteTaxonomyRepo({ db: seedDb, workspaceId }),
         termRepo: new SqliteTermRepo({ db: seedDb, workspaceId }),
         // Read by post/page/entry `inspect()` for their `termIds`.
         entryTermRepo: new SqliteEntryTermRepo({ db: seedDb, workspaceId }),
-        taxonomyRevisionRepo: unusedBySeedInspect("taxonomyRevisionRepo"),
-        stampWatermark: () => unusedBySeedInspect<{ call: never }>("stampWatermark").call,
+        taxonomyRevisionRepo: unusedBySeedInspect({ label: "taxonomyRevisionRepo" }),
+        stampWatermark: () => unusedBySeedInspect<{ call: never }>({ label: "stampWatermark" }).call,
         entryRepo: new SqliteEntryRepo({ store: seedDb }),
-        entryRefsRepo: unusedBySeedInspect("entryRefsRepo"),
-        widgetBindingRepo: unusedBySeedInspect("widgetBindingRepo"),
+        entryRefsRepo: unusedBySeedInspect({ label: "entryRefsRepo" }),
+        widgetBindingRepo: unusedBySeedInspect({ label: "widgetBindingRepo" }),
         // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.
         settingsRepo: new SqliteSettingsRepo(seedDb),
-        principalRepo: unusedBySeedInspect("principalRepo"),
+        principalRepo: unusedBySeedInspect({ label: "principalRepo" }),
         presentationRepo: new SqlitePresentationSettingsRepo(seedDb),
         themes: [],
       }),

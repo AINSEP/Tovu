@@ -84,7 +84,7 @@ async function serve(siteDir: string): Promise<Running> {
       siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
     } });
     await drainBootReadiness(deps);
-    server = createServer(createApp(deps, { onBootWork: work => appBootWork.push(work) }));
+    server = createServer(createApp(deps, { onBootWork: ({ work }) => appBootWork.push(work) }));
     const baseUrl = await listen(server);
     return { baseUrl, cookie: await loginAsOwner(baseUrl), ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, stop };
   } catch (err) {
