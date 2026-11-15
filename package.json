@@ -216,7 +216,7 @@
     "@types/pg": "^8.23.1",
     "@types/semver": "^7.5.8",
     "@types/yauzl": "^3.4.0",
-    "astro": "^7.2.1",
+    "astro": "^7.2.10",
     "dependency-cruiser": "^18.1.0",
     "drizzle-kit": "^0.30.6",
     "eslint": "^10.8.0",
