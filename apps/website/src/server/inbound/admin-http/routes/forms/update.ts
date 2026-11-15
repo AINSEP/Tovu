@@ -21,6 +21,16 @@ import type { FormsRouteRegistrar } from "./deps.js";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
 
+/** Picks the recognized field-patch keys out of the PUT body; an empty result means "no field patch". */
+function buildFormPatch({ body }: { body: Record<string, unknown> }, _optional = {}): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring {
+  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
+  if (typeof body.name === "string") patch.name = body.name;
+  if (Array.isArray(body.fields)) patch.fields = body.fields as FieldDescriptor[];
+  if (body.notify !== undefined) patch.notify = body.notify as NotifyConfig;
+  if (body.provider !== undefined) patch.provider = body.provider as FormAuthoring["provider"];
+  return patch;
+}
+
 /**
  * Applies the PATCH body's field patch and/or status change (each optional, either or both may
  * apply), then falls back to a plain read when neither ran — a request with no recognized fields is
@@ -29,15 +39,10 @@ const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
  * @throws {FormDefinitionNotFoundError} if neither write ran and the form id doesn't exist either.
  * @complexity O(1) — at most two writes and one read.
  */
-async function resolveFormUpdateResult({ writeDeps, repo, params }: { writeDeps: FormWriteServiceDeps; repo: FormDefinitionRepoPort; params: { workspaceId: string; actor: { id: string; kind: "user" }; formId: string; body: Record<string, unknown> } }, _optional?: Record<string, never>): Promise<FormDefinitionRecord> {
+async function resolveFormUpdateResult({ writeDeps, repo, params }: { writeDeps: FormWriteServiceDeps; repo: FormDefinitionRepoPort; params: { workspaceId: string; actor: { id: string; kind: "user" }; formId: string; body: Record<string, unknown> } }, _optional = {}): Promise<FormDefinitionRecord> {
   const { workspaceId, actor, formId, body } = params;
 
-  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
-  if (typeof body.name === "string") patch.name = body.name;
-  if (Array.isArray(body.fields)) patch.fields = body.fields as FieldDescriptor[];
-  if (body.notify !== undefined) patch.notify = body.notify as NotifyConfig;
-  if (body.provider !== undefined) patch.provider = body.provider as FormAuthoring["provider"];
-
+  const patch = buildFormPatch({ body });
   let definition: FormDefinitionRecord | undefined;
   if (Object.keys(patch).length > 0) {
     ({ definition } = await updateFormDefinition({ deps: writeDeps, input: { workspaceId, actor, formId, patch } }));
