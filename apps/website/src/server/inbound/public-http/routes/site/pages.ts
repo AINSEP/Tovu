@@ -682,7 +682,7 @@ async function resolveOneStaticMenu({ menuId, env }: { menuId: string; env: Stat
   // template file per page. A path with no matching menu (most pages, and any doc page nobody
   // has authored a sidebar for yet) falls through to `!menu` below exactly like an ordinary dead
   // marker id — the theme's authored fallback content, not an empty nav.
-  if (menuId === CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID) return resolveCurrentPageSidebarMenu(menuId, env);
+  if (menuId === CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID) return resolveCurrentPageSidebarMenu({ menuId, env });
   // `DOCS_SECTION_MENU_ID` is the second reserved exception (2026-09-24): it names "the Docs
   // subtree of the header nav," not a stored menu of its own. The whole `menu-header-nav` doc is
   // resolved once (so every item, at every depth, gets the same real `isCurrent`/`isActive`
@@ -691,20 +691,21 @@ async function resolveOneStaticMenu({ menuId, env }: { menuId: string; env: Stat
   // its own resolved pages. A header nav with no item linking to `/docs` (or no header nav at
   // all) degrades to the theme's authored fallback, same "not authored yet" posture as every
   // other reserved-id miss in this function.
-  if (menuId === DOCS_SECTION_MENU_ID) return resolveDocsSectionMenu(menuId, env);
+  if (menuId === DOCS_SECTION_MENU_ID) return resolveDocsSectionMenu({ menuId, env });
   // `DOCS_PREV_NEXT_MENU_ID` is the third reserved exception (2026-09-24): same Docs-subtree
   // lookup as `DOCS_SECTION_MENU_ID` above, flattened across group boundaries and reduced to the
   // 0-2 neighbours of whichever page in that flattened order is `isCurrent`. A current page not
   // found in the flattened list (the requesting page is not itself a page in the Docs subtree —
   // e.g. a non-doc page that happens to carry this marker) degrades the same way as no `/docs`
   // item at all: the theme's authored fallback, not a crash or an empty-but-present pager.
-  if (menuId === DOCS_PREV_NEXT_MENU_ID) return resolveDocsPrevNextMenu(menuId, env);
+  if (menuId === DOCS_PREV_NEXT_MENU_ID) return resolveDocsPrevNextMenu({ menuId, env });
   const menu = await findStaticMenu({ menuId, deps: env.deps });
   if (!menu) return undefined;
   return [menuId, await resolveMenuContent({ menu, context: env.context, resolveTargetHref: env.resolveTargetHref })] as const;
 }
 
-async function resolveCurrentPageSidebarMenu(menuId: string, { deps, context, resolveTargetHref }: StaticMenuResolution): Promise<StaticMenuEntry | undefined> {
+async function resolveCurrentPageSidebarMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
+  const { deps, context, resolveTargetHref } = env;
   const menu = await deps.menuRepo.findBySlug({
     workspaceId: deps.workspaceId,
     slug: docsSidebarMenuSlugForPath({ currentPath: context.currentPath }),
@@ -713,13 +714,15 @@ async function resolveCurrentPageSidebarMenu(menuId: string, { deps, context, re
   return [menuId, await resolveMenuContent({ menu, context, resolveTargetHref })] as const;
 }
 
-async function resolveDocsSectionMenu(menuId: string, { deps, context, resolveTargetHref }: StaticMenuResolution): Promise<StaticMenuEntry | undefined> {
+async function resolveDocsSectionMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
+  const { deps, context, resolveTargetHref } = env;
   const docsItem = await resolveDocsSectionItem({ deps, context, resolveTargetHref });
   if (!docsItem) return undefined;
   return [menuId, docsItem.children] as const;
 }
 
-async function resolveDocsPrevNextMenu(menuId: string, { deps, context, resolveTargetHref }: StaticMenuResolution): Promise<StaticMenuEntry | undefined> {
+async function resolveDocsPrevNextMenu({ menuId, env }: { menuId: string; env: StaticMenuResolution }, _optional = {}): Promise<StaticMenuEntry | undefined> {
+  const { deps, context, resolveTargetHref } = env;
   const docsItem = await resolveDocsSectionItem({ deps, context, resolveTargetHref });
   if (!docsItem) return undefined;
   const flatPages = flattenDocsPages(docsItem.children);

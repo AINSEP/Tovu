@@ -56,7 +56,7 @@ function classify({ error }: { error: unknown }, _optional = {}): OAuthCallbackF
   return "exchange_failed";
 }
 
-function send(res: Parameters<Parameters<Express["get"]>[1]>[1], status: number, reason?: OAuthCallbackFailureReason): void {
+function send({ res, status }: { res: Parameters<Parameters<Express["get"]>[1]>[1]; status: number }, { reason }: { reason?: OAuthCallbackFailureReason } = {}): void {
   res.status(status).set("Cache-Control", "no-store").type("html")
     .send(renderOAuthCallbackPage(reason ? { ok: false, reason, messageType: API_CONNECTION_CALLBACK_MESSAGE_TYPE } : { ok: true, messageType: API_CONNECTION_CALLBACK_MESSAGE_TYPE }));
 }
@@ -101,26 +101,26 @@ export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiC
   const log = deps.log ?? ((line: string) => { consoleLogger.error({ message: line }); });
   app.get(API_CONNECTION_OAUTH_CALLBACK_PATH, asyncRoute({ handler: async (req, res) => {
     // First: the route is anonymous and each hit can cost an outbound token exchange.
-    if (!(await deps.callbackLimiter.check({ key: resolveClientIp(req) })).allowed) return send(res, 429, "rate_limited");
+    if (!(await deps.callbackLimiter.check({ key: resolveClientIp(req) })).allowed) return send({ res, status: 429 }, { reason: "rate_limited" });
     const params = stringParams(req.query as Record<string, unknown>);
     const state = params.state ?? "";
     // The browser that started the sign-in carries this (`browser-binding.ts`); any other browser
     // carries none, and Jini refuses the attempt.
     const browserBinding = readBrowserBinding({ cookieHeader: req.get("cookie") });
-    if (state === "" || state.length > MAX_STATE_LENGTH) return send(res, 400, "no_state");
+    if (state === "" || state.length > MAX_STATE_LENGTH) return send({ res, status: 400 }, { reason: "no_state" });
     try {
       const routed = await routeAttempt({ host: deps.host, state });
       // Unknown, used, foreign-workspace or no-longer-declared: the same answer for each.
-      if (!routed) return send(res, 400, "state_expired");
+      if (!routed) return send({ res, status: 400 }, { reason: "state_expired" });
       const { attempt, connection } = routed;
       // `complete` consumes the attempt whatever it decides, so the binding is spent either way.
       res.append("Set-Cookie", clearedBrowserBindingCookie());
       const done = await deps.host.serviceFor({ connection }).complete({ workspaceId: attempt.workspaceId, actorId: attempt.actorId, redirectUri: callbackUrl(req), callbackParams: params, browserBinding });
       depositCallbackFields(deps.host, { attempt, attemptId: done.attemptId, fields: done.callbackFields });
-      return send(res, 200);
+      return send({ res, status: 200 });
     } catch (error) {
       log(`api-connection oauth callback failed: ${safeErrorLabel({ error })}`);
-      return send(res, 400, classify({ error }));
+      return send({ res, status: 400 }, { reason: classify({ error }) });
     }
   } }));
 }
