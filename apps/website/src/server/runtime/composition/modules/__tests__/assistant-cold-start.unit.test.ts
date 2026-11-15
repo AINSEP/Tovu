@@ -48,7 +48,7 @@ test("availability and rescan read the API inventory, preserving models, capabil
 });
 
 test("known-failed latch still fails /api/agents without waking or reading the inventory", async () => {
-  recordAssistantDaemonFailure("crash cap");
+  recordAssistantDaemonFailure({ reasonCode: "crash cap" });
   const result = response();
   await respondWithEnrichedAgentList({ req: req(), res: result.res, routeDeps: {} as never, liveModels: {} as never }, {});
   assert.equal(result.status(), 503);

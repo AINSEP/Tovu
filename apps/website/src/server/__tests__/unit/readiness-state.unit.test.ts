@@ -33,7 +33,7 @@ test("isAssistantDaemonKnownFailed is false before anything has latched", () => 
 });
 
 test("recordAssistantDaemonFailure latches a visible, optional, failed module entry", () => {
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
 
   assert.equal(isAssistantDaemonKnownFailed(), true);
   const entry = getReadinessSnapshot().modules.find((m) => m.name === "assistant-daemon");
@@ -56,7 +56,7 @@ test("recordAssistantDaemonFailure never flips the rest of the app's own readine
   setReadinessSnapshot({ ok: true, modules: otherModules });
 
   for (const reason of ["first failure", "replacement failure"]) {
-    recordAssistantDaemonFailure(reason);
+    recordAssistantDaemonFailure({ reasonCode: reason });
     assert.equal(getReadinessSnapshot().ok, true, "an optional daemon failure must not make the rest of the app read as down");
     assert.deepEqual(getReadinessSnapshot().modules.filter((m) => m.name !== "assistant-daemon"), expected);
     assert.equal(getAssistantDaemonFailureReasonCode(), reason);
@@ -68,8 +68,8 @@ test("recordAssistantDaemonFailure never flips the rest of the app's own readine
 });
 
 test("recordAssistantDaemonFailure called twice replaces the entry rather than duplicating it", () => {
-  recordAssistantDaemonFailure("first reason");
-  recordAssistantDaemonFailure("second reason");
+  recordAssistantDaemonFailure({ reasonCode: "first reason" });
+  recordAssistantDaemonFailure({ reasonCode: "second reason" });
 
   const entries = getReadinessSnapshot().modules.filter((m) => m.name === "assistant-daemon");
   assert.equal(entries.length, 1);
@@ -77,7 +77,7 @@ test("recordAssistantDaemonFailure called twice replaces the entry rather than d
 });
 
 test("clearAssistantDaemonFailure removes the latch", () => {
-  recordAssistantDaemonFailure("agent daemon exited unexpectedly (code 1, signal none)");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon exited unexpectedly (code 1, signal none)" });
   assert.equal(isAssistantDaemonKnownFailed(), true);
 
   clearAssistantDaemonFailure();
@@ -107,7 +107,7 @@ test("getAssistantDaemonFailureReasonCode is null before anything has latched", 
 });
 
 test("getAssistantDaemonFailureReasonCode returns the exact latched string — proving a 'gave up after crash-looping' reason is distinguishable from a 'never started' one, not just a generic true/false", () => {
-  recordAssistantDaemonFailure("gave up after 5 attempts in 60s: agent daemon exited unexpectedly (code 1, signal none)");
+  recordAssistantDaemonFailure({ reasonCode: "gave up after 5 attempts in 60s: agent daemon exited unexpectedly (code 1, signal none)" });
   assert.equal(
     getAssistantDaemonFailureReasonCode(),
     "gave up after 5 attempts in 60s: agent daemon exited unexpectedly (code 1, signal none)"
@@ -115,7 +115,7 @@ test("getAssistantDaemonFailureReasonCode returns the exact latched string — p
 });
 
 test("getAssistantDaemonFailureReasonCode returns null again once the latch is cleared", () => {
-  recordAssistantDaemonFailure("agent daemon exited unexpectedly (code 1, signal none)");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon exited unexpectedly (code 1, signal none)" });
   clearAssistantDaemonFailure();
   assert.equal(getAssistantDaemonFailureReasonCode(), null);
 });

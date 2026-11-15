@@ -617,7 +617,7 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
   // this fix) would happily reach it and get a 200, exactly like the ordinary passing tests above.
   // A leaked port in production is squatted by a DIFFERENT (orphaned) process, not by nothing, so
   // "the daemon answered" must stop being trusted once we know OUR OWN spawn is dead.
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
@@ -638,7 +638,7 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
 
 test("known-failed availability fails from the API without contacting the daemon", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("controlled crash cap");
+  recordAssistantDaemonFailure({ reasonCode: "controlled crash cap" });
   t.after(() => clearAssistantDaemonFailure());
   const response = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
   assert.equal(response.status, 503);
@@ -647,7 +647,7 @@ test("known-failed availability fails from the API without contacting the daemon
 
 test("a known-failed daemon also short-circuits the SSE run-events route", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/runs/run-1/events`, { headers: { cookie } });
@@ -658,7 +658,7 @@ test("a known-failed daemon also short-circuits the SSE run-events route", async
 
 test("a known-failed daemon short-circuits the dedicated attachment-upload proxy too, which has its own fetch path", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/attachments`, {
@@ -679,7 +679,7 @@ test("a known-failed daemon short-circuits the dedicated attachment-upload proxy
 
 test("clearing the failure (the future-retry hook) restores normal proxying", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
 
   const failed = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
   assert.equal(failed.status, 503);
@@ -754,7 +754,7 @@ test("the tool catalog proxy carries the daemon bearer token, same as every othe
 
 test("a known-failed daemon also short-circuits the tool catalog routes to 503, never reaching the daemon's port", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
 
   const res = await fetch(`${baseUrl}/api/tools/search?q=search`, { headers: { cookie } });

@@ -122,7 +122,7 @@ test("an activation failure without JSON reports its HTTP status and a recovery 
 test("a latched failure retains its code while exposing the current readiness reason", async t => {
   const reason = "The assistant service lost its connection. Restart the site or the app.";
   const reasonCode = "previous-daemon-crash";
-  recordAssistantDaemonFailure(reasonCode);
+  recordAssistantDaemonFailure({ reasonCode });
   t.mock.method(console, "error", () => {});
   let body: unknown;
   const res = { status(code: number) { assert.equal(code, 503); return res; }, json(value: unknown) { body = value; return res; } };

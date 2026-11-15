@@ -41,7 +41,7 @@ export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: 
   const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
   let stderrText = "";
   // A rolling window, never a latch: a native crash's tail comes last, after any verbose startup.
-  const retain = (text: string) => { stderrText = (stderrText + text).slice(-65_536); };
+  const retain = ({ text }: { text: string }, _optional = {}) => { stderrText = (stderrText + text).slice(-65_536); };
   const decoder = new StringDecoder("utf8");
   const record = ({ message, level = "info", includeStderr = false }: { message: string; level?: "info" | "error"; includeStderr?: boolean }, _optional = {}) => {
     const tail = includeStderr ? `; stderr tail=${redact(stderrText).slice(-4096)}` : "";
@@ -52,11 +52,11 @@ export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: 
   };
   const stderr = new Writable({
     write(chunk, _encoding, done) {
-      retain(decoder.write(chunk));
+      retain({ text: decoder.write(chunk) });
       done();
     },
     final(done) {
-      retain(decoder.end());
+      retain({ text: decoder.end() });
       record({ message: "stderr closed", includeStderr: true }); done();
     },
   });
@@ -140,7 +140,7 @@ export function createLocalSiteProcessPort(
   } = {},
 ): LocalSiteProcessPort {
   const repoRoot = resolveCheckoutRoot({});
-  const tls = resolveDevTls(resolveDevTlsCertPaths(repoRoot), { env });
+  const tls = resolveDevTls(resolveDevTlsCertPaths({ repoRoot }), { env });
   const scheme = tls.active ? "https" : "http";
   let buildRoot: string | undefined;
   const registry = { readLive: async () => null, write: async () => {}, removeIfCurrent: async () => {} };
@@ -199,7 +199,7 @@ export function createLocalSiteProcessPort(
       child.on({ event: "exit", listener: () => { exited = true; for (const listener of listeners) listener(); } });
       child.on({ event: "error", listener: () => { exited = true; for (const listener of listeners) listener(); } });
       let daemon: SpawnedDaemonProcess | undefined;
-      const retirementRequest = (method: string) => requestLoopbackHttp({ url: `${scheme}://localhost:${port}/internal/dev-site-retire`,
+      const retirementRequest = ({ method }: { method: string }, _optional = {}) => requestLoopbackHttp({ url: `${scheme}://localhost:${port}/internal/dev-site-retire`,
         method, headers: { "x-tovu-retire": retireToken } }, { certificate: tls.credentials?.cert });
       async function discoverDaemon() {
         const record = await readLiveDaemonRegistryRecord({ registryPath: path.join(siteDir, "ops/assistant-daemon.json") });
@@ -215,17 +215,17 @@ export function createLocalSiteProcessPort(
       return {
         pid: child.pid,
         async tryRetire() {
-          try { return (await retirementRequest("POST")).status === 204; }
+          try { return (await retirementRequest({ method: "POST" })).status === 204; }
           catch {
             // Retirement is an optional probe; undo a partial request before refusing eviction.
-            await retirementRequest("DELETE").then((response) => {
+            await retirementRequest({ method: "DELETE" }).then((response) => {
               if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
             }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${describeErrorForLog({ err: error })}` }));
             return false;
           }
         },
         async cancelRetirement() {
-          await retirementRequest("DELETE").then((response) => {
+          await retirementRequest({ method: "DELETE" }).then((response) => {
             if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
           }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` }));
         },

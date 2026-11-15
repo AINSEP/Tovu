@@ -30,14 +30,12 @@ const DEFAULT_CLOSE_TIMEOUT_MS = 4_000;
  * always exit afterwards. Shared with `tovu serve`'s shutdown.
  */
 export function closeWithinBound(
-  close: () => Promise<void>,
-  options: { label: string; timeoutMs?: number; log?: (message: string) => void }
+  { close, label }: { close: () => Promise<void>; label: string },
+  { timeoutMs = DEFAULT_CLOSE_TIMEOUT_MS, log = (message: string) => console.error(message) }: { timeoutMs?: number; log?: (message: string) => void } = {}
 ): Promise<void> {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
-  const log = options.log ?? ((message: string) => console.error(message));
   return new Promise<void>((resolve) => {
     const timer = setTimeout(() => {
-      log(`[shutdown] ${options.label} did not close within ${timeoutMs} ms; exiting anyway`);
+      log(`[shutdown] ${label} did not close within ${timeoutMs} ms; exiting anyway`);
       resolve();
     }, timeoutMs);
     timer.unref();
@@ -48,7 +46,7 @@ export function closeWithinBound(
       },
       (error: unknown) => {
         clearTimeout(timer);
-        log(`[shutdown] closing ${options.label} failed: ${error instanceof Error ? error.message : String(error)}`);
+        log(`[shutdown] closing ${label} failed: ${error instanceof Error ? error.message : String(error)}`);
         resolve();
       }
     );
@@ -105,7 +103,7 @@ export function closeStoreOnShutdown(
   let daemonStopped: unknown;
   const closeBounded = (): Promise<void> => {
     closing ??= closeWithinBound(
-      async () => {
+      { label: `the ${store.storage.kind} store`, close: async () => {
         await stopServing();
         await awaitBootWorkWithinBound({ work: bootWork() }, { timeoutMs: timeoutMs / 2, log });
         // The daemon shares content.db and chat.db, and SQLite removes the WAL/SHM only on the LAST
@@ -117,8 +115,8 @@ export function closeStoreOnShutdown(
         // Wait for its outcome too, so a failed tree-stop is logged rather than lost.
         const [stopped] = await daemon;
         if (stopped.status === "rejected") throw stopped.reason;
-      },
-      { label: `the ${store.storage.kind} store`, timeoutMs, log }
+      } },
+      { timeoutMs, log }
     );
     return closing;
   };

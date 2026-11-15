@@ -17,7 +17,7 @@ test("closeWithinBound with no options logs a hung close to console.error after 
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const errors = t.mock.method(console, "error", () => {});
   let settled = false;
-  const done = closeWithinBound(() => new Promise<void>(() => {}), { label: "the hung store" }).then(() => { settled = true; });
+  const done = closeWithinBound({ close: () => new Promise<void>(() => {}), label: "the hung store" }).then(() => { settled = true; });
   t.mock.timers.tick(3_999);
   await Promise.resolve();
   assert.equal(settled, false);
@@ -28,7 +28,7 @@ test("closeWithinBound with no options logs a hung close to console.error after 
 
 test("closeWithinBound names a non-Error rejection by its string form and still resolves", async () => {
   const logged: string[] = [];
-  await closeWithinBound(() => Promise.reject("disk vanished"), { label: "the sqlite store", timeoutMs: 1_000, log: (message) => logged.push(message) });
+  await closeWithinBound({ close: () => Promise.reject("disk vanished"), label: "the sqlite store" }, { timeoutMs: 1_000, log: (message) => logged.push(message) });
   assert.deepEqual(logged, ["[shutdown] closing the sqlite store failed: disk vanished"]);
 });
 

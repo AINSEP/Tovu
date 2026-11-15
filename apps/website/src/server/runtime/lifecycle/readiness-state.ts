@@ -47,7 +47,7 @@ const ASSISTANT_DAEMON_MODULE_NAME = "assistant-daemon";
  * health once we know OUR OWN spawn died — a leaked port can otherwise still be squatted by an
  * orphaned daemon from a previous run, which would go on answering requests as if it were healthy.
  */
-export function recordAssistantDaemonFailure(reasonCode: string): void {
+export function recordAssistantDaemonFailure({ reasonCode }: { reasonCode: string }, _optional = {}): void {
   const failedModule: BootModuleResult = {
     name: ASSISTANT_DAEMON_MODULE_NAME,
     owner: "assistant",

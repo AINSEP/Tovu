@@ -48,7 +48,7 @@ export interface BootResult {
   modules: BootModuleResult[];
 }
 
-function toFailed(module: BootModule, err: unknown): BootModuleResult {
+function toFailed({ module, err }: { module: BootModule; err: unknown }, _optional = {}): BootModuleResult {
   const message = err instanceof Error ? err.message : String(err);
   return {
     name: module.name,
@@ -77,7 +77,7 @@ async function stopInReverse(modules: readonly BootModule[]): Promise<void> {
   }
 }
 
-function finalize(modules: readonly BootModule[], results: Map<string, BootModuleResult>): BootResult {
+function finalize({ modules, results }: { modules: readonly BootModule[]; results: Map<string, BootModuleResult> }, _optional = {}): BootResult {
   const ordered = modules.map((m) => results.get(m.name)).filter((r): r is BootModuleResult => r !== undefined);
   const ok = ordered.every((r) => r.criticality !== "critical" || r.lifecycle.status === "ready");
   return { ok, modules: ordered };
@@ -90,8 +90,8 @@ function finalize(modules: readonly BootModule[], results: Map<string, BootModul
  * and the loop continues (that module is simply excluded from `prepared`, so `start()` never sees it).
  */
 async function runPrepareStage(
-  modules: readonly BootModule[],
-  results: Map<string, BootModuleResult>
+  { modules, results }: { modules: readonly BootModule[]; results: Map<string, BootModuleResult> },
+  _optional = {}
 ): Promise<{ prepared: BootModule[]; aborted: boolean }> {
   const prepared: BootModule[] = [];
 
@@ -100,7 +100,7 @@ async function runPrepareStage(
       await module.prepare();
       prepared.push(module);
     } catch (err) {
-      results.set(module.name, toFailed(module, err));
+      results.set(module.name, toFailed({ module, err }));
       if (module.criticality === "critical") {
         await stopInReverse(prepared);
         return { prepared, aborted: true };
@@ -116,8 +116,8 @@ async function runPrepareStage(
  * abort behavior as {@link runPrepareStage}, scoped to modules that have actually `start()`-ed.
  */
 async function runStartStage(
-  prepared: readonly BootModule[],
-  results: Map<string, BootModuleResult>
+  { prepared, results }: { prepared: readonly BootModule[]; results: Map<string, BootModuleResult> },
+  _optional = {}
 ): Promise<{ aborted: boolean }> {
   const ready: BootModule[] = [];
 
@@ -127,7 +127,7 @@ async function runStartStage(
       results.set(module.name, toReady(module));
       ready.push(module);
     } catch (err) {
-      results.set(module.name, toFailed(module, err));
+      results.set(module.name, toFailed({ module, err }));
       if (module.criticality === "critical") {
         // The modules after this one finished `prepare()` but never start: they hold prepare
         // resources too, so they stop with the started ones (reverse array order overall).
@@ -150,11 +150,11 @@ async function runStartStage(
 export async function runBootLifecycle(modules: readonly BootModule[]): Promise<BootResult> {
   const results = new Map<string, BootModuleResult>();
 
-  const prepareOutcome = await runPrepareStage(modules, results);
-  if (prepareOutcome.aborted) return finalize(modules, results);
+  const prepareOutcome = await runPrepareStage({ modules, results });
+  if (prepareOutcome.aborted) return finalize({ modules, results });
 
-  const startOutcome = await runStartStage(prepareOutcome.prepared, results);
-  if (startOutcome.aborted) return finalize(modules, results);
+  const startOutcome = await runStartStage({ prepared: prepareOutcome.prepared, results });
+  if (startOutcome.aborted) return finalize({ modules, results });
 
-  return finalize(modules, results);
+  return finalize({ modules, results });
 }

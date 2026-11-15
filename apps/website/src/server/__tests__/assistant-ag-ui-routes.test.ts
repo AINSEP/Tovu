@@ -658,7 +658,7 @@ test("a known-failed daemon short-circuits this route too — startDaemonRun's o
   // short-circuit that lives in the SHARED `fetchAgentDaemon` also propagates correctly through
   // this route's own `startDaemonRun` (`if (!startUpstream) return { ok: false }`), not just that
   // the shared helper itself writes a 503.
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure({ reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use" });
   t.after(() => clearAssistantDaemonFailure());
   // A latched daemon has no live child to wake, so the demand gate refuses.
   resetAssistantDaemonSingletonForTests();
