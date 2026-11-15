@@ -359,13 +359,16 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
     else initializations.push(event);
   }
   let closed = false;
-  async function replaceSlot({ slot, saved }: { slot: ProviderSlot; saved: ProviderPluginConfig | null }, _optional?: Record<string, never>): Promise<void> {
+  /** Extracted from replaceSlot to keep its complexity down: true when the saved config is unchanged. */
+  function noteUnchangedSlot({ slot, signature }: { slot: ProviderSlot; signature: string | undefined }, _optional = {}): boolean {
+    if (!unchangedSlot({ slot, signature })) return false;
+    if (!slot.initializationObserved) initialization({ slot, outcome: 'noop', reasonClass: 'not_configured' });
+    return true;
+  }
+  async function replaceSlot({ slot, saved }: { slot: ProviderSlot; saved: ProviderPluginConfig | null }, _optional = {}): Promise<void> {
     const input = providerInputOf({ declaration: slot.declaration, saved });
     const signature = input === undefined ? undefined : JSON.stringify(input);
-    if (unchangedSlot({ slot, signature })) {
-      if (!slot.initializationObserved) initialization({ slot, outcome: 'noop', reasonClass: 'not_configured' });
-      return;
-    }
+    if (noteUnchangedSlot({ slot, signature })) return;
     const old = slot.lease;
     // Reconfiguration/revocation drops queued exports before SDK shutdown can flush the old key.
     slot.retirement.abort();

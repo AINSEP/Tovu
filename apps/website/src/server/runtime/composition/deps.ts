@@ -814,7 +814,7 @@ type StoreCloseRegistration = (() => unknown) | Promise<() => unknown>;
  */
 async function openCompositionStore(
   { dbPath }: { dbPath: string },
-  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> }
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): Promise<{ store: SiteStore; release: () => Promise<void>; onClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void }> {
   const storage = prepareCompositionStorage({ dbPath, overrides });
   hydrateContentDbIfNeeded({ dbPath, storage }, { overrides });
@@ -823,14 +823,8 @@ async function openCompositionStore(
   // SQLite: `openSiteContentDb` (open → ADR-023 §2 crash recovery → migrate → watermark + demo
   // seed) unless `overrides.db`, then `chat.db` beside it (`defaultChatDbPath`). `chat.db`'s
   // directory is `dirname(dbPath)`, which the content open already required to exist.
-  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: overrides.chatDbPath ?? defaultChatDbPath({ contentDbPath: dbPath }), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
-  const stopChatSweep = startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep });
-  // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
-  // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
-  const stopSubmissionIpSweep = role === "owner"
-    ? startSubmissionIpExpirySweep({ kernel: opened.content })
-    : async () => {};
-  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
+  const opened = supplied ?? (await openSiteStore({ storage, dbPath, chatDbPath: resolveChatDbPath({ dbPath }, { overrides }), role }, { db: overrides.db, ...(overrides.sqliteOpen ? { sqliteOpen: overrides.sqliteOpen } : {}) }));
+  const { stopChatSweep, stopSubmissionIpSweep, stopMailRetention } = startOwnerSweeps({ role, opened }, { overrides });
   const registrations: StoreCloseRegistration[] = [];
   const bootDrains: Array<() => Promise<void>> = [];
   const stopStoreUsers = async (): Promise<void> => {
@@ -853,6 +847,36 @@ async function openCompositionStore(
     onClose: ({ registration }, _optional = {}) => { registrations.push(registration); },
     beforeClose: ({ drain }, _optional = {}) => { bootDrains.push(drain); },
   };
+}
+
+/**
+ * Extracted from {@link composeSiteRouteDeps} and {@link openCompositionStore} to keep their
+ * complexity down: the chat database path, `overrides.chatDbPath` or `chat.db` beside the content db.
+ */
+function resolveChatDbPath(
+  { dbPath }: { dbPath: string },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): string {
+  return overrides.chatDbPath ?? defaultChatDbPath({ contentDbPath: dbPath });
+}
+
+/**
+ * Extracted from {@link openCompositionStore} to keep its complexity down: the owner-only background
+ * sweeps (guest-chat expiry, submission-IP expiry, mail retention) and their stop functions, each a
+ * no-op on a client.
+ */
+function startOwnerSweeps(
+  { role, opened }: { role: SiteStoreRole; opened: SiteStore },
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
+): { stopChatSweep: () => Promise<void>; stopSubmissionIpSweep: () => Promise<void>; stopMailRetention: () => Promise<void> } {
+  const stopChatSweep = startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep });
+  // Owner only, just like chat retention. Stop both passes before closing the supplied/opened
+  // store, including composition-failure cleanup. Jini's export and migration 0006 gate the IP sweep.
+  const stopSubmissionIpSweep = role === "owner"
+    ? startSubmissionIpExpirySweep({ kernel: opened.content })
+    : async () => {};
+  const stopMailRetention = role === "owner" ? startMailRetention({ db: opened.content }) : async () => {};
+  return { stopChatSweep, stopSubmissionIpSweep, stopMailRetention };
 }
 
 /** The guest-chat expiry sweep, on the owner only; its stop function (a no-op on a client). */
@@ -1046,7 +1070,7 @@ function logMediaProviderRefusals({ refusals }: { refusals: readonly string[] },
  */
 async function composeSiteRouteDeps(
   { dbPath, opened }: { dbPath: string; opened: { store: SiteStore; onStoreClose: (required: { registration: StoreCloseRegistration }, optional?: Record<string, never>) => void; beforeStoreClose: (required: { drain: () => Promise<void> }, optional?: Record<string, never>) => void } },
-  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> }
+  { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   const { store, onStoreClose } = opened;
   // Plugin recovery may commit a quarantine while providers are still booting. Keep these small
@@ -1134,7 +1158,7 @@ async function composeSiteRouteDeps(
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
   // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
   // store (`openCompositionStore`), so the orphaned-chat check below runs after it.
-  const chatDbPath = overrides.chatDbPath ?? defaultChatDbPath({ contentDbPath: dbPath });
+  const chatDbPath = resolveChatDbPath({ dbPath }, { overrides });
   const chat = store.chat;
   await warnCompositionChatOrphans({}, {});
 
