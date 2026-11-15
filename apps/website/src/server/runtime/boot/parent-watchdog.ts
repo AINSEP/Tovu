@@ -104,7 +104,7 @@ export interface ParentWatchdogPorts {
 
 const POLL_INTERVAL_MS = 3_000;
 
-function errnoCode(error: unknown): string | undefined {
+function errnoCode({ error }: { error: unknown }, _optional = {}): string | undefined {
   return (error as NodeJS.ErrnoException).code;
 }
 
@@ -121,7 +121,7 @@ function parentGoneAtBoot({ ports, bootPpid }: { ports: ParentWatchdogPorts; boo
   try {
     ports.signalZero(bootPpid);
   } catch (error) {
-    if (errnoCode(error) === "ESRCH") {
+    if (errnoCode({ error }) === "ESRCH") {
       ports.error(`[index] parent process ${bootPpid} was already gone before this process finished booting — self-terminating`);
       ports.exit(1);
       return true;
@@ -147,7 +147,7 @@ function checkDevSupervisor({ ports, devSupervisorPid }: { ports: ParentWatchdog
         // still exist".
     ports.signalZero(devSupervisorPid);
   } catch (error) {
-    if (errnoCode(error) !== "ESRCH") {
+    if (errnoCode({ error }) !== "ESRCH") {
           // Anything other than "no such process" (e.g. a transient EPERM) is inconclusive, not a
           // confirmed death — skip this poll rather than risk a false-positive self-kill on a
           // supervisor that is actually still alive. Mirrors the daemon watchdog's own logic.

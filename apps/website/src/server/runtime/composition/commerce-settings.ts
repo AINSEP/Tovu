@@ -22,7 +22,7 @@ export async function readCommerceConfiguration({ settingsRepo, workspaceId }: {
   const resolved = await getEffective({ repo: settingsRepo }, {
     namespace: 'core.commerce', key: 'configuration', scopeContext: { workspaceId },
   });
-  const value = configurationObject(resolved?.value);
+  const value = configurationObject({ value: resolved?.value });
   if (!value) return null;
   const { providerId, accountId, mode, publicOrigin } = value;
   if (!validProvider(providerId) || !nonempty(accountId)) return null;
@@ -36,6 +36,6 @@ export async function readCommerceConfiguration({ settingsRepo, workspaceId }: {
 function validProvider(value: unknown): value is string { return typeof value === 'string' && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value); }
 function nonempty(value: unknown): value is string { return typeof value === 'string' && value.trim().length > 0; }
 
-function configurationObject(value: unknown): Record<string, unknown> | null {
+function configurationObject({ value }: { value: unknown }, _optional = {}): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }

@@ -47,7 +47,7 @@ test("tokens are sealed with the new site's sealer and import back through the a
   assert.equal(raw.includes("tok-a") || raw.includes("tok-b"), false);
   assert.deepEqual([...listPendingAgentPluginTokenIds(dir)], ["plugin-a", "plugin-b"]);
   const imported: Array<[string, string]> = [];
-  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: sealing.sealer, importToken: async (pluginId, token) => { imported.push([pluginId, token]); return "saved"; } },
+  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: sealing.sealer, importToken: async ({ pluginId, token }) => { imported.push([pluginId, token]); return "saved"; } },
     { info: () => {}, warn: () => {} });
   assert.deepEqual(imported, [["plugin-a", "tok-a"], ["plugin-b", "tok-b"]]);
 });

@@ -436,7 +436,7 @@ export interface CreateRouteDepsOptions {
   readonly publishContentSeedHash?: PublishContentSeedHashFn;
 }
 
-function createLazyProxy<T extends object>(factory: () => T): T {
+function createLazyProxy<T extends object>({ factory }: { factory: () => T }, _optional = {}): T {
   let instance: T | undefined;
   return new Proxy({} as T, {
     get(_target, property) {
@@ -603,8 +603,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // below flips the marker on the very store the widget routes read.
   const entryRepo = new TrashAwareInMemoryEntryRepo();
   const workspaceId = seededWorkspace.id;
-  const taxonomyDb = createLazyProxy<ContentDb>(() => openContentDb(":memory:"));
-  const sqliteTrashDb = createLazyProxy<TrashDb>(() => contentKernel({ store: taxonomyDb }));
+  const taxonomyDb = createLazyProxy<ContentDb>({ factory: () => openContentDb(":memory:") });
+  const sqliteTrashDb = createLazyProxy<TrashDb>({ factory: () => contentKernel({ store: taxonomyDb }) });
   // Mirror production permissions for the memory-backed forms, menus and widgets too: without
   // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
   // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
@@ -1044,7 +1044,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // hermetic root backs the same live HTTP server as `deps.ts`'s in `TOVU_DB=memory` mode, so its
   // fallback origin must be derived the same way rather than silently differing.
   const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot({});
-  const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT_FOR_ORIGIN)).active)}://localhost:${Number(process.env.PORT ?? 3000)}`;
+  const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${deriveDevScheme({ tlsActive: resolveDevTls(resolveDevTlsCertPaths({ repoRoot: REPO_ROOT_FOR_ORIGIN })).active })}://localhost:${Number(process.env.PORT ?? 3000)}`;
 
   // Extracted (not inlined into the return object below), same reasoning as `restorePointsRepo`
   // above: Task 8's real `publishContentApplyPort` (`apply-loop.ts`) must read/write the SAME
@@ -1365,7 +1365,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     analyticsSettingsReady,
     siteTitleReady,
     siteConsentReady,
-    consentStore: createLazyProxy(() => createSiteConsentStore({ kernel: contentKernel({ store: taxonomyDb }), workspaceId })),
+    consentStore: createLazyProxy({ factory: () => createSiteConsentStore({ kernel: contentKernel({ store: taxonomyDb }), workspaceId }) }),
     siteTitlePreservationStore,
     // No site directory: the site title's no-owner-title value falls back to `workspaces.name` (SPEC-050 EC-03).
     siteDisplayName: { read: () => undefined },

@@ -36,13 +36,13 @@ export function isAdminAssistantEnabled(env: NodeJS.ProcessEnv = process.env): b
  * external-MCP federation, so it must still start when external MCP is configured even with the
  * admin assistant off.
  *
- * @param externalMcpConfigured - whether this site has any external MCP server configured. Passed in
+ * @param required.externalMcpConfigured - whether this site has any external MCP server configured. Passed in
  *   rather than read here so this module stays free of db/deps imports (it is imported by the `cli`
  *   layer, which must not reach into feature data access).
  */
 export function shouldStartAgentDaemon(
-  externalMcpConfigured: boolean,
-  env: NodeJS.ProcessEnv = process.env,
+  { externalMcpConfigured }: { externalMcpConfigured: boolean },
+  { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
 ): boolean {
   return isAdminAssistantEnabled(env) || externalMcpConfigured;
 }

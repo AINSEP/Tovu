@@ -107,7 +107,7 @@ export async function applyPendingAgentPluginTokens(
   required: {
     siteDir: string;
     sealer: SecretSealerPort;
-    importToken: (pluginId: string, token: string) => Promise<"saved" | "saved-left-off" | "already-connected">;
+    importToken: ({ pluginId, token }: { pluginId: string; token: string }, optional?: Record<string, never>) => Promise<"saved" | "saved-left-off" | "already-connected">;
   },
   log: PendingTokenLog,
 ): Promise<void> {
@@ -150,7 +150,7 @@ async function applyPendingToken(
     return false;
   }
   try {
-    const outcome = await required.importToken(pluginId, token);
+    const outcome = await required.importToken({ pluginId, token });
     if (outcome === "saved") log.info(`[agent-plugins] connected '${pluginId}' with the access token given when this site was created.`);
     if (outcome === "saved-left-off") log.info(`[agent-plugins] saved the access token given for '${pluginId}' when this site was created; it stays off because an operator turned it off.`);
   } catch {

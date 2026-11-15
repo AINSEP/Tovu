@@ -19,17 +19,17 @@ export function resolveLocalOwnerSignIn(
 ): LocalOwnerSignInPolicy {
   const { capability, desktopLaunch, desktop } = classifyLocalOwnerLaunch({ env });
   if (!desktopLaunch && env.TOVU_DEV_OWNER_SIGNIN !== "1") return { enabled: false };
-  const deny = (reason: string): LocalOwnerSignInPolicy => ({ enabled: false,
+  const deny = ({ reason }: { reason: string }): LocalOwnerSignInPolicy => ({ enabled: false,
     warning: `[local-owner-signin] WARNING: ${desktopLaunch ? "TOVU_DESKTOP_OWNER_SIGNIN" : "TOVU_DEV_OWNER_SIGNIN"} is disabled: ${reason}. Local owner sign-in requires a loopback dev launcher; deployed sites keep per-site accounts.` });
   const launchRefusal = localLaunchEnvironmentRefusal({ env, desktopLaunch, desktop, parentPid });
-  if (launchRefusal) return deny(launchRefusal);
+  if (launchRefusal) return deny({ reason: launchRefusal });
   const deploymentRefusal = localDeploymentRefusal({ env, desktop, pathExists });
-  if (deploymentRefusal) return deny(deploymentRefusal);
+  if (deploymentRefusal) return deny({ reason: deploymentRefusal });
   const listenerRefusal = localLauncherListenerRefusal({ env, desktop });
-  if (listenerRefusal) return deny(listenerRefusal);
+  if (listenerRefusal) return deny({ reason: listenerRefusal });
   const originRefusal = localPublicOriginRefusal({ env });
-  if (originRefusal) return deny(originRefusal);
-  if (desktop && capability === undefined) return deny("missing desktop capability");
+  if (originRefusal) return deny({ reason: originRefusal });
+  if (desktop && capability === undefined) return deny({ reason: "missing desktop capability" });
   return desktop ? { enabled: true, acceptsCapability: ({ capability: presented }) =>
     capability !== undefined && typeof presented === "string" && presented.length === 64 && timingSafeTokenMatch({
       presented, expected: capability, timingSafeEqual: ({ left, right }) => timingSafeEqual(left, right),
@@ -77,7 +77,7 @@ function localLauncherListenerRefusal(
   const launcherPid = Number(desktop ? env.TOVU_DESKTOP_OWNER_PID : env.TOVU_DEV_SUPERVISOR_PID ?? env.TOVU_LOCAL_SITE_OWNER_PID);
   if (!Number.isSafeInteger(launcherPid) || launcherPid < 1) return "no local dev launcher";
   try {
-    if (!isLoopbackHost(resolveBindHost(env.TOVU_HOST, undefined))) return "listener is not loopback-only";
+    if (!isLoopbackHost({ host: resolveBindHost({ raw: env.TOVU_HOST, fallback: undefined }) })) return "listener is not loopback-only";
   } catch { return "listener address is invalid"; }
   return undefined;
 }

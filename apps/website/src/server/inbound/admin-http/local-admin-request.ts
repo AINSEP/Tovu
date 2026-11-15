@@ -10,8 +10,8 @@ import { isLocalAdminUrl } from "#src/server/runtime/boot/local-owner-signin";
  */
 
 function loopbackSockets({ req }: { req: Request }, _options = {}): boolean {
-  return isLoopbackHost(req.socket.localAddress?.replace(/^::ffff:/, "")) &&
-    isLoopbackHost(req.socket.remoteAddress?.replace(/^::ffff:/, ""));
+  return isLoopbackHost({ host: req.socket.localAddress?.replace(/^::ffff:/, "") }) &&
+    isLoopbackHost({ host: req.socket.remoteAddress?.replace(/^::ffff:/, "") });
 }
 
 /** Local capability plus real sockets/Host: forwarded headers and a spoofed Host cannot admit a remote caller.

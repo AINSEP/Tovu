@@ -88,12 +88,12 @@ export function warnIfNoSiteKeyAtBoot(deps: SiteKeyBootNoticeDeps = {}): void {
   } catch (error) {
     // Reported rather than rethrown: this runs on the boot path, and "I could not check" is still
     // worth saying out loud — it is the same class of surprise as "there is no key".
-    safely(log, [`[site-key] could not determine whether this server has usable site key material. Cause: ${describeErrorForLog({ err: error })}`]);
+    safely({ log, lines: [`[site-key] could not determine whether this server has usable site key material. Cause: ${describeErrorForLog({ err: error })}`] });
     return;
   }
   if (status.active) return;
 
-  safely(log, siteKeyBootNoticeLines(status));
+  safely({ log, lines: siteKeyBootNoticeLines(status) });
 }
 
 /** The same ordered sources the composition root's keyrings read — including this site's own
@@ -105,7 +105,7 @@ function inspectLocalSiteKey(input: { mode: "production" | "local"; env: NodeJS.
 }
 
 /** Writes the notice, tolerating a sink that throws — a dead stderr must not take the boot down. */
-function safely(log: (line: string) => void, lines: readonly string[]): void {
+function safely({ log, lines }: { log: (line: string) => void; lines: readonly string[] }, _optional = {}): void {
   try {
     for (const line of lines) log(line);
   } catch {

@@ -275,7 +275,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
   // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
   // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
   // than after `bootSiteDir`'s migrations/side effects have already run.
-  const host = resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST);
+  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST });
   pinSiteListenerOrigin({ scheme: "http", host, port });
 
   // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
@@ -439,7 +439,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
       // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `--host`/
       // `TOVU_HOST` widening a `tovu serve` instance beyond loopback becomes visible to whoever
       // started it.
-      if (!isLoopbackHost(host)) {
+      if (!isLoopbackHost({ host })) {
         process.stderr.write(
           `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`
         );

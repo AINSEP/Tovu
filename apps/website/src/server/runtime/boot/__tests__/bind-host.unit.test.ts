@@ -29,36 +29,36 @@ import { ValidationError } from "../../../../platform/site-dir/index.js";
  */
 
 test("resolveBindHost: undefined with fallback '127.0.0.1' returns the fallback", () => {
-  assert.equal(resolveBindHost(undefined, "127.0.0.1"), "127.0.0.1");
+  assert.equal(resolveBindHost({ raw: undefined, fallback: "127.0.0.1" }), "127.0.0.1");
 });
 
 test("resolveBindHost: undefined with fallback undefined returns undefined", () => {
-  assert.equal(resolveBindHost(undefined, undefined), undefined);
+  assert.equal(resolveBindHost({ raw: undefined, fallback: undefined }), undefined);
 });
 
 test("resolveBindHost: a whitespace-only raw value is treated as unset -- returns the fallback", () => {
-  assert.equal(resolveBindHost("  ", "127.0.0.1"), "127.0.0.1");
+  assert.equal(resolveBindHost({ raw: "  ", fallback: "127.0.0.1" }), "127.0.0.1");
 });
 
 test("resolveBindHost: '0.0.0.0' passes through verbatim", () => {
-  assert.equal(resolveBindHost("0.0.0.0", "127.0.0.1"), "0.0.0.0");
+  assert.equal(resolveBindHost({ raw: "0.0.0.0", fallback: "127.0.0.1" }), "0.0.0.0");
 });
 
 test("resolveBindHost: an arbitrary IPv4 literal passes through verbatim", () => {
-  assert.equal(resolveBindHost("192.168.1.5", "127.0.0.1"), "192.168.1.5");
+  assert.equal(resolveBindHost({ raw: "192.168.1.5", fallback: "127.0.0.1" }), "192.168.1.5");
 });
 
 test("resolveBindHost: '::1' passes through verbatim", () => {
-  assert.equal(resolveBindHost("::1", "127.0.0.1"), "::1");
+  assert.equal(resolveBindHost({ raw: "::1", fallback: "127.0.0.1" }), "::1");
 });
 
 test("resolveBindHost: '::' resolves to undefined (Node's own all-interfaces default)", () => {
-  assert.equal(resolveBindHost("::", "127.0.0.1"), undefined);
+  assert.equal(resolveBindHost({ raw: "::", fallback: "127.0.0.1" }), undefined);
 });
 
 test("resolveBindHost: 'localhost' throws ValidationError with the exact documented text", () => {
   assert.throws(
-    () => resolveBindHost("localhost", "127.0.0.1"),
+    () => resolveBindHost({ raw: "localhost", fallback: "127.0.0.1" }),
     (err: unknown) => {
       assert.ok(err instanceof ValidationError);
       assert.equal(err.message, '--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "localhost")');
@@ -69,7 +69,7 @@ test("resolveBindHost: 'localhost' throws ValidationError with the exact documen
 
 test("resolveBindHost: a hostname with a space throws ValidationError naming the given value", () => {
   assert.throws(
-    () => resolveBindHost("my host", "127.0.0.1"),
+    () => resolveBindHost({ raw: "my host", fallback: "127.0.0.1" }),
     (err: unknown) => {
       assert.ok(err instanceof ValidationError);
       assert.equal(err.message, '--host/TOVU_HOST must be an IP address such as 127.0.0.1 or 0.0.0.0 (got "my host")');
@@ -79,27 +79,27 @@ test("resolveBindHost: a hostname with a space throws ValidationError naming the
 });
 
 test("isLoopbackHost: 127.0.0.1 is loopback", () => {
-  assert.equal(isLoopbackHost("127.0.0.1"), true);
+  assert.equal(isLoopbackHost({ host: "127.0.0.1" }), true);
 });
 
 test("isLoopbackHost: another 127.x.x.x literal is loopback", () => {
-  assert.equal(isLoopbackHost("127.5.0.1"), true);
+  assert.equal(isLoopbackHost({ host: "127.5.0.1" }), true);
 });
 
 test("isLoopbackHost: ::1 is loopback", () => {
-  assert.equal(isLoopbackHost("::1"), true);
+  assert.equal(isLoopbackHost({ host: "::1" }), true);
 });
 
 test("isLoopbackHost: 0.0.0.0 is not loopback", () => {
-  assert.equal(isLoopbackHost("0.0.0.0"), false);
+  assert.equal(isLoopbackHost({ host: "0.0.0.0" }), false);
 });
 
 test("isLoopbackHost: undefined (all interfaces) is not loopback", () => {
-  assert.equal(isLoopbackHost(undefined), false);
+  assert.equal(isLoopbackHost({ host: undefined }), false);
 });
 
 test("isLoopbackHost: an arbitrary LAN literal is not loopback", () => {
-  assert.equal(isLoopbackHost("192.168.1.5"), false);
+  assert.equal(isLoopbackHost({ host: "192.168.1.5" }), false);
 });
 
 test("DEFAULT_LOCAL_BIND_HOST is '127.0.0.1'", () => {

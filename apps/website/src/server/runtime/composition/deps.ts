@@ -1418,7 +1418,7 @@ async function composeSiteRouteDeps(
   // `derivedPublicOrigin` field near the end of this function is a second consumer (see its own
   // comment). Narrowing it to the branch compiles nowhere and was caught by `tsc`.
   const REPO_ROOT = resolveCheckoutRoot({});
-  const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
+  const devCapabilityScheme = deriveDevScheme({ tlsActive: resolveDevTls(resolveDevTlsCertPaths({ repoRoot: REPO_ROOT })).active });
   const originBoot = planOriginBoot({ now: clock.nowIso() });
   const originReady = registerBootOrigin({}, {});
 

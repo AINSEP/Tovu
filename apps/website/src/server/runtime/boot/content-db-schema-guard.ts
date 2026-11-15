@@ -71,7 +71,7 @@ export type ContentDbSchemaGuardResult =
  *   function of any caller-controlled collection.
  */
 export async function checkContentDbSchema(
-  dbPath: string,
+  { dbPath }: { dbPath: string },
   { compare = compareSchemaVersion }: { compare?: typeof compareSchemaVersion } = {},
 ): Promise<ContentDbSchemaGuardResult> {
   if (!fs.existsSync(dbPath)) return { status: "no-file" };

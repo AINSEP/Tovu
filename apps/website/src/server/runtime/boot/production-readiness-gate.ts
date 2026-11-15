@@ -62,7 +62,7 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function unsafeDefaultFailure(checkName: string): BootRefusalFailure {
+function unsafeDefaultFailure({ checkName }: { checkName: string }, _optional = {}): BootRefusalFailure {
   return {
     code: "PRODUCTION_BOOT_UNSAFE_DEFAULT",
     message: `Refusing to boot in production mode: ${checkName} detected.`,
@@ -92,11 +92,11 @@ function resolveDurability(entry: CapabilityInventoryEntry): boolean {
 // §2.1 step 2: dev-only unsafe defaults.
 function collectUnsafeDefaultFailures(envSnapshot: EnvSnapshot): BootRefusalFailure[] {
   const failures: BootRefusalFailure[] = [];
-  if (envSnapshot.hasDevSecretPlaceholder) failures.push(unsafeDefaultFailure("dev-secret-placeholder"));
-  if (envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure("localhost-egress-allowance"));
-  if (envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
-  if (envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
-  if (envSnapshot.hasMissingSiteKey) failures.push(unsafeDefaultFailure("missing-site-key"));
+  if (envSnapshot.hasDevSecretPlaceholder) failures.push(unsafeDefaultFailure({ checkName: "dev-secret-placeholder" }));
+  if (envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure({ checkName: "localhost-egress-allowance" }));
+  if (envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure({ checkName: "always-enabled-analytics-stub" }));
+  if (envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure({ checkName: "default-owner-password" }));
+  if (envSnapshot.hasMissingSiteKey) failures.push(unsafeDefaultFailure({ checkName: "missing-site-key" }));
   return failures;
 }
 
@@ -122,7 +122,8 @@ function collectDurabilityFailures(inventory: readonly CapabilityInventoryEntry[
  * `sharpReadiness` means "not checked", not "ready".
  */
 async function checkSharpReadiness(
-  sharpReadiness: (() => Promise<boolean>) | undefined
+  { sharpReadiness }: { sharpReadiness: (() => Promise<boolean>) | undefined },
+  _optional = {},
 ): Promise<BootRefusalFailure | null> {
   if (!sharpReadiness) return null;
 
@@ -156,7 +157,7 @@ export async function runProductionReadinessGate(
     ...collectDurabilityFailures(options.inventory),
   ];
 
-  const sharpFailure = await checkSharpReadiness(options.sharpReadiness);
+  const sharpFailure = await checkSharpReadiness({ sharpReadiness: options.sharpReadiness });
   if (sharpFailure) failures.push(sharpFailure);
 
   return failures.length === 0 ? { ok: true } : { ok: false, failures };

@@ -71,19 +71,19 @@ async function lockSoonAgentPluginsAtBoot(deps: NewsletterRouteDeps): Promise<vo
 export interface AgentPluginTokenBootSteps {
   /** Plugin ids with a create-site onboarding token waiting in `siteDir`. */
   readonly pendingPluginIds: (siteDir: string) => ReadonlySet<string>;
-  readonly applyPending: (siteDir: string) => Promise<void>;
-  readonly importFromEnv: (skipPluginIds: ReadonlySet<string>) => Promise<void>;
+  readonly applyPending: ({ siteDir }: { siteDir: string }, optional?: Record<string, never>) => Promise<void>;
+  readonly importFromEnv: ({ skipPluginIds }: { skipPluginIds: ReadonlySet<string> }, optional?: Record<string, never>) => Promise<void>;
 }
 
 function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPluginTokenBootSteps {
   return {
     pendingPluginIds: listPendingAgentPluginTokenIds,
-    applyPending: (siteDir) =>
+    applyPending: ({ siteDir }) =>
       applyPendingAgentPluginTokens(
-        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: (pluginId, token) => importAgentPluginAccessToken(deps, { pluginId, token }) },
+        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: ({ pluginId, token }) => importAgentPluginAccessToken(deps, { pluginId, token }) },
         bootLog,
       ),
-    importFromEnv: (skipPluginIds) => importAgentPluginAccessTokensFromEnv({ deps, env: process.env, log: bootLog }, { skipPluginIds }),
+    importFromEnv: ({ skipPluginIds }) => importAgentPluginAccessTokensFromEnv({ deps, env: process.env, log: bootLog }, { skipPluginIds }),
   };
 }
 
@@ -97,21 +97,20 @@ function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPlugi
  * already has, and neither can fail boot.
  */
 export async function importAgentPluginTokensAtBoot(
-  deps: NewsletterRouteDeps,
-  options: BuildBootModulesOptions,
-  steps: AgentPluginTokenBootSteps = defaultAgentPluginTokenBootSteps(deps),
+  { deps, options }: { deps: NewsletterRouteDeps; options: BuildBootModulesOptions },
+  { steps = defaultAgentPluginTokenBootSteps(deps) }: { steps?: AgentPluginTokenBootSteps } = {},
 ): Promise<void> {
   let pending: ReadonlySet<string> = new Set();
   if (!options.useMemory) {
     const siteDir = path.dirname(options.defaultContentDbPath());
     pending = steps.pendingPluginIds(siteDir);
     try {
-      await steps.applyPending(siteDir);
+      await steps.applyPending({ siteDir });
     } catch (err) {
       bootLog.warn(`[agent-plugins] could not apply this site's pending access tokens: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  await steps.importFromEnv(pending);
+  await steps.importFromEnv({ skipPluginIds: pending });
 }
 
 function logBundledPluginRetirements(
@@ -342,7 +341,7 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
         await warnAboutMissingBundledPlugins(deps, { result });
         await syncProviderFacesAtBoot(deps);
         await lockSoonAgentPluginsAtBoot(deps);
-        await importAgentPluginTokensAtBoot(deps, options);
+        await importAgentPluginTokensAtBoot({ deps, options });
         // A vendor's tool rename (`tovuRenamedTools` in a plugin's `mcp.json`) follows onto the rows
         // that plugin provisioned, so a saved selection never names a tool the server stopped offering.
         await applyAgentPluginToolRenames(

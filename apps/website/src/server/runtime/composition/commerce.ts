@@ -101,7 +101,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   let configurationProblem: string | null = null;
   let configurationChecked = false;
   let warnedConfiguration: string | null = null;
-  async function reportConfiguration(problem: string | null): Promise<void> {
+  async function reportConfiguration({ problem }: { problem: string | null }, _optional = {}): Promise<void> {
     if (!problem) { warnedConfiguration = null; return; }
     if (problem === warnedConfiguration || !await isActive()) return;
     warnedConfiguration = problem; warn(problem);
@@ -153,7 +153,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   } } });
   const operator = createPaymentsOperator(sharedDeps, { alerts });
   let lastReconcile = 0;
-  function reusable(configured: CommerceConfiguration | null): boolean {
+  function reusable({ configured }: { configured: CommerceConfiguration | null }, _optional = {}): boolean {
     if (!binding || configurationProblem) return false;
     return (!storageReady || configurationChecked) && commerceConfigurationKey({ config: binding.config }) === commerceConfigurationKey({ config: configured });
   }
@@ -162,11 +162,11 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     await required.settingsReady;
     await storageProbe;
     const configured = await readCommerceConfiguration(required);
-    if (reusable(configured) && binding) { await binding.server.activate(); return binding; }
+    if (reusable({ configured }) && binding) { await binding.server.activate(); return binding; }
     const selection = selectCommerceDrain({ configured, previous: binding?.config ?? null,
       recorded: storageReady ? await readCommerceDrain(required, { configured }) : null });
     configurationProblem = selection.problem;
-    await reportConfiguration(configurationProblem);
+    await reportConfiguration({ problem: configurationProblem });
     configurationChecked = storageReady;
     const config = selection.config;
     if (!config) return null;
@@ -203,14 +203,14 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     } };
     return binding;
   }
-  async function readyServer(current: Binding | null): Promise<CommerceServer> {
+  async function readyServer({ current }: { current: Binding | null }, _optional = {}): Promise<CommerceServer> {
     if (poolProblem) throw new CommerceUnavailableError(poolProblem);
     if (!current) throw new CommerceUnavailableError('The store owner needs to configure a payment account and deployed HTTPS site before checkout can accept payments.');
     const problem = await current.problem();
     if (problem) throw new CommerceUnavailableError(problem);
     return current.server;
   }
-  async function checkoutServer(): Promise<CommerceServer> { return readyServer(await resolve()); }
+  async function checkoutServer(): Promise<CommerceServer> { return readyServer({ current: await resolve() }); }
   const worker = createCommerceWorker({ owner: required.workerOwner, directory: required.workerDirectory, warn,
     active: isActive, hasPending: async () => {
       if (!storageReady) return false;
@@ -284,7 +284,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
         let selected: Promise<Binding | null> | undefined;
         let ready: Promise<CommerceServer> | undefined;
         const current = () => selected ??= resolve();
-        const checkout = () => ready ??= current().then(readyServer);
+        const checkout = () => ready ??= current().then((value) => readyServer({ current: value }));
         return {
           status: commerce.status, readOrder: commerce.readOrder,
           checkoutOrigin: async () => { const value = await current(); return value ? new URL(value.config.publicOrigin).origin : null; },

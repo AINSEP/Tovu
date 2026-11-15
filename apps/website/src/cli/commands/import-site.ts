@@ -38,7 +38,7 @@ function parseImportServer({ value }: { value: string }, _options: Record<string
 
 function isImportProtocolAllowed({ server }: { server: URL }, _options: Record<string, never> = {}): boolean {
   const hostname = server.hostname.replace(/^\[|\]$/g, "");
-  return server.protocol === "https:" || Boolean(server.protocol === "http:" && isIP(hostname) && isLoopbackHost(hostname));
+  return server.protocol === "https:" || Boolean(server.protocol === "http:" && isIP(hostname) && isLoopbackHost({ host: hostname }));
 }
 
 function parseImportRequest({ text }: { text: string | null }, _options: Record<string, never> = {}): Record<string, unknown> {

@@ -15,7 +15,7 @@ import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../dev-t
  */
 
 test("resolveDevTlsCertPaths resolves the cert and key under <repoRoot>/.certs/", () => {
-  const paths = resolveDevTlsCertPaths("/repo");
+  const paths = resolveDevTlsCertPaths({ repoRoot: "/repo" });
   assert.equal(paths.certPath, "/repo/.certs/localhost.pem");
   assert.equal(paths.keyPath, "/repo/.certs/localhost-key.pem");
 });
@@ -84,8 +84,8 @@ test("resolveDevTls: inactive when TOVU_DISABLE_DEV_TLS is set, even with both f
 });
 
 test("deriveDevScheme: true -> https, false -> http", () => {
-  assert.equal(deriveDevScheme(true), "https");
-  assert.equal(deriveDevScheme(false), "http");
+  assert.equal(deriveDevScheme({ tlsActive: true }), "https");
+  assert.equal(deriveDevScheme({ tlsActive: false }), "http");
 });
 
 test("REGRESSION (2026-09-05 audit finding): resolveDevTls stays active when TOVU_DISABLE_DEV_TLS=\"false\" — the operator's explicit intent is to KEEP TLS on, and a bare JS truthy check on the string got that backwards", () => {

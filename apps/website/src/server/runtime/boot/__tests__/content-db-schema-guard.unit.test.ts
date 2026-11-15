@@ -31,7 +31,7 @@ function mkTempDbPath(): string {
 
 test("checkContentDbSchema(): a path with no file at all returns 'no-file' (first boot — nothing to guard, openContentDb() will create it)", async () => {
   const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-content-db-schema-guard-")), "does-not-exist.db");
-  const result = await checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema({ dbPath });
   assert.deepEqual(result, { status: "no-file" });
 });
 
@@ -43,7 +43,7 @@ test("checkContentDbSchema(): an existing file with no __drizzle_migrations tabl
   sqlite.exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)");
   sqlite.close();
 
-  const result = await checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema({ dbPath });
   assert.deepEqual(result, { status: "unmigrated" });
 });
 
@@ -53,7 +53,7 @@ test("checkContentDbSchema(): a __drizzle_migrations table that exists but is EM
   sqlite.exec("CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash text NOT NULL, created_at numeric)");
   sqlite.close();
 
-  const result = await checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema({ dbPath });
   assert.deepEqual(result, { status: "unmigrated" });
 });
 
@@ -62,7 +62,7 @@ test("checkContentDbSchema(): a db already migrated by THIS runtime returns 'ok'
   const db = openContentDb(dbPath);
   db.$client.close();
 
-  const result = await checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema({ dbPath });
   assert.deepEqual(result, { status: "ok" });
 });
 
@@ -79,7 +79,7 @@ test("checkContentDbSchema(): a db whose latest applied migration matches no ent
   );
   db.$client.close();
 
-  const result = await checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema({ dbPath });
   assert.equal(result.status, "refuse");
   if (result.status !== "refuse") assert.fail("expected refusal");
   assert.ok(result.message.includes(dbPath));
@@ -98,8 +98,8 @@ test("checkContentDbSchema(): divergent migration lineage returns a refusal with
   db.$client.exec(`INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('another-fabricated-hash', 9999999999998)`);
   db.$client.close();
 
-  await assert.doesNotReject(() => checkContentDbSchema(dbPath));
-  assert.equal((await checkContentDbSchema(dbPath)).status, "refuse");
+  await assert.doesNotReject(() => checkContentDbSchema({ dbPath }));
+  assert.equal((await checkContentDbSchema({ dbPath })).status, "refuse");
 });
 
 test("checkContentDbSchema(): an older real migration is safe to migrate forward", async (t) => {
@@ -112,7 +112,7 @@ test("checkContentDbSchema(): an older real migration is safe to migrate forward
   sqlite.exec("CREATE TABLE __drizzle_migrations (id INTEGER PRIMARY KEY, hash text NOT NULL, created_at numeric)");
   sqlite.prepare("INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)").run("older-migration", older.when);
   sqlite.close();
-  assert.deepEqual(await checkContentDbSchema(dbPath), { status: "ok" });
+  assert.deepEqual(await checkContentDbSchema({ dbPath }), { status: "ok" });
 });
 
 test("checkContentDbSchema(): a site newer than this runtime becomes a 'refuse' carrying the policy's own message", async (t) => {
@@ -120,7 +120,7 @@ test("checkContentDbSchema(): a site newer than this runtime becomes a 'refuse' 
   t.after(() => fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }));
   openContentDb(dbPath).$client.close();
   const seen: Array<{ schemaVersion: number; schemaTag: string }> = [];
-  const result = await checkContentDbSchema(dbPath, {
+  const result = await checkContentDbSchema({ dbPath }, {
     compare: (required) => { seen.push(required); throw new SiteNewerThanRuntimeError({ message: "site schema (v99) is newer — upgrade tovu" }); },
   });
   assert.deepEqual(result, { status: "refuse", message: "site schema (v99) is newer — upgrade tovu" });
@@ -133,7 +133,7 @@ test("checkContentDbSchema(): any other policy failure propagates instead of bei
   t.after(() => fs.rmSync(path.dirname(dbPath), { recursive: true, force: true }));
   openContentDb(dbPath).$client.close();
   await assert.rejects(
-    () => checkContentDbSchema(dbPath, { compare: () => { throw new TypeError("journal unreadable"); } }),
+    () => checkContentDbSchema({ dbPath }, { compare: () => { throw new TypeError("journal unreadable"); } }),
     { name: "TypeError", message: "journal unreadable" },
   );
 });

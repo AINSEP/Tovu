@@ -37,7 +37,7 @@ export async function agentDaemonWanted(
   // common case (assistant ON) never needs to ask whether external MCP is configured at all.
   if (isAdminAssistantEnabled(env)) return true;
   const configured = await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId);
-  if (shouldStartAgentDaemon(configured.length > 0, env)) return true;
+  if (shouldStartAgentDaemon({ externalMcpConfigured: configured.length > 0 }, { env })) return true;
   log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
   return false;
 }

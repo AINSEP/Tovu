@@ -58,10 +58,10 @@ export interface DevTlsDeps {
  * `apps/admin/vite.config.ts`'s gate reads, so the admin SPA and the API always agree on whether
  * TLS material exists.
  *
- * @param repoRoot - absolute path to the repository root.
+ * @param required.repoRoot - absolute path to the repository root.
  * @complexity O(1).
  */
-export function resolveDevTlsCertPaths(repoRoot: string): DevTlsCertPaths {
+export function resolveDevTlsCertPaths({ repoRoot }: { repoRoot: string }, _optional = {}): DevTlsCertPaths {
   return {
     certPath: path.resolve(repoRoot, ".certs/localhost.pem"),
     keyPath: path.resolve(repoRoot, ".certs/localhost-key.pem"),
@@ -81,7 +81,7 @@ export function resolveDevTlsCertPaths(repoRoot: string): DevTlsCertPaths {
  * needs off that function's own complexity count — the same hoist-for-complexity shape
  * `deps.ts`'s `assertOverridesPairedOrAbsent` already uses.
  */
-function isDevTlsExplicitlyDisabled(raw: string | undefined): boolean {
+function isDevTlsExplicitlyDisabled({ raw }: { raw: string | undefined }, _optional = {}): boolean {
   const normalized = raw?.trim().toLowerCase();
   return normalized === "1" || normalized === "true";
 }
@@ -102,7 +102,7 @@ export function resolveDevTls(input: DevTlsCertPaths, deps: DevTlsDeps = {}): De
   const readFile = deps.readFileSync ?? readFileSync;
   const env = deps.env ?? process.env;
 
-  if (isDevTlsExplicitlyDisabled(env.TOVU_DISABLE_DEV_TLS)) return { active: false };
+  if (isDevTlsExplicitlyDisabled({ raw: env.TOVU_DISABLE_DEV_TLS })) return { active: false };
   if (!checkExists(input.certPath) || !checkExists(input.keyPath)) return { active: false };
 
   return {
@@ -118,6 +118,6 @@ export function resolveDevTls(input: DevTlsCertPaths, deps: DevTlsDeps = {}): De
  *
  * @complexity O(1).
  */
-export function deriveDevScheme(tlsActive: boolean): "https" | "http" {
+export function deriveDevScheme({ tlsActive }: { tlsActive: boolean }, _optional = {}): "https" | "http" {
   return tlsActive ? "https" : "http";
 }

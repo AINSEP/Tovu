@@ -95,13 +95,13 @@ test("sanity: the exact call-site text is not also the primitive's own declarati
  * `serve-command*.integration.test.ts` family is the only suite that would exercise a real bound
  * listener's actual interface, so a source-text check is the only net available here too.
  */
-test("runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST)", () => {
+test("runServeCommand's body resolves --host/TOVU_HOST via resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST })", () => {
   const source = fs.readFileSync(SERVE_TS_PATH, "utf8");
   const body = readRunServeCommandBody(source);
   assert.ok(
-    body.includes("resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST)"),
+    body.includes("resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST })"),
     "runServeCommand no longer resolves --host/TOVU_HOST with " +
-      "resolveBindHost(input.host ?? process.env.TOVU_HOST, DEFAULT_LOCAL_BIND_HOST) -- deleting or rewording " +
+      "resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST }) -- deleting or rewording " +
       "that call silently reintroduces the all-interfaces default for tovu serve, or drops --host's precedence " +
       "over TOVU_HOST (see ADS-memory/.local-artifacts/lan-bind-plan-2026-09-23.md)."
   );
