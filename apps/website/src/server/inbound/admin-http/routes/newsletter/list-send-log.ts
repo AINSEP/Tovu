@@ -12,13 +12,7 @@ export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = ({ app, d
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.subscriber.read",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.subscriber.read", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -29,7 +23,7 @@ export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = ({ app, d
       const rows = await deps.newsletterSendRepo.listByCampaign({ workspaceId: deps.workspaceId, campaignId });
       res.status(200).json(toDataResponse(rows));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

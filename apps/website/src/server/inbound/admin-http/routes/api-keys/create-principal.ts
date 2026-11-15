@@ -19,7 +19,7 @@ import {
  * Gated by `apikey.manage`, enforced inside `createApiKeyPrincipal` rather than here — same
  * placement (and same reason) as `users/create.ts`'s gate living in `grant-service.ts`.
  */
-export const registerAdminApiKeyPrincipalCreateRoute: ApiKeysRouteRegistrar = (app, deps) => {
+export const registerAdminApiKeyPrincipalCreateRoute: ApiKeysRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/api-keys/principals", async (req, res) => {
     try {
       // Inside the try: requireAdminSession always sets res.locals before this route runs, but
@@ -40,7 +40,7 @@ export const registerAdminApiKeyPrincipalCreateRoute: ApiKeysRouteRegistrar = (a
 
       res.status(201).json({ principal: toApiKeyPrincipalResponse(principal) });
     } catch (err) {
-      sendApiKeyError(res, err);
+      sendApiKeyError({ res, err });
     }
   });
 };

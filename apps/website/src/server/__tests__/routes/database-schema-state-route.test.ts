@@ -56,7 +56,7 @@ function buildTestApp(introspection: DatabaseIntrospectionPort = new InMemoryDat
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminDatabaseSchemaStateRoute(app, deps);
 

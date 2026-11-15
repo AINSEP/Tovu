@@ -39,7 +39,7 @@ export const registerSkillsManagementRoutes = (
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId } })) return;
       await work(req, res);
     } catch (error) {
       if (error instanceof SkillInputError) res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });

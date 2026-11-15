@@ -18,13 +18,7 @@ export const registerAdminNewsletterCreateListRoute: RouteRegistrar = ({ app, de
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.list.manage",
-        "newsletter_list",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.list.manage", entityType: "newsletter_list", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -34,7 +28,7 @@ export const registerAdminNewsletterCreateListRoute: RouteRegistrar = ({ app, de
       });
       res.status(201).json(toDataResponse(list));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

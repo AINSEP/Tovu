@@ -73,11 +73,11 @@ async function withinProbeRateLimit(limiter: RateLimiter, req: Request, res: Res
  *
  * @complexity O(t) in the remote's advertised tool count, plus one round trip.
  */
-export function registerAdminExternalMcpProbeRoute(app: Express, deps: ExternalMcpProbeRouteDeps, limiter: RateLimiter): void {
+export function registerAdminExternalMcpProbeRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpProbeRouteDeps; limiter: RateLimiter }, _optional = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/probe", asyncRoute({ handler: async (req, res) => {
     if (!(await withinProbeRateLimit(limiter, req, res))) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? "");
 
       const outcome = await probeExternalMcpServer(deps, serverId);

@@ -22,7 +22,7 @@ export const registerAdminWidgetRegionBindRoute: RouteRegistrar = ({ app, deps }
     }
 
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.place", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.place", res });
       if (!principal) return;
       const { areaEntry } = await bindWidgetArea({
         deps: buildWidgetsRegionDeps(deps),
@@ -30,7 +30,7 @@ export const registerAdminWidgetRegionBindRoute: RouteRegistrar = ({ app, deps }
       });
       res.status(201).json(toAdminWidgetAreaResponse(areaEntry));
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

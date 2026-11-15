@@ -15,7 +15,7 @@ type Action = 'enroll' | 'confirm' | 'remove';
 /** Only known domain refusals reach the browser; storage exceptions never disclose secrets.
  * @complexity O(1), one response, no request input logged.
  */
-function failure(res: Response, error: unknown): void {
+function failure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
   if (!expected) {
     sendAdminFailure({ res, error }, { operation: 'owner-authenticator', code: 'MFA_UNAVAILABLE',
@@ -58,7 +58,7 @@ function acceptsRequest(req: Request): boolean {
 }
 
 /** Read only scalar text from the JSON boundary; malformed values are refused by Jini. */
-function bodyText(req: Request, key: string): string {
+function bodyText({ req, key }: { req: Request; key: string }, _optional = {}): string {
   return typeof req.body?.[key] === 'string' ? req.body[key] : '';
 }
 
@@ -72,17 +72,17 @@ async function handle({ req, res, action, admission }: { req: Request; res: Resp
     if (!ownerId) return;
     const deps = await ownerMfaDepsFrom(admission);
     const input = { workspaceId: admission.deps.workspaceId, principalId: ownerId,
-      password: bodyText(req, 'password'), code: bodyText(req, 'code') };
+      password: bodyText({ req, key: 'password' }), code: bodyText({ req, key: 'code' }) };
     if (action === 'enroll') {
       const user = await admission.deps.userRepo.findByPrincipalId(input);
       res.json(await beginOwnerEnrollment({ deps, input: { ...input, label: user?.username ?? 'Owner', issuer: 'Tovu' } }, {}));
       return;
     }
     if (action === 'confirm') await confirmOwnerEnrollment({ deps, input: { ...input,
-      pendingToken: bodyText(req, 'pendingToken') } }, {});
+      pendingToken: bodyText({ req, key: 'pendingToken' }) } }, {});
     else await removeOwnerFactor({ deps, input }, {});
     res.status(204).send();
-  } catch (error) { failure(res, error); }
+  } catch (error) { failure({ res, error }); }
 }
 
 /** Routes precede the admin session gate; each management action admits its own owner session.
@@ -101,6 +101,6 @@ export function registerOwnerMfaRoutes(admission: Admission, _options: Record<st
       const factor = isOwner ? await admission.deps.mfaStore?.factor({ workspaceId: admission.deps.workspaceId,
         principalId: caller.principal.id }) : null;
       res.json({ isOwner, available: isOwner && !!admission.deps.mfaStore, enrolled: !!factor });
-    } catch (error) { failure(res, error); }
+    } catch (error) { failure({ res, error }); }
   });
 }

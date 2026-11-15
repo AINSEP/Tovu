@@ -107,8 +107,8 @@ export function registerAdminThemePreviewRoute(
     try {
       const principal = getAuthedPrincipal(res);
       // Same permission as the presentation listing that hands out this URL.
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: "theme.set", workspaceId: deps.workspaceId, entityType: "presentation" } }))) return;
       const themeId = String(req.params.themeId ?? "");
       const theme = deps.themes.find((t) => t.status === "valid" && t.manifest.id === themeId && t.manifest.tier === "static");
       if (!theme) { res.status(404).json({ code: "THEME_NOT_FOUND", error: "no such static theme" }); return; }

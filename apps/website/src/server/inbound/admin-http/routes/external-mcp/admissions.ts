@@ -13,7 +13,7 @@ import { guardExternalMcpRequest } from "./guard.js";
 export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers/admissions", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
 
       const result = await (deps.externalMcpAdmissions?.() ?? readServerAdmissions({}, {}));
       if (!result.ok) {

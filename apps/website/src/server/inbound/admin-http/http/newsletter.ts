@@ -41,13 +41,7 @@ export type NewsletterEntityType = "newsletter_campaign" | "newsletter_list" | "
  * the authed principal on success, or `null` after already writing the 403 — callers `return` on
  * `null` without writing anything further.
  */
-export async function requireNewsletterPermissionOrRespond(
-  authorize: AuthorizeFn,
-  workspaceId: string,
-  permission: string,
-  entityType: NewsletterEntityType,
-  res: Response
-): Promise<PrincipalRecord | null> {
+export async function requireNewsletterPermissionOrRespond({ authorize, workspaceId, permission, entityType, res }: { authorize: AuthorizeFn; workspaceId: string; permission: string; entityType: NewsletterEntityType; res: Response }, _optional = {}): Promise<PrincipalRecord | null> {
   const principal = getAuthedPrincipal(res);
   const params = { principalId: principal.id, permission, workspaceId, entityType };
   return (await authorizeDirectOrRespond({ res, authorize, params })) ? principal : null;
@@ -140,7 +134,7 @@ const NEWSLETTER_ERROR_MAPPERS: ReadonlyArray<
  * surface `NEWSLETTER_LIST_NOT_FOUND` via `campaign-write-service.ts`'s `requireEditableListId`
  * even though that endpoint's own api.spec.md row doesn't separately enumerate it).
  */
-export function newsletterErrorToResponse(err: unknown, options: AdminFailurePorts = {}): NewsletterErrorResponse {
+export function newsletterErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): NewsletterErrorResponse {
   for (const [ErrorClass, mapper] of NEWSLETTER_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
@@ -148,8 +142,8 @@ export function newsletterErrorToResponse(err: unknown, options: AdminFailurePor
 }
 
 /** Maps every typed `newsletter` domain error to its HTTP response; falls through to a generic 500. */
-export function mapNewsletterErrorToResponse(err: unknown, res: Response): void {
-  const { status, body } = newsletterErrorToResponse(err, { tracker: res.locals?.adminFailureTracker });
+export function mapNewsletterErrorToResponse({ err, res }: { err: unknown; res: Response }, _optional = {}): void {
+  const { status, body } = newsletterErrorToResponse({ err }, { tracker: res.locals?.adminFailureTracker });
   res.status(status).json(body);
 }
 

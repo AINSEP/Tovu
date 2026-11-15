@@ -35,7 +35,7 @@ test("authenticated preview leaves authored HTML intact; public flags cannot dis
   await deps.userRepo.save({ principalId: "preview-owner", workspaceId: "w", username: "preview-owner", passwordHash: await deps.passwordHasher.hash({ password: "preview-test" }) });
   const app = express();
   // Preserve the real auth mount and consent placement; only transport is replaced.
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   deps.cookieConsent = { regionResolvers: async () => [], scriptDeclarations: async () => ({
     scripts: [{ src: '/scripts/optional-preview-fixture.js', consent: ['functional'] }], problems: [],

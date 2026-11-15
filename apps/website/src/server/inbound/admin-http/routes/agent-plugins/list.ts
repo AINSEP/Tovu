@@ -37,18 +37,18 @@ import { agentPluginMcpPortsOf } from "#src/features/agent-plugins/mcp-host-bind
  * carries the same no-`packageRoot`-leak discipline `tool-registrations.ts`'s own header states for
  * `search_agent_plugin_local`, and this handler only re-shapes fields that loader already returns.
  */
-export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/agent-plugins", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

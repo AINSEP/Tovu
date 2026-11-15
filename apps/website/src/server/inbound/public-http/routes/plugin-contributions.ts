@@ -21,10 +21,10 @@ export function createPluginRouteAuthPorts({ deps }: { deps: RouteDeps }, _optio
     // plugin execution needs the same operator permission as plugin tools, not just a cookie.
     admin: (req, res, next) => operatorSession(req, res, error => {
       if (error) { next(error); return; }
-      void authorizeOrRespond(res, deps.authorize, { principalId: res.locals.principal.id,
+      void authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: res.locals.principal.id,
         permission: 'admin.plugins.enable', workspaceId: deps.workspaceId,
         entityType: 'plugin', entityId: res.locals.pluginOwnerId,
-      }).then(allowed => { if (allowed) next(); }).catch(next);
+      } }).then(allowed => { if (allowed) next(); }).catch(next);
     }),
     member: async (req, res, next) => {
       try {

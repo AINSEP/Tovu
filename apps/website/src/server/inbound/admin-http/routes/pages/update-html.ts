@@ -43,11 +43,11 @@ const REQUIRED_PERMISSION = PAGES_EDIT_HTML_PERMISSION;
  */
 async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  return authorizeOrRespond(res, deps.authorize, {
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId: principal.id,
     permission: REQUIRED_PERMISSION,
     workspaceId: deps.workspaceId,
-  });
+  } });
 }
 
 /** Map a store-layer failure onto its HTTP shape. Extracted from the handler's `catch` for the same
@@ -58,7 +58,7 @@ function sendStoreError({ res, err }: { res: Response; err: unknown }, _optional
     res.status(400).json({ error: err.message, code: err.code });
     return;
   }
-  const live = entityNotLiveResponse(err);
+  const live = entityNotLiveResponse({ err });
   if (live) {
     res.status(live.status).json(live.body);
     return;

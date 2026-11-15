@@ -13,7 +13,7 @@ export type SupportedExecutionProtocol = (typeof SUPPORTED_EXECUTION_PROTOCOLS)[
  *
  * @complexity O(1).
  */
-export function readOptionalString<F>(value: unknown, fallback: F): string | F {
+export function readOptionalString<F>({ value, fallback }: { value: unknown; fallback: F }, _optional = {}): string | F {
   return typeof value === "string" ? value : fallback;
 }
 
@@ -22,7 +22,7 @@ export function readOptionalString<F>(value: unknown, fallback: F): string | F {
  *
  * @complexity O(1).
  */
-export function validateSupportedProtocol(protocol: string): { error: string; code: "VALIDATION_ERROR" } | null {
+export function validateSupportedProtocol({ protocol }: { protocol: string }, _optional = {}): { error: string; code: "VALIDATION_ERROR" } | null {
   if (SUPPORTED_EXECUTION_PROTOCOLS.includes(protocol as SupportedExecutionProtocol)) {
     return null;
   }

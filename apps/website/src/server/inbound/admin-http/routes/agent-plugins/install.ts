@@ -70,7 +70,7 @@ async function readZipUpload(required: { req: Request; res: Response; parseZip: 
   // ZIP parsing follows authorization, as in `routes/plugins/install.ts`.
   if (!req.is("application/zip")) return NOT_ZIP_REFUSAL;
   const parseError = await new Promise<unknown>((resolve) => parseZip(req, res, (error?: unknown) => resolve(error)));
-  if (parseError) return bodyParseRefusal(parseError);
+  if (parseError) return bodyParseRefusal({ parseError });
 
   const replace = req.query.replace;
   if (replace !== undefined && replace !== "true" && replace !== "false") return REPLACE_REFUSAL;
@@ -99,13 +99,13 @@ function installOptions(required: { deps: AgentPluginsRouteDeps; actor: string }
   return { ...base, mcpProvisioning: createAgentPluginUpdateEffects({ deps: requireUpdateMcpDeps({ deps }), actor }), snapshotSettings: deps.snapshotAgentPluginSettings };
 }
 
-export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   const parseZip = raw({ type: "application/zip", limit: maxAgentPluginInstallArchiveBytes(), inflate: false });
   const installHandler: RequestHandler = async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return undefined;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId } }))) return undefined;
       const target = readUpdateTarget({ req });
       if ("status" in target) return sendRefusal(res, target);
       const upload = await readZipUpload({ req, res, parseZip });
@@ -115,11 +115,11 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
       const candidate = (await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === result.plugin.pluginId);
       // An update replaces an existing row, so it is never 201.
       const status = result.alreadyInstalled || target.update ? 200 : 201;
-      res.status(status).json({ alreadyInstalled: result.alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow(candidate) });
+      res.status(status).json({ alreadyInstalled: result.alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow({ candidate }) });
     } catch (error) {
       // A 500 is redacted for the client, so the operator's log is the only place its cause survives:
       // installErrorResponse logs it (secret-redacted) under the errorId the reply carries.
-      const refusal = installErrorResponse(error, { tracker: res.locals?.adminFailureTracker });
+      const refusal = installErrorResponse({ error }, { tracker: res.locals?.adminFailureTracker });
       sendRefusal(res, refusal);
     }
     return undefined;

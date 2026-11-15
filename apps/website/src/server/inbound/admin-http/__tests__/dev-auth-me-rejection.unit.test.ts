@@ -16,7 +16,7 @@ test("GET /auth/me answers the plain-words failure when the identity store canno
   Object.defineProperty(failing, "identityReady", { get: () => Promise.reject(new Error("identity store unreachable")) });
   t.mock.method(console, "error", () => {});
   const app = express();
-  registerAuthRoutes(app, failing);
+  registerAuthRoutes({ app, deps: failing });
   app.use(captureRouteError);
   const baseUrl = await startTestServer(app, t);
 

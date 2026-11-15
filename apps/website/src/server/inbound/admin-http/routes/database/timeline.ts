@@ -9,7 +9,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /** A query field, read as a string if present, or `undefined`.
  *  @complexity O(1). */
-function readOptionalQueryString(value: unknown): string | undefined {
+function readOptionalQueryString({ value }: { value: unknown }, _optional = {}): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
@@ -17,11 +17,11 @@ function readOptionalQueryString(value: unknown): string | undefined {
  *  @complexity O(1). */
 function parseTimelineFilter(query: Record<string, unknown>) {
   return {
-    kind: readOptionalQueryString(query.kind),
-    outcome: readOptionalQueryString(query.outcome),
-    fromDate: readOptionalQueryString(query.fromDate),
-    toDate: readOptionalQueryString(query.toDate),
-    cursor: readOptionalQueryString(query.cursor),
+    kind: readOptionalQueryString({ value: query.kind }),
+    outcome: readOptionalQueryString({ value: query.outcome }),
+    fromDate: readOptionalQueryString({ value: query.fromDate }),
+    toDate: readOptionalQueryString({ value: query.toDate }),
+    cursor: readOptionalQueryString({ value: query.cursor }),
     limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
   };
 }
@@ -30,7 +30,7 @@ function parseTimelineFilter(query: Record<string, unknown>) {
  *  (matched by `name` since it isn't an exported class here) or the ledger's `ToolInputError` (an
  *  undecodable cursor) is a 400, everything else a 500.
  *  @complexity O(1). */
-function sendTimelineError(res: Response, err: unknown): void {
+function sendTimelineError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   const isValidationError = err instanceof ToolInputError || (err instanceof Error && err.name === "TimelineValidationError");
   if (!isValidationError) { sendAdminFailure({ res, error: err }); return; }
   const message = err instanceof Error ? err.message : "Invalid timeline query.";
@@ -66,7 +66,7 @@ export function registerAdminDatabaseTimelineRoute(app: Express, deps: DatabaseR
 
       res.json(result);
     } catch (err) {
-      sendTimelineError(res, err);
+      sendTimelineError({ res, err });
     }
   });
 }

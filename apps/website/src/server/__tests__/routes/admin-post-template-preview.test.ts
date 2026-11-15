@@ -86,7 +86,7 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   deps.themes = [theme];
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   // `as never`: `createContentModule` takes the narrower `ContentRouteDeps`, and `RouteDeps` is a
   // structural supertype of it — same cast the existing `post-template-site-serving.test.ts` uses at

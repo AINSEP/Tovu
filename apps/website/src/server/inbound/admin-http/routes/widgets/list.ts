@@ -32,7 +32,7 @@ export const registerAdminWidgetListRoute: RouteRegistrar = ({ app, deps }, _opt
       // record was skipped, so the response shape is unchanged for the common case.
       res.status(200).json({ widgets: instances, ...(skippedCount > 0 ? { skippedCount, skippedIds } : {}) });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

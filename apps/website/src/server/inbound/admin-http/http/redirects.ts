@@ -106,7 +106,7 @@ export function toAdminRedirectResponse(record: RedirectRecord): AdminRedirectRe
   return { data: toAdminRedirectDto(record) };
 }
 
-export function toAdminRedirectListResponse(records: RedirectRecord[]): AdminRedirectListResponse {
+export function toAdminRedirectListResponse({ records }: { records: RedirectRecord[] }, _optional = {}): AdminRedirectListResponse {
   return { data: records.map(toAdminRedirectDto) };
 }
 

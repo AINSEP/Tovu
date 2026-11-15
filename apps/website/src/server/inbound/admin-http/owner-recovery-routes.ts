@@ -88,9 +88,9 @@ async function handleRecovery({ req, res, action, admission }: { req: Request; r
     }
     const deps = await recoveryDeps(admission);
     await admitOwner({ req, action, admission, ownerId: deps.seededOwnerPrincipalId });
-    const field = (key: 'password' | 'code') => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
+    const field = ({ key }: { key: 'password' | 'code' }, _optional = {}) => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
     const input = { workspaceId: admission.deps.workspaceId, principalId: deps.seededOwnerPrincipalId,
-      password: field('password'), code: field('code') };
+      password: field({ key: 'password' }), code: field({ key: 'code' }) };
     if (action === 'issue') {
       res.json(await issueRecoveryCodes({ deps, input }, {}));
       return;

@@ -44,7 +44,7 @@ async function collectionAllowed({ request, deps, surface }: {
   // Generic browser contributions cannot enforce anonymous restrictions; explicit anonymous
   // adapters use the consent plugin collector, which carries their server-owned analytics level.
   if (surface === 'site') return (await readSiteVisitorConsent({ deps, req: request })).analyticsLevel === 'full';
-  if ((await currentCredential(deps, request))?.kind !== 'session') return false;
+  if ((await currentCredential({ deps, req: request }))?.kind !== 'session') return false;
   return (await getEffective({ repo: deps.settingsRepo }, { ...TELEMETRY_CONSENT, scopeContext: { workspaceId: deps.workspaceId } }))?.value === true;
 }
 

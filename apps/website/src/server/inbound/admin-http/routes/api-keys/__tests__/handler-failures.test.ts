@@ -43,7 +43,7 @@ async function depsForHandler(): Promise<ApiKeysRouteDeps> {
 
 async function invoke(register: ApiKeysRouteRegistrar, deps: ApiKeysRouteDeps, path: string, body: unknown, params: unknown = {}, credentialKind = "session") {
   const app = express();
-  register(app, deps);
+  register({ app, deps });
   const handler = extractRouteHandler(app, "post", path);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "operator-9" };

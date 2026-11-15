@@ -55,7 +55,7 @@ export const registerAdminWidgetCreateRoute: RouteRegistrar = ({ app, deps }, _o
       });
       res.status(201).json(toAdminWidgetResponse(instance));
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

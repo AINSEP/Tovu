@@ -62,12 +62,12 @@ export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = ({ app, 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.redirects.manage",
         workspaceId: deps.workspaceId,
         entityType: "redirect",
-      });
+      } });
       if (!authorized) return;
 
       const { record } = await createRedirect({

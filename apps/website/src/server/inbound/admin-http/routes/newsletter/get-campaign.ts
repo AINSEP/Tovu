@@ -12,13 +12,7 @@ export const registerAdminNewsletterGetCampaignRoute: RouteRegistrar = ({ app, d
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.read",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.read", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -26,7 +20,7 @@ export const registerAdminNewsletterGetCampaignRoute: RouteRegistrar = ({ app, d
       if (!campaign) throw new NewsletterCampaignNotFoundError(`campaign ${req.params.id} was not found`);
       res.status(200).json(toDataResponse(campaign));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

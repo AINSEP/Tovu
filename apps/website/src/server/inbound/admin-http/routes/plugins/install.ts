@@ -83,7 +83,7 @@ async function readInstallInput(req: Request, res: Response, context: InstallCon
 async function handleInstall(req: Request, res: Response, context: InstallContext): Promise<void> {
   const { deps, route } = context;
   const principal = getAuthedPrincipal(res);
-  if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId }))) return;
+  if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "admin.plugins.enable", workspaceId: deps.workspaceId } }))) return;
   const installer = localPluginInstaller(deps);
   if (!installer) { respondRefused(res, LOCAL_INSTALL_DISABLED); return; }
   const read = await readInstallInput(req, res, context);

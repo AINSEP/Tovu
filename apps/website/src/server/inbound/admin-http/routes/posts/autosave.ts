@@ -49,11 +49,11 @@ async function resolvePostId({ repo, workspaceId, rawParam }: { repo: PostRepoPo
  *  for the same complexity-ceiling reason. */
 async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  return authorizeOrRespond(res, deps.authorize, {
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId: principal.id,
     permission: REQUIRED_PERMISSION,
     workspaceId: deps.workspaceId,
-  });
+  } });
 }
 
 /** The fields common to both `bodyFormat` variants, validated but not yet paired with a payload. */

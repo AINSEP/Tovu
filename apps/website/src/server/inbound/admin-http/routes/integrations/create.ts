@@ -33,12 +33,12 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.integrations.manage",
         workspaceId: deps.workspaceId,
         entityType: "webhook_subscription",
-      });
+      } });
       if (!authorized) return;
 
       const { label, targetUrl, topics } = parseCreateSubscriptionInput(req);

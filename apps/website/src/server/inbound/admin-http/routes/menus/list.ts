@@ -28,7 +28,7 @@ export const registerAdminMenuListRoute: MenuRouteRegistrar = ({ app, deps }, _o
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const menus = await deps.menuRepo.list({ workspaceId: deps.workspaceId });
-      res.json(toAdminMenuListResponse(menus));
+      res.json(toAdminMenuListResponse({ menus }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/menus/list", code: "INTERNAL_ERROR" });
     }

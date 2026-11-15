@@ -36,9 +36,9 @@ const cases = [
 ];
 for (const { name, error, status, body } of cases) {
   test(`newsletter ${name} maps to its exact HTTP contract`, () => {
-    assertAdminResponse({ actual: newsletterErrorToResponse(error), expected: { status, body } });
+    assertAdminResponse({ actual: newsletterErrorToResponse({ err: error }), expected: { status, body } });
     const { res, capture } = createCapturingResponse();
-    mapNewsletterErrorToResponse(error, res);
+    mapNewsletterErrorToResponse({ err: error, res });
     assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
   });
 }
@@ -46,9 +46,9 @@ for (const { name, error, status, body } of cases) {
 test("unknown newsletter failures redact internal details, including non-Error throws", () => {
   const failure = { message: "The newsletter operation could not be completed.", action: "Check the result before repeating this operation. Copy details and report this problem.", step: "newsletter operation" };
   for (const error of [new Error("secret /db/path"), { message: "secret", code: "NEWSLETTER_CONFLICT" }, null, "secret"]) {
-    assertAdminResponse({ actual: newsletterErrorToResponse(error), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure });
+    assertAdminResponse({ actual: newsletterErrorToResponse({ err: error }), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure });
     const { res, capture } = createCapturingResponse();
-    mapNewsletterErrorToResponse(error, res);
+    mapNewsletterErrorToResponse({ err: error, res });
     assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure });
   }
 });

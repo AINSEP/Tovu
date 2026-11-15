@@ -11,7 +11,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * No sealer/keyring involved, so this cannot fail on a misconfigured site key. Scoped to
  * `(deps.workspaceId, getAuthedPrincipal(res).id)` — an admin can only ever clear their own row.
  */
-export const registerAdminAssistantDeleteExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantDeleteExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

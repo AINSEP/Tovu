@@ -28,7 +28,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   const deps = await createSiteRouteDeps(":memory:");
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
   registerAdminSettingsRegisterDefinitionsRoute({ app, deps });

@@ -55,11 +55,7 @@ function publishingResponse(entityTypes: readonly string[]) {
 
 function authorizeFor(grantedTypes: readonly string[]) {
   const ordinaryAuthorize: Authorize = async () => ({ allowed: false, reason: "principal_disabled" });
-  const wrapped = withPublishTrustContentAuthorize(
-    publishingResponse(grantedTypes) as never,
-    { authorize: ordinaryAuthorize },
-    registeredTypePermissions()
-  ).authorize as unknown as (params: {
+  const wrapped = withPublishTrustContentAuthorize({ res: publishingResponse(grantedTypes) as never, deps: { authorize: ordinaryAuthorize }, typePermissions: registeredTypePermissions() }).authorize as unknown as (params: {
     permission: string;
     publishType?: string;
   }) => Promise<{ allowed: boolean; reason: string }>;
@@ -119,8 +115,7 @@ test("a caller with no publish-type stamp is not answered by the grant — the p
 
 test("a read-only grant authorizes no write for a type it names", async () => {
   const ordinaryAuthorize: Authorize = async () => ({ allowed: false, reason: "principal_disabled" });
-  const wrapped = withPublishTrustContentAuthorize(
-    {
+  const wrapped = withPublishTrustContentAuthorize({ res: {
       locals: {
         publishTrust: {
           sourceInstallationId: "source-install",
@@ -129,10 +124,7 @@ test("a read-only grant authorizes no write for a type it names", async () => {
           generation: 1,
         },
       },
-    } as never,
-    { authorize: ordinaryAuthorize },
-    registeredTypePermissions()
-  ).authorize as unknown as (params: {
+    } as never, deps: { authorize: ordinaryAuthorize }, typePermissions: registeredTypePermissions() }).authorize as unknown as (params: {
     permission: string;
     publishType?: string;
   }) => Promise<{ allowed: boolean; reason: string }>;

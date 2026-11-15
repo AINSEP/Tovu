@@ -23,7 +23,7 @@ import type { AgentPluginsRouteRegistrar } from "./deps.js";
  *
  * Activation is deliberately not consulted: reading a switched-off plugin's files executes nothing.
  */
-export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/files", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -32,11 +32,11 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

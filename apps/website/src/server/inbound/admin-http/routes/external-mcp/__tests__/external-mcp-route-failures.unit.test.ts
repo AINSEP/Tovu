@@ -21,7 +21,7 @@ const routes: RouteFailureCase[] = [
   { name: 'MCP put', register: registerAdminExternalMcpPutRoute, method: 'PUT', path: `${BASE}/mcp-servers/server`, coded: true , failure: {"message":"The tool connection save could not be completed.","action":"Check whether your changes were saved before repeating the save. Copy details and report this problem.","step":"Save tool connection"} },
   { name: 'MCP approvals list', register: registerAdminExternalMcpToolApprovalsRoutes, method: 'GET', path: `${BASE}/mcp-servers/tool-approvals`, coded: true , failure: {"message":"The tool connections could not be loaded.","action":"Try loading them again. If it still fails, copy details and report this problem.","step":"Load tool connections"} },
   { name: 'MCP approvals revoke', register: registerAdminExternalMcpToolApprovalsRoutes, method: 'DELETE', path: `${BASE}/mcp-servers/server/tool-approvals/tool`, coded: true , failure: {"message":"The tool connection removal could not be confirmed.","action":"Check the list before repeating the removal. Copy details and report this problem.","step":"Remove tool connection"} },
-  { name: 'MCP probe', register: ({ app, deps }) => registerAdminExternalMcpProbeRoute(app, deps, limiter), method: 'POST', path: `${BASE}/mcp-servers/server/probe`, coded: true , failure: {"message":"The tool connection operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"tool connection operation"} },
+  { name: 'MCP probe', register: ({ app, deps }) => registerAdminExternalMcpProbeRoute({ app, deps, limiter }), method: 'POST', path: `${BASE}/mcp-servers/server/probe`, coded: true , failure: {"message":"The tool connection operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"tool connection operation"} },
 ];
 
 testRouteFailureMatrix(routes);
@@ -36,7 +36,7 @@ for (const method of ['GET', 'DELETE']) {
 }
 
 test('MCP probe: repository failure is a private 500 rather than an unreachable-vendor report', async () => {
-  const { app } = fixture(({ app, deps }) => registerAdminExternalMcpProbeRoute(app, deps, limiter), {
+  const { app } = fixture(({ app, deps }) => registerAdminExternalMcpProbeRoute({ app, deps, limiter }), {
     externalMcpServerRepo: { findByServerId: async () => { throw new Error('secret'); } },
   });
   assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/mcp-servers/server/probe`), expected: { status: 500, body: INTERNAL_CODE } }, { failure: {"message":"The tool connection operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"tool connection operation"} });
@@ -79,9 +79,9 @@ for (const [name, register, method, suffix] of [
 for (const retryAfterSeconds of [undefined, 7]) {
   test(`MCP OAuth: provider polling error preserves optional retry delay ${retryAfterSeconds}`, async () => {
     const error = new OAuthError({ code: 'OAUTH_SLOW_DOWN', message: 'poll less often', operatorAction: 'wait' }, { retryAfterSeconds });
-    const { app } = fixture(({ app, deps }) => registerAdminExternalMcpOAuthDevicePollRoute(app, {
+    const { app } = fixture(({ app, deps }) => registerAdminExternalMcpOAuthDevicePollRoute({ app, deps: {
       ...deps, externalMcpOAuth: { pollDeviceAuthorization: async () => { throw error; } },
-    } as any, limiter));
+    } as any, limiter }));
     assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/mcp-servers/server/oauth/device/poll`), {
       status: 400, body: { error: 'poll less often', code: 'OAUTH_SLOW_DOWN', details: {
         retryable: true, operatorAction: 'wait', ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
@@ -92,9 +92,9 @@ for (const retryAfterSeconds of [undefined, 7]) {
 
 test('MCP probe: exhausted budget answers before checking permissions or connecting', async t => {
   let checks = 0;
-  const { app } = fixture(({ app, deps }) => registerAdminExternalMcpProbeRoute(app, deps, {
+  const { app } = fixture(({ app, deps }) => registerAdminExternalMcpProbeRoute({ app, deps, limiter: {
     check: async () => ({ allowed: false, retryAfterSeconds: 13 }),
-  }), { authorize: async () => { checks++; return { allowed: true }; } });
+  } }), { authorize: async () => { checks++; return { allowed: true }; } });
   const origin = await startTestServer(app, t);
   const response = await fetch(`${origin}${BASE}/mcp-servers/server/probe`, { method: 'POST' });
   assert.equal(response.status, 429);
@@ -164,7 +164,7 @@ for (const { name, register, method, path, expected } of [
       error: "mcp-federation: connectionId '' must match /^[a-z0-9][a-z0-9-]{0,39}$/ — it becomes part of every federated tool id, and a '_' in it would blur the 'mcp__<connection>__<tool>' separator",
       code: 'INVALID_MCP_SERVER', details: { field: 'id' },
     } } },
-  { name: 'MCP probe: `req.params.serverId ?? ""`', register: (app: Parameters<RouteFailureCase['register']>[0], deps: Parameters<RouteFailureCase['register']>[1]) => registerAdminExternalMcpProbeRoute(app, deps, limiter), method: 'POST', path: `${BASE}/mcp-servers/server/probe`,
+  { name: 'MCP probe: `req.params.serverId ?? ""`', register: (app: Parameters<RouteFailureCase['register']>[0], deps: Parameters<RouteFailureCase['register']>[1]) => registerAdminExternalMcpProbeRoute({ app, deps, limiter }), method: 'POST', path: `${BASE}/mcp-servers/server/probe`,
     expected: { statusCode: 400, jsonBody: { error: "no external MCP server is configured as ''", code: 'INVALID_MCP_SERVER', details: { field: 'id' } } } },
 ] as const) {
   test(`${name} fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe`, async () => {

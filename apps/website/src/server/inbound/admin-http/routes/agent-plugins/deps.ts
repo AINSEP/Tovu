@@ -59,4 +59,4 @@ export interface AgentPluginsRouteDeps {
   readonly tracker: RouteDeps["tracker"];
 }
 
-export type AgentPluginsRouteRegistrar = (app: Express, deps: AgentPluginsRouteDeps) => void;
+export type AgentPluginsRouteRegistrar = (required: { app: Express; deps: AgentPluginsRouteDeps }, optional?: Record<string, never>) => void;

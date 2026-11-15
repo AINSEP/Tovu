@@ -60,7 +60,7 @@ export function registerAdminSiteImportRoutes(
   const gate = async (req: Request, res: Response, permission: string) => {
     res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });
     if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${importStep({ req })} failed: this workspace is not available.` }); return false; }
-    if (!await authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission, entityType: "site-registry" })) return false;
+    if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission, entityType: "site-registry" } })) return false;
     if (!deps.siteImportBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${importStep({ req })} requires local site creation and a configured sites home.` }); return false; }
     return deps.siteImportBackend;
   };

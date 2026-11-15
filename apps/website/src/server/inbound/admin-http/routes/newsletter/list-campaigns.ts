@@ -19,13 +19,7 @@ export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = ({ app,
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.read",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.read", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -39,7 +33,7 @@ export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = ({ app,
         res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
         return;
       }
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

@@ -11,20 +11,14 @@ export const registerAdminNewsletterListListsRoute: RouteRegistrar = ({ app, dep
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.read",
-        "newsletter_list",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.read", entityType: "newsletter_list", res });
       if (!principal) return;
 
       await deps.newsletterReady;
       const lists = await deps.newsletterListRepo.list({ workspaceId: deps.workspaceId });
       res.status(200).json(toDataResponse(lists));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

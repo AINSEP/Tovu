@@ -50,7 +50,7 @@ export interface ParseRangeHeaderRequired {
  *
  * @complexity O(1)
  */
-function resolveSuffixRange(endText: string, totalLength: number): ParsedRange {
+function resolveSuffixRange({ endText, totalLength }: { endText: string; totalLength: number }, _optional = {}): ParsedRange {
   const suffixLength = Number(endText);
   if (!Number.isFinite(suffixLength) || suffixLength <= 0) return { kind: "unsatisfiable" };
   const start = Math.max(0, totalLength - suffixLength);
@@ -62,7 +62,7 @@ function resolveSuffixRange(endText: string, totalLength: number): ParsedRange {
  *
  * @complexity O(1)
  */
-function resolveBoundedRange(startText: string, endText: string, totalLength: number): ParsedRange {
+function resolveBoundedRange({ startText, endText, totalLength }: { startText: string; endText: string; totalLength: number }, _optional = {}): ParsedRange {
   const start = Number(startText);
   if (!Number.isFinite(start) || start >= totalLength) return { kind: "unsatisfiable" };
 
@@ -100,6 +100,6 @@ export function parseRangeHeader(
   if (totalLength <= 0) return { kind: "unsatisfiable" };
 
   return startText === ""
-    ? resolveSuffixRange(endText, totalLength)
-    : resolveBoundedRange(startText, endText, totalLength);
+    ? resolveSuffixRange({ endText, totalLength })
+    : resolveBoundedRange({ startText, endText, totalLength });
 }

@@ -50,7 +50,7 @@ const ARCHIVE_UNREADABLE_REFUSAL: InstallRefusal = { status: 400, body: { code: 
  * compressed or truncated body) is unreadable.
  * @complexity O(1).
  */
-export function bodyParseRefusal(parseError: unknown): InstallRefusal {
+export function bodyParseRefusal({ parseError }: { parseError: unknown }, _optional = {}): InstallRefusal {
   return (parseError as { type?: string }).type === "entity.too.large" ? ARCHIVE_TOO_LARGE_REFUSAL : ARCHIVE_UNREADABLE_REFUSAL;
 }
 
@@ -77,7 +77,7 @@ function installErrorRefusal(error: AgentPluginInstallError): InstallRefusal {
  * with the lifecycle owner's own code and plain message, which never carries a host path.
  * @complexity O(1).
  */
-export function installErrorResponse(error: unknown, options: AdminFailurePorts = {}): InstallRefusal {
+export function installErrorResponse({ error }: { error: unknown }, options: AdminFailurePorts = {}): InstallRefusal {
   if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) return { status: 409, body: { code: error.code, error: error.message } };
   if (error instanceof AgentPluginUploadError) return uploadErrorRefusal(error);
   if (error instanceof AgentPluginInstallError) return installErrorRefusal(error);
@@ -137,7 +137,7 @@ export interface InstalledAgentPluginRow {
  * Builds the response row for a just-installed plugin; omitted display metadata becomes explicit nulls.
  * @complexity O(1).
  */
-export function installedAgentPluginRow(candidate: AgentPluginSearchCandidate | undefined): InstalledAgentPluginRow | null {
+export function installedAgentPluginRow({ candidate }: { candidate: AgentPluginSearchCandidate | undefined }, _optional = {}): InstalledAgentPluginRow | null {
   if (!candidate) return null;
   return {
     pluginId: candidate.pluginId,

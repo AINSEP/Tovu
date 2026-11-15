@@ -23,7 +23,7 @@ export const registerAdminWidgetGetRoute: RouteRegistrar = ({ app, deps }, _opti
       const refs = await deps.entryRefsRepo.findByTarget({ workspaceId: deps.workspaceId, targetKind: "entry", targetId: instance.id });
       res.status(200).json({ widget: instance, revisions, whereUsed: toWhereUsedResponse({ refs }, {}) });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

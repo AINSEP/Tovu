@@ -14,7 +14,7 @@ test("step 5: metadata points only to digest-pinned admitted bytes; disable reti
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   registerChartProviderRoutes({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

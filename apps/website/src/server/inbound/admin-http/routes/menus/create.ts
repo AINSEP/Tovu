@@ -50,14 +50,14 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = ({ app, deps }, 
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.menus.create",
         workspaceId: deps.workspaceId,
         entityType: "menu",
-      });
+      } });
       if (!authorized) return;
-      if (!(await authorizeMenuHtmlOrRespond(res, deps, { principalId: principal.id, authoring: parsedBody.authoring }))) return;
+      if (!(await authorizeMenuHtmlOrRespond({ res, deps, principalId: principal.id, authoring: parsedBody.authoring }))) return;
 
       const { menu } = await createMenu({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },

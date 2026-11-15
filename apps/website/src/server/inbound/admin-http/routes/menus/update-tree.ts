@@ -52,7 +52,7 @@ function parseMenuTreeRequestBody({ rawBody }: { rawBody: unknown }, _optional =
  *
  *  @complexity O(1). */
 function sendUpdateMenuTreeError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  const live = entityNotLiveResponse(err);
+  const live = entityNotLiveResponse({ err });
   if (live) {
     res.status(live.status).json(live.body);
     return;
@@ -110,7 +110,7 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = ({ app, deps
       const principal = getAuthedPrincipal(res);
       const params = { principalId: principal.id, permission: "admin.menus.update", workspaceId: deps.workspaceId, entityType: "menu", entityId: menuId };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
-      if (!(await authorizeMenuHtmlOrRespond(res, deps, { principalId: principal.id, authoring: parsedBody.authoring, menuId }))) return;
+      if (!(await authorizeMenuHtmlOrRespond({ res, deps, principalId: principal.id, authoring: parsedBody.authoring }, { menuId }))) return;
 
       const { menu } = await updateMenuTree({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },

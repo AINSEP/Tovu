@@ -24,7 +24,7 @@ export function registerAdminConsentRoutes({ app, deps, service }: { app: Expres
       if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
       try {
         const principal = getAuthedPrincipal(res);
-        if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, workspaceId: deps.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read', entityType: 'site-consent' })) return;
+        if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, workspaceId: deps.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read', entityType: 'site-consent' } })) return;
         res.json(await run({ req, principalId: principal.id }));
       } catch (error) {
         if (error instanceof ToolInputError) { res.status(400).json({ code: 'CONSENT_VALIDATION_FAILED', error: error.message }); return; }

@@ -80,9 +80,7 @@ export function toAdminFormDefinitionResponse(definition: FormDefinitionRecord):
   return { data: toAdminFormDefinitionDto(definition) };
 }
 
-export function toAdminFormDefinitionListResponse(
-  definitions: FormDefinitionRecord[]
-): { data: AdminFormDefinitionDto[] } {
+export function toAdminFormDefinitionListResponse({ definitions }: { definitions: FormDefinitionRecord[] }, _optional = {}): { data: AdminFormDefinitionDto[] } {
   return { data: definitions.map(toAdminFormDefinitionDto) };
 }
 
@@ -116,7 +114,7 @@ export function toAdminFormSubmissionListResponse(page: {
  * `true` once it has written a response (caller should stop); `false` for an unrecognized error
  * (caller falls through to its own generic 500).
  */
-export function mapFormsWriteError(err: unknown, res: Response): boolean {
+export function mapFormsWriteError({ err, res }: { err: unknown; res: Response }, _optional = {}): boolean {
   if (err instanceof ToolInputError) {
     res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
     return true;

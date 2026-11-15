@@ -65,11 +65,7 @@ test("content authorization returns the identical human deps bag and original au
   };
   const deps = { authorize: ordinaryAuthorize };
 
-  const result = withPublishTrustContentAuthorize(
-    { locals: {} } as never,
-    deps,
-    new Map([["post", ["content.write"]]])
-  );
+  const result = withPublishTrustContentAuthorize({ res: { locals: {} } as never, deps, typePermissions: new Map([["post", ["content.write"]]]) });
 
   assert.equal(result, deps);
   assert.equal(result.authorize, ordinaryAuthorize);
@@ -85,14 +81,10 @@ test("a publishing grant authorizes only the registered entity types it names", 
     reason: "ordinary RBAC grant",
   });
   const deps = { authorize: ordinaryAuthorize };
-  const authorize = withPublishTrustContentAuthorize(
-    publishingResponse(["post"]) as never,
-    deps,
-    new Map([
+  const authorize = withPublishTrustContentAuthorize({ res: publishingResponse(["post"]) as never, deps, typePermissions: new Map([
       ["post", ["content.post.write"]],
       ["media", ["content.media.write"]],
-    ])
-  ).authorize;
+    ]) }).authorize;
 
   assert.ok(authorize, "publishing context must replace the ordinary authorization function");
 
@@ -113,11 +105,7 @@ test("a publishing grant authorizes only the registered entity types it names", 
 // says `form_definition`, and reading that refused every form on live (2026-09-26).
 test("a publishing grant answers by the publish-type stamp, and refuses what no registered type declares", async () => {
   const deps = { authorize: (async () => ({ allowed: true, reason: "ordinary RBAC grant" })) as Authorize };
-  const authorize = withPublishTrustContentAuthorize(
-    publishingResponse(["form"]) as never,
-    deps,
-    new Map([["form", ["admin.forms.manage"]]])
-  ).authorize!;
+  const authorize = withPublishTrustContentAuthorize({ res: publishingResponse(["form"]) as never, deps, typePermissions: new Map([["form", ["admin.forms.manage"]]]) }).authorize!;
 
   assert.deepEqual(await authorize({ permission: "admin.forms.manage", entityType: "form_definition", publishType: "form" }), {
     allowed: true,
@@ -148,7 +136,7 @@ const humanAuthorize: Authorize = async () => assert.fail("a publishing request 
 for (const [entityType, permission] of [["raw-row", "content.write"], ["raw-file", "media.write"]] as const) {
   test(`${entityType}: allowed only with apply + backstop + the type named in the grant`, async () => {
     const decide = (capabilities: readonly string[], entityTypes: readonly string[]) =>
-      withPublishTrustContentAuthorize(grantResponse(capabilities, entityTypes) as never, { authorize: humanAuthorize }, RAW_TYPES)
+      withPublishTrustContentAuthorize({ res: grantResponse(capabilities, entityTypes) as never, deps: { authorize: humanAuthorize }, typePermissions: RAW_TYPES })
         .authorize({ permission, publishType: entityType });
     assert.deepEqual(await decide(["publish_content.apply", "publish_content.backstop"], [entityType]),
       { allowed: true, reason: `granted by the publishing grant for '${entityType}'` });
@@ -161,7 +149,7 @@ for (const [entityType, permission] of [["raw-row", "content.write"], ["raw-file
 
 test("an ordinary type needs no backstop opt-in, and a backstop opt-in never widens it to unnamed types", async () => {
   const decide = (capabilities: readonly string[], entityTypes: readonly string[]) =>
-    withPublishTrustContentAuthorize(grantResponse(capabilities, entityTypes) as never, { authorize: humanAuthorize }, RAW_TYPES)
+    withPublishTrustContentAuthorize({ res: grantResponse(capabilities, entityTypes) as never, deps: { authorize: humanAuthorize }, typePermissions: RAW_TYPES })
       .authorize({ permission: "content.write", publishType: "post" });
   assert.deepEqual(await decide(["publish_content.apply"], ["post"]), { allowed: true, reason: "granted by the publishing grant for 'post'" });
   assert.equal((await decide(["publish_content.apply", "publish_content.backstop"], ["raw-row"])).allowed, false);

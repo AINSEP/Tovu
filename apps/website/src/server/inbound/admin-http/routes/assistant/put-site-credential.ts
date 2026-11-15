@@ -30,7 +30,7 @@ function rejectNonStringFields(body: SiteCredentialBody): void {
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendPutSiteCredentialError(res: Response, err: unknown): void {
+function sendPutSiteCredentialError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof SiteAssistantCredentialValidationError) {
     res.status(400).json({ error: err.message, code: "SITE_CREDENTIAL_VALIDATION_ERROR" });
     return;
@@ -57,7 +57,7 @@ function sendPutSiteCredentialError(res: Response, err: unknown): void {
  * `TOVU_SITE_KEY` is a distinct, actionable operator error, not a generic 500, and not a
  * validation problem with the request body.
  */
-export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/assistant/site-credential", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -90,7 +90,7 @@ export const registerAdminAssistantPutSiteCredentialRoute: AssistantSettingsRout
       );
       res.json({ data: view });
     } catch (err) {
-      sendPutSiteCredentialError(res, err);
+      sendPutSiteCredentialError({ res, err });
     }
   });
 };

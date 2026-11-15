@@ -200,7 +200,7 @@ const registerPlaceTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
       const result = await placeTarget(deps, deps.workspaceId, { principalId: principal.id, kind: "user" }, target, body.widgetInstanceId);
       res.status(200).json({ tool: "widgets.place", result });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
@@ -241,11 +241,11 @@ const registerCreateTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
         // (especially a retrying AI agent) sees only an error, has no way to know the instance
         // already exists, and mints a duplicate via a second `widgets.create` call instead of
         // retrying placement with `widgets.place`.
-        const { status, body: errorBody } = widgetErrorToResponse(placeErr, { tracker: res.locals?.adminFailureTracker });
+        const { status, body: errorBody } = widgetErrorToResponse({ err: placeErr }, { tracker: res.locals?.adminFailureTracker });
         res.status(status).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, placementFailed: true, ...errorBody });
       }
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
@@ -268,7 +268,7 @@ const registerRemoveTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
       const result = await removePlacement(deps, deps.workspaceId, actor, target, body.placementId);
       res.status(200).json({ tool: "widgets.remove", result });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };
@@ -280,7 +280,7 @@ const registerDiagnoseTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.read", res });
       if (!principal) return;
 
       const widgetInstanceId = String(req.params.widgetInstanceId);
@@ -294,7 +294,7 @@ const registerDiagnoseTool: RouteRegistrar = ({ app, deps }, _options = {}) => {
         whereUsed: toWhereUsedResponse({ refs }, {}),
       });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

@@ -48,7 +48,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     const trust = getPublishTrustContext(res);
     // Only the two artifact routes admit connected-computer sessions; admin operations keep RBAC.
     if (trust && !artifact) { res.status(403).json({ code: "FORBIDDEN", message: `${step} requires an authorized admin session.` }); return false; }
-    if (!await authorizeOrRespond(res, trust ? publishTrustAuthorizeFor(trust) : deps.authorize, { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission: trust ? "publish_content.apply" : "site-backup.push", entityType: "site-backup" })) return false;
+    if (!await authorizeOrRespond({ res, authorize: trust ? publishTrustAuthorizeFor(trust) : deps.authorize, params: { principalId: getAuthedPrincipal(res).id, workspaceId: deps.workspaceId, permission: trust ? "publish_content.apply" : "site-backup.push", entityType: "site-backup" } })) return false;
     if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${step} requires a site folder and private artifact storage.` }); return false; }
     return deps.siteShareBackend;
   };

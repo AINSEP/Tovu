@@ -22,7 +22,7 @@ import type { RouteDeps } from "../routes/types.js";
 function buildApp(deps: RouteDeps = createRouteDeps()) {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   createAssistantChatsModule(deps).registerRoutes?.(app);
   return app;
 }

@@ -9,7 +9,7 @@ import { resolveTestAgentOutcome } from "./resolve-test-agent-outcome.js";
 
 /** This route's two body fields, trimmed, read off an untyped body in one place.
  *  @complexity O(1). */
-function parseTestAgentBody(rawBody: unknown): { agentId: string; model: string } {
+function parseTestAgentBody({ rawBody }: { rawBody: unknown }, _optional = {}): { agentId: string; model: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     agentId: String(body.agentId ?? "").trim(),
@@ -33,7 +33,7 @@ function detectedTestAgentOutcome(
   // `resolveTestAgentOutcome` — a pure function so it can be unit-tested against fabricated
   // `DetectedAgent` objects instead of depending on which CLIs happen to be installed and
   // authenticated on the host running the suite. See that file's doc for why.
-  return resolveTestAgentOutcome(agent, model);
+  return resolveTestAgentOutcome({ agent, model });
 }
 
 /**
@@ -62,7 +62,7 @@ function detectedTestAgentOutcome(
  *    so it is a value.
  *  - **5xx** — the probe itself could not run. There is no verdict to report.
  */
-export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-agent", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -71,7 +71,7 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
       const params = { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId, entityType: "assistant-execution" };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const { agentId, model } = parseTestAgentBody(req.body);
+      const { agentId, model } = parseTestAgentBody({ rawBody: req.body });
       if (!agentId) {
         res.status(400).json({ error: "'agentId' is required", code: "BAD_REQUEST" });
         return;

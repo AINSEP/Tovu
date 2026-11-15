@@ -24,7 +24,7 @@ const MIGRATE_PERMISSION = "database.migrate";
  * `migrate-forward/execute.ts`'s own `executeMigrateForward` orchestration wrapper (U-003-ORD1:
  * lock acquired strictly before the gateway's own `execute()` runs).
  */
-function statusFor(err: unknown): { status: number; code: string } {
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string } {
   if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
   if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE" };
   if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED" };
@@ -57,7 +57,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
 
       res.json(result);
     } catch (err) {
-      const { status, code } = statusFor(err);
+      const { status, code } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
@@ -91,7 +91,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
 
       res.json({ confirmationToken: record.confirmationToken });
     } catch (err) {
-      const { status, code } = statusFor(err);
+      const { status, code } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
@@ -172,7 +172,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
 
       res.json(result);
     } catch (err) {
-      const { status, code } = statusFor(err);
+      const { status, code } = statusFor({ err });
       if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }

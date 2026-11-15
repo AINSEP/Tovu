@@ -30,10 +30,10 @@ export function registerAdminWidgetPreviewRoute(
     if (!res.locals.principal) { res.status(401).json({ error: 'authentication required' }); return; }
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
-      if (!await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, 'widgets.read', res)) return;
+      if (!await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: 'widgets.read', res })) return;
       const input = parseWidgetPreviewBody({ raw: req.body });
       if (!input) { res.status(400).json({ error: 'widgetType and content are required', code: 'VALIDATION_ERROR' }); return; }
       res.json(await render({ deps, input }));
-    } catch (error) { mapWidgetErrorToResponse(error, res); }
+    } catch (error) { mapWidgetErrorToResponse({ err: error, res }); }
   });
 }

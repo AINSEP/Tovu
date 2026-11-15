@@ -40,13 +40,7 @@ export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = ({ a
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.campaign.schedule",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.schedule", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -57,7 +51,7 @@ export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = ({ a
       });
       res.status(200).json(toDataResponse(campaign));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

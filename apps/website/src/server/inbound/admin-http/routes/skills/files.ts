@@ -16,9 +16,9 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
     const { toolId } = req.params;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!await authorizeOrRespond(res, deps.authorize, {
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id, permission: "admin.assistant.use", workspaceId: deps.workspaceId,
-      })) return;
+      } })) return;
 
       const sources = await loadInstalledSkillToolSources({ ...deps, workspaceId: deps.workspaceId, includeDisabled: true });
       const skill = sources.find(source => source.id === toolId);

@@ -131,7 +131,7 @@ export function toAdminMenuResponse(menu: NavMenuEntry): AdminMenuEnvelope {
   return { menu: toAdminMenuDto(menu) };
 }
 
-export function toAdminMenuListResponse(menus: NavMenuEntry[]): AdminMenuListEnvelope {
+export function toAdminMenuListResponse({ menus }: { menus: NavMenuEntry[] }, _optional = {}): AdminMenuListEnvelope {
   return { menus: menus.map(toAdminMenuDto) };
 }
 
@@ -174,12 +174,11 @@ export function parseMenuHtmlAuthoring(body: Record<string, unknown>): MenuHtmlA
  * and returns `false` on a denial, like `authorizeOrRespond`.
  */
 export async function authorizeMenuHtmlOrRespond(
-  res: Response,
-  deps: Pick<MenuRouteDeps, "authorize" | "workspaceId">,
-  { principalId, authoring, menuId }: { principalId: string; authoring: MenuHtmlAuthoring; menuId?: string },
+  { res, deps, principalId, authoring }: { res: Response; deps: Pick<MenuRouteDeps, "authorize" | "workspaceId">; principalId: string; authoring: MenuHtmlAuthoring },
+  { menuId }: { menuId?: string } = {},
 ): Promise<boolean> {
   if (!isMenuHtmlAuthoring(authoring)) return true;
-  return authorizeOrRespond(res, deps.authorize, {
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId, permission: MENU_RAW_HTML_PERMISSION, workspaceId: deps.workspaceId, entityType: "menu", ...(menuId ? { entityId: menuId } : {}),
-  });
+  } });
 }

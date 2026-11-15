@@ -33,13 +33,13 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = ({ app, deps: rou
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
 
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "member.manage",
         workspaceId: deps.workspaceId,
         entityType: "member",
         entityId: memberId,
-      });
+      } });
       if (!authorized) return;
 
       const result = await disableMember({

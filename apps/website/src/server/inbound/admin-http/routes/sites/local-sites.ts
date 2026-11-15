@@ -33,8 +33,8 @@ function lifecycleHandler(deps: LocalSitesRouteDeps, action: (req: Request, base
     if (!gate.ok) { res.status(gate.code === "SITE_SWITCHING_DISABLED" ? 403 : 409).json(gate); return; }
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       if (!deps.localSiteSupervisor) { res.status(409).json({ code: "SITE_HOST_UNAVAILABLE", error: "local site host is unavailable" }); return; }
       const result = await action(req, gate.switcherBase, deps.localSiteSupervisor);
       res.status(200).json(result ?? { ok: true });

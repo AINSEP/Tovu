@@ -41,7 +41,7 @@ function buildTestApp(): { app: express.Express; deps: MenuRouteDeps } {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
   registerAdminMenuListRoute({ app, deps });

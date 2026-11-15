@@ -16,7 +16,7 @@ export const registerAdminWidgetRegionsListRoute: RouteRegistrar = ({ app, deps 
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireWidgetsPermissionOrRespond(deps.authorize, deps.workspaceId, "widgets.read", res);
+      const principal = await requireWidgetsPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "widgets.read", res });
       if (!principal) return;
       const bindings = await deps.widgetBindingRepo.listByWorkspace({ workspaceId: deps.workspaceId });
       const regions = await Promise.all(
@@ -28,7 +28,7 @@ export const registerAdminWidgetRegionsListRoute: RouteRegistrar = ({ app, deps 
       );
       res.status(200).json({ regions });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

@@ -17,7 +17,7 @@ import { ValueValidationFailedError } from "#src/features/settings/index";
  * 500-on-everything-else split, and the same return of the settings AS THEY NOW READ so the client
  * renders the persisted truth rather than the value it optimistically sent.
  */
-export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/assistant/settings", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

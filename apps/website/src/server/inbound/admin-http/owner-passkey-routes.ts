@@ -35,7 +35,7 @@ async function passkeyDeps(admission: Admission, req: Request): Promise<OwnerPas
 }
 
 /** Admission failures reveal no credentials; protocol proofs are never logged. O(1). */
-function failure(res: Response, error: unknown): void {
+function failure({ res, error }: { res: Response; error: unknown }, _optional = {}): void {
   const expected = error instanceof IdentityValidationError || error instanceof OwnerRequiredError;
   if (!expected) {
     sendAdminFailure({ res, error }, { operation: 'owner-passkey', code: 'PASSKEY_UNAVAILABLE',
@@ -50,7 +50,7 @@ function failure(res: Response, error: unknown): void {
 }
 
 /** Authenticate management calls separately; login calls require the password-created pending proof. */
-async function admit(admission: Admission, req: Request, action: Action, deps: OwnerPasskeyDeps) {
+async function admit({ admission, req, action, deps }: { admission: Admission; req: Request; action: Action; deps: OwnerPasskeyDeps }, _optional = {}) {
   if (action === 'begin-login' || action === 'login') return;
   const caller = await admission.authenticate(req);
   if (caller?.kind !== 'session' || caller.principal.id !== deps.mfa.seededOwnerPrincipalId) {
@@ -74,16 +74,16 @@ async function handle(admission: Admission, req: Request, res: Response, action:
     const rate = await admission.limiter.check({ key: resolveClientIp(req) });
     if (!rate.allowed) { res.setHeader('Retry-After', String(rate.retryAfterSeconds));
       res.status(429).json({ error: 'Too many passkey attempts. Wait a minute and try again.', code: 'RATE_LIMIT_EXCEEDED' }); return; }
-    await admit(admission, req, action, deps);
+    await admit({ admission, req, action, deps });
     await execute(admission, req, res, action, deps);
-  } catch (error) { failure(res, error); }
+  } catch (error) { failure({ res, error }); }
 }
 
 /** Transport-only dispatch; scope never comes from the request body. */
 async function execute(admission: Admission, req: Request, res: Response, action: Action, deps: OwnerPasskeyDeps) {
-  const value = (key: string) => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
+  const value = ({ key }: { key: string }, _optional = {}) => typeof req.body?.[key] === 'string' ? req.body[key] as string : '';
   const input = { workspaceId: admission.deps.workspaceId, principalId: deps.mfa.seededOwnerPrincipalId,
-    password: value('password'), code: value('code'), pendingToken: value('pendingToken'), response: req.body?.response, id: value('id') };
+    password: value({ key: 'password' }), code: value({ key: 'code' }), pendingToken: value({ key: 'pendingToken' }), response: req.body?.response, id: value({ key: 'id' }) };
   switch (action) {
     case 'enroll': res.json(await beginOwnerPasskeyEnrollment({ deps, input })); return;
     case 'confirm': await confirmOwnerPasskeyEnrollment({ deps, input }); break;
@@ -108,6 +108,6 @@ export function registerOwnerPasskeyRoutes(admission: Admission, _options: Recor
       const deps = await passkeyDeps(admission, req);
       const credentials = await deps.credentials.list({ workspaceId: admission.deps.workspaceId, principalId: deps.mfa.seededOwnerPrincipalId });
       res.json({ isOwner: true, credentials: credentials.map(c => ({ id: c.id })) });
-    } catch (error) { failure(res, error); }
+    } catch (error) { failure({ res, error }); }
   });
 }

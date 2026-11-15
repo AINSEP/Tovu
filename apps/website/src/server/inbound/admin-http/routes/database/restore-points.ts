@@ -26,7 +26,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  *
  * @complexity O(1).
  */
-function parseRestorePointCreateBody(rawBody: unknown): { trigger: string; costAck: boolean; idempotencyKey: string } {
+function parseRestorePointCreateBody({ rawBody }: { rawBody: unknown }, _optional = {}): { trigger: string; costAck: boolean; idempotencyKey: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     trigger: typeof body.trigger === "string" ? body.trigger : "manual",
@@ -42,7 +42,7 @@ function parseRestorePointCreateBody(rawBody: unknown): { trigger: string; costA
  *
  * @complexity O(1).
  */
-function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: number } | undefined): {
+function toCapturedRow({ captured }: { captured: { artifactRef: string; watermarkAtCapture: number } | undefined }, _optional = {}): {
   watermarkAtCapture: number | null;
   artifactRef: string | undefined;
 } {
@@ -73,10 +73,7 @@ function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: numb
  *
  * @complexity O(1) lookup plus O(n) over the restore-points list only when a repeat key is found.
  */
-async function findExistingRestorePointSummary(
-  repo: DatabaseRecoveryRouteDeps["restorePointsRepo"],
-  idempotencyKey: string
-): Promise<{ id: string; costClass: RestorePointCostClass; kind: string } | undefined> {
+async function findExistingRestorePointSummary({ repo, idempotencyKey }: { repo: DatabaseRecoveryRouteDeps["restorePointsRepo"]; idempotencyKey: string }, _optional = {}): Promise<{ id: string; costClass: RestorePointCostClass; kind: string } | undefined> {
   const existing = await repo.findByIdempotencyKey(idempotencyKey);
   if (!existing) return undefined;
 
@@ -93,7 +90,7 @@ async function findExistingRestorePointSummary(
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
-function sendRestorePointCreateError(res: Response, err: unknown): void {
+function sendRestorePointCreateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof RestorePointUnavailableError) {
     res.status(409).json({ error: err.message, code: "RESTORE_POINT_UNAVAILABLE" });
     return;
@@ -145,12 +142,12 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
       const params = { principalId: principal.id, permission: "backup.create", workspaceId: deps.workspaceId, entityType: "restore-point" };
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-      const { trigger, costAck, idempotencyKey } = parseRestorePointCreateBody(req.body);
+      const { trigger, costAck, idempotencyKey } = parseRestorePointCreateBody({ rawBody: req.body });
 
       // AC-11: a repeat idempotencyKey returns the ORIGINAL restore point — checked before any
       // capability/cost-gate work and, critically, before `capture()` below, since the whole point
       // is to never re-run the real (costly) backup on a retry.
-      const existingSummary = await findExistingRestorePointSummary(deps.restorePointsRepo, idempotencyKey);
+      const existingSummary = await findExistingRestorePointSummary({ repo: deps.restorePointsRepo, idempotencyKey });
       if (existingSummary) {
         res.status(201).json({ restorePoint: existingSummary });
         return;
@@ -180,12 +177,12 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
         // 2026-07-16: was captured above but previously never persisted — the root cause of why
         // Recovery's restore ceremony could only write a "ledger-only" note (no way to know which
         // file to restore from). See `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`.
-        ...toCapturedRow(captured),
+        ...toCapturedRow({ captured }),
       });
 
       res.status(201).json({ restorePoint: summary });
     } catch (err) {
-      sendRestorePointCreateError(res, err);
+      sendRestorePointCreateError({ res, err });
     }
   });
 }

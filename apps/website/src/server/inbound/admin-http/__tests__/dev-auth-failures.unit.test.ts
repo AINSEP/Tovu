@@ -22,7 +22,7 @@ for (const fault of ["identity", "session", "logout"] as const) {
     }
     const logs = t.mock.method(console, "error", () => {});
     const app = express();
-    registerAuthRoutes(app, failing);
+    registerAuthRoutes({ app, deps: failing });
     const { res, capture } = createCapturingResponse();
     const tracked: Array<{ error: Error; options: unknown }> = [];
     res.locals.adminFailureTracker = { error: ({ error }: { error: Error }, options: unknown) => tracked.push({ error, options }) };

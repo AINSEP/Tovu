@@ -21,7 +21,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 function seoPutEntryErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): { status: number; body: { error: string; code: string } } {
   if (err instanceof ToolInputError) return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
   if (err instanceof RecordVersionConflictError) return { status: 409, body: versionConflictBody({ error: err }) };
-  const live = entityNotLiveResponse(err);
+  const live = entityNotLiveResponse({ err });
   if (live) return live;
   if (err instanceof SeoFieldValidationError) {
     return { status: 400, body: { error: err.message, code: "SEO_FIELD_VALIDATION_ERROR" } };
@@ -55,13 +55,13 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = ({ app, deps }, 
       await deps.seoReady;
       const principal = getAuthedPrincipal(res);
       const entryId = String(req.params.entryId ?? "");
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.seo.manage",
         workspaceId: deps.workspaceId,
         entityType: "seo-entry",
         entityId: entryId,
-      });
+      } });
       if (!authorized) return;
 
       const { expectedVersion: rawExpectedVersion, ...patch } = req.body ?? {};

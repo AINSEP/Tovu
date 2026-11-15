@@ -20,7 +20,7 @@ function sendAssignLocationError(
   { res, err }: { res: Response; err: unknown },
   _options: Record<string, never> = {},
 ): void {
-  const live = entityNotLiveResponse(err);
+  const live = entityNotLiveResponse({ err });
   if (live) {
     res.status(live.status).json(live.body);
     return;

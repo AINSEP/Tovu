@@ -29,7 +29,7 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
     if (!admitSettingsRequest({ req, res, deps })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: method === "get" ? "system.read" : "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: method === "get" ? "system.read" : "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       if (method === "get") { res.json(workspace.config({})); return; }
       try {
         // Validate the shape before inspecting paths; malformed input is a refusal, not an I/O error.
@@ -48,7 +48,7 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
     if (!admitSettingsRequest({ req, res, deps })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       const selected = req.body?.path;
       try {
         if (selected === undefined) throw new DirectoryUserConfigRefusal({ message: "Choose an absolute folder path for sites settings." });

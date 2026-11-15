@@ -20,7 +20,7 @@ test('host authenticates real member and operator cookies independently, includi
   assert.ok(deps.pluginContributions);
   deps.pluginContributions.replace({contributions:capture.seal({sdk:{} as never})});
   await deps.pluginActivationRepo.save({pluginId:id,workspaceId:deps.workspaceId,version:manifest.version,enabled:true,updatedAt:deps.clock.nowIso()});
-  const app = express(); app.use(parsePublicJsonBody); registerAuthRoutes(app,deps);
+  const app = express(); app.use(parsePublicJsonBody); registerAuthRoutes({ app, deps });
   registerPluginContributionRoutes({app,deps,auth:createPluginRouteAuthPorts({deps})});
   const {baseUrl,cookie:operatorCookie} = await bootAuthenticated(app,t);
   const memberId = 'plugin-member'; const token = 'member-secret'; const now = deps.clock.nowIso();

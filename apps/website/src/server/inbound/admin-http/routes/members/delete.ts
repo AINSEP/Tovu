@@ -17,8 +17,8 @@ export const registerAdminMemberDeleteRoute: RouteRegistrar = ({ app, deps: rout
     const memberId = String(req.params.memberId ?? "");
     try {
       const principal = getAuthedPrincipal(res);
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "member.manage",
-        workspaceId: deps.workspaceId, entityType: "member", entityId: memberId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "member.manage",
+        workspaceId: deps.workspaceId, entityType: "member", entityId: memberId } })) return;
       res.json(await trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: principal.id } },
         { members: deps.memberRepo, remove: deps.removeMember, clock: deps.clock }));
     } catch (error) {

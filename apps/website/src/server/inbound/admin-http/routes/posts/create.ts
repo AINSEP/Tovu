@@ -16,7 +16,7 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 /** Maps this route's thrown error types onto the admin error envelope.
  *  @complexity O(1). */
 function sendPostCreateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  if (sendPluginHookFailedError(res, err)) return;
+  if (sendPluginHookFailedError({ res, err })) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({
       error: err.message,

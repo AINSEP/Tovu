@@ -47,7 +47,7 @@ function parsePageUpdateBody({ rawBody }: { rawBody: unknown }, _optional = {}):
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
 function sendPageUpdateError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
-  if (sendPluginHookFailedError(res, err)) return;
+  if (sendPluginHookFailedError({ res, err })) return;
   if (err instanceof ForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
     return;

@@ -13,7 +13,7 @@ test("hook failures redact credentials before logging while preserving the publi
   let body: unknown;
   const res = { status(code: number) { status = code; return { json(value: unknown) { body = value; } }; } };
 
-  assert.equal(sendPluginHookFailedError(res, error), true);
+  assert.equal(sendPluginHookFailedError({ res, err: error }), true);
 
   assert.equal(status, 500);
   assert.deepEqual(body, { error: "a site plugin (example) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "example" });

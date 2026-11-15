@@ -19,7 +19,7 @@ const MIME: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-function sendSeaAsset(sea: SeaApi, key: string, res: Response): boolean {
+function sendSeaAsset({ sea, key, res }: { sea: SeaApi; key: string; res: Response }, _optional = {}): boolean {
   try {
     const asset = sea.getAsset(key);
     res.setHeader("Content-Type", MIME[path.extname(key)] ?? "application/octet-stream");
@@ -66,19 +66,19 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
   const sea = seaApi();
   if (sea) {
     app.get(["/admin", "/admin/"], (_req, res) => {
-      sendSeaAsset(sea, "admin/index.html", res);
+      sendSeaAsset({ sea, key: "admin/index.html", res });
     });
     app.get("/admin/*", (req, res) => {
       const rel = req.path.replace(/^\/admin\//, "");
-      if (sendSeaAsset(sea, `admin/${rel}`, res)) return;
-      sendSeaAsset(sea, "admin/index.html", res);
+      if (sendSeaAsset({ sea, key: `admin/${rel}`, res })) return;
+      sendSeaAsset({ sea, key: "admin/index.html", res });
     });
     return;
   }
 
   const devProxyUrl = process.env.TOVU_ADMIN_DEV_PROXY_URL;
   if (devProxyUrl) {
-    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler(devProxyUrl));
+    app.all(["/admin", "/admin/*"], createAdminDevProxyRequestHandler({ devProxyUrl }));
     return;
   }
 

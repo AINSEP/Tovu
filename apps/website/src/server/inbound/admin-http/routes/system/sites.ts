@@ -355,12 +355,12 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
         entityType: "site-registry",
-      });
+      } });
       if (!authorized) return;
 
       res.status(200).json(siteListing({ req, deps, listSites, isSiteSwitcherEnabled,
@@ -374,12 +374,12 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
         entityType: "site-registry",
-      });
+      } });
       if (!authorized) return;
       const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() })))(deps.workspaceId);
       res.status(200).json({ plugins });
@@ -400,12 +400,12 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.write",
         workspaceId: deps.workspaceId,
         entityType: "site-registry",
-      });
+      } });
       if (!authorized) return;
 
       const parsed = parseCreateSiteName(req.body);
@@ -436,12 +436,12 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.write",
         workspaceId: deps.workspaceId,
         entityType: "site-registry",
-      });
+      } });
       if (!authorized) return;
 
       // `restartNow: true` (2026-10-05, OD-S1) asks the `npm run dev` supervisor to restart onto the

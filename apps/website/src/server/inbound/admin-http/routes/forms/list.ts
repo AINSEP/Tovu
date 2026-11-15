@@ -16,7 +16,7 @@ export const registerAdminFormsListRoute: FormsRouteRegistrar = ({ app, deps }, 
       if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
       const definitions = await deps.formDefinitionRepo.list({ workspaceId: deps.workspaceId });
-      res.json(toAdminFormDefinitionListResponse(definitions));
+      res.json(toAdminFormDefinitionListResponse({ definitions }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/forms/list", code: "INTERNAL_ERROR" });
     }

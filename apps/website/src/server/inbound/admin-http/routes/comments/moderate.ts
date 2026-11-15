@@ -39,7 +39,7 @@ const ACTIONS: readonly ActionSpec[] = [
   { path: "restore", permission: "comments.moderate", action: "restore", toStatus: "approved" },
 ];
 
-function parseExpectedVersion(raw: unknown): number | null {
+function parseExpectedVersion({ raw }: { raw: unknown }, _optional = {}): number | null {
   let n: number;
   if (typeof raw === "number") n = raw;
   else if (typeof raw === "string") n = Number(raw);
@@ -49,9 +49,9 @@ function parseExpectedVersion(raw: unknown): number | null {
 
 /** This route's `{expectedVersion, note}` body, read once — `null` means `expectedVersion` failed
  *  validation. @complexity O(1). */
-function parseModerationBody(rawBody: unknown): { expectedVersion: number; note: string | null } | null {
+function parseModerationBody({ rawBody }: { rawBody: unknown }, _optional = {}): { expectedVersion: number; note: string | null } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
-  const expectedVersion = parseExpectedVersion(body.expectedVersion);
+  const expectedVersion = parseExpectedVersion({ raw: body.expectedVersion });
   if (expectedVersion === null) return null;
   return { expectedVersion, note: typeof body.note === "string" ? body.note : null };
 }
@@ -77,7 +77,7 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
         const params = { principalId: principal.id, permission: spec.permission, workspaceId: deps.workspaceId, entityType: "comment", entityId: req.params.commentId };
         if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return;
 
-        const parsedBody = parseModerationBody(req.body);
+        const parsedBody = parseModerationBody({ rawBody: req.body });
         if (!parsedBody) {
           res.status(400).json({ error: "expectedVersion is required and must be a non-negative integer" });
           return;

@@ -33,8 +33,8 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
       } },
     });
     const deps = createRouteDeps(); const app = express(); app.use(express.json());
-    registerAuthRoutes(app, deps); app.use('/api/admin', requireAdminSession(deps));
-    registerAgentPluginMemoryRoutes(app, deps); registerAgentPluginFilesRoute(app, deps);
+    registerAuthRoutes({ app, deps }); app.use('/api/admin', requireAdminSession(deps));
+    registerAgentPluginMemoryRoutes({ app, deps }); registerAgentPluginFilesRoute({ app, deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const prefix = `${baseUrl}/api/admin/v1/workspaces/workspace-local/agent-plugins/example`;
     assert.equal((await fetch(`${prefix}/memory`)).status, 401);
@@ -103,8 +103,8 @@ async function bootMemoryApp(t: TestContext): Promise<{ prefix: string; cookie: 
     } },
   });
   const deps = createRouteDeps(); const app = express(); app.use(express.json());
-  registerAuthRoutes(app, deps); app.use('/api/admin', requireAdminSession(deps));
-  registerAgentPluginMemoryRoutes(app, deps);
+  registerAuthRoutes({ app, deps }); app.use('/api/admin', requireAdminSession(deps));
+  registerAgentPluginMemoryRoutes({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   return { prefix: `${baseUrl}/api/admin/v1/workspaces/workspace-local/agent-plugins`, cookie };
 }

@@ -63,7 +63,7 @@ function sourceFor(deps: AgentPluginsRouteDeps): AdminSurfaceSource {
 /** Workspace check + permission; `false` when a response was already sent. @complexity O(1) + authorize. */
 async function admit(req: Request, res: Response, deps: AgentPluginsRouteDeps, permission: string): Promise<boolean> {
   if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return false;
-  return authorizeOrRespond(res, deps.authorize, { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId });
+  return authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId } });
 }
 
 /** The CSRF and credential-kind gates for the two writes; `false` when a 403 was already sent.
@@ -83,33 +83,33 @@ async function surfaceOrRespond(req: Request, res: Response, deps: AgentPluginsR
   return surface;
 }
 
-function contextFor(res: Response, deps: AgentPluginsRouteDeps, surface: LoadedAdminSurface): AdminSurfaceRequestContext {
+function contextFor({ res, deps, surface }: { res: Response; deps: AgentPluginsRouteDeps; surface: LoadedAdminSurface }, _optional = {}): AdminSurfaceRequestContext {
   return { workspaceId: deps.workspaceId, principalId: getAuthedPrincipal(res).id, pluginId: surface.plugin.pluginId, surfaceId: surface.descriptor.id };
 }
 
 /** Runs a handler body; any throw becomes a generic 500 that names no server detail. */
-async function guarded(res: Response, body: () => Promise<void>): Promise<void> {
+async function guarded({ res, body }: { res: Response; body: () => Promise<void> }, _optional = {}): Promise<void> {
   try { await body(); } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/admin-surfaces", code: "INTERNAL_ERROR" }); }
 }
 
-export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = (app: Express, deps) => {
-  app.get(SURFACE_PATH, (req, res) => guarded(res, async () => {
+export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+  app.get(SURFACE_PATH, (req, res) => guarded({ res, body: async () => {
     if (!(await admit(req, res, deps, "admin.plugins.read"))) return;
     const pluginId = String(req.params.pluginId);
     const surfaces = (await sourceFor(deps).list({ workspaceId: deps.workspaceId })).filter((surface) => surface.plugin.pluginId === pluginId);
     res.json({ pluginId, surfaces: surfaces.map(({ descriptor }) => ({ id: descriptor.id, title: descriptor.title, src: adminSurfaceFileUrl({ pluginId, surfaceId: descriptor.id, path: descriptor.entry }), actions: descriptor.actions, linkOrigins: descriptor.linkOrigins ?? [] })) });
-  }));
+  } }));
 
-  app.post(`${SURFACE_PATH}/:surfaceId/bootstrap`, (req, res) => guarded(res, async () => {
+  app.post(`${SURFACE_PATH}/:surfaceId/bootstrap`, (req, res) => guarded({ res, body: async () => {
     if (!admitWrite(req, res) || !(await admit(req, res, deps, WRITE_PERMISSION))) return;
     const surface = await surfaceOrRespond(req, res, deps);
     if (!surface) return;
     const host = deps.adminSurfaceHost ?? NO_ADMIN_SURFACE_HOST;
-    const data = await host.bootstrapData({ context: contextFor(res, deps, surface) });
+    const data = await host.bootstrapData({ context: contextFor({ res, deps, surface }) });
     res.set(adminSurfaceBootstrapHeaders()).json(createAdminSurfaceBootstrap({ surfaceId: surface.descriptor.id, data, nowMs: deps.clock.nowMs() }));
-  }));
+  } }));
 
-  app.post(`${SURFACE_PATH}/:surfaceId/actions`, (req, res) => guarded(res, async () => {
+  app.post(`${SURFACE_PATH}/:surfaceId/actions`, (req, res) => guarded({ res, body: async () => {
     if (!admitWrite(req, res) || !(await admit(req, res, deps, WRITE_PERMISSION))) return;
     const surface = await surfaceOrRespond(req, res, deps);
     if (!surface) return;
@@ -124,6 +124,6 @@ export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar =
       onHandlerError: ({ surfaceId, action, error }) => console.error("[admin-surfaces] action handler failed", { pluginId: surface.plugin.pluginId, surfaceId, action, error: error instanceof Error ? error.name : typeof error }),
     });
     const { action, payload } = body;
-    res.set("Cache-Control", "no-store").json(await withAdminSurfaceSignIns({ host, run: () => dispatcher.dispatch({ action, payload, context: contextFor(res, deps, surface) }) }));
-  }));
+    res.set("Cache-Control", "no-store").json(await withAdminSurfaceSignIns({ host, run: () => dispatcher.dispatch({ action, payload, context: contextFor({ res, deps, surface }) }) }));
+  } }));
 };

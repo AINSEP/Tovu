@@ -76,8 +76,8 @@ interface MediaUpdateErrorResponse {
  *
  * @complexity O(1) — four `instanceof` checks.
  */
-function mapMediaUpdateError({ err }: { err: unknown }, { options = {} }: { options?: AdminFailurePorts } = {}): MediaUpdateErrorResponse {
-  const live = entityNotLiveResponse(err);
+function mapMediaUpdateError({ err }: { err: unknown }, options: AdminFailurePorts = {}): MediaUpdateErrorResponse {
+  const live = entityNotLiveResponse({ err });
   if (live) return live;
   if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
   if (err instanceof MediaValidationError) return { status: 400, body: { error: err.message } };
@@ -118,7 +118,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }
       ]);
       res.json({ media: toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null }) });
     } catch (err) {
-      const { status, body } = mapMediaUpdateError({ err }, { options: { tracker: res.locals?.adminFailureTracker } });
+      const { status, body } = mapMediaUpdateError({ err }, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

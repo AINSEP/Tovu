@@ -10,7 +10,7 @@ type Deps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "authorize" | "
 const BASE = "/api/admin/v1/workspaces/:workspaceId/system/credential-copy";
 
 async function authorizedCopy({ res, deps, actorId, permission = "system.write" }: { res: Response; deps: Deps; actorId: string; permission?: string }, _options = {}): Promise<boolean> {
-  if (!await authorizeOrRespond(res, deps.authorize, { principalId: actorId, permission, workspaceId: deps.workspaceId })) return false;
+  if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: actorId, permission, workspaceId: deps.workspaceId } })) return false;
   const instance = deps.gatedMutations.gatewayDeps.authorizeInstance;
   if (instance && !(await instance({ principalId: actorId, permission })).allowed) {
     res.status(403).json({ reasonCode: "owner-only" }); return false;

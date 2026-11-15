@@ -12,7 +12,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * key is stored," not "a key must currently exist." No sealer/keyring involved (clearing needs no
  * decrypt), so this cannot fail on a misconfigured site key either.
  */
-export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/assistant/site-credential", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -72,7 +72,7 @@ import type { AssistantExecutionRouteDeps } from "./execution-deps.js";
  *  `"https://x/"` and a requested `"https://x"` are the same endpoint and must not read as a
  *  mismatch. Deliberately does NOT lowercase: a URL's host is case-insensitive but its path is not,
  *  and folding case here would let `/V1` and `/v1` compare equal. */
-function normalizeEndpoint(baseUrl: string): string {
+function normalizeEndpoint({ baseUrl }: { baseUrl: string }, _optional = {}): string {
   const value = String(baseUrl).trim();
   let end = value.length;
   while (end > 0 && value[end - 1] === "/") end -= 1;
@@ -149,27 +149,19 @@ export async function resolveProbeCredential(
   }
 
   if (input.useAdminStoredCredential) {
-    return resolveStoredCredentialAgainstItsOwnEndpoint(
-      await resolveExecutionCredential(
+    return resolveStoredCredentialAgainstItsOwnEndpoint({ stored: await resolveExecutionCredential(
         // One sealing capability app-wide — `siteAssistantSecretSealer` is the same sealer
         // `assistant-byok.ts` and `live-model-cache.ts` open this row with. See
         // `routes/types.ts`'s `adminExecutionCredentialRepo` doc.
         { deps: { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
         input: { workspaceId: deps.workspaceId, principalId: String(input.principalId ?? "") } }
-      ),
-      input.requestedBaseUrl,
-      "admin execution credential"
-    );
+      ), requestedBaseUrl: input.requestedBaseUrl, subject: "admin execution credential" });
   }
 
-  return resolveStoredCredentialAgainstItsOwnEndpoint(
-    await resolveSiteAssistantApiKey(
+  return resolveStoredCredentialAgainstItsOwnEndpoint({ stored: await resolveSiteAssistantApiKey(
       { deps: { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
       input: { workspaceId: deps.workspaceId } }
-    ),
-    input.requestedBaseUrl,
-    "stored site assistant credential"
-  );
+    ), requestedBaseUrl: input.requestedBaseUrl, subject: "stored site assistant credential" });
 }
 
 /**
@@ -191,11 +183,7 @@ export async function resolveProbeCredential(
  *   endpoint string, not the caller's, so the bytes sent are the ones the server approved.
  * @complexity O(1) — two string normalizations and one comparison.
  */
-function resolveStoredCredentialAgainstItsOwnEndpoint(
-  stored: { apiKey: string; baseUrl: string | null } | null,
-  requestedBaseUrl: string,
-  subject: string
-): ProbeCredentialResolution {
+function resolveStoredCredentialAgainstItsOwnEndpoint({ stored, requestedBaseUrl, subject }: { stored: { apiKey: string; baseUrl: string | null } | null; requestedBaseUrl: string; subject: string }, _optional = {}): ProbeCredentialResolution {
   if (!stored) {
     return { ok: true, apiKey: "", baseUrl: requestedBaseUrl };
   }
@@ -210,7 +198,7 @@ function resolveStoredCredentialAgainstItsOwnEndpoint(
     };
   }
 
-  if (normalizeEndpoint(stored.baseUrl) !== normalizeEndpoint(requestedBaseUrl)) {
+  if (normalizeEndpoint({ baseUrl: stored.baseUrl }) !== normalizeEndpoint({ baseUrl: requestedBaseUrl })) {
     return {
       ok: false,
       failure: {

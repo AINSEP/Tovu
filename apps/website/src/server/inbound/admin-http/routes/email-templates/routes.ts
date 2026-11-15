@@ -43,8 +43,8 @@ const BASE = "/api/admin/v1/workspaces/:workspaceId/email-templates";
 type Handler = (req: Request, res: Response, deps: EmailTemplateDeps) => Promise<unknown>;
 
 /** Maps an operation failure onto its HTTP shape, mirroring `pages/update-html.ts`'s codes. */
-function sendError(res: Response, err: unknown): void {
-  const live = entityNotLiveResponse(err);
+function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  const live = entityNotLiveResponse({ err });
   if (live) {
     res.status(live.status).json(live.body);
     return;
@@ -71,15 +71,15 @@ function body(req: Request): Record<string, unknown> {
 }
 
 /** Workspace check, then authorization BEFORE any body validation, then the operation. */
-function route(deps: ContentRouteDeps, permission: string, handler: Handler, status = 200) {
+function route({ deps, permission, handler }: { deps: ContentRouteDeps; permission: string; handler: Handler }, { status = 200 }: { status?: unknown } = {}) {
   return async (req: Request, res: Response) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } }))) return;
       res.status(status).json(await handler(req, res, deps));
     } catch (err) {
-      sendError(res, err);
+      sendError({ res, err });
     }
   };
 }
@@ -99,12 +99,12 @@ const templateId = (req: Request) => String(req.params.templateId);
  */
 export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const limit = rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES });
-  app.get(BASE, route(deps, "content.read", (req, _res, ops) => listEmailTemplates({ deps: ops, input: req.query })));
-  app.post(BASE, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, res, ops) => createEmailTemplate({ deps: ops, input: body(req), actorId: actor(res) }), 201));
+  app.get(BASE, route({ deps, permission: "content.read", handler: (req, _res, ops) => listEmailTemplates({ deps: ops, input: req.query }) }));
+  app.post(BASE, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, res, ops) => createEmailTemplate({ deps: ops, input: body(req), actorId: actor(res) }) }, { status: 201 }));
   // Before `/:templateId` routes only for readability: methods and segment counts already differ.
-  app.post(`${BASE}/preview`, limit, route(deps, "content.read", (req, _res, ops) => previewEmailTemplate({ deps: ops, input: body(req) })));
-  app.get(`${BASE}/:templateId`, route(deps, "content.read", (req, _res, ops) => getEmailTemplate({ deps: ops, id: templateId(req) })));
-  app.put(`${BASE}/:templateId/html`, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, res, ops) => editEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) }, actorId: actor(res) })));
-  app.patch(`${BASE}/:templateId`, limit, route(deps, PAGES_EDIT_HTML_PERMISSION, (req, _res, ops) => renameEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) } })));
-  app.post(`${BASE}/:templateId/render`, limit, route(deps, "admin.forms.manage", (req, _res, ops) => renderEmailTemplateForSend({ deps: ops, id: templateId(req), values: readFieldValues({ value: body(req).values }) })));
+  app.post(`${BASE}/preview`, limit, route({ deps, permission: "content.read", handler: (req, _res, ops) => previewEmailTemplate({ deps: ops, input: body(req) }) }));
+  app.get(`${BASE}/:templateId`, route({ deps, permission: "content.read", handler: (req, _res, ops) => getEmailTemplate({ deps: ops, id: templateId(req) }) }));
+  app.put(`${BASE}/:templateId/html`, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, res, ops) => editEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) }, actorId: actor(res) }) }));
+  app.patch(`${BASE}/:templateId`, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, _res, ops) => renameEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) } }) }));
+  app.post(`${BASE}/:templateId/render`, limit, route({ deps, permission: "admin.forms.manage", handler: (req, _res, ops) => renderEmailTemplateForSend({ deps: ops, id: templateId(req), values: readFieldValues({ value: body(req).values }) }) }));
 };

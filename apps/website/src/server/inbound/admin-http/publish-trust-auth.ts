@@ -188,11 +188,7 @@ const REFUSAL_SITE_LABEL = "this site";
  *
  * @complexity O(n) in the grant's key count, bounded at 4 by `grant.ts`.
  */
-function acceptedKeyFor(
-  resolution: PublishTrustResolution,
-  sourceInstallationId: string,
-  generation: number
-): string {
+function acceptedKeyFor({ resolution, sourceInstallationId, generation }: { resolution: PublishTrustResolution; sourceInstallationId: string; generation: number }, _optional = {}): string {
   const grant = findGrantForSource(resolution, sourceInstallationId);
   return grant?.publicKeys.find((key) => key.generation === generation)?.publicKeyB64u ?? "";
 }
@@ -299,11 +295,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       resolution,
       revocations: revocations.ok ? revocations.revocations : null,
       sourceInstallationId: verified.payload.sourceInstallationId,
-      publicKeyB64u: acceptedKeyFor(
-        resolution,
-        verified.payload.sourceInstallationId,
-        verified.payload.generation
-      ),
+      publicKeyB64u: acceptedKeyFor({ resolution, sourceInstallationId: verified.payload.sourceInstallationId, generation: verified.payload.generation }),
       siteLabel: REFUSAL_SITE_LABEL,
       nowIso: deps.clock.nowIso(),
     });
@@ -408,7 +400,7 @@ export function withPublishTrustAuthorize(res: Response, deps: GatewayDeps): Gat
 export function withPublishTrustContentAuthorize<
   TAuthorize extends (params: never) => Promise<{ allowed: boolean; reason: string }>,
   T extends { authorize?: TAuthorize },
->(res: Response, deps: T, typePermissions: ReadonlyMap<string, readonly string[]>): T {
+>({ res, deps, typePermissions }: { res: Response; deps: T; typePermissions: ReadonlyMap<string, readonly string[]> }, _optional = {}): T {
   const context = getPublishTrustContext(res);
   if (!context) return deps;
 

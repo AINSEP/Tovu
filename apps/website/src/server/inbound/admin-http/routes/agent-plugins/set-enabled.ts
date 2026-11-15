@@ -115,12 +115,7 @@ import { agentPluginLifecycleFields } from "./install-response.js";
 /** The `list.ts` row shape, for one plugin, so the client can replace a row in place rather than
  *  re-fetching the whole list after a toggle. `enabled` comes from the record just written, not
  *  from the pre-write read. */
-function sendUpdatedRow(
-  res: Response,
-  candidate: Awaited<ReturnType<typeof loadAgentPluginSearchCandidates>>[number],
-  enabled: boolean,
-  warnings: readonly string[] = [],
-): void {
+function sendUpdatedRow({ res, candidate, enabled }: { res: Response; candidate: Awaited<ReturnType<typeof loadAgentPluginSearchCandidates>>[number]; enabled: boolean }, { warnings = [] }: { warnings?: readonly string[] } = {}): void {
   res.json({
     warnings,
     agentPlugin: {
@@ -194,7 +189,7 @@ async function provisionAgentPluginMcpServersBestEffort(
  *   log only; the response body is fixed and path-free, like the UNREADABLE case above.
  * - Anything else: opaque 500, matching every other route in this admin surface.
  */
-function sendSetEnabledError(res: Response, pluginId: string, error: unknown): void {
+function sendSetEnabledError({ res, pluginId, error }: { res: Response; pluginId: string; error: unknown }, _optional = {}): void {
   if (error instanceof ToolAccessLoweringError) {
     res.status(503).json({ error: error.message, code: error.code });
     return;
@@ -267,7 +262,7 @@ function validateSetEnabledRequest(
   return { pluginId, enabled };
 }
 
-export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId", async (req, res) => {
     const validated = validateSetEnabledRequest(req, res, deps);
     if (validated === undefined) return;
@@ -276,13 +271,13 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.enable",
           workspaceId: deps.workspaceId,
           entityType: "agent-plugin",
           entityId: pluginId,
-        }))
+        } }))
       )
         return;
 
@@ -305,9 +300,9 @@ export const registerAgentPluginSetEnabledRoute: AgentPluginsRouteRegistrar = (a
         await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [pluginId] } }, {});
       }
 
-      sendUpdatedRow(res, candidate, written.enabled, written.warnings);
+      sendUpdatedRow({ res, candidate, enabled: written.enabled }, { warnings: written.warnings });
     } catch (error) {
-      sendSetEnabledError(res, pluginId, error);
+      sendSetEnabledError({ res, pluginId, error });
     }
   });
 };

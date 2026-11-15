@@ -17,13 +17,7 @@ export const registerAdminNewsletterCancelCampaignRoute: RouteRegistrar = ({ app
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.campaign.compose",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.compose", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -33,7 +27,7 @@ export const registerAdminNewsletterCancelCampaignRoute: RouteRegistrar = ({ app
       });
       res.status(200).json(toDataResponse(campaign));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

@@ -13,9 +13,7 @@ import { entryWriteErrorStatus } from "./write-error-status.js";
 /** This route's required `type`/`slug`/`title` (strings) plus the optional `fieldsJson`/`bodyJson`
  *  fields, read off an untyped body in one place. `null` means the required strings failed
  *  validation. @complexity O(1). */
-function parseCreateEntryBody(
-  rawBody: unknown
-): { type: string; slug: string; title: string; fieldsJson: unknown; bodyJson: unknown } | null {
+function parseCreateEntryBody({ rawBody }: { rawBody: unknown }, _optional = {}): { type: string; slug: string; title: string; fieldsJson: unknown; bodyJson: unknown } | null {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   if (typeof body.type !== "string" || typeof body.slug !== "string" || typeof body.title !== "string") return null;
   return {
@@ -35,15 +33,15 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
   app.post("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.collections.manage",
         workspaceId: deps.workspaceId,
         entityType: "entry",
-      });
+      } });
       if (!authorized) return;
 
-      const parsedBody = parseCreateEntryBody(req.body);
+      const parsedBody = parseCreateEntryBody({ rawBody: req.body });
       if (!parsedBody) {
         res.status(400).json({ error: "'type', 'slug', and 'title' (strings) are required", code: "VALIDATION_ERROR" });
         return;

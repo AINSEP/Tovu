@@ -251,11 +251,11 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   }
   if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
   const principal = getAuthedPrincipal(res);
-  return !(await authorizeOrRespond(res, deps.authorize, {
+  return !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
     principalId: principal.id,
     permission: SITE_KEY_MANAGE_PERMISSION,
     workspaceId: deps.workspaceId,
-  }));
+  } }));
 }
 
 export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter): void {

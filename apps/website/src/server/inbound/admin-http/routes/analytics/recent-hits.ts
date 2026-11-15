@@ -65,7 +65,7 @@ function toAdminAnalyticsHitResponse(hit: NormalizedHit): AdminAnalyticsHitRespo
  * the sink's `list()` owns the actual clamping/default, this just guards against handing it a
  * non-numeric string.
  */
-function parseLimitParam(raw: unknown): number | undefined {
+function parseLimitParam({ raw }: { raw: unknown }, _optional = {}): number | undefined {
   if (typeof raw !== "string" || raw.trim() === "") return undefined;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -93,7 +93,7 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
         return;
       }
 
-      const limit = parseLimitParam(req.query.limit);
+      const limit = parseLimitParam({ raw: req.query.limit });
       const hits = (await deps.analyticsSink.list({}, { limit })).map(toAdminAnalyticsHitResponse);
       res.json({ hits });
     } catch (err) {

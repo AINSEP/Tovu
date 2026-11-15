@@ -48,7 +48,7 @@ export function pluginHookFailedBody(err: PluginHookFailedError, optional: { pub
  * branches unchanged.
  * @complexity O(n) in the diagnostic text when a hook failure is handled.
  */
-export function sendPluginHookFailedError(res: PluginHookErrorResponse, err: unknown): boolean {
+export function sendPluginHookFailedError({ res, err }: { res: PluginHookErrorResponse; err: unknown }, _optional = {}): boolean {
   if (!(err instanceof PluginHookFailedError)) return false;
   res.status(500).json(pluginHookFailedBody(err));
   return true;

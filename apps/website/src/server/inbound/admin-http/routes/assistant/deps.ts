@@ -60,4 +60,4 @@ export type AssistantSettingsRouteDeps = Pick<
   | "adminAssistantEnabled"
 >;
 
-export type AssistantSettingsRouteRegistrar = (app: Express, deps: AssistantSettingsRouteDeps) => void;
+export type AssistantSettingsRouteRegistrar = (required: { app: Express; deps: AssistantSettingsRouteDeps }, optional?: Record<string, never>) => void;

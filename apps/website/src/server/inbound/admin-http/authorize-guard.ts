@@ -46,11 +46,7 @@ export interface AuthorizeGuardParams {
  *
  * @complexity O(1) — one `authorize()` call, one branch.
  */
-export async function authorizeOrRespond(
-  res: Response,
-  authorize: RouteDeps["authorize"],
-  params: AuthorizeGuardParams
-): Promise<boolean> {
+export async function authorizeOrRespond({ res, authorize, params }: { res: Response; authorize: RouteDeps["authorize"]; params: AuthorizeGuardParams }, _optional = {}): Promise<boolean> {
   const publishTrust = getPublishTrustContext(res);
   const effectiveAuthorize = publishTrust ? publishTrustAuthorizeFor(publishTrust) : authorize;
   const authResult = await effectiveAuthorize(params);

@@ -35,7 +35,7 @@ export const registerAdminRedirectListRoute: RedirectRouteRegistrar = ({ app, de
           matchType: matchType as "exact" | "prefix" | "wildcard" | "regex" | undefined,
         },
       });
-      res.json(toAdminRedirectListResponse(rules));
+      res.json(toAdminRedirectListResponse({ records: rules }));
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/redirects/list", code: "INTERNAL_ERROR" });
     }

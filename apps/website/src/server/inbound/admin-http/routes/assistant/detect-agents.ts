@@ -166,7 +166,7 @@ async function readDetectionSnapshot(
  * A strict `force:true` body is explicit Rescan. Ordinary reads return the previous
  * inventory immediately while one background scan refreshes it; no per-caller configuration.
  */
-export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteRegistrar = ({ app, deps }, _options = {}) => {
   const inventory = deps.detectAgents ? createAssistantDetectionCache({ detector: deps.detectAgents, ...(deps.assistantAgentInventory ? { runtime: deps.assistantAgentInventory.runtime } : {}) }) : undefined;
   app.post("/api/admin/v1/workspaces/:workspaceId/assistant/execution/detect-agents", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;

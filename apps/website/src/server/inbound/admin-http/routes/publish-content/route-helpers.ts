@@ -28,7 +28,7 @@ export async function authorizedPrincipalId(
   { res, deps, permission }: { res: Response; deps: Pick<PublishContentRouteDeps, "authorize" | "workspaceId">; permission: string }, _options: Record<string, never> = {}
 ): Promise<string | null> {
   const principal = getAuthedPrincipal(res);
-  const allowed = await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId });
+  const allowed = await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } });
   return allowed ? principal.id : null;
 }
 

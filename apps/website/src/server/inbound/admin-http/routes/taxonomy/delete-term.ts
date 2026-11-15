@@ -21,13 +21,13 @@ export function registerAdminTaxonomyDeleteTermRoute(app: Express, deps: Taxonom
       const principal = getAuthedPrincipal(res);
       const termId = String(req.params.id);
 
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.taxonomy.manage",
         workspaceId: deps.workspaceId,
         entityType: "term",
         entityId: termId,
-      });
+      } });
       if (!authorized) return;
 
       const outcome = await trashTerm(

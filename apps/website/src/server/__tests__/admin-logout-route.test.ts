@@ -29,7 +29,7 @@ function buildTestApp(overrides: Partial<RouteDeps>): express.Express {
   const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   return app;
 }
 

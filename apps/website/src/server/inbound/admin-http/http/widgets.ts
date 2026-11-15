@@ -34,12 +34,7 @@ import type { WidgetAreaEntry, WidgetInstanceEntry } from "@jini-ai/cms/widgets"
  * `apps/website/src/server/inbound/admin-http/routes/menus/create.ts`'s inline `authorize()`+403 pattern rather than inventing a new one.
  * Returns the authed principal on success, or `null` after already writing the 403 response.
  */
-export async function requireWidgetsPermissionOrRespond(
-  authorize: AuthorizeFn,
-  workspaceId: string,
-  permission: string,
-  res: Response
-): Promise<PrincipalRecord | null> {
+export async function requireWidgetsPermissionOrRespond({ authorize, workspaceId, permission, res }: { authorize: AuthorizeFn; workspaceId: string; permission: string; res: Response }, _optional = {}): Promise<PrincipalRecord | null> {
   const principal = getAuthedPrincipal(res);
   const params = { principalId: principal.id, permission, workspaceId, entityType: "widget" };
   return (await authorizeDirectOrRespond({ res, authorize, params })) ? principal : null;
@@ -148,7 +143,7 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
  * review fix, 2026-07-21, Finding D) that needs to merge extra fields into the body before sending,
  * since a `Response` can only be finalized once.
  */
-export function widgetErrorToResponse(err: unknown, options: AdminFailurePorts = {}): WidgetErrorResponse {
+export function widgetErrorToResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): WidgetErrorResponse {
   for (const [ErrorClass, mapper] of WIDGET_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
@@ -160,7 +155,7 @@ export function widgetErrorToResponse(err: unknown, options: AdminFailurePorts =
  * generic 500 for anything unrecognized — callers still wrap this in their own try/catch, this
  * function never throws.
  */
-export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
-  const { status, body } = widgetErrorToResponse(err, { tracker: res.locals?.adminFailureTracker });
+export function mapWidgetErrorToResponse({ err, res }: { err: unknown; res: Response }, _optional = {}): void {
+  const { status, body } = widgetErrorToResponse({ err }, { tracker: res.locals?.adminFailureTracker });
   res.status(status).json(body);
 }

@@ -12,7 +12,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * by a server-only open. An open failure still leaves metadata readable, so this route cannot
  * fail on a misconfigured site key the way PUT can.
  */
-export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantGetSiteCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/site-credential", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

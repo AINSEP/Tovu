@@ -11,11 +11,11 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 /** `maxTokens` and `providerId` each accept their own shape; every other field defaults to
  *  string-or-omitted (looked up via the `undefined` key below). */
 const EXECUTION_CREDENTIAL_FIELD_VALIDATORS: Readonly<
-  Record<string, { readonly ok: (value: unknown) => boolean; readonly message: string }>
+  Record<string, { readonly ok: (required: { value: unknown }, optional?: Record<string, never>) => boolean; readonly message: string }>
 > = {
-  maxTokens: { ok: (value) => value === undefined || typeof value === "number", message: "maxTokens must be a number" },
+  maxTokens: { ok: ({ value }) => value === undefined || typeof value === "number", message: "maxTokens must be a number" },
   providerId: {
-    ok: (value) => value === undefined || value === null || typeof value === "string",
+    ok: ({ value }) => value === undefined || value === null || typeof value === "string",
     message: "providerId must be a string or null",
   },
 };
@@ -28,9 +28,9 @@ const EXECUTION_CREDENTIAL_FIELD_VALIDATORS: Readonly<
  * @throws {ExecutionCredentialValidationError} if `value` doesn't match `field`'s accepted shape.
  * @complexity O(1).
  */
-function validateExecutionCredentialField(field: string, value: unknown): void {
+function validateExecutionCredentialField({ field, value }: { field: string; value: unknown }, _optional = {}): void {
   const specific = EXECUTION_CREDENTIAL_FIELD_VALIDATORS[field];
-  const ok = specific ? specific.ok(value) : value === undefined || typeof value === "string";
+  const ok = specific ? specific.ok({ value }) : value === undefined || typeof value === "string";
   if (ok) {
     return;
   }
@@ -49,7 +49,7 @@ function validateExecutionCredentialField(field: string, value: unknown): void {
  * `SECRET_STORE_UNCONFIGURED` (missing `TOVU_SITE_KEY`, checked before any write), 500
  * everything else.
  */
-export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -64,7 +64,7 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
         maxTokens?: unknown;
       };
       for (const [field, value] of Object.entries(body)) {
-        validateExecutionCredentialField(field, value);
+        validateExecutionCredentialField({ field, value });
       }
 
       const view = await setExecutionCredential(

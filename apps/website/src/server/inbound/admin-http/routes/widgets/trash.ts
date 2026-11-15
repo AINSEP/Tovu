@@ -20,7 +20,7 @@ export const registerAdminWidgetTrashRoute: RouteRegistrar = ({ app, deps }, _op
       });
       res.status(200).json({ trashed: true, id: widgetInstanceId, version });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

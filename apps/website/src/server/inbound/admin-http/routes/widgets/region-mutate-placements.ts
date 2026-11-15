@@ -78,7 +78,7 @@ export const registerAdminWidgetRegionMutatePlacementsRoute: RouteRegistrar = ({
       });
       res.status(200).json(toAdminWidgetAreaResponse(areaEntry));
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

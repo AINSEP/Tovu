@@ -133,7 +133,7 @@ function parseExternalMcpPutBody({ rawBody }: { rawBody: unknown }, _optional = 
 export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.put("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
 
       const server = await saveExternalMcpServer(
         {

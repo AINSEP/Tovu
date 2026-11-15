@@ -56,11 +56,11 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = ({ app, deps }, 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

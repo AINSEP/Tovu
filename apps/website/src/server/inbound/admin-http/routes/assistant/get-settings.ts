@@ -20,7 +20,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * flag off, so they cannot tell the client anything, but this route always can. The admin SPA reads
  * it to decide whether to mount its own chat dock (`AssistantDock`/`ChatFab`) at all.
  */
-export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/settings", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

@@ -113,11 +113,11 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
       }
 
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "publish_content.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

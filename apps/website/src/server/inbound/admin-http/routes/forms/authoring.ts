@@ -32,13 +32,13 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, dep
       // Same gate as `update.ts` (f07a92dcb): an empty/ignored body never reaches the write
       // service's gateway, and the write service's own pre-read must not disclose a form's
       // existence to a caller the matching GET denies.
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.forms.manage",
         workspaceId: deps.workspaceId,
         entityType: "form_definition",
         entityId: formId,
-      });
+      } });
       if (!authorized) return;
       const expectedVersion = parseExpectedVersion({ value: body.expectedVersion });
       const { definition } = await updateFormDefinition({
@@ -53,7 +53,7 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = ({ app, dep
       }, expectedVersion === undefined ? {} : { expectedVersion });
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (error) {
-      if (mapFormsWriteError(error, res)) return;
+      if (mapFormsWriteError({ err: error, res })) return;
       sendAdminFailure({ res, error }, { operation: "routes/forms/authoring", code: "INTERNAL_ERROR" });
     }
   });

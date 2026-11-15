@@ -224,7 +224,7 @@ function localSessionCookieName(req: Request): string {
 }
 
 /** REQ-06: `HttpOnly`, `SameSite=Strict`, `Secure`, bound to the admin origin. */
-function setSessionCookie(res: Response, rawToken: string, expiresAtIso: string, { name = SESSION_COOKIE }: { name?: string } = {}): void {
+function setSessionCookie({ res, rawToken, expiresAtIso }: { res: Response; rawToken: string; expiresAtIso: string }, { name = SESSION_COOKIE }: { name?: string } = {}): void {
   const maxAge = Math.max(0, new Date(expiresAtIso).getTime() - Date.now());
   res.cookie(name, rawToken, { httpOnly: true, path: "/", maxAge, sameSite: "strict", secure: true });
   // A deliberate password sign-in supersedes local owner bootstrap, including a non-owner login.
@@ -265,11 +265,7 @@ function readApiKeyCredential(req: Request): string | null {
  *   indexed api-key lookup and one key derivation.
  * @overallScore 100
  */
-export async function currentCredential(
-  deps: SessionAuthDeps,
-  req: Request,
-  { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
-): Promise<AuthenticatedCredential | null> {
+export async function currentCredential({ deps, req }: { deps: SessionAuthDeps; req: Request }, { localOwnerSignIn = bootLocalOwnerSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {}): Promise<AuthenticatedCredential | null> {
   const rawToken = readSessionToken({ req, localOwnerSignIn });
   if (rawToken) {
     await deps.identityReady;
@@ -303,10 +299,8 @@ export async function currentCredential(
  * @complexity O(1) — see `currentCredential`.
  * @overallScore 100
  */
-export async function currentPrincipal(deps: SessionAuthDeps, req: Request,
-  options: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {},
-): Promise<OperatorPrincipalRecord | null> {
-  return (await currentCredential(deps, req, options))?.principal ?? null;
+export async function currentPrincipal({ deps, req }: { deps: SessionAuthDeps; req: Request }, options: { localOwnerSignIn?: LocalOwnerSignInPolicy } = {}): Promise<OperatorPrincipalRecord | null> {
+  return (await currentCredential({ deps, req }, options))?.principal ?? null;
 }
 
 /**
@@ -409,7 +403,7 @@ export function requireAdminSession(deps: SessionAuthDeps,
         return;
       }
 
-      const credential = await currentCredential(deps, req, { localOwnerSignIn });
+      const credential = await currentCredential({ deps, req }, { localOwnerSignIn });
       if (!credential) {
         res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
         return;
@@ -465,7 +459,7 @@ function isLoopbackPeer(req: Request): boolean {
  *
  * @complexity O(1) — one session write (inside the shared minter).
  */
-async function mintSessionForPrincipal(deps: SessionAuthDeps, principalId: string): Promise<{ mfaRequired: true; pendingToken: string } | { rawToken: string; expiresAt: string }> {
+async function mintSessionForPrincipal({ deps, principalId }: { deps: SessionAuthDeps; principalId: string }, _optional = {}): Promise<{ mfaRequired: true; pendingToken: string } | { rawToken: string; expiresAt: string }> {
   if (deps.mfaStore) {
     const result = await beginPrincipalSignIn({ deps: await ownerMfaDepsFrom({ deps }),
       input: { workspaceId: deps.workspaceId, principalId } }, { sessionTtlMs: SESSION_TTL_MS });
@@ -529,7 +523,7 @@ export async function redeemOwnerBootSession(
     return null;
   }
   const { principalId, principal } = owner;
-  const minted = await mintSessionForPrincipal(deps, principalId);
+  const minted = await mintSessionForPrincipal({ deps, principalId });
   if ("mfaRequired" in minted) { res.setHeader("Cache-Control", "no-store"); res.json(minted); return null; }
   const { rawToken, expiresAt } = minted;
   // The fork guard promised in `mintSessionForPrincipal`'s doc: prove the row this route just
@@ -545,7 +539,7 @@ export async function redeemOwnerBootSession(
   }
   // The ordinary desktop cookie also replaces/clears local bootstrap; revoke what it supersedes.
   if (cookieName === SESSION_COOKIE) await revokeRequestSessions({ deps, req: res.req });
-  setSessionCookie(res, rawToken, expiresAt, { name: cookieName });
+  setSessionCookie({ res, rawToken, expiresAtIso: expiresAt }, { name: cookieName });
   return principal;
 }
 
@@ -587,9 +581,7 @@ function mfaBodyText({ req, key }: { req: Request; key: string }): string {
 
 /** Registers login/logout/me and the loopback boot exchange before the admin session gate.
  * `onAdminSignIn` hears every owner/admin sign-in: password login and both boot-session exchanges. */
-export function registerAuthRoutes(app: Express, deps: RouteDeps,
-  { localOwnerSignIn = bootLocalOwnerSignIn, onAdminSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy; onAdminSignIn?: AdminSignInPort } = {},
-): void {
+export function registerAuthRoutes({ app, deps }: { app: Express; deps: RouteDeps }, { localOwnerSignIn = bootLocalOwnerSignIn, onAdminSignIn }: { localOwnerSignIn?: LocalOwnerSignInPolicy; onAdminSignIn?: AdminSignInPort } = {}): void {
   // REQ-14/AC-18: LOGIN_STRICT (10 req/60s per client IP) brute-force guard on
   // AUTH_LOGIN. One limiter instance per `registerAuthRoutes` call, so each
   // `createApp()`/`createRouteDeps()` pair (and therefore each test's server)
@@ -597,17 +589,17 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
   const loginRateLimiter = createRateLimiter({ profile: LOGIN_STRICT, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) } });
 
   registerOwnerRecoveryRoutes({ app, deps, limiter: loginRateLimiter,
-    authenticate: req => currentPrincipal(deps, req, { localOwnerSignIn }),
+    authenticate: req => currentPrincipal({ deps, req }, { localOwnerSignIn }),
     desktopOwnerReset: localOwnerSignIn.enabled && !!localOwnerSignIn.acceptsCapability,
     ...(localOwnerSignIn.acceptsCapability ? { acceptsDesktopCapability: localOwnerSignIn.acceptsCapability } : {}) });
 
   registerOwnerMfaRoutes({ app, deps, limiter: loginRateLimiter,
-    authenticate: req => currentCredential(deps, req, { localOwnerSignIn }) });
+    authenticate: req => currentCredential({ deps, req }, { localOwnerSignIn }) });
   registerOwnerPasskeyRoutes({ app, deps, limiter: loginRateLimiter,
-    authenticate: req => currentCredential(deps, req, { localOwnerSignIn }),
+    authenticate: req => currentCredential({ deps, req }, { localOwnerSignIn }),
     signedIn: async (req, res, result) => {
       await revokeRequestSessions({ deps, req });
-      setSessionCookie(res, result.rawToken, result.session.expiresAt);
+      setSessionCookie({ res, rawToken: result.rawToken, expiresAtIso: result.session.expiresAt });
       const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: result.principal.id });
       signalAdminSignIn({ deps, principalId: result.principal.id, port: onAdminSignIn });
       res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
@@ -654,7 +646,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
 
       // Credentials succeeded; revoke both superseded bearers before clearing/replacing cookies.
       await revokeRequestSessions({ deps, req });
-      setSessionCookie(res, rawToken, session.expiresAt);
+      setSessionCookie({ res, rawToken, expiresAtIso: session.expiresAt });
       signalAdminSignIn({ deps, principalId: principal.id, port: onAdminSignIn });
       res.json({ user: { id: principal.id, username } });
     } catch (err) {
@@ -680,7 +672,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
           code: mfaBodyText({ req, key: "code" }) } },
       sessionRequestOptions({ req }));
       await revokeRequestSessions({ deps, req });
-      setSessionCookie(res, result.rawToken, result.session.expiresAt);
+      setSessionCookie({ res, rawToken: result.rawToken, expiresAtIso: result.session.expiresAt });
       const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: result.principal.id });
       signalAdminSignIn({ deps, principalId: result.principal.id, port: onAdminSignIn });
       res.json({ user: { id: result.principal.id, username: user?.username ?? result.principal.displayName } });
@@ -760,7 +752,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     res.setHeader("Cache-Control", "no-store");
     try {
       // Keep an existing human session; auto sign-in must never promote a non-owner account.
-      const existing = await currentPrincipal(deps, req, { localOwnerSignIn });
+      const existing = await currentPrincipal({ deps, req }, { localOwnerSignIn });
       if (existing) { res.json({ user: { id: existing.id } }); return; }
       const store = createBootSessionTokenStore();
       const principal = await redeemOwnerBootSession({ deps, res, token: store.mint() }, {
@@ -773,7 +765,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
   });
 
   app.get("/api/admin/v1/auth/me", asyncRoute({ handler: async (req, res) => {
-    const principal = await currentPrincipal(deps, req, { localOwnerSignIn });
+    const principal = await currentPrincipal({ deps, req }, { localOwnerSignIn });
     if (!principal) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
       return;
@@ -826,7 +818,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
   // produces a new key and is re-verified — the cache can never report a stale answer. Capped and
   // cleared wholesale; it only holds hashes already in the DB and booleans.
   const defaultPasswordByHash = new Map<string, boolean>();
-  const usesDefaultPasswordFor = async (passwordHash: string): Promise<boolean> => {
+  const usesDefaultPasswordFor = async ({ passwordHash }: { passwordHash: string }, _optional = {}): Promise<boolean> => {
     const cached = defaultPasswordByHash.get(passwordHash);
     if (cached !== undefined) return cached;
     const result = await deps.passwordHasher.verify({ hash: passwordHash, password: DEFAULT_OWNER_PASSWORD });
@@ -835,7 +827,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
     return result;
   };
   app.get("/api/admin/v1/auth/me/password-status", asyncRoute({ handler: async (req, res) => {
-    const principal = await currentPrincipal(deps, req, { localOwnerSignIn });
+    const principal = await currentPrincipal({ deps, req }, { localOwnerSignIn });
     if (!principal) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
       return;
@@ -846,7 +838,7 @@ export function registerAuthRoutes(app: Express, deps: RouteDeps,
       principalId: principal.id,
     });
     const usesDefaultPassword = userRow
-      ? await usesDefaultPasswordFor(userRow.passwordHash)
+      ? await usesDefaultPasswordFor({ passwordHash: userRow.passwordHash })
       : false;
 
     res.json({ usesDefaultPassword });

@@ -16,7 +16,7 @@ test('note validation is a refusal while filesystem errors report a redacted inc
   let put: ((req: Request, res: Response) => Promise<void>) | undefined;
   const app = { get() {}, put: (_path: string, handler: typeof put) => { put = handler; } } as unknown as Express;
   const deps = { workspaceId: 'ws', authorize: async () => ({ allowed: true }), agentPluginLayout: { forWorkspace: () => ({ root: '/tmp/plugins' }) } };
-  registerAgentPluginMemoryRoutes(app, deps as unknown as Parameters<typeof registerAgentPluginMemoryRoutes>[1]);
+  registerAgentPluginMemoryRoutes({ app, deps: deps as unknown as Parameters<typeof registerAgentPluginMemoryRoutes>[0]["deps"] });
   assert.ok(put, 'the note route is registered');
   const handler = put;
   const req = { params: { workspaceId: 'ws', pluginId: 'example' }, body: { entryPath: 'note.md', text: 'PRIVATE_NOTE_BODY' } } as unknown as Request;

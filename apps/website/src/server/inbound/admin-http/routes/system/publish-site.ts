@@ -245,12 +245,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.publish",
         workspaceId: deps.workspaceId,
         entityType: SITE_PUBLISH_ENTITY,
-      });
+      } });
       if (!authorized) { void deps.tracker.capture({ name: "site_publish_blocked", userId: principal.id }, { properties: { reasonClass: "auth", source: "admin" } }); return; }
 
       const parsed = parsePublishRequestBody(req.body);
@@ -323,12 +323,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.publish",
         workspaceId: deps.workspaceId,
         entityType: SITE_PUBLISH_ENTITY,
-      });
+      } });
       if (!authorized) return;
 
       res.status(200).json(getPublishRunSnapshot());
@@ -342,12 +342,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
         entityType: SITE_PUBLISH_ENTITY,
-      });
+      } });
       if (!authorized) return;
 
       const query = req.query as Record<string, unknown>;
@@ -393,12 +393,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
         entityType: SITE_PUBLISH_ENTITY,
-      });
+      } });
       if (!authorized) return;
       const registry = await deps.loadDeployTargets(deps.workspaceId);
       // Omit peer identities as well as peer rows without the additional permission.
@@ -427,12 +427,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
         entityType: SITE_PUBLISH_ENTITY,
-      });
+      } });
       if (!authorized) return;
 
       const registry = await deps.loadDeployTargets(deps.workspaceId);

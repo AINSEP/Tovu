@@ -12,23 +12,23 @@ import { resolveAdminDevProxyPath } from "../admin-dev-proxy.js";
  */
 
 test("resolveAdminDevProxyPath: rewrites a bare /admin to /admin/", () => {
-  assert.equal(resolveAdminDevProxyPath("/admin"), "/admin/");
+  assert.equal(resolveAdminDevProxyPath({ url: "/admin" }), "/admin/");
 });
 
 test("resolveAdminDevProxyPath: preserves the query string when rewriting a bare /admin", () => {
-  assert.equal(resolveAdminDevProxyPath("/admin?foo=bar"), "/admin/?foo=bar");
+  assert.equal(resolveAdminDevProxyPath({ url: "/admin?foo=bar" }), "/admin/?foo=bar");
 });
 
 test("resolveAdminDevProxyPath: leaves /admin/ (already exact) unchanged", () => {
-  assert.equal(resolveAdminDevProxyPath("/admin/"), "/admin/");
+  assert.equal(resolveAdminDevProxyPath({ url: "/admin/" }), "/admin/");
 });
 
 test("resolveAdminDevProxyPath: leaves an /admin/* subpath unchanged", () => {
-  assert.equal(resolveAdminDevProxyPath("/admin/src/main.tsx?t=1"), "/admin/src/main.tsx?t=1");
+  assert.equal(resolveAdminDevProxyPath({ url: "/admin/src/main.tsx?t=1" }), "/admin/src/main.tsx?t=1");
 });
 
 test("resolveAdminDevProxyPath: does not mistake a longer path for the bare /admin case", () => {
   // A naive `startsWith("/admin")` check would wrongly match this; the rewrite must compare the
   // exact pathname, not a prefix.
-  assert.equal(resolveAdminDevProxyPath("/adminfoo"), "/adminfoo");
+  assert.equal(resolveAdminDevProxyPath({ url: "/adminfoo" }), "/adminfoo");
 });

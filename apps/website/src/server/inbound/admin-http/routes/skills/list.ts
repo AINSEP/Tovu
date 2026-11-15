@@ -28,11 +28,11 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.assistant.use",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

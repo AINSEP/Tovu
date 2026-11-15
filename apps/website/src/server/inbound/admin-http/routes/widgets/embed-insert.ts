@@ -33,7 +33,7 @@ export const registerAdminWidgetEmbedInsertRoute: RouteRegistrar = ({ app, deps 
       });
       res.status(201).json({ entry, placementId });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

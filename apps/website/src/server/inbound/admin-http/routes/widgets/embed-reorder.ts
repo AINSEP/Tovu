@@ -38,7 +38,7 @@ export const registerAdminWidgetEmbedReorderRoute: RouteRegistrar = ({ app, deps
       });
       res.status(200).json({ entry });
     } catch (err) {
-      mapWidgetErrorToResponse(err, res);
+      mapWidgetErrorToResponse({ err, res });
     }
   });
 };

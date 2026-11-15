@@ -66,7 +66,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = ({ app, deps }
         res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
         return;
       }
-      if (mapFormsWriteError(err, res)) return;
+      if (mapFormsWriteError({ err, res })) return;
       sendAdminFailure({ res, error: err }, { operation: "routes/forms/create", code: "INTERNAL_ERROR" });
     }
   });

@@ -23,13 +23,7 @@ export const registerAdminNewsletterSendTestCampaignRoute: RouteRegistrar = ({ a
     }
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.campaign.send_test",
-        "newsletter_campaign",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.send_test", entityType: "newsletter_campaign", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -41,7 +35,7 @@ export const registerAdminNewsletterSendTestCampaignRoute: RouteRegistrar = ({ a
         data: { results: results.map((r) => ({ address: r.email, ok: r.outcome === "sent", errorCode: r.outcome === "sent" ? null : (r.errorCode ?? null), ...(r.outcome === "failed" ? { message: r.error ?? null } : {}) })) },
       });
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

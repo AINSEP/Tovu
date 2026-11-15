@@ -50,22 +50,22 @@ async function writeNoteOrRespond(required: { body: unknown; memory: ReturnType<
 }
 
 /** @complexity O(p) in installed plugin count. */
-async function isInstalled(deps: AgentPluginsRouteDeps, pluginId: string): Promise<boolean> {
+async function isInstalled({ deps, pluginId }: { deps: AgentPluginsRouteDeps; pluginId: string }, _optional = {}): Promise<boolean> {
   const workspace = deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId });
   return (await listInstalledPlugins({ workspaceRoot: workspace.root })).some(plugin => plugin.pluginId === pluginId);
 }
 
 /** The user's notes editor writes notes only; learned knowledge stays separately readable. */
-export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app, deps) => {
+export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
   const url = "/api/admin/v1/workspaces/:workspaceId/agent-plugins/:pluginId/memory";
-  const handle = (write: boolean) => async (req: Request, res: Response) => {
+  const handle = ({ write }: { write: boolean }, _optional = {}) => async (req: Request, res: Response) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: write ? "admin.plugins.enable" : "admin.plugins.read", workspaceId: deps.workspaceId }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: write ? "admin.plugins.enable" : "admin.plugins.read", workspaceId: deps.workspaceId } }))) return;
       const pluginId = String(req.params.pluginId);
-      if (!(await isInstalled(deps, pluginId))) {
+      if (!(await isInstalled({ deps, pluginId }))) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" }); return;
       }
       const memory = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: deps.workspaceId, pluginId }, { layout: deps.agentPluginLayout });
@@ -74,6 +74,6 @@ export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app,
       res.json({ pluginId, learned, notes, limits: DEFAULT_PLUGIN_MEMORY_LIMITS });
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/memory", code: "INTERNAL_ERROR" }); }
   };
-  app.get(url, handle(false));
-  app.put(url, handle(true));
+  app.get(url, handle({ write: false }));
+  app.put(url, handle({ write: true }));
 };

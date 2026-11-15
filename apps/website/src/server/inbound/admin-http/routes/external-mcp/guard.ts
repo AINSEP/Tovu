@@ -30,11 +30,7 @@ const PERMISSION = "admin.integrations.manage";
  * @complexity O(1) plus one `authorize()` call.
  * @overallScore 100
  */
-export async function guardExternalMcpRequest(
-  deps: ExternalMcpRouteDeps,
-  requestedWorkspaceId: unknown,
-  res: Response,
-): Promise<boolean> {
+export async function guardExternalMcpRequest({ deps, requestedWorkspaceId, res }: { deps: ExternalMcpRouteDeps; requestedWorkspaceId: unknown; res: Response }, _optional = {}): Promise<boolean> {
   if (String(requestedWorkspaceId ?? "") !== deps.workspaceId) {
     res.status(404).json({ error: "workspace was not found" });
     return false;

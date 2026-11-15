@@ -19,13 +19,13 @@ export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = ({ app, deps }, 
     const menuId = String(req.params.menuId ?? "");
     try {
       const principal = getAuthedPrincipal(res);
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.menus.delete",
         workspaceId: deps.workspaceId,
         entityType: "menu",
         entityId: menuId,
-      });
+      } });
       if (!authorized) return;
 
       const trashed = await trashMenu(

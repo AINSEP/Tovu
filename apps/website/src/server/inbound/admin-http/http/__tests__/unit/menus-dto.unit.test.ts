@@ -34,8 +34,8 @@ test("authorizeMenuHtmlOrRespond names the menu as entityId only when a menuId i
   const deps = { workspaceId: "ws-1", authorize: async (p: unknown) => { calls.push(p); return { allowed: true, reason: "grant" }; } };
   const authoring = { mode: "html", html: "<i>z</i>" } as never;
   const { res } = createCapturingResponse();
-  assert.equal(await authorizeMenuHtmlOrRespond(res as never, deps as never, { principalId: "p-1", authoring, menuId: "menu-1" }), true);
-  assert.equal(await authorizeMenuHtmlOrRespond(res as never, deps as never, { principalId: "p-1", authoring }), true);
+  assert.equal(await authorizeMenuHtmlOrRespond({ res: res as never, deps: deps as never, principalId: "p-1", authoring }, { menuId: "menu-1" }), true);
+  assert.equal(await authorizeMenuHtmlOrRespond({ res: res as never, deps: deps as never, principalId: "p-1", authoring }), true);
   assert.deepEqual(calls, [
     { principalId: "p-1", permission: MENU_RAW_HTML_PERMISSION, workspaceId: "ws-1", entityType: "menu", entityId: "menu-1" },
     { principalId: "p-1", permission: MENU_RAW_HTML_PERMISSION, workspaceId: "ws-1", entityType: "menu" },

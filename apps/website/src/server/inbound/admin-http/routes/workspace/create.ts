@@ -15,11 +15,11 @@ export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = (app, 
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "workspace.manage",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

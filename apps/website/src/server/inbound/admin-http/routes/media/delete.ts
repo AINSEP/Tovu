@@ -21,13 +21,13 @@ export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps
     try {
       const principal = getAuthedPrincipal(res);
       const mediaId = readRouteParam({ req, name: "mediaId" });
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "media.delete.force",
         workspaceId: deps.workspaceId,
         entityType: "media",
         entityId: mediaId,
-      });
+      } });
       if (!authorized) return;
 
       // `purgeMedia` resolves `{ purged: true }` or throws, so there is no not-purged outcome to skip.

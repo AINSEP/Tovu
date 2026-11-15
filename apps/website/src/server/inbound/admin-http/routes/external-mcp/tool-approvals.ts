@@ -19,7 +19,7 @@ import { guardExternalMcpRequest } from "./guard.js";
 export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers/tool-approvals", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const rows = (await deps.externalMcpToolApprovalRepo?.listByWorkspaceId(deps.workspaceId)) ?? [];
       const approvals = rows
         .map(({ serverId, toolName, grantedByPrincipalId, grantedAt }) => ({ serverId, toolName, grantedByPrincipalId, grantedAt }))
@@ -32,7 +32,7 @@ export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegist
 
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/tool-approvals/:toolName", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const removed =
         (await deps.externalMcpToolApprovalRepo?.delete({
           workspaceId: deps.workspaceId,

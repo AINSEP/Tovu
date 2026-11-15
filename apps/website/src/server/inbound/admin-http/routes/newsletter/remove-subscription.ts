@@ -23,13 +23,7 @@ export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = ({
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
     try {
-      const principal = await requireNewsletterPermissionOrRespond(
-        deps.authorize,
-        deps.workspaceId,
-        "admin.newsletter.subscriber.manage",
-        "newsletter_subscription",
-        res
-      );
+      const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.subscriber.manage", entityType: "newsletter_subscription", res });
       if (!principal) return;
 
       await deps.newsletterReady;
@@ -45,7 +39,7 @@ export const registerAdminNewsletterRemoveSubscriptionRoute: RouteRegistrar = ({
       });
       res.status(200).json(toDataResponse(subscription));
     } catch (err) {
-      mapNewsletterErrorToResponse(err, res);
+      mapNewsletterErrorToResponse({ err, res });
     }
   });
 };

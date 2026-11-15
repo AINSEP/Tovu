@@ -77,13 +77,13 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }
       const principal = getAuthedPrincipal(res);
       // Empty/ignored bodies fall through to a read without invoking the write service's
       // gateway. Gate that path too, before it can return a definition or disclose its absence.
-      const authorized = await authorizeOrRespond(res, deps.authorize, {
+      const authorized = await authorizeOrRespond({ res, authorize: deps.authorize, params: {
         principalId: principal.id,
         permission: "admin.forms.manage",
         workspaceId: deps.workspaceId,
         entityType: "form_definition",
         entityId: formId,
-      });
+      } });
       if (!authorized) return;
       const actor = { id: principal.id, kind: "user" as const };
       const writeDeps = {
@@ -106,7 +106,7 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = ({ app, deps }
 
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (err) {
-      if (mapFormsWriteError(err, res)) return;
+      if (mapFormsWriteError({ err, res })) return;
       sendAdminFailure({ res, error: err }, { operation: "routes/forms/update", code: "INTERNAL_ERROR" });
     }
   });

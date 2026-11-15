@@ -59,7 +59,7 @@ export type ExternalMcpOAuthRouteDeps = ExternalMcpRouteDeps & { readonly extern
  *
  * @complexity O(1).
  */
-function sendExternalMcpOAuthError(res: import("express").Response, error: unknown): void {
+function sendExternalMcpOAuthError({ res, error }: { res: import("express").Response; error: unknown }, _optional = {}): void {
   if (error instanceof ApiConnectionError) { res.status(error.code === 'access-denied' ? 403 : 400).json({ error: error.message, code: error.code }); return; }
   if (error instanceof ExternalMcpValidationError) {
     res.status(400).json({ error: error.message, code: "INVALID_MCP_SERVER", details: { field: error.field } });
@@ -122,17 +122,13 @@ async function withinRateLimit(limiter: RateLimiter, req: import("express").Requ
  * The callback URL is built FROM THE REQUEST (`externalMcpOAuthCallbackUrl`) so a reverse-proxied
  * deployment gets the origin the browser actually used, not the one this process thinks it has.
  */
-export function registerAdminExternalMcpOAuthConnectRoute(
-  app: Express,
-  deps: ExternalMcpOAuthRouteDeps,
-  limiter: RateLimiter,
-): void {
-  registerExternalMcpBrowserSignInRoute(app, deps, limiter);
-  registerSharedMcpRoutes(app, deps, limiter);
+export function registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
+  registerExternalMcpBrowserSignInRoute({ app, deps, limiter });
+  registerSharedMcpRoutes({ app, deps, limiter });
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/connect", asyncRoute({ handler: async (req, res) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? "");
       const destination = connectDestination({ body: req.body });
       if (destination === 'shared' && !rejectUnlessSessionCredential(res, { message: 'Open Settings → External MCP in your signed-in owner browser to save a shared connection.', permission: SHARED_MCP_PERMISSION })) return;
@@ -144,7 +140,7 @@ export function registerAdminExternalMcpOAuthConnectRoute(
       });
       res.json({ auth: started });
     } catch (error) {
-      sendExternalMcpOAuthError(res, error);
+      sendExternalMcpOAuthError({ res, error });
     }
   } }));
 }
@@ -169,13 +165,13 @@ function savedCredentialId({ body: input }: { body: unknown }, _options = {}): s
 /** Authenticated, user-opened host hop: one cookie and redirect, never proof in a link.
  * @complexity O(1) plus the existing bounded connect/discovery work for one connection.
  */
-function registerExternalMcpBrowserSignInRoute(app: Express, deps: ExternalMcpOAuthRouteDeps, limiter: RateLimiter): void {
+function registerExternalMcpBrowserSignInRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
   app.get(EXTERNAL_MCP_SIGN_IN_PATH, asyncRoute({ handler: async (req, res) => {
     res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
     if (!(await withinRateLimit(limiter, req, res))) return;
     if (!rejectUnlessSessionCredential(res, { message: 'Open this sign-in link from your signed-in Tovu browser, then try again.', permission: SHARED_MCP_PERMISSION })) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? '');
       const browserBinding = generateOAuthState({ randomBytesFn: ({ byteLength }) => randomBytes(byteLength) }, { stateBytes: 32 });
       const start = await deps.externalMcpOAuth.beginConnect({ serverId, actorId: getAuthedPrincipal(res).id, redirectUri: externalMcpOAuthCallbackUrl(req, serverId), browserBinding });
@@ -186,7 +182,7 @@ function registerExternalMcpBrowserSignInRoute(app: Express, deps: ExternalMcpOA
       res.append('Set-Cookie', browserBindingCookie({ browserBinding }, EXTERNAL_MCP_BROWSER_BINDING));
       res.redirect(302, start.authorizationUrl);
     } catch (error) {
-      sendExternalMcpOAuthError(res, error);
+      sendExternalMcpOAuthError({ res, error });
     }
   } }));
 }
@@ -199,18 +195,14 @@ function registerExternalMcpBrowserSignInRoute(app: Express, deps: ExternalMcpOA
  * hide the RFC 8628 `slow_down` contract inside a catch block, and give the operator nothing to
  * cancel. `status: "pending"` carries the interval to wait before calling again.
  */
-export function registerAdminExternalMcpOAuthDevicePollRoute(
-  app: Express,
-  deps: ExternalMcpOAuthRouteDeps,
-  limiter: RateLimiter,
-): void {
+export function registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/device/poll", asyncRoute({ handler: async (req, res) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       res.json(await deps.externalMcpOAuth.pollDeviceAuthorization({ serverId: String(req.params.serverId ?? "") }));
     } catch (error) {
-      sendExternalMcpOAuthError(res, error);
+      sendExternalMcpOAuthError({ res, error });
     }
   } }));
 }
@@ -234,45 +226,45 @@ export function registerAdminExternalMcpOAuthDevicePollRoute(
 export function registerAdminExternalMcpOAuthDisconnectRoute(app: Express, deps: ExternalMcpOAuthRouteDeps): void {
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth", async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       await deps.externalMcpOAuth.disconnect({ serverId: String(req.params.serverId ?? "") });
       res.json({ disconnected: true, restartRequired: true });
     } catch (error) {
-      sendExternalMcpOAuthError(res, error);
+      sendExternalMcpOAuthError({ res, error });
     }
   });
 }
 
 /** Saved selection is a session-only owner act; a site reference alone cannot grant itself access. */
-function registerSharedMcpRoutes(app: Express, deps: ExternalMcpOAuthRouteDeps, limiter: RateLimiter): void {
+function registerSharedMcpRoutes({ app, deps, limiter }: { app: Express; deps: ExternalMcpOAuthRouteDeps; limiter: RateLimiter }, _optional = {}): void {
   const route = "/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth/shared";
   app.get(route, async (req, res) => {
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       if (!rejectUnlessSessionCredential(res, { message: 'Open saved connections from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
       const result = await deps.externalMcpOAuth.listSharedConnections?.({ serverId: String(req.params.serverId), actorId: getAuthedPrincipal(res).id });
       res.json(result ?? { available: false, connections: [], current: null });
-    } catch (error) { sendExternalMcpOAuthError(res, error); }
+    } catch (error) { sendExternalMcpOAuthError({ res, error }); }
   });
   app.delete(route, asyncRoute({ handler: async (req, res) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       if (!rejectUnlessSessionCredential(res, { message: 'Choose the local connection from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
       if (!deps.externalMcpOAuth.useLocalConnection) throw new ExternalMcpValidationError('Shared connections are unavailable in this profile.', 'credentialId');
       await deps.externalMcpOAuth.useLocalConnection({ serverId: String(req.params.serverId), actorId: getAuthedPrincipal(res).id });
       res.json({ selected: 'local' });
-    } catch (error) { sendExternalMcpOAuthError(res, error); }
+    } catch (error) { sendExternalMcpOAuthError({ res, error }); }
   } }));
   app.post(route, asyncRoute({ handler: async (req, res) => {
     if (!(await withinRateLimit(limiter, req, res))) return;
     try {
-      if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
+      if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       if (!rejectUnlessSessionCredential(res, { message: 'Choose a saved connection from your signed-in owner browser.', permission: SHARED_MCP_PERMISSION })) return;
       const credentialId = savedCredentialId({ body: req.body });
       if (!deps.externalMcpOAuth.useSharedConnection) throw new ExternalMcpValidationError('Shared connections are available only in this Mac owner profile.', 'credentialId');
       await deps.externalMcpOAuth.useSharedConnection({ serverId: String(req.params.serverId), credentialId, actorId: getAuthedPrincipal(res).id });
       res.json({ connected: true });
-    } catch (error) { sendExternalMcpOAuthError(res, error); }
+    } catch (error) { sendExternalMcpOAuthError({ res, error }); }
   } }));
 }

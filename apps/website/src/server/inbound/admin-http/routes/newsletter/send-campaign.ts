@@ -48,13 +48,7 @@ export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRou
       if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       try {
-        const principal = await requireNewsletterPermissionOrRespond(
-          deps.authorize,
-          deps.workspaceId,
-          "admin.newsletter.campaign.send",
-          "newsletter_campaign",
-          res
-        );
+        const principal = await requireNewsletterPermissionOrRespond({ authorize: deps.authorize, workspaceId: deps.workspaceId, permission: "admin.newsletter.campaign.send", entityType: "newsletter_campaign", res });
         if (!principal) return;
 
         await deps.newsletterReady;
@@ -75,7 +69,7 @@ export function createAdminNewsletterSendCampaignRoute(optional: SendCampaignRou
           consoleLogger.error({ message: `freezeAudience/claimBatch failed after authorizeSend for campaign ${campaign.id}: ${(freezeErr as Error).message}` });
         }
       } catch (err) {
-        mapNewsletterErrorToResponse(err, res);
+        mapNewsletterErrorToResponse({ err, res });
       }
     });
   };

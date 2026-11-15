@@ -61,4 +61,4 @@ export type AssistantExecutionRouteDeps = Pick<
   readonly probeRequestInit?: NonNullable<Parameters<typeof testProviderConnection>[1]>["requestInit"];
 };
 
-export type AssistantExecutionRouteRegistrar = (app: Express, deps: AssistantExecutionRouteDeps) => void;
+export type AssistantExecutionRouteRegistrar = (required: { app: Express; deps: AssistantExecutionRouteDeps }, optional?: Record<string, never>) => void;

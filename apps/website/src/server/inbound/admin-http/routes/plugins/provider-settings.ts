@@ -79,7 +79,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
 async function resolveCard({ req, res, deps, permission }: { req: Request; res: Response; deps: ProviderSettingsRouteDeps; permission: string }) {
   if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return undefined;
   const principal = getAuthedPrincipal(res);
-  if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId }))) return undefined;
+  if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } }))) return undefined;
   const pluginId = String(req.params.pluginId ?? "");
   const records = await deps.discoverPlugins();
   const fields = declaredProviderSettingFields({ records, pluginId });
@@ -138,9 +138,9 @@ function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDep
       const input = req.body as Record<string, unknown> | null;
       if (!isProjectKeyUseInput(input)) { res.status(400).json({ error: "use must be true or false" }); return; }
       const keyId = String(req.params.keyId);
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "custom-credentials.read", workspaceId: deps.workspaceId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission: "custom-credentials.read", workspaceId: deps.workspaceId } })) return;
       const permission = await deps.projectKeys.permissionFor({ keyId });
-      if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission, workspaceId: deps.workspaceId })) return;
+      if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, permission, workspaceId: deps.workspaceId } })) return;
       res.json(await deps.projectKeys.use({ keyId, use: input.use }));
     } catch (error) {
       if (error instanceof Error && error.name === "ToolInputError") { res.status(400).json({ error: error.message }); return; }

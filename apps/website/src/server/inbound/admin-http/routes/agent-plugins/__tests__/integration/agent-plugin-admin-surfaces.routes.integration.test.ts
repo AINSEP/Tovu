@@ -82,9 +82,9 @@ function buildApp(options: BuildOptions = {}) {
   // Sign-in still needs its JSON body; `parseJson: false` leaves only the surface routes unparsed.
   const json = express.json();
   app.use((req, res, next) => (options.parseJson === false && req.path.includes("/surfaces/") ? next() : json(req, res, next)));
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginAdminSurfaceRoutes(app, deps);
+  registerAgentPluginAdminSurfaceRoutes({ app, deps });
   registerAdminSurfaceFilesRoute(app, deps);
   return { app, baseDeps, reads };
 }

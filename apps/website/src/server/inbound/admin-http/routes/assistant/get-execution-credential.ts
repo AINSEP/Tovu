@@ -12,7 +12,7 @@ import type { AssistantSettingsRouteRegistrar } from "./deps.js";
  * `get-site-credential.ts`: same `{ data }` envelope, same 404-on-workspace-mismatch. The safe hint uses a
  * server-only open that degrades to no hint, so this cannot fail on a misconfigured site key.
  */
-export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = (app, deps) => {
+export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSettingsRouteRegistrar = ({ app, deps }, _options = {}) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/assistant/execution-credential", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

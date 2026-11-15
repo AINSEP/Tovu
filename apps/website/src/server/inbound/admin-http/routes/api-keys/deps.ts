@@ -42,7 +42,7 @@ export type ApiKeysRouteDeps = Pick<
 > & Pick<IdentityRouteDepsSlice, "transactions" | "tokens">;
 
 /** Registrar signature for the api-keys route modules (mirrors `UsersRouteRegistrar`). */
-export type ApiKeysRouteRegistrar = (app: Express, deps: ApiKeysRouteDeps) => void;
+export type ApiKeysRouteRegistrar = (required: { app: Express; deps: ApiKeysRouteDeps }, optional?: Record<string, never>) => void;
 
 /** Assemble the `IdentityRepos` bag identity functions expect from `RouteDeps`'s flat fields. */
 function identityReposFrom(deps: ApiKeysRouteDeps): IdentityRepos {
@@ -103,7 +103,7 @@ export function rejectApiKeyCredential(res: Response): boolean {
  * @complexity O(1).
  * @overallScore 100
  */
-export function sendApiKeyError(res: Response, err: unknown): void {
+export function sendApiKeyError({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({
       error: err.message,
