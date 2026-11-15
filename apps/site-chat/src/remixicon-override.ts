@@ -53,16 +53,14 @@
  * `RemixIcon`'s own injection runs from a `useEffect` on first mount, so this only has to win a race
  * against React's commit phase, not against anything earlier. Runs before every render call site,
  * not just the first `RemixIcon` render, since nothing here depends on React at all.
+ * Since 2026-11 the marker check and the <link> come from Jini's `installRemixIconStylesheet`, which also retries the font in real browsers.
  */
-const REMIXICON_STYLESHEET_MARKER = "data-jini-remixicon";
+import { installRemixIconStylesheet } from "@jini-ai/ui";
+
+/** This bundle's separately served copy (see the header); Jini's installer does the rest. */
 const REMIXICON_CSS_URL = "/site-chat/remixicon.css";
 
-export function installRemixIconOverride(): void {
-  if (typeof document === "undefined") return;
-  if (document.querySelector(`[${REMIXICON_STYLESHEET_MARKER}]`)) return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.setAttribute(REMIXICON_STYLESHEET_MARKER, "");
-  link.href = REMIXICON_CSS_URL;
-  document.head.appendChild(link);
+/** @returns `true` if this call inserted the stylesheet, `false` if a marked one was already there. */
+export function installRemixIconOverride(): boolean {
+  return installRemixIconStylesheet({ href: REMIXICON_CSS_URL });
 }

@@ -75,5 +75,10 @@ describe("installRemixIconOverride", () => {
       assert.equal(document.querySelectorAll(`[${MARKER}]`).length, 1, "no link should be added on top of the existing marker");
       assert.equal(document.querySelector("link"), null, "no link element should exist at all");
     });
+
+    it("reports through Jini's installer whether it inserted the stylesheet", () => {
+      assert.equal(installRemixIconOverride(), true);
+      assert.equal(installRemixIconOverride(), false);
+    });
   });
 });
