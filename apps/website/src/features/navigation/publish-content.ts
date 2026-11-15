@@ -175,7 +175,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
    * @complexity O(n) over every item across every live menu (n = total item count including
    * descendants) via {@link menuHoldersReferencing}, plus one repo list call.
    */
-  async function referencesTo(ids: readonly string[]): Promise<readonly ReferenceHolder[]> {
+  async function referencesTo({ ids }: { ids: readonly string[] }, _optional = {}): Promise<readonly ReferenceHolder[]> {
     const menuRepo = deps.ports.menu?.repo;
     if (!menuRepo) return [];
     const menus = await menuRepo.list({ workspaceId: deps.workspaceId });

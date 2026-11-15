@@ -54,13 +54,13 @@ export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly Pac
   const labelByKey = new Map<string, string | null>();
   const ownNamed = new Set<string>();
   for (const entity of entities) {
-    labelByKey.set(entityKey(entity.entityType, entity.id), packedEntityLabel(entity));
-    if (entity.displayLabel !== undefined) ownNamed.add(entityKey(entity.entityType, entity.id));
+    labelByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), packedEntityLabel(entity));
+    if (entity.displayLabel !== undefined) ownNamed.add(entityKey({ entityType: entity.entityType, entityId: entity.id }));
   }
 
   const rows = details.rows.map((row) => {
     if (!isRecord(row)) return row;
-    const key = entityKey(String(row.entityType ?? ""), String(row.entityId ?? ""));
+    const key = entityKey({ entityType: String(row.entityType ?? ""), entityId: String(row.entityId ?? "") });
     if (typeof row.entityLabel === "string" && row.entityLabel.length > 0 && !ownNamed.has(key)) return row;
     const local = labelByKey.get(key);
     return local === undefined || local === null ? row : { ...row, entityLabel: local };
@@ -124,13 +124,13 @@ export function tagTrashingRows(plan: PeerPlanEnvelope, entities: readonly Packe
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
   const trashed = new Set(
-    entities.filter((entity) => entity.state.status === "trashed").map((entity) => entityKey(entity.entityType, entity.id))
+    entities.filter((entity) => entity.state.status === "trashed").map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id }))
   );
   if (trashed.size === 0) return plan;
 
   const rows = details.rows.map((row) => {
     if (!isRecord(row) || !UPDATING_OUTCOMES.has(String(row.outcome))) return row;
-    return trashed.has(entityKey(String(row.entityType ?? ""), String(row.entityId ?? ""))) ? { ...row, trashes: true } : row;
+    return trashed.has(entityKey({ entityType: String(row.entityType ?? ""), entityId: String(row.entityId ?? "") })) ? { ...row, trashes: true } : row;
   });
   return { ...plan, details: { ...details, rows } };
 }
@@ -177,7 +177,7 @@ function includedReportRow(
   _options: Record<string, never> = {}
 ): unknown[] {
   if (!isRecord(row)) return [row];
-  const referrers = includedFor.get(entityKey(String(row.entityType ?? ""), String(row.entityId ?? "")));
+  const referrers = includedFor.get(entityKey({ entityType: String(row.entityType ?? ""), entityId: String(row.entityId ?? "") }));
   const outcome = String(row.outcome);
   if (referrers === undefined) return [row];
   if (CHANGING_OUTCOMES.has(outcome)) return [{ ...row, includedFor: referrers }];

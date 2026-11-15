@@ -160,31 +160,31 @@ function rehash(entity: PackedEntity, state: Record<string, unknown>): PackedEnt
 
 test("inspect() is null when the destination has no such tree", async () => {
   const fixture = await makeFixture({ destFiles: null });
-  assert.equal(await handlerFor(fixture.deps).inspect("static/basic"), null);
+  assert.equal(await handlerFor(fixture.deps).inspect({ id: "static/basic" }), null);
 });
 
 test("inspect() hashes the destination tree with the same state builder as pack(), version 0", async () => {
   const fixture = await makeFixture({ destFiles: SOURCE_BASIC });
   const entity = await packAndStage(fixture);
-  assert.deepEqual(await handlerFor(fixture.deps).inspect("static/basic"), { version: 0, hash: entity.contentHash });
+  assert.deepEqual(await handlerFor(fixture.deps).inspect({ id: "static/basic" }), { version: 0, hash: entity.contentHash });
 });
 
 test("inspect() refuses a malformed id instead of reading outside the themes folder", async () => {
   const fixture = await makeFixture();
-  assert.equal(await handlerFor(fixture.deps).inspect("../static/basic"), null);
+  assert.equal(await handlerFor(fixture.deps).inspect({ id: "../static/basic" }), null);
 });
 
 test("seedHash() is the hash of the destination's own __original-themes__ copy", async () => {
   const fixture = await makeFixture();
   const handler = handlerFor(fixture.deps);
-  const destination = await handler.inspect("static/basic");
+  const destination = await handler.inspect({ id: "static/basic" });
   assert.ok(destination);
-  assert.equal(await handler.seedHash?.("static/basic"), destination.hash);
+  assert.equal(await handler.seedHash?.({ id: "static/basic" }), destination.hash);
 });
 
 test("seedHash() is null when the destination has no original for the tree", async () => {
   const fixture = await makeFixture();
-  assert.equal(await handlerFor(fixture.deps).seedHash?.("static/other"), null);
+  assert.equal(await handlerFor(fixture.deps).seedHash?.({ id: "static/other" }), null);
 });
 
 // ---------------------------------------------------------------------------
@@ -194,14 +194,14 @@ test("seedHash() is null when the destination has no original for the tree", asy
 test("precheck() passes a clean tree", async () => {
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
-  assert.equal(await handlerFor(fixture.deps).precheck(entity), null);
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity }), null);
 });
 
 test("precheck() blocks a '../x' path in the state with the exact reason", async () => {
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
   const files = [...(entity.state.files as Array<Record<string, unknown>>), { path: "../x", sha256: "0".repeat(64), size: 1, mode: 0o644 }];
-  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: rehash(entity, { ...entity.state, files }) });
   assert.equal(reason, `Theme: static/basic was not published: "../x" contains a '..' segment, which is never allowed`);
 });
 
@@ -212,7 +212,7 @@ test("precheck() blocks a '..' path even when its file name looks like OS junk",
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
   const files = [...(entity.state.files as Array<Record<string, unknown>>), { path: "../escape/._x.png", sha256: "0".repeat(64), size: 1, mode: 0o644 }];
-  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: rehash(entity, { ...entity.state, files }) });
   assert.equal(reason, `Theme: static/basic was not published: "../escape/._x.png" contains a '..' segment, which is never allowed`);
 });
 
@@ -220,14 +220,14 @@ test("precheck() blocks an incoming OS junk file instead of staging it unchecked
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
   const files = [...(entity.state.files as Array<Record<string, unknown>>), { path: ".DS_Store", sha256: "0".repeat(64), size: 1, mode: 0o644 }];
-  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: rehash(entity, { ...entity.state, files }) });
   assert.equal(reason, `Theme: static/basic was not published: ".DS_Store" is a system file that is never published`);
 });
 
 test("precheck() blocks a state whose treeKey does not match the entity id", async () => {
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
-  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, treeKey: "static/other" }));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: rehash(entity, { ...entity.state, treeKey: "static/other" }) });
   assert.equal(reason, "Theme: static/basic was not published: its file list does not describe 'static/basic'");
 });
 
@@ -239,7 +239,7 @@ test("precheck() re-runs the secret scan on the destination against the staged b
   const sha256 = createHash("sha256").update(leaked).digest("hex");
   await fixture.blobStore.putIfAbsent({ workspaceId: WORKSPACE_ID, sha256, bytes: leaked });
   const files = (entity.state.files as Array<Record<string, unknown>>).map((f) => (f.path === "css/theme.css" ? { ...f, sha256, size: leaked.length } : f));
-  const reason = await handlerFor(fixture.deps).precheck(rehash(entity, { ...entity.state, files }));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: rehash(entity, { ...entity.state, files }) });
   assert.ok(typeof reason === "string");
   assert.match(reason, /^Theme: static\/basic was not published: "css\/theme\.css" looks like it holds a key/);
 });
@@ -249,7 +249,7 @@ test("precheck() blocks when the destination's static/ tier folder is a symlink"
   const elsewhere = await tempDir("elsewhere");
   await symlink(elsewhere, path.join(fixture.destThemes, "static"));
   const entity = await packAndStage(fixture);
-  assert.equal(await handlerFor(fixture.deps).precheck(entity), LINK_REASON);
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity }), LINK_REASON);
 });
 
 // ---------------------------------------------------------------------------
@@ -426,7 +426,7 @@ test("round trip: a theme edited on live plans 'conflict' offered as an overwrit
   assert.equal(report.rows[0].canOverwrite, true);
   assert.equal(report.rows[0].reason, "no prior sync baseline for theme-files 'static/basic' with this peer — the destination already holds different content");
 
-  const forcedReport = await planImport(bundleOf(entity), planDeps(fixture, new Set([entityKey("theme-files", "static/basic")])));
+  const forcedReport = await planImport(bundleOf(entity), planDeps(fixture, new Set([entityKey({ entityType: "theme-files", entityId: "static/basic" })])));
   assert.equal(forcedReport.rows[0].outcome, "forced");
   assert.equal(forcedReport.rows[0].writes, true);
 
@@ -577,8 +577,8 @@ test("inspect() and seedHash() resolve only two-segment ids in a published tier 
   const fixture = await makeFixture();
   const handler = handlerFor(fixture.deps);
   for (const id of ["static/basic/extra", "handlebars/basic", "static/Bad_Name"]) {
-    assert.equal(await handler.inspect(id), null, id);
-    assert.equal(await handler.seedHash?.(id), null, id);
+    assert.equal(await handler.inspect({ id }), null, id);
+    assert.equal(await handler.seedHash?.({ id }), null, id);
   }
 });
 
@@ -586,10 +586,10 @@ test("inspect() is null when the tree path is a file, and fails when its tier pa
   const fixture = await makeFixture({ destFiles: null });
   await mkdir(path.join(fixture.destThemes, "static"));
   await writeFile(path.join(fixture.destThemes, "static/basic"), "a file");
-  assert.equal(await handlerFor(fixture.deps).inspect("static/basic"), null);
+  assert.equal(await handlerFor(fixture.deps).inspect({ id: "static/basic" }), null);
   await rm(path.join(fixture.destThemes, "static"), { recursive: true });
   await writeFile(path.join(fixture.destThemes, "static"), "a file");
-  await assert.rejects(handlerFor(fixture.deps).inspect("static/basic"), { code: "ENOTDIR" });
+  await assert.rejects(handlerFor(fixture.deps).inspect({ id: "static/basic" }), { code: "ENOTDIR" });
 });
 
 test("without a theme-files port every destination read is empty and precheck says why", async () => {
@@ -597,19 +597,19 @@ test("without a theme-files port every destination read is empty and precheck sa
   const entity = await packAndStage(fixture);
   const { "theme-files": _omitted, ...ports } = fixture.deps.ports;
   const handler = handlerFor({ ...fixture.deps, ports });
-  assert.equal(await handler.inspect("static/basic"), null);
-  assert.equal(await handler.seedHash?.("static/basic"), null);
+  assert.equal(await handler.inspect({ id: "static/basic" }), null);
+  assert.equal(await handler.seedHash?.({ id: "static/basic" }), null);
   assert.deepEqual(await handler.listSkipped?.(), []);
   const packed: PackedEntity[] = [];
   for await (const e of handler.pack()) packed.push(e);
   assert.deepEqual(packed, []);
-  assert.equal(await handler.precheck(entity), "Theme: static/basic was not published: this site has no themes folder");
+  assert.equal(await handler.precheck({ entity }), "Theme: static/basic was not published: this site has no themes folder");
 });
 
 test("precheck() refuses an id that is not a theme tree address", async () => {
   const fixture = await makeFixture();
   const entity = await packAndStage(fixture);
-  assert.equal(await handlerFor(fixture.deps).precheck({ ...entity, id: "static/a/b" }), "Theme: static/a/b was not published: 'static/a/b' is not a valid theme tree address");
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity: { ...entity, id: "static/a/b" } }), "Theme: static/a/b was not published: 'static/a/b' is not a valid theme tree address");
 });
 
 test("precheck() refuses every malformed state file list with the same reason", async () => {
@@ -622,7 +622,7 @@ test("precheck() refuses every malformed state file list with the same reason", 
     { ...entity.state, files: "not-a-list" },
     ...[null, { ...good, path: 1 }, { ...good, sha256: 1 }, { ...good, sha256: "A".repeat(64) }, { ...good, size: "1" }, { ...good, mode: "644" }]
       .map((file) => ({ ...entity.state, files: [file] })),
-  ]) assert.equal(await handler.precheck(rehash(entity, state)), NOT_DESCRIBED, JSON.stringify(state));
+  ]) assert.equal(await handler.precheck({ entity: rehash(entity, state) }), NOT_DESCRIBED, JSON.stringify(state));
 });
 
 test("precheck() treats a themes folder that does not exist yet as link-free", async () => {
@@ -630,7 +630,7 @@ test("precheck() treats a themes folder that does not exist yet as link-free", a
   const entity = await packAndStage(fixture);
   const themesDir = path.join(fixture.destThemes, "not-yet");
   const ports = { ...fixture.deps.ports, "theme-files": { themesDir } };
-  assert.equal(await handlerFor({ ...fixture.deps, ports }).precheck(entity), null);
+  assert.equal(await handlerFor({ ...fixture.deps, ports }).precheck({ entity }), null);
 });
 
 test("precheck() fails when the themes folder cannot be resolved for a reason other than absence", async () => {
@@ -639,7 +639,7 @@ test("precheck() fails when the themes folder cannot be resolved for a reason ot
   const blocker = path.join(fixture.destThemes, "a-file");
   await writeFile(blocker, "x");
   const ports = { ...fixture.deps.ports, "theme-files": { themesDir: path.join(blocker, "themes") } };
-  await assert.rejects(handlerFor({ ...fixture.deps, ports }).precheck(entity), { code: "ENOTDIR" });
+  await assert.rejects(handlerFor({ ...fixture.deps, ports }).precheck({ entity }), { code: "ENOTDIR" });
 });
 
 test("precheck() refuses a themes folder that is itself a symlink", async () => {
@@ -648,7 +648,7 @@ test("precheck() refuses a themes folder that is itself a symlink", async () => 
   const linked = path.join(await tempDir("linkroot"), "themes");
   await symlink(fixture.destThemes, linked);
   const ports = { ...fixture.deps.ports, "theme-files": { themesDir: linked } };
-  assert.equal(await handlerFor({ ...fixture.deps, ports }).precheck(entity), LINK_REASON);
+  assert.equal(await handlerFor({ ...fixture.deps, ports }).precheck({ entity }), LINK_REASON);
 });
 
 test("precheck() fails on an unexpected lstat error and refuses a tier folder on another device", async (t) => {
@@ -664,9 +664,9 @@ test("precheck() fails on an unexpected lstat error and refuses a tier folder on
     info.dev += 1;
     return info;
   }) as typeof fsPromises.lstat);
-  await assert.rejects(handlerFor(fixture.deps).precheck(entity), { code: "EIO" });
+  await assert.rejects(handlerFor(fixture.deps).precheck({ entity }), { code: "EIO" });
   mode = "dev";
-  assert.equal(await handlerFor(fixture.deps).precheck(entity), "live's themes folder spans two disks; nothing was written");
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity }), "live's themes folder spans two disks; nothing was written");
 });
 
 test("precheck() fails, not refuses, when a blob becomes a library document between its two ownership checks", async (t) => {
@@ -679,7 +679,7 @@ test("precheck() fails, not refuses, when a blob becomes a library document betw
     if (calls === 1) return null;
     return { id: "blob-1", workspaceId: required.workspaceId, sha256: required.sha256, storageKey: "k", createdByPrincipal: "owner", createdAt: "2026-09-24T12:00:00.000Z", status: "active", documentOwned: true };
   });
-  await assert.rejects(handlerFor(fixture.deps).precheck(entity), blockedWith("Library documents cannot be published"));
+  await assert.rejects(handlerFor(fixture.deps).precheck({ entity }), blockedWith("Library documents cannot be published"));
 });
 
 test("precheck() refuses before staging when an incoming blob is already a library document", async (t) => {
@@ -688,7 +688,7 @@ test("precheck() refuses before staging when an incoming blob is already a libra
   const blobRepo = fixture.deps.ports.media!.assetBlobRepo as InMemoryAssetBlobRepo;
   t.mock.method(blobRepo, "findByHash", async (required: { workspaceId: string; sha256: string }): Promise<AssetBlobRecord | null> =>
     ({ id: "blob-1", workspaceId: required.workspaceId, sha256: required.sha256, storageKey: "k", createdByPrincipal: "owner", createdAt: "2026-09-24T12:00:00.000Z", status: "active", documentOwned: true }));
-  assert.equal(await handlerFor(fixture.deps).precheck(entity), "Library documents cannot be published");
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity }), "Library documents cannot be published");
   assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), ORIGINAL_BASIC);
   assert.equal(await exists(path.join(fixture.destThemes, ".publish-staging")), false);
 });

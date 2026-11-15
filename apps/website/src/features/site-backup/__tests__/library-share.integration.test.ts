@@ -165,7 +165,7 @@ for (const storage of ["local", "s3"] as const) test(`L3 ${storage}: share/impor
   const handler = contributeMediaPublish().build({ ...deps, outbox, changeSets: new InMemoryChangeSetRepo([], [], outbox), ports: { media: { repo: mediaRepo, assetBlobRepo, blobStore: deps.blobStore, contentTypeStore: deps.mediaContentTypeStore } } });
   const packed = []; for await (const item of handler.pack()) packed.push(item);
   assert.equal(packed.some(item => item.id === "document" || item.id === "second-document" || item.id === "shared-document"), false);
-  const documentRefusal = await handler.precheck({ entityType: "media", id: "document", schemaVersion: 1, hashVersion: 1, contentHash: "forged", requiredBlobs: [doc.sha256], state: { ...row } });
+  const documentRefusal = await handler.precheck({ entity: { entityType: "media", id: "document", schemaVersion: 1, hashVersion: 1, contentHash: "forged", requiredBlobs: [doc.sha256], state: { ...row } } });
   assert.ok(typeof documentRefusal === "string");
   assert.match(documentRefusal, /documents cannot be published/i);
 });

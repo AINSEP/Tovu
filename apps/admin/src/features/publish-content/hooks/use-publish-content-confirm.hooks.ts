@@ -294,8 +294,8 @@ export function liveGapLinesFor({ entries, t }: { entries: readonly PublishConte
 ): readonly string[] {
   return (entries ?? [])
     .filter((entry) => entry.count > 0)
-    .map((entry) => ({ label: t(publishEntityTypePluralLabel(entry.entityType)), count: entry.count }))
-    .sort(publishOrderComparator(locale, (line) => ({ group: "blocked", label: line.label })))
+    .map((entry) => ({ label: t(publishEntityTypePluralLabel({ entityType: entry.entityType })), count: entry.count }))
+    .sort(publishOrderComparator({ locale, keyOf: (line) => ({ group: "blocked", label: line.label }) }))
     .map((line) => `${line.label} (${line.count}) ${t("can't publish yet: the live site needs an update first.")}`);
 }
 
@@ -1179,7 +1179,7 @@ function publishReportSelection(
   // Display order only (owner rule 2026-09-26, `publish-order.ts`): to publish, then skipped, then up
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows =
-    report === null ? EMPTY_ROWS : sortPublishReportRows(toPublishReportRows(report, { completed: phase.kind === "done" }), locale);
+    report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows(report, { completed: phase.kind === "done" }), locale });
   const summary = report === null || phase.kind === "done" ? null : summarizePublishReport(rows);
   // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
   // so splitting them off keeps both halves in the shared order.

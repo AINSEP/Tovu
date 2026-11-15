@@ -38,7 +38,7 @@ export interface PublishOrderKey {
  *
  * @complexity O(1).
  */
-function collatorFor(locale: string | undefined): Intl.Collator {
+function collatorFor({ locale }: { locale: string | undefined }, _optional = {}): Intl.Collator {
   const options: Intl.CollatorOptions = { sensitivity: "base", numeric: true };
   try {
     return new Intl.Collator(locale, options);
@@ -52,11 +52,8 @@ function collatorFor(locale: string | undefined): Intl.Collator {
  *
  * @complexity O(1) per comparison (plus the label length).
  */
-export function publishOrderComparator<T>(
-  locale: string | undefined,
-  keyOf: (item: T) => PublishOrderKey
-): (a: T, b: T) => number {
-  const collator = collatorFor(locale);
+export function publishOrderComparator<T>({ locale, keyOf }: { locale: string | undefined; keyOf: (item: T) => PublishOrderKey }, _optional = {}): (a: T, b: T) => number {
+  const collator = collatorFor({ locale });
   return (a, b) => {
     const ka = keyOf(a);
     const kb = keyOf(b);
@@ -76,15 +73,12 @@ export function publishOrderComparator<T>(
  *
  * @complexity O(n log n).
  */
-export function sortPublishReportRows(
-  rows: readonly PublishReportRow[],
-  locale: string | undefined
-): readonly PublishReportRow[] {
+export function sortPublishReportRows({ rows, locale }: { rows: readonly PublishReportRow[]; locale: string | undefined }, _optional = {}): readonly PublishReportRow[] {
   return [...rows].sort(
-    publishOrderComparator<PublishReportRow>(locale, (row) => ({
+    publishOrderComparator<PublishReportRow>({ locale, keyOf: (row) => ({
       group: GROUP_BY_DISPOSITION[row.disposition],
       label: row.entityLabel,
       tieBreak: `${row.entityTypeLabel}\u0000${row.key}`,
-    }))
+    }) })
   );
 }

@@ -38,7 +38,7 @@ export interface RepoWriteContext<Row, Ports> {
   readonly sourceReplacement?: MediaSourceReplacement;
   /** With `undo`: registers an undo for a side effect of `write` beyond the row (e.g. post's term
    *  assignments). The gateway's rollback runs these, last first, before `restore`/`remove`. */
-  readonly onRollback: (undo: () => Promise<void>) => void;
+  readonly onRollback: (required: { undo: () => Promise<void> }, optional?: Record<string, never>) => void;
 }
 
 /** What `write` may return. `version` is the row's version after the write (the change set's revert
@@ -136,7 +136,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
 /** For a `write` that calls a domain service which runs its own `executeCommand` (no `undo`): the
  *  gateway deps that service needs, or a loud error naming the missing ones. The apply bag
  *  (`apply-loop.ts`'s `PublishContentApplyDeps`) always carries them. */
-export function gatewayDeps(deps: PublishContentDeps, entityType: string) {
+export function gatewayDeps({ deps, entityType }: { deps: PublishContentDeps; entityType: string }, _optional = {}) {
   const { clock, idGen, changeSets, authorize, outbox } = deps;
   if (!changeSets || !authorize || !outbox) {
     throw new Error(`publish-content: ${entityType}.apply() requires PublishContentDeps.changeSets/authorize/outbox — wire it from the apply-loop composition root (features/publish-content/apply-loop.ts).`);
@@ -158,10 +158,10 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
   const dependsOn = config.dependsOn ?? [];
   const idOf = config.idOf ?? (({ row }: { row: Row }, _optional = {}) => (row as { id: string }).id);
   const versionOf = config.versionOf ?? ((row: Row) => (row as { version: number }).version);
-  const fieldsWhere = (keep: (d: FieldDisposition) => boolean) =>
+  const fieldsWhere = ({ keep }: { keep: (d: FieldDisposition) => boolean }, _optional = {}) =>
     Object.entries<FieldDisposition>(config.fields).filter(([, d]) => keep(d)).map(([field]) => field);
-  const packedFields = fieldsWhere((d) => d !== "local");
-  const hashedFields = fieldsWhere((d) => d === "transferred");
+  const packedFields = fieldsWhere({ keep: (d) => d !== "local" });
+  const hashedFields = fieldsWhere({ keep: (d) => d === "transferred" });
 
   /** Missing values become `null`, so an unset column and SQL `NULL` pack and hash alike, except an
    *  `omitWhenAbsent` field, which is left out. */
@@ -175,15 +175,15 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
   const hashOf = (row: Row) =>
     contentHash({ entityType, state: config.legacyHashState ? config.legacyHashState({ row, packedState: pick(row, packedFields) }) : pick(row, hashedFields) });
 
-  const conflict = (id: string, detail: string) => {
-    const message = changedSincePlan(entityType, id, detail);
+  const conflict = ({ id, detail }: { id: string; detail: string }, _optional = {}) => {
+    const message = changedSincePlan({ entityType, id, detail });
     return config.conflictError?.({ message }) ?? new PublishContentApplyRowError({ rowOutcome: "conflict", message });
   };
 
-  function toRowError(err: unknown, id: string): unknown {
+  function toRowError({ err, id }: { err: unknown; id: string }, _optional = {}): unknown {
     if (err instanceof PublishContentApplyRowError || !(err instanceof Error)) return err;
     if (config.errors?.conflict?.some((cls) => err instanceof cls)) {
-      return conflict(id, err.message);
+      return conflict({ id, detail: err.message });
     }
     if (config.errors?.blocked?.some((cls) => err instanceof cls)) return new PublishContentApplyRowError({ rowOutcome: "blocked", message: err.message });
     return err;
@@ -212,7 +212,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       }
     }
 
-    async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
+    async function inspect({ id }: { id: string }, _optional = {}): Promise<{ version: number; hash: string } | null> {
       const p = ports();
       const row = p ? await config.find({ ports: p, workspaceId, id }) : null;
       return row ? { version: versionOf(row), hash: hashOf(row) } : null;
@@ -228,20 +228,20 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         const holder = await address.holder({ ports: p, workspaceId, value, state: entity.state });
         if (holder && idOf({ row: holder }) !== entity.id) {
           const held = config.isTrashed?.({ row: holder }) ? addressHeldInTrash : addressHeldByOther;
-          return held(entityType, address.field, value, idOf({ row: holder }));
+          return held({ entityType, field: address.field, value, holderId: idOf({ row: holder }) });
         }
       }
       return null;
     }
 
     /** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
-    async function precheck(entity: PackedEntity): ReturnType<PublishContentHandler["precheck"]> {
+    async function precheck({ entity }: { entity: PackedEntity }, _optional = {}): ReturnType<PublishContentHandler["precheck"]> {
       const p = ports();
-      if (!p) return notWired(entityType, entity.id, `${portsKey} port`);
+      if (!p) return notWired({ entityType, id: entity.id, portName: `${portsKey} port` });
       const addressReason = await precheckAddress({ entity, p });
       if (addressReason !== null) return addressReason;
       const existing = await config.find({ ports: p, workspaceId, id: entity.id });
-      if (existing && config.isTrashed?.({ row: existing })) return trashedAtDestination(entityType, entity.id);
+      if (existing && config.isTrashed?.({ row: existing })) return trashedAtDestination({ entityType, id: entity.id });
       return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;
     }
 
@@ -252,14 +252,14 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       idempotencyKey: string;
       sourceReplacement?: MediaSourceReplacement;
     }): Promise<{ changeSetId: string }> {
-      const unwired = (what: string) =>
+      const unwired = ({ what }: { what: string }, _optional = {}) =>
         new Error(`publish-content: ${entityType}.apply() requires ${what} — wire it from the apply-loop composition root (features/publish-content/apply-loop.ts).`);
       const p = ports();
-      if (!p) throw unwired(`PublishContentDeps.ports.${portsKey}`);
+      if (!p) throw unwired({ what: `PublishContentDeps.ports.${portsKey}` });
       const { entity, expectedVersion } = input;
       const rollbacks: Array<() => Promise<void>> = [];
-      const onRollback = (undo: () => Promise<void>): void => { rollbacks.push(undo); };
-      const ctx = (existing: Row | null): RepoWriteContext<Row, Ports> => ({
+      const onRollback = ({ undo }: { undo: () => Promise<void> }, _optional = {}): void => { rollbacks.push(undo); };
+      const ctx = ({ existing }: { existing: Row | null }, _optional = {}): RepoWriteContext<Row, Ports> => ({
         ports: p,
         deps,
         workspaceId,
@@ -273,7 +273,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       });
 
       /** The three CAS failures (plan §2.2 step 2), then the write with its errors mapped. */
-      async function write(existing: Row | null): Promise<RepoWriteResult> {
+      async function write({ existing }: { existing: Row | null }, _optional = {}): Promise<RepoWriteResult> {
         const found = existing ? versionOf(existing) : null;
         let mismatch: string | false = false;
         if (expectedVersion === undefined) {
@@ -283,21 +283,21 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         } else {
           if (found !== expectedVersion) mismatch = `expected version ${expectedVersion}, found version ${found}`;
         }
-        if (mismatch) throw conflict(entity.id, mismatch);
+        if (mismatch) throw conflict({ id: entity.id, detail: mismatch });
         try {
-          return (await config.write(ctx(existing))) ?? {};
+          return (await config.write(ctx({ existing }))) ?? {};
         } catch (err) {
-          throw toRowError(err, entity.id);
+          throw toRowError({ err, id: entity.id });
         }
       }
 
       const { undo } = config;
       if (!undo) {
-        const written = await write(await config.find({ ports: p, workspaceId, id: entity.id }));
+        const written = await write({ existing: await config.find({ ports: p, workspaceId, id: entity.id }) });
         return { ...written, changeSetId: written.changeSetId ?? entity.id };
       }
       const { changeSets, authorize, outbox } = deps;
-      if (!changeSets || !authorize || !outbox) throw unwired("PublishContentDeps.changeSets/authorize/outbox");
+      if (!changeSets || !authorize || !outbox) throw unwired({ what: "PublishContentDeps.changeSets/authorize/outbox" });
 
       let prior: Row | null = null;
       const { result, changeSetId } = await executeCommand<RepoWriteResult>({
@@ -305,7 +305,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
         command: {
           workspaceId,
           actor: { id: input.principalId, kind: "user" },
-          summary: (await undo.summary?.(ctx(null))) ?? `Import ${entityType} '${entity.id}' via publish-content`,
+          summary: (await undo.summary?.(ctx({ existing: null }))) ?? `Import ${entityType} '${entity.id}' via publish-content`,
           permission,
           idempotencyKey: input.idempotencyKey,
         },
@@ -318,11 +318,11 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
             prior = await config.find({ ports: p, workspaceId, id: entity.id });
             return prior ? ({ ...prior } as unknown as JsonObject) : null;
           },
-          execute: () => write(prior),
+          execute: () => write({ existing: prior }),
           captureEntityVersion: ({ result: written }) => written.version ?? null,
           rollback: async () => {
             for (const sideEffect of rollbacks.reverse()) await sideEffect();
-            await (prior ? undo.restore({ ctx: ctx(prior), prior }) : undo.remove(ctx(null)));
+            await (prior ? undo.restore({ ctx: ctx({ existing: prior }), prior }) : undo.remove(ctx({ existing: null })));
           },
         },
       });
@@ -340,7 +340,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       inspect,
       precheck,
       apply,
-      ...(references ? { references: (entity: PackedEntity) => references({ entity }) } : {}),
+      ...(references ? { references: ({ entity }: { entity: PackedEntity }) => references({ entity }) } : {}),
       ...config.extend?.({ deps, ports }),
     };
   }

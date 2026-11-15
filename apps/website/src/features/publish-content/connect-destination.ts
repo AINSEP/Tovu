@@ -100,7 +100,7 @@ export async function connectAndRecordDestination(
       { repo: deps.repo, clock: deps.clock, idGen: deps.idGen },
       {
         workspaceId: input.workspaceId,
-        label: siteLabelFor(grant.baseUrl),
+        label: siteLabelFor({ baseUrl: grant.baseUrl }),
         baseUrl: grant.baseUrl,
         remoteWorkspaceId: grant.identity.workspaceId,
       }

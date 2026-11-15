@@ -21,7 +21,7 @@
  *  `cannot be prechecked — no ... wired for this deps bag` wording exactly — matched by
  *  `ui/report-rows.ts`'s `/cannot be prechecked — no \w+ wired for this deps bag/`.
  *  @complexity O(1). */
-export function notWired(entityType: string, id: string, portName: string): string {
+export function notWired({ entityType, id, portName }: { entityType: string; id: string; portName: string }, _optional = {}): string {
   return `${entityType} entity '${id}' cannot be prechecked — no ${portName} wired for this deps bag`;
 }
 
@@ -30,14 +30,14 @@ export function notWired(entityType: string, id: string, portName: string): stri
  *  existing `slug '...' is already held by a different <type> ('<id>')` wording exactly — matched by
  *  `ui/report-rows.ts`'s `/^(?:menu )?slug '.+' is already held by a different \w+/`.
  *  @complexity O(1). */
-export function addressHeldByOther(entityType: string, field: string, value: string, holderId: string): string {
+export function addressHeldByOther({ entityType, field, value, holderId }: { entityType: string; field: string; value: string; holderId: string }, _optional = {}): string {
   return `${field} '${value}' is already held by a different ${entityType} ('${holderId}')`;
 }
 
 /** Like {@link addressHeldByOther}, but the holder is in the Trash: a trashed row keeps its unique
  *  address, so the create would collide. Worded to match the trash rewrite in `ui/report-rows.ts`.
  *  @complexity O(1). */
-export function addressHeldInTrash(entityType: string, field: string, value: string, holderId: string): string {
+export function addressHeldInTrash({ entityType, field, value, holderId }: { entityType: string; field: string; value: string; holderId: string }, _optional = {}): string {
   return `${entityType} '${holderId}' is in the trash at this destination and still holds ${field} '${value}' — restore it, or delete it permanently from the Trash, before publishing`;
 }
 
@@ -45,7 +45,7 @@ export function addressHeldInTrash(entityType: string, field: string, value: str
  *  not an overwrite. Mirrors `features/post/publish-content.ts`'s existing wording exactly — matched
  *  by `ui/report-rows.ts`'s `/^(?:\w+ )?'.+' is in the trash at this destination/`.
  *  @complexity O(1). */
-export function trashedAtDestination(entityType: string, id: string): string {
+export function trashedAtDestination({ entityType, id }: { entityType: string; id: string }, _optional = {}): string {
   return `${entityType} '${id}' is in the trash at this destination — restore it before publishing over it, or publishing would resurrect it as live content`;
 }
 
@@ -54,7 +54,7 @@ export function trashedAtDestination(entityType: string, id: string): string {
  *  `features/media/publish-content.ts`'s existing `<type> '<id>' changed on the destination during
  *  apply: <detail>` wording exactly.
  *  @complexity O(1). */
-export function changedSincePlan(entityType: string, id: string, detail: string): string {
+export function changedSincePlan({ entityType, id, detail }: { entityType: string; id: string; detail: string }, _optional = {}): string {
   return `${entityType} '${id}' changed on the destination during apply: ${detail}`;
 }
 
@@ -62,7 +62,7 @@ export function changedSincePlan(entityType: string, id: string, detail: string)
  *  missing and which is not itself part of the same bundle. New wording — no existing handler has a
  *  `dependsOn` this specific yet; `ui/report-rows.ts` rewrites it.
  *  @complexity O(1). */
-export function missingDependency(entityType: string, id: string, depType: string, depId: string): string {
+export function missingDependency({ entityType, id, depType, depId }: { entityType: string; id: string; depType: string; depId: string }, _optional = {}): string {
   return `${entityType} '${id}' depends on ${depType} '${depId}', which is missing at this destination`;
 }
 
@@ -70,7 +70,7 @@ export function missingDependency(entityType: string, id: string, depType: strin
  *  generalizing `features/redirects/publish-content.ts`'s equivalent ad hoc message for any factory
  *  type with a composite `idOf`.
  *  @complexity O(1). */
-export function malformedKey(entityType: string, id: string, expectedShape: string): string {
+export function malformedKey({ entityType, id, expectedShape }: { entityType: string; id: string; expectedShape: string }, _optional = {}): string {
   return `${entityType} entity '${id}' has a malformed natural key (expected '${expectedShape}')`;
 }
 
@@ -78,6 +78,6 @@ export function malformedKey(entityType: string, id: string, expectedShape: stri
  *  distinct from {@link trashedAtDestination} because it can never be restored, so publishing over it
  *  is refused outright. New wording, rewritten by `ui/report-rows.ts`.
  *  @complexity O(1). */
-export function tombstonedAtDestination(entityType: string, id: string): string {
+export function tombstonedAtDestination({ entityType, id }: { entityType: string; id: string }, _optional = {}): string {
   return `${entityType} '${id}' is permanently removed at this destination and cannot be republished over`;
 }

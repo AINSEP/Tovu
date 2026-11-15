@@ -79,7 +79,7 @@ function registerFakeHandler(destination: Map<string, DestinationRow>): void {
     permission: "content.write",
     dependsOn: [],
     pack: async function* () {},
-    inspect: async (id) => destination.get(id) ?? null,
+    inspect: async ({ id }) => destination.get(id) ?? null,
     precheck: async () => null,
     apply: async () => {
       throw new Error("this fixture's apply() must never run — applyReport is spied, not executed");

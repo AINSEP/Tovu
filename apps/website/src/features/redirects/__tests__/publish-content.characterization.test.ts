@@ -121,7 +121,7 @@ test("pack(): pinned contentHash, schemaVersion and packed state per redirect; d
 test("inspect(): the destination's hash equals the pinned pack hash", async () => {
   const handler = contributeRedirectPublish().build(publishDeps(await seeded()));
   for (const [id, hash] of Object.entries(PINNED_HASHES)) {
-    assert.equal((await handler.inspect(id))?.hash, hash);
+    assert.equal((await handler.inspect({ id }))?.hash, hash);
   }
 });
 
@@ -141,20 +141,20 @@ test("pack(): wildcard state, title and independently calculated content hash ar
 test("precheck(): exact reason strings", async () => {
   const unwired = contributeRedirectPublish().build(publishDeps(undefined));
   assert.equal(
-    await unwired.precheck(entity("exact:/x", {})),
+    await unwired.precheck({ entity: entity("exact:/x", {}) }),
     "redirect entity 'exact:/x' cannot be prechecked — no redirect port wired for this deps bag"
   );
   const handler = contributeRedirectPublish().build(publishDeps(await seeded()));
   assert.equal(
-    await handler.precheck(entity("no-colon", {})),
+    await handler.precheck({ entity: entity("no-colon", {}) }),
     "redirect entity 'no-colon' has a malformed natural key (expected 'matchType:fromPattern')"
   );
   assert.equal(
-    await handler.precheck(entity("exact:/new-promo", { matchType: "exact", fromPattern: "/new-promo", toTarget: "/old-promo", statusCode: 301, status: "active", override: false, priority: 0 })),
+    await handler.precheck({ entity: entity("exact:/new-promo", { matchType: "exact", fromPattern: "/new-promo", toTarget: "/old-promo", statusCode: 301, status: "active", override: false, priority: 0 }) }),
     "redirect from '/new-promo' would create a cycle via '/old-promo' (resolves back to '/new-promo')"
   );
   assert.equal(
-    await handler.precheck(entity("exact:/old-promo", { matchType: "exact", fromPattern: "/old-promo", toTarget: "/newest", statusCode: 301, status: "active", override: true, priority: 0 })),
+    await handler.precheck({ entity: entity("exact:/old-promo", { matchType: "exact", fromPattern: "/old-promo", toTarget: "/newest", statusCode: 301, status: "active", override: true, priority: 0 }) }),
     null
   );
 });

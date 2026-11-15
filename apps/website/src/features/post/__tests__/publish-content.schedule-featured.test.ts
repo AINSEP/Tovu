@@ -142,7 +142,7 @@ test("the featured image is a reference, so a scoped publish carries the media a
   const [entity] = await packAll([post({ featuredMediaId: FEATURED_MEDIA_ID })]);
   assert.ok(entity);
   const handler = contributePostPublish().build(makeDeps([]));
-  const refs = handler.references?.(entity) ?? [];
+  const refs = handler.references?.({ entity }) ?? [];
   assert.deepEqual(
     refs.filter((ref) => ref.entityType === "media"),
     [{ entityType: "media", key: FEATURED_MEDIA_ID }]

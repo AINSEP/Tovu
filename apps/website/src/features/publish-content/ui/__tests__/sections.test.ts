@@ -68,7 +68,7 @@ test("the new sections send their whole type set", () => {
   assert.deepEqual([...publishSectionById("categories")!.entityTypes], ["taxonomy", "term"]);
   assert.deepEqual([...publishSectionById("widgets")!.entityTypes], ["widget", "widget-area"]);
   assert.deepEqual([...publishSectionById("settings")!.entityTypes], ["site-setting"]);
-  assert.equal(publishSectionById("nope"), undefined);
+  assert.equal(publishSectionById({ id: "nope" }), undefined);
 });
 
 test("publishSectionForEntityTypes matches a whole set in any order, and nothing else", () => {
@@ -80,20 +80,20 @@ test("publishSectionForEntityTypes matches a whole set in any order, and nothing
 });
 
 test("publishEntityTypeLabel names each type for an owner and falls back to the raw id", () => {
-  assert.equal(publishEntityTypeLabel("theme-files"), "Theme");
-  assert.equal(publishEntityTypeLabel("collection-entry"), "Entry");
-  assert.equal(publishEntityTypeLabel("widget-area"), "Widget region");
-  assert.equal(publishEntityTypeLabel("site-setting"), "Site setting");
-  assert.equal(publishEntityTypeLabel("active-theme"), "Active theme");
-  assert.equal(publishEntityTypeLabel("something-new"), "something-new");
+  assert.equal(publishEntityTypeLabel({ entityType: "theme-files" }), "Theme");
+  assert.equal(publishEntityTypeLabel({ entityType: "collection-entry" }), "Entry");
+  assert.equal(publishEntityTypeLabel({ entityType: "widget-area" }), "Widget region");
+  assert.equal(publishEntityTypeLabel({ entityType: "site-setting" }), "Site setting");
+  assert.equal(publishEntityTypeLabel({ entityType: "active-theme" }), "Active theme");
+  assert.equal(publishEntityTypeLabel({ entityType: "something-new" }), "something-new");
 });
 
 test("publishEntityTypePluralLabel names each type in the plural and falls back to the raw id", () => {
-  assert.equal(publishEntityTypePluralLabel("form"), "Forms");
-  assert.equal(publishEntityTypePluralLabel("theme-files"), "Themes");
-  assert.equal(publishEntityTypePluralLabel("collection-entry"), "Entries");
-  assert.equal(publishEntityTypePluralLabel("taxonomy"), "Taxonomies");
-  assert.equal(publishEntityTypePluralLabel("widget-area"), "Widget regions");
-  assert.equal(publishEntityTypePluralLabel("media"), "Media");
-  assert.equal(publishEntityTypePluralLabel("something-new"), "something-new");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "form" }), "Forms");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "theme-files" }), "Themes");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "collection-entry" }), "Entries");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "taxonomy" }), "Taxonomies");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "widget-area" }), "Widget regions");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "media" }), "Media");
+  assert.equal(publishEntityTypePluralLabel({ entityType: "something-new" }), "something-new");
 });

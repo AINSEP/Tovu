@@ -100,12 +100,12 @@ export async function sqliteTableInfo<DB>(
 
 /**
  * Runs `work` in one kernel transaction with foreign keys deferred, then checks every foreign key
- * before commit. A violation throws `onViolation(first violation)` INSIDE the transaction, so the
+ * before commit. A violation throws `onViolation({ violation: first })` INSIDE the transaction, so the
  * whole of `work` rolls back.
  * @throws {Error} On a non-SQLite kernel.
  */
 export async function sqliteForeignKeyCheckedTransaction<DB, T>(
-  required: { kernel: StorageKernel<DB>; work: () => Promise<T>; onViolation: (violation: SqliteForeignKeyViolation) => Error },
+  required: { kernel: StorageKernel<DB>; work: () => Promise<T>; onViolation: (required: { violation: SqliteForeignKeyViolation }, optional?: Record<string, never>) => Error },
   _optional: Record<string, never> = {},
 ): Promise<T> {
   const { kernel, work, onViolation } = required;
@@ -114,7 +114,7 @@ export async function sqliteForeignKeyCheckedTransaction<DB, T>(
     await kernel.execute(sql`PRAGMA defer_foreign_keys = ON`);
     const result = await work();
     const [first] = await kernel.query<SqliteForeignKeyViolation>(sql`PRAGMA foreign_key_check`);
-    if (first) throw onViolation(first);
+    if (first) throw onViolation({ violation: first });
     return result;
   });
 }

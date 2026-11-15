@@ -345,7 +345,7 @@ export interface PublishContentHandler {
   /** Import side: what the destination currently holds for `id`, or `null` when there is no such
    *  row — the planner's `created` vs `unchanged`/`applied`/`conflict` classification (plan §4's
    *  "seven outcomes" table) starts here. */
-  inspect(id: string): Promise<{ version: number; hash: string } | null>;
+  inspect(required: { id: string }, optional?: Record<string, never>): Promise<{ version: number; hash: string } | null>;
   /** Import side: a PURE precondition check that never writes — slug availability, a
    *  format/shape violation, a required blob's absence. Returns a human-readable blocking reason, or
    *  `null` when there is no blocking condition. A structured source refusal can be overwritten
@@ -353,7 +353,7 @@ export interface PublishContentHandler {
    *  write and catch the constraint violation" — plan §5 risk #4 is specifically that a caught
    *  constraint violation kills the whole surrounding chunk transaction (Task 8), not just the one
    *  offending entity. */
-  precheck(entity: PackedEntity): Promise<string | OverwritablePrecheckRefusal | null>;
+  precheck(required: { entity: PackedEntity }, optional?: Record<string, never>): Promise<string | OverwritablePrecheckRefusal | null>;
   /** Import side: applies ONE entity through the real domain write function, inside the caller's own
    *  `executeCommand` (plan §1.4) — never through the raw repo. Receives `expectedVersion` (`undefined`
    *  for a brand-new entity with no destination row yet) and MUST fail rather than overwrite when the
@@ -376,7 +376,7 @@ export interface PublishContentHandler {
    * e.g. the home page). Never writes. Only meaningful for a `blocked` `precheck()` result; the
    * planner (`planner.ts`) is what decides when to call it.
    */
-  planRetire?(entity: PackedEntity): Promise<RetireTarget | null>;
+  planRetire?(required: { entity: PackedEntity }, optional?: Record<string, never>): Promise<RetireTarget | null>;
   /**
    * S4 — the write side of an address-clash overwrite: moves `target` to Trash under a renamed slug
    * (never in place) so the incoming entity can take the address under its own id, through the same
@@ -398,7 +398,7 @@ export interface PublishContentHandler {
    * with every retire-target id collected across the whole report — never once per row. A handler
    * with no concept of "links to another entity by id" simply omits this method.
    */
-  referencesTo?(ids: readonly string[]): Promise<readonly ReferenceHolder[]>;
+  referencesTo?(required: { ids: readonly string[] }, optional?: Record<string, never>): Promise<readonly ReferenceHolder[]>;
   /**
    * §2.3 — the write side: for each of `replacements`, repoints every live link `oldId -> newId` in
    * entities of this type, skipping any holder named in `skipIds` (written this run, so its own
@@ -433,7 +433,7 @@ export interface PublishContentHandler {
    * whose seed is not a DB row (e.g. `theme-files`, seeded as `__original-themes__` folders), which
    * the generic seed-db lookup cannot see. Read-only; absent means "no seed to compare against".
    */
-  seedHash?(id: string): Promise<string | null>;
+  seedHash?(required: { id: string }, optional?: Record<string, never>): Promise<string | null>;
 
   /**
    * `publish-files-plan-2026-09-24.md` §2/§6 — export side, read-only: every WHOLE unit this handler
@@ -455,7 +455,7 @@ export interface PublishContentHandler {
    * the carried ones' own references in turn. Unlike `dependsOn`, a reference implies no apply order
    * and the destination need not validate it. A type that uses nothing omits this method.
    */
-  references?(entity: PackedEntity): readonly PublishContentReference[];
+  references?(required: { entity: PackedEntity }, optional?: Record<string, never>): readonly PublishContentReference[];
 
   /**
    * True for one of this type's OWN errors that means "this row changed on the destination during
@@ -519,7 +519,7 @@ export interface PublishContentContributor {
 
 /** A programmer-authored registry configuration that cannot produce a safe apply order. */
 export class PublishContentCatalogConfigurationError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "PublishContentCatalogConfigurationError";
   }
@@ -546,12 +546,10 @@ function catalogDependencies(
   for (const contributor of snapshot) {
     for (const dependency of new Set(contributor.dependsOn)) {
       if (!known.has(dependency)) {
-        throw new PublishContentCatalogConfigurationError(
-          `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'`
-        );
+        throw new PublishContentCatalogConfigurationError({ message: `publish-content type '${contributor.entityType}' depends on unregistered type '${dependency}'` });
       }
       const count = inDegree.get(contributor.entityType);
-      if (count === undefined) throw new PublishContentCatalogConfigurationError(`publish-content type '${contributor.entityType}' has no dependency count`);
+      if (count === undefined) throw new PublishContentCatalogConfigurationError({ message: `publish-content type '${contributor.entityType}' has no dependency count` });
       inDegree.set(contributor.entityType, count + 1);
       const waiting = dependents.get(dependency) ?? [];
       waiting.push(contributor.entityType);
@@ -582,20 +580,18 @@ export function buildPublishContentCatalog(deps: PublishContentDeps): PublishCon
     );
     if (!next) {
       const cycleMembers = originalOrder.filter((entityType) => remaining.has(entityType));
-      throw new PublishContentCatalogConfigurationError(
-        `publish-content dependency cycle among registered types: ${cycleMembers.join(", ")}`
-      );
+      throw new PublishContentCatalogConfigurationError({ message: `publish-content dependency cycle among registered types: ${cycleMembers.join(", ")}` });
     }
     applyOrder.push(next);
     remaining.delete(next);
     for (const dependent of dependents.get(next) ?? []) {
       const count = inDegree.get(dependent);
-      if (count === undefined) throw new PublishContentCatalogConfigurationError(`publish-content type '${dependent}' has no dependency count`);
+      if (count === undefined) throw new PublishContentCatalogConfigurationError({ message: `publish-content type '${dependent}' has no dependency count` });
       inDegree.set(dependent, count - 1);
     }
   }
 
-  const handlers = snapshot.map((contributor) => contributor.build(stampPublishType(deps, contributor.entityType)));
+  const handlers = snapshot.map((contributor) => contributor.build(stampPublishType({ deps, publishType: contributor.entityType })));
   return {
     handlers,
     handlerByType: new Map(handlers.map((handler) => [handler.entityType, handler] as const)),
@@ -620,7 +616,7 @@ export interface PublishTypeStamp {
  *
  * @complexity O(1) — one object spread per call.
  */
-function stampPublishType(deps: PublishContentDeps, publishType: string): PublishContentDeps {
+function stampPublishType({ deps, publishType }: { deps: PublishContentDeps; publishType: string }, _optional = {}): PublishContentDeps {
   const { authorize } = deps;
   if (!authorize) return deps;
   const stamped: AuthorizeFn = (params) => authorize({ ...params, publishType } as Parameters<AuthorizeFn>[0]);

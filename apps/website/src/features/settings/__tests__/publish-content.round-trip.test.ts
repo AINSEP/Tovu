@@ -124,7 +124,7 @@ async function sites() {
   return { source, destination, sourceDeps: makeSite(source.ports, "src"), destinationDeps: makeSite(destination.ports, "dst") };
 }
 
-const ids = (entities: readonly PackedEntity[]) => entities.map((e) => entityKey(e.entityType, e.id));
+const ids = (entities: readonly PackedEntity[]) => entities.map((e) => entityKey({ entityType: e.entityType, entityId: e.id }));
 
 test("only allowlisted, non-secret workspace values pack; secrets, user values, crawl controls and other namespaces never do", async () => {
   const { source, sourceDeps } = await sites();
@@ -165,7 +165,7 @@ test("a share image URL on this computer does not pack, and a hand-made one is r
   const report = await plan([crafted], destinationDeps);
   assert.equal(report.rows[0]!.outcome, "blocked");
   assert.equal(report.rows[0]!.reason, "site-setting 'site.seo:default_og_image' points at this computer");
-  assert.equal(friendlyPublishReason(report.rows[0]!.reason!), "This image link only works on this computer. Pick an image from Media instead.");
+  assert.equal(friendlyPublishReason({ reason: report.rows[0]!.reason! }), "This image link only works on this computer. Pick an image from Media instead.");
 });
 
 test("the destination refuses a bundle naming a setting outside the allowlist, and never writes it", async () => {
@@ -176,7 +176,7 @@ test("the destination refuses a bundle naming a setting outside the allowlist, a
   const report = await plan([crafted], destinationDeps);
   assert.equal(report.rows[0]!.outcome, "blocked");
   assert.equal(report.rows[0]!.reason, "site-setting 'core.execution:byok.baseUrl' is not one this site publishes");
-  assert.equal(friendlyPublishReason(report.rows[0]!.reason!), "Only the site title and SEO basics can be published.");
+  assert.equal(friendlyPublishReason({ reason: report.rows[0]!.reason! }), "Only the site title and SEO basics can be published.");
 
   const handler = buildPublishContentCatalog(destinationDeps).handlerByType.get("site-setting")!;
   await assert.rejects(
@@ -276,7 +276,7 @@ test("active theme: a missing theme folder is refused; once it is there the swit
   await assert.rejects(applyReport(forced, entities, destinationDeps), (err: unknown) => {
     assert.ok(err instanceof PublishContentApplyRowError && err.rowOutcome === "blocked");
     assert.equal(err.message, "active theme 'tovu-theme' is not installed at this destination");
-    assert.equal(friendlyPublishReason(err.message), "This theme isn't on the live site yet. Publish the theme too.");
+    assert.equal(friendlyPublishReason({ reason: err.message }), "This theme isn't on the live site yet. Publish the theme too.");
     return true;
   });
   assert.equal((await destination.presentation.findByWorkspaceId({ workspaceId: WORKSPACE_ID }))!.activeThemeId, "paper");
@@ -441,8 +441,8 @@ for (const change of [{ secret: true }, { scopes: 4 }, { status: "deprecated" as
     assert.ok(def);
     await destination.settings.saveDefinition({ ...def, ...change });
     const handler = contributeSiteSettingPublish().build(destinationDeps);
-    assert.equal(await handler.inspect(entity.id), null);
-    assert.equal(await handler.precheck(entity), "site-setting 'core.site:title' is not one this site publishes");
+    assert.equal(await handler.inspect({ id: entity.id }), null);
+    assert.equal(await handler.precheck({ entity }), "site-setting 'core.site:title' is not one this site publishes");
     await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: "owner", idempotencyKey: "ineligible" }), {
       message: "site-setting 'core.site:title' is not one this site publishes",
     });
@@ -459,8 +459,8 @@ test("an allowlisted setting with no destination definition is refused", async (
   const [entity] = await packAll(sourceDeps);
   assert.ok(entity);
   const handler = contributeSiteSettingPublish().build(makeSite(empty.ports));
-  assert.equal(await handler.inspect(entity.id), null);
-  assert.equal(await handler.precheck(entity), "site-setting 'core.site:title' is not one this site publishes");
+  assert.equal(await handler.inspect({ id: entity.id }), null);
+  assert.equal(await handler.precheck({ entity }), "site-setting 'core.site:title' is not one this site publishes");
 });
 
 test("an omitted incoming setting value is written as null through the revision ledger", async (t) => {

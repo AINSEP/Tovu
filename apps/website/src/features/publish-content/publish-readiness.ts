@@ -73,7 +73,7 @@ export interface PublishReadiness {
  *
  * @complexity O(n) in the URL's length.
  */
-export function siteLabelFor(baseUrl: string): string {
+export function siteLabelFor({ baseUrl }: { baseUrl: string }, _optional = {}): string {
   try {
     return new URL(baseUrl).host;
   } catch {
@@ -134,7 +134,7 @@ export function describePublishReadiness(input: PublishReadinessInput): PublishR
   }
 
   if (input.candidateUrl !== null) {
-    const label = siteLabelFor(input.candidateUrl);
+    const label = siteLabelFor({ baseUrl: input.candidateUrl });
     return {
       ready: false,
       verdict: "not-connected",

@@ -18,9 +18,9 @@ test("v2 planner re-baselines stored v1/unknown history without trusting obsolet
   ]);
   registerPublishContentContributor({ entityType: "widget", dependsOn: [], build: () => ({
     entityType: "widget", schemaVersion: 1, permission: "content.write", dependsOn: [],
-    pack: async function* () {}, inspect: async id => destination.get(id) ?? null,
+    pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
     precheck: async () => null, apply: async () => { assert.fail("planning must never write"); },
-    seedHash: async id => id === "seed" ? "current-seed" : null,
+    seedHash: async ({ id }) => id === "seed" ? "current-seed" : null,
   }) });
   const entities = ["same", "edited", "seed", "new"].map(id => ({
     entityType: "widget", id, schemaVersion: 1, hashVersion: 2,
@@ -36,7 +36,7 @@ test("v2 planner re-baselines stored v1/unknown history without trusting obsolet
     assert.deepEqual(report.rows.map(row => row.outcome), ["unchanged", "conflict", "applied", "created"]);
     assert.equal(report.rows[1].writes, false, "even coincidentally equal obsolete hashes cannot authorize an overwrite");
     assert.match(report.rows[1].reason!, /no prior sync baseline/);
-    const forced = await planImport(bundle, { ...deps, forcedEntityKeys: new Set([entityKey("widget", "edited")]) });
+    const forced = await planImport(bundle, { ...deps, forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "edited" })]) });
     assert.equal(forced.rows[1].outcome, "forced", "the existing explicit confirmation path can establish new history");
     assert.equal(JSON.stringify([...destination]), before);
   }
@@ -80,8 +80,8 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
   const writes: string[] = [];
   registerPublishContentContributor({ entityType: "widget", dependsOn: [], build: () => ({
     entityType: "widget", schemaVersion: 1, permission: "content.write", dependsOn: [],
-    pack: async function* () {}, inspect: async id => destination.get(id) ?? null,
-    precheck: async () => null, seedHash: async id => id === "seed" ? "current-seed" : null,
+    pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
+    precheck: async () => null, seedHash: async ({ id }) => id === "seed" ? "current-seed" : null,
     apply: async ({ entity }) => {
       writes.push(entity.id); destination.set(entity.id, { version: 2, hash: entity.contentHash });
       return { changeSetId: `change-${entity.id}` };

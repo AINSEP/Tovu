@@ -9,17 +9,17 @@ import { CONTENT_HASH_VERSION, contentHash } from "./content-hash.js";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity } from "./type-registry.js";
 
 function sha(bytes: Uint8Array): string { return createHash("sha256").update(bytes).digest("hex"); }
-function stateFor(relPath: string, file: RawFileSnapshot): Record<string, unknown> {
+function stateFor({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): Record<string, unknown> {
   return { path: relPath, sha256: sha(file.bytes), size: file.bytes.byteLength, mode: normalizeMode({ mode: file.mode }) };
 }
-function hash(relPath: string, file: RawFileSnapshot): string { return contentHash({ entityType: "raw-file", state: stateFor(relPath, file) }); }
-function version(relPath: string, file: RawFileSnapshot): number { return Number.parseInt(hash(relPath, file).slice(0, 12), 16); }
+function hash({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): string { return contentHash({ entityType: "raw-file", state: stateFor({ relPath, file }) }); }
+function version({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): number { return Number.parseInt(hash({ relPath, file }).slice(0, 12), 16); }
 
 export function contributeRawFilePublish(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): PublishContentContributor {
   return { entityType: "raw-file", dependsOn: [], build: (deps) => {
     const files = deps.backstop?.files;
     const skipped: SkippedPackEntity[] = [];
-    function pathReason(relPath: string): string | null {
+    function pathReason({ relPath }: { relPath: string }, _optional = {}): string | null {
       const policy = checkRawFilePath({ relPath });
       if (policy) return policy;
       return isCoveredPath({ deps, relPath })
@@ -41,7 +41,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
       if (!files) return "Send by hand is not available on this destination.";
       const relPath = entity.state.path;
       if (typeof relPath !== "string") return "Choose a regular file inside the site folder.";
-      const denied = pathReason(relPath) ?? await files.check({ relPath });
+      const denied = pathReason({ relPath }) ?? await files.check({ relPath });
       if (denied) return denied;
       const { sha256, size } = entity.state;
       if (!validRawFileMetadata({ entity, relPath })) return "The raw file has an invalid address, size, mode or checksum.";
@@ -64,7 +64,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
 
     /** Reads one selected file, retaining policy and read failures as skips. @complexity O(k) plus file read. */
     async function selectedFile({ relPath }: { relPath: string }, _options = {}): Promise<{ reason: string | null; file: RawFileSnapshot | null }> {
-      let reason = pathReason(relPath);
+      let reason = pathReason({ relPath });
       let file: RawFileSnapshot | null = null;
       if (!reason) try {
         if (!files) throw new Error("Send by hand has no file reader");
@@ -79,7 +79,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     }
     /** Checks and indexes one snapshot for later blob transfer. @complexity O(b) in file bytes. */
     async function packFile({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _options = {}): Promise<PackedEntity | null> {
-      const state = stateFor(relPath, file);
+      const state = stateFor({ relPath, file });
       const entity: PackedEntity = { entityType: "raw-file", id: relPath, schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
         contentHash: contentHash({ entityType: "raw-file", state }), requiredBlobs: [state.sha256 as string], state };
       const reason = await check(entity, file.bytes);
@@ -123,13 +123,13 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
           if (entity) yield entity;
         }
       },
-      inspect: async (relPath) => {
-        if (!files || pathReason(relPath)) return null;
+      inspect: async ({ id: relPath }) => {
+        if (!files || pathReason({ relPath })) return null;
         let file: RawFileSnapshot | null;
         try { file = await files.read({ relPath }); } catch { return null; }
-        return file ? { hash: hash(relPath, file), hashVersion: CONTENT_HASH_VERSION, version: version(relPath, file) } : null;
+        return file ? { hash: hash({ relPath, file }), hashVersion: CONTENT_HASH_VERSION, version: version({ relPath, file }) } : null;
       },
-      precheck: async (entity) => {
+      precheck: async ({ entity }) => {
         try { return await check(entity); }
         catch (error) {
           if (error instanceof PublishContentApplyRowError) return error.message;
@@ -158,7 +158,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
             },
             execute: async () => {
               const current = await files.read({ relPath: input.entity.id });
-              const currentVersion = current ? version(input.entity.id, current) : undefined;
+              const currentVersion = current ? version({ relPath: input.entity.id, file: current }) : undefined;
               if (priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion) throw new PublishContentApplyRowError({ rowOutcome: "conflict", message: "This file changed on live after it was checked." });
               // Re-read through the shared isolation guard after authorization, immediately before writing.
               const bytes = await blob(input.entity);
@@ -192,7 +192,7 @@ export async function undoRawFile(
   if (denied) return denied;
   if (isCoveredPath({ deps, relPath: entity.id })) return `File '${entity.id}' already publishes normally; it was left alone.`;
   const current = await files.read({ relPath: entity.id });
-  if (!current || hash(entity.id, current) !== afterHash) return `File '${entity.id}' changed on live after this send; it was left alone.`;
+  if (!current || hash({ relPath: entity.id, file: current }) !== afterHash) return `File '${entity.id}' changed on live after this send; it was left alone.`;
   await files.restore({ inverse: before });
   return null;
 }

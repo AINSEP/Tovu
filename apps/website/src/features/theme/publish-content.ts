@@ -642,7 +642,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
   /** The destination's tree, hashed like `pack()` hashes it. `version` is always 0 (plan §3): the
    *  apply loop re-inspects and compares hashes before every write. */
-  async function inspect(id: string): Promise<{ version: number; hash: string } | null> {
+  async function inspect({ id }: { id: string }, _optional = {}): Promise<{ version: number; hash: string } | null> {
     const address = parseTreeAddress(id);
     if (!themePort || !address) return null;
     const hash = await hashTreeAt(path.join(themePort.themesDir, address.tier, address.themeId), address.treeKey);
@@ -650,7 +650,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   }
 
   /** What this destination was seeded with: its own `__original-themes__/<tier>/<id>` copy (plan §4). */
-  async function seedHash(id: string): Promise<string | null> {
+  async function seedHash({ id }: { id: string }, _optional = {}): Promise<string | null> {
     const address = parseTreeAddress(id);
     if (!themePort || !address) return null;
     return hashTreeAt(path.join(themePort.themesDir, THEME_CATALOG_DIR, address.tier, address.themeId), address.treeKey);
@@ -663,7 +663,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
    *
    * @complexity O(files) plus O(bytes) for the text files small enough to scan.
    */
-  async function precheck(entity: PackedEntity): Promise<string | null> {
+  async function precheck({ entity }: { entity: PackedEntity }, _optional = {}): Promise<string | null> {
     const checked = await precheckIncoming(entity);
     return "reason" in checked ? checked.reason : null;
   }

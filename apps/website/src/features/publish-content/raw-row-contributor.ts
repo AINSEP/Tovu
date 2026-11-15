@@ -10,7 +10,7 @@ export function rawRowId({ table, pk }: { table: string; pk: Readonly<Record<str
   return `${table}:${JSON.stringify(Object.fromEntries(Object.entries(pk).sort(([a], [b]) => a.localeCompare(b))))}`;
 }
 
-function decodeId(id: string): { table: string; pk: Readonly<Record<string, RawValue>> } | null {
+function decodeId({ id }: { id: string }, _optional = {}): { table: string; pk: Readonly<Record<string, RawValue>> } | null {
   try {
     const split = id.indexOf(":");
     if (split < 1) return null;
@@ -50,14 +50,14 @@ export function contributeRawRowPublish(_required: Record<string, never> = {}, _
 function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: Record<string, never> = {}): PublishContentHandler {
   const port = deps.backstop?.rows;
   const skipped: SkippedPackEntity[] = [];
-  function blockedTable(table: string): string | null {
+  function blockedTable({ table }: { table: string }, _optional = {}): string | null {
     return deps.backstop?.coveredTables.some((covered) => covered.toLowerCase() === table.toLowerCase())
       ? `Table '${table}' already publishes normally; use Overwrite live in normal publishing.` : null;
   }
   function checkShape({ entity }: { entity: PackedEntity }, _optional: Record<string, never> = {}): string | null {
     const { table, columns, values } = entity.state;
     if (typeof table !== "string") return "The raw row has no valid table name.";
-    const covered = blockedTable(table);
+    const covered = blockedTable({ table });
     if (covered) return covered;
     if (!values || typeof values !== "object" || Array.isArray(values)) return "The raw row has no valid column values.";
     const policy = checkRawTable({ table, columns: Object.keys(values) });
@@ -68,7 +68,7 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
   function checkPrimaryKey({ entity, live }: { entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
     const { table, pk, values } = entity.state as unknown as RawRowSnapshot;
     if (!recordValue({ value: pk })) return "Choose a row by its complete primary key.";
-    const decoded = decodeId(entity.id);
+    const decoded = decodeId({ id: entity.id });
     if (!decoded || decoded.table !== table || JSON.stringify(decoded.pk) !== JSON.stringify(Object.fromEntries(Object.entries(pk).sort(([a], [b]) => a.localeCompare(b))))) return "The raw row's primary key does not match its address.";
     const primary = live.filter((c) => c.pk > 0).map((c) => c.name).sort();
     if (primary.length === 0 || JSON.stringify(primary) !== JSON.stringify(Object.keys(decoded.pk).sort()) || primary.some((name) => decoded.pk[name] !== (values as Record<string, RawValue>)[name])) return "Choose a row by its complete primary key.";
@@ -82,7 +82,7 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
     if (Object.hasOwn(values, "workspace_id") && (values as Record<string, unknown>).workspace_id !== deps.workspaceId) return "This row belongs to a different workspace.";
     return null;
   }
-  async function precheck(entity: PackedEntity): Promise<string | null> {
+  async function precheck({ entity }: { entity: PackedEntity }, _optional = {}): Promise<string | null> {
     if (!port || !deps.backstop) return "Send by hand is not available on this destination.";
     const { table, columns } = entity.state as unknown as RawRowSnapshot;
     const invalid = checkShape({ entity });
@@ -100,7 +100,7 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
   }
   async function packSelected({ selected }: { selected: { table: string; pk: Readonly<Record<string, RawValue>> } }, _optional: Record<string, never> = {}) {
     const id = rawRowId(selected);
-    const early = checkRawTable({ table: selected.table, columns: Object.keys(selected.pk) }) ?? blockedTable(selected.table);
+    const early = checkRawTable({ table: selected.table, columns: Object.keys(selected.pk) }) ?? blockedTable({ table: selected.table });
     let row: RawRowSnapshot | null = null;
     let readReason: string | null = null;
     if (!early) {
@@ -116,7 +116,7 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
       entityType: "raw-row", id, schemaVersion: 1,
       hashVersion: CONTENT_HASH_VERSION, contentHash: rowHash(row), requiredBlobs: [], state: rowState(row)
     } : null;
-    const reason = early ?? readReason ?? (entity ? await precheck(entity) : "The selected row no longer exists.");
+    const reason = early ?? readReason ?? (entity ? await precheck({ entity }) : "The selected row no longer exists.");
     return { id, entity, reason };
   }
   const handler: PublishContentHandler = {
@@ -134,9 +134,9 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
         }
       }
     },
-    inspect: async (id) => {
-      const address = decodeId(id);
-      if (!address || !port || blockedTable(address.table)) return null;
+    inspect: async ({ id }) => {
+      const address = decodeId({ id });
+      if (!address || !port || blockedTable({ table: address.table })) return null;
       let row: RawRowSnapshot | null;
       try { row = await port.read(address); } catch { return null; }
       if (!row) return null;
@@ -146,13 +146,13 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
     },
     precheck,
     apply: async (input) => {
-      const reason = await precheck(input.entity);
+      const reason = await precheck({ entity: input.entity });
       if (reason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
       const { changeSets, authorize, outbox } = deps;
       if (!port || !changeSets || !authorize || !outbox) throw new Error("The raw row command gateway is not wired.");
       const incoming = input.entity.state as unknown as RawRowSnapshot;
       return port.transaction({ work: async () => {
-        const freshReason = await precheck(input.entity);
+        const freshReason = await precheck({ entity: input.entity });
         if (freshReason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: freshReason });
         let prior: RawRowSnapshot | null = null;
         const result = await executeCommand<{ version: number }>({
@@ -193,14 +193,14 @@ export async function undoRawRow(
   const rows = deps.backstop?.rows;
   if (!rows) return "Send by hand is not available on this destination.";
   const handler = contributeRawRowPublish().build(deps);
-  const reason = await handler.precheck(entity);
+  const reason = await handler.precheck({ entity });
   if (reason) return typeof reason === "string" ? reason : reason.reason;
   return rows.transaction({ work: async () => {
-    const live = await handler.inspect(entity.id);
+    const live = await handler.inspect({ id: entity.id });
     if (live?.hash !== afterHash) return `Row '${entity.id}' changed on live after this send; it was left alone.`;
     if (before) {
       const inverse = { ...entity, state: rowState(before), contentHash: rowHash(before) };
-      const denied = await handler.precheck(inverse);
+      const denied = await handler.precheck({ entity: inverse });
       if (denied) return typeof denied === "string" ? denied : denied.reason;
       await rows.upsert(before);
     } else {

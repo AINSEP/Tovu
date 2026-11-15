@@ -208,7 +208,7 @@ export interface PlanImportDeps {
  *  selections, and grouping. Exported so a caller building {@link PlanImportDeps.forcedEntityKeys}
  *  (an operator's row selection in Task 7/11) constructs the identical string, rather than
  *  re-deriving the `${type}:${id}` convention by hand and risking a mismatch. */
-export function entityKey(entityType: string, entityId: string): string {
+export function entityKey({ entityType, entityId }: { entityType: string; entityId: string }, _optional = {}): string {
   return `${entityType}:${entityId}`;
 }
 
@@ -257,6 +257,14 @@ export function packedEntityLabel(entity: PackedEntity): string | null {
   return entityDisplayLabel(entity.state);
 }
 
+interface PlanEntityArgs {
+  entity: PackedEntity;
+  handler: PublishContentHandler | undefined;
+  baseline: BaselineRecord | null;
+  deps: PlanImportDeps;
+  bundleKeys: ReadonlySet<string>;
+}
+
 /**
  * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2.
  * Pass 1 supplies only current-generation baselines, or null for unknown history.
@@ -271,11 +279,8 @@ export function packedEntityLabel(entity: PackedEntity): string | null {
  * (short-circuits on the first missing one).
  */
 async function planEntity(
-  entity: PackedEntity,
-  handler: PublishContentHandler | undefined,
-  baseline: BaselineRecord | null,
-  deps: PlanImportDeps,
-  bundleKeys: ReadonlySet<string>
+  { entity, handler, baseline, deps, bundleKeys }: PlanEntityArgs,
+  _optional = {}
 ): Promise<PublishContentOutcomeRow> {
   const identity = {
     entityType: entity.entityType,
@@ -307,10 +312,10 @@ async function planEntity(
     }
   }
 
-  const blockReason = await handler.precheck(entity);
+  const blockReason = await handler.precheck({ entity });
   if (blockReason) {
     if (typeof blockReason !== "string") {
-      const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
+      const forced = deps.forcedEntityKeys?.has(entityKey({ entityType: entity.entityType, entityId: entity.id })) ?? false;
       return { ...identity, outcome: forced ? "forced" : "blocked", writes: forced,
         reason: await replacementReason({ entity, handler, baseline, reason: blockReason.reason }), canOverwrite: true, retires: null, sourceReplacement: blockReason.sourceReplacement };
     }
@@ -324,7 +329,7 @@ async function planEntity(
 async function replacementReason({ entity, handler, baseline, reason }: {
   entity: PackedEntity; handler: PublishContentHandler; baseline: BaselineRecord | null; reason: string;
 }, _options = {}): Promise<string> {
-  const destination = baseline ? await handler.inspect(entity.id) : null;
+  const destination = baseline ? await handler.inspect({ id: entity.id }) : null;
   return destination && baseline && destination.hash !== baseline.hashAtLastSync
     ? `${reason} This file has been edited on the destination since the last sync with this peer.` : reason;
 }
@@ -342,12 +347,12 @@ async function planBlockedEntity({ entity, handler, deps, bundleKeys, identity, 
   // not an overwrite; plan §2's last table row). An already-forced key (the operator's own prior
   // "overwrite on live" tick, the same `forcedEntityKeys` mechanism the conflict branch below uses)
   // turns a valid target straight into `forced` with the target attached.
-  const target = await handler.planRetire?.(entity) ?? null;
+  const target = await handler.planRetire?.({ entity }) ?? null;
   if (target !== null) {
-    if (bundleKeys.has(entityKey(target.entityType, target.entityId))) {
+    if (bundleKeys.has(entityKey({ entityType: target.entityType, entityId: target.entityId }))) {
       return { ...identity, outcome: "blocked", writes: false, reason: blockReason, canOverwrite: false, retires: null };
     }
-    const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
+    const forced = deps.forcedEntityKeys?.has(entityKey({ entityType: entity.entityType, entityId: entity.id })) ?? false;
     if (forced) {
       return { ...identity, outcome: "forced", writes: true, reason: blockReason, canOverwrite: true, retires: target };
     }
@@ -361,7 +366,7 @@ async function planCheckedEntity({ entity, handler, baseline, deps, identity }: 
   entity: PackedEntity; handler: PublishContentHandler; baseline: BaselineRecord | null;
   deps: PlanImportDeps; identity: RowIdentity;
 }, _options = {}): Promise<PublishContentOutcomeRow> {
-  const destination = await handler.inspect(entity.id);
+  const destination = await handler.inspect({ id: entity.id });
   if (!destination) {
     return { ...identity, outcome: "created", writes: true, reason: null, canOverwrite: false, retires: null };
   }
@@ -402,7 +407,7 @@ function planConflict({ entity, baseline, deps, identity }: {
   const conflictReason = baseline
     ? `${entity.entityType} '${entity.id}' has been edited on the destination since the last sync with this peer`
     : `no prior sync baseline for ${entity.entityType} '${entity.id}' with this peer — the destination already holds different content`;
-  const forced = deps.forcedEntityKeys?.has(entityKey(entity.entityType, entity.id)) ?? false;
+  const forced = deps.forcedEntityKeys?.has(entityKey({ entityType: entity.entityType, entityId: entity.id })) ?? false;
   if (forced) {
     // Unlike the retire-offered `forced` row above, this one already went through the (separate,
     // pre-existing) plain conflict-forcing path — nothing is still being "offered" here, so it gets
@@ -418,7 +423,7 @@ async function entitySeedHash({ entity, handler, deps }: {
   entity: PackedEntity; handler: PublishContentHandler; deps: PlanImportDeps;
 }, _options = {}): Promise<string | null> {
   return (await deps.getSeedHash?.({ entityType: entity.entityType, entityId: entity.id })) ??
-    (await handler.seedHash?.(entity.id)) ?? null;
+    (await handler.seedHash?.({ id: entity.id })) ?? null;
 }
 
 /**
@@ -448,17 +453,17 @@ async function attachReferencedBy(
   const holders: ReferenceHolder[] = [];
   for (const handler of handlerByType.values()) {
     if (!handler.referencesTo) continue;
-    holders.push(...(await handler.referencesTo(ids)));
+    holders.push(...(await handler.referencesTo({ ids })));
   }
   if (holders.length === 0) return rows;
 
   // A holder whose OWN referencing entity is itself written this run is dropped — plan §2.5: the
   // incoming tree already targets the new id, so repointing the live copy would be redundant (and,
   // for a row later overwritten by this same run, actively wrong).
-  const rowByKey = new Map(rows.map((row) => [entityKey(row.entityType, row.entityId), row] as const));
+  const rowByKey = new Map(rows.map((row) => [entityKey({ entityType: row.entityType, entityId: row.entityId }), row] as const));
   const holdersByReferencedId = new Map<string, ReferenceHolder[]>();
   for (const holder of holders) {
-    const ownRow = rowByKey.get(entityKey(holder.entityType, holder.entityId));
+    const ownRow = rowByKey.get(entityKey({ entityType: holder.entityType, entityId: holder.entityId }));
     if (ownRow?.writes) continue;
     const list = holdersByReferencedId.get(holder.referencedId) ?? [];
     list.push(holder);
@@ -527,14 +532,14 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   // publish-overwrite-live-plan §4/S2 — every entity's own key, built once, so `planEntity` can tell
   // "the row a slug clash would retire" apart from "an entity this very bundle is also publishing"
   // without re-walking `bundle.entities` per blocked row.
-  const bundleKeys = new Set(bundle.entities.map((entity) => entityKey(entity.entityType, entity.id)));
+  const bundleKeys = new Set(bundle.entities.map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id })));
 
   const rows: PublishContentOutcomeRow[] = [];
   for (const type of applyOrder) {
     const handler = handlerByType.get(type);
     for (const entity of entitiesByType.get(type) ?? []) {
-      const baseline = baselineByKey.get(entityKey(entity.entityType, entity.id)) ?? null;
-      rows.push(await planEntity(entity, handler, baseline, deps, bundleKeys));
+      const baseline = baselineByKey.get(entityKey({ entityType: entity.entityType, entityId: entity.id })) ?? null;
+      rows.push(await planEntity({ entity, handler, baseline, deps, bundleKeys }));
     }
   }
 
@@ -574,7 +579,7 @@ async function prefetchBaselines({ bundle, deps }: { bundle: PublishContentBundl
   const baselineByKey = new Map<string, BaselineRecord | null>();
   for (const entity of bundle.entities) {
     const baseline = await deps.getBaseline({ entityType: entity.entityType, entityId: entity.id });
-    baselineByKey.set(entityKey(entity.entityType, entity.id), baseline?.hashVersion === CONTENT_HASH_VERSION ? baseline : null);
+    baselineByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), baseline?.hashVersion === CONTENT_HASH_VERSION ? baseline : null);
   }
 
   return baselineByKey;

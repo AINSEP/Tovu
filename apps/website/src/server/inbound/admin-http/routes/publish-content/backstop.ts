@@ -136,7 +136,7 @@ async function packSelection(run: BackstopRun): Promise<{ entities: PackedEntity
 /** `overwriteEntityKeys` may only name items this plan selected. @complexity O(k) in the keys. */
 function overwriteKeysAreSelected(overwriteEntityKeys: unknown, entities: readonly PackedEntity[]): overwriteEntityKeys is string[] | undefined {
   if (overwriteEntityKeys === undefined) return true;
-  const keys = new Set(entities.map((entity) => entityKey(entity.entityType, entity.id)));
+  const keys = new Set(entities.map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id })));
   return Array.isArray(overwriteEntityKeys) && overwriteEntityKeys.every((key) => typeof key === "string" && keys.has(key));
 }
 

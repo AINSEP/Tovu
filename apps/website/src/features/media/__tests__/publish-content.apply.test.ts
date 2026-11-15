@@ -600,14 +600,14 @@ test("apply() no longer throws Task 12's 'not wired yet' stub error", async () =
 
 test("precheck() reports a missing blob so the planner can emit a 'blocked' row before any apply is attempted", async () => {
   const fixture = await makeFixture();
-  const reason = await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord()));
+  const reason = await handlerFor(fixture.deps).precheck({ entity: packedFrom(makeMediaRecord()) });
   assert.equal(reason, `required blob '${PHOTO_SHA256}' is not available on this destination`);
 });
 
 test("precheck() returns null once the blob has been staged and no slug holds the name", async () => {
   const fixture = await makeFixture();
   await stageBlobBytes(fixture.blobStore, PHOTO_SHA256, PHOTO_BYTES);
-  assert.equal(await handlerFor(fixture.deps).precheck(packedFrom(makeMediaRecord())), null);
+  assert.equal(await handlerFor(fixture.deps).precheck({ entity: packedFrom(makeMediaRecord()) }), null);
 });
 
 for (const operation of ["create", "update"] as const) {
@@ -639,7 +639,7 @@ test("ordinary uploaded media retains its content hash after publishing", async 
   const handler = handlerFor(fixture.deps);
   const entity = packedFrom(record);
   await handler.apply({ entity, expectedVersion: undefined, principalId: OPERATOR_ID, idempotencyKey: 'ordinary-upload-round-trip' });
-  assert.equal((await handler.inspect(record.id))!.hash, entity.contentHash,
+  assert.equal((await handler.inspect({ id: record.id }))!.hash, entity.contentHash,
     'losing uploaded source metadata must not make the next publish look like a destination edit');
 });
 

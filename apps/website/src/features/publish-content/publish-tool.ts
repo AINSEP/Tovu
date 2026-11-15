@@ -28,7 +28,7 @@ function readCriteria(input: Record<string, unknown>): PublishCriteria & { reado
 }
 
 /** The remote report is untrusted; refuse malformed/refused plans before any confirm call. */
-function readReport(value: unknown): PublishContentReport {
+function readReport({ value }: { value: unknown }, _optional = {}): PublishContentReport {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new ToolInputError({ message: "The live site returned no publish report." });
   const report = value as PublishContentReport;
   const outcomes = new Set(["created", "applied", "forced", "unchanged", "conflict", "blocked"]);
@@ -66,7 +66,7 @@ export async function publishContentFromTool(
   const plan = async (selection: { selectedEntityKeys?: readonly string[]; overwriteEntityKeys?: readonly string[] } = {}) => {
     const raw = await planPublishToPeer({ deps: { ...deps, publishContentDeps: contentDeps }, peer, principalId }, selection);
     if (typeof raw.planId !== "string" || typeof raw.planHash !== "string") throw new ToolInputError({ message: "The live site returned an invalid publish plan." });
-    const details = readReport(raw.details);
+    const details = readReport({ value: raw.details });
     // Unsupported source items never reached the peer, so it cannot report them. Preserve each
     // title in the tool's skipped results, just as the dialog preserves its type-level notice.
     const unsupported = new Set(raw.notSupportedByLive.map(item => item.entityType));
@@ -130,7 +130,7 @@ export async function publishContentFromTool(
     if (execution.report === undefined) {
       return legacyResult({ execution });
     }
-    actual = readReport(execution.report);
+    actual = readReport({ value: execution.report });
   }
   function legacyResult({ execution }: { execution: Record<string, unknown> }, _optional: Record<string, never> = {}) {
     skipped.push(...selectionRows.filter(row => row.disposition === "skipped" && !selection.deselectedKeys.has(row.key) && !selection.overwriteKeys.has(row.key)).map(row => ({ entityKey: row.key, title: row.entityLabel, reason: row.reason ?? "The live site skipped this item." })));

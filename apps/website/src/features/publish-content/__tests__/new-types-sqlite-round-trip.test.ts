@@ -146,7 +146,7 @@ test("form, content-type, widget and widget-area round-trip to `unchanged` on SQ
     areaEntryId: areaEntry.id, baseVersion: sourceArea!.version, placements,
   } });
   const changedEntities = await packAll(src.site);
-  const firstUpdate = await plan(changedEntities, dst.site, entities.map((e) => entityKey(e.entityType, e.id)));
+  const firstUpdate = await plan(changedEntities, dst.site, entities.map((e) => entityKey({ entityType: e.entityType, entityId: e.id })));
   await applyReport(firstUpdate, changedEntities, dst.site);
   const updated = { first: firstUpdate, second: await plan(changedEntities, dst.site) };
   assert.deepEqual(updated.first.rows.map((r) => [r.entityType, r.outcome]).sort(),

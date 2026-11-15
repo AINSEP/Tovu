@@ -89,7 +89,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     references: ({ entity }) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
     write: async ({ ports, deps, workspaceId, state, principalId }) => {
       const themeId = state.themeId as string;
-      const { authorize } = gatewayDeps(deps, "active-theme");
+      const { authorize } = gatewayDeps({ deps, entityType: "active-theme" });
       const auth = await authorize({ principalId, permission: "theme.set", workspaceId, entityType: "presentation" });
       if (!auth.allowed) {
         throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `principal '${principalId}' is not authorized for 'theme.set' (${auth.reason})` });

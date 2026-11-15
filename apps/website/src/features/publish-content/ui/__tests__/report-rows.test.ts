@@ -171,7 +171,7 @@ test("only a row the run would write is selectable", () => {
 
 test("selectable row keys are byte-identical to the planner's own entity keys", () => {
   const rows = toPublishReportRows(report([row({ outcome: "created", entityType: "media", entityId: "m-1" })]));
-  assert.deepEqual(selectableRowKeys(rows), [entityKey("media", "m-1")]);
+  assert.deepEqual(selectableRowKeys(rows), [entityKey({ entityType: "media", entityId: "m-1" })]);
 });
 
 test("the button's count is the intersection of the selection and what is selectable", () => {
@@ -349,7 +349,7 @@ test("friendlyPublishReason rewrites every reason planner.ts and its handlers ca
   ];
 
   for (const [raw, friendly] of cases) {
-    assert.equal(friendlyPublishReason(raw), friendly, raw);
+    assert.equal(friendlyPublishReason({ reason: raw }), friendly, raw);
   }
 });
 
@@ -370,7 +370,7 @@ test("friendlyPublishReason rewrites the post trash and menu slug reasons exactl
   ];
 
   for (const [raw, friendly] of cases) {
-    assert.equal(friendlyPublishReason(raw), friendly, raw);
+    assert.equal(friendlyPublishReason({ reason: raw }), friendly, raw);
   }
 });
 
@@ -380,15 +380,15 @@ test("friendlyPublishReason rewrites the factory types' trash and address reason
   const trash = "This item is in the trash on the live site. Restore it there before publishing.";
   const held = "Another item on the live site already uses this name.";
   const cases: ReadonlyArray<[string, string]> = [
-    [trashedAtDestination("collection-entry", "e-1"), trash],
-    [trashedAtDestination("content-type", "recipe"), trash],
-    [addressHeldInTrash("widget", "slug", "about", "w-9"), trash],
-    [addressHeldByOther("collection-entry", "slug", "soup", "e-2"), held],
-    [addressHeldByOther("taxonomy", "name", "Category", "tx-2"), held],
+    [trashedAtDestination({ entityType: "collection-entry", id: "e-1" }), trash],
+    [trashedAtDestination({ entityType: "content-type", id: "recipe" }), trash],
+    [addressHeldInTrash({ entityType: "widget", field: "slug", value: "about", holderId: "w-9" }), trash],
+    [addressHeldByOther({ entityType: "collection-entry", field: "slug", value: "soup", holderId: "e-2" }), held],
+    [addressHeldByOther({ entityType: "taxonomy", field: "name", value: "Category", holderId: "tx-2" }), held],
   ];
 
   for (const [raw, friendly] of cases) {
-    assert.equal(friendlyPublishReason(raw), friendly, raw);
+    assert.equal(friendlyPublishReason({ reason: raw }), friendly, raw);
   }
 });
 
@@ -403,12 +403,12 @@ test("friendlyPublishReason rewrites the new types' builder reasons and domain r
   const formSettings = "This form's settings aren't valid on the live site.";
   const trashedName = "An item in the live site's trash still uses this name. Restore or permanently delete it there first.";
   const cases: ReadonlyArray<[string, string]> = [
-    [notWired("collection-entry", "e-1", "collection-entry ports"), "Publishing isn't available for this item right now."],
-    [tombstonedAtDestination("content-type", "recipe"), collectionGone],
-    [tombstonedAtDestination("widget", "w-1"), "This item was permanently deleted on the live site, so it can't be published again."],
-    [missingDependency("collection-entry", "e-1", "content-type", "recipe"), "This item uses something that isn't on the live site yet. Publish that too."],
-    [changedSincePlan("term", "t-1", "version 3 expected, found 4"), changed],
-    [addressHeldByOther("content-type", "key", "recipe", "recipe-2"), "Another item on the live site already uses this name."],
+    [notWired({ entityType: "collection-entry", id: "e-1", portName: "collection-entry ports" }), "Publishing isn't available for this item right now."],
+    [tombstonedAtDestination({ entityType: "content-type", id: "recipe" }), collectionGone],
+    [tombstonedAtDestination({ entityType: "widget", id: "w-1" }), "This item was permanently deleted on the live site, so it can't be published again."],
+    [missingDependency({ entityType: "collection-entry", id: "e-1", depType: "content-type", depId: "recipe" }), "This item uses something that isn't on the live site yet. Publish that too."],
+    [changedSincePlan({ entityType: "term", id: "t-1", detail: "version 3 expected, found 4" }), changed],
+    [addressHeldByOther({ entityType: "content-type", field: "key", value: "recipe", holderId: "recipe-2" }), "Another item on the live site already uses this name."],
     // content types / entries
     ["principal 'u-1' cannot import entry 'e-1' (missing permission)", forbidden],
     ["principal 'u-1' is not authorized for 'admin.taxonomy.manage' (denied)", forbidden],
@@ -448,30 +448,30 @@ test("friendlyPublishReason rewrites the new types' builder reasons and domain r
   ];
 
   for (const [raw, friendly] of cases) {
-    assert.equal(friendlyPublishReason(raw), friendly, raw);
+    assert.equal(friendlyPublishReason({ reason: raw }), friendly, raw);
   }
 });
 
 test("friendlyPublishReason leaves an already-final \"Can't publish:\" reason untouched", () => {
   assert.equal(
-    friendlyPublishReason("Can't publish: contains a video file (deadpool3-cinedaily-hero.mp4)"),
+    friendlyPublishReason({ reason: "Can't publish: contains a video file (deadpool3-cinedaily-hero.mp4)" }),
     "Can't publish: contains a video file (deadpool3-cinedaily-hero.mp4)"
   );
   assert.equal(
-    friendlyPublishReason("Can't publish: contains a file type that isn't allowed (notes.exe)"),
+    friendlyPublishReason({ reason: "Can't publish: contains a file type that isn't allowed (notes.exe)" }),
     "Can't publish: contains a file type that isn't allowed (notes.exe)"
   );
 });
 
 test("friendlyPublishReason falls back to a generic sentence for an unrecognized file-tree wrap", () => {
   assert.equal(
-    friendlyPublishReason("Theme: static/basic was not published: \"x/../y\" contains a '..' segment, which is never allowed"),
+    friendlyPublishReason({ reason: "Theme: static/basic was not published: \"x/../y\" contains a '..' segment, which is never allowed" }),
     "Theme: static/basic can't be published — one of its files isn't allowed."
   );
 });
 
 test("friendlyPublishReason passes through text it does not recognize, unchanged", () => {
-  assert.equal(friendlyPublishReason("some future handler's own wording"), "some future handler's own wording");
+  assert.equal(friendlyPublishReason({ reason: "some future handler's own wording" }), "some future handler's own wording");
 });
 
 test("toPublishReportRows rewrites a skipped row's reason for a non-technical owner", () => {
@@ -557,9 +557,7 @@ test("a carried-along row counts toward the button only while a page that uses i
  */
 test("friendlyPublishReason names the file a theme's size limit refused", () => {
   assert.equal(
-    friendlyPublishReason(
-      "Theme: static/basic was not published: \"assets/img/hero.png\" is 99999999 bytes, larger than the 52428800-byte per-file limit"
-    ),
+    friendlyPublishReason({ reason: "Theme: static/basic was not published: \"assets/img/hero.png\" is 99999999 bytes, larger than the 52428800-byte per-file limit" }),
     "Can't publish: a file is too large (hero.png)"
   );
 });
@@ -576,7 +574,7 @@ test("friendlyPublishReason names the secret-looking file that refused a theme, 
   ];
   for (const [detail, name] of cases) {
     assert.equal(
-      friendlyPublishReason(`Theme: static/basic was not published: ${detail}`),
+      friendlyPublishReason({ reason: `Theme: static/basic was not published: ${detail}` }),
       `Can't publish: a file looks like it contains a key or password (${name})`,
       detail
     );

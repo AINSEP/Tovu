@@ -81,7 +81,7 @@ test("sqliteForeignKeyCheckedTransaction: a dangling reference throws onViolatio
         await kernel.execute(sql`INSERT INTO parent VALUES ('kept-only-if-committed')`);
         await kernel.execute(sql`INSERT INTO child VALUES ('c1', 'missing')`);
       },
-      onViolation: (first) => new Error(`violation ${first.table} -> ${first.parent}`),
+      onViolation: ({ violation: first }) => new Error(`violation ${first.table} -> ${first.parent}`),
     }),
     { message: "violation child -> parent" },
   );

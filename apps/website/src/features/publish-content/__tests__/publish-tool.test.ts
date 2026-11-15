@@ -38,7 +38,7 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
   registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => ({
     entityType: "post", schemaVersion: 1, permission: "content.write", dependsOn: [],
     pack: async function* () { yield* entities; },
-    inspect: async id => f.destination.get(id) ?? null,
+    inspect: async ({ id }) => f.destination.get(id) ?? null,
     precheck: async () => null,
     apply: async () => { throw new Error("use apply port"); },
   }) });

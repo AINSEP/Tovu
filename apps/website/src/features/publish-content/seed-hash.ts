@@ -65,7 +65,7 @@ export function createPublishContentSeedHash(input: CreatePublishContentSeedHash
     const handler = buildPublishContentCatalog(deps).handlerByType.get(entityType);
     if (!handler) return null;
     try {
-      const found = await handler.inspect(entityId);
+      const found = await handler.inspect({ id: entityId });
       return found ? found.hash : null;
     } catch {
       return null;

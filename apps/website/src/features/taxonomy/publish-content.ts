@@ -29,7 +29,7 @@ const TRASH = "trash";
 /** The Jini write-service deps for one apply. */
 function writeDeps({ ctx, entityType }: { ctx: RepoWriteContext<unknown, TaxonomyPublishPorts>; entityType: string }, _optional = {}) {
   const { deps, workspaceId, ports } = ctx;
-  const gateway = gatewayDeps(deps, entityType);
+  const gateway = gatewayDeps({ deps, entityType });
   return {
     ...ports,
     clock: deps.clock,

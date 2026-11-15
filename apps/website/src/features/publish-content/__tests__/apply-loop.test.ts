@@ -432,7 +432,7 @@ test("address-clash overwrite: the live holder is retired to Trash and the incom
   // mechanics apply-loop.ts itself owns.
   const incoming = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu", createdByPrincipalId: "source-author-1" });
   const entities = [packedFrom(incoming)];
-  const forcedKey = entityKey("post", "local-about");
+  const forcedKey = entityKey({ entityType: "post", entityId: "local-about" });
   const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
 
   assert.equal(report.rows[0].outcome, "forced", "precondition: the slug clash must be offered and forced");
@@ -465,7 +465,7 @@ test("the live holder changing between plan and apply downgrades the retire-forc
 
   const incoming = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu" });
   const entities = [packedFrom(incoming)];
-  const forcedKey = entityKey("post", "local-about");
+  const forcedKey = entityKey({ entityType: "post", entityId: "local-about" });
   const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
   assert.equal(report.rows[0].outcome, "forced", "precondition");
 
@@ -520,12 +520,12 @@ function makeRetireFakeHandler(options: {
     permission: "content.write",
     dependsOn: [],
     pack: async function* () {},
-    inspect: async (id: string) => {
+    inspect: async ({ id }: { id: string }) => {
       const row = options.store.get(id);
       if (!row || row.retired) return null;
       return { version: row.version, hash: row.hash };
     },
-    precheck: async (entity: PackedEntity) => (entity.id === "incoming-widget" ? "slug clash (fake)" : null),
+    precheck: async ({ entity }: { entity: PackedEntity }) => (entity.id === "incoming-widget" ? "slug clash (fake)" : null),
     apply: async () => {
       if (options.applyShouldThrow) {
         throw new Error("apply failed deliberately for the undo test");
@@ -589,7 +589,7 @@ test("the create failing after a successful retire puts the holder back live —
     requiredBlobs: [],
     state: { title: "Incoming Widget" },
   };
-  const forcedKey = entityKey("widget", "incoming-widget");
+  const forcedKey = entityKey({ entityType: "widget", entityId: "incoming-widget" });
   const report = await planWithForce(publishContentDeps, [incomingEntity], new Set([forcedKey]));
   assert.equal(report.rows[0].outcome, "forced", "precondition");
   assert.equal(report.rows[0].retires?.entityId, "holder-widget", "precondition");
@@ -634,7 +634,7 @@ async function setUpWidgetRetire(options: {
     requiredBlobs: [],
     state: { title: "Incoming Widget" },
   };
-  const report = await planWithForce(harness.publishContentDeps, [incomingEntity], new Set([entityKey("widget", "incoming-widget")]));
+  const report = await planWithForce(harness.publishContentDeps, [incomingEntity], new Set([entityKey({ entityType: "widget", entityId: "incoming-widget" })]));
   const bundleId = await stage(harness.bundleRepo, harness.clock, [incomingEntity]);
   return { ...harness, store, handlerOptions, report, bundleId };
 }
@@ -1454,7 +1454,7 @@ test("R5: after apply, a live menu's entryRef is repointed to the address-clash 
 
   const incoming = makePost({ id: "local-about", slug: "about", kind: "post", status: "published", title: "About Tovu" });
   const entities = [packedFrom(incoming)];
-  const forcedKey = entityKey("post", "local-about");
+  const forcedKey = entityKey({ entityType: "post", entityId: "local-about" });
   const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
   assert.equal(report.rows[0].outcome, "forced", "precondition: the slug clash must be offered and forced");
 
@@ -1504,7 +1504,7 @@ test("R5: a menu written by the same bundle keeps its own incoming tree — it i
     },
   };
   const entities = [packedFrom(incomingPost), incomingMenuEntity];
-  const forcedKeys = new Set([entityKey("post", "local-about"), entityKey("menu", "menu-header")]);
+  const forcedKeys = new Set([entityKey({ entityType: "post", entityId: "local-about" }), entityKey({ entityType: "menu", entityId: "menu-header" })]);
   const report = await planWithForce(publishContentDeps, entities, forcedKeys);
   assert.equal(report.rows.find((row) => row.entityType === "post")?.outcome, "forced", "precondition");
   assert.equal(report.rows.find((row) => row.entityType === "menu")?.outcome, "forced", "precondition: the menu itself is also forced in this same bundle");
@@ -1541,7 +1541,7 @@ test("R5: a repoint pass never runs when the create half of a retire+create pair
     requiredBlobs: [],
     state: { title: "Incoming Widget" },
   };
-  const forcedKey = entityKey("widget", "incoming-widget");
+  const forcedKey = entityKey({ entityType: "widget", entityId: "incoming-widget" });
   const report = await planWithForce(publishContentDeps, [incomingEntity], new Set([forcedKey]));
   assert.equal(report.rows[0].outcome, "forced", "precondition");
 
@@ -1610,7 +1610,7 @@ test("R5: a whole-handler repoint failure is reported in menuLinksNotUpdated and
 
   const incoming = makePost({ id: "local-about", slug: "about", kind: "post", title: "About Tovu" });
   const entities = [packedFrom(incoming)];
-  const forcedKey = entityKey("post", "local-about");
+  const forcedKey = entityKey({ entityType: "post", entityId: "local-about" });
   const report = await planWithForce(publishContentDeps, entities, new Set([forcedKey]));
   assert.equal(report.rows[0].outcome, "forced", "precondition");
 

@@ -107,7 +107,7 @@ test("a theme.json name labels the row without touching the packed state or its 
       idGen: { newId: () => "id1" },
       ports: { "theme-files": { themesDir } },
     });
-    assert.equal((await handler.inspect("static/basic"))?.hash, entity.contentHash);
+    assert.equal((await handler.inspect({ id: "static/basic" }))?.hash, entity.contentHash);
   } finally {
     rmSync(themesDir, { recursive: true, force: true });
   }

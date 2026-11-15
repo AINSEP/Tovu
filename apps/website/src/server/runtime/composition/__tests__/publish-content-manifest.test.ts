@@ -146,7 +146,7 @@ for (const fixture of APPLY_FIXTURES) {
 
       await handler.apply({ entity: { entityType: fixture.entityType, id: fixture.id, state: fixture.state,
         schemaVersion: handler.schemaVersion, contentHash: contentHash({ entityType: fixture.entityType, state: fixture.state }), hashVersion: CONTENT_HASH_VERSION, requiredBlobs: [],
-      }, expectedVersion: (await handler.inspect(fixture.id))?.version, principalId: "registry-operator", idempotencyKey: `registry-${fixture.entityType}` });
+      }, expectedVersion: (await handler.inspect({ id: fixture.id }))?.version, principalId: "registry-operator", idempotencyKey: `registry-${fixture.entityType}` });
 
       const after = [];
       for await (const entity of handler.pack()) after.push(entity);

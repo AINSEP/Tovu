@@ -102,13 +102,13 @@ export async function plan(entities: readonly PackedEntity[], destination: Publi
  *  idempotency key names the content hash, as the apply loop's does, so a later edit re-applies. */
 export async function applyReport(report: PublishContentReport, entities: readonly PackedEntity[], destination: PublishContentDeps): Promise<void> {
   const { handlerByType } = buildPublishContentCatalog(destination);
-  const byKey = new Map(entities.map((e) => [entityKey(e.entityType, e.id), e] as const));
+  const byKey = new Map(entities.map((e) => [entityKey({ entityType: e.entityType, entityId: e.id }), e] as const));
   for (const row of report.rows) {
     if (!row.writes) continue;
     const handler = handlerByType.get(row.entityType)!;
-    const entity = byKey.get(entityKey(row.entityType, row.entityId))!;
+    const entity = byKey.get(entityKey({ entityType: row.entityType, entityId: row.entityId }))!;
     // As `apply-loop.ts`: a `created` row is always a create; otherwise the freshly read version.
-    const expectedVersion = row.outcome === "created" ? undefined : (await handler.inspect(entity.id))?.version;
+    const expectedVersion = row.outcome === "created" ? undefined : (await handler.inspect({ id: entity.id }))?.version;
     await handler.apply({ entity, expectedVersion, principalId: "owner", idempotencyKey: `idem-${row.entityType}-${row.entityId}-${entity.contentHash}` });
   }
 }

@@ -68,14 +68,14 @@ function makeFakeHandler(options: {
   /** S2 (publish-overwrite-live-plan §4) — a fake handler opts into the retire-offer branch of
    *  `planEntity` by supplying this; a handler built WITHOUT it has no `planRetire` property at all
    *  (not even `undefined` explicitly), matching every real handler before S4 lands. */
-  planRetire?: (entity: PackedEntity) => Promise<RetireTarget | null>;
+  planRetire?: (required: { entity: PackedEntity }) => Promise<RetireTarget | null>;
   /** S-F4 (publish-files-plan §4) — a fake handler opts into the handler-level seed fallback by
    *  supplying this; omitted means no `seedHash` property at all, like every row-backed handler. */
-  seedHash?: (id: string) => Promise<string | null>;
+  seedHash?: (required: { id: string }) => Promise<string | null>;
   /** R2 (publish-repoint-menus-plan §2.1/§2.2) — a fake handler opts into the planner's
    *  `referencedBy` post-pass by supplying this; omitted means no `referencesTo` property at all,
    *  matching every handler before this change. */
-  referencesTo?: (ids: readonly string[]) => Promise<readonly ReferenceHolder[]>;
+  referencesTo?: (required: { ids: readonly string[] }) => Promise<readonly ReferenceHolder[]>;
 }): PublishContentHandler {
   const handler = {
     entityType: options.entityType,
@@ -83,8 +83,8 @@ function makeFakeHandler(options: {
     permission: "content.write",
     dependsOn: options.dependsOn ?? [],
     pack: async function* () {},
-    inspect: async (id: string) => options.destination.get(id) ?? null,
-    precheck: async (entity: PackedEntity) =>
+    inspect: async ({ id }: { id: string }) => options.destination.get(id) ?? null,
+    precheck: async ({ entity }: { entity: PackedEntity }) =>
       options.blockedIds?.has(entity.id) ? (options.blockReason ?? `blocked: ${entity.id}`) : null,
     apply: async () => {
       throw new Error(`planImport must never call apply() — it is pure planning (entityType=${options.entityType})`);
@@ -128,11 +128,11 @@ function makeDeps(options: {
   const availableBlobs = options.availableBlobs ?? new Set();
   return {
     publishContentDeps: {} as PlanImportDeps["publishContentDeps"],
-    getBaseline: async ({ entityType, entityId }) => baselines.get(entityKey(entityType, entityId)) ?? null,
+    getBaseline: async ({ entityType, entityId }) => baselines.get(entityKey({ entityType, entityId })) ?? null,
     hasBlob: async ({ sha256 }) => availableBlobs.has(sha256),
     forcedEntityKeys: options.forcedEntityKeys,
     ...(options.seedHashes
-      ? { getSeedHash: async ({ entityType, entityId }: { entityType: string; entityId: string }) => options.seedHashes!.get(entityKey(entityType, entityId)) ?? null }
+      ? { getSeedHash: async ({ entityType, entityId }: { entityType: string; entityId: string }) => options.seedHashes!.get(entityKey({ entityType, entityId })) ?? null }
       : {}),
   };
 }
@@ -182,7 +182,7 @@ test("applied: destination hash differs from source but matches the recorded bas
   const before = snapshot(destination);
 
   const baselines = new Map<string, BaselineRecord | null>([
-    [entityKey("widget", "w1"), { hashAtLastSync: "baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "w1" }), { hashAtLastSync: "baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
@@ -197,7 +197,7 @@ test("conflict: destination hash differs from BOTH source and the recorded basel
   const before = snapshot(destination);
 
   const baselines = new Map<string, BaselineRecord | null>([
-    [entityKey("widget", "w1"), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "w1" }), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] }, makeDeps({ baselines }));
@@ -237,7 +237,7 @@ test("applied (D1): no recorded baseline, but the destination hash matches the s
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
   const before = snapshot(destination);
 
-  const seedHashes = new Map<string, string | null>([[entityKey("widget", "w1"), "seed-hash"]]);
+  const seedHashes = new Map<string, string | null>([[entityKey({ entityType: "widget", entityId: "w1" }), "seed-hash"]]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
@@ -253,7 +253,7 @@ test("conflict (D1): no recorded baseline AND the destination hash differs from 
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
   const before = snapshot(destination);
 
-  const seedHashes = new Map<string, string | null>([[entityKey("widget", "w1"), "seed-hash"]]);
+  const seedHashes = new Map<string, string | null>([[entityKey({ entityType: "widget", entityId: "w1" }), "seed-hash"]]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
@@ -283,7 +283,7 @@ test("conflict (D1): getSeedHash resolves null for this entity (not in the seed 
 
 test("applied (S-F4): no baseline, no deps.getSeedHash, but the destination matches handler.seedHash — untouched since seed", async () => {
   const destination = new Map<string, FakeDestinationRow>([["w1", { version: 0, hash: "original-hash" }]]);
-  const seedHash = async (id: string) => (id === "w1" ? "original-hash" : null);
+  const seedHash = async ({ id }: { id: string }) => (id === "w1" ? "original-hash" : null);
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination, seedHash })));
 
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
@@ -336,7 +336,7 @@ test("conflict (S-F4): a recorded baseline wins over handler.seedHash, which is 
   const seedHash = async () => { seedCalls += 1; return "original-hash"; };
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination, seedHash })));
 
-  const baselines = new Map<string, BaselineRecord | null>([[entityKey("widget", "w1"), { hashAtLastSync: "last-synced-hash", hashVersion: CONTENT_HASH_VERSION }]]);
+  const baselines = new Map<string, BaselineRecord | null>([[entityKey({ entityType: "widget", entityId: "w1" }), { hashAtLastSync: "last-synced-hash", hashVersion: CONTENT_HASH_VERSION }]]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
@@ -353,11 +353,11 @@ test("conflict (D1): a REAL recorded baseline always wins — getSeedHash is a f
   registerPublishContentContributor(fakeContributor(makeFakeHandler({ entityType: "widget", destination })));
 
   const baselines = new Map<string, BaselineRecord | null>([
-    [entityKey("widget", "w1"), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "w1" }), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   // The destination's CURRENT hash happens to equal the seed hash too — if getSeedHash were
   // consulted here it would wrongly turn a real edited-since-last-sync conflict into `applied`.
-  const seedHashes = new Map<string, string | null>([[entityKey("widget", "w1"), "edited-on-destination"]]);
+  const seedHashes = new Map<string, string | null>([[entityKey({ entityType: "widget", entityId: "w1" }), "edited-on-destination"]]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
@@ -412,12 +412,12 @@ test("forced: a conflict (edited on destination) the operator explicitly selecte
   const before = snapshot(destination);
 
   const baselines = new Map<string, BaselineRecord | null>([
-    [entityKey("widget", "w1"), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "w1" }), { hashAtLastSync: "old-baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "new-source-hash" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ baselines, forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ baselines, forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   assert.equal(report.rows[0].outcome, "forced");
@@ -435,7 +435,7 @@ test("forced: the 'no baseline at all' conflict variant can also be forced", asy
   const entity = makeEntity({ entityType: "widget", id: "w1", contentHash: "incoming-hash" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   assert.equal(report.rows[0].outcome, "forced");
@@ -464,7 +464,7 @@ test("a forced key on a slug-blocked row with a resolvable retire target becomes
   const entity = makeEntity({ entityType: "widget", id: "w1" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   assert.deepEqual(report.rows[0], {
@@ -523,7 +523,7 @@ test("a retire target that is ALSO part of this bundle is never offered — publ
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [blockedEntity, holderEntity] },
     // Even an operator who already ticked "overwrite" for w1 must not get a forced retire here —
     // the in-bundle case is refused regardless of forcedEntityKeys.
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   const row = report.rows.find((r) => r.entityId === "w1")!;
@@ -540,7 +540,7 @@ test("a forced key never turns a missing-blob block into an overwrite offer", as
   const entity = makeEntity({ entityType: "widget", id: "w1", requiredBlobs: ["deadbeef"] });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ availableBlobs: new Set(), forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ availableBlobs: new Set(), forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   assert.equal(report.rows[0].outcome, "blocked");
@@ -563,7 +563,7 @@ test("a slug-blocked row whose handler has no planRetire at all behaves exactly 
   const entity = makeEntity({ entityType: "widget", id: "w1" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   assert.equal(report.rows[0].outcome, "blocked");
@@ -585,7 +585,7 @@ test("a slug-blocked row whose planRetire resolves null (nothing to retire) stay
   const entity = makeEntity({ entityType: "widget", id: "w1" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   assert.equal(report.rows[0].outcome, "blocked");
@@ -622,7 +622,7 @@ test("referencedBy: a forced retire row gets the live holders that still link to
       makeFakeHandler({
         entityType: "ref",
         destination: new Map(),
-        referencesTo: async (ids) => {
+        referencesTo: async ({ ids }) => {
           referencesToCalls.push(ids);
           return [refHolder];
         },
@@ -633,7 +633,7 @@ test("referencedBy: a forced retire row gets the live holders that still link to
   const entity = makeEntity({ entityType: "widget", id: "w1" });
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   const row = report.rows.find((r) => r.entityType === "widget" && r.entityId === "w1")!;
@@ -672,7 +672,7 @@ test("referencedBy: a holder whose own referencing row writes in this same bundl
   const entities = [makeEntity({ entityType: "widget", id: "w1" }), makeEntity({ entityType: "ref", id: "m1" })];
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
   );
 
   const widgetRow = report.rows.find((r) => r.entityType === "widget" && r.entityId === "w1")!;
@@ -720,7 +720,7 @@ test("referencedBy: two retire rows collect both ids into a single referencesTo 
         destination,
         blockedIds: new Set(["w1", "w2"]),
         blockReason: "slug clash",
-        planRetire: async (entity) => (entity.id === "w1" ? target1 : target2),
+        planRetire: async ({ entity }) => (entity.id === "w1" ? target1 : target2),
       })
     )
   );
@@ -733,7 +733,7 @@ test("referencedBy: two retire rows collect both ids into a single referencesTo 
       makeFakeHandler({
         entityType: "ref",
         destination: new Map(),
-        referencesTo: async (ids) => {
+        referencesTo: async ({ ids }) => {
           referencesToCalls.push(ids);
           return [holder2, holder1];
         },
@@ -836,9 +836,9 @@ test("one unknown baseline generation does not refuse matching content or unrela
   const before = snapshot(destination);
 
   const baselines = new Map<string, BaselineRecord | null>([
-    [entityKey("widget", "w1"), { hashAtLastSync: "h1", hashVersion: CONTENT_HASH_VERSION }],
-    [entityKey("widget", "w2"), { hashAtLastSync: "stale", hashVersion: CONTENT_HASH_VERSION + 1 }], // the poison entity
-    [entityKey("widget", "w3"), { hashAtLastSync: "h3", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "w1" }), { hashAtLastSync: "h1", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "w2" }), { hashAtLastSync: "stale", hashVersion: CONTENT_HASH_VERSION + 1 }], // the poison entity
+    [entityKey({ entityType: "widget", entityId: "w3" }), { hashAtLastSync: "h3", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entities = ["w1", "w2", "w3"].map((id) => makeEntity({ entityType: "widget", id, contentHash: `h${id.slice(1)}` }));
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities }, makeDeps({ baselines }));
@@ -874,9 +874,9 @@ test("a single planImport call classifies a mixed batch correctly, each entity i
   const before = snapshot(destination);
 
   const baselines = new Map<string, BaselineRecord | null>([
-    [entityKey("widget", "applied-id"), { hashAtLastSync: "baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
-    [entityKey("widget", "conflict-id"), { hashAtLastSync: "old-baseline", hashVersion: CONTENT_HASH_VERSION }],
-    [entityKey("widget", "forced-id"), { hashAtLastSync: "old-baseline-2", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "applied-id" }), { hashAtLastSync: "baseline-hash", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "conflict-id" }), { hashAtLastSync: "old-baseline", hashVersion: CONTENT_HASH_VERSION }],
+    [entityKey({ entityType: "widget", entityId: "forced-id" }), { hashAtLastSync: "old-baseline-2", hashVersion: CONTENT_HASH_VERSION }],
   ]);
   const entities = [
     makeEntity({ entityType: "widget", id: "created-id", contentHash: "new" }),
@@ -888,7 +888,7 @@ test("a single planImport call classifies a mixed batch correctly, each entity i
   ];
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
-    makeDeps({ baselines, forcedEntityKeys: new Set([entityKey("widget", "forced-id")]) })
+    makeDeps({ baselines, forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "forced-id" })]) })
   );
 
   const byId = new Map(report.rows.map((row) => [row.entityId, row.outcome]));
@@ -1039,7 +1039,7 @@ test("real post contributor: blocked on a genuine slug collision against a DIFFE
 // ---------------------------------------------------------------------------
 
 test("entityKey joins entityType and id with a stable separator", () => {
-  assert.equal(entityKey("post", "abc"), "post:abc");
+  assert.equal(entityKey({ entityType: "post", entityId: "abc" }), "post:abc");
 });
 
 // ---------------------------------------------------------------------------
@@ -1114,7 +1114,7 @@ test("L044 preconditions precede unchanged and forcing; missing blobs stop later
     inspect: async () => { calls.push("inspect"); return null; },
   }));
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [entity] };
-  const deps = { ...makeDeps({ forcedEntityKeys: new Set([entityKey("pin", "one")]) }),
+  const deps = { ...makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "pin", entityId: "one" })]) }),
     hasBlob: async ({ sha256: sha }: { sha256: string }) => { calls.push(sha); return false; } };
   assert.equal((await planImport(bundle, deps)).rows[0]!.canOverwrite, false);
   assert.deepEqual(calls, ["missing"]);
@@ -1147,7 +1147,7 @@ test("referencedBy: only the retire row whose target is still linked gains holde
         destination,
         blockedIds: new Set(["w1", "w2"]),
         blockReason: "slug 'x' is already held by a different widget",
-        planRetire: async (entity) => targets[entity.id] ?? null,
+        planRetire: async ({ entity }) => targets[entity.id] ?? null,
       })
     )
   );
@@ -1157,7 +1157,7 @@ test("referencedBy: only the retire row whose target is still linked gains holde
   const entities = [makeEntity({ entityType: "widget", id: "w1" }), makeEntity({ entityType: "widget", id: "w2" }), makeEntity({ entityType: "widget", id: "w3", contentHash: "same" })];
   const report = await planImport(
     { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
-    makeDeps({ forcedEntityKeys: new Set([entityKey("widget", "w1"), entityKey("widget", "w2")]) })
+    makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" }), entityKey({ entityType: "widget", entityId: "w2" })]) })
   );
   const byId = new Map(report.rows.map((r) => [r.entityId, r]));
   assert.deepEqual(byId.get("w1")!.referencedBy, [refHolder]);

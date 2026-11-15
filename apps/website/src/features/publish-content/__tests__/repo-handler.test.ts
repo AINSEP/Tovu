@@ -211,7 +211,7 @@ test("pack honours packOrder, requiredBlobs and legacyHashState; extend's method
   assert.deepEqual(packed.map((entity) => entity.id), ["b", "a"]);
   assert.deepEqual(packed[1]!.requiredBlobs, ["sha-a"]);
   assert.equal(packed[1]!.contentHash, contentHash({ entityType: "item", state: { slug: "a", title: "A", note: "n", status: "active" } }));
-  assert.equal((await handler.inspect("a"))?.hash, packed[1]!.contentHash);
+  assert.equal((await handler.inspect({ id: "a" }))?.hash, packed[1]!.contentHash);
   assert.equal(handler.seedHash, seedHash);
 });
 
@@ -223,10 +223,10 @@ test("missing ports: pack yields nothing, inspect is null, precheck refuses, app
   const handler = buildHandler(baseConfig(), makeDeps(undefined));
 
   assert.deepEqual(await collect(handler.pack()), []);
-  assert.equal(await handler.inspect("missing"), null);
+  assert.equal(await handler.inspect({ id: "missing" }), null);
 
-  const reason = await handler.precheck(packedEntity("missing", { slug: "x", title: "X" }));
-  assert.equal(reason, notWired("item", "missing", "item port"));
+  const reason = await handler.precheck({ entity: packedEntity("missing", { slug: "x", title: "X" }) });
+  assert.equal(reason, notWired({ entityType: "item", id: "missing", portName: "item port" }));
 
   await assert.rejects(() =>
     handler.apply({ entity: packedEntity("missing", { slug: "x", title: "X" }), expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" }),
@@ -242,23 +242,23 @@ test("precheck refuses when the address is held by a different id", async () => 
   const repo = new FakeItemRepo([{ id: "holder", workspaceId: WORKSPACE_ID, slug: "taken", title: "Holder", note: "", status: "active", version: 1 }]);
   const handler = buildHandler(baseConfig(), makeDeps({ repo }));
 
-  const reason = await handler.precheck(packedEntity("incoming", { slug: "taken", title: "Incoming" }));
-  assert.equal(reason, addressHeldByOther("item", "slug", "taken", "holder"));
+  const reason = await handler.precheck({ entity: packedEntity("incoming", { slug: "taken", title: "Incoming" }) });
+  assert.equal(reason, addressHeldByOther({ entityType: "item", field: "slug", value: "taken", holderId: "holder" }));
 });
 
 test("precheck identifies an address held by a trashed row", async () => {
   const repo = new FakeItemRepo([{ id: "holder", workspaceId: WORKSPACE_ID, slug: "taken", title: "Holder", note: "", status: "trashed", version: 1 }]);
   const handler = buildHandler(baseConfig(), makeDeps({ repo }));
-  assert.equal(await handler.precheck(packedEntity("incoming", { slug: "taken", title: "Incoming" })),
-    addressHeldInTrash("item", "slug", "taken", "holder"));
+  assert.equal(await handler.precheck({ entity: packedEntity("incoming", { slug: "taken", title: "Incoming" }) }),
+    addressHeldInTrash({ entityType: "item", field: "slug", value: "taken", holderId: "holder" }));
 });
 
 test("precheck refuses when the destination row is trashed", async () => {
   const repo = new FakeItemRepo([{ id: "x", workspaceId: WORKSPACE_ID, slug: "x", title: "X", note: "", status: "trashed", version: 1 }]);
   const handler = buildHandler(baseConfig(), makeDeps({ repo }));
 
-  const reason = await handler.precheck(packedEntity("x", { slug: "x", title: "X" }));
-  assert.equal(reason, trashedAtDestination("item", "x"));
+  const reason = await handler.precheck({ entity: packedEntity("x", { slug: "x", title: "X" }) });
+  assert.equal(reason, trashedAtDestination({ entityType: "item", id: "x" }));
 });
 
 test("precheck passes through a type-specific validate refusal after the generic checks", async () => {
@@ -268,7 +268,7 @@ test("precheck passes through a type-specific validate refusal after the generic
     makeDeps({ repo })
   );
 
-  const reason = await handler.precheck(packedEntity("x", { slug: "x", title: "X" }));
+  const reason = await handler.precheck({ entity: packedEntity("x", { slug: "x", title: "X" }) });
   assert.equal(reason, "item-specific refusal");
 });
 
@@ -283,21 +283,21 @@ test("precheck compares the address holder by idOf, so a natural-key type is not
     makeDeps({ repo })
   );
 
-  assert.equal(await handler.precheck(packedEntity("taken", { slug: "taken", title: "Same" })), null);
+  assert.equal(await handler.precheck({ entity: packedEntity("taken", { slug: "taken", title: "Same" }) }), null);
 });
 
 test("precheck skips the address check for an empty value (nothing to collide on)", async () => {
   const repo = new FakeItemRepo([{ id: "other", workspaceId: WORKSPACE_ID, slug: "", title: "Slugless", note: "", status: "active", version: 1 }]);
   const handler = buildHandler(baseConfig(), makeDeps({ repo }));
 
-  assert.equal(await handler.precheck(packedEntity("x", { slug: "", title: "X" })), null);
+  assert.equal(await handler.precheck({ entity: packedEntity("x", { slug: "", title: "X" }) }), null);
 });
 
 test("precheck returns null when nothing blocks", async () => {
   const repo = new FakeItemRepo();
   const handler = buildHandler(baseConfig(), makeDeps({ repo }));
 
-  const reason = await handler.precheck(packedEntity("x", { slug: "x", title: "X" }));
+  const reason = await handler.precheck({ entity: packedEntity("x", { slug: "x", title: "X" }) });
   assert.equal(reason, null);
 });
 
@@ -314,7 +314,7 @@ test("apply: expectedVersion undefined but a row already exists at the destinati
     (err: unknown) => {
       assert.ok(err instanceof PublishContentApplyRowError);
       assert.equal(err.rowOutcome, "conflict");
-      assert.equal(err.message, changedSincePlan("item", "x", "expected no existing row, found version 3"));
+      assert.equal(err.message, changedSincePlan({ entityType: "item", id: "x", detail: "expected no existing row, found version 3" }));
       return true;
     }
   );
@@ -328,7 +328,7 @@ test("apply: expectedVersion set but no row exists -> conflict", async () => {
     () => handler.apply({ entity: packedEntity("x", { slug: "x", title: "X" }), expectedVersion: 2, principalId: "op-1", idempotencyKey: "key-1" }),
     (err: unknown) => {
       assert.ok(err instanceof PublishContentApplyRowError);
-      assert.equal(err.message, changedSincePlan("item", "x", "expected version 2, but the row is gone"));
+      assert.equal(err.message, changedSincePlan({ entityType: "item", id: "x", detail: "expected version 2, but the row is gone" }));
       return true;
     }
   );
@@ -342,7 +342,7 @@ test("apply: expectedVersion set but differs from the destination's version -> c
     () => handler.apply({ entity: packedEntity("x", { slug: "x", title: "X" }), expectedVersion: 2, principalId: "op-1", idempotencyKey: "key-1" }),
     (err: unknown) => {
       assert.ok(err instanceof PublishContentApplyRowError);
-      assert.equal(err.message, changedSincePlan("item", "x", "expected version 2, found version 5"));
+      assert.equal(err.message, changedSincePlan({ entityType: "item", id: "x", detail: "expected version 2, found version 5" }));
       return true;
     }
   );
@@ -390,7 +390,7 @@ test("apply maps a configured conflict error class to a conflict row outcome", a
       assert.equal(err.rowOutcome, "conflict");
       // Same sentence `apply-loop.ts` builds for post's conflict classes today, so M-POST can delete
       // that special case without changing the reason text.
-      assert.equal(err.message, changedSincePlan("item", "x", "item write conflict"));
+      assert.equal(err.message, changedSincePlan({ entityType: "item", id: "x", detail: "item write conflict" }));
       return true;
     }
   );
@@ -569,9 +569,9 @@ for (const operation of ["create", "update"] as const) {
       write: async (ctx) => {
         await write(ctx);
         association = "first";
-        ctx.onRollback(async () => { assert.equal(association, "first"); association = "original"; order.push("first"); });
+        ctx.onRollback({ undo: async () => { assert.equal(association, "first"); association = "original"; order.push("first"); } });
         association = "second";
-        ctx.onRollback(async () => { assert.equal(association, "second"); association = "first"; order.push("second"); });
+        ctx.onRollback({ undo: async () => { assert.equal(association, "second"); association = "first"; order.push("second"); } });
       },
       undo: {
         restore: async ({ ctx, prior: row }) => { order.push("restore"); assert.equal(association, "original"); ctx.ports.repo.put(row); },
@@ -635,7 +635,7 @@ test("round trip: pack -> apply to an empty destination -> re-pack yields an ide
   const destRepo = new FakeItemRepo();
   const destHandler = buildHandler(baseConfig(), makeDeps({ repo: destRepo }));
 
-  const baselineDestInspect = await destHandler.inspect(sourceEntity.id);
+  const baselineDestInspect = await destHandler.inspect({ id: sourceEntity.id });
   assert.equal(baselineDestInspect, null); // "created" — no destination row yet.
 
   await destHandler.apply({ entity: sourceEntity, expectedVersion: undefined, principalId: "op-1", idempotencyKey: "key-1" });
@@ -646,7 +646,7 @@ test("round trip: pack -> apply to an empty destination -> re-pack yields an ide
 
   // A second plan against the now-populated destination reports "unchanged": inspect's hash matches
   // the source's own contentHash exactly, the planner's own "unchanged" test (`planner.ts`).
-  const secondInspect = await destHandler.inspect(sourceEntity.id);
+  const secondInspect = await destHandler.inspect({ id: sourceEntity.id });
   assert.equal(secondInspect?.hash, sourceEntity.contentHash);
 
   // Edit the source -> its repack no longer matches the destination's baseline hash ("applied").
@@ -690,19 +690,19 @@ test("L163 precheck preserves address validation gates and refusal precedence", 
   const handler = buildHandler(config, makeDeps({ repo }));
   for (const value of [undefined, null, 7, ""]) {
     calls.length = 0;
-    assert.equal(await handler.precheck(packedEntity("incoming", { slug: value })), "validated");
+    assert.equal(await handler.precheck({ entity: packedEntity("incoming", { slug: value }) }), "validated");
     assert.deepEqual(calls, ["find", "validate"]);
   }
   calls.length = 0;
-  assert.equal(await handler.precheck(packedEntity("incoming", { slug: "taken" })), addressHeldByOther("item", "slug", "taken", "holder"));
+  assert.equal(await handler.precheck({ entity: packedEntity("incoming", { slug: "taken" }) }), addressHeldByOther({ entityType: "item", field: "slug", value: "taken", holderId: "holder" }));
   assert.deepEqual(calls, ["address"]);
   calls.length = 0;
-  assert.equal(await buildHandler(config, makeDeps(undefined)).precheck(packedEntity("incoming", { slug: "taken" })), notWired("item", "incoming", "item port"));
+  assert.equal(await buildHandler(config, makeDeps(undefined)).precheck({ entity: packedEntity("incoming", { slug: "taken" }) }), notWired({ entityType: "item", id: "incoming", portName: "item port" }));
   assert.deepEqual(calls, []);
   const same = buildHandler({ ...config, address: { field: "slug", holder: async () => holder } }, makeDeps({ repo }));
-  assert.equal(await same.precheck(packedEntity("holder", { slug: "taken" })), "validated");
+  assert.equal(await same.precheck({ entity: packedEntity("holder", { slug: "taken" }) }), "validated");
   const free = buildHandler({ ...config, address: { field: "slug", holder: async () => null }, validate: undefined }, makeDeps({ repo }));
-  assert.equal(await free.precheck(packedEntity("incoming", { slug: "free" })), null);
+  assert.equal(await free.precheck({ entity: packedEntity("incoming", { slug: "free" }) }), null);
   const noAddress = buildHandler({ ...config, address: undefined }, makeDeps({ repo }));
-  assert.equal(await noAddress.precheck(packedEntity("incoming", { slug: "taken" })), "validated");
+  assert.equal(await noAddress.precheck({ entity: packedEntity("incoming", { slug: "taken" }) }), "validated");
 });

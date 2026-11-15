@@ -44,10 +44,10 @@ const FAILURE_COPY: Record<string, { message: string; action: string; step: stri
 };
 
 const TYPED_ERRORS: ReadonlyArray<[Error, number, string]> = [
-  [new PublishContentPeerNotFoundError("peer 'peer-1' was not found"), 404, "PEER_NOT_FOUND"],
+  [new PublishContentPeerNotFoundError({ message: "peer 'peer-1' was not found" }), 404, "PEER_NOT_FOUND"],
   [new PublishTrustHandshakeError("live.example does not accept publishes from this computer yet", "not-connected"), 502, "PUBLISH_TRUST_HANDSHAKE_FAILED"],
-  [new PublishContentPeerCredentialMissingError("peer 'peer-1' has no saved credential"), 409, "PEER_CREDENTIAL_MISSING"],
-  [new PublishContentPeerSecretStoreUnconfiguredError("peer 'Live' credential could not be opened"), 503, "SECRET_STORE_UNCONFIGURED"],
+  [new PublishContentPeerCredentialMissingError({ message: "peer 'peer-1' has no saved credential" }), 409, "PEER_CREDENTIAL_MISSING"],
+  [new PublishContentPeerSecretStoreUnconfiguredError({ message: "peer 'Live' credential could not be opened" }), 503, "SECRET_STORE_UNCONFIGURED"],
   [new PublishContentPeerTransportError({ message: "peer answered 401", code: "PEER_REJECTED" }, { peerStatus: 401 }), 502, "PEER_REJECTED"],
 ];
 
@@ -60,7 +60,7 @@ for (const [route, body] of Object.entries(SEND_BODIES)) {
   }
 
   test(`${route} answers an untyped or unmapped error with the fixed 500`, async () => {
-    for (const error of [new Error("ECONNRESET 10.0.0.5"), new PublishContentPeerValidationError("label is required")]) {
+    for (const error of [new Error("ECONNRESET 10.0.0.5"), new PublishContentPeerValidationError({ message: "label is required" })]) {
       const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(error) }));
       const response = await dispatchJsonRequest(app, "POST", `${PEER}/${route}`, body);
       assert.equal(response.status, 500);
@@ -119,7 +119,7 @@ test("push/execute with no parsed body is the exact 400 before the peer is opene
 });
 
 test("push/plan with no parsed body plans everything and opens the peer", async () => {
-  const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerNotFoundError("peer 'peer-1' was not found")) }), { json: false });
+  const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(new PublishContentPeerNotFoundError({ message: "peer 'peer-1' was not found" })) }), { json: false });
   assert.deepEqual(await dispatchJsonRequest(app, "POST", `${PEER}/push/plan`), {
     status: 404, body: { error: "peer 'peer-1' was not found", code: "PEER_NOT_FOUND" },
   });

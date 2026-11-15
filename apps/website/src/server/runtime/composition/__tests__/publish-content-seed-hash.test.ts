@@ -83,11 +83,11 @@ test("seed lookup: an untouched live header-nav and page hash exactly as the see
   const { handlers, seedPath } = await hydrateLive(t);
   const getSeedHash = seedLookup(seedPath);
 
-  const liveMenu = await handlers.get("menu")!.inspect("menu-header-nav");
+  const liveMenu = await handlers.get("menu")!.inspect({ id: "menu-header-nav" });
   assert.ok(liveMenu, "precondition: the seed ships menu-header-nav");
   assert.equal(await getSeedHash({ entityType: "menu", entityId: "menu-header-nav" }), liveMenu.hash);
 
-  const livePage = await handlers.get("page")!.inspect("post-themes");
+  const livePage = await handlers.get("page")!.inspect({ id: "post-themes" });
   assert.ok(livePage, "precondition: the seed ships page post-themes");
   assert.equal(await getSeedHash({ entityType: "page", entityId: "post-themes" }), livePage.hash);
 });
@@ -101,7 +101,7 @@ test("seed lookup: a live row edited since seed no longer matches, and an id the
   const menu = await menuRepo.findById({ workspaceId: WORKSPACE, id: "menu-header-nav" });
   assert.ok(menu);
   await menuRepo.save({ ...menu, title: `${menu.title} (edited on live)`, version: menu.version + 1 });
-  const edited = await handlers.get("menu")!.inspect("menu-header-nav");
+  const edited = await handlers.get("menu")!.inspect({ id: "menu-header-nav" });
 
   assert.notEqual(await getSeedHash({ entityType: "menu", entityId: "menu-header-nav" }), edited!.hash);
   assert.equal(await getSeedHash({ entityType: "menu", entityId: "menu-not-in-seed" }), null);

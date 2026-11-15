@@ -262,7 +262,7 @@ async function applyOneRow(
   row: PublishContentOutcomeRow,
   ctx: ApplyRowContext
 ): Promise<{ row: PublishContentOutcomeRow; changeSetId: string | null; retiredChangeSetId: string | null }> {
-  const key = entityKey(row.entityType, row.entityId);
+  const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
 
   if (!row.writes) {
     return refreshNonWritingRow({ row, ctx });
@@ -285,7 +285,7 @@ async function applyOneRow(
     };
   }
 
-  const current = await handler.inspect(entity.id);
+  const current = await handler.inspect({ id: entity.id });
 
   if (row.retires) {
     return applyRetiringRow({ row: { ...row, retires: row.retires }, entity, handler });
@@ -323,7 +323,7 @@ async function applyOneRow(
         retiredChangeSetId: null,
       };
     }
-    const freshTarget = await handler.planRetire(entity);
+    const freshTarget = await handler.planRetire({ entity });
     if (!freshTarget || freshTarget.entityId !== row.retires.entityId || freshTarget.hash !== row.retires.hash) {
       return {
         row: {
@@ -435,7 +435,7 @@ async function applyOneRow(
     const agreedHash = baseline?.hashVersion === CONTENT_HASH_VERSION
       ? baseline.hashAtLastSync
       : ((await ctx.getSeedHash({ entityType: row.entityType, entityId: row.entityId })) ??
-        (await handler.seedHash?.(entity.id)) ??
+        (await handler.seedHash?.({ id: entity.id })) ??
         null);
     if (agreedHash === null || current.hash !== agreedHash) {
       return {
@@ -570,7 +570,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       }
 
       const entities = JSON.parse(staged.entitiesJson) as readonly PackedEntity[];
-      const entityByKey = new Map(entities.map((entity) => [entityKey(entity.entityType, entity.id), entity] as const));
+      const entityByKey = new Map(entities.map((entity) => [entityKey({ entityType: entity.entityType, entityId: entity.id }), entity] as const));
       // Registry read fresh, at apply time, every call — same rule `planner.ts`'s own header pins
       // for planning; a handler built once and cached across calls would go stale the moment a
       // contributor re-registers (e.g. a hot-reloaded dev process).
@@ -595,7 +595,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             destination: metadata.destinationHost, reason: metadata.reason, at: startedAt, gapLabels: metadata.gapLabels,
             items: await Promise.all(entities.map(async (e) => ({
               entityType: e.entityType, id: e.id,
-              beforeHash: (await handlerByType.get(e.entityType)?.inspect(e.id))?.hash ?? null, afterHash: e.contentHash
+              beforeHash: (await handlerByType.get(e.entityType)?.inspect({ id: e.id }))?.hash ?? null, afterHash: e.contentHash
             }))),
             result: "pending", runId, details: {}, inverses: []
           };
@@ -604,13 +604,13 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       }
 
       const effectiveRowsByKey = new Map(
-        report.rows.map((row) => [entityKey(row.entityType, row.entityId), row] as const)
+        report.rows.map((row) => [entityKey({ entityType: row.entityType, entityId: row.entityId }), row] as const)
       );
       const itemByKey = new Map<string, PublishContentRunItemState>();
       initializeItems({});
       function initializeItems(_required: Record<string, never>, _optional: Record<string, never> = {}) {
         for (const row of report.rows) {
-          const key = entityKey(row.entityType, row.entityId);
+          const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
           const entity = entityByKey.get(key);
           const missingIdentity = `${input.workspaceId}:${sourcePrincipalId}:${key}`;
           const idempotencyKey = entity
@@ -633,7 +633,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
       }
 
       const itemStates = (): PublishContentRunItemState[] => report.rows.map((row) => {
-        const item = itemByKey.get(entityKey(row.entityType, row.entityId));
+        const item = itemByKey.get(entityKey({ entityType: row.entityType, entityId: row.entityId }));
         if (item === undefined) throw new Error(`Publish content run has no state for ${row.entityType} ${row.entityId}`);
         return item;
       });
@@ -645,7 +645,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         itemStates().flatMap((item) => (item.retiredChangeSetId === null ? [] : [item.retiredChangeSetId]));
       const currentReport = (): PublishContentReport => ({
         ...report,
-        rows: report.rows.map((row) => effectiveRowsByKey.get(entityKey(row.entityType, row.entityId)) ?? row),
+        rows: report.rows.map((row) => effectiveRowsByKey.get(entityKey({ entityType: row.entityType, entityId: row.entityId })) ?? row),
       });
       const saveSnapshot = async (
         { phase, finishedAt }: { phase: PublishContentRunRecord["phase"]; finishedAt: string | null },
@@ -713,7 +713,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         const replacements: EntityReplacement[] = [];
         for (const row of report.rows) {
           if (!row.retires) continue;
-          const item = itemByKey.get(entityKey(row.entityType, row.entityId));
+          const item = itemByKey.get(entityKey({ entityType: row.entityType, entityId: row.entityId }));
           // `retiredChangeSetId === null` covers both "never reached the retire" and "the create that
           // followed it failed and was undone" (§2.3 step 1) — either way, nothing was actually
           // replaced, so there is nothing here for a repoint pass to act on.
@@ -765,7 +765,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           if (!handler.verifyApplied) continue;
           const entities = report.rows.flatMap((row) => {
             if (row.entityType !== handler.entityType) return [];
-            const key = entityKey(row.entityType, row.entityId);
+            const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
             const outcome = effectiveRowsByKey.get(key)?.outcome ?? row.outcome;
             const entity = entityByKey.get(key);
             return entity && outcome !== "blocked" && outcome !== "conflict" ? [entity] : [];
@@ -781,7 +781,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
 
       const applyRows = async () => {
         for (const row of report.rows) {
-          activeItemKey = entityKey(row.entityType, row.entityId);
+          activeItemKey = entityKey({ entityType: row.entityType, entityId: row.entityId });
           const result = await applyOneRow(row, ctx);
           effectiveRowsByKey.set(activeItemKey, result.row);
           const item = itemByKey.get(activeItemKey);
@@ -823,7 +823,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         // tentative per-item snapshots as writes that landed.
         const reason = [error instanceof Error ? error.message : "This send was rolled back.", ...rollbackErrors].join(" ");
         for (const row of report.rows) {
-          const key = entityKey(row.entityType, row.entityId);
+          const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
           const item = itemByKey.get(key);
           if (!item) continue;
           const mayRemain = row.entityType === "raw-file" && item.changeSetId !== null && rollbackErrors.length > 0;
@@ -909,7 +909,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
 /** Replacement sanitizing may normalize source metadata; remember what actually landed.
  * One indexed inspect per replaced row, with no additional reads on ordinary imports. */
 async function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<void> {
-  const destination = row.sourceReplacement ? await ctx.handlerByType.get(row.entityType)?.inspect(row.entityId) : null;
+  const destination = row.sourceReplacement ? await ctx.handlerByType.get(row.entityType)?.inspect({ id: row.entityId }) : null;
   return ctx.baselineRepo.upsert({
     workspaceId: ctx.workspaceId,
     peerPrincipalId: ctx.sourcePrincipalId,
@@ -946,7 +946,7 @@ async function undoRetire({ error, retireResult, row }: {
 }
 
 async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOutcomeRow; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
-  const key = entityKey(row.entityType, row.entityId);
+  const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
   // `conflict`/`blocked` pass through untouched — no baseline write (plan §4 task 8: baselines are
   // upserted for created/unchanged/applied/forced ONLY). `unchanged` is the one non-writing outcome
   // that still refreshes the baseline: the destination already matches the source, so there is

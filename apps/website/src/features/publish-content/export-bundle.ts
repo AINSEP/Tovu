@@ -175,7 +175,7 @@ export function selectBundleEntities(
   envelope: PublishContentExportEnvelope,
   selectedKeys: ReadonlySet<string>
 ): PublishContentExportEnvelope {
-  const entities = envelope.entities.filter((entity) => selectedKeys.has(entityKey(entity.entityType, entity.id)));
+  const entities = envelope.entities.filter((entity) => selectedKeys.has(entityKey({ entityType: entity.entityType, entityId: entity.id })));
   const requiredBlobs = new Set<string>();
   for (const entity of entities) for (const sha of entity.requiredBlobs) requiredBlobs.add(sha);
   return { ...envelope, entities, blobManifest: Array.from(requiredBlobs) };
@@ -204,7 +204,7 @@ export function applyPublishScope(
   const entityKeys = scope.entityKeys ? new Set(scope.entityKeys) : null;
   const matchesScope = ({ type, id }: { type: string; id: string }, _optional = {}): boolean => {
     if (scope.entityTypes && !scope.entityTypes.includes(type)) return false;
-    if (entityKeys && !entityKeys.has(entityKey(type, id))) return false;
+    if (entityKeys && !entityKeys.has(entityKey({ entityType: type, entityId: id }))) return false;
     return true;
   };
 
@@ -232,11 +232,11 @@ export type ReferenceHandlers = ReadonlyMap<string, Pick<PublishContentHandler, 
  *  colliding slug). @complexity O(s). */
 function indexCarriable(source: PublishContentExportEnvelope, held: ReadonlySet<string>): Map<string, PackedEntity> {
   const byAddress = new Map<string, PackedEntity>();
-  const candidates = source.entities.filter((entity) => !held.has(entityKey(entity.entityType, entity.id)));
-  for (const entity of candidates) byAddress.set(entityKey(entity.entityType, entity.id), entity);
+  const candidates = source.entities.filter((entity) => !held.has(entityKey({ entityType: entity.entityType, entityId: entity.id })));
+  for (const entity of candidates) byAddress.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), entity);
   for (const entity of candidates) {
     const slug = entity.state.slug;
-    const address = typeof slug === "string" && slug.length > 0 ? entityKey(entity.entityType, slug) : null;
+    const address = typeof slug === "string" && slug.length > 0 ? entityKey({ entityType: entity.entityType, entityId: slug }) : null;
     if (address !== null && !byAddress.has(address)) byAddress.set(address, entity);
   }
   return byAddress;
@@ -270,22 +270,22 @@ export function includeReferencedEntities(
   { envelope, source, handlers }: { envelope: PublishContentExportEnvelope; source: PublishContentExportEnvelope; handlers: ReferenceHandlers },
   _optional = {}
 ): ReferencedEntityInclusion {
-  const referencesOf = (entity: PackedEntity) => handlers.get(entity.entityType)?.references?.(entity) ?? [];
-  const held = new Set(envelope.entities.map((entity) => entityKey(entity.entityType, entity.id)));
+  const referencesOf = (entity: PackedEntity) => handlers.get(entity.entityType)?.references?.({ entity }) ?? [];
+  const held = new Set(envelope.entities.map((entity) => entityKey({ entityType: entity.entityType, entityId: entity.id })));
   const carriable = indexCarriable(source, held);
 
   const added: PackedEntity[] = [];
   const rootsByKey = new Map<string, Set<string>>();
   function includeRoot({ root }: { root: PackedEntity }, _options: Record<string, never> = {}): void {
-    const rootEntityKey = entityKey(root.entityType, root.id);
+    const rootEntityKey = entityKey({ entityType: root.entityType, entityId: root.id });
     const seen = new Set<string>();
     const pending = [...referencesOf(root)];
     while (pending.length > 0) {
       const ref = pending.pop();
       if (ref === undefined) throw new Error("Publish export has no pending reference");
-      const target = carriable.get(entityKey(ref.entityType, ref.key));
+      const target = carriable.get(entityKey({ entityType: ref.entityType, entityId: ref.key }));
       if (!target) continue;
-      const key = entityKey(target.entityType, target.id);
+      const key = entityKey({ entityType: target.entityType, entityId: target.id });
       if (!seen.has(key)) {
         seen.add(key);
         let roots = rootsByKey.get(key);

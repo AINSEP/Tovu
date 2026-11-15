@@ -372,11 +372,11 @@ const GENERIC_TREE_WRAP_PATTERN = /^(.+) was not published: .+$/;
  */
 interface NamedFileRewrite {
   readonly pattern: RegExp;
-  readonly friendly: (fileName: string) => string;
+  readonly friendly: (required: { name: string }, optional?: Record<string, never>) => string;
 }
 
-const TOO_LARGE = (name: string): string => `Can't publish: a file is too large (${name})`;
-const LOOKS_SECRET = (name: string): string => `Can't publish: a file looks like it contains a key or password (${name})`;
+const TOO_LARGE = ({ name }: { name: string }, _optional = {}): string => `Can't publish: a file is too large (${name})`;
+const LOOKS_SECRET = ({ name }: { name: string }, _optional = {}): string => `Can't publish: a file looks like it contains a key or password (${name})`;
 
 const NAMED_FILE_REWRITES: readonly NamedFileRewrite[] = [
   { pattern: /^.+ was not published: "(.+)" is \d+ bytes, larger than the \d+-byte per-file limit$/, friendly: TOO_LARGE },
@@ -400,14 +400,14 @@ const NAMED_FILE_REWRITES: readonly NamedFileRewrite[] = [
  *
  * @complexity O(1) — a fixed, small number of regex tests against one string.
  */
-export function friendlyPublishReason(reason: string): string {
+export function friendlyPublishReason({ reason }: { reason: string }, _optional = {}): string {
   if (reason.startsWith(ALREADY_FINAL_PREFIX)) return reason;
   for (const { pattern, friendly } of REASON_REWRITES) {
     if (pattern.test(reason)) return friendly;
   }
   for (const { pattern, friendly } of NAMED_FILE_REWRITES) {
     const path = reason.match(pattern)?.[1];
-    if (path !== undefined) return friendly(path.slice(path.lastIndexOf("/") + 1));
+    if (path !== undefined) return friendly({ name: path.slice(path.lastIndexOf("/") + 1) });
   }
   const wrapped = reason.match(GENERIC_TREE_WRAP_PATTERN);
   if (wrapped) return `${wrapped[1]} can't be published — one of its files isn't allowed.`;
@@ -425,7 +425,7 @@ const SHORT_ID_LENGTH = 8;
  *
  * @complexity O(1).
  */
-function labelOrShortId(label: string | null | undefined, id: string): string {
+function labelOrShortId({ label, id }: { label: string | null | undefined; id: string }, _optional = {}): string {
   if (label !== null && label !== undefined && label.trim().length > 0) return label;
   return id.slice(0, SHORT_ID_LENGTH);
 }
@@ -437,7 +437,7 @@ function labelOrShortId(label: string | null | undefined, id: string): string {
  * @complexity O(1).
  */
 function displayLabelFor(row: PublishContentOutcomeRow): string {
-  return labelOrShortId(row.entityLabel, row.entityId);
+  return labelOrShortId({ label: row.entityLabel, id: row.entityId });
 }
 
 /**
@@ -450,7 +450,7 @@ function displayLabelFor(row: PublishContentOutcomeRow): string {
 function retiresLabelFor(row: PublishContentOutcomeRow): string | null {
   const target = row.retires ?? null;
   if (target === null) return null;
-  return labelOrShortId(target.entityLabel, target.entityId);
+  return labelOrShortId({ label: target.entityLabel, id: target.entityId });
 }
 
 /**
@@ -462,7 +462,7 @@ function retiresLabelFor(row: PublishContentOutcomeRow): string | null {
  */
 function referencedByLabelsFor(row: PublishContentOutcomeRow): readonly string[] {
   const holders = row.referencedBy ?? [];
-  return holders.map((holder) => labelOrShortId(holder.entityLabel, holder.entityId));
+  return holders.map((holder) => labelOrShortId({ label: holder.entityLabel, id: holder.entityId }));
 }
 
 /**
@@ -483,8 +483,8 @@ function usedByNoteFor(includedFor: readonly string[]): string | null {
  *  developer (`"theme-files"` reads "Theme"), from the one section table (`sections.ts`) the
  *  section buttons also read. An unlisted type falls back to its raw id — degraded, never wrong.
  *  @complexity O(sections). */
-function entityTypeLabelFor(entityType: string): string {
-  return publishEntityTypeLabel(entityType);
+function entityTypeLabelFor({ entityType }: { entityType: string }, _optional = {}): string {
+  return publishEntityTypeLabel({ entityType });
 }
 
 const DISPOSITION_BY_OUTCOME: Readonly<Record<PublishContentOutcomeRow["outcome"], PublishRowDisposition>> = {
@@ -553,14 +553,14 @@ export function toPublishReportRows(report: PublishContentReport, { completed = 
     return {
       key: `${row.entityType}:${row.entityId}`,
       entityType: row.entityType,
-      entityTypeLabel: entityTypeLabelFor(row.entityType),
+      entityTypeLabel: entityTypeLabelFor({ entityType: row.entityType }),
       entityId: row.entityId,
       entityLabel: displayLabelFor(row),
       selectable: !completed && disposition === "publish" && includedFor.length === 0,
       outcome: row.outcome,
       disposition,
       dispositionLabel: reportDispositionLabel({ row, completed }),
-      reason: rawReason === null ? null : friendlyPublishReason(rawReason),
+      reason: rawReason === null ? null : friendlyPublishReason({ reason: rawReason }),
       appliesOnExecute: row.writes,
       overwritable: !completed && disposition === "skipped" && row.canOverwrite === true,
       retiresLabel: retiresLabelFor(row),

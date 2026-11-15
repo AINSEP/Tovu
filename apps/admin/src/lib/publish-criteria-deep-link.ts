@@ -53,5 +53,5 @@ export function takePublishCriteriaFromQuery(
   const nextUrl = `${location.pathname}${querySuffix({ query: rest })}${location.hash}`;
   history.replaceState(null, "", nextUrl);
 
-  return decodePublishCriteriaFromQuery(raw);
+  return decodePublishCriteriaFromQuery({ raw });
 }

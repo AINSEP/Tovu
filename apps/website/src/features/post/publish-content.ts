@@ -304,7 +304,7 @@ function applyPorts({ ports, deps, kind }: { ports: PostPorts; deps: PublishCont
         "root (features/publish-content/apply-loop.ts)."
     );
   }
-  return { repo: ports.repo, clock: deps.clock, outbox: gatewayDeps(deps, kind).outbox, forgetRemoved };
+  return { repo: ports.repo, clock: deps.clock, outbox: gatewayDeps({ deps, entityType: kind }).outbox, forgetRemoved };
 }
 
 /**
@@ -370,9 +370,9 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
       const slug = entity.state.slug;
       if (typeof slug !== "string" || slug.length === 0) return `${kind} entity '${entity.id}' has no usable slug to check for a collision`;
       const holder = await ports.repo.findBySlug({ workspaceId, slug });
-      if (holder && holder.id !== entity.id) return addressHeldByOther(kind, "slug", slug, holder.id);
+      if (holder && holder.id !== entity.id) return addressHeldByOther({ entityType: kind, field: "slug", value: slug, holderId: holder.id });
       const existing = await ports.repo.findById({ workspaceId, id: entity.id });
-      if (existing && isTrashed(existing)) return trashedAtDestination(kind, entity.id);
+      if (existing && isTrashed(existing)) return trashedAtDestination({ entityType: kind, id: entity.id });
       if (existing && existing.kind !== kind) {
         return `'${entity.id}' is a '${existing.kind}' at this destination but a '${kind}' at the source — kind is fixed at creation and cannot be changed by publishing`;
       }
@@ -384,7 +384,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
       const { repo, outbox } = applyPorts({ ports, deps, kind });
       const terms = await prepareTermSync({ ports: ports.term, deps, entityType: kind, entityId: id, principalId, contentType: kind, wanted: state.termIds });
       // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
-      onRollback(terms.revert);
+      onRollback({ undo: terms.revert });
       const imported = await importPostEntity({
         deps: { repo, clock: deps.clock, outbox, beforeSaveHook: deps.beforeSaveHook },
         // The revision ledger's actor is the IMPORTING operator; the source author is on the record.
@@ -441,7 +441,7 @@ function postRetireMethods(deps: PublishContentDeps, kind: PostKind) {
    *
    * @complexity O(1) — two indexed repo reads, same as precheck.
    */
-  async function planRetire(entity: PackedEntity): Promise<RetireTarget | null> {
+  async function planRetire({ entity }: { entity: PackedEntity }, _optional = {}): Promise<RetireTarget | null> {
     if (!postRepo) return null;
     const slug = entity.state.slug;
     if (typeof slug !== "string" || slug.length === 0 || slug === ROOT_SLUG) return null;

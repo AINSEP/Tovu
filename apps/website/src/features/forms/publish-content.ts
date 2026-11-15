@@ -50,7 +50,7 @@ export const contributeFormPublish = (): PublishContentContributor =>
       version: "local",
     },
     validate: async ({ ports, workspaceId, entity, existing }) =>
-      !existing && (await ports.repo.isSlugTaken({ workspaceId, slug: entity.id })) ? trashedAtDestination("form", entity.id) : null,
+      !existing && (await ports.repo.isSlugTaken({ workspaceId, slug: entity.id })) ? trashedAtDestination({ entityType: "form", id: entity.id }) : null,
     write: async ({ ports, deps, workspaceId, id, state, existing, principalId }) => {
       const writeDeps = { ...gatewayDeps(deps, "form"), repo: ports.repo, executeCommand };
       const actor = { id: principalId, kind: "user" as const };

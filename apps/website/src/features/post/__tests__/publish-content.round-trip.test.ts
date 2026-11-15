@@ -363,7 +363,7 @@ test("publishing over a TRASHED destination row is refused rather than silently 
   const [sourceEntity] = await packAll("post", [source]);
   assert.ok(sourceEntity);
 
-  const reason = await handler.precheck(sourceEntity);
+  const reason = await handler.precheck({ entity: sourceEntity });
   assert.match(
     String(reason),
     /trash/i,

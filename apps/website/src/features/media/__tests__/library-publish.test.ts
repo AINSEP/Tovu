@@ -22,18 +22,18 @@ test('Library documents and their blobs are absent from publish output; forged a
   let reads = 0; deps.blobStore.get = async () => { reads++; throw new Error('private bytes must not be fetched'); };
   const entity: PackedEntity = { entityType: 'media', id: doc.id, schemaVersion: 1, contentHash: 'forged', hashVersion: 1,
     requiredBlobs: [doc.source.sha256], state: { ...doc } };
-  const documentRefusal = await handler.precheck(entity);
+  const documentRefusal = await handler.precheck({ entity });
   assert.ok(typeof documentRefusal === "string");
   assert.match(documentRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-apply' }));
   // Removing the discriminant cannot turn a destination document into public media either.
   const forged = { ...entity, state: { ...entity.state, kind: 'media' } };
-  const forgedRefusal = await handler.precheck(forged);
+  const forgedRefusal = await handler.precheck({ entity: forged });
   assert.ok(typeof forgedRefusal === "string");
   assert.match(forgedRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity: forged, expectedVersion: doc.version, principalId: 'owner', idempotencyKey: 'private-downgrade' }));
   const disguised = { ...forged, id: 'new-public-id', state: { ...forged.state, id: 'new-public-id', slug: 'new-public-id' } };
-  const disguisedRefusal = await handler.precheck(disguised);
+  const disguisedRefusal = await handler.precheck({ entity: disguised });
   assert.ok(typeof disguisedRefusal === "string");
   assert.match(disguisedRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity: disguised, expectedVersion: undefined, principalId: 'owner', idempotencyKey: 'private-new-id' }));

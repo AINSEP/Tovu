@@ -60,10 +60,7 @@ export function overwriteReplanIsConsistent(
 /** `{ overwriteEntityKeys }` narrowed to the keys in `keep`, or `{}` when none survive — spread into
  *  a narrowing re-plan so an empty set is never sent as an explicit (and meaningless) empty array.
  *  @complexity O(n + m). */
-function overwriteKeysWithin(
-  overwriteEntityKeys: readonly string[] | undefined,
-  keep: readonly string[]
-): { overwriteEntityKeys?: readonly string[] } {
+function overwriteKeysWithin({ overwriteEntityKeys, keep }: { overwriteEntityKeys: readonly string[] | undefined; keep: readonly string[] }, _optional = {}): { overwriteEntityKeys?: readonly string[] } {
   const kept = new Set(keep);
   const within = (overwriteEntityKeys ?? []).filter((key) => kept.has(key));
   return within.length > 0 ? { overwriteEntityKeys: within } : {};

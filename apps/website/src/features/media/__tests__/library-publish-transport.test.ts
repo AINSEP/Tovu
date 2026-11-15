@@ -49,7 +49,7 @@ test('Library document-only blob hashes cannot be downloaded through publish pee
     if (phase === 'purged') await purgeMedia({ deps: sharedDeps, input: { workspaceId: deps.workspaceId, id: media.id } });
     const response = await fetch(`${base}/api/admin/v1/workspaces/site-a/publish-content/blobs/${media.source.sha256}`);
     assert.equal(response.status, 404, phase); await response.arrayBuffer();
-    const documentRefusal = await handler.precheck(entity);
+    const documentRefusal = await handler.precheck({ entity });
     assert.ok(typeof documentRefusal === "string");
     assert.match(documentRefusal, /documents cannot be published/i);
     await assert.rejects(handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: phase }), /documents cannot be published/i);
@@ -165,7 +165,7 @@ test('ordinary retained blobs allow peer download, raw-file/theme apply and medi
     const state = { ...media, id: `republished-${status}`, slug: `republished-${status}` };
     const entity: PackedEntity = { entityType: 'media', id: state.id, state, schemaVersion: 1, hashVersion: 1,
       contentHash: contentHash({ entityType: 'media', state }), requiredBlobs: [media.source.sha256] };
-    assert.equal(await handler.precheck(entity), null, status);
+    assert.equal(await handler.precheck({ entity }), null, status);
     await handler.apply({ entity, expectedVersion: undefined, principalId: 'owner', idempotencyKey: `ordinary-media-${status}` });
     assert.equal((await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: state.id }))?.source.sha256, media.source.sha256);
     // Drop the new live owner so the next status case still has no ordinary media row.

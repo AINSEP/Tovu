@@ -59,7 +59,7 @@ test("changed bytes require Overwrite even when the destination still matches it
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
   registerPublishContentContributor(contributeMediaPublish());
-  const destination = await f.handler.inspect(f.prior.id);
+  const destination = await f.handler.inspect({ id: f.prior.id });
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] };
   const deps = { publishContentDeps: f.deps, hasBlob: async () => true,
     getBaseline: async () => ({ hashAtLastSync: destination!.hash, hashVersion: CONTENT_HASH_VERSION }) };
@@ -118,7 +118,7 @@ test("a locally replaced file packs and overwrites the same media identity on li
   const entity = entities[0]!;
   await assert.rejects(f.handler.apply({ entity, expectedVersion: f.prior.version, principalId: "operator",
     idempotencyKey: "local-replace-unconfirmed" }), MediaApplyBlockedError);
-  const refusal = await f.handler.precheck(entity);
+  const refusal = await f.handler.precheck({ entity });
   assert.ok(refusal && typeof refusal === "object" && refusal.sourceReplacement);
   await f.handler.apply({ entity, expectedVersion: f.prior.version, principalId: "operator",
     idempotencyKey: "local-replace-confirmed", sourceReplacement: refusal.sourceReplacement });
@@ -126,7 +126,7 @@ test("a locally replaced file packs and overwrites the same media identity on li
   assert.equal(live.id, replaced!.id);
   assert.deepEqual(live.source, replaced!.source);
   assert.equal(live.version, f.prior.version + 1);
-  assert.equal((await f.handler.inspect(live.id))!.hash, entity.contentHash);
+  assert.equal((await f.handler.inspect({ id: live.id }))!.hash, entity.contentHash);
 });
 
 test("a live edit during staged-byte I/O refuses replacement without invalidating previews", async t => {
@@ -195,7 +195,7 @@ test("stale reviewed source or version cannot replace the live file", async t =>
 test("a missing replacement adapter remains a hard refusal even when overwrite is requested", async t => {
   const f = await fixture(t);
   f.repo.replaceFileIfVersion = undefined as never;
-  const refusal = await f.handler.precheck(f.entity);
+  const refusal = await f.handler.precheck({ entity: f.entity });
   assert.equal(typeof refusal, "string");
   assert.match(refusal as string, /Update the live site/);
   await assert.rejects(f.apply(), MediaApplyBlockedError);
@@ -233,7 +233,7 @@ for (const failure of ["missing", "mismatched"] as const) {
 test("private submitted media refuses Overwrite during planning", async t => {
   // Privacy is stamped at creation; metadata saves deliberately cannot change source flags.
   const f = await fixture(t, { privateSource: true });
-  const refusal = await f.handler.precheck(f.entity);
+  const refusal = await f.handler.precheck({ entity: f.entity });
   assert.equal(typeof refusal, "string");
   assert.match(refusal as string, /private.*file|submitted.*file/i);
   await assert.rejects(f.apply(), MediaApplyBlockedError);

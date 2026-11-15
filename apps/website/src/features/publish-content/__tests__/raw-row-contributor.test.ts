@@ -34,8 +34,8 @@ test("selected plugin row packs all columns, round-trips its hash, and identical
   const [packed] = await f.collect();
   assert.equal(packed!.id, rawRowId({ table: "p_widgets", pk: { id: "a" } }));
   assert.deepEqual(packed!.state.values, { id: "a", title: "footer" });
-  assert.equal((await f.handler.inspect(packed!.id))?.hash, packed!.contentHash);
-  assert.equal(await f.handler.precheck(packed!), null);
+  assert.equal((await f.handler.inspect({ id: packed!.id }))?.hash, packed!.contentHash);
+  assert.equal(await f.handler.precheck({ entity: packed! }), null);
 });
 
 test("raw row packing and precheck expose only typed refusals; other port failures propagate unchanged", async (t) => {
@@ -53,11 +53,11 @@ test("raw row packing and precheck expose only typed refusals; other port failur
       if (error === refusal) {
         await collect();
         assert.equal((await handler.listSkipped!())[0]!.reason, refusal.message);
-        if (operation === "columns") assert.equal(await handler.precheck(entity), refusal.message);
+        if (operation === "columns") assert.equal(await handler.precheck({ entity }), refusal.message);
       } else {
         await assert.rejects(collect(), (caught) => caught === error);
         assert.deepEqual(await handler.listSkipped!(), []);
-        if (operation === "columns") await assert.rejects(handler.precheck(entity), (caught) => caught === error);
+        if (operation === "columns") await assert.rejects(handler.precheck({ entity }), (caught) => caught === error);
       }
     }
   }
@@ -67,9 +67,9 @@ test("covered tables, shape drift and hostile column names are refused on destin
   const f = fixture(t);
   f.db.exec("INSERT INTO p_widgets VALUES ('a', 'footer')");
   const [packed] = await f.collect();
-  assert.equal(await f.handler.precheck({ ...packed!, state: { ...packed!.state, table: "posts" } }), "Table 'posts' already publishes normally; use Overwrite live in normal publishing.");
-  assert.equal(await f.handler.precheck({ ...packed!, state: { ...packed!.state, columns: [{ name: "id", type: "INTEGER", pk: 1, notnull: 0 }, { name: "title", type: "TEXT", pk: 0, notnull: 0 }] } }), "Live's 'p_widgets' has a different shape; update live first.");
-  const credentialRefusal = await f.handler.precheck({ ...packed!, state: { ...packed!.state, values: { ...packed!.state.values as object, access_token: "x" } } });
+  assert.equal(await f.handler.precheck({ entity: { ...packed!, state: { ...packed!.state, table: "posts" } } }), "Table 'posts' already publishes normally; use Overwrite live in normal publishing.");
+  assert.equal(await f.handler.precheck({ entity: { ...packed!, state: { ...packed!.state, columns: [{ name: "id", type: "INTEGER", pk: 1, notnull: 0 }, { name: "title", type: "TEXT", pk: 0, notnull: 0 }] } } }), "Live's 'p_widgets' has a different shape; update live first.");
+  const credentialRefusal = await f.handler.precheck({ entity: { ...packed!, state: { ...packed!.state, values: { ...packed!.state.values as object, access_token: "x" } } } });
   assert.ok(typeof credentialRefusal === "string");
   assert.match(credentialRefusal, /access_token/);
 });
@@ -90,13 +90,13 @@ test("create then undo removes only the created row; update then undo restores t
   const [packed] = await f.collect();
   f.db.exec("DELETE FROM p_widgets");
   await f.handler.apply({ entity: packed!, principalId: "admin", expectedVersion: undefined, idempotencyKey: "create" });
-  const created = await f.handler.inspect(packed!.id);
+  const created = await f.handler.inspect({ id: packed!.id });
   assert.ok(created);
   assert.equal(await undoRawRow({ deps: f.deps, entity: packed!, before: null, afterHash: created.hash }), null);
-  assert.equal(await f.handler.inspect(packed!.id), null);
+  assert.equal(await f.handler.inspect({ id: packed!.id }), null);
   f.db.exec("INSERT INTO p_widgets VALUES ('a', 'old')");
   const before = (await f.rows.read({ table: "p_widgets", pk: { id: "a" } }))!;
-  const current = (await f.handler.inspect(packed!.id))!;
+  const current = (await f.handler.inspect({ id: packed!.id }))!;
   await f.handler.apply({ entity: packed!, principalId: "admin", expectedVersion: current.version, idempotencyKey: "update" });
   assert.equal(await undoRawRow({ deps: f.deps, entity: packed!, before, afterHash: packed!.contentHash }), null);
   assert.equal((f.db.prepare("SELECT title FROM p_widgets WHERE id='a'").get() as { title: string }).title, "old");
@@ -139,12 +139,12 @@ test("TW2 pins raw precheck validation ordering and malformed addresses", async 
     [{ pk: null }, "Choose a row by its complete primary key."],
     [{ pk: { id: "b" } }, "The raw row's primary key does not match its address."],
   ];
-  for (const [state, reason] of cases) assert.equal(await f.handler.precheck({ ...packed, state: { ...packed.state, ...state } }), reason);
+  for (const [state, reason] of cases) assert.equal(await f.handler.precheck({ entity: { ...packed, state: { ...packed.state, ...state } } }), reason);
   for (const id of ["bad", "p_widgets:null", "p_widgets:[]", 'p_widgets:{"id":null}', 'p_widgets:{"id":9007199254740992}', "p_widgets:{}", "p_widgets:{"]) {
-    assert.equal(await f.handler.inspect(id), null);
-    assert.equal(await f.handler.precheck({ ...packed, id }), "The raw row's primary key does not match its address.");
+    assert.equal(await f.handler.inspect({ id }), null);
+    assert.equal(await f.handler.precheck({ entity: { ...packed, id } }), "The raw row's primary key does not match its address.");
   }
-  assert.equal(await f.handler.precheck({ ...packed, contentHash: "changed" }), "The raw row does not match its checked content hash.");
+  assert.equal(await f.handler.precheck({ entity: { ...packed, contentHash: "changed" } }), "The raw row does not match its checked content hash.");
   const absent = contributeRawRowPublish().build({ ...f.deps, backstop: undefined });
-  assert.equal(await absent.precheck(packed), "Send by hand is not available on this destination.");
+  assert.equal(await absent.precheck({ entity: packed }), "Send by hand is not available on this destination.");
 });

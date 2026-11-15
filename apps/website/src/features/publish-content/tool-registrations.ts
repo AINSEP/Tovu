@@ -135,7 +135,7 @@ const MACHINE_TOKEN = /\b(?:[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|[a-z0-9]+(?:_[a-z0-9]+
  *
  * @complexity O(n) in the message length.
  */
-export function plainSentence(text: string, fallback: string): string {
+export function plainSentence({ text, fallback }: { text: string; fallback: string }, _optional = {}): string {
   const trimmed = text.trim();
   if (trimmed.length === 0 || MACHINE_TOKEN.test(trimmed)) return fallback;
   return trimmed;
@@ -155,10 +155,7 @@ function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishCo
 
 /** Reads this install's publish readiness — the shared first step of both handlers.
  *  @complexity O(n) in the workspace's destination count. */
-async function readReadiness(
-  deps: PublishContentToolDeps,
-  findCandidate: () => Promise<string | null>
-): Promise<{ readiness: PublishReadiness; rows: readonly PublishContentPeerRecord[] }> {
+async function readReadiness({ deps, findCandidate }: { deps: PublishContentToolDeps; findCandidate: () => Promise<string | null> }, _optional = {}): Promise<{ readiness: PublishReadiness; rows: readonly PublishContentPeerRecord[] }> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
   const connected = selectConnectedDestination(rows);
   const readiness = describePublishReadiness({
@@ -186,14 +183,14 @@ export function buildPublishContentRegistrations(
   const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
 
   const handlers: Record<string, ToolHandler> = {
-    [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary(async () => {
+    [PUBLISH_CONTENT_PUBLISH_TOOL_ID]: ctx => pullToolBoundary({ run: async () => {
       const input = requireInputRecord({ input: ctx.input ?? {} });
       refuseUnexpectedKeys(input, ["peerId", "types", "items", "excludeItems", "overwrite"]);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
         workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
       ctx.signal.throwIfAborted();
       return publishContentFromTool({ deps: routeDeps, principalId: ctx.principal.id }, input);
-    }),
+    } }),
     [PUBLISH_BACKSTOP_GAPS_TOOL_ID]: async (ctx) => {
       refuseUnexpectedKeys(requireInputRecord({ input: ctx.input ?? {} }), []);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
@@ -201,13 +198,13 @@ export function buildPublishContentRegistrations(
       const audit = routeDeps.makePublishContentDeps?.().backstop?.audit;
       return { gaps: audit && await audit.ready() ? await audit.gaps({ workspaceId: routeDeps.workspaceId }) : [] };
     },
-    [PUBLISH_CONTENT_PLAN_PULL_TOOL_ID]: async ctx => pullToolBoundary(async () => {
+    [PUBLISH_CONTENT_PLAN_PULL_TOOL_ID]: async ctx => pullToolBoundary({ run: async () => {
       const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, ["peerId"]);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
-      const peerId = await selectPullPeer(routeDeps, input.peerId);
+      const peerId = await selectPullPeer({ deps: routeDeps, supplied: input.peerId });
       const staged = await pullAndStageFromPeer(routeDeps, { peerId, principalId: ctx.principal.id });
-      const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks: pullHooks(routeDeps, staged.bundleId, ctx.principal.id) });
+      const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks: pullHooks({ deps: routeDeps, bundleId: staged.bundleId, actorId: ctx.principal.id }) });
       const report = acceptedPullReport(planned.details as PublishContentReport);
       // The bundle table has no source-label column. An existing audit row retains this display
       // metadata across tool calls/restarts; no cached plan is trusted at execute time.
@@ -219,29 +216,29 @@ export function buildPublishContentRegistrations(
       });
       return { bundleId: staged.bundleId, expiresAt: staged.expiresAt, peerLabel: staged.peerLabel,
         counts: pullCounts(report), conflicts: report.rows.filter(row => row.canOverwrite).slice(0, 50).map(row => ({
-          entityKey: entityKey(row.entityType, row.entityId), title: pullTitle(row), reason: row.reason,
+          entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), reason: row.reason,
         })), blobsUnavailable: staged.blobsUnavailable, blobsDeferred: staged.blobsDeferred };
-    }),
+    } }),
     [PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
       flag: "executed",
-      prepare: ({ ctx }) => pullToolBoundary(async () => {
+      prepare: ({ ctx }) => pullToolBoundary({ run: async () => {
         const input = requireInputRecord({ input: ctx.input });
         refuseUnexpectedKeys(input, ["bundleId", "overwriteEntityKeys"]);
-        const bundleId = requiredPullBundleId(input.bundleId);
-        const overwriteKeys = pullOverwriteKeys(input.overwriteEntityKeys);
+        const bundleId = requiredPullBundleId({ value: input.bundleId });
+        const overwriteKeys = pullOverwriteKeys({ value: input.overwriteEntityKeys });
         await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
         const bundle = await loadActiveBundle({ repo: routeDeps.publishContentBundleRepo, workspaceId: routeDeps.workspaceId, id: bundleId, now: nowIso({ clock: routeDeps.clock }) });
         if (!bundle) throw new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
         if (bundle.sourcePrincipalId !== ctx.principal.id) throw new ToolInputError({ message: "This pull was planned by a different caller. Run publish_content_plan_pull for this conversation." });
         const audit = await routeDeps.publishContentRunRepo.findById({ workspaceId: routeDeps.workspaceId, id: bundleId });
         if (!audit || audit.phase !== "planned" || audit.actorId !== ctx.principal.id) throw new ToolInputError({ message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." });
-        const hooks = pullHooks(routeDeps, bundleId, ctx.principal.id, overwriteKeys);
+        const hooks = pullHooks({ deps: routeDeps, bundleId, actorId: ctx.principal.id }, { forcedEntityKeys: overwriteKeys });
         const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks });
         const report = acceptedPullReport(planned.details as PublishContentReport);
-        const knownKeys = new Set(report.rows.map(row => entityKey(row.entityType, row.entityId)));
+        const knownKeys = new Set(report.rows.map(row => entityKey({ entityType: row.entityType, entityId: row.entityId })));
         for (const key of overwriteKeys) if (!knownKeys.has(key)) throw new ToolInputError({ message: `'${key}' is not in this pull plan. Use entity keys returned by publish_content_plan_pull.` });
         return { hooks, planned, report, peerLabel: audit.peerLabel ?? "Live site" };
-      }),
+      } }),
       dialog: ({ report, peerLabel }) => ({
         toolId: PUBLISH_CONTENT_EXECUTE_PULL_TOOL_ID, errorCode: "PUBLISH_CONTENT", title: "Pull live content to this computer?",
         description: `Copy content from ${peerLabel} into this local site.`,
@@ -254,7 +251,7 @@ export function buildPublishContentRegistrations(
         warning: "The listed local items will be overwritten. A restore point is captured before applying changes.",
         danger: true, confirmLabel: "Apply pull",
       }),
-      run: ({ ctx, prepared: { hooks, planned }, confirmer }) => pullToolBoundary(async () => {
+      run: ({ ctx, prepared: { hooks, planned }, confirmer }) => pullToolBoundary({ run: async () => {
         const token = await gatewayConfirm({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: confirmer.id, principalKind: confirmer.kind, hooks, planId: planned.planId, planHash: planned.planHash });
         // As on /import/execute, check restore capability outside the shared gateway; it still
         // re-authorizes, checks the human-bound token and re-derives the plan before any write.
@@ -266,12 +263,12 @@ export function buildPublishContentRegistrations(
         const status = await getPublishContentRunStatus(routeDeps.publishContentRunRepo, { workspaceId: routeDeps.workspaceId, runId: applied.runId });
         if (!status?.report) throw new ToolInputError({ message: "The pull ran, but its report could not be loaded. Check import history before retrying." });
         // Use the persisted APPLY report, including any optimistic-concurrency downgrades.
-        return { executed: true, counts: pullCounts(status.report), entities: status.report.rows.map(row => ({ entityKey: entityKey(row.entityType, row.entityId), title: pullTitle(row), outcome: row.outcome, reason: row.reason })) };
-      }),
+        return { executed: true, counts: pullCounts(status.report), entities: status.report.rows.map(row => ({ entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), outcome: row.outcome, reason: row.reason })) };
+      } }),
     }),
     [PUBLISH_CONTENT_STATUS_TOOL_ID]: async (ctx) => {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_READ_PERMISSION });
-      const { readiness } = await readReadiness(routeDeps, findCandidate);
+      const { readiness } = await readReadiness({ deps: routeDeps, findCandidate });
       return readiness;
     },
 
@@ -329,16 +326,13 @@ export function buildPublishContentRegistrations(
         return {
           connected: true,
           message: `This computer publishes to ${site.label}.`,
-          nextStep: plainSentence(grant.nextStep, "Put this site online once more for the change to take effect."),
+          nextStep: plainSentence({ text: grant.nextStep, fallback: "Put this site online once more for the change to take effect." }),
         };
       } catch (err) {
         if (err instanceof PublishTrustHandshakeError) {
           return {
             connected: false,
-            message: plainSentence(
-              err.message,
-              `${siteLabelFor(normalized.baseUrl)} could not be reached, or it is not a site this can publish to.`
-            ),
+            message: plainSentence({ text: err.message, fallback: `${siteLabelFor({ baseUrl: normalized.baseUrl })} could not be reached, or it is not a site this can publish to.` }),
             nextStep: "Check the address and that the site is online, then try connecting again.",
           };
         }
@@ -406,7 +400,7 @@ async function suppliedPullPeer(
 }
 
 /** Choose only saved peers; ambiguity is reported rather than guessed. O(p) in saved peers. */
-async function selectPullPeer(deps: PublishContentToolDeps, supplied: unknown): Promise<string> {
+async function selectPullPeer({ deps, supplied }: { deps: PublishContentToolDeps; supplied: unknown }, _optional = {}): Promise<string> {
   if (supplied !== undefined) return suppliedPullPeer({ deps, supplied });
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
   if (rows.length === 0) throw new ToolInputError({ message: "No live destination is connected. Connect this computer with publish_content_connect, then plan the pull again." });
@@ -425,7 +419,7 @@ async function selectPullPeer(deps: PublishContentToolDeps, supplied: unknown): 
 }
 
 /** Fresh hooks from the same factory /import/plan and /import/execute use. O(1) projection. */
-function pullHooks(deps: PublishContentToolDeps, bundleId: string, actorId: string, forcedEntityKeys?: ReadonlySet<string>) {
+function pullHooks({ deps, bundleId, actorId }: { deps: PublishContentToolDeps; bundleId: string; actorId: string }, { forcedEntityKeys }: { forcedEntityKeys?: ReadonlySet<string> } = {}) {
   const contentDeps = deps.makePublishContentDeps?.() ?? {
     workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
     ports: deps.publishContentPorts ?? {}, outbox: deps.outbox, beforeSaveHook: deps.pluginBeforeSaveHook,
@@ -457,15 +451,15 @@ function pullCounts(report: PublishContentReport): { create: number; update: num
 }
 /** Display label, falling back to the stable entity key when the imported entity has no title. */
 function pullTitle(row: PublishContentReport["rows"][number]): string {
-  return row.entityLabel ?? entityKey(row.entityType, row.entityId);
+  return row.entityLabel ?? entityKey({ entityType: row.entityType, entityId: row.entityId });
 }
 /** Requires the staged bundle identifier; rejects malformed input with a model-readable error. */
-function requiredPullBundleId(value: unknown): string {
+function requiredPullBundleId({ value }: { value: unknown }, _optional = {}): string {
   if (typeof value !== "string" || value.trim() === "") throw new ToolInputError({ message: "'bundleId' must be a non-empty string." });
   return value;
 }
 /** Snapshot a bounded selection before drawing the confirmation card. O(k), at most 1000 keys. */
-function pullOverwriteKeys(value: unknown): ReadonlySet<string> {
+function pullOverwriteKeys({ value }: { value: unknown }, _optional = {}): ReadonlySet<string> {
   if (value === undefined) return new Set();
   if (!Array.isArray(value) || value.length > 1000 || !value.every(key => typeof key === "string" && key.trim() !== "")) {
     throw new ToolInputError({ message: "'overwriteEntityKeys' must be an array of at most 1000 non-empty strings." });
@@ -474,7 +468,7 @@ function pullOverwriteKeys(value: unknown): ReadonlySet<string> {
 }
 
 /** Translate known refusals for the model; unknown failures retain the normal executor redaction. */
-async function pullToolBoundary<T>(run: () => Promise<T>): Promise<T> {
+async function pullToolBoundary<T>({ run }: { run: () => Promise<T> }, _optional = {}): Promise<T> {
   try { return await run(); } catch (error) {
     throw modelFacingPullError({ error });
   }

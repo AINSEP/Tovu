@@ -57,7 +57,7 @@ export interface PublishChallengeRecord {
 export interface PublishChallengeStorePort {
   put(record: PublishChallengeRecord): Promise<void>;
   /** Returns the record AND removes it. A second call for the same nonce returns `null`. */
-  takeOnce(nonce: string): Promise<PublishChallengeRecord | null>;
+  takeOnce(required: { nonce: string }, optional?: Record<string, never>): Promise<PublishChallengeRecord | null>;
 }
 
 /** What the source sends back. Every field is attacker-controlled — nothing here is trusted until
@@ -135,7 +135,7 @@ export type ChallengeVerification =
   | { readonly ok: false; readonly reason: string };
 
 /** @complexity O(1). */
-function refuse(reason: string): ChallengeVerification {
+function refuse({ reason }: { reason: string }, _optional = {}): ChallengeVerification {
   return { ok: false, reason };
 }
 
@@ -253,11 +253,11 @@ export async function verifyChallengeResponse(
   }
 ): Promise<ChallengeVerification> {
   const { response, grant } = input;
-  if (typeof response?.nonce !== "string" || response.nonce === "") return refuse("no nonce supplied");
+  if (typeof response?.nonce !== "string" || response.nonce === "") return refuse({ reason: "no nonce supplied" });
 
   // FIRST, and unconditionally — see this function's doc.
-  const issued = await deps.store.takeOnce(response.nonce);
-  if (!issued) return refuse("nonce is unknown or was already used");
+  const issued = await deps.store.takeOnce({ nonce: response.nonce });
+  if (!issued) return refuse({ reason: "nonce is unknown or was already used" });
 
   // One clock reading: the nonce's TTL and the grant's validity are judged at the same instant.
   const nowIso = deps.clock.nowIso();
@@ -266,7 +266,7 @@ export async function verifyChallengeResponse(
     grantRefusal({ grant, nowIso, response }) ??
     capabilityRefusal({ grant, capabilities: response.capabilities }) ??
     signatureRefusal({ grant, targetInstallationId: input.targetInstallationId, response });
-  if (reason !== null) return refuse(reason);
+  if (reason !== null) return refuse({ reason });
 
   return {
     ok: true,
@@ -305,7 +305,7 @@ export class InMemoryPublishChallengeStore implements PublishChallengeStorePort 
   }
 
   /** @complexity O(1). Deletes as it reads — see {@link PublishChallengeStorePort.takeOnce}. */
-  async takeOnce(nonce: string): Promise<PublishChallengeRecord | null> {
+  async takeOnce({ nonce }: { nonce: string }, _optional = {}): Promise<PublishChallengeRecord | null> {
     const record = this.records.get(nonce) ?? null;
     if (record) this.records.delete(nonce);
     return record;

@@ -144,7 +144,7 @@ test("inspect() resolves an existing destination row by natural key, not by the 
   const naturalKeyId = "exact:/old-docs";
   assert.notEqual(naturalKeyId, record.id, "the natural key must not collide with the minted row id");
 
-  const result = await handler.inspect(naturalKeyId);
+  const result = await handler.inspect({ id: naturalKeyId });
   assert.ok(result);
   assert.equal(result?.version, record.version);
 });
@@ -152,11 +152,11 @@ test("inspect() resolves an existing destination row by natural key, not by the 
 test("inspect() returns null for a malformed id, a missing row, or an absent redirectsWriteDeps", async () => {
   const writeDeps = makeWriteDeps();
   const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
-  assert.equal(await handler.inspect("no-colon-in-this-id"), null);
-  assert.equal(await handler.inspect("exact:/does-not-exist"), null);
+  assert.equal(await handler.inspect({ id: "no-colon-in-this-id" }), null);
+  assert.equal(await handler.inspect({ id: "exact:/does-not-exist" }), null);
 
   const noDepsHandler = contributeRedirectPublish().build(makePublishDeps(undefined));
-  assert.equal(await noDepsHandler.inspect("exact:/whatever"), null);
+  assert.equal(await noDepsHandler.inspect({ id: "exact:/whatever" }), null);
 });
 
 // ---------------------------------------------------------------------------
@@ -171,16 +171,14 @@ test("precheck() rejects a loop with the exact chokepoint message text", async (
   });
   const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
 
-  const reason = await handler.precheck(
-    packedEntity("exact:/b", { matchType: "exact", fromPattern: "/b", toTarget: "/a", statusCode: 301, status: "active", override: false, priority: 0 })
-  );
+  const reason = await handler.precheck({ entity: packedEntity("exact:/b", { matchType: "exact", fromPattern: "/b", toTarget: "/a", statusCode: 301, status: "active", override: false, priority: 0 }) });
 
   assert.equal(reason, "redirect from '/b' would create a cycle via '/a' (resolves back to '/b')");
 });
 
 test("precheck() reports a message rather than throwing when redirectsWriteDeps is absent", async () => {
   const handler = contributeRedirectPublish().build(makePublishDeps(undefined));
-  const reason = await handler.precheck(packedEntity("exact:/x", {}));
+  const reason = await handler.precheck({ entity: packedEntity("exact:/x", {}) });
   assert.ok(typeof reason === "string");
   assert.match(reason, /no redirect port wired/);
 });
@@ -319,7 +317,7 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
     statusCode: 301, actorId: ACTOR_ID,
   } });
   const handler = contributeRedirectPublish().build(makePublishDeps(writeDeps));
-  const planned = await handler.inspect("exact:/old-docs");
+  const planned = await handler.inspect({ id: "exact:/old-docs" });
   await updateRedirect({ deps: writeDeps, input: {
     workspaceId: WORKSPACE_ID, id: seed.id,
     toTarget: "/operator-edit", statusCode: 307, actorId: ACTOR_ID,
@@ -342,7 +340,7 @@ test("apply() preserves a concurrent natural-key redirect edit and rejects a rep
 
 test("precheck() names a malformed natural key instead of validating fields", async () => {
   const handler = contributeRedirectPublish().build(makePublishDeps(makeWriteDeps()));
-  const reason = await handler.precheck(packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }));
+  const reason = await handler.precheck({ entity: packedEntity("no-colon", { matchType: "exact", fromPattern: "/x", toTarget: "/y", statusCode: 301 }) });
   assert.ok(typeof reason === "string");
   assert.match(reason, /no-colon/);
   assert.ok(typeof reason === "string");

@@ -229,8 +229,8 @@ test("keyed challenge requests hit the per-IP ceiling without minting another no
   assert.deepEqual(sent.body, { error: "too many publishing handshake attempts", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: 60 } });
   assert.equal(headers["Retry-After"], "60");
   assert.equal(minted, 40);
-  assert.equal((await store.takeOnce("rate-nonce-40"))?.targetInstallationId, "dest-1");
-  assert.equal(await store.takeOnce("rate-nonce-41"), null);
+  assert.equal((await store.takeOnce({ nonce: "rate-nonce-40" }))?.targetInstallationId, "dest-1");
+  assert.equal(await store.takeOnce({ nonce: "rate-nonce-41" }), null);
 });
 
 test("keyed GET /identity reports the origin the caller reached, and an empty origin when no Host header arrived", async () => {

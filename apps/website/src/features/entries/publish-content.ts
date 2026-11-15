@@ -101,12 +101,12 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
       const widgetType = widgetTypeRefusal({ id: entity.id, state: entity.state });
       if (widgetType) return widgetType;
       const owner = await ports.contentTypes.findByKey({ workspaceId, key: entity.state.type as string });
-      return owner?.status === "tombstone" ? tombstonedAtDestination("content-type", owner.key) : null;
+      return owner?.status === "tombstone" ? tombstonedAtDestination({ entityType: "content-type", id: owner.key }) : null;
     },
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion, principalId }) => {
       const widgetType = widgetTypeRefusal({ id, state });
       if (widgetType) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: widgetType });
-      const gateway = gatewayDeps(deps, "collection-entry");
+      const gateway = gatewayDeps({ deps, entityType: "collection-entry" });
       // Checked before the entry is written, so a missing term or permission blocks the row whole.
       const terms = await prepareTermSync({
         ports: ports.terms,

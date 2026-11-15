@@ -65,7 +65,7 @@ export async function resolvePublishDestinationCredential(
   { openSession = openPublishSession }: { openSession?: typeof openPublishSession } = {}
 ): Promise<ResolvedPeerCredential> {
   const record = await deps.repo.findById(input);
-  if (!record) throw new PublishContentPeerNotFoundError(`peer '${input.id}' was not found`);
+  if (!record) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
 
   if (record.sealed !== null) {
     // Deliberately re-entered rather than inlined: `resolvePeerCredential` is the ONLY function
