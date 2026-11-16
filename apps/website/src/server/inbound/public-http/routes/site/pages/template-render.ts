@@ -193,7 +193,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
   // (invisible before `expandPartials` ran) or was authored directly in `post`'s own `body_html`
   // (the fixed live bug — `post-previews`/`menu` used to be scanned off `rawTemplate` alone, which
   // could never see either).
-  const rendered = await finishStaticTierDocument(deps, {
+  const rendered = await finishStaticTierDocument({ deps, input: {
     theme,
     pageId,
     html: bodyWithTerms,
@@ -206,7 +206,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
     // path never looked the featured asset up at all and it only ever reached `og:image`.
     featuredImage: await resolveFeaturedImageForRender(deps, pendingBodyJson !== undefined ? { ...post, bodyJson: pendingBodyJson } : post),
     postAuthor: post,
-  });
+  } }, {});
   return renderCommentsMarkers({ html: injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }), enabled: siteAssistantEnabled }),
     providers: deps.commentsProviders, siteId: deps.workspaceId,
     entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },

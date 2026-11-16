@@ -109,10 +109,10 @@ test("a legacy menu widget and a current menu marker render together through the
   });
   const widgetHtml = '<nav class="widget widget-menu"><h3 class="widget-menu-title">Body menu</h3><ul><li><a href="/">Journey Home</a></li></ul></nav>';
   const menuHtml = '<nav data-tovu-menu="body-menu"><ul data-tovu-menu-list data-depth="0"><li data-tovu-menu-item data-depth="0" data-current="true" data-active="true" data-has-children="false"><a href="/" aria-current="page" data-toolname="menu_body-menu_0" data-tooldescription="Journey Home" data-tool-action="navigate">Journey Home</a></li></ul></nav>';
-  const html = await finishStaticTierDocument(deps, {
+  const html = await finishStaticTierDocument({ deps, input: {
     theme: theme(), pageId: "content-template", currentPath: "/", staticMenus: undefined,
     html: post.bodyHtml!.replace("<p>after</p>", `<div data-embed-config='{"type":"menu","id":"body-menu","mode":"html"}'></div><p>after</p>`),
-  });
+  } }, {});
   assertBody(html, widgetHtml + menuHtml);
 });
 
@@ -120,10 +120,10 @@ test("HTML-mode static documents and partials use the same widget expansion", as
   const { deps, post } = await fixture();
   const activeTheme = theme();
   activeTheme.partials.nav = post.bodyHtml!;
-  const html = await finishStaticTierDocument(deps, {
+  const html = await finishStaticTierDocument({ deps, input: {
     theme: activeTheme, pageId: "content-template", currentPath: "/body-page", staticMenus: undefined,
     html: '<html><body><div data-embed-config=\'{"type":"partial","id":"nav"}\'></div></body></html>',
-  });
+  } }, {});
   assertBody(html, WIDGET_HTML);
 });
 

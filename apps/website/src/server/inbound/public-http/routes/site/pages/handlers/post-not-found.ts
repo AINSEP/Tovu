@@ -37,13 +37,13 @@ export async function handlePostNotFoundOnSlugRoute(
   // collection marker on the 404 page (or a partial it references) resolves too, not only its menu
   // markers (the one thing the old direct `renderStaticPage` call already substituted).
   if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
-    const staticHtml = await finishStaticTierDocument(deps, {
+    const staticHtml = await finishStaticTierDocument({ deps, input: {
       theme,
       pageId: "404",
       html: theme.pages["404"],
       currentPath: req.path,
       staticMenus,
-    });
+    } }, {});
     if (staticHtml) {
       void captureVisitorEvent({ deps, request: req, name: "site_not_found", properties: { routeTemplate: "/:slug" } });
       res.status(404).type("html").send(staticHtml);

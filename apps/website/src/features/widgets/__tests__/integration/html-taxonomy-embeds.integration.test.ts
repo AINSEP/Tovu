@@ -65,7 +65,7 @@ test("the public static-page pipeline wires taxonomy read ports and resolves mar
     pages: { index: source }, partials: { nav: marker("tax-1") },
     css: "", source: "site", status: "valid", errors: [],
   };
-  const rendered = await finishStaticTierDocument(dependencies, { theme, pageId: "index", html: source, currentPath: "/", staticMenus: undefined });
+  const rendered = await finishStaticTierDocument({ deps: dependencies, input: { theme, pageId: "index", html: source, currentPath: "/", staticMenus: undefined } }, {});
   assert.match(rendered, /data-tovu-term="from-the-public-pipeline"/);
   assert.doesNotMatch(rendered, /class=|style=|data-embed-config|widget-placeholder/);
 });

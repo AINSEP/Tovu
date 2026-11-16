@@ -70,8 +70,8 @@ import { resolvePerVisitorResponse, sendPublicPage } from "./response.js";
  * `MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE` distinct marker configs.
  */
 export async function finishStaticTierDocument(
-  deps: TemplateRenderDeps,
-  input: StaticTierDocumentInput
+  { deps, input }: { deps: TemplateRenderDeps; input: StaticTierDocumentInput },
+  _optional: Record<string, never> = {}
 ): Promise<string> {
   const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } = input;
 
@@ -171,14 +171,14 @@ export async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus
   // Preserve authored titles only when neither a workspace title nor a pending pin supplies one.
   const preserveThemeTitle = await resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true })
     .then((title) => title === undefined, () => false);
-  const rendered = await finishStaticTierDocument(deps, {
+  const rendered = await finishStaticTierDocument({ deps, input: {
     theme,
     pageId: "index",
     html: theme.pages.index,
     currentPath: "/",
     staticMenus,
     postPreviewsAccess: access,
-  });
+  } }, {});
   const homeHtml = injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }, { preserveThemeTitle }), enabled: siteAssistantEnabled });
   await sendPublicPage({ req, res, deps, html: homeHtml, perVisitor: resolvePerVisitorResponse(req, res) });
 }

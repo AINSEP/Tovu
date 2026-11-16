@@ -84,14 +84,14 @@ export async function resolveMarketingPageOrOverride({ deps, theme, slug, static
   // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
   // static-tier surface now runs, so a widget/media/post/content marker on this marketing page or
   // inside a partial it references — never resolved here before this fix — resolves too.
-  const staticHtml = await finishStaticTierDocument(deps, {
+  const staticHtml = await finishStaticTierDocument({ deps, input: {
     theme,
     pageId: slug,
     html: pageHtml,
     currentPath: postPublicPath({ slug: slug }),
     staticMenus,
     postPreviewsAccess,
-  });
+  } }, {});
 
   if (!staticHtml) return { kind: "fallthrough" };
 

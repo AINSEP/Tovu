@@ -223,7 +223,7 @@ async function datedCollectionHtml(entry: EntryRecord): Promise<string> {
   const deps = { ...createRouteDeps(), contentTypeRepo, entryRepo };
   const marker = `<section data-embed-config='{"type":"collection","typeKey":"gadget"}'><template><p class="dated">{{title}}|{{date}}</p></template>No gadgets</section>`;
   const theme = staticTheme({ pricing: "<html><body></body></html>" }, ["pricing"]);
-  return finishStaticTierDocument(deps, { theme, pageId: "pricing", html: `<html><body><main>${marker}</main></body></html>`, currentPath: "/pricing", staticMenus: undefined });
+  return finishStaticTierDocument({ deps, input: { theme, pageId: "pricing", html: `<html><body><main>${marker}</main></body></html>`, currentPath: "/pricing", staticMenus: undefined } }, {});
 }
 
 test("collection list: an entry with no publishedAt is dated by its updatedAt", async () => {

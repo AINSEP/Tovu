@@ -356,11 +356,11 @@ test("static-tier finisher: partials, embeds, menus, previews, collections, rend
     `<div data-embed-config='{"type":"collection","typeKey":"faq","fields":["answer"]}'>collection fallback</div>`,
   ].join(""));
 
-  const out = await finishStaticTierDocument({ ...deps, documentAssets }, { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: undefined });
+  const out = await finishStaticTierDocument({ deps: { ...deps, documentAssets }, input: { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: undefined } }, {});
   const access = await import("#src/features/members/access-resolver");
   const resolver = access.createMemberAccessResolver({ deps });
   log.length = 0;
-  const gated = await finishStaticTierDocument({ ...deps, documentAssets }, { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: { resolver, context: { kind: "anonymous" } as never } });
+  const gated = await finishStaticTierDocument({ deps: { ...deps, documentAssets }, input: { theme: theme(), pageId: "about", html, currentPath: "/about", staticMenus: {}, postPreviewsAccess: { resolver, context: { kind: "anonymous" } as never } } }, {});
 
   assert.equal(log.filter((entry) => entry === "documentAssets").length, 1);
   assert.equal(log.at(-1), "documentAssets");
