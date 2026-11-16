@@ -340,7 +340,7 @@ export function readErrorParams(required: { details: unknown }, optional: ReadEr
 
 | Boundary | Today | Design | Old reader × new response | New reader × old response |
 |---|---|---|---|---|
-| Tovu admin route JSON | flat `{ error, code, errorId, details.failure }` | **unchanged shape.** Only the inside of `reportServerFailure` / `adminFailureResponse` changes (they call the reporter) | identical bytes for the same input; pinned by characterization tests | n/a |
+| Tovu admin route JSON | flat `{ error, code, errorId, details.failure }` | **unchanged shape.** Only the inside of `reportServerFailure` / `adminFailureResponse` changes (they call the reporter) | identical for the same input except the ID format (D2); pinned by characterization tests | n/a |
 | Jini route JSON | `{ error: ApiError }` + `requestId` | **unchanged shape.** `reportRouteInternalError` calls the reporter; the answer is still `INTERNAL_ERROR` + `requestId`. The client builds Copy details from what it knows: the request (step), the ID, its own app and Jini versions, the time it got the answer, and the fixed cause sentence. Tovu's `publishAdminFailure` already does this for responses without `details.failure` | identical bytes | n/a |
 | HTTP status of a refusal | closed table; a feature code answers 500 | `RouteHostContext.statusFor?` (typed, optional); all 11 `statusForError` call sites use `routeStatus({ error }, { host })` = `host?.statusFor?.({ error }) ?? statusForError({ error })` | n/a | a host that passes nothing gets today's table |
 | AG-UI / chat run events | `RunErrorPayload { message, error? }`; several emitters send `message` only; six consumers rebuild a plain `Error` | emitters use one `runError(...)` helper that fills `error` (code, `requestId`, incident details) and puts the ID in `message`. Consumers build one typed `RunFailure` through one function. The saved status event keeps the ID and the failure fields | an old client shows `message`, which now ends in `(error ERR-…)` | a new client reading an old frame gets a `RunFailure` with no ID and shows the words |
@@ -466,7 +466,7 @@ Untangle interaction: E2 adds a new core folder. E5a edits `core/src/contracts/s
 | E8 chat end to end | 40k | 280k |
 | E9 Electron + sidecar | 30k | 250k |
 | E10 i18n | 10k | 130k |
-| **Total** | **about 410k** | **about 2.9M** (2.88M summed) |
+| **Total** | **about 410k** | **about 2.9M** |
 
 By analogy with the untangle lane costs, not measured. Revision 1 said 330k + 2.4M; the difference is the work the judge showed was missing (status threading, chat consumers, both-direction fixtures, sentences/bindings split). E1 can ship on its own.
 
