@@ -583,6 +583,166 @@ async function forwardAttachmentUpload(req: Request, res: Response, daemon: Daem
   await relayResponse(upstream, req, res);
 }
 
+/** What each route-group mounter of the assistant module needs; one object so every group sees the same daemon and stores. */
+interface AssistantMountContext {
+  readonly app: Express;
+  readonly routeDeps: AssistantRouteDeps;
+  readonly daemon: DaemonCallOptions;
+  readonly liveModels: ReturnType<typeof createLiveModelDiscovery>;
+  readonly byokSurfaceExchanges: SurfaceExchangeStore;
+}
+
+/** The chat-run proxy routes, each behind the admin session. */
+function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon } = required;
+  app.use("/api/runs", requireAdminSession(routeDeps));
+  app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
+    proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
+      if (error instanceof RunSlotBusyError) { res.status(409).json({ error: error.message, code: "CHAT_RUN_BUSY" }); return; }
+      next(error);
+    });
+  });
+  // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
+  // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
+  // here, so the daemon's list endpoint was unreachable and 404'd at Tovu's own router.
+  // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.
+  // The daemon answers it with the caller's own runs only — http-kit's version lists every
+  // run on the box, which would hand one admin the ids of every other admin's runs.
+  app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
+  app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
+  app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
+  // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
+  // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
+  // pane whether to deliver live or queue the text after the current run. A durable run's id is the
+  // daemon's own (`launch` hands it over), so no ledger lookup is needed.
+  app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+}
+
+/** The agent list and read-only tool-catalog routes, each behind the admin session. */
+function mountAgentAndToolRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon, liveModels } = required;
+  app.use("/api/agents", requireAdminSession(routeDeps));
+  app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
+  app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
+
+  // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
+  // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied
+  // from `@jini-ai/http-kit`'s `registerToolCatalogRoutes` (mounted daemon-side by
+  // `agent-daemon-server.ts`). That daemon route is `requireSameOrigin`-gated and, before this,
+  // reachable only by the spawned `jini-mcp` subprocess's own loopback `fetch` (no `Origin`
+  // header, so it passes the daemon's same-origin check the way a browser's cross-origin
+  // request never could) plus the daemon bearer token. `proxyPassthrough` satisfies both of
+  // those the identical way that subprocess does: `forwardToAgentDaemon`'s outbound `fetch`
+  // carries no `Origin` header either (Node's `fetch`, not a browser's) and attaches the same
+  // bearer token every other route in this module does — so this proxy reaches the daemon route
+  // exactly like its one existing legitimate caller, without loosening `requireSameOrigin`
+  // itself by one bit. `requireAdminSession` below is the ONLY new gate a browser caller must
+  // pass, replacing "must be that subprocess" with "must be a signed-in admin".
+  //
+  // BOUNDARY, stated plainly because the next reader will otherwise conflate it with item 1's
+  // MCP-UI allowlist: this exposes tool **names and descriptions** to an authenticated admin
+  // session, in the admin's own page. It is **read-only enumeration, never execution** — no
+  // `toolName`/`params` body is accepted here, there is no POST/PUT/DELETE mounted on this
+  // path, and nothing on this path can reach `ToolExecutor.execute`. A tool becomes callable
+  // from the browser only through `MCP_UI_TOOL_CALLS_PATH`'s own allowlist
+  // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
+  // widen.
+  //
+  // Proxy failure remains bounded: known-failed daemon boots return 503 without a fetch,
+  // and unreachable daemons return 502. Enumeration cannot hang on an unavailable daemon.
+  app.use("/api/tools", requireAdminSession(routeDeps));
+  app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+  app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+}
+
+/** The agent-driven control routes for the admin's own tab. */
+function mountFrontendSessionRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon } = required;
+  // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
+  // stream carries invocations down to the browser and the response route carries answers
+  // back; both are `@jini-ai/http-kit`'s, mounted on the daemon by `agent-daemon-server.ts`.
+  //
+  // Proxied rather than reached directly for the same reason every other route here is: the
+  // daemon requires a bearer token the browser must never hold, and `requireAdminSession`
+  // is what proves a caller is an admin at all. The stream in particular depends on
+  // `relayResponse` above streaming rather than buffering — it is SSE, exactly like
+  // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
+  // invocation until the connection closed.
+  app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
+  // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
+  app.post("/api/frontend-sessions/activate", (req, res, next) => {
+    activateFrontendDaemon({ req, res }, daemon).catch(next);
+  });
+  app.post("/api/frontend-sessions/request", (req, res, next) => {
+    proxyPassthrough(req, res, daemon).catch(next);
+  });
+  app.get("/api/frontend-sessions/stream", (req, res, next) => {
+    if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
+    proxyPassthrough(req, res, { ...daemon, passive: true }).catch(next);
+  });
+  app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
+    proxyPassthrough(req, res, daemon).catch(next),
+  );
+}
+
+/** Composer attachments plus the MCP-UI and A2UI inbound action endpoints. */
+function mountAttachmentAndActionRoutes(required: AssistantMountContext, _optional = {}): void {
+  const { app, routeDeps, daemon, byokSurfaceExchanges } = required;
+  // Composer image/file uploads (`@jini-ai/chat/react`'s `uploadAttachments` prop,
+  // `AssistantDock.tsx`). Same session-auth requirement as every other route in this module —
+  // an unauthenticated upload endpoint is an arbitrary-file-write primitive reachable by
+  // anyone who can reach this port, so this gate is not optional. `POST` needs the dedicated
+  // raw-stream proxy above; `DELETE`'s body is real small JSON
+  // (`{batchId, paths}` — `create-daemon-attachment-uploader.ts`'s `deletePartialUpload`), so
+  // the ordinary `proxyPassthrough` JSON path is correct for it unchanged.
+  app.use("/api/attachments", requireAdminSession(routeDeps));
+  app.post("/api/attachments", (req: Request, res: Response, next: NextFunction) => {
+    forwardAttachmentUpload(req, res, daemon).catch(next);
+  });
+  app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+
+  // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
+  // had, so until now bytes could be uploaded and never fetched again and the admin's preview
+  // modal could only show attachments from the current session out of a client-side `File`
+  // cache. See `routes/assistant/get-chat-attachment.ts` for the security model and
+  // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
+  // attachment with no recorded owner is readable by nobody).
+  //
+  // Deliberately NOT a proxy, unlike the two routes above, and this is the one thing about it
+  // that will surprise the next reader: the daemon owns the live `AttachmentStore`, but that
+  // port exposes no non-mutating owner-scoped read (`resolveForRun` CLAIMS what it resolves,
+  // and `listPendingForOwner` returns no path and excludes exactly the already-claimed
+  // attachments this feature exists for). Serving it here instead also means the principal is
+  // compared in the same process that mints it, with no trusted-header hop between the check
+  // and the value being checked.
+  //
+  // Registered inside this module rather than as its own, for the `app.use` two lines above:
+  // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
+  // this route is covered by the same mount that covers the upload it reads back. A separate
+  // module would have to re-mount the same guard, which is a second thing to keep in sync.
+  registerAdminChatAttachmentReadRoute(app, { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir });
+
+  // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
+  // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from
+  // `/api/delegated-tool-calls`, which is intentionally NOT mounted in this module at all (see
+  // this file's header) and whose trust boundary this endpoint does not reuse or widen.
+  app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
+  app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
+    proxyMcpUiToolCall(req, res, byokSurfaceExchanges, daemon).catch(next);
+  });
+
+  // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — BYOK store first, then the daemon;
+  // see `proxyA2uiAction`'s doc. No allowlist: there is no `toolName` on an A2UI action (the
+  // daemon-side route has none either — A2UI has no execution surface to allowlist).
+  app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
+  app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
+    proxyA2uiAction(req, res, byokSurfaceExchanges, daemon).catch(next);
+  });
+}
+
 /**
  * @param byokSurfaceExchanges - The SAME `SurfaceExchangeStore` `modules/assistant-byok.ts`'s tool
  * surface was composed with (`ByokToolSurface.surfaceExchanges`), built once by `app.ts` and passed
@@ -603,140 +763,11 @@ export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurface
   return {
     name: "assistant",
     registerRoutes: ({ app }, _options = {}) => {
-      app.use("/api/runs", requireAdminSession(routeDeps));
-      app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
-        proxyRunStart(req, res, daemon, routeDeps).catch((error: unknown) => {
-          if (error instanceof RunSlotBusyError) { res.status(409).json({ error: error.message, code: "CHAT_RUN_BUSY" }); return; }
-          next(error);
-        });
-      });
-      // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
-      // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
-      // here, so the daemon's list endpoint was unreachable and 404'd at Tovu's own router.
-      // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.
-      // The daemon answers it with the caller's own runs only — http-kit's version lists every
-      // run on the box, which would hand one admin the ids of every other admin's runs.
-      app.get("/api/runs", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.post("/api/runs/:runId/recover", (req, res, next) => recoverDurableRun({ req, res, deps: routeDeps }, {}).catch(next));
-      app.get("/api/runs/:runId/checkpoint", (req, res, next) => readDurableCheckpoint({ req, res, deps: routeDeps }, {}).catch(next));
-      app.get("/api/runs/:runId", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.get("/api/runs/:runId/events", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.post("/api/runs/:runId/cancel", (req, res, next) => cancelDurableRun({ req, res, deps: routeDeps, daemon }, {}).catch(next));
-      // A message the operator sent mid-run, for the live agent (`@jini-ai/daemon`'s run-messages
-      // route). Passed through untouched: the daemon's 202 / 409 `details.delivery` tells the chat
-      // pane whether to deliver live or queue the text after the current run. A durable run's id is the
-      // daemon's own (`launch` hands it over), so no ledger lookup is needed.
-      app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-
-      app.use("/api/agents", requireAdminSession(routeDeps));
-      app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
-      app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
-
-      // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
-      // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied
-      // from `@jini-ai/http-kit`'s `registerToolCatalogRoutes` (mounted daemon-side by
-      // `agent-daemon-server.ts`). That daemon route is `requireSameOrigin`-gated and, before this,
-      // reachable only by the spawned `jini-mcp` subprocess's own loopback `fetch` (no `Origin`
-      // header, so it passes the daemon's same-origin check the way a browser's cross-origin
-      // request never could) plus the daemon bearer token. `proxyPassthrough` satisfies both of
-      // those the identical way that subprocess does: `forwardToAgentDaemon`'s outbound `fetch`
-      // carries no `Origin` header either (Node's `fetch`, not a browser's) and attaches the same
-      // bearer token every other route in this module does — so this proxy reaches the daemon route
-      // exactly like its one existing legitimate caller, without loosening `requireSameOrigin`
-      // itself by one bit. `requireAdminSession` below is the ONLY new gate a browser caller must
-      // pass, replacing "must be that subprocess" with "must be a signed-in admin".
-      //
-      // BOUNDARY, stated plainly because the next reader will otherwise conflate it with item 1's
-      // MCP-UI allowlist: this exposes tool **names and descriptions** to an authenticated admin
-      // session, in the admin's own page. It is **read-only enumeration, never execution** — no
-      // `toolName`/`params` body is accepted here, there is no POST/PUT/DELETE mounted on this
-      // path, and nothing on this path can reach `ToolExecutor.execute`. A tool becomes callable
-      // from the browser only through `MCP_UI_TOOL_CALLS_PATH`'s own allowlist
-      // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
-      // widen.
-      //
-      // Proxy failure remains bounded: known-failed daemon boots return 503 without a fetch,
-      // and unreachable daemons return 502. Enumeration cannot hang on an unavailable daemon.
-      app.use("/api/tools", requireAdminSession(routeDeps));
-      app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-      app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-
-      // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
-      // stream carries invocations down to the browser and the response route carries answers
-      // back; both are `@jini-ai/http-kit`'s, mounted on the daemon by `agent-daemon-server.ts`.
-      //
-      // Proxied rather than reached directly for the same reason every other route here is: the
-      // daemon requires a bearer token the browser must never hold, and `requireAdminSession`
-      // is what proves a caller is an admin at all. The stream in particular depends on
-      // `relayResponse` above streaming rather than buffering — it is SSE, exactly like
-      // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
-      // invocation until the connection closed.
-      app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
-      // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
-      app.post("/api/frontend-sessions/activate", (req, res, next) => {
-        activateFrontendDaemon({ req, res }, daemon).catch(next);
-      });
-      app.post("/api/frontend-sessions/request", (req, res, next) => {
-        proxyPassthrough(req, res, daemon).catch(next);
-      });
-      app.get("/api/frontend-sessions/stream", (req, res, next) => {
-        if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
-        proxyPassthrough(req, res, { ...daemon, passive: true }).catch(next);
-      });
-      app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
-        proxyPassthrough(req, res, daemon).catch(next),
-      );
-
-      // Composer image/file uploads (`@jini-ai/chat/react`'s `uploadAttachments` prop,
-      // `AssistantDock.tsx`). Same session-auth requirement as every other route in this module —
-      // an unauthenticated upload endpoint is an arbitrary-file-write primitive reachable by
-      // anyone who can reach this port, so this gate is not optional. `POST` needs the dedicated
-      // raw-stream proxy above; `DELETE`'s body is real small JSON
-      // (`{batchId, paths}` — `create-daemon-attachment-uploader.ts`'s `deletePartialUpload`), so
-      // the ordinary `proxyPassthrough` JSON path is correct for it unchanged.
-      app.use("/api/attachments", requireAdminSession(routeDeps));
-      app.post("/api/attachments", (req: Request, res: Response, next: NextFunction) => {
-        forwardAttachmentUpload(req, res, daemon).catch(next);
-      });
-      app.delete("/api/attachments", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
-
-      // Reading a staged attachment's bytes BACK — the half `@jini-ai/http-kit`'s route pack never
-      // had, so until now bytes could be uploaded and never fetched again and the admin's preview
-      // modal could only show attachments from the current session out of a client-side `File`
-      // cache. See `routes/assistant/get-chat-attachment.ts` for the security model and
-      // `features/media/read-chat-attachment.ts` for the authorization rule (owner-scoped, and an
-      // attachment with no recorded owner is readable by nobody).
-      //
-      // Deliberately NOT a proxy, unlike the two routes above, and this is the one thing about it
-      // that will surprise the next reader: the daemon owns the live `AttachmentStore`, but that
-      // port exposes no non-mutating owner-scoped read (`resolveForRun` CLAIMS what it resolves,
-      // and `listPendingForOwner` returns no path and excludes exactly the already-claimed
-      // attachments this feature exists for). Serving it here instead also means the principal is
-      // compared in the same process that mints it, with no trusted-header hop between the check
-      // and the value being checked.
-      //
-      // Registered inside this module rather than as its own, for the `app.use` two lines above:
-      // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
-      // this route is covered by the same mount that covers the upload it reads back. A separate
-      // module would have to re-mount the same guard, which is a second thing to keep in sync.
-      registerAdminChatAttachmentReadRoute(app, { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir });
-
-      // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
-      // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from
-      // `/api/delegated-tool-calls`, which is intentionally NOT mounted in this module at all (see
-      // this file's header) and whose trust boundary this endpoint does not reuse or widen.
-      app.use(MCP_UI_TOOL_CALLS_PATH, requireAdminSession(routeDeps));
-      app.post(MCP_UI_TOOL_CALLS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyMcpUiToolCall(req, res, byokSurfaceExchanges, daemon).catch(next);
-      });
-
-      // A2UI's own inbound endpoint (`a2ui-actions-route.ts`) — BYOK store first, then the daemon;
-      // see `proxyA2uiAction`'s doc. No allowlist: there is no `toolName` on an A2UI action (the
-      // daemon-side route has none either — A2UI has no execution surface to allowlist).
-      app.use(A2UI_ACTIONS_PATH, requireAdminSession(routeDeps));
-      app.post(A2UI_ACTIONS_PATH, (req: Request, res: Response, next: NextFunction) => {
-        proxyA2uiAction(req, res, byokSurfaceExchanges, daemon).catch(next);
-      });
+      const mount: AssistantMountContext = { app, routeDeps, daemon, liveModels, byokSurfaceExchanges };
+      mountRunRoutes(mount);
+      mountAgentAndToolRoutes(mount);
+      mountFrontendSessionRoutes(mount);
+      mountAttachmentAndActionRoutes(mount);
     },
   };
 }
