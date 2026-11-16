@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { ApiError } from "../admin-http/request";
 
 /**
@@ -63,13 +64,13 @@ test("requestMemberMagicLink includes redirectPath when the caller passes one", 
 
 test("listRecentAnalyticsHits omits the limit query param when none is given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRecentAnalyticsHits();
+  await analyticsApi.listRecentAnalyticsHits();
   expect(calls[0].url).not.toContain("limit=");
 });
 
 test("listRecentAnalyticsHits appends ?limit= when a limit is given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRecentAnalyticsHits({ limit: 50 });
+  await analyticsApi.listRecentAnalyticsHits({ limit: 50 });
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("50");
 });
 

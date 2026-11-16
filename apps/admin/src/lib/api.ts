@@ -1479,16 +1479,6 @@ export interface AdminMember {
   version: number;
 }
 
-export interface AdminAnalyticsHit {
-  occurredAt: string;
-  kind: "pageview" | "event";
-  path: string;
-  referrerHost: string | null;
-  deviceClass: "desktop" | "mobile" | "tablet" | "bot" | "unknown";
-  browserFamily: string | null;
-  eventName: string | null;
-}
-
 export interface AdminMenuTarget {
   kind: "entryRef" | "termRef" | "url" | "route";
   entryId?: string;
@@ -2698,10 +2688,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, redirectPath: options.redirectPath }),
     } }),
-  listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
-    request<{ hits: AdminAnalyticsHit[] }>(
-      { path: `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix({ query: options.limit ? "limit=" + options.limit : "" })}` }
-    ),
   listMenus: () =>
     request<{ menus: AdminMenu[] }>({ path: `/workspaces/${WORKSPACE_ID}/menus` }),
   getMenu: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>

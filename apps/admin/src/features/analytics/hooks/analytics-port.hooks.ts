@@ -1,4 +1,4 @@
-import type { AdminAnalyticsHit } from "@/lib/api";
+import type { AdminAnalyticsHit } from "@/features/analytics/api/analytics-api.types";
 
 /**
  * @file What `useAnalytics` needs from the outside world, as an interface rather than a direct
