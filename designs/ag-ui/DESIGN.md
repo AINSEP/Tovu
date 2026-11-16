@@ -37,8 +37,8 @@ Every row was read in the trees above. "Not verified" items are listed in §13.
 
 | # | Brief says | Code says | Where |
 |---|---|---|---|
-| F1 | Admin chat streams over AG-UI | Only when `localStorage["tovu:assistant-ag-ui"] === "1"` in that browser. The default admin paths are the durable daemon path (`POST /api/runs` + `EventSource`, reattachable) and BYOK. The AG-UI path has no reattach and no server-side run record reachable from the client. | `apps/admin/src/lib/assistant-transport-ag-ui.ts:43-53`, `assistant-transport.ts` (`agUi: agUiRunClient`, `getAgUiEnabled`) |
-| F2 | "Keep Jini's daemon/run/session layer" for the site chat | The site chat has **no daemon run**. `POST /api/site-assistant/chat` calls `runByokProviderTurn` in the website process for the life of one request. Tools go through a request-lifetime `createVisitorExecutor`, which wraps Jini's `createToolExecutor` and `withToolAttemptAudit`. Its header says: "no admin daemon, registry or proxy enters this composition". | `modules/site-assistant.ts:654-829`, `assistant/site/visitor-executor.ts:44-108`, `visitor-frontend-control.ts:1` |
+| F1 | Admin chat streams over AG-UI | Only when `localStorage["tovu:assistant-ag-ui"] === "1"` in that browser. The default admin paths are the durable daemon path (`POST /api/runs` + `EventSource`, reattachable) and BYOK. The AG-UI path has no reattach and no server-side run record reachable from the client. | `apps/admin/src/lib/assistant-transport-ag-ui.ts:43-55`, `assistant-transport.ts` (`agUi: agUiRunClient`, `getAgUiEnabled`) |
+| F2 | "Keep Jini's daemon/run/session layer" for the site chat | The site chat has **no daemon run**. `POST /api/site-assistant/chat` calls `runByokProviderTurn` in the website process for the life of one request. Tools go through a request-lifetime `createVisitorExecutor`, which wraps Jini's `createToolExecutor` and `withToolAttemptAudit`. Its header says: "no admin daemon, registry or proxy enters this composition". | `modules/site-assistant.ts:654-829`, `assistant/site/visitor-executor.ts:45-111`, `visitor-frontend-control.ts:1` |
 | F3 | Move Tovu's adapter "next to" Jini's | Jini already has: the event projection in both directions (`chat/src/core/ag-ui/entry.ts`, 310 lines), the client transport (`chat/src/core/assistant-client/ag-ui-transport.ts`, 218 lines, published as `@jini-ai/chat/transports/ag-ui`), and a capability-to-frontend-tool projection (`agentic/src/core/ag-ui.ts`, 127 lines, no production caller). Tovu's file re-exports and forwards to the first one. | files named |
 | F4 | One adapter | **Three** daemon-wire-to-`AgentEvent` reducers exist: `chat/core/run-events` `translateRunAgentPayload` (canonical), `chat/core/ag-ui` `reduceAgentWirePayload`, and Tovu `assistant-ag-ui.ts` `reduceAgentWirePayload`. They disagree (§1.4). | files named |
 | F5 | (version) | Tovu root and Jini chat pin `@ag-ui/core` **0.0.58** exactly; admin has `^0.0.58` for core and client. npm's latest `@ag-ui/core` is **1.0.4**. A major upgrade is pending, which is the owner's reason for one adapter. | `package.json` files; `npm view @ag-ui/core version` |
@@ -65,7 +65,7 @@ Private pieces and their existing Jini owner:
 | `unwrapDaemonEnvelope`, `handle{Agent,Stdout,Error,End}DaemonFrame`, `handleDaemonFrame` | 95 | `chat/core/run-events` `translateRunFrame({ kind, raw, notices }, { carry })` returns `{ events, error?, terminal? }` | delete after §1.4 goldens |
 | `resolveAgUiRunRequest`, `resolveForwarded*` | 55 | none | move to Jini `run-input.ts` |
 | `beginAgUiStream`, `writeAgUiEvent`, `drainAgUiStream` | 70 | `core/contracts/server` `createSseStream` (pull-based, 1000-frame cap, injected scheduler) | replace (§7) |
-| `handleAgUiRun` close/cancel state machine | 80 with its comment (over the 50-line warn, at the 80 error line) | none | move to Jini `run-stream.ts`, split (§3.4) |
+| `handleAgUiRun` close/cancel state machine | 79 (lines 570-648, about 25 of them comment; over the 50-line warn either way; the file has no size-debt entry) | none | move to Jini `run-stream.ts`, split (§3.4) |
 | `startDaemonRun`, `subscribeToDaemonEvents` | 55 | none; they call Tovu's `fetchAgentDaemon` | stay in Tovu as the daemon port binding |
 
 Tests today (counted with `grep -c "^\s*\(it\|test\)("`, so `test.each` rows are not expanded): `assistant-ag-ui-routes.test.ts` 33, `assistant-ag-ui-translate.test.ts` 20, `modules/__tests__/assistant-ag-ui.wire.unit.test.ts` 3; admin `assistant-transport.ag-ui.unit.test.ts` 51; Jini `ag-ui/__tests__` 19 + 6 + 2, `ag-ui-transport.test.ts` 9, agentic `ag-ui.test.ts` 11.
@@ -85,7 +85,7 @@ browser (apps/site-chat)                         website server
 ```
 
 - Wire: `event: text|error|end|client_directive` + `data:` (`site-assistant.ts:237 sse()`). The client is `site-assistant-transport.ts` (350 lines, one hand-written SSE parser, a 90 s idle timer because the server sends no keepalive).
-- Tool calls are deliberately **not echoed** to the visitor (`site-assistant.ts:812-815`: echoing would disclose internal tool names and raw lookup results).
+- Tool calls are deliberately **not echoed** to the visitor (`site-assistant.ts:813`: echoing would disclose internal tool names and raw lookup results).
 - Page tools: `createVisitorFrontendControl` builds Jini's `createFrontendControl({ capabilities: PAGE_CAPABILITIES, … })` with a guest scope (cookie `tovu_visitor_frontend`, path `/api/site-assistant`), 256 sessions, 3 per key, keys `ip:` and `guest:`. A run is bound per request with `control.bindRequest({ runId, bindToken, owner, signal })`.
 - Confirmation: the executor's delegate asks `VisitorConfirmations.request`, which emits a `client_directive` `{ kind: "tool_confirmation", challengeId, title, summary }`; the browser answers on `/api/site-assistant/confirm`. The gate re-reads policy and the input digest after the click and again just before the handler (`visitor-confirmation-gate.ts`).
 - A navigation or accepted form submit ends the turn (`isTerminalVisitorAction`); the server writes a text line and `end { reason: "navigation" }`, and only then does the browser change the page (`visitor-page-control.ts flushTerminalNavigation`).
@@ -259,7 +259,7 @@ One source implementation is generic and one is host-owned. No shared base class
 ### 3.4 Size and argument rules checked inside each new file (lesson 8)
 
 - Every exported function takes `(required, optional = {})`. Existing positional signatures that move are converted in the move commit of that function, with their callers (`translateAgentEventToAgUi(event, state)` in Tovu's forwarder is already `({ event, state })` in Jini).
-- `handleAgUiRun` (80 lines with comment) is split into: `openRun` (authenticate, parse, start or resume; ≤ 35), `pumpRun` (the loop; ≤ 40), `settleRun` (terminal, pause, client-left; ≤ 35), `agUiRunRoute` handler (≤ 25). The long "why" comment about close ordering moves with `settleRun` and is rewritten for `request.signal` (§7.4).
+- `handleAgUiRun` (79 lines with its comment) is split into: `openRun` (authenticate, parse, start or resume; ≤ 35), `pumpRun` (the loop; ≤ 40), `settleRun` (terminal, pause, client-left; ≤ 35), `agUiRunRoute` handler (≤ 25). The long "why" comment about close ordering moves with `settleRun` and is rewritten for `request.signal` (§7.4).
 - `createAgUiRunClient` (113 lines, size debt) is split into `startRun`, `subscribeRun`, `settleRunOnce`, `answerPauses`, each ≤ 45. The size-debt entry is removed in the same commit; no new entry is added.
 - Exhaustive `switch` over `AgentEvent.kind` and over `AgUiSourceEvent.kind` keep their `never` default. They are the accepted cognitive-complexity justification (testable-design-patterns hatch).
 - The frame dispatch table `WIRE_PAYLOAD_REDUCERS` disappears with the duplicate reducers.
@@ -460,7 +460,7 @@ Everything that can refuse does so **before** the SSE `Response` is created, so 
 | 5 | `runs.start` / `runs.resume` | the source's `Response` (today's 502/503 from the daemon client, or the site's public error) |
 | 6 | commit: `createSseStream(...)`, queue `RUN_STARTED`, return `stream.response` | none; from here failures are events |
 
-This keeps today's rule from `assistant-ag-ui.ts:606-608` ("start the daemon run before switching into SSE mode"). Test: a source whose `start` never resolves leaves the response uncommitted; aborting the request then cancels nothing that exists.
+This keeps today's rule from `assistant-ag-ui.ts:619-621` ("start the daemon run before switching into SSE mode"). Test: a source whose `start` never resolves leaves the response uncommitted; aborting the request then cancels nothing that exists.
 
 ### 7.2 Production
 
@@ -648,7 +648,7 @@ Token estimates in the planning documents' units. Wall-clock is not estimated.
 |---|---|---|
 | 1 | DI through typed ports from the host | `AgUiRunHost`, `AgUiRunSourcePort`, pause store, scheduler, clock, ids, `describeFailure`; no `process.env`, no global `fetch` default in new code. **Conflict flagged:** `createFrontendSessionBridge` and `openFetchFrontendStream` default to `globalThis.fetch` ("0.6.x compatibility"); the runner that replaces them takes `fetch` as required. |
 | 2 | `(required, optional = {})` | all new exports; moved positional functions converted with their callers (§3.4) |
-| 3 | Functions ≤ 50 (80 error), files ≤ 500, complexity ≤ 10 | per-file targets in §3.1; `handleAgUiRun` (80) and `createAgUiRunClient` (113) are split; two exhaustive switches use the documented justification. **Flag:** `site-assistant.ts` is 857 lines today; S5 only shrinks it. |
+| 3 | Functions ≤ 50 (80 error), files ≤ 500, complexity ≤ 10 | per-file targets in §3.1; `handleAgUiRun` (79 with comment) and `createAgUiRunClient` (113) are split; two exhaustive switches use the documented justification. **Flag:** `site-assistant.ts` is 857 lines today; S5 only shrinks it. |
 | 4 | Feature slicing | one folder, files named by what they do (projection, reduction, pauses, interrupts, frontend-tools, run-stream); client files under `client/` |
 | 5 | No barrels, re-export shells, forwarders | Tovu's type re-export and three forwarders are deleted; `entry.ts` is deleted. **Conflict flagged, not fixed here:** `assistant-client/entry.ts` is a re-export file (the `./transports/http` entry) and re-exports four AG-UI types; S1 removes those four lines, the rest belongs to the chat lane (R4). |
 | 6 | Why-comments move with code | named in each move commit (close-ordering comment, bind-token comments, replay-suppression comment, `flattenMessagesToPrompt` simplification note) |
