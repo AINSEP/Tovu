@@ -1,4 +1,5 @@
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
+import { PostDeleteConfirmDialog } from "./editor/PostDeleteConfirmDialog";
 import { PostEditorBody } from "./editor/PostEditorBody";
 import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
 import { PostEditorToolbarEnd } from "./editor/header/PostEditorToolbarEnd";
@@ -14,7 +15,6 @@ import { usePreviewPaneWidth, useDevicePreviewDevice } from "../../components/De
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import type { AdminPost } from "../../lib/api";
 
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { usePostPreviewIframeEscape, usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
@@ -64,52 +64,6 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string;
  *  the `.segmented` pill row is a different visual control, only the keyboard contract is shared.
  *  Spread, not rebuilt, so nothing in the JSX below has to change which field it reads. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/**
- * Delete-confirmation presentation, including local discard before first Save. This owner keeps
- * the title, consequence and action label together; a local working copy has no server row to trash.
- * Jini's ConfirmDialog continues to own the dialog lifecycle and confirmation behavior.
- */
-function PostDeleteConfirmDialog({
-  kindLabel,
-  post,
-  open,
-  pending,
-  onConfirm,
-  onCancel,
-  t,
-}: {
-  kindLabel: "post" | "page";
-  post: Pick<AdminPost, "id" | "title">;
-  open: boolean;
-  pending: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-  t: Translate;
-}) {
-  return (
-    <ConfirmDialog
-      open={open}
-      agentHandle="post-delete-confirm"
-      title={t(post.id ? "Move to trash?" : "Discard post?")}
-      body={post.id ? (
-        <p>
-          {t(kindLabel === "page" ? "Move this page" : "Move this post")} (&quot;{post.title}&quot;){" "}
-          {t(
-            kindLabel === "page"
-              ? "to trash? It will disappear from the site and from the pages list."
-              : "to trash? It will disappear from the site and from the posts list.",
-          )}
-        </p>
-      ) : <p>{t("Discard this unsaved post?")}</p>}
-      confirmLabel={t(post.id ? "Move to trash" : "Discard")}
-      destructive
-      pending={pending}
-      onConfirm={onConfirm}
-      onCancel={onCancel}
-    />
-  );
-}
 
 export interface PostEditorProps {
   /** Persisted id/slug, or an empty string for the local working copy before first Save. */
