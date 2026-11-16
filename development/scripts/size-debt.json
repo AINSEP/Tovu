@@ -779,13 +779,6 @@
       "value": 726
     },
     {
-      "file": "apps/desktop/src/desktop-agent-service.ts",
-      "function": "createDesktopAgentService#1",
-      "line": 100,
-      "rule": "max-lines-per-function",
-      "value": 170
-    },
-    {
       "file": "apps/desktop/src/desktop-agent.ts",
       "function": "createDesktopAgentRuntime#1",
       "line": 335,
