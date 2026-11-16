@@ -896,6 +896,23 @@ describe("standing-draft autosave + unsaved-work guard, wired into usePageEditor
     expect(result.current.title).toBe(HTML_PAGE.title);
   });
 
+  it("a failed discardRecoveredDraft keeps the banner and says so in plain words", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const seeded = {
+      bodyFormat: "html" as const, bodyHtml: "<p>recovered</p>", title: "Recovered title", slug: "landing",
+      baseVersion: HTML_PAGE.version, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local",
+    };
+    const deps = fakeDepsWithAutosave({ page: HTML_PAGE, autosave: seeded });
+    deps.port.discardAutosave = vi.fn(async () => { throw new Error("offline"); });
+    const { result } = renderHook(() => usePageEditor({ routeSlug: "landing", deps }));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    await act(async () => result.current.discardRecoveredDraft());
+
+    expect(result.current.recoverableDraft).not.toBeNull();
+    expect(result.current.error).toContain("Could not discard the recovered draft");
+  });
+
   it("editing schedules a debounced autosave PUT matching buildPageAutosaveDraft's own shape", async () => {
     vi.useFakeTimers();
     try {
