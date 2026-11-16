@@ -2,6 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import type { ChatMessage } from '@jini-ai/chat/core';
 /** Thin Tovu host over Jini's shared frontend bridge and DOM driver. Both widgets use this. */
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
+import { pagePortFromDriver } from './jini-page-port';
 import { createDomPageDriver, type DomPageDriverPage } from '@jini-ai/agentic/dom';
 import type { PagePublication } from '@jini-ai/agentic';
 import { createFrontendSessionBridge, openFetchFrontendStream, type FrontendSessionBridgeOptions } from '@jini-ai/chat/browser/frontend-session-bridge';
@@ -113,7 +114,7 @@ export function createVisitorPageControl({ document, beforeNavigate }: { documen
     const driver = createDomPageDriver({ root, pages }, { publication, deferSubmit: ({ execute }) => { state.deferredSubmission = execute; } });
     const bridge = createFrontendSessionBridge({ baseUrl: '', endpointPrefix: '/api/site-assistant/frontend-sessions', fetch: send,
       headers, openStream: ({ url }) => openFetchFrontendStream({ url, headers }, { fetch: send }) }, {
-      maxResponseBytes: 96_000, pageDriver: driver, capabilityIds: PAGE_CAPABILITIES.map(capability => capability.id),
+      maxResponseBytes: 96_000, page: pagePortFromDriver({ driver }), capabilityIds: PAGE_CAPABILITIES.map(capability => capability.id),
       preparePageInput: ({ action }) => preparePageInput({ action, publication, pages, state }),
       ...createResponseHooks({ state, beforeNavigate, navigateWhenReady }),
     });

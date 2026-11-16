@@ -1,6 +1,7 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import { pagePortFromDriver } from "./integrations/jini-page-port";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
@@ -1087,7 +1088,7 @@ export function useAgentPageBridge(
       // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
       openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
     }, {
-      pageDriver,
+      page: pagePortFromDriver({ driver: pageDriver }),
       preparePageInput: pageNavigation.preparePageInput,
       onBeforeResponse: pageNavigation.onBeforeResponse,
       executors,
