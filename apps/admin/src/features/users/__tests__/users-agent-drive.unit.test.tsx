@@ -351,7 +351,7 @@ describe("account-management controls are agent-drivable, like the rest of the p
     await act(async () => {
       await executePageCapability({ driver: createDomPageDriver({ root: container, pages: {} }), capabilityId: "page.click", input: { handle: "users-delete-confirm" } });
     });
-    expect(deleteUser).toHaveBeenCalledExactlyOnceWith(bob.principalId);
+    expect(deleteUser).toHaveBeenCalledExactlyOnceWith({ principalId: bob.principalId });
     await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
   });
 
