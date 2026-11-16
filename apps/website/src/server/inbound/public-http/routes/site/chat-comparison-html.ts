@@ -10,11 +10,12 @@ export function renderSiteChatComparisonFrame({ variant }: { variant: "react" | 
 <script defer src="/site-chat/${asset}.js"></script></body></html>`;
 }
 
-/** Product-specific comparison controls. No site setting is changed by opening this document. */
-export function renderSiteChatComparisonPage(_input: Record<string, never>, _options = {}): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+/** The page's `<head>` start, ahead of its stylesheet. */
+const PAGE_HEAD = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Compare site chat widgets</title><style>
-:root{color-scheme:light;--primary:#a85a38;--border:#dfe2e8;--fg:#272c36;--surface:#fff}
+`;
+
+const PAGE_STYLES = `:root{color-scheme:light;--primary:#a85a38;--border:#dfe2e8;--fg:#272c36;--surface:#fff}
 *{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--fg);font:14px/1.5 "DM Sans",system-ui,sans-serif}
 main{padding:24px;max-width:1400px;margin:auto}h1{font-size:28px;margin:0 0 8px}h2{font-size:18px;margin:0 0 8px}
 form{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:20px 0}.field{flex:1;min-width:220px}label{display:block;margin-bottom:6px}
@@ -23,7 +24,10 @@ button{background:var(--primary);color:#fff;cursor:pointer}button:disabled{opaci
 .panes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.pane{min-width:0}.viewport{overflow-x:auto;border:1px solid var(--border);border-radius:11px;background:#f6f7fa}
 iframe{display:block;width:100%;height:740px;border:0}.panes[data-width="mobile"] iframe{width:375px;max-width:none;margin:auto}
 .status{min-height:24px}details{margin:20px 0}a{color:var(--primary)}@media(max-width:800px){main{padding:16px}.panes{grid-template-columns:1fr}}
-</style></head><body><main>
+`;
+
+/** The stylesheet's close through the controls, the two panes and the opening `<script>` tag. */
+const PAGE_BODY = `</style></head><body><main>
 <p>Development · Visitor AI Assistant</p><h1>Compare site chat widgets</h1>
 <p>Both panes use this site's assistant. Each keeps its own thread. Replies may vary; compare layout, streaming, links, reset, and page actions.</p>
 <form id="compare-form"><div class="field"><label for="compare-message">Message for both widgets</label><textarea id="compare-message" maxlength="8000" required placeholder="Ask about this site's posts and pages…"></textarea></div>
@@ -36,7 +40,10 @@ iframe{display:block;width:100%;height:740px;border:0}.panes[data-width="mobile"
 <details><summary>Remaining parity gaps</summary><ul><li>Draggable bubble: React supports dragging; Lightweight stays anchored.</li><li>Syntax colouring: Lightweight renders safe code blocks without highlighting.</li><li>Rich event cards: Lightweight streams text and page actions; React also renders rich event cards.</li><li>Header/composer chrome and reset confirmation focus still differ. Check keyboard reset in both panes before switching.</li></ul></details>
 <p>Keep the visitor assistant enabled and its provider configured before sending. Change the site widget in <a href="/admin/ai-assistant?tab=visitor">Visitor's AI Assistant settings</a>.</p>
 </main><script>
-(() => {
+`;
+
+/** The script that drives both panes: readiness, width switching, and sending one message to each. */
+const PAGE_SCRIPT = `(() => {
   const form = document.getElementById('compare-form');
   const button = document.getElementById('compare-send');
   const status = document.getElementById('compare-status');
@@ -81,5 +88,11 @@ iframe{display:block;width:100%;height:740px;border:0}.panes[data-width="mobile"
   });
   setTimeout(() => { if (!ready()) status.textContent = 'Widgets have not loaded. Rebuild apps/site-chat with npm run build:local, then reload.'; }, 20000);
 })();
-</script></body></html>`;
+`;
+
+const PAGE_TAIL = `</script></body></html>`;
+
+/** Product-specific comparison controls. No site setting is changed by opening this document. */
+export function renderSiteChatComparisonPage(_input: Record<string, never>, _options = {}): string {
+  return PAGE_HEAD + PAGE_STYLES + PAGE_BODY + PAGE_SCRIPT + PAGE_TAIL;
 }
