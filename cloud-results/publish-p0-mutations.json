@@ -1604,8 +1604,8 @@
   "id": "RH10",
   "what": "default change-set summary reworded",
   "file": "apps/website/src/features/publish-content/repo-handler.ts",
-  "find": "`Import ${entityType} '${entity.id}' via publish-content`",
-  "replace": "`Import ${entityType} ${entity.id}`",
+  "find": "`Import ${env.entityType} '${entity.id}' via publish-content`",
+  "replace": "`Import ${env.entityType} ${entity.id}`",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
   ]
@@ -1614,8 +1614,8 @@
   "id": "RH11",
   "what": "rollback side effects run first-registered first",
   "file": "apps/website/src/features/publish-content/repo-handler.ts",
-  "find": "for (const sideEffect of rollbacks.reverse())",
-  "replace": "for (const sideEffect of rollbacks)",
+  "find": "for (const sideEffect of run.rollbacks.reverse())",
+  "replace": "for (const sideEffect of run.rollbacks)",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
   ]
@@ -1654,8 +1654,8 @@
   "id": "RH15",
   "what": "coversRoots dropped from the contributor",
   "file": "apps/website/src/features/publish-content/repo-handler.ts",
-  "find": "coversTables: config.coversTables, coversRoots: config.coversRoots }",
-  "replace": "coversTables: config.coversTables }",
+  "find": "    coversTables: config.coversTables,\n    coversRoots: config.coversRoots,\n",
+  "replace": "    coversTables: config.coversTables,\n",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
   ]

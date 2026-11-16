@@ -1206,20 +1206,6 @@
       "value": 134
     },
     {
-      "file": "apps/website/src/features/publish-content/repo-handler.ts",
-      "function": "createRepoPublishHandler#1",
-      "line": 154,
-      "rule": "max-lines-per-function",
-      "value": 177
-    },
-    {
-      "file": "apps/website/src/features/publish-content/repo-handler.ts",
-      "function": "createRepoPublishHandler#1.build#1",
-      "line": 192,
-      "rule": "max-lines-per-function",
-      "value": 143
-    },
-    {
       "file": "apps/website/src/features/publish-content/tool-registrations.ts",
       "function": "buildPublishContentRegistrations#1",
       "line": 181,

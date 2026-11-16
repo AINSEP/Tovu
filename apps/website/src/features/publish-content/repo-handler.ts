@@ -150,18 +150,49 @@ export function okOrThrow<T>(result: { ok: true; value: T } | { ok: false; error
   return result.value;
 }
 
-/** Builds a `PublishContentContributor` from a {@link RepoPublishTypeConfig}. */
-export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConfig<Row, Ports>): PublishContentContributor {
-  const { entityType, permission } = config;
-  const portsKey = config.portsKey ?? entityType;
-  const schemaVersion = config.schemaVersion ?? 1;
-  const dependsOn = config.dependsOn ?? [];
-  const idOf = config.idOf ?? (({ row }: { row: Row }, _optional = {}) => (row as { id: string }).id);
-  const versionOf = config.versionOf ?? ((row: Row) => (row as { version: number }).version);
-  const fieldsWhere = ({ keep }: { keep: (d: FieldDisposition) => boolean }, _optional = {}) =>
-    Object.entries<FieldDisposition>(config.fields).filter(([, d]) => keep(d)).map(([field]) => field);
-  const packedFields = fieldsWhere({ keep: (d) => d !== "local" });
-  const hashedFields = fieldsWhere({ keep: (d) => d === "transferred" });
+type RepoApplyInput = Parameters<PublishContentHandler["apply"]>[0];
+
+/** What a config fixes before any `deps` exist: the field lists, the hash and the error mapping. */
+interface RepoCodec<Row, Ports> {
+  readonly config: RepoPublishTypeConfig<Row, Ports>;
+  readonly entityType: string;
+  readonly permission: string;
+  readonly portsKey: string;
+  readonly schemaVersion: number;
+  readonly dependsOn: readonly string[];
+  readonly idOf: (required: { row: Row }, optional?: Record<string, never>) => string;
+  readonly versionOf: (row: Row) => number;
+  readonly packedFields: readonly string[];
+  readonly pick: (row: Row, fields: readonly string[]) => Record<string, unknown>;
+  readonly hashOf: (row: Row) => string;
+  readonly conflict: (required: { id: string; detail: string }, optional?: Record<string, never>) => PublishContentApplyRowError;
+  readonly toRowError: (required: { err: unknown; id: string }, optional?: Record<string, never>) => unknown;
+}
+
+/** A codec bound to one `deps` bag: what every step of one built handler reads. `ports` reads the bag
+ *  again each time it is called, so a port wired later is seen. */
+interface RepoEnv<Row, Ports> extends RepoCodec<Row, Ports> {
+  readonly deps: PublishContentDeps;
+  readonly workspaceId: string;
+  readonly ports: () => Ports | undefined;
+}
+
+/** One `apply()` call: its input, its ports, and the side-effect undos `write` registered. */
+interface RepoApplyRun<Row, Ports> {
+  readonly env: RepoEnv<Row, Ports>;
+  readonly ports: Ports;
+  readonly input: RepoApplyInput;
+  readonly rollbacks: Array<() => Promise<void>>;
+}
+
+function fieldsWhere({ fields, keep }: { fields: Record<string, FieldDisposition>; keep: (d: FieldDisposition) => boolean }, _optional = {}) {
+  return Object.entries<FieldDisposition>(fields).filter(([, d]) => keep(d)).map(([field]) => field);
+}
+
+function createRepoCodec<Row, Ports>({ config }: { config: RepoPublishTypeConfig<Row, Ports> }, _optional = {}): RepoCodec<Row, Ports> {
+  const { entityType } = config;
+  const packedFields = fieldsWhere({ fields: config.fields, keep: (d) => d !== "local" });
+  const hashedFields = fieldsWhere({ fields: config.fields, keep: (d) => d === "transferred" });
 
   /** Missing values become `null`, so an unset column and SQL `NULL` pack and hash alike, except an
    *  `omitWhenAbsent` field, which is left out. */
@@ -189,161 +220,215 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
     return err;
   }
 
-  function build(deps: PublishContentDeps): PublishContentHandler {
-    const ports = () => config.ports({ deps });
-    const { workspaceId } = deps;
+  return {
+    config,
+    entityType,
+    permission: config.permission,
+    portsKey: config.portsKey ?? entityType,
+    schemaVersion: config.schemaVersion ?? 1,
+    dependsOn: config.dependsOn ?? [],
+    idOf: config.idOf ?? (({ row }: { row: Row }, _optional = {}) => (row as { id: string }).id),
+    versionOf: config.versionOf ?? ((row: Row) => (row as { version: number }).version),
+    packedFields,
+    pick,
+    hashOf,
+    conflict,
+    toRowError,
+  };
+}
 
-    async function* pack(): AsyncIterable<PackedEntity> {
-      const p = ports();
-      if (!p) return;
-      const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.({ row }) ?? true));
-      for (const row of config.packOrder ? config.packOrder(rows) : rows) {
-        const displayLabel = config.displayLabel?.({ row });
-        yield {
-          entityType,
-          id: idOf({ row }),
-          schemaVersion,
-          contentHash: hashOf(row),
-          hashVersion: CONTENT_HASH_VERSION,
-          requiredBlobs: config.requiredBlobs?.(row) ?? [],
-          state: pick(row, packedFields),
-          ...(displayLabel ? { displayLabel } : {}),
-        };
-      }
-    }
-
-    async function inspect({ id }: { id: string }, _optional = {}): Promise<{ version: number; hash: string } | null> {
-      const p = ports();
-      const row = p ? await config.find({ ports: p, workspaceId, id }) : null;
-      return row ? { version: versionOf(row), hash: hashOf(row) } : null;
-    }
-
-    async function precheckAddress(
-      { entity, p }: { entity: PackedEntity; p: Ports },
-      _options: Record<string, never> = {}
-    ): Promise<string | null> {
-      const { address } = config;
-      const value = address ? entity.state[address.field] : undefined;
-      if (address && typeof value === "string" && value) {
-        const holder = await address.holder({ ports: p, workspaceId, value, state: entity.state });
-        if (holder && idOf({ row: holder }) !== entity.id) {
-          const held = config.isTrashed?.({ row: holder }) ? addressHeldInTrash : addressHeldByOther;
-          return held({ entityType, field: address.field, value, holderId: idOf({ row: holder }) });
-        }
-      }
-      return null;
-    }
-
-    /** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
-    async function precheck({ entity }: { entity: PackedEntity }, _optional = {}): ReturnType<PublishContentHandler["precheck"]> {
-      const p = ports();
-      if (!p) return notWired({ entityType, id: entity.id, portName: `${portsKey} port` });
-      const addressReason = await precheckAddress({ entity, p });
-      if (addressReason !== null) return addressReason;
-      const existing = await config.find({ ports: p, workspaceId, id: entity.id });
-      if (existing && config.isTrashed?.({ row: existing })) return trashedAtDestination({ entityType, id: entity.id });
-      return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;
-    }
-
-    async function apply(input: {
-      entity: PackedEntity;
-      expectedVersion: number | undefined;
-      principalId: string;
-      idempotencyKey: string;
-      sourceReplacement?: MediaSourceReplacement;
-    }): Promise<{ changeSetId: string }> {
-      const unwired = ({ what }: { what: string }, _optional = {}) =>
-        new Error(`publish-content: ${entityType}.apply() requires ${what} — wire it from the apply-loop composition root (features/publish-content/apply-loop.ts).`);
-      const p = ports();
-      if (!p) throw unwired({ what: `PublishContentDeps.ports.${portsKey}` });
-      const { entity, expectedVersion } = input;
-      const rollbacks: Array<() => Promise<void>> = [];
-      const onRollback = ({ undo }: { undo: () => Promise<void> }, _optional = {}): void => { rollbacks.push(undo); };
-      const ctx = ({ existing }: { existing: Row | null }, _optional = {}): RepoWriteContext<Row, Ports> => ({
-        ports: p,
-        deps,
-        workspaceId,
-        id: entity.id,
-        state: entity.state,
-        existing,
-        expectedVersion,
-        principalId: input.principalId,
-        ...(input.sourceReplacement ? { sourceReplacement: input.sourceReplacement } : {}),
-        onRollback,
-      });
-
-      /** The three CAS failures (plan §2.2 step 2), then the write with its errors mapped. */
-      async function write({ existing }: { existing: Row | null }, _optional = {}): Promise<RepoWriteResult> {
-        const found = existing ? versionOf(existing) : null;
-        let mismatch: string | false = false;
-        if (expectedVersion === undefined) {
-          if (found !== null) mismatch = `expected no existing row, found version ${found}`;
-        } else if (found === null) {
-          mismatch = `expected version ${expectedVersion}, but the row is gone`;
-        } else {
-          if (found !== expectedVersion) mismatch = `expected version ${expectedVersion}, found version ${found}`;
-        }
-        if (mismatch) throw conflict({ id: entity.id, detail: mismatch });
-        try {
-          return (await config.write(ctx({ existing }))) ?? {};
-        } catch (err) {
-          throw toRowError({ err, id: entity.id });
-        }
-      }
-
-      const { undo } = config;
-      if (!undo) {
-        const written = await write({ existing: await config.find({ ports: p, workspaceId, id: entity.id }) });
-        return { ...written, changeSetId: written.changeSetId ?? entity.id };
-      }
-      const { changeSets, authorize, outbox } = deps;
-      if (!changeSets || !authorize || !outbox) throw unwired({ what: "PublishContentDeps.changeSets/authorize/outbox" });
-
-      let prior: Row | null = null;
-      const { result, changeSetId } = await executeCommand<RepoWriteResult>({
-        deps: { clock: deps.clock, idGen: deps.idGen, changeSets, outbox, authorize },
-        command: {
-          workspaceId,
-          actor: { id: input.principalId, kind: "user" },
-          summary: (await undo.summary?.(ctx({ existing: null }))) ?? `Import ${entityType} '${entity.id}' via publish-content`,
-          permission,
-          idempotencyKey: input.idempotencyKey,
-        },
-        mutation: {
-          entityType,
-          entityId: entity.id,
-          operation: expectedVersion === undefined ? "create" : "update",
-          // Read inside the gateway so the CAS check and the inverse are the same, freshest read.
-          captureInverse: async () => {
-            prior = await config.find({ ports: p, workspaceId, id: entity.id });
-            return prior ? ({ ...prior } as unknown as JsonObject) : null;
-          },
-          execute: () => write({ existing: prior }),
-          captureEntityVersion: ({ result: written }) => written.version ?? null,
-          rollback: async () => {
-            for (const sideEffect of rollbacks.reverse()) await sideEffect();
-            await (prior ? undo.restore({ ctx: ctx({ existing: prior }), prior }) : undo.remove(ctx({ existing: null })));
-          },
-        },
-      });
-      return { ...result, changeSetId };
-    }
-
-    const references = config.references;
-    return {
-      entityType,
-      schemaVersion,
-      permission,
-      ...(config.alsoAuthorizes ? { alsoAuthorizes: config.alsoAuthorizes } : {}),
-      dependsOn,
-      pack,
-      inspect,
-      precheck,
-      apply,
-      ...(references ? { references: ({ entity }: { entity: PackedEntity }) => references({ entity }) } : {}),
-      ...config.extend?.({ deps, ports }),
+async function* packRepoEntity<Row, Ports>({ env }: { env: RepoEnv<Row, Ports> }, _optional = {}): AsyncIterable<PackedEntity> {
+  const { config, workspaceId } = env;
+  const p = env.ports();
+  if (!p) return;
+  const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.({ row }) ?? true));
+  for (const row of config.packOrder ? config.packOrder(rows) : rows) {
+    const displayLabel = config.displayLabel?.({ row });
+    yield {
+      entityType: env.entityType,
+      id: env.idOf({ row }),
+      schemaVersion: env.schemaVersion,
+      contentHash: env.hashOf(row),
+      hashVersion: CONTENT_HASH_VERSION,
+      requiredBlobs: config.requiredBlobs?.(row) ?? [],
+      state: env.pick(row, env.packedFields),
+      ...(displayLabel ? { displayLabel } : {}),
     };
   }
+}
 
-  return { entityType, dependsOn, build, coversTables: config.coversTables, coversRoots: config.coversRoots };
+async function inspectRepoEntity<Row, Ports>(
+  { env, id }: { env: RepoEnv<Row, Ports>; id: string },
+  _optional = {}
+): Promise<{ version: number; hash: string } | null> {
+  const p = env.ports();
+  const row = p ? await env.config.find({ ports: p, workspaceId: env.workspaceId, id }) : null;
+  return row ? { version: env.versionOf(row), hash: env.hashOf(row) } : null;
+}
+
+async function precheckRepoAddress<Row, Ports>(
+  { env, entity, p }: { env: RepoEnv<Row, Ports>; entity: PackedEntity; p: Ports },
+  _options: Record<string, never> = {}
+): Promise<string | null> {
+  const { address } = env.config;
+  const value = address ? entity.state[address.field] : undefined;
+  if (address && typeof value === "string" && value) {
+    const holder = await address.holder({ ports: p, workspaceId: env.workspaceId, value, state: entity.state });
+    if (holder && env.idOf({ row: holder }) !== entity.id) {
+      const held = env.config.isTrashed?.({ row: holder }) ? addressHeldInTrash : addressHeldByOther;
+      return held({ entityType: env.entityType, field: address.field, value, holderId: env.idOf({ row: holder }) });
+    }
+  }
+  return null;
+}
+
+/** Order (plan §2.2): not wired, address held, destination trashed, then `validate`. */
+async function precheckRepoEntity<Row, Ports>(
+  { env, entity }: { env: RepoEnv<Row, Ports>; entity: PackedEntity },
+  _optional = {}
+): ReturnType<PublishContentHandler["precheck"]> {
+  const { config, entityType, workspaceId } = env;
+  const p = env.ports();
+  if (!p) return notWired({ entityType, id: entity.id, portName: `${env.portsKey} port` });
+  const addressReason = await precheckRepoAddress({ env, entity, p });
+  if (addressReason !== null) return addressReason;
+  const existing = await config.find({ ports: p, workspaceId, id: entity.id });
+  if (existing && config.isTrashed?.({ row: existing })) return trashedAtDestination({ entityType, id: entity.id });
+  return (await config.validate?.({ ports: p, workspaceId, entity, existing })) ?? null;
+}
+
+function unwiredApply({ entityType, what }: { entityType: string; what: string }, _optional = {}): Error {
+  return new Error(`publish-content: ${entityType}.apply() requires ${what} — wire it from the apply-loop composition root (features/publish-content/apply-loop.ts).`);
+}
+
+function repoWriteContext<Row, Ports>(
+  { run, existing }: { run: RepoApplyRun<Row, Ports>; existing: Row | null },
+  _optional = {}
+): RepoWriteContext<Row, Ports> {
+  const { env, input } = run;
+  return {
+    ports: run.ports,
+    deps: env.deps,
+    workspaceId: env.workspaceId,
+    id: input.entity.id,
+    state: input.entity.state,
+    existing,
+    expectedVersion: input.expectedVersion,
+    principalId: input.principalId,
+    ...(input.sourceReplacement ? { sourceReplacement: input.sourceReplacement } : {}),
+    onRollback: ({ undo }: { undo: () => Promise<void> }, _optional = {}): void => { run.rollbacks.push(undo); },
+  };
+}
+
+/** The version mismatch (plan §2.2 step 2), or `false` when the destination is as the plan saw it. */
+function versionMismatch({ expectedVersion, found }: { expectedVersion: number | undefined; found: number | null }, _optional = {}): string | false {
+  if (expectedVersion === undefined) return found !== null && `expected no existing row, found version ${found}`;
+  if (found === null) return `expected version ${expectedVersion}, but the row is gone`;
+  return found !== expectedVersion && `expected version ${expectedVersion}, found version ${found}`;
+}
+
+/** The three CAS failures (plan §2.2 step 2), then the write with its errors mapped. */
+async function writeRepoRow<Row, Ports>(
+  { run, existing }: { run: RepoApplyRun<Row, Ports>; existing: Row | null },
+  _optional = {}
+): Promise<RepoWriteResult> {
+  const { env, input } = run;
+  const mismatch = versionMismatch({ expectedVersion: input.expectedVersion, found: existing ? env.versionOf(existing) : null });
+  if (mismatch) throw env.conflict({ id: input.entity.id, detail: mismatch });
+  try {
+    return (await env.config.write(repoWriteContext({ run, existing }))) ?? {};
+  } catch (err) {
+    throw env.toRowError({ err, id: input.entity.id });
+  }
+}
+
+/** Compensation for a failed command: the registered side-effect undos (last first), then the row. */
+async function rollbackRepoWrite<Row, Ports>(
+  { run, undo, prior }: { run: RepoApplyRun<Row, Ports>; undo: NonNullable<RepoPublishTypeConfig<Row, Ports>["undo"]>; prior: Row | null },
+  _optional = {}
+): Promise<void> {
+  for (const sideEffect of run.rollbacks.reverse()) await sideEffect();
+  await (prior ? undo.restore({ ctx: repoWriteContext({ run, existing: prior }), prior }) : undo.remove(repoWriteContext({ run, existing: null })));
+}
+
+/** `write` inside `executeCommand`: the inverse is the row read in the gateway, so the CAS check and the
+ *  inverse are the same, freshest read. */
+async function applyRepoWithUndo<Row, Ports>(
+  { run, undo }: { run: RepoApplyRun<Row, Ports>; undo: NonNullable<RepoPublishTypeConfig<Row, Ports>["undo"]> },
+  _optional = {}
+): Promise<{ changeSetId: string }> {
+  const { env, input } = run;
+  const { changeSets, authorize, outbox } = env.deps;
+  if (!changeSets || !authorize || !outbox) throw unwiredApply({ entityType: env.entityType, what: "PublishContentDeps.changeSets/authorize/outbox" });
+
+  const { entity, expectedVersion } = input;
+  let prior: Row | null = null;
+  const { result, changeSetId } = await executeCommand<RepoWriteResult>({
+    deps: { clock: env.deps.clock, idGen: env.deps.idGen, changeSets, outbox, authorize },
+    command: {
+      workspaceId: env.workspaceId,
+      actor: { id: input.principalId, kind: "user" },
+      summary: (await undo.summary?.(repoWriteContext({ run, existing: null }))) ?? `Import ${env.entityType} '${entity.id}' via publish-content`,
+      permission: env.permission,
+      idempotencyKey: input.idempotencyKey,
+    },
+    mutation: {
+      entityType: env.entityType,
+      entityId: entity.id,
+      operation: expectedVersion === undefined ? "create" : "update",
+      // Read inside the gateway so the CAS check and the inverse are the same, freshest read.
+      captureInverse: async () => {
+        prior = await env.config.find({ ports: run.ports, workspaceId: env.workspaceId, id: entity.id });
+        return prior ? ({ ...prior } as unknown as JsonObject) : null;
+      },
+      execute: () => writeRepoRow({ run, existing: prior }),
+      captureEntityVersion: ({ result: written }) => written.version ?? null,
+      rollback: () => rollbackRepoWrite({ run, undo, prior }),
+    },
+  });
+  return { ...result, changeSetId };
+}
+
+async function applyRepoEntity<Row, Ports>(
+  { env, input }: { env: RepoEnv<Row, Ports>; input: RepoApplyInput },
+  _optional = {}
+): Promise<{ changeSetId: string }> {
+  const p = env.ports();
+  if (!p) throw unwiredApply({ entityType: env.entityType, what: `PublishContentDeps.ports.${env.portsKey}` });
+  const run: RepoApplyRun<Row, Ports> = { env, ports: p, input, rollbacks: [] };
+  const { undo } = env.config;
+  if (undo) return applyRepoWithUndo({ run, undo });
+  const written = await writeRepoRow({ run, existing: await env.config.find({ ports: p, workspaceId: env.workspaceId, id: input.entity.id }) });
+  return { ...written, changeSetId: written.changeSetId ?? input.entity.id };
+}
+
+function buildRepoHandler<Row, Ports>({ codec, deps }: { codec: RepoCodec<Row, Ports>; deps: PublishContentDeps }, _optional = {}): PublishContentHandler {
+  const { config } = codec;
+  const env: RepoEnv<Row, Ports> = { ...codec, deps, workspaceId: deps.workspaceId, ports: () => config.ports({ deps }) };
+  const references = config.references;
+  return {
+    entityType: codec.entityType,
+    schemaVersion: codec.schemaVersion,
+    permission: codec.permission,
+    ...(config.alsoAuthorizes ? { alsoAuthorizes: config.alsoAuthorizes } : {}),
+    dependsOn: codec.dependsOn,
+    pack: () => packRepoEntity({ env }),
+    inspect: ({ id }: { id: string }, _optional = {}) => inspectRepoEntity({ env, id }),
+    precheck: ({ entity }: { entity: PackedEntity }, _optional = {}) => precheckRepoEntity({ env, entity }),
+    apply: (input: RepoApplyInput) => applyRepoEntity({ env, input }),
+    ...(references ? { references: ({ entity }: { entity: PackedEntity }) => references({ entity }) } : {}),
+    ...config.extend?.({ deps, ports: env.ports }),
+  };
+}
+
+/** Builds a `PublishContentContributor` from a {@link RepoPublishTypeConfig}. */
+export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConfig<Row, Ports>): PublishContentContributor {
+  const codec = createRepoCodec({ config });
+  return {
+    entityType: codec.entityType,
+    dependsOn: codec.dependsOn,
+    build: (deps: PublishContentDeps) => buildRepoHandler({ codec, deps }),
+    coversTables: config.coversTables,
+    coversRoots: config.coversRoots,
+  };
 }
