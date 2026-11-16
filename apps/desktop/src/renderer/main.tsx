@@ -7,6 +7,8 @@ import { createRoot } from 'react-dom/client';
 import { TooltipLayer } from '@jini-ai/ui';
 import { UiKitProvider } from '@jini-ai/ui/react-kit';
 import { uiKit } from './jini-kits.js';
+import { ChatSurfacesProvider } from '@jini-ai/chat/react';
+import { chatSurfaces } from './jini-surfaces.js';
 import { App } from './App.js';
 import { mountRenderer } from './mount-renderer.js';
 import { installShellErrorReporting } from './product-telemetry.js';
@@ -24,7 +26,9 @@ mountRenderer({
   app: (
     <StrictMode>
       <UiKitProvider kit={uiKit}>
-        <App />
+        <ChatSurfacesProvider surfaces={chatSurfaces}>
+          <App />
+        </ChatSurfacesProvider>
         <TooltipLayer />
       </UiKitProvider>
     </StrictMode>

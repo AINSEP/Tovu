@@ -3,6 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { installRemixIconOverride } from "./remixicon-override";
 import { UiKitProvider } from "@jini-ai/ui/react-kit";
 import { uiKit } from "./jini-kits";
+import { ChatSurfacesProvider } from "@jini-ai/chat/react";
+import { chatSurfaces } from "./jini-surfaces";
 import { SiteAssistantWidget } from "./SiteAssistantWidget";
 import "./widget.css";
 
@@ -40,7 +42,7 @@ export function mount(): Root {
     document.body.appendChild(el);
   }
   const root = createRoot(el);
-  root.render(<UiKitProvider kit={uiKit}><SiteAssistantWidget /></UiKitProvider>);
+  root.render(<UiKitProvider kit={uiKit}><ChatSurfacesProvider surfaces={chatSurfaces}><SiteAssistantWidget /></ChatSurfacesProvider></UiKitProvider>);
   return root;
 }
 
