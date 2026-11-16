@@ -1,4 +1,4 @@
-import type { AdminServerLogEntry } from "@/lib/api";
+import type { AdminServerLogEntry } from "@/features/observability/api/observability-api.types";
 
 /**
  * @file Pure shaping for the Recent errors tab: one-line summaries, grouping of repeated errors,

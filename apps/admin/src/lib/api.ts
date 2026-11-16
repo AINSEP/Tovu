@@ -2,7 +2,6 @@ import { adminFailureChannel } from "./admin-failure-channel";
 import { WORKSPACE_ID } from "./admin-http/config";
 import { authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, request } from "./admin-http/request";
 import type { CredentialTokenHint } from "./credential-copy";
-import { querySuffix } from "./query-suffix";
 
 /** One required-for-production env var's presence — never its value. Mirrors
  *  `DeploymentEnvVarStatus` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`. */
@@ -26,60 +25,6 @@ export interface AdminDeploymentOverview {
   dbPath: string;
   uploadsDir: string;
   envVars: AdminDeploymentEnvVarStatus[];
-}
-
-/** Mirrors provider selection and delivery evidence, flattened for the wire the same way
- *  {@link AdminDeploymentOverview} flattens its own source config.
- *  `serviceName` is `null` whenever `enabled` is `false` — there is no service name to report for
- *  a port that never loads the OTel SDK. Deliberately does NOT carry the OTLP endpoint itself: that
- *  can embed a credential. Delivery evidence exposes only a hostname, fixed error class and HTTP
- *  status so an enabled port cannot be mistaken for proof that an export succeeded. */
-export interface AdminObservabilityStatus {
-  enabled: boolean;
-  serviceName: string | null;
-  canSendTestError?: boolean;
-  providers?: { providerId: string; exportEnabled?: boolean; lastExport: AdminTelemetryDeliveryStatus | null; lastShutdown: AdminTelemetryDeliveryStatus | null }[];
-}
-/** Sanitized delivery DTO from the server; status carries no destination path or credential. */
-export interface AdminTelemetryDeliveryStatus {
-  phase: "export" | "shutdown";
-  outcome: "ok" | "failed";
-  host: string;
-  at: string;
-  errorClass?: string;
-  statusCode?: number;
-}
-export interface AdminTelemetryTestResult {
-  providers: { providerId: string; signals: ("error" | "span" | "analytics" | "metric")[] }[];
-}
-
-/** One captured server log line — mirrors `ServerLogEntry` in
- *  `apps/website/src/platform/server-logs/log-buffer.ts`. `message` is already secret-redacted. */
-export interface AdminServerLogEntry {
-  seq: number;
-  at: string;
-  level: "debug" | "info" | "warn" | "error";
-  source: "server" | "daemon";
-  message: string;
-}
-
-/** `GET /system/server-logs` — mirrors `ServerLogsResult` in
- *  `apps/website/src/features/server-logs/read-server-logs.ts`. `capturing: false` means nothing is
- *  recording lines, so an empty list is not proof of no errors. */
-export interface AdminServerLogs {
-  entries: AdminServerLogEntry[];
-  matched: number;
-  buffered: number;
-  truncated: boolean;
-  capturing: boolean;
-}
-
-/** Filters for {@link AdminServerLogs}; the same ones the `system_read_server_logs` chat tool takes. */
-export interface AdminServerLogsQuery {
-  level?: AdminServerLogEntry["level"];
-  sinceIso?: string;
-  contains?: string;
-  limit?: number;
 }
 
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in
@@ -674,23 +619,6 @@ export const api = {
    *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
   getDeploymentOverview: () =>
     request<AdminDeploymentOverview>({ path: `/workspaces/${WORKSPACE_ID}/system/deployment-overview` }),
-
-  // Observability panel, Overview tab (`apps/website/src/server/inbound/admin-http/routes/system/
-  // observability-status.ts`) — `system.read`-gated, same shape as `getDeploymentOverview` above.
-  /** Whether `platform/observability`'s real OTel adapter is on right now, and under what service
-   *  name — never the OTLP endpoint value itself. See {@link AdminObservabilityStatus}. */
-  getObservabilityStatus: () =>
-    request<AdminObservabilityStatus>({ path: `/workspaces/${WORKSPACE_ID}/system/observability-status` }),
-  sendObservabilityTestError: () => request<AdminTelemetryTestResult>({ path: `/workspaces/${WORKSPACE_ID}/system/observability/test-error` }, { init: { method: "POST" } }),
-  /** Owner-only filter over native CLI fallback entries in the existing audit store. */
-  getToolGaps: () => request<{ entries: import('@jini-ai/daemon/tool-audit').ToolGapEntry[] }>({ path: `/workspaces/${WORKSPACE_ID}/system/tool-gaps` }),
-  /** Recent captured server log lines (`routes/system/server-logs.ts`, `system.read`-gated) — the
-   *  Observability "Recent errors" tab. */
-  getServerLogs: (query: AdminServerLogsQuery = {}) => {
-    const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
-    const qs = params.toString();
-    return request<AdminServerLogs>({ path: `/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix({ query: qs })}` });
-  },
 
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with

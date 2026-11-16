@@ -1,4 +1,4 @@
-import type { AdminObservabilityStatus, AdminTelemetryTestResult } from "@/lib/api";
+import type { AdminObservabilityStatus, AdminTelemetryTestResult } from "@/features/observability/api/observability-api.types";
 
 /**
  * @file What `use-observability-status.hooks.ts` needs from the outside world, as an interface

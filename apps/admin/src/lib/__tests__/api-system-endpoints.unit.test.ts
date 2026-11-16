@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { observabilityApi } from "../../features/observability/api/observability-api";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { mailStatusApi } from "../../features/email/api/mail-status-api";
 
@@ -30,8 +31,8 @@ test("credential copying reads source summaries and posts an explicit overwrite 
 
 test("getServerLogs omits unspecified filters and encodes the supplied filters", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getServerLogs();
-  await api.getServerLogs({ limit: 0, level: undefined, contains: "error & retry" });
+  await observabilityApi.getServerLogs();
+  await observabilityApi.getServerLogs({ limit: 0, level: undefined, contains: "error & retry" });
   expect(calls.map(({ url }) => url)).toEqual([
     "/api/admin/v1/workspaces/workspace-local/system/server-logs",
     "/api/admin/v1/workspaces/workspace-local/system/server-logs?limit=0&contains=error+%26+retry",

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { observabilityApi } from "../../features/observability/api/observability-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
@@ -163,8 +164,8 @@ describe("endpoints", () => {
 
   it("system reads: observability status, tool gaps, publish destinations", async () => {
     const calls = stubFetch();
-    await api.getObservabilityStatus();
-    await api.getToolGaps();
+    await observabilityApi.getObservabilityStatus();
+    await observabilityApi.getToolGaps();
     await api.listPublishDestinations();
     expect(calls.map((call) => call.url)).toEqual([`${W}/system/observability-status`, `${W}/system/tool-gaps`, `${W}/system/publish/destinations`]);
   });
