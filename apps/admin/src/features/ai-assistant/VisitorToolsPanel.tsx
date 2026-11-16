@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 

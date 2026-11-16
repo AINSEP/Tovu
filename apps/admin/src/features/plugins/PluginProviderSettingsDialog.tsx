@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
 
 import { useEffect, useId } from "react";

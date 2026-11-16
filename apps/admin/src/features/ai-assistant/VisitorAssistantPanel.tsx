@@ -1,6 +1,6 @@
 import { createVisitorMoreInfo } from "./VisitorAssistantPanel.hooks";
 import { useId, type ComponentType } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import { AssistantToggleRow } from "./AssistantToggleRow";

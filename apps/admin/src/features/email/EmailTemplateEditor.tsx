@@ -1,6 +1,6 @@
 import { createEmailPageTranslator } from "./EmailTemplateEditor.hooks";
 import { useEffect } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";

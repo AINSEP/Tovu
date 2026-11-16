@@ -1,5 +1,5 @@
 import { createEmailTabLabel } from "./Email.hooks";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import "@jini-ai/ui/settings-dialog.css";

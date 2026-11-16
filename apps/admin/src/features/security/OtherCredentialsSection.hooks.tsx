@@ -1,4 +1,4 @@
-import { agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandleSegment } from "@jini-ai/core/agent-handles";
 import type { ForwardedRef, RefObject } from "react";
 
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";

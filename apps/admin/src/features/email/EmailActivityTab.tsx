@@ -1,5 +1,5 @@
 import { ConfirmDialog } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { t } from "./email-i18n";
 import type { MailActivityItem, MailFeedbackProviderSetup, MailSuppressionEntry } from "./email-api";

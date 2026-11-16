@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
 

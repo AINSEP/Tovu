@@ -2,7 +2,7 @@ import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { adminHref } from "../../lib/router";
 
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { useRecentActivityDisclosure } from "./hooks/use-recent-activity-disclosure.hooks";

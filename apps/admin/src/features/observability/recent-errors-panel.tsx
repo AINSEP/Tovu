@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "./recent-errors.css";
 import { CheckIcon, ChevronIcon, CopyIcon } from "./observability-visuals";

@@ -1,7 +1,7 @@
 import { createRecoveryKitDownload, useDesktopOwnerReset, useRecoveryKit } from './RecoveryCodesCard.hooks';
 import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import { useEffect, useMemo, useState } from 'react';
-import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/agentic';
+import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/core/agent-handles';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
 import { ownerRecoveryPort, ownerRecoveryFailure, type OwnerRecoveryPort, type OwnerRecoveryStatus } from '../../lib/owner-recovery-api';
 

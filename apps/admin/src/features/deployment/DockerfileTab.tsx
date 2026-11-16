@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { AdminDockerfileSource } from "../../lib/api";
 
 import { dockerfileLineCountLabel } from "./deployment-i18n";

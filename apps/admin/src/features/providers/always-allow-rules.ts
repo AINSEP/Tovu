@@ -1,6 +1,6 @@
 import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/lib/api";
 import type { QueryKey } from "@jini-ai/core/fetch";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 /**
  * @file Pure derivations for the Integrations "Always allow" tab (`AlwaysAllowPanel.tsx`).

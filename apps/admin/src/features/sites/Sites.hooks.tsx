@@ -1,4 +1,4 @@
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";

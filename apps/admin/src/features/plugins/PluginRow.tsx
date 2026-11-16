@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
 import type { AdminPlugin } from "@/lib/api";

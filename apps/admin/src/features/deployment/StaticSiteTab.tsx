@@ -2,7 +2,7 @@ import { createStaticSiteTabTranslator, useCopyLine } from "./StaticSiteTab.hook
 import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import type { ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref, navigate } from "../../lib/router";

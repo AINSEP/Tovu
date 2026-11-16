@@ -2,7 +2,7 @@ import { CredentialHint } from "@/components/CredentialHint";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { forwardRef, useRef } from "react";
 import { OnboardingChipField } from "@jini-ai/ui";
-import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";

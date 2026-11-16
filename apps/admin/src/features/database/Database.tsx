@@ -2,8 +2,7 @@ import { navigateDatabaseTab } from "./Database.hooks";
 import { type AdminLedgerRow } from "../../lib/api";
 
 import { DataTable } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { ServerLabel } from "@/components/status-labels";
 
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";

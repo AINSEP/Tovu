@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useWiredAlwaysAllow } from "./hooks/use-always-allow.hooks";
 import "./always-allow.css";

@@ -1,5 +1,5 @@
 import { MediaContentEditor } from "./MediaContentEditor";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isUserCollection } from "../../features/collections/rules";
 import type { AdminContentType, AdminFormDefinition, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
 

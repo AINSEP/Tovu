@@ -1,6 +1,6 @@
 import { useOwnerRecoverySignIn } from './OwnerRecoverySignIn.hooks';
 import { ErrorNotice } from '@jini-ai/ui/panel-kit';
-import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/agentic';
+import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/core/agent-handles';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
 import { ownerRecoveryPort, type OwnerRecoveryPort } from '../../lib/owner-recovery-api';
 

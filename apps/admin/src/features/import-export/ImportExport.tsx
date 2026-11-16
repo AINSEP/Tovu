@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { navigate } from "../../lib/router";

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 /**
  * @file The Desktop/Tablet/Mobile device-width preview shared by every admin editor that previews a

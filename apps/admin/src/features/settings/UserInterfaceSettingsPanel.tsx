@@ -1,5 +1,5 @@
 import { createUserInterfaceSettingsPanelTranslator } from "./UserInterfaceSettingsPanel.hooks";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "./user-interface-settings.css";
 import { useUserInterfaceTab, type UserInterfaceTabSlice } from "./hooks/use-user-interface-tab.hooks";

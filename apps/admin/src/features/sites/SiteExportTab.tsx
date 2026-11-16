@@ -2,7 +2,7 @@ import { StaticExportPicker } from "./StaticExportPicker";
 import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { siteShareNotices, type SiteShare, type CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";

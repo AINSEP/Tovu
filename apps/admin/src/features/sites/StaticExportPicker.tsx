@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { PopoverMenu } from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import type { SiteExportController } from "./hooks/use-site-transfer.hooks";
 

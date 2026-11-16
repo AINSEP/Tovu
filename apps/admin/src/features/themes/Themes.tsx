@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
@@ -9,7 +9,6 @@ import { navigate } from "../../lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";
-import { buildAgentListHandles } from "@jini-ai/agentic";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";

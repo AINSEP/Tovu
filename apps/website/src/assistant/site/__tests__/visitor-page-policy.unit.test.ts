@@ -1,5 +1,5 @@
 import test from 'node:test';
-import { agentHandleSegment } from '@jini-ai/agentic';
+import { agentHandleSegment } from '@jini-ai/core/agent-handles';
 import assert from 'node:assert/strict';
 import { parseVisitorToolPolicy, resolveVisitorToolChoice, visitorToolBudgetId } from '#src/contracts/site-assistant/visitor-tools';
 import { publishVisitorPage, readVisitorPagePublication } from '#src/features/theme/visitor-publication';

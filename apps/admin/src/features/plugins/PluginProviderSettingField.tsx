@@ -1,5 +1,5 @@
 import { CUSTOM, usePluginProviderChoice } from "./PluginProviderSettingField.hooks";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import type { AdminPluginProviderSettingField } from "@/lib/api";

@@ -1,5 +1,5 @@
 import { createSkillInstallConfirmationTranslator } from "./SkillInstallConfirmation.hooks";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillInstallConfirmation } from "./use-skill-confirmation.hooks";
 import { t } from "./skills-i18n";

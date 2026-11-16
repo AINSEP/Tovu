@@ -1,5 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { SuggestInput } from "@jini-ai/ui/admin-widgets";
 import { useId } from "react";
 import type { AdminTaxonomyWithTerms } from "@/lib/api";
