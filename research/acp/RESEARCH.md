@@ -170,13 +170,13 @@ occur in `acp/session.ts`, `updates.ts` or `rpc.ts`.
 |---|---|---|---|
 | G1 | `usage_update` is not handled | absent | cost and context size reported during a session are dropped; only the end-of-prompt `usage` is read |
 | G2 | `session/set_model` is still the fallback | `session.ts:803` | removed from the spec 2026-06-01; an agent that follows the spec and offers no model config option gets a method it may not know. The code does recover from the error (`recoverFromModelSelectionError`), so today this is a wasted round trip, not a failure |
-| G3 | Resume always uses `session/load`, and I found no check of `loadSession` before sending it | `session.ts:760-785` | the spec says the client MUST check the capability; `session/resume` (stable, no replay) is never used; v2 removes `session/load` |
+| G3 | Resume always uses `session/load`, with no capability check. **Confirmed:** the strings `loadSession` and `sessionCapabilities` occur nowhere in `acp/*.ts`, and `handleInitializeAck({ state, effects })` is not given the `initialize` result at all (`session.ts:942-944`), so the client reads none of the agent's capabilities | `session.ts:760-785`, `:942-944` | the spec says the client MUST check the capability; `session/resume` (stable, no replay) is never used; v2 removes `session/load` |
 | G4 | `authenticate` is never sent | absent | an agent that answers `auth_required` fails the run with a generic error instead of a typed "log in first" |
 | G5 | `systemPrompt` and `additionalDirectories` are not sent | absent | Jini still needs per-CLI overlay tricks (`append-flag`, `env-var`, `config-instructions-file`) and `--add-dir` argv for things ACP now carries |
 | G6 | Images always go as `resource_link` | `session-params.ts:105-113` | fine for agents that read the path; agents that advertise `promptCapabilities.image` could take the bytes |
 | G7 | Vendor code inside the shared client | `AMR_STDERR_RETRY_TAIL_LIMIT`, `promotedAmrStderrPayload`, `modelUnavailableErrorCode: 'AMR_MODEL_UNAVAILABLE'`, DSML artifact suppression in `session.ts`/`updates.ts`/`constants.ts` | owner practice 7 (vendor code in its own folder). Every new ACP CLI pays for one vendor's quirks |
 | G8 | Size | `session.ts` 1,608 lines; `attachAcpSession` runs from `:1007` to the end | owner practice 3. Size-design 10 mentions an `AcpRun` context refactor on another branch; I did not verify that branch |
-| G9 | What happens to an agent request the client does not know (for example `elicitation/create`) | falls to `routeResultById` (`:1504`); I did not trace whether an error reply is sent | **unverified**. If nothing is sent, the agent waits until the watchdog fires |
+| G9 | An agent request the client does not know (for example `elicitation/create`, or `fs/read_text_file` from an agent that ignores capabilities) gets **no reply** | falls to `routeResultById` (`:1504`), which returns at once when the frame has no `result` (`:941`); no `-32601` reply exists in `session.ts` or `rpc.ts`. Read, not run | the agent waits for an answer that never comes, until the 10-minute silence watchdog ends the run |
 
 None of these stops the 12 CLIs that work today. All of them get more expensive as more CLIs are added.
 
@@ -195,8 +195,8 @@ None of these stops the 12 CLIs that work today. All of them get more expensive 
 
 There is **no `gemini` def**. `defs/gemini/event-stream.ts` (205 lines) is a parser, and
 `daemon/src/agent-executor/gemini/tool-calls.ts` (7 lines) adapts tool receipts for a stream kind
-named `legacy-google-stream-json`. Google's CLI in Jini is `antigravity` (binary `agy`). I did not
-trace which def feeds the gemini parser (**unverified**).
+named `legacy-google-stream-json`. Google's CLI in Jini is `antigravity` (binary `agy`). The parser is
+registered in `json-event-stream.ts:206` under that kind; I did not find which def selects it (**unverified**).
 
 Per-CLI code, counted with `wc -l`, tests excluded:
 
@@ -359,8 +359,8 @@ Comparing Jini's launch arguments with the registry:
 1. Feature coverage of cursor-agent, qoder, droid, grok-build, codebuddy, antigravity over ACP (registry entry only).
 2. Parity of the Claude adapter with Jini's background-task hold, delegated-result correlation, segment usage and subagent-start hook.
 3. Startup time and memory of the adapter processes (nothing was run).
-4. G9: how Jini's client answers an unknown agent request.
-5. Whether `session/load` is sent without a capability check in every path (G3 was read at the send site only).
+4. G3 and G9 were confirmed by reading the code, not by running an agent against it.
+5. Whether a replayed history after `session/load` reaches the run's event stream as new output (it would look like duplicated text). Not traced.
 6. Status of the `end-turn-token-usage` RFD.
 7. Which def feeds `defs/gemini/event-stream.ts`.
 8. aider, crush and native pi ACP status.

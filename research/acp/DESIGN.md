@@ -116,8 +116,9 @@ createAgentRuntimeBindings({ runtime }, { acpPreferred: ['opencode'] })   // def
 `defs.get({ id })` returns the ACP variant of a def when its id is in `acpPreferred` and the def has
 one, else the native def. Default empty, so **no host changes behaviour until it opts in**
 (practice 10). `createAgentRuntimeBindings` is C6 §11.2 and "not landed"; until it lands the same
-option goes on whatever function builds the def registry today (`registry.ts`). I did not read
-`registry.ts`; the executor confirms the seam first (lesson 11).
+option goes on whatever function builds the def registry today (`registry.ts`). The lookup exists
+(`registry.ts:94`, `getAgentDef({ id })`); I did not read how its table is built, so the executor
+confirms where the option enters first (lesson 11).
 
 C6 restates the ACP session types "byte for byte" in `daemon/src/ports/agent-runtime-sessions.ts`.
 Any step below that adds a field to `AttachAcpSessionOptions` must update that copy in the same
@@ -228,12 +229,12 @@ subprocess fixture `ACP_FIXTURE` (`daemon/.../__tests__/agent-executor-acp.integ
 | Step | Change | Needs | Test that can fail on the named risk |
 |---|---|---|---|
 | A0 | Tests only. Pin today's wire behaviour: exact method order for new, resume, and model-switch runs; the `initialize` frame (`terminal: false`, no `fs`); what the client sends back to an unknown agent request (closes G9 by observation); what a replayed history on `session/load` turns into | — | frame-by-frame equality on `FakeAcpChild`, fake timers for the watchdog |
-| A1 | Pure `readAgentCapabilities({ result })` → `{ loadSession, resume, mcpHttp, image, systemPrompt, additionalDirectories }`; stored in session state; nothing reads it yet | A0 | table test of capability shapes, including absent and malformed |
+| A1 | Today the `initialize` result is not read at all (`session.ts:942-944`). Pure `readAgentCapabilities({ result })` → `{ loadSession, resume, mcpHttp, image, systemPrompt, additionalDirectories }`; stored in session state; nothing reads it yet | A0 | table test of capability shapes, including absent and malformed |
 | A2 | `AcpProfile` type and `DEFAULT_ACP_PROFILE`; `attachAcpSession` takes `profile` (optional, default = today). Move the AMR stderr tail, retry promotion, `AMR_MODEL_UNAVAILABLE` and the artifact text filter out of the shared files into `defs/amr/acp-profile.ts`. Why-comments move with the code (practice 6). Closes G7 | A0; `amr` def passes its profile in the same commit | A0's frames unchanged for amr and for a default def; the existing `text-suppression` and `account-failure` tests move with the code and still pass |
 | A3 | Resume by capability (G3). `profile.resume: 'resume'` uses `session/resume` if advertised; `'load'` uses `session/load` only if `loadSession` is advertised; otherwise fail **before sending** with the existing `resume_failed` kind and `details.reason: 'unsupported'`. Default profile stays `'load'` | A1, A2 | (a) agent without `loadSession`: no `session/load` frame is written, error kind is `resume_failed`; (b) agent with both: `'resume'` profile writes `session/resume` |
 | A4 | `usage_update` → one new agent event carrying context size and cumulative cost (G1). It must not be summed with the end-of-prompt token usage | A0; read `event-translation.ts` and the cost-metadata tests first. **STOP** if a second usage event would be added to totals | two `usage_update`s then a prompt result: totals equal the result's, cost equals the last update's |
 | A5 | `auth_required` from the agent → a typed error with the agent's `authMethods` in details (G4). The client never logs in by itself | A0 | error code and details asserted; no `authenticate` frame written |
-| A6 | Unknown agent request → JSON-RPC `-32601` reply, **only if** A0 showed nothing is sent today (G9) | A0 | the reply frame, and that the run continues |
+| A6 | Unknown agent request → JSON-RPC `-32601` reply. Today nothing is sent (G9, confirmed by reading `session.ts:941`) | A0 pins today's silence first | the reply frame, and that the run continues |
 | A7 | `profile.model: 'config-option'` never sends `session/set_model` (G2). Default stays `'legacy'` | A2 | no `session/set_model` frame for a `'config-option'` profile when the agent lists no model option; the run proceeds on the agent's default with a `model` status event |
 
 A3 and A7 change behaviour only for a def that sets the profile field. A3's fail-fast for an agent
@@ -333,7 +334,7 @@ proposed.
 | 8 limits inside each file | practice 3 row says what is not met |
 | 9 mechanism vs host binding | `acpPreferred` is chosen by the host; the mechanism is in agent-runtime |
 | 10 untangle lanes first | §6 order; same-commit rule with C6 |
-| 11 seams exist | test commands and both fakes verified; `registry.ts` seam **not** verified and flagged |
+| 11 seams exist | test commands and both fakes verified; `getAgentDef` exists at `registry.ts:94`; how its table is built is **not** verified and flagged |
 
 ## 11. Owner decisions
 
