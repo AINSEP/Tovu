@@ -266,10 +266,10 @@ export function checkTheme(theme: ThemeStylesheets): Finding | null {
   return missing.length > 0 ? { themeId: theme.themeId, cssFiles: theme.cssFiles, missing } : null;
 }
 
-function main(): void {
-  const themes = discoverThemeStylesheets(SCAN_DIR);
+export function main({ scanDir = SCAN_DIR, exit = process.exit }: { scanDir?: string; exit?: (code: number) => void } = {}): void {
+  const themes = discoverThemeStylesheets(scanDir);
   const findings = themes.map(checkTheme).filter((f): f is Finding => f !== null);
-  const scanLabel = path.relative(REPO_ROOT, SCAN_DIR) || SCAN_DIR;
+  const scanLabel = path.relative(REPO_ROOT, scanDir) || scanDir;
 
   if (findings.length === 0) {
     console.log(
@@ -283,7 +283,7 @@ function main(): void {
     const location = finding.cssFiles.length > 0 ? finding.cssFiles.map((f) => path.relative(REPO_ROOT, f)).join(", ") : "(no .css file found)";
     console.error(`  - ${finding.themeId} [${location}]: missing unconditional max-width:100% for ${finding.missing.join(", ")}`);
   }
-  process.exit(1);
+  exit(1);
 }
 
 // Guarded, matching `check-src-complexity-drift.ts`/`check-route-coverage-diff.ts`: this file's

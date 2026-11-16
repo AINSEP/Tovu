@@ -88,3 +88,75 @@ test("REGRESSION: the shipped tovu-theme stylesheet passes the replaced-element 
     `expected tovu-theme's theme.css to declare img/video/iframe constraints, got: ${JSON.stringify(finding)}`,
   );
 });
+
+// ---- in-process main() and discovery (the CLI subprocess cannot credit coverage) ----
+import os from "node:os";
+import { discoverThemeStylesheets, main as themeMain } from "../check-theme-replaced-elements.js";
+
+const GOOD_CSS = "img, video, iframe { max-width: 100%; }\n";
+
+function withThemes<T>(themes: Record<string, Record<string, string>>, run: (dir: string) => T): T {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "themes-"));
+  try {
+    for (const [id, files] of Object.entries(themes)) {
+      fs.mkdirSync(path.join(dir, id), { recursive: true });
+      for (const [rel, text] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(dir, id, rel)), { recursive: true });
+        fs.writeFileSync(path.join(dir, id, rel), text);
+      }
+    }
+    fs.writeFileSync(path.join(dir, "stray-file.txt"), "not a theme");
+    return run(dir);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
+function runThemeMain(scanDir: string) {
+  const out: string[] = []; const err: string[] = []; const exits: number[] = [];
+  const spies = { log: console.log, error: console.error };
+  console.log = (...a: unknown[]) => { out.push(a.join(" ")); };
+  console.error = (...a: unknown[]) => { err.push(a.join(" ")); };
+  try { themeMain({ scanDir, exit: c => { exits.push(c); } }); } finally { Object.assign(console, spies); }
+  return { out, err, exits };
+}
+
+test("discoverThemeStylesheets lists theme dirs sorted, collects nested css sorted, and ignores files", () => {
+  withThemes({ zeta: { "a.css": "", "sub/b.css": "", "readme.md": "" }, alpha: {} }, dir => {
+    const found = discoverThemeStylesheets(dir);
+    assert.deepEqual(found.map(t => t.themeId), ["alpha", "zeta"]);
+    assert.deepEqual(found[0].cssFiles, []);
+    assert.deepEqual(found[1].cssFiles, [path.join(dir, "zeta", "a.css"), path.join(dir, "zeta", "sub", "b.css")]);
+  });
+  assert.deepEqual(discoverThemeStylesheets(path.join(os.tmpdir(), "no-such-theme-dir-xyz")), []);
+});
+
+test("main reports OK when every theme constrains img, video and iframe", () => {
+  withThemes({ one: { "t.css": GOOD_CSS }, two: { "css/t.css": GOOD_CSS } }, dir => {
+    const res = runThemeMain(dir);
+    assert.deepEqual(res.exits, []);
+    assert.deepEqual(res.err, []);
+    assert.equal(res.out.length, 1);
+    assert.match(res.out[0], /^check:theme-replaced-elements — OK: 2 theme\(s\) scanned under .*; every theme constrains img, video, and iframe\.$/);
+  });
+});
+
+test("main lists each failing theme with its css files (or none) and exits 1", () => {
+  withThemes({ ok: { "t.css": GOOD_CSS }, partial: { "p.css": "img { max-width: 100%; }\n" }, empty: {} }, dir => {
+    const res = runThemeMain(dir);
+    assert.deepEqual(res.exits, [1]);
+    assert.deepEqual(res.out, []);
+    assert.match(res.err[0], /^check:theme-replaced-elements — 2 of 3 theme\(s\) under .* have unconstrained replaced element\(s\):$/);
+    assert.equal(res.err[1], "  - empty [(no .css file found)]: missing unconditional max-width:100% for img, video, iframe");
+    assert.match(res.err[2], /^  - partial \[.*p\.css\]: missing unconditional max-width:100% for video, iframe$/);
+    assert.equal(res.err.length, 3);
+  });
+});
+
+test("main defaults scan the real content/themes/static directory and exit code mirrors the findings", () => {
+  const out: string[] = []; const err: string[] = []; const exits: number[] = [];
+  const spies = { log: console.log, error: console.error };
+  console.log = (...a: unknown[]) => { out.push(a.join(" ")); };
+  console.error = (...a: unknown[]) => { err.push(a.join(" ")); };
+  try { themeMain({ exit: c => { exits.push(c); } }); } finally { Object.assign(console, spies); }
+  if (exits.length === 0) assert.match(out[0], /^check:theme-replaced-elements — OK: /);
+  else { assert.deepEqual(exits, [1]); assert.match(err[0], /unconstrained replaced element\(s\):$/); }
+});
