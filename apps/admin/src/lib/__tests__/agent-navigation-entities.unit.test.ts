@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { api, type AdminAgentPlugin, type AdminPost } from "../api";
+import { pagesApi } from "../../features/pages/api/pages-api";
 import { buildAdminAgentPages } from "../agent-pages";
 import * as router from "../router";
 
@@ -21,7 +22,7 @@ it("a missing plugin cannot navigate to a guessed destination", async () => {
 });
 
 it("uses the kind-guarded page read and the actual encoded slug", async () => {
-  const getPage = vi.spyOn(api, "getPage").mockResolvedValue({ post: { id: "page-id", slug: "hello / 世界" } as AdminPost });
+  const getPage = vi.spyOn(pagesApi, "getPage").mockResolvedValue({ post: { id: "page-id", slug: "hello / 世界" } as AdminPost });
   const navigate = vi.spyOn(router, "navigate");
   await buildAdminAgentPages()["pages"]!.navigate({ entity: { type: "page", id: "page-id" } });
   expect(getPage).toHaveBeenCalledWith({ id: "page-id" });

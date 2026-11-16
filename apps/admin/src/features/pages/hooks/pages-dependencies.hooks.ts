@@ -1,4 +1,5 @@
 import { api, type AdminPost } from "@/lib/api";
+import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 import type { PagesPort } from "./pages-port.hooks";
@@ -10,10 +11,10 @@ import type { PagesPort } from "./pages-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultPagesPort: PagesPort = {
-  listPages: () => api.listPages(),
-  createPage: ({ title }, _options = {}) => api.createPage({ title }),
+  listPages: () => pagesApi.listPages(),
+  createPage: ({ title }, _options = {}) => pagesApi.createPage({ title }),
   updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, { options: patch, entry: "page" }),
-  deletePage: ({ id }, _options = {}) => api.deletePage({ id }),
+  deletePage: ({ id }, _options = {}) => pagesApi.deletePage({ id }),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";

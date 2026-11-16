@@ -1,5 +1,6 @@
 import type { PageEntityLookup, ResolvedPageEntity } from "@jini-ai/agentic";
 import { api } from "./api";
+import { pagesApi } from "../features/pages/api/pages-api";
 import { menusApi } from "../features/menus/api/menus-api";
 import { widgetsApi } from "../features/widgets/api/widgets-api";
 
@@ -13,7 +14,7 @@ const lookups: Readonly<Record<string, (required: { id: string }) => Promise<Res
     return { params: {}, query: { tab: plugin.enabled ? "installed" : "downloaded" }, control: { query: plugin.pluginId, role: "button", intent: "details" } };
   },
   page: async ({ id }, _options = {}) => {
-    const { post } = await api.getPage({ id });
+    const { post } = await pagesApi.getPage({ id });
     return { params: { slug: post.slug } };
   },
   post: async ({ id }, _options = {}) => {

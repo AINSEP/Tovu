@@ -1,4 +1,5 @@
 import { api, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
+import { pagesApi } from "@/features/pages/api/pages-api";
 import { commentsApi } from "@/features/comments/api/comments-api";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
@@ -13,7 +14,7 @@ import type { DashboardPort } from "./dashboard-port.hooks";
  *  to own. */
 export const defaultDashboardPort: DashboardPort = {
   listPosts: () => api.listPosts(),
-  listPages: () => api.listPages(),
+  listPages: () => pagesApi.listPages(),
   listMedia: () => api.listMedia(),
   listCommentsQueue: (options, _optional = {}) => commentsApi.listCommentsQueue(options),
   getPresentation: () => api.getPresentation(),

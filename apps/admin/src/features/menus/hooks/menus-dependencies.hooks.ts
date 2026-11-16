@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { pagesApi } from "@/features/pages/api/pages-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { AdminMenu } from "@/features/menus/api/menus-api.types";
 import { menusApi } from "@/features/menus/api/menus-api";
@@ -16,7 +16,7 @@ import { pagePublicPath } from "../../pages/rules";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMenusPort: MenusPort = {
-  listPages: async (_required, _optional = {}) => ({ pages: (await api.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath({ slug: post.slug }) })) }),
+  listPages: async (_required, _optional = {}) => ({ pages: (await pagesApi.listPages()).posts.map(({ post }) => ({ id: post.id, title: post.title, status: post.status, publicPath: pagePublicPath({ slug: post.slug }) })) }),
   listMenus: () => menusApi.listMenus(),
   getMenu: ({ id }, _optional = {}) => menusApi.getMenu({ id }),
   createMenu: ({ input, options }, _optional = {}) => menusApi.createMenu(input, options),

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { pagesApi } from "../../features/pages/api/pages-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { ApiError } from "../admin-http/request";
 
@@ -119,14 +120,14 @@ test("me hits GET /auth/me with no body", async () => {
 
 test("getPage builds a bare GET on /pages/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPage({ id: "pg1" });
+  await pagesApi.getPage({ id: "pg1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("updatePageHtml PUTs the html body to /pages/:id/html", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updatePageHtml({ id: "pg1", html: "<p>hi</p>" });
+  await pagesApi.updatePageHtml({ id: "pg1", html: "<p>hi</p>" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1/html`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ html: "<p>hi</p>" });
@@ -134,7 +135,7 @@ test("updatePageHtml PUTs the html body to /pages/:id/html", async () => {
 
 test("deletePage DELETEs /pages/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deletePage({ id: "pg1" });
+  await pagesApi.deletePage({ id: "pg1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/pages/pg1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });

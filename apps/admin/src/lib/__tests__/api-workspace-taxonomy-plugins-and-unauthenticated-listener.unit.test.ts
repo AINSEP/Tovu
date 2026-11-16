@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
@@ -65,7 +66,7 @@ test("listPages GETs the workspace pages collection and resolves the parsed enve
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ posts: [{ post: { id: "pg1", kind: "page" } }] })
   );
-  await expect(api.listPages()).resolves.toEqual({ posts: [{ post: { id: "pg1", kind: "page" } }] });
+  await expect(pagesApi.listPages()).resolves.toEqual({ posts: [{ post: { id: "pg1", kind: "page" } }] });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/pages`);
   expect(method()).toBe("GET");
 });
@@ -74,7 +75,7 @@ test("createPage POSTs { title } and resolves the created page", async () => {
   const { body, method, calls } = stubFetchCapturing(() =>
     jsonResponse({ post: { id: "pg1", title: "Hello", kind: "page" } })
   );
-  await expect(api.createPage({ title: "Hello" })).resolves.toEqual({ post: { id: "pg1", title: "Hello", kind: "page" } });
+  await expect(pagesApi.createPage({ title: "Hello" })).resolves.toEqual({ post: { id: "pg1", title: "Hello", kind: "page" } });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/pages`);
   expect(body()).toEqual({ title: "Hello" });
   expect(method()).toBe("POST");

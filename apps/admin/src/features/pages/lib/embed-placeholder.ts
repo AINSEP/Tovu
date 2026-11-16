@@ -2,7 +2,7 @@ import { type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
 import { hasAttributeOnAnyNodeShape } from "@jini-ai/core/primitives";
 import { embedMarkerTarget, parseEmbedMarkerConfig, type EmbedMarkerTarget } from "@jini-ai/cms/widgets/markers";
 
-import type { AdminPagePluginEmbed } from "@/lib/api";
+import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

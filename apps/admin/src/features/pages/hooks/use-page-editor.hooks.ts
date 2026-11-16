@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 
 import type { CanvasEmbedPlaceholderDescriptor, InteractiveHtmlEditorHandle, RequestEditHtml } from "@jini-ai/ui/html-editor";
 
-import type { AdminPagePluginEmbed, AdminPost, ThemeTier } from "@/lib/api";
+import type { AdminPost, ThemeTier } from "@/lib/api";
+import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
 import {
   useDevicePreviewDevice,
   usePreviewPaneWidth,

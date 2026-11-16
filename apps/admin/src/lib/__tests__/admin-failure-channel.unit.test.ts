@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { api } from "../api";
+import { pagesApi } from "../../features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
 import { setAdminDraftIdentity } from "../admin-draft-identity";
@@ -136,7 +137,7 @@ it("describes an implicit GET failure as a read without exposing legacy error te
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
     error: "PRIVATE_BACKEND SECRET_CANARY", code: "INTERNAL_ERROR", errorId: "incident-default-get",
   }), { status: 500 })));
-  const error = await api.listPages().catch(error => error) as ApiError;
+  const error = await pagesApi.listPages().catch(error => error) as ApiError;
   expect(error).toBeInstanceOf(ApiError);
   expect(adminFailureChannel.getSnapshot()).toMatchObject({
     message: "The pages could not be loaded.",

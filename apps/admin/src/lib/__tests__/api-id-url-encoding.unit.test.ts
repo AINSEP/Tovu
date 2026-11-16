@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
@@ -68,9 +69,9 @@ const singleIdCases: Case[] = [
   ["getPost", () => api.getPost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
   ["updatePost", () => api.updatePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
   ["deletePost", () => api.deletePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["getPage", () => api.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
-  ["updatePageHtml", () => api.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
-  ["deletePage", () => api.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
+  ["getPage", () => pagesApi.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
+  ["updatePageHtml", () => pagesApi.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
+  ["deletePage", () => pagesApi.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
   ["getMember", () => membersApi.getMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}`],
   ["disableMember", () => membersApi.disableMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}/disable`],
   ["getMenu", () => menusApi.getMenu({ id: SLASH_ID }), `${BASE_WORKSPACE}/menus/${ENC}`],
