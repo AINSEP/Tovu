@@ -361,6 +361,14 @@ function watchable({ message }: { message: ChatMessage }, _optional = {}): boole
   return message.runStatus !== undefined && !isTerminalRunStatus({ status: message.runStatus });
 }
 
+/** Releases an events response that will never be read. An unread body stays open, and a run
+ * reconnects up to maxReconnects times. Not awaited: a body that never finishes cancelling must
+ * not stall the watch. A failed cancel has nothing left to release.
+ * @complexity O(1); starts one cancel and returns. */
+function releaseUnreadBody({ response }: { response: Response }, _optional = {}): void {
+  void response.body?.cancel().catch(() => undefined);
+}
+
 type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind: "gone" } | { kind: "dropped" } | { kind: "unresolved" };
 
 /**
@@ -580,13 +588,8 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       void response.body?.cancel().catch(() => undefined);
       return { kind: "dropped" };
     }
-    if (response.status === 404 || !response.ok || !response.body) {
-      // This response is never read. An unread body stays open, and a run reconnects up to
-      // maxReconnects times, so release it. Not awaited: a body that never finishes cancelling
-      // must not stall the watch. A failed cancel has nothing left to release.
-      void response.body?.cancel().catch(() => undefined);
-      return { kind: response.status === 404 ? "gone" : "dropped" };
-    }
+    if (response.status === 404) { releaseUnreadBody({ response }); return { kind: "gone" }; }
+    if (!response.ok || !response.body) { releaseUnreadBody({ response }); return { kind: "dropped" }; }
     watch.retainedEvents = [...interruptionEvents(watch)];
     watch.events = [...watch.attemptBase];
     watch.frameCarry = {};
