@@ -11,7 +11,8 @@ import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
-import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveMediaAssetMetadataForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveHtmlEmbedsForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/widgets";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

@@ -5,15 +5,8 @@ import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/index";
 import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
-import {
-  renderViaTemplate,
-  resolveActiveTheme,
-  resolveHtmlEmbedsForRender,
-  resolveMediaAssetMetadataForRender,
-  resolveMediaTransformVersionsForRender,
-  resolveStaticMenusForRender,
-  resolveWidgetsForRender,
-} from "#src/server/inbound/public-http/routes/site/pages";
+import { renderViaTemplate, resolveActiveTheme, resolveMediaAssetMetadataForRender, resolveMediaTransformVersionsForRender, resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveHtmlEmbedsForRender, resolveWidgetsForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/widgets";
 import { renderBareEntryDocument } from "../../../public-http/http/site/bare-page.js";
 import { resolveSiteTitle } from "#src/features/settings/index";
 

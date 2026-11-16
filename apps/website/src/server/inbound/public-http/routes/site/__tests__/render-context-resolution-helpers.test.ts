@@ -5,7 +5,8 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "../pages.js";
+import { resolveMediaAssetMetadataForRender } from "../pages.js";
+import { resolveHtmlEmbedsForRender } from "../pages/render-context/widgets.js";
 
 /**
  * @file Direct-import characterization for `pages.ts`'s exported `resolve*ForRender` helpers'
