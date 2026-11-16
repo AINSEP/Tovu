@@ -30,8 +30,7 @@ const lookups: Readonly<Record<string, (required: { id: string }) => Promise<Res
 
 /** Entity type admission happens against the published panel before this adapter is called. */
 export const lookupAdminNavigationEntity: PageEntityLookup = async ({ type, id }, _options = {}) => {
-  if (!Object.hasOwn(lookups, type)) return null;
-  const lookup = lookups[type];
-  if (!lookup) throw new Error(`admin navigation lookup for ${type} is missing`);
-  return lookup({ id });
+  // `hasOwn` guards prototype keys ("toString"); every own entry of `lookups` is a function.
+  const lookup = Object.hasOwn(lookups, type) ? lookups[type] : undefined;
+  return lookup ? lookup({ id }) : null;
 };
