@@ -1963,7 +1963,7 @@
   "id": "RF5",
   "what": "a destination with no blob store does not treat bytes as missing",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "      if (!deps.backstop?.blobs) return null;\n",
+  "find": "  if (!deps.backstop?.blobs) return null;\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
@@ -2023,8 +2023,8 @@
   "id": "RF10",
   "what": "files.check not consulted",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "const denied = pathReason({ relPath }) ?? await files.check({ relPath });",
-  "replace": "const denied = pathReason({ relPath });",
+  "find": "const denied = pathReason({ deps, relPath }) ?? await files.check({ relPath });",
+  "replace": "const denied = pathReason({ deps, relPath });",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2047,8 +2047,8 @@
   "id": "RF12",
   "what": "missing selected file reason reworded",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "reason = \"The selected file no longer exists.\";\n      return { reason, file };",
-  "replace": "reason = \"Gone.\";\n      return { reason, file };",
+  "find": "reason = \"The selected file no longer exists.\";\n  return { reason, file };",
+  "replace": "reason = \"Gone.\";\n  return { reason, file };",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2059,8 +2059,8 @@
   "id": "RF13",
   "what": "unexpected read failure swallowed in pack",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "        if (!(error instanceof BackstopRefusal)) throw error;\n        reason = error.message;",
-  "replace": "        reason = (error as Error).message;",
+  "find": "    if (!(error instanceof BackstopRefusal)) throw error;\n    reason = error.message;",
+  "replace": "    reason = (error as Error).message;",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2107,8 +2107,8 @@
   "id": "RF17",
   "what": "compensation failure swallowed",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "        if (reason) throw new Error(reason);\n      });",
-  "replace": "        void reason;\n      });",
+  "find": "    if (reason) throw new Error(reason);\n  });",
+  "replace": "    void reason;\n  });",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2119,8 +2119,8 @@
   "id": "RF18",
   "what": "pack does not need the blob index to run",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "if (!files || !deps.backstop?.fileBlobIndex) return null;",
-  "replace": "if (!files) return null;",
+  "find": "if (!env.files || !deps.backstop?.fileBlobIndex) return null;",
+  "replace": "if (!env.files) return null;",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2155,7 +2155,7 @@
   "id": "RF21",
   "what": "pack does not reset skipped",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "        skipped.length = 0;\n",
+  "find": "  env.skipped.length = 0;\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
@@ -2191,7 +2191,7 @@
   "id": "RF24",
   "what": "inspect reads a refused path",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "if (!files || pathReason({ relPath })) return null;",
+  "find": "if (!files || pathReason({ deps, relPath })) return null;",
   "replace": "if (!files) return null;",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
@@ -2215,7 +2215,7 @@
   "id": "RF26",
   "what": "precheck lets a row error escape",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "          if (error instanceof PublishContentApplyRowError) return error.message;\n",
+  "find": "    if (error instanceof PublishContentApplyRowError) return error.message;\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
@@ -2227,8 +2227,8 @@
   "id": "RF27",
   "what": "apply does not require the outbox",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "!files || !deps.changeSets || !deps.outbox || !deps.authorize",
-  "replace": "!files || !deps.changeSets || !deps.authorize",
+  "find": "!files || !changeSets || !outbox || !authorize",
+  "replace": "!files || !changeSets || !authorize",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2239,7 +2239,7 @@
   "id": "RF28",
   "what": "OCC ignores the captured prior version",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
+  "find": "state.priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
   "replace": "currentVersion !== input.expectedVersion",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
@@ -2251,8 +2251,8 @@
   "id": "RF29",
   "what": "OCC ignores the current version",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
-  "replace": "priorVersion !== input.expectedVersion",
+  "find": "state.priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
+  "replace": "state.priorVersion !== input.expectedVersion",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2275,7 +2275,7 @@
   "id": "RF31",
   "what": "rollback never knows the file was written",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "              written = true;\n",
+  "find": "  state.written = true;\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
@@ -2287,8 +2287,8 @@
   "id": "RF32",
   "what": "rollback restores a file that was never written (equivalent: the gateway calls rollback only after execute returned, so `written` is always true there)",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "if (written && prior) await files.restore",
-  "replace": "if (prior) await files.restore",
+  "find": "if (state.written && state.prior) await files.restore",
+  "replace": "if (state.prior) await files.restore",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
@@ -2419,8 +2419,8 @@
   "id": "RF43",
   "what": "listSkipped hands out the live list",
   "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-  "find": "listSkipped: async () => [...skipped],",
-  "replace": "listSkipped: async () => skipped,",
+  "find": "listSkipped: async () => [...env.skipped],",
+  "replace": "listSkipped: async () => env.skipped,",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",

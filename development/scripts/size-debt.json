@@ -1185,20 +1185,6 @@
       "value": 97
     },
     {
-      "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-      "function": "contributeRawFilePublish#1",
-      "line": 18,
-      "rule": "max-lines-per-function",
-      "value": 152
-    },
-    {
-      "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-      "function": "contributeRawFilePublish#1.build#1",
-      "line": 19,
-      "rule": "max-lines-per-function",
-      "value": 150
-    },
-    {
       "file": "apps/website/src/features/publish-content/tool-registrations.ts",
       "function": "buildPublishContentRegistrations#1",
       "line": 181,
