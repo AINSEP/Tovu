@@ -98,17 +98,19 @@ export function resolveBaseRef(argv: string[]): string {
   return "origin/main";
 }
 
-function changedRouteFiles(baseRef: string): string[] {
+type GitRunner = (args: string[]) => string;
+const runGit: GitRunner = (args) => execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" });
+
+export function changedRouteFiles(baseRef: string, git: GitRunner = runGit): string[] {
   let mergeBase: string;
   try {
-    mergeBase = execFileSync("git", ["merge-base", baseRef, "HEAD"], { cwd: REPO_ROOT, encoding: "utf8" }).trim();
+    mergeBase = git(["merge-base", baseRef, "HEAD"]).trim();
   } catch (err) {
     throw new Error(
       `could not compute merge-base against '${baseRef}' — is it fetched (needs fetch-depth: 0)? (${(err as Error).message})`
     );
   }
-  const raw = execFileSync(
-    "git",
+  const raw = git(
     [
       "diff",
       "--name-only",
@@ -121,7 +123,6 @@ function changedRouteFiles(baseRef: string): string[] {
       // 2026-09-03 public-http gap happened to this file's sibling predicate.
       ...MEASURABLE_ROUTE_PREFIXES,
     ],
-    { cwd: REPO_ROOT, encoding: "utf8" }
   );
   return raw
     .split("\n")
@@ -188,17 +189,24 @@ function reportFileCoverage(
   return failures;
 }
 
-function main(): void {
-  const baseRef = resolveBaseRef(process.argv);
-  const changed = changedRouteFiles(baseRef);
+export interface MainPorts {
+  argv?: string[];
+  git?: GitRunner;
+  load?: typeof loadRouteCoverage;
+  exit?: (code: number) => void;
+}
+
+export function main({ argv = process.argv, git = runGit, load = loadRouteCoverage, exit = process.exit }: MainPorts = {}): void {
+  const baseRef = resolveBaseRef(argv);
+  const changed = changedRouteFiles(baseRef, git);
 
   if (changed.length === 0) {
     console.log(`check:route-coverage-diff — no measurable src/server/routes/** file changed vs ${baseRef}. OK`);
     return;
   }
 
-  const unitByFile = new Map(loadRouteCoverage(LCOV_UNIT_PATH).map((f) => [f.file, f]));
-  const integrationByFile = new Map(loadRouteCoverage(LCOV_INTEGRATION_PATH).map((f) => [f.file, f]));
+  const unitByFile = new Map(load(LCOV_UNIT_PATH).map((f) => [f.file, f]));
+  const integrationByFile = new Map(load(LCOV_INTEGRATION_PATH).map((f) => [f.file, f]));
   const failures: string[] = [];
 
   console.log(
@@ -212,7 +220,8 @@ function main(): void {
   if (failures.length > 0) {
     console.error(`\ncheck:route-coverage-diff — FAIL:`);
     for (const f of failures) console.error(`  - ${f}`);
-    process.exit(1);
+    exit(1);
+    return;
   }
   console.log(`\ncheck:route-coverage-diff — OK`);
 }

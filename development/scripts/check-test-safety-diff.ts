@@ -60,9 +60,9 @@ function git(args: string[]): string {
   return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
 
-function mergeBaseOf(baseRef: string): string {
+export function mergeBaseOf(baseRef: string, runGit: (args: string[]) => string = git): string {
   try {
-    return git(['merge-base', baseRef, 'HEAD']).trim();
+    return runGit(['merge-base', baseRef, 'HEAD']).trim();
   } catch (err) {
     throw new Error(`could not compute merge-base against '${baseRef}' — is it fetched (needs fetch-depth: 0)? (${(err as Error).message})`);
   }
@@ -74,22 +74,32 @@ export function changedTestFiles({ mergeBase }: { mergeBase: string }, { git: ru
   return parseNameStatus(runGit(['diff', '--name-status', '-C', '--find-copies-harder', '--diff-filter=ACMR', mergeBase, 'HEAD', '--', '*.ts']));
 }
 
-function main(): void {
-  const baseRef = resolveBaseRef(process.argv);
-  const mergeBase = mergeBaseOf(baseRef);
-  const files = changedTestFiles({ mergeBase });
+export interface MainPorts {
+  argv?: string[];
+  runGit?: (args: string[]) => string;
+  log?: (message: string) => void;
+  error?: (message: string) => void;
+  exit?: (code: number) => void;
+}
+
+export function main(
+  { argv = process.argv, runGit = git, log = console.log, error = console.error, exit = process.exit }: MainPorts = {},
+): void {
+  const baseRef = resolveBaseRef(argv);
+  const mergeBase = mergeBaseOf(baseRef, runGit);
+  const files = changedTestFiles({ mergeBase }, { git: runGit });
   const regressions = findRegressions({
     files,
-    readHead: path => git(['show', `HEAD:${path}`]),
-    readBase: path => git(['show', `${mergeBase}:${path}`]),
+    readHead: path => runGit(['show', `HEAD:${path}`]),
+    readBase: path => runGit(['show', `${mergeBase}:${path}`]),
   });
   if (regressions.length === 0) {
-    console.log(`check:test-safety — ${files.length} changed .ts file(s) vs ${baseRef}: no new message-less assertions. OK`);
+    log(`check:test-safety — ${files.length} changed .ts file(s) vs ${baseRef}: no new message-less assertions. OK`);
     return;
   }
-  console.error(`check:test-safety — FAIL: message-less assertions added (give each assert.ok/assert a message):`);
-  for (const { file, before, after } of regressions) console.error(`  - ${file}: ${before} -> ${after}`);
-  process.exit(1);
+  error(`check:test-safety — FAIL: message-less assertions added (give each assert.ok/assert a message):`);
+  for (const { file, before, after } of regressions) error(`  - ${file}: ${before} -> ${after}`);
+  exit(1);
 }
 
 // Guarded so the unit test can import the pure functions without running git.
