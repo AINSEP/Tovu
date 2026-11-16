@@ -125,7 +125,7 @@ describe("resolveChatAttachmentBytes", () => {
       },
     };
     const result = await resolveChatAttachmentBytes(
-      { store, readFile: async (p) => { assert.equal(p, "/fake/path/ai-caps.avif"); return AVIF_BYTES; } },
+      { store, readFile: async ({ path: p }) => { assert.equal(p, "/fake/path/ai-caps.avif"); return AVIF_BYTES; } },
       { ref: "attachment:abc", runId: "run-1" },
     );
     assert.deepEqual(result, { bytes: AVIF_BYTES, name: "ai-caps.avif" });
@@ -188,7 +188,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
         mediaUploadHandler: wiredMediaUploadAsset(deps).handler,
-        readFile: (p) => readFile(p) as unknown as Promise<Uint8Array>,
+        readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>,
       });
 
       assert.match(registered.path, /^attachment:/, "the real store returns an opaque reference");
@@ -222,7 +222,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
         mediaUploadHandler: wiredMediaUploadAsset(deps).handler,
-        readFile: (p) => readFile(p) as unknown as Promise<Uint8Array>,
+        readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>,
       });
 
       const out = (await tool.handler(executionContext({ attachmentRef: registered.path }))) as { media: { sha256: string; title: string } };
@@ -248,7 +248,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
         mediaUploadHandler: wiredMediaUploadAsset(deps).handler,
-        readFile: (p) => readFile(p) as unknown as Promise<Uint8Array>,
+        readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>,
       });
 
       // The model was told the real PATH (image-prompt-delivery.ts narrates paths, never ids) — this
@@ -271,7 +271,7 @@ describe("media_promote_chat_attachment (end to end)", () => {
       const tool = buildPromoteChatAttachmentTool({
         getStore: () => store,
         mediaUploadHandler: wiredMediaUploadAsset(deps).handler,
-        readFile: (p) => readFile(p) as unknown as Promise<Uint8Array>,
+        readFile: ({ path: p }) => readFile(p) as unknown as Promise<Uint8Array>,
       });
 
       await assert.rejects(

@@ -438,7 +438,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeDatabaseTransferTools({ adapters: createDatabaseTransferAdapters({}) }) });
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
-  const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
+  const domainDnsHttpClient = createHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability });
   const bundledPluginsRoot = bundledAgentPluginsDir();
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
   const publicDnsResolver = createBundledPublicDnsResolver({ client: domainDnsHttpClient, sourceRoot: bundledPluginsRoot }, domainDnsDiagnostics);
@@ -519,8 +519,8 @@ export function installFirstPartyToolContributors(
   // Site backup (2026-09-21): `site_backup_plan` (read-only) and `site_backup_push`, which holds its
   // own call open for the human's confirm before one commit lands in a private GitHub repository.
   contributions.contributors.register({ contribution: contributeSiteBackupTools() });
-  contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }) });
-  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient(LIVE_PAGE_EGRESS_POLICY, { observability })) });
+  contributions.contributors.register({ contribution: contributeSiteEvidenceTools({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }) });
+  contributions.contributors.register({ contribution: contributeSiteInspectionTools(createHttpClient({ policy: LIVE_PAGE_EGRESS_POLICY }, { observability })) });
   contributions.contributors.register({ contribution: contributeSiteGuideTools({}) });
   contributions.contributors.register({ contribution: contributeAssistantHistoryTools({}, {}) });
   contributions.contributors.register({ contribution: contributeSitesTools() });
@@ -540,9 +540,9 @@ export function installFirstPartyToolContributors(
   }, { maxConcurrent: 2 });
   // One composition for raw and rendered reads; both use the selected site's same egress boundary.
   const webPortsForPolicy = ({ policy }: { policy: EgressPolicy }, _options = {}): Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown" | "renderPage"> => {
-    const renderedClient = createHttpClient({ ...policy, maxRedirects: 0 }, { observability });
+    const renderedClient = createHttpClient({ policy: { ...policy, maxRedirects: 0 } }, { observability });
     return {
-      httpClient: createHttpClient(policy, { observability }), htmlToMarkdown,
+      httpClient: createHttpClient({ policy }, { observability }), htmlToMarkdown,
       // Resolve Playwright in the host; Jini is also consumed through published npm packages.
       renderPage: ({ input }, optional = {}) => renderPublicPage({ input, httpClient: { send: ({ request }) => renderedClient.send(request) } }, {
         ...optional, browserPool: publicBrowserPool,
@@ -561,7 +561,7 @@ export function installFirstPartyToolContributors(
   // makes is fetched through this guarded client; Chromium launches on the first call, not here.
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
-      capture: createPageCaptureForHost({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
+      capture: createPageCaptureForHost({ httpClient: createHttpClient({ policy: WEB_SCREENSHOT_EGRESS_POLICY }, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
       encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),

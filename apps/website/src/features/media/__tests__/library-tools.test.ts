@@ -21,7 +21,7 @@ test('Library save survives cleanupRun; ordinary attachments remain temporary; l
   const saved = await store.register({ input: { batchId: 'batch-aaa', path: savedPath, name: 'saved.md', kind: 'file', size: 9, ownerId: 'owner' } });
   const temp = await store.register({ input: { batchId: 'batch-aaa', path: tempPath, name: 'temporary.txt', kind: 'file', size: 9, ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [saved, temp] });
-  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, readFile,
+  const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, readFile: ({ path }) => readFile(path),
     getMessageAttachmentRefs: () => [saved.path, temp.path], archiveReader: createDocumentArchiveReader({}) });
   const result = await tool.handler(libraryContext({ attachmentRef: saved.path })) as { document: { id: string } };
   await store.cleanupRun({ runId: 'run-a' });
@@ -94,7 +94,7 @@ test('Library save retains the existing resolver\'s run and integrity rejection 
   await store.claim({ runId: 'run-a', attachments: [ref] });
   const { deps } = libraryFixture(); let reads = 0;
   const tool = buildLibrarySaveAttachmentTool({ deps, getStore: () => store, getMessageAttachmentRefs: () => [ref.path], archiveReader: createDocumentArchiveReader({}),
-    readFile: async path => { reads++; return readFile(path); } });
+    readFile: async ({ path }) => { reads++; return readFile(path); } });
   await assert.rejects(tool.handler(libraryContext({ attachmentRef: ref.path }, 'foreign-run')));
   // The resolver's integrity check compares dev/inode/size/path, so the tamper must change size.
   await writeFile(path, '# Tampered and grown', { mode: 0o600 });
@@ -130,7 +130,7 @@ test('Library save allows by policy, refuses before the store is ready, reports 
   const md = await store.register({ input: { batchId: 'batch-bbb', path: mdPath, name: 'notes.md', kind: 'file', size: 7, ownerId: 'owner' } });
   await store.claim({ runId: 'run-a', attachments: [exe, md] });
   const { deps } = libraryFixture();
-  const build = (getStore: () => typeof store | undefined) => buildLibrarySaveAttachmentTool({ deps, getStore, readFile,
+  const build = (getStore: () => typeof store | undefined) => buildLibrarySaveAttachmentTool({ deps, getStore, readFile: ({ path }) => readFile(path),
     getMessageAttachmentRefs: () => [exe.path, md.path], archiveReader: createDocumentArchiveReader({}) });
   const tool = build(() => store);
   assert.equal(tool.policy?.authorize?.({} as never), 'allow');

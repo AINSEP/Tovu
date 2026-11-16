@@ -268,7 +268,7 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the repo read i
   const brokenRepo = new InMemorySiteAssistantCredentialRepo();
   brokenRepo.vault.findOne = async () => { throw new Error("connection reset"); };
   let warned: unknown;
-  const resolved = await resolveSiteAssistantApiKey({ deps: { repo: brokenRepo, sealer }, input: { workspaceId: WORKSPACE } }, { onDecryptFailure: (err) => {
+  const resolved = await resolveSiteAssistantApiKey({ deps: { repo: brokenRepo, sealer }, input: { workspaceId: WORKSPACE } }, { onDecryptFailure: ({ error: err }) => {
     warned = err;
   } });
 
@@ -554,7 +554,7 @@ test("public readiness reports a decrypt failure to the callback and stays key-f
   const failure = new Error("sealer offline");
   const failures: unknown[] = [];
   const sealer = { seal: deps.sealer.seal.bind(deps.sealer), open: async () => { throw failure; } };
-  const result = await resolvePublicAssistantAvailability({ ...deps, sealer, workspaceId: WORKSPACE }, { onCredentialFailure: error => failures.push(error) });
+  const result = await resolvePublicAssistantAvailability({ ...deps, sealer, workspaceId: WORKSPACE }, { onCredentialFailure: ({ error }) => failures.push(error) });
   assert.equal(result.ready === false && result.code, "NOT_CONFIGURED");
   assert.deepEqual(failures, [failure]);
 });

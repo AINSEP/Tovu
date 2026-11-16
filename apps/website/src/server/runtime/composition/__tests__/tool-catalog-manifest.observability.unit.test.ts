@@ -43,7 +43,7 @@ async function callGetAdmissions(contributions: ReturnType<typeof freshContribut
 test("installFirstPartyToolContributors builds every guarded HTTP client with the observability port it was given", () => {
   const observability = createNoopObservabilityPort({});
   const built: { policy: unknown; options: unknown }[] = [];
-  const createHttpClient = ((policy, options) => {
+  const createHttpClient = (({ policy }, options) => {
     built.push({ policy, options });
     return {} as ReturnType<typeof createDefaultHttpClient>;
   }) as typeof createDefaultHttpClient;

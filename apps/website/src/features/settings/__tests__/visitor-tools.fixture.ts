@@ -15,7 +15,7 @@ export async function visitorSettingsFixture() {
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed: grants.has(permission), reason: "test" }; },
     principals: { findActiveById: async ({ id }) => ({ id }) } };
   await ensurePublicAssistantSettingDefinitions({ settingsRepo: repo, clock, ids: deps.ids, principals: deps.principals, ensureSettingDefinitions }, { workspaceId: ws, systemPrincipalId: "boot" });
-  const read = () => readVisitorToolPolicy({ settingsRepo: repo, workspaceId: ws, reportError: error => { reports.push(error); } });
+  const read = () => readVisitorToolPolicy({ settingsRepo: repo, workspaceId: ws, reportError: ({ error }) => { reports.push(error); } });
   return { repo, deps, grants, permissions, reports, read,
     write: (value: unknown = off) => writeVisitorTools({ deps, value, workspaceId: ws, callerPrincipalId: "owner" }),
     input: { ...VISITOR_TOOLS_SETTING, workspaceId: ws, authWorkspaceId: ws, scope: "workspace" as const, callerPrincipalId: "owner", value: off as SetValueRequired["input"]["value"] },

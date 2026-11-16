@@ -88,7 +88,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
     ownerPrincipalId: wiring.ownerPrincipalId,
     outbox: new InMemoryOutbox(),
     removeUser: bindRemoveEntity({ trash, entityType: USER_ENTITY_TYPE }),
-    isInTrash: async (principalId: string) =>
+    isInTrash: async ({ principalId }) =>
       (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null,
     ...overrides,
   };
@@ -96,7 +96,7 @@ async function harness(overrides: Partial<UsersRouteDeps> = {}) {
   const [trashItem] = deriveTrashItemRegistrations(
     {
       registrations: [],
-      routeDeps: { workspaceId: WORKSPACE_ID, isTrashableEntityType: (entityType: string) => entityType === USER_ENTITY_TYPE } as unknown as TrashItemToolDeps,
+      routeDeps: { workspaceId: WORKSPACE_ID, isTrashableEntityType: ({ entityType }: { entityType: string }) => entityType === USER_ENTITY_TYPE } as unknown as TrashItemToolDeps,
       surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
     },
     { trashUser: bindTrashUserForTool(deps) }
@@ -127,11 +127,11 @@ test("trash_item user: the owner trashes a user (disabled + in Trash), and the T
 
   assert.deepEqual(result, { entityType: "user", entityId: jane.id, via: "trashUser", outcome: { trashed: true, cancelled: false, alreadyInTrash: false } });
   assert.equal(await status(jane.id), "disabled");
-  assert.equal(await deps.isInTrash(jane.id), true);
+  assert.equal(await deps.isInTrash({ principalId: jane.id }), true);
 
   assert.equal(await trash.restore({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: jane.id, at: NOW }, { actor: { principalId: ownerId } }), "restored");
   assert.equal(await status(jane.id), "active");
-  assert.equal(await deps.isInTrash(jane.id), false);
+  assert.equal(await deps.isInTrash({ principalId: jane.id }), false);
 });
 
 test("trash_item user: a second trash of the same user is an idempotent no-op", async () => {
@@ -165,7 +165,7 @@ test("trash_item user: a caller who is neither the owner nor an admin is refused
     message: `trash_item: principal '${intruder.id}' is not authorized to trash, restore or permanently delete users. Nothing was changed.`,
   });
   assert.equal(await status(jane.id), "active");
-  assert.equal(await deps.isInTrash(jane.id), false);
+  assert.equal(await deps.isInTrash({ principalId: jane.id }), false);
 });
 
 test("trash_item user: an unknown id is refused as not found", async () => {

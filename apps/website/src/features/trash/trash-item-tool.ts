@@ -98,7 +98,7 @@ export interface TrashItemToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
   /** Membership in the live Trash adapter map, read on every call. See `TrashDeps`. */
-  isTrashableEntityType(entityType: TrashEntityType): boolean;
+  isTrashableEntityType(required: { entityType: TrashEntityType }, optional?: Record<string, never>): boolean;
   postRepo: { findById(required: { workspaceId: string; id: string }): Promise<{ kind: string } | null> };
   commentRepo: { findById(required: { workspaceId: string; id: string }): Promise<{ version: number } | null> };
   commentsReady: Promise<unknown>;
@@ -498,10 +498,10 @@ export function deriveTrashItemRegistrations(
 
       // Against the live adapter map, on every call — never a list captured when this was built.
       const kindHandler = handlerByEntityType.get(entityType);
-      if (kindHandler && routeDeps.isTrashableEntityType(entityType)) return kindHandler({ ...ctx, input: { ...input, entityType } }, options);
+      if (kindHandler && routeDeps.isTrashableEntityType({ entityType })) return kindHandler({ ...ctx, input: { ...input, entityType } }, options);
 
       requireString({ input: input, key: "entityId" });
-      const accepted = reachableKinds.filter((kind) => routeDeps.isTrashableEntityType(kind));
+      const accepted = reachableKinds.filter((kind) => routeDeps.isTrashableEntityType({ entityType: kind }));
       throw new ToolInputError({ message: `trash_item: '${entityType}' is not a kind of thing the Trash can hold. Expected one of: ${accepted.join(", ")}. ` +
           "Nothing was changed." });
     },

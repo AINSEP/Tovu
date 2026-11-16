@@ -81,7 +81,7 @@ function unknownAttachmentMessage({ ref }: { ref: string }, _optional: Record<st
  * `AttachmentsHttpDeps.maxAttachmentBytes`) — never proportional to anything else caller-controlled.
  */
 export async function resolveChatAttachmentBytes(
-  deps: { readonly store: ChatAttachmentLookup; readonly readFile: (path: string) => Promise<Uint8Array> },
+  deps: { readonly store: ChatAttachmentLookup; readonly readFile: (required: { path: string }, optional?: Record<string, never>) => Promise<Uint8Array> },
   input: { readonly ref: string; readonly runId: string },
 ): Promise<{ readonly bytes: Uint8Array; readonly name: string }> {
   let resolved;
@@ -96,7 +96,7 @@ export async function resolveChatAttachmentBytes(
     throw error;
   }
   if (!resolved) throw new ToolInputError({ message: unknownAttachmentMessage({ ref: input.ref }) });
-  const bytes = await deps.readFile(resolved.path);
+  const bytes = await deps.readFile({ path: resolved.path });
   return { bytes, name: resolved.name };
 }
 
@@ -155,12 +155,12 @@ function requireAttachmentRef({ input }: { input: unknown }, _optional: Record<s
  * capturing a value at registration time: this registration is built before that store exists.
  * @param deps.mediaUploadHandler The ALREADY-REGISTERED `media_upload_asset` handler — this bridge's
  * only route into `uploadMedia()`'s validation/rendition gate. See this file's header.
- * @param deps.readFile Injected for testability; production wiring passes `node:fs/promises#readFile`.
+ * @param deps.readFile Injected for testability; production wiring passes a `({ path })` wrapper over `node:fs/promises#readFile`.
  */
 export function buildPromoteChatAttachmentTool(deps: {
   readonly getStore: () => ChatAttachmentLookup | undefined;
   readonly mediaUploadHandler: ToolHandler;
-  readonly readFile: (path: string) => Promise<Uint8Array>;
+  readonly readFile: (required: { path: string }, optional?: Record<string, never>) => Promise<Uint8Array>;
 }): ToolRegistration {
   const handler: ToolHandler = async (ctx: ToolExecutionContext, optional = {}) => {
     const attachmentRef = requireAttachmentRef({ input: ctx.input });

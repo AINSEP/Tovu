@@ -157,7 +157,7 @@ test("gapb member: generic tool schemas include member without a per-resource de
     surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }),
   }, routeDeps: {
     registry: h.registry, db: h.kernel, trash: h.trash, authorize: async () => ({ allowed: true, reason: "test" }),
-    workspaceId: WS, clock: { nowIso: () => AT }, isTrashableEntityType: type => type === "member",
+    workspaceId: WS, clock: { nowIso: () => AT }, isTrashableEntityType: ({ entityType: type }) => type === "member",
     postRepo: { findById: async () => null }, commentRepo: { findById: async () => null }, commentsReady: Promise.resolve(),
   } });
   const schema = tool!.descriptor.inputSchema as { properties: { entityType: { enum: string[] } } };

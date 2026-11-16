@@ -6,7 +6,7 @@ import { IdentityValidationError, type UsernameChangePort } from "@jini-ai/user-
  * @complexity O(1): one Trash read per check, one audit enqueue per actual rename.
  */
 export function createUsernameChangePort(required: {
-  outbox: OutboxPort; idGen: IdGenerator; isInTrash: (principalId: string) => Promise<boolean>;
+  outbox: OutboxPort; idGen: IdGenerator; isInTrash: (required: { principalId: string }, optional?: Record<string, never>) => Promise<boolean>;
   seededOwnerPrincipalId: Promise<string>;
 }, _optional: Record<string, never> = {}): UsernameChangePort {
   return {
@@ -17,7 +17,7 @@ export function createUsernameChangePort(required: {
         throw new IdentityValidationError({ message: "the seeded owner's username cannot be changed until a persistent owner identity is configured" });
       }
     },
-    isInTrash: ({ principalId }, _options = {}) => required.isInTrash(principalId),
+    isInTrash: ({ principalId }, _options = {}) => required.isInTrash({ principalId }),
     record: async ({ workspaceId, principalId, callerPrincipalId, previousUsername, username, occurredAt }, _options = {}) => {
       await required.outbox.enqueue({ id: required.idGen.newId(), name: "identity.user.username_changed",
         workspaceId, aggregateId: principalId, actorId: callerPrincipalId, occurredAt,

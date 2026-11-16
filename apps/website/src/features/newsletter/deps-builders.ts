@@ -43,7 +43,7 @@ export function buildSubscriptionsDeps(
 /** Assemble send ports with the caller's launch gate and optional delivery controls. @complexity O(1). */
 export function buildSendPipelineDeps(
   { deps, isSendingEnabled }: { deps: SendPipelineSourceDeps; isSendingEnabled: (workspaceId: string) => Promise<boolean> },
-  { unsubscribe, sleep }: { unsubscribe?: UnsubscribeDeps; sleep?: (ms: number) => Promise<void> } = {},
+  { unsubscribe, sleep }: { unsubscribe?: UnsubscribeDeps; sleep?: (required: { ms: number }, optional?: Record<string, never>) => Promise<void> } = {},
 ): SendPipelineDeps {
   return {
     campaignRepo: deps.newsletterCampaignRepo,

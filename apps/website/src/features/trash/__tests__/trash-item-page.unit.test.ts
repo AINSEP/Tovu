@@ -13,7 +13,7 @@ test('page kind delegates to content_post_delete with the real row kind and cano
     policy: { authorize: () => 'allow' },
     handler: async ctx => { calls.push(ctx.input); return { trashed: true }; },
   };
-  const deps = { workspaceId: 'ws', registry: new Map(), isTrashableEntityType: (kind: string) => kind === 'post',
+  const deps = { workspaceId: 'ws', registry: new Map(), isTrashableEntityType: ({ entityType: kind }: { entityType: string }) => kind === 'post',
     authorize: async ({ permission }: { permission: string }) => { calls.push(permission); return { allowed: true }; },
     postRepo: { findById: async () => ({ kind: 'page' }) },
   } as unknown as TrashItemToolDeps;

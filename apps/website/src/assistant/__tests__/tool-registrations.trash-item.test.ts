@@ -91,7 +91,7 @@ function withRealTrashRegistry(routeDeps: RegistryDepsWithoutLimiter): RegistryD
     // adapter, so `isTrashableEntityType` is `trashAdapters.has`, and `trashAdapters` is built FROM
     // the registry) — `||` keeps this hermetic root's existing delegate-backed kinds (post, comment,
     // media, redirect, widget, all wired via hand-built in-memory adapters) true too.
-    isTrashableEntityType: (entityType: TrashEntityType) => routeDeps.isTrashableEntityType(entityType) || REAL_REGISTRY.has(entityType),
+    isTrashableEntityType: ({ entityType }: { entityType: TrashEntityType }) => routeDeps.isTrashableEntityType({ entityType }) || REAL_REGISTRY.has(entityType),
   } as RegistryDepsWithoutLimiter;
 }
 
@@ -155,7 +155,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
       authorizeCalls.push(params);
       return options.deny ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" };
     },
-    isTrashableEntityType: (entityType: TrashEntityType) => registry.has(entityType),
+    isTrashableEntityType: ({ entityType }: { entityType: TrashEntityType }) => registry.has(entityType),
     registry,
     trash,
     db: trashDb,
@@ -418,7 +418,7 @@ test("the entityType check reads the live adapter map at CALL time, not a list c
   const { routeDeps, registrations } = harness(EVERYTHING);
   await seedPost(routeDeps);
   let postAdapterRegistered = true;
-  const probed = { ...routeDeps, isTrashableEntityType: (entityType: string) => entityType !== "post" || postAdapterRegistered };
+  const probed = { ...routeDeps, isTrashableEntityType: ({ entityType }: { entityType: string }) => entityType !== "post" || postAdapterRegistered };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const trashItem = tool(buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps: probed as RegistryDepsWithoutLimiter }), surfaces: { surfaceExchanges }, options: { contributions } }), TRASH_ITEM_TOOL_ID);
   void registrations;

@@ -77,7 +77,7 @@ export function createHttpClient(
 
 /** Binds Tovu's egress policy and user agent to the native pinned transport.
  * @param options Optional observability port (see {@link HttpClientOptions}). */
-export function createDefaultHttpClient(policy: EgressPolicy, options: HttpClientOptions = {}): HttpClientPort {
+export function createDefaultHttpClient({ policy }: { policy: EgressPolicy }, options: HttpClientOptions = {}): HttpClientPort {
   const native = createNodeGuardedHttpPorts({});
   const client = createGuardedHttpClient({ ...native, policy, userAgent: DEFAULT_USER_AGENT });
   return toTovuHttpClient({ client: observed({ client }, options) });

@@ -316,7 +316,7 @@ async function deferralRig(mailer: ReturnType<typeof makeMailer>) {
 test("handleSendBatchClaimed: normalized provider throttling is deferred with the provider's delay, not failed", async () => {
   const rig = await deferralRig(makeMailer(() => ({ ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "Too many requests", retryAfterMs: 1000 })));
   const slept: number[] = [];
-  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async (ms) => { slept.push(ms); } }, job: makeJob() });
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async ({ ms }) => { slept.push(ms); } }, job: makeJob() });
   assert.deepEqual(slept.slice(0, 2), [1000, 1000], "the provider's Retry-After is the wait");
   const row = await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" });
   assert.equal(row?.status, "pending", "a throttled recipient is not a failed one");
@@ -334,7 +334,7 @@ test("handleSendBatchClaimed: a hintless rate limit waits the default second inl
   let calls = 0;
   const rig = await deferralRig(makeMailer(() => (++calls === 1 ? { ok: false, retryable: true, errorCode: "MAIL_RATE_LIMITED", message: "busy" } : { ok: true, providerMessageId: "pm-1", acceptedAt: clock.nowIso() })));
   const slept: number[] = [];
-  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async (ms) => { slept.push(ms); } }, job: makeJob() });
+  await handleSendBatchClaimed({ deps: { ...rig.deps, sleep: async ({ ms }) => { slept.push(ms); } }, job: makeJob() });
   assert.deepEqual(slept, [1000]);
   assert.equal((await rig.sendRepo.findById({ workspaceId: WS, id: "send-1" }))?.status, "delivered");
   assert.equal([...rig.outbox.rows.values()].length, 0);
@@ -373,7 +373,7 @@ async function runResendBatch(optional: { inlineSleep: boolean }) {
   const rig = makeRig({ campaigns: [makeCampaign({ status: "sending", audienceSnapshotId: "snap-1" })], mailer });
   const movingClock = { nowMs: () => nowMs, nowIso: () => new Date(nowMs).toISOString() };
   const slept: number[] = [];
-  const deps: SendPipelineDeps = { ...rig.deps, clock: movingClock, ...(optional.inlineSleep ? { sleep: async (ms: number) => { slept.push(ms); nowMs += ms; } } : {}) };
+  const deps: SendPipelineDeps = { ...rig.deps, clock: movingClock, ...(optional.inlineSleep ? { sleep: async ({ ms }: { ms: number }) => { slept.push(ms); nowMs += ms; } } : {}) };
   const sendIds: string[] = [];
   for (let i = 1; i <= 20; i++) {
     await rig.subscriptionRepo.save({ id: `subscription-${i}`, workspaceId: WS, listId: "list-1", subscriberId: `sub-${i}`, status: "subscribed", source: "admin", consentRevisionIdAtSubscribe: "r1", subscribedAt: clock.nowIso(), unsubscribedAt: null, createdAt: clock.nowIso(), updatedAt: clock.nowIso() });

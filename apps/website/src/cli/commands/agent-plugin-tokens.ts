@@ -60,7 +60,7 @@ export type NewSiteAgentPluginTokenCheck = (input: { pluginId: string; token: st
 
 /** The real check: the bundled plugins (the new site has no workspace yet) and the guarded client. */
 export function defaultNewSiteAgentPluginTokenCheck(_required: Record<string, never>, { sourceRoot = bundledAgentPluginsRoot() }: { sourceRoot?: string } = {}): NewSiteAgentPluginTokenCheck {
-  const httpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY);
+  const httpClient = createDefaultHttpClient({ policy: CUSTOM_CREDENTIALS_EGRESS_POLICY });
   const resolveInstalledPlugin = resolveBundledAgentPlugin({ bundledSourceRoot: sourceRoot });
   return (input) => checkAgentPluginAccessToken({ workspaceId: "new-site", credentials: composePluginCredentials({ httpClient }), resolveInstalledPlugin }, input);
 }

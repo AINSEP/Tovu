@@ -63,7 +63,7 @@ export function startServingWebhookDeliveryWorker(
   optional: WebhookDeliveryWorkerOptional & { httpClient?: HttpClientPort } = {},
 ): WebhookDeliveryWorker {
   const { deps } = required;
-  const { httpClient = createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability: deps.observability }), ...workerOptional } = optional;
+  const { httpClient = createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability: deps.observability }), ...workerOptional } = optional;
   const envelopeStore: DeliveryEnvelopeStore = webhookEnvelopeStoreFor({ deliveryRepo: deps.webhookDeliveryRepo });
   const processDue = ({ signal }: { signal: AbortSignal }) => processDueDeliveries({ deps: {
     deliveryRepo: deps.webhookDeliveryRepo,

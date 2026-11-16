@@ -73,7 +73,7 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
       // reviewed ids and fixed provenance; neither query values nor provider errors enter this sink.
       sink: { append: (event) => ports.sink.append(event, { detail: '{"audience":"visitor","source":"builtin"}' }) },
       readErrorId: () => undefined,
-    }, { onSinkError: ports.reportError }) : gated;
+    }, { onSinkError: (error) => ports.reportError({ error }) }) : gated;
   };
 
   return {
@@ -100,7 +100,7 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
         if (outcome.status !== "completed") return { kind: "error" as const, error: outcome.error ?? outcome.status };
         return visitorOutput({ output: outcome.output });
       } catch (error) {
-        ports?.reportError(error);
+        ports?.reportError({ error });
         return { kind: "refused" as const, reason: VISITOR_TOOL_REFUSAL };
       }
     },
@@ -130,7 +130,7 @@ function registerCapabilities({ capabilities, registry, ports, confirmation }: {
           if (!confirmationChannelAvailable({ capability, hasChannel })) return 'deny';
           return await ports.budgets.charge({ workspaceId: ports.workspaceId, toolId: capability.name, ip: ports.ip, limits: choice.limits }) ? "allow" : "deny";
         } catch (error) {
-          ports.reportError(error);
+          ports.reportError({ error });
           return "deny";
         }
       } },
@@ -142,7 +142,7 @@ function registerCapabilities({ capabilities, registry, ports, confirmation }: {
         } catch (error) {
           // Jini returns a message string. Preserve the original stack server-side, while a
           // disconnected caller's aborted work needs no operational error report.
-          if (!signal.aborted && !(error instanceof VisitorPlanRefused)) ports?.reportError(error);
+          if (!signal.aborted && !(error instanceof VisitorPlanRefused)) ports?.reportError({ error });
           throw error;
         }
       },

@@ -52,7 +52,7 @@ export const registerAdminUserListRoute: UsersRouteRegistrar = ({ app, deps }, _
               // screen must not list them as an ordinary disabled user, since restoring them here
               // means EnablePrincipal, not the Trash's own restore. An intentionally-disabled user
               // (never trashed) has no `trashed_items` row and stays listed.
-              trashed: principal.status === "disabled" && (await deps.isInTrash(principal.id)),
+              trashed: principal.status === "disabled" && (await deps.isInTrash({ principalId: principal.id })),
             }))
         )
       )

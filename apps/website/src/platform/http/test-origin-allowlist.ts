@@ -26,7 +26,7 @@ import { classifyAddress, createDefaultHttpClient, createHttpClient, type HttpCl
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 
 /** Same shape as `createDefaultHttpClient`, so a composition root can take either. */
-export type EgressHttpClientFactory = (policy: EgressPolicy, options?: HttpClientOptions) => HttpClientPort;
+export type EgressHttpClientFactory = (required: { policy: EgressPolicy }, options?: HttpClientOptions) => HttpClientPort;
 
 const LOOPBACK_LITERALS = new Set(["127.0.0.1", "[::1]"]);
 const REFUSED_HOP_MESSAGE = "egress to the requested host was refused by this site's outbound network policy";
@@ -91,7 +91,7 @@ export function createTestOriginHttpClientFactory(
   if (allowedOrigins.length === 0) return createDefaultHttpClient;
   const allowed = parseTestOrigins({ origins: allowedOrigins });
   const origins = [...allowed].map((origin) => new URL(origin));
-  return (policy, options = {}) => {
+  return ({ policy }, options = {}) => {
     const native = createNodeGuardedHttpPorts({});
     const widened: EgressPolicy = {
       ...policy,

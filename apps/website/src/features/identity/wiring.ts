@@ -141,7 +141,7 @@ export interface IdentityRouteDepsSlice {
    */
   removeUser?: RemoveUserFn;
   /** See {@link IdentityRouteDepsSlice.removeUser}'s doc — same default-then-override story. */
-  isInTrash: (principalId: UUID) => Promise<boolean>;
+  isInTrash: (required: { principalId: UUID }, optional?: Record<string, never>) => Promise<boolean>;
   identityReady: Promise<void>;
   authorize: AuthorizeFn;
   /**

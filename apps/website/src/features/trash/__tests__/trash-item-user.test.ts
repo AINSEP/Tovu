@@ -26,7 +26,7 @@ import { createTrashService, InMemoryTrashRepo } from "@jini-ai/cms/trash";
 const CALLER = "principal-caller";
 
 /** Route deps with no delegates and no registry, so `user` is the only kind that can be reachable. */
-function routeDeps(trashable: (entityType: TrashEntityType) => boolean = () => true): TrashItemToolDeps {
+function routeDeps(trashable: (required: { entityType: TrashEntityType }) => boolean = () => true): TrashItemToolDeps {
   return {
     authorize: async () => ({ allowed: false, reason: "insufficient_permission" }),
     workspaceId: "ws-trash-user",
@@ -96,7 +96,7 @@ test("without a trashUser port, 'user' is not accepted and nothing is registered
 test("with no live user Trash adapter, 'user' is refused with an exact error and the port is never called", async () => {
   let called = false;
   const [trashItem] = derive(
-    routeDeps((entityType) => entityType !== "user"),
+    routeDeps(({ entityType }) => entityType !== "user"),
     async () => {
       called = true;
       return { noop: false };
@@ -163,7 +163,7 @@ for (const state of ["live", "missing", "denied"] as const) {
     const deps: TrashItemToolDeps = { workspaceId, registry, trash,
       postRepo: { findById: async () => { throw new Error("generic kinds must not read posts"); } },
       commentRepo: { findById: async () => { throw new Error("generic kinds must not read comments"); } },
-      commentsReady: Promise.resolve(), isTrashableEntityType: (kind) => registry.has(kind), clock: { nowIso: () => at },
+      commentsReady: Promise.resolve(), isTrashableEntityType: ({ entityType: kind }) => registry.has(kind), clock: { nowIso: () => at },
       authorize: async () => state === "denied" ? { allowed: false, reason: "insufficient_permission" } : { allowed: true, reason: "matched" },
       db: state === "denied" ? new Proxy(kernel, { get() { throw new Error("denied calls must not read"); } }) : kernel };
     const [registration] = derive(deps);

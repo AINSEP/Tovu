@@ -13,7 +13,7 @@ export type PublicAssistantAvailability =
  * @complexity O(n) in credential-field lengths, one repository read and at most one decrypt. */
 export async function resolvePublicAssistantAvailability(required: {
   repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort; workspaceId: string;
-}, options: { onCredentialFailure?: (error: unknown) => void } = {}): Promise<PublicAssistantAvailability> {
+}, options: { onCredentialFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {}): Promise<PublicAssistantAvailability> {
   // The public readiness outcome stays key-free; the visitor route separately correlates the
   // credential owner's real failure with its safe response id in the redacted operator log.
   const credential = await resolveSiteAssistantApiKey({ deps: required, input: { workspaceId: required.workspaceId } }, { onDecryptFailure: options.onCredentialFailure });

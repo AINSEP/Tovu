@@ -39,7 +39,7 @@ export function composeSiteImportBackend(
     workspace, createSite, startSite,
     restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options),
     reader: createShareArchiveReader({ yauzl }),
-    http: createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability: optional.observability }),
+    http: createDefaultHttpClient({ policy: SITE_IMPORT_EGRESS_POLICY }, { observability: optional.observability }),
     sanitize: rebuildImportDatabase,
     schema: runtimeSchemaVersion(),
     ...(optional.tracker ? { tracker: optional.tracker } : {}),

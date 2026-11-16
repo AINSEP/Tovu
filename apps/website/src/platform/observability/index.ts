@@ -42,7 +42,7 @@ export { createNoopObservabilityPort };
  * — the same reason `trackRequest`'s shape follows Express's actual request/response lifecycle
  * rather than a guessed-in-advance generic shape. They now exist (2026-10-04), each shaped after its
  * seam: the storage kernel (`instrumentStorageKernel`, in `deps.ts`), the guarded HTTP client
- * (`createDefaultHttpClient(policy, { observability })`) and the agent-run finalizer
+ * (`createDefaultHttpClient({ policy }, { observability })`) and the agent-run finalizer
  * (`assistant-run-finalizer.ts`). The SDK adapter also gets an AsyncLocalStorage span scope so
  * those spans nest under the request that caused them.
  *

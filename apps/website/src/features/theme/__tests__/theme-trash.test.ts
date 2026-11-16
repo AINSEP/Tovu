@@ -197,7 +197,7 @@ test("trash_item accepts entityType 'theme' and routes it through theme_trash (a
   const { deps, registrations, themesDir } = harness(t);
   const routeDeps = {
     ...deps,
-    isTrashableEntityType: (entityType: string) => entityType === THEME_ENTITY_TYPE,
+    isTrashableEntityType: ({ entityType }: { entityType: string }) => entityType === THEME_ENTITY_TYPE,
   } as unknown as TrashItemToolDeps;
   const [trashItem] = deriveTrashItemRegistrations({ registrations, routeDeps, surfaces: {} as never });
   assert.ok(trashItem);

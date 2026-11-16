@@ -22,7 +22,7 @@ function fillFixture() {
   const ports: VisitorExecutionPorts = { owner, initialPolicy: policy, readPolicy: async () => policy,
     readSnapshot: async () => ({ policy, revision }), confirmation: { ...f.confirmations, emit: directive => emitted(directive.challengeId) },
     budgets: { charge: async () => true }, clock: f.clock, ids: { newId: () => 'attempt' }, workspaceId: 'site', runId: 'run', ip: 'ip',
-    sink: { append: async () => {} }, signal: f.abort.signal, reportError: error => { throw error; } };
+    sink: { append: async () => {} }, signal: f.abort.signal, reportError: ({ error }) => { throw error; } };
   const capabilities = [{ name: 'page.fill', visitorOfferable: true as const, displayTitle: 'Fill', displayDescription: 'Fill a public field.',
     requiresConfirmation: () => true, execute: async ({ input }: { input: unknown }) => { effects++; applied = input; return { result: { filled: true } }; } }];
   return { ...f, ports, owner, prompt, executor: createVisitorExecutor({ capabilities }, { ports }), capabilities,

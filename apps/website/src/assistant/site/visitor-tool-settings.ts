@@ -8,14 +8,14 @@ import { parseVisitorToolPolicy, VISITOR_TOOLS_SETTING, type VisitorToolPolicy }
  * @example readVisitorToolPolicy({ settingsRepo, workspaceId, reportError });
  */
 export async function readVisitorToolPolicy({ settingsRepo, workspaceId, reportError }: {
-  settingsRepo: SettingsRepoPort; workspaceId: string; reportError: (error: unknown) => void;
+  settingsRepo: SettingsRepoPort; workspaceId: string; reportError: (required: { error: unknown }, optional?: Record<string, never>) => void;
 }, _options = {}): Promise<VisitorToolPolicy | null> {
   try {
     const resolved = await getEffective({ repo: settingsRepo }, { ...VISITOR_TOOLS_SETTING, scopeContext: { workspaceId } });
     if (!resolved) return null;
     return parseVisitorToolPolicy({ value: resolved.value });
   } catch (error) {
-    reportError(error);
+    reportError({ error });
     return null;
   }
 }

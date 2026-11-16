@@ -218,7 +218,7 @@ export interface IdentityDeps {
    *  check; see `identity/wiring.ts`'s `IdentityRouteDepsSlice.removeUser` doc for the
    *  default-then-override story between the two composition roots. */
   removeUser?: RemoveEntity;
-  isInTrash: (principalId: UUID) => Promise<boolean>;
+  isInTrash: (required: { principalId: UUID }, optional?: Record<string, never>) => Promise<boolean>;
   /**
    * Resolves once first-boot identity seeding (`Jini packages/user-management/src/server/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so
@@ -1326,7 +1326,7 @@ export interface TrashDeps {
    * A predicate rather than the map: the adapters carry `purge`, and nothing handed to every route
    * may reach a hard delete.
    */
-  isTrashableEntityType: (entityType: string) => boolean;
+  isTrashableEntityType: (required: { entityType: string }, optional?: Record<string, never>) => boolean;
   /**
    * `TRASHABLE`, built once at composition from the live schema module (`registry.ts`). Read by
    * `moveToTrash` (the generic `POST .../trash/items` route) and by `permissions.ts`'s

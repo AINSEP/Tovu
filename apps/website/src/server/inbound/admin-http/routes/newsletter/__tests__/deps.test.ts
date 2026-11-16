@@ -55,6 +55,6 @@ test("toSendPipelineDeps: sleep resolves after a real timer wait", async () => {
   const deps = toSendPipelineDeps({} as NewsletterRouteDeps);
   assert.ok(deps.sleep, "the production bundle always waits short quota hints inline");
   const started = performance.now();
-  assert.equal(await deps.sleep(5), undefined);
+  assert.equal(await deps.sleep({ ms: 5 }), undefined);
   assert.ok(performance.now() - started >= 4);
 });

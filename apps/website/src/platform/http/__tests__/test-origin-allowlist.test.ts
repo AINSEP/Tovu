@@ -37,14 +37,14 @@ const redirectTo = (location: string) => (request: HttpRequest): HttpResponse =>
 const get = (url: string): HttpRequest => ({ method: "GET", url, headers: {}, timeoutMs: 5_000 });
 
 function clientFor(transport: HttpTransportAdapter, policy = WEB_FETCH_EGRESS_POLICY) {
-  return createTestOriginHttpClientFactory({ allowedOrigins: [FIXTURE] }, { transport, dns })(policy);
+  return createTestOriginHttpClientFactory({ allowedOrigins: [FIXTURE] }, { transport, dns })({ policy });
 }
 
 test("production composition: no origins means the stock factory, which refuses 127.0.0.1", async () => {
   assert.equal(createTestOriginHttpClientFactory({ allowedOrigins: [] }), createDefaultHttpClient);
   // A loopback literal is classified before any socket opens, so this makes no network call.
-  await assert.rejects(createDefaultHttpClient(WEB_FETCH_EGRESS_POLICY).send(get(`${FIXTURE}/`)), EgressRefusedError);
-  await assert.rejects(createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY).send(get(`${FIXTURE}/a.png`)), EgressRefusedError);
+  await assert.rejects(createDefaultHttpClient({ policy: WEB_FETCH_EGRESS_POLICY }).send(get(`${FIXTURE}/`)), EgressRefusedError);
+  await assert.rejects(createDefaultHttpClient({ policy: MEDIA_IMPORT_EGRESS_POLICY }).send(get(`${FIXTURE}/a.png`)), EgressRefusedError);
 });
 
 test("production entrypoints never pass test origins; only the composition seams name them", async () => {
@@ -118,7 +118,7 @@ test("the native transport reaches a loopback fixture without injected HTTP port
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   const origin = `http://127.0.0.1:${address.port}`;
-  const client = createTestOriginHttpClientFactory({ allowedOrigins: [origin] })(MEDIA_IMPORT_EGRESS_POLICY, {});
+  const client = createTestOriginHttpClientFactory({ allowedOrigins: [origin] })({ policy: MEDIA_IMPORT_EGRESS_POLICY }, {});
   const response = await client.send(get(`${origin}/native`));
   assert.equal(response.status, 200);
   assert.equal(response.bodyText, "native fixture");

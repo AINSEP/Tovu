@@ -69,7 +69,7 @@ export interface SendPipelineDeps {
   ids: { newId(): string };
   /** Waits out a short provider quota hint inside the batch (see {@link NEWSLETTER_INLINE_DEFER_MAX_MS}). Absent, every
    *  quota wait reschedules the rest of the batch as a fresh outbox event instead. */
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: (required: { ms: number }, optional?: Record<string, never>) => Promise<void>;
 }
 
 /**
@@ -542,7 +542,7 @@ async function dispatchWithinBudget(required: { deps: SendPipelineDeps; job: Sen
     const fits = wait <= NEWSLETTER_INLINE_DEFER_MAX_MS && budget.waitedMs + wait <= NEWSLETTER_INLINE_DEFER_BUDGET_MS;
     if (!deps.sleep || !fits) return { kind: "deferred", retryAfterMs: wait, leaseUntilIso: required.row.nextAttemptAt ?? deps.clock.nowIso() };
     budget.waitedMs += wait;
-    await deps.sleep(wait);
+    await deps.sleep({ ms: wait });
     if (!(await stillSending(required))) return { kind: "stopped" };
   }
 }

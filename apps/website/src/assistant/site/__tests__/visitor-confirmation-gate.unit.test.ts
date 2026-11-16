@@ -25,7 +25,7 @@ function fixture({ mode = "ask", channel = true, allow = true, fail = false, res
     confirmation: channel ? { request: async required => { required.emit({ kind: "tool_confirmation", challengeId: "a".repeat(22), title: required.title, summary: required.summary }); return allow; },
       confirm: async () => false, emit: directive => { directives.push(directive); } } : undefined,
     budgets: { charge: async () => true }, clock: { nowMs: () => 0, nowIso: () => "now" }, ids: { newId: () => "id" }, workspaceId: "w", runId: "run", ip: "ip",
-    sink: { append: async () => {} }, reportError: error => { errors.push(error); reported(); }, signal: abort.signal };
+    sink: { append: async () => {} }, reportError: ({ error }) => { errors.push(error); reported(); }, signal: abort.signal };
   const gate = createVisitorConfirmationGate({ ports, resume: ({ decision }) => {
     if (resumeError) throw new Error("confirmation already settled");
     resumed(decision);

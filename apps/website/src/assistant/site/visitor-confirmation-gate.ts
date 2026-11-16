@@ -56,7 +56,7 @@ export function createVisitorConfirmationGate({ ports, resume }: { ports: Visito
   function resumeSafely({ executionId, allow }: { executionId: string; allow: boolean }, _optional = {}): void {
     if (ports.signal?.aborted) return;
     try { resume({ executionId, decision: allow ? "confirm" : "deny" }); }
-    catch (error) { ports.reportError(error); }
+    catch (error) { ports.reportError({ error }); }
   }
 
   async function confirm({ request }: { request: ToolConfirmationRequest }, _optional = {}): Promise<void> {
@@ -82,7 +82,7 @@ export function createVisitorConfirmationGate({ ports, resume }: { ports: Visito
         emit: ports.confirmation.emit, validate: () => validate({ input: request.input }), signal: ports.signal,
       });
       if (allow) approved.set(request.executionId, validate);
-    } catch (error) { ports.reportError(error); }
+    } catch (error) { ports.reportError({ error }); }
     finally {
       resumeSafely({ executionId: request.executionId, allow });
     }
@@ -99,7 +99,7 @@ export function createVisitorConfirmationGate({ ports, resume }: { ports: Visito
       approved.delete(executionId);
       let valid = false;
       try { valid = Boolean(validate) && await validate!({ input }); }
-      catch (error) { ports.reportError(error); }
+      catch (error) { ports.reportError({ error }); }
       if (!valid || ports.signal?.aborted) throw new VisitorPlanRefused();
     },
     forget({ executionId }: { executionId: string }, _optional = {}) { approved.delete(executionId); },

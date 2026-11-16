@@ -1259,7 +1259,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       transaction: ({ work }) => work(),
       entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
     }),
-    isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
+    isTrashableEntityType: ({ entityType }) => trashAdapters.has(entityType),
     // The hermetic half of the real SQLite deny store. `core.ts` still narrows this to `list`
     // before giving it to the request gate, so tests retain the same least-authority boundary.
     publishTrustRevocations: createInMemoryRevocations(),
@@ -1693,13 +1693,13 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // (2026-09-10) — see that export's own doc for why this domain needed to follow a GET redirect
     // (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) and could no longer share
     // the mailer's zero-redirect `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
-    customCredentialsHttpClient: createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY),
-    deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY),
+    customCredentialsHttpClient: createDefaultHttpClient({ policy: CUSTOM_CREDENTIALS_EGRESS_POLICY }),
+    deployOpsHttpClient: createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }),
     // 2026-09-06 — `features/media-import`'s `media_import_from_url`. Same reasoning as the line
     // above (a real guarded client, not a fake, so this hermetic composition root's own tests
     // exercise the real SSRF guard), built from `MEDIA_IMPORT_EGRESS_POLICY` instead — see
     // `routes/types.ts`'s `mediaImportHttpClient` doc for why the two policies cannot be shared.
-    mediaImportHttpClient: createDefaultHttpClient(MEDIA_IMPORT_EGRESS_POLICY),
+    mediaImportHttpClient: createDefaultHttpClient({ policy: MEDIA_IMPORT_EGRESS_POLICY }),
     mediaGenerationHttpClient: guardedOutboundHttpClient,
     // Built-in vendors only: this hermetic root reads no plugin modules at construction (same rule as
     // the plugin seams above); `deps.ts` adds plugin vendors via `loadMediaProviderRegistry`.
@@ -2174,7 +2174,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   registerAdminMailProviderRoutes(app, routeDeps);
   // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
   // Send test email (same operation as `mail_send_test`).
-  registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability: routeDeps.observability }) })(routeDeps) });
+  registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability: routeDeps.observability }) })(routeDeps) });
   registerAdminMailTestSendRoute(app, routeDeps);
   // Email page: What uses email and Recent sends and failures (same operations as
   // `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`).

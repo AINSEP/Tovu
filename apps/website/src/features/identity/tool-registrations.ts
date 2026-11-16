@@ -39,7 +39,7 @@ export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps 
 export type TovuIdentityToolDeps = Omit<IdentityToolDeps, "clock"> & {
   clock: Clock | { nowIso(): string };
   outbox: OutboxPort;
-  isInTrash: (principalId: string) => Promise<boolean>;
+  isInTrash: (required: { principalId: string }, optional?: Record<string, never>) => Promise<boolean>;
 };
 
 const ROLE_DELETE_TOOL_ID = "identity_role_delete";

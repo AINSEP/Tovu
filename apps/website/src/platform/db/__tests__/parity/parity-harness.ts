@@ -56,13 +56,14 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
     current: root === CURRENT_SRC,
     site: root === CURRENT_SRC ? site : {
       ...site,
-      resolveSiteAssistantApiKey: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (error: unknown) => void } = {}) =>
-        site.resolveSiteAssistantApiKey(deps, input, onDecryptFailure),
+      resolveSiteAssistantApiKey: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {}) =>
+        // The old snapshot's callback is positional; adapt it to the object-shaped callback.
+        site.resolveSiteAssistantApiKey(deps, input, onDecryptFailure && ((error: unknown) => onDecryptFailure({ error }))),
     },
     exec: root === CURRENT_SRC ? exec : {
       ...exec,
-      resolveExecutionCredential: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (error: unknown) => void } = {}) =>
-        exec.resolveExecutionCredential(deps, input, onDecryptFailure),
+      resolveExecutionCredential: ({ deps, input }: { deps: unknown; input: unknown }, { onDecryptFailure }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {}) =>
+        exec.resolveExecutionCredential(deps, input, onDecryptFailure && ((error: unknown) => onDecryptFailure({ error }))),
     },
     media: await load("features/media/provider-credential-store.ts"),
     custom: await load("features/custom-credentials/store.ts"),

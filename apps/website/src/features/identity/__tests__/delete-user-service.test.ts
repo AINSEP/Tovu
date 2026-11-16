@@ -87,7 +87,7 @@ async function setup(workspaceId: string): Promise<Fixture> {
     transaction: ({ work }) => (createContentDbTransactionRunner({ store: db.$client }))(work),
     entityPolicy: ({ entityType }) => (new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]])).has(entityType)
   }, { onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error) });
-  const isInTrash = async (principalId: string): Promise<boolean> =>
+  const isInTrash = async ({ principalId }: { principalId: string }): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
   return {

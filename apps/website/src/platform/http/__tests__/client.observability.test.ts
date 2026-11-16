@@ -55,7 +55,7 @@ test("without an observability port the client sends exactly as before", async (
 
 test("the default native client records a refused literal target without contacting it", async () => {
   const { port, calls } = recordingPort();
-  const client = createDefaultHttpClient(policy, { observability: port });
+  const client = createDefaultHttpClient({ policy }, { observability: port });
   await assert.rejects(client.send(request("https://127.0.0.1/private")), (error: unknown) => {
     assert.ok(error instanceof EgressRefusedError);
     assert.equal(error.callerSafeMessage, "egress to '127.0.0.1' rejected: resolved address is loopback");

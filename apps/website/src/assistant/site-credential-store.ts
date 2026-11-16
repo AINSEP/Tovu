@@ -148,7 +148,7 @@ export interface ResolvedSiteAssistantCredential {
  * payload come from one snapshot, so rotation cannot return a half-replaced credential. */
 export async function resolveSiteAssistantApiKey(
   { deps, input }: { deps: { repo: SiteAssistantCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID } },
-  { onDecryptFailure = () => {} }: { onDecryptFailure?: (error: unknown) => void } = {},
+  { onDecryptFailure = () => {} }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {},
 ): Promise<ResolvedSiteAssistantCredential | null> {
   try {
     const context = assistantVaultContext({ workspaceId: input.workspaceId, kind: "site-assistant" });
@@ -157,5 +157,5 @@ export async function resolveSiteAssistantApiKey(
     const { summary, payload } = opened;
     return { apiKey: payload!.apiKey as string, provider: summary.provider!, baseUrl: summary.meta.baseUrl as string | null,
       model: summary.meta.model as string | null, };
-  } catch (error) { onDecryptFailure(error); return null; }
+  } catch (error) { onDecryptFailure({ error }); return null; }
 }

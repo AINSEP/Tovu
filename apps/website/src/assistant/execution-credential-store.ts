@@ -177,7 +177,7 @@ export interface ResolvedAdminExecutionCredential {
 
 /** Runtime fail-closed read: one indexed singleton lookup and at most one Jini open. Metadata and
  * payload come from one snapshot, so rotation cannot return a half-replaced credential. */
-export async function resolveExecutionCredential({ deps, input }: { deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID; principalId: UUID } }, { onDecryptFailure = () => {} }: { onDecryptFailure?: (error: unknown) => void } = {},
+export async function resolveExecutionCredential({ deps, input }: { deps: { repo: AdminExecutionCredentialRepoPort; sealer: SecretSealerPort }; input: { workspaceId: UUID; principalId: UUID } }, { onDecryptFailure = () => {} }: { onDecryptFailure?: (required: { error: unknown }, optional?: Record<string, never>) => void } = {},
 ): Promise<ResolvedAdminExecutionCredential | null> {
   try {
     const context = assistantVaultContext({ ...input, kind: "personal-execution" });
@@ -187,5 +187,5 @@ export async function resolveExecutionCredential({ deps, input }: { deps: { repo
     return { apiKey: payload!.apiKey as string, protocol: summary.meta.protocol as string, providerId: summary.provider,
       baseUrl: summary.meta.baseUrl as string | null, model: summary.meta.model as string | null,
       maxTokens: summary.meta.maxTokens as number | null, };
-  } catch (error) { onDecryptFailure(error); return null; }
+  } catch (error) { onDecryptFailure({ error }); return null; }
 }

@@ -74,7 +74,7 @@ export interface DeleteUserDeps {
    * has no idempotency branch of its own (it would just re-disable and re-report the current status
    * as `priorMarker`, corrupting the ORIGINAL `priorMarker` a restore needs); see that file's header.
    */
-  isInTrash: (principalId: UUID) => Promise<boolean>;
+  isInTrash: (required: { principalId: UUID }, optional?: Record<string, never>) => Promise<boolean>;
 }
 
 /**
@@ -308,7 +308,7 @@ export async function trashUser(required: {
     await assertUserAccountAction({ deps: identity, workspaceId: input.workspaceId, principalId: target.id, action: "trash" },
       { callerPrincipalId: input.callerPrincipalId, seededOwnerPrincipalId: input.seededOwnerPrincipalId });
 
-    if (await isInTrash(target.id)) {
+    if (await isInTrash({ principalId: target.id })) {
       return { ok: true, version: null, noop: true } as const;
     }
 

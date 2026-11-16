@@ -94,7 +94,7 @@ test("append never throws, even when the underlying write fails — audit is obs
   const kernel = contentKernel({ store: db });
   const broken: ContentKernel = { ...kernel, run: async () => { throw new Error("database is locked"); } };
 
-  await assert.doesNotReject(() => new SqliteToolAttemptAuditSink({ store: broken }, { onError: (e) => errors.push(e) }).append(event()));
+  await assert.doesNotReject(() => new SqliteToolAttemptAuditSink({ store: broken }, { onError: ({ error: e }) => errors.push(e) }).append(event()));
   assert.equal(errors.length, 1, "the failure must be reported, not silently dropped");
 });
 

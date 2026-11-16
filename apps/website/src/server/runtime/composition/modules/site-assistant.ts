@@ -438,7 +438,7 @@ async function resolveProviderConfigOrRespond(
   let credentialFailure: unknown;
   const availability = await resolvePublicAssistantAvailability({
     repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer, workspaceId: deps.workspaceId,
-  }, { onCredentialFailure: error => { credentialFailure = error; } });
+  }, { onCredentialFailure: ({ error }) => { credentialFailure = error; } });
   if (!availability.ready) return respondUnavailable({ res, reportError, code: availability.code, error: credentialFailure ?? availability.error });
   const stored = availability.credential;
   // Historical fallback rationale, superseded by visitorai's saved-credential requirement:
@@ -698,7 +698,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         const binding = await frontend.bindRequest({ req, signal: abort.signal, runId: logicalRunId });
         const { owner, publication, release: releaseFrontend } = binding;
         res.once('close', releaseFrontend);
-        const reportPolicyError = (error: unknown) => { reportError({ code: "visitor_tools_policy", diagnostic: error }); };
+        const reportPolicyError = ({ error }: { error: unknown }) => { reportError({ code: "visitor_tools_policy", diagnostic: error }); };
         const readPolicy = () => readVisitorToolPolicy({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId,
           reportError: reportPolicyError });
         // MOVE: Rollback returns to the reviewed literal registry without deleting any saved choices.
@@ -716,7 +716,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             if (committed && event.phase !== "requested") await capture({ name: "assistant_tool_used", properties: { toolId: event.phase === "unknown-tool" || event.toolId === "unavailable" ? "unknown" : event.toolId,
               outcome: event.phase, attemptId: event.attemptId, eventId: `assistant-tool:${event.attemptId}` } });
           } }, signal: abort.signal,
-          reportError: (error: unknown) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
+          reportError: ({ error }: { error: unknown }) => { reportError({ code: "visitor_tools_audit", diagnostic: error }); },
         };
         const capabilities = createSiteCapabilityRegistry({
           postRepo: deps.postRepo,

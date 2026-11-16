@@ -46,7 +46,7 @@ export function buildLibrarySaveAttachmentTool(required: {
   deps: MediaToolDeps & { tracker?: Tracker };
   getStore: () => ChatAttachmentLookup | undefined;
   getMessageAttachmentRefs: (required: { runId: string }, optional: Record<string, never>) => readonly string[] | Promise<readonly string[]>;
-  readFile: (path: string) => Promise<Uint8Array>;
+  readFile: (required: { path: string }, optional?: Record<string, never>) => Promise<Uint8Array>;
   archiveReader: DocumentArchiveReaderPort;
 }, _optional: Record<string, never> = {}): ToolRegistration {
   const { deps } = required;

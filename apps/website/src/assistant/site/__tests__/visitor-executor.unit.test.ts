@@ -17,7 +17,7 @@ function fixture(options: { policy?: VisitorToolPolicy | null; failBudget?: bool
     ids: { newId: () => `visitor-${++ids}` }, signal: abort.signal,
     budgets: { charge: async () => { charges++; if (options.rejectBudget) throw new Error("budget down"); return !options.failBudget; } },
     sink: { append: async (event, detail) => { if (options.failSink) throw new Error("sink down"); events.push({ ...event, ...detail }); } },
-    reportError: error => { errors.push(error); },
+    reportError: ({ error }) => { errors.push(error); },
   };
   const capabilities: VisitorCapabilityContract[] = [{ name: "list_categories", visitorOfferable: true,
     displayTitle: "List categories", displayDescription: "Lets visitors see your post categories.",

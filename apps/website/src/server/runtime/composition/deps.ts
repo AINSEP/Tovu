@@ -1663,7 +1663,7 @@ async function composeSiteRouteDeps(
     trash: trash,
     entityType: USER_ENTITY_TYPE
   });
-  const isInTrash = async (principalId: string): Promise<boolean> =>
+  const isInTrash = async ({ principalId }: { principalId: string }, _optional = {}): Promise<boolean> =>
     (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;
 
   const redirectsWriteDeps: RedirectsWriteDeps = {
@@ -2020,7 +2020,7 @@ async function composeSiteRouteDeps(
     workspaceId,
     customCredentialRepo: customCredentialSetRepo,
     sealer: siteAssistantSecretSealer,
-    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    httpClient: createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }),
     loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     resolvePluginAccountToken: createPluginAccountTokenResolver({ workspaceId, repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer }),
     mode: runtimeMode,
@@ -2045,9 +2045,9 @@ async function composeSiteRouteDeps(
   // (2026-09-10) rather than the mailer's `SINGLE_HOP_HTTPS_EGRESS_POLICY` — that policy's own doc
   // has the live incident (GitHub's Actions job-logs endpoint 302s to a signed Azure Blob URL) that
   // made a zero-redirect policy the wrong fit for this tool specifically.
-  const customCredentialsHttpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY, { observability });
+  const customCredentialsHttpClient = createDefaultHttpClient({ policy: CUSTOM_CREDENTIALS_EGRESS_POLICY }, { observability });
   // `site_backup_push`'s large uploads: see `SITE_BACKUP_EGRESS_POLICY`'s own doc.
-  const siteBackupHttpClient = createDefaultHttpClient(SITE_BACKUP_EGRESS_POLICY, { observability });
+  const siteBackupHttpClient = createDefaultHttpClient({ policy: SITE_BACKUP_EGRESS_POLICY }, { observability });
 
   const { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient } = composeContentHttpClients({}, {});
 
@@ -2057,7 +2057,7 @@ async function composeSiteRouteDeps(
     // `routes/types.ts`'s `mediaImportHttpClient` doc and `MEDIA_IMPORT_EGRESS_POLICY`'s own doc for
     // why fetching an image file cannot use the fixed-method, no-redirect, 1 MB policy above.
     const outboundTestOrigins = overrides.outboundTestOrigins ?? [];
-    const mediaImportHttpClient = createTestOriginHttpClientFactory({ allowedOrigins: outboundTestOrigins })(MEDIA_IMPORT_EGRESS_POLICY, { observability });
+    const mediaImportHttpClient = createTestOriginHttpClientFactory({ allowedOrigins: outboundTestOrigins })({ policy: MEDIA_IMPORT_EGRESS_POLICY }, { observability });
 
     // `features/publish-content`'s outbound push/pull leg needs its own guarded `HttpClientPort` — a
     // FOURTH instance. It is the only one whose policy is built rather than imported as a literal,
@@ -2068,7 +2068,7 @@ async function composeSiteRouteDeps(
     // default. See `createPublishContentPeerEgressPolicy`'s own doc.
     const publishContentPeerHttpClient = resolvePublishContentPeerHttpClient({}, {
       ...(overrides.publishContentPeerHttpClient ? { client: overrides.publishContentPeerHttpClient } : {}),
-      createClient: (policy) => createDefaultHttpClient(policy, { observability }),
+      createClient: ({ policy }) => createDefaultHttpClient({ policy }, { observability }),
     });
 
     return { outboundTestOrigins, mediaImportHttpClient, publishContentPeerHttpClient };
@@ -2293,7 +2293,7 @@ async function composeSiteRouteDeps(
       entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
     }),
     // Read on every call; see `TrashDeps.isTrashableEntityType`.
-    isTrashableEntityType: (entityType) => trashAdapters.has(entityType),
+    isTrashableEntityType: ({ entityType }) => trashAdapters.has(entityType),
     // `TrashDeps.registry`/`db` — read by `moveToTrash` (`POST .../trash/items`) and by
     // `permissions.ts`'s registry-based permission lookup, both via this same `routeDeps` object.
     registry: trashRegistry,
@@ -2489,7 +2489,7 @@ async function composeSiteRouteDeps(
     analyticsProviders: buildAnalyticsProviders({
       workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions, clock,
       findCredential: (input) => resolveCustomCredentialByLabel({ repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer }, input),
-      httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+      httpClient: createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }),
     }),
     ...identity,
     principalRepo: settingsPrincipals,
@@ -2649,14 +2649,14 @@ async function composeSiteRouteDeps(
     // (and migrated) the one file both handles would point at.
     // Also the `assistant_tool_used` product event (tool id + outcome only): see `tool-use-events.ts`.
     toolAttemptAuditSink: withToolUseEvents({ tracker, sink: new SqliteToolAttemptAuditSink({ store: kernel }, {
-      onError: error => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
+      onError: ({ error }) => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
     }) }),
     toolGaps: createToolGapReader({ kernel }, {}),
     siteStatusRepo: new InMemorySiteStatusRepo(),
     migrationRunsRepo,
     contentKernel: kernel,
     // The due-bindings sweep; `createServingApp` owns its timer (only a serving process re-checks DNS).
-    verifyDueDomainBindings: createDomainBindingSweep({ httpClient: createDefaultHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability }), workspaceId, contentKernel: kernel }),
+    verifyDueDomainBindings: createDomainBindingSweep({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability }), workspaceId, contentKernel: kernel }),
     disclosureWatermarkSource: new AlwaysUnavailableWatermarkSource(),
     deepLinkRestorePointLookup: new RestorePointDeepLinkLookup(restorePointsRepo),
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
@@ -2815,7 +2815,7 @@ async function composeSiteRouteDeps(
     // `resolvedMailer`'s, built above.
     customCredentialsHttpClient,
     siteBackupHttpClient,
-    deployOpsHttpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    deployOpsHttpClient: createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }),
     // 2026-09-06 — see `routes/types.ts`'s `mediaImportHttpClient` doc. A third instance, built
     // above from `MEDIA_IMPORT_EGRESS_POLICY` rather than `SINGLE_HOP_HTTPS_EGRESS_POLICY`.
     mediaImportHttpClient,
@@ -2898,7 +2898,7 @@ async function composeSiteRouteDeps(
     resolveMemberContext: (input) => new DefaultMemberAccessResolver({
       sessions: routeDeps.memberSessionRepo, subscriptions: routeDeps.memberSubscriptionRepo, tiers: routeDeps.memberTierRepo,
     }).resolveContext(input),
-    httpClient: createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }),
+    httpClient: createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }),
     loadContributions: agentPluginLifecycle.loadPluginContributions,
     // Fail closed: an unreadable activations file is `undetermined`, never active.
     isPluginActive: async ({ pluginId }) => (await agentPluginLifecycle.resolveAgentPluginActivation({ workspaceRoot: agentPluginLayout.root, pluginId })).verdict === "active",
@@ -2926,7 +2926,7 @@ async function composeSiteRouteDeps(
       workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root,
       workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
       settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
-      httpClient: { send: ({ request }, options) => createDefaultHttpClient(SINGLE_HOP_HTTPS_EGRESS_POLICY, { observability }).send(request, options) }, clock, idGen,
+      httpClient: { send: ({ request }, options) => createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }).send(request, options) }, clock, idGen,
     });
   }
   routeDeps.commerce = commerceBinding.commerce;

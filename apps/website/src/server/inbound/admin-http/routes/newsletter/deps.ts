@@ -126,5 +126,5 @@ export function toUnsubscribeDeps(deps: NewsletterRouteDeps): UnsubscribeDeps {
  * exists for both drivers.
  */
 export function toSendPipelineDeps(deps: NewsletterRouteDeps): SendPipelineDeps {
-  return buildSendPipelineDeps({ deps, isSendingEnabled: async () => false }, { unsubscribe: toUnsubscribeDeps(deps), sleep: (ms) => delay(ms) });
+  return buildSendPipelineDeps({ deps, isSendingEnabled: async () => false }, { unsubscribe: toUnsubscribeDeps(deps), sleep: ({ ms }) => delay(ms) });
 }

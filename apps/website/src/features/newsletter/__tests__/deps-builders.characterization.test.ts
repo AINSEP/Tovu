@@ -56,7 +56,7 @@ test("admin toSendPipelineDeps: sleep really waits (pending until the requested 
   const sleep = bundle.sleep;
   assert.ok(sleep, "the admin binding supplies sleep");
   let settled = false;
-  const pending = sleep(250).then(() => { settled = true; });
+  const pending = sleep({ ms: 250 }).then(() => { settled = true; });
   await flushMicrotasks();
   assert.equal(settled, false, "a no-op sleep would already have resolved");
   t.mock.timers.tick(249);

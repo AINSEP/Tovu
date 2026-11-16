@@ -125,7 +125,7 @@ test("identity wiring adapts an ISO-only host clock and keeps in-memory deletion
   const owner = await deps.principalRepo.findById({ workspaceId: WORKSPACE, id: ownerId });
   assert.equal(owner?.createdAt, fixedClock.nowIso());
   assert.equal(deps.removeUser, undefined);
-  assert.equal(await deps.isInTrash(ownerId), false);
+  assert.equal(await deps.isInTrash({ principalId: ownerId }), false);
 });
 
 test("read-only identity wiring uses the verified owner without seeding or credential repository construction", async (t) => {

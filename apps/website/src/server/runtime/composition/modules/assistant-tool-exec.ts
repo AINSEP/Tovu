@@ -262,7 +262,7 @@ export function buildDaemonAttachmentTools(
   const getStore = (): AttachmentLookup | undefined => (readDaemonCallContext() ? getLookup() : undefined);
   // The daemon checked the issued path's run and integrity. Reuse the bounded stream reader
   // for both Library and media so growth after stat cannot trigger an unbounded allocation.
-  const readAttachmentFile = (path: string): Promise<Uint8Array> =>
+  const readAttachmentFile = ({ path }: { path: string }, _optional = {}): Promise<Uint8Array> =>
     openFsFileForRead({ rootPath: dirname(path), relativePath: basename(path), maxBytes: MAX_DOCUMENT_BYTES });
   const tools: ToolRegistration[] = [
     buildLibrarySaveAttachmentTool({
