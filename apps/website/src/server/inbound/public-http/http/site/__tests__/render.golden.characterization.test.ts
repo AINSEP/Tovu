@@ -11,7 +11,6 @@ import { useSiteChatBuild } from "./site-chat.fixture.js";
 import {
   COMPONENTS,
   DOC_NODE_HANDLERS,
-  MARK_RENDERERS,
   renderDocBodyAsPageHtml,
   renderDocNode,
   renderSite,
@@ -19,6 +18,9 @@ import {
   type MediaAssetRenderMeta,
   type SiteRenderContext,
 } from "../render.js";
+import {
+  MARK_RENDERERS,
+} from "../render/doc/marks.js";
 import {
   pageShell,
 } from "../render/document-shell.js";
