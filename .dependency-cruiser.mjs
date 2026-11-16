@@ -110,7 +110,7 @@ const HAND_WRITTEN_RULES = [
       // adapter code, not core. The `pathNot` test-file exclusion below was a ready-to-apply
       // recommendation from `2026-08-13-boundary-lint-plan.md` §1.3, not yet landed until now: all
       // 21 remaining violations are contract/integration tests instantiating a concrete adapter
-      // (`db/sqlite/*`, `db/postgres/db-ops.ts`, or — post Job 2 — the post reverters via
+      // (`db/sqlite/*`, `db/postgres/db-ops-adapter.ts`, or — post Job 2 — the post reverters via
       // `features/post/index.ts`) to exercise a real implementation against its port contract,
       // which the plan doc's own reasoning treats as orthogonal to this rule's production-layering
       // concern (§1.3: "you cannot write a contract test without a concrete implementation").
