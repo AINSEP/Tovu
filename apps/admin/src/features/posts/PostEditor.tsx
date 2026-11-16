@@ -1,10 +1,9 @@
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
-import { PostEditorTemplatePicker } from "./editor/template/PostEditorTemplatePicker";
+import { PostEditorToolbarEnd } from "./editor/header/PostEditorToolbarEnd";
 import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorActions } from "./editor/header/PostEditorActions";
 import { PostEditorHeader } from "./editor/header/PostEditorHeader";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
-import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import type { ReactNode } from "react";
 import { EditorContent, type Editor } from "@tiptap/react";
 import DragHandle from "@tiptap/extension-drag-handle-react";
@@ -69,28 +68,6 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string;
  *  the `.segmented` pill row is a different visual control, only the keyboard contract is shared.
  *  Spread, not rebuilt, so nothing in the JSX below has to change which field it reads. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/**
- * The toolbar's right-hand group: the preview reload (Preview tab only) followed by the
- * post-template picker (`PostEditorTemplatePicker` below). The Desktop/Tablet/Mobile width toggle
- * (shared `DevicePreviewToggle`, 2026-09-22 owner ask) moved to the LEFT group beside the
- * Editor/Preview tabs (owner, 2026-10-10: "right next to" them), so it is rendered by `PostEditor`.
- *
- * @complexity O(1).
- */
-function PostEditorToolbarEnd({
-  view,
-  ...pickerProps
-}: {
-  view: PostEditorView;
-} & Parameters<typeof PostEditorTemplatePicker>[0]) {
-  return (
-    <div className="page-editor-toolbar-end">
-      {view === "preview" ? <WiredThemePreviewReloadButton /> : null}
-      <PostEditorTemplatePicker {...pickerProps} />
-    </div>
-  );
-}
 
 /**
  * The Edit-view pane — formatting toolbar, bubble menu, drag handle, and the TipTap body itself.
