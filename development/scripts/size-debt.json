@@ -1137,27 +1137,6 @@
     },
     {
       "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "applyOneRow#1",
-      "line": 262,
-      "rule": "max-lines-per-function",
-      "value": 195
-    },
-    {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "createPublishContentApplyPort#1",
-      "line": 501,
-      "rule": "max-lines-per-function",
-      "value": 346
-    },
-    {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "createPublishContentApplyPort#1.applyReport#1",
-      "line": 532,
-      "rule": "max-lines-per-function",
-      "value": 314
-    },
-    {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
       "function": "<file>",
       "line": 735,
       "rule": "max-lines",
