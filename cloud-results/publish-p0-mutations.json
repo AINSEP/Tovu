@@ -1684,7 +1684,7 @@
   "id": "RR1",
   "what": "pack does not reset the skipped list",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "      skipped.length = 0;\n",
+  "find": "  env.skipped.length = 0;\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
@@ -1714,7 +1714,7 @@
   "id": "RR4",
   "what": "pack reads a covered table instead of skipping it",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "?? blockedTable({ table: selected.table });",
+  "find": "?? blockedTable({ env, table: selected.table });",
   "replace": ";",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
@@ -1784,7 +1784,7 @@
   "id": "RR11",
   "what": "second precheck inside the transaction removed",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "const freshReason = await precheck({ entity: input.entity });",
+  "find": "const freshReason = await precheckRawRow({ env, entity: input.entity });",
   "replace": "const freshReason: string | null = null as string | null;",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
@@ -1844,8 +1844,8 @@
   "id": "RR17",
   "what": "listSkipped hands out the live list",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "listSkipped: async () => [...skipped],",
-  "replace": "listSkipped: async () => skipped,",
+  "find": "listSkipped: async () => [...env.skipped],",
+  "replace": "listSkipped: async () => env.skipped,",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
   ]
@@ -1854,7 +1854,7 @@
   "id": "RR18",
   "what": "inspect reads a covered table",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "if (!address || !port || blockedTable({ table: address.table })) return null;",
+  "find": "if (!address || !port || blockedTable({ env, table: address.table })) return null;",
   "replace": "if (!address || !port) return null;",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
@@ -1884,8 +1884,8 @@
   "id": "RR21",
   "what": "first precheck of apply removed",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "      const reason = await precheck({ entity: input.entity });\n      if (reason) throw new PublishContentApplyRowError({ rowOutcome: \"blocked\", message: reason });\n      const { changeSets",
-  "replace": "      const { changeSets",
+  "find": "  const reason = await precheckRawRow({ env, entity: input.entity });\n  if (reason) throw new PublishContentApplyRowError({ rowOutcome: \"blocked\", message: reason });\n  const { changeSets",
+  "replace": "  const { changeSets",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
   ]
@@ -1894,8 +1894,8 @@
   "id": "RR22",
   "what": "pack with no port does not return early",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "      if (!port) return;\n      const selection",
-  "replace": "      const selection",
+  "find": "  if (!env.port) return;\n  const selection",
+  "replace": "  const selection",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
   ]
@@ -1904,8 +1904,8 @@
   "id": "RR23",
   "what": "non-refusal read failure swallowed in pack",
   "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-  "find": "        if (!(error instanceof BackstopRefusal)) throw error;\n        readReason",
-  "replace": "        readReason",
+  "find": "    if (!(error instanceof BackstopRefusal)) throw error;\n    return { row: null",
+  "replace": "    return { row: null",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts"

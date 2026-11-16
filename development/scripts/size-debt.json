@@ -1199,13 +1199,6 @@
       "value": 150
     },
     {
-      "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-      "function": "buildRawRowHandler#1",
-      "line": 50,
-      "rule": "max-lines-per-function",
-      "value": 134
-    },
-    {
       "file": "apps/website/src/features/publish-content/tool-registrations.ts",
       "function": "buildPublishContentRegistrations#1",
       "line": 181,

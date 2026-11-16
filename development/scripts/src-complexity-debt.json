@@ -198,13 +198,6 @@
       "value": 12
     },
     {
-      "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-      "function": "buildRawRowHandler#1.packSelected#1",
-      "line": 101,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/features/site-backup/archive-extensions.ts",
       "function": "includeThemeOriginals#1",
       "line": 50,
