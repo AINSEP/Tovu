@@ -40,19 +40,16 @@ import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node";
 
 import { type ChatRunLedger, type RunSettlement } from "#src/assistant/index";
-import { createHttpRunDaemonClient, type RunDaemonClient, type RunDaemonRequest } from "./run-daemon-http-client.js";
+import { createHttpRunDaemonClient, type RunDaemonClient } from "./run-daemon-http-client.js";
+import { createFollower, delay, probeRun } from "./run-finalizer/bounded-follow.js";
 import { createCheckpointer } from "./run-finalizer/checkpointer.js";
 import type { RunLogPort, RunTimerPort } from "./run-finalizer/ports.js";
+import { createStreamReader } from "./run-finalizer/stream.js";
 import { interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
-import {
-  readSseFrames,
-  runContentFromEvents,
-  runEventsForSave,
-  translateRunFrame,
-} from "#src/contracts/core/assistant-run-events";
+import { runContentFromEvents, runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { AgentEvent } from "@jini-ai/chat/core";
 
-import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 
 export interface AssistantRunFinalizerOptions {
@@ -130,16 +127,6 @@ const consoleRunLog: RunLogPort = {
   error({ runId, error }) { console.error(`[assistant-run-finalizer] checkpoint of run ${runId} failed`, error); },
 };
 
-/** Releases an events response that will never be read. An unread body stays open, and a run
- * reconnects up to maxReconnects times. Not awaited: a body that never finishes cancelling must
- * not stall the watch. A failed cancel has nothing left to release.
- * @complexity O(1); starts one cancel and returns. */
-function releaseUnreadBody({ response }: { response: Response }, _optional = {}): void {
-  void response.body?.cancel().catch(() => undefined);
-}
-
-type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | { kind: "gone" } | { kind: "dropped" } | { kind: "unresolved" };
-
 /**
  * @complexity O(frame bytes + serialized checkpoint bytes) per run; O(collected events) space,
  *   with one open daemon connection and at most one pending checkpoint per in-flight run.
@@ -161,7 +148,10 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     store: recoveryStore, now, mintRunId: randomUUID,
     async probe(run, _options) {
       if (!run.principalId) throw new Error("assistant recovery probe has no principal id");
-      const status = await probe({ runId: run.runId, principalId: run.principalId }, { client: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon });
+      const status = await probeRun({
+        timers: scheduler, statusTimeoutMs, run: { runId: run.runId, principalId: run.principalId },
+        client: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon,
+      });
       if (status === 404) return "dead";
       return status === 200 ? "live" : "uncertain";
     },
@@ -187,35 +177,6 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     settle: (required, _options) => options.ledger.settle(required),
   }, {}) : undefined;
 
-  async function withinDeadline<T>(
-    { work, timeoutMs }: { work: Promise<T>; timeoutMs: number },
-    { fallback }: { fallback: T },
-  ): Promise<T> {
-    let cancel!: () => void;
-    const timeout = new Promise<T>((resolve) => {
-      cancel = scheduler.schedule({ delayMs: Math.max(0, timeoutMs), run: () => resolve(fallback) });
-    });
-    try { return await Promise.race([work, timeout]); }
-    finally { cancel(); }
-  }
-
-  async function probe(
-    required: RunDaemonRequest,
-    { client }: { client: RunDaemonClient },
-  ): Promise<number | null> {
-    const abort = new AbortController();
-    try {
-      return await withinDeadline({
-        // An unavailable or aborted status probe deliberately falls back to recovery.
-        work: client.runStatus(required, { signal: abort.signal }).catch(() => null), timeoutMs: statusTimeoutMs,
-      }, { fallback: null });
-    } finally { abort.abort(); }
-  }
-
-  const delay = (required: { ms: number }, _optional = {}) => new Promise<void>((resolve) => {
-    scheduler.schedule({ delayMs: required.ms, run: resolve });
-  });
-
   /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */
   async function settle({ watch, status, events }: { watch: Watch; status: RunSettlement["status"]; events: AgentEvent[] }, _optional = {}): Promise<void> {
     stopWatch({ watch });
@@ -230,7 +191,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     });
   }
 
-  async function recoverWatch(watch: Watch, trigger: RecoveryTrigger): Promise<void> {
+  async function recoverWatch({ watch, trigger }: { watch: Watch; trigger: RecoveryTrigger }, _optional = {}): Promise<void> {
     const events = interruptionEvents({ watch });
     stopWatch({ watch });
     await options.ledger.checkpoint({ ...watch, content: runContentFromEvents(events), events: runEventsForSave(events) });
@@ -243,49 +204,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     }
     // A launch can still be committing after durable acceptance. Space repeated missing-run
     // probes so its short grace window cannot turn into a hot loop of adopted watches.
-    await delay({ ms: reconnectDelayMs });
+    await delay({ timers: scheduler, ms: reconnectDelayMs });
     await recovery.recover({ messageId: watch.messageId, expectedRunId: watch.runId, trigger }, {});
   }
 
-  /** Reads one connection to the end. The daemon replays from event 0 on every connection, so the
-   *  events collected by an earlier, dropped connection are discarded rather than doubled. */
-  async function readStream(watch: Watch): Promise<StreamResult> {
-    const signal = watch.abortStream.signal;
-    const response = await watch.daemon.openEvents({ runId: watch.runId, principalId: watch.principalId }, { signal });
-    if (signal.aborted) {
-      // The stream was already aborted; body cancellation is best-effort cleanup.
-      void response.body?.cancel().catch(() => undefined);
-      return { kind: "dropped" };
-    }
-    if (response.status === 404) { releaseUnreadBody({ response }); return { kind: "gone" }; }
-    if (!response.ok || !response.body) { releaseUnreadBody({ response }); return { kind: "dropped" }; }
-    watch.retainedEvents = [...interruptionEvents({ watch })];
-    watch.events = [...watch.attemptBase];
-    watch.frameCarry = {};
-    watch.failed = false;
-    // Cancel the reader as well as HTTP when a bounded resolution settles the row. Fakes may
-    // ignore the request signal; late frames must not change a settled watch's checkpoint.
-    for await (const frame of readSseFrames(response.body.pipeThrough(new TransformStream(), { signal }))) {
-      if (signal.aborted) return { kind: "dropped" };
-      const result = applyStreamFrame(watch, frame);
-      if (result) return result;
-    }
-    return { kind: "dropped" };
-  }
-
-  function applyStreamFrame(watch: Watch, frame: { event: string; data: string }): StreamResult | undefined {
-    const outcome = translateRunFrame({ kind: frame.event, raw: frame.data }, { carry: watch.frameCarry });
-    watch.events.push(...outcome.events);
-    if (outcome.error) watch.failed = true;
-    if (outcome.terminal) {
-      watch.terminal = true;
-      return { kind: "ended", status: watch.failed && outcome.terminal === "succeeded" ? "failed" : outcome.terminal };
-    }
-    checkpointer.onFrame({ watch });
-    return undefined;
-  }
-
-  async function retainLiveWatch(watch: Watch): Promise<boolean> {
+  async function retainLive({ watch }: { watch: Watch }, _optional = {}): Promise<boolean> {
     if (!recovery) return true;
     // follow/readWithinBound are recovery's live arm. Reuse their fresh proof for this attempt
     // so reconnects and quiet approval waits neither probe twice nor spend the recovery budget.
@@ -293,84 +216,11 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     return result === "reattached" || result === "waiting";
   }
 
-  /** A quiet stream (or a request stuck before headers) still needs bounded resolution. Keep the
-   * same stream when the owning daemon answers live, so long tool/card waits are not interrupted. */
-  async function readWithinBound(watch: Watch): Promise<StreamResult> {
-    const stream = readStream(watch).catch((): StreamResult => ({ kind: "dropped" }));
-    for (;;) {
-      const result = await withinDeadline<StreamResult | { kind: "timeout" }>({
-        work: stream, timeoutMs: watch.resolutionDeadline - now(),
-      }, { fallback: { kind: "timeout" } });
-      if (result.kind !== "timeout") return result;
-      const status = await probe({ runId: watch.runId, principalId: watch.principalId }, { client: watch.daemon });
-      // An end frame arriving during the final probe outranks an inconclusive HTTP response.
-      if (watch.terminal) return stream;
-      if (status !== 200) {
-        // The deadline policy resolves uncertainty too; transport/auth errors cannot leave the
-        // transcript spinning forever. The final fresh probe always gives a live daemon priority.
-        return { kind: "unresolved" };
-      }
-      if (!await retainLiveWatch(watch)) { stopWatch({ watch }); return { kind: "unresolved" }; }
-      watch.resolutionDeadline = now() + resolutionTimeoutMs;
-    }
-  }
-
-  /** Renews a freshly verified live watch; uncertainty keeps the current reconnect budget.
-   * A live run may outlast that budget, so restart counting rather than abandon its saved row.
-   * Returns the next counter, or undefined after recovery relinquishes this watch and its stream.
-   * @complexity O(1) bookkeeping plus one existing durable-recovery call for a live run. */
-  async function prepareReconnect({ watch, status, attempt }: { watch: Watch; status: number | null; attempt: number }, _options: Record<string, never> = {}): Promise<number | undefined> {
-    if (status !== 200) return attempt;
-    if (!await retainLiveWatch(watch)) {
-      stopWatch({ watch });
-      return undefined;
-    }
-    watch.resolutionDeadline = now() + resolutionTimeoutMs;
-    if (attempt === maxReconnects) {
-      // Keep monitoring a live run even after exhausting reconnects: its later death must
-      // not strand the row until another browser attachment or serving boot.
-      return -1;
-    }
-    return attempt;
-  }
-
-  /** Follows the run to a terminal outcome or bounded resolution and reports it to the tracker. */
-  async function follow(watch: Watch): Promise<AgentRunStatus> {
-    let attempt = 0;
-    while (true) {
-      const result = await readWithinBound(watch);
-      const resolved = await resolveStreamOutcome(watch, result);
-      if (resolved) return resolved;
-      // A dropped stream alone proves nothing: a daemon may be mid-respawn or waiting on a card.
-      // Recheck its owning endpoint before either retrying or applying the bounded fallback. Even
-      // an events 404 must not override a fresh live answer from the daemon that holds the slot.
-      const status = await probe({ runId: watch.runId, principalId: watch.principalId }, { client: watch.daemon });
-      if (shouldRecover({ status, result, attempt, watch })) {
-        await recoverWatch(watch, status === 404 ? "stream" : "timeout");
-        return "interrupted";
-      }
-      const nextAttempt = await prepareReconnect({ watch, status, attempt });
-      if (nextAttempt === undefined) return "interrupted";
-      attempt = nextAttempt + 1;
-      await delay({ ms: Math.min(reconnectDelayMs, Math.max(0, watch.resolutionDeadline - now())) });
-    }
-  }
-
-  function shouldRecover({ status, result, attempt, watch }: { status: number | null; result: StreamResult; attempt: number; watch: Watch }, _options = {}): boolean {
-    if (status === 404) return true;
-    if (status === 200) return false;
-    return result.kind === "gone" || attempt === maxReconnects || now() >= watch.resolutionDeadline;
-  }
-
-  async function resolveStreamOutcome(watch: Watch, result: StreamResult): Promise<AgentRunStatus | undefined> {
-    if (result.kind === "ended") {
-      if (result.status === "failed" && recovery) await recoverWatch(watch, "attempt-failed");
-      else await settle({ watch, status: result.status, events: interruptionEvents({ watch }) });
-      return result.status;
-    }
-    if (result.kind === "unresolved") { await recoverWatch(watch, "timeout"); return "interrupted"; }
-    return undefined;
-  }
+  const follower = createFollower({
+    stream: createStreamReader({ checkpointer }), now, timers: scheduler,
+    settings: { reconnectDelayMs, maxReconnects, resolutionTimeoutMs, statusTimeoutMs },
+    recoveryAvailable: recovery !== undefined, settle, recoverWatch, retainLive,
+  });
 
   const finalizer: AssistantRunFinalizer = {
     recover: async (required, optional) => recovery ? recovery.recover(required, optional) : "gone",
@@ -409,7 +259,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       const { runId, conversationId } = watch;
       // Inside the run's scope, so the ledger writes the loop makes are recorded under the run.
       const done = tracker.trace({ name: "assistant.run", run: async (span) => {
-        try { span.setOutcome({ status: await follow(watch) }); }
+        try { span.setOutcome({ status: await follower.follow({ watch }) }); }
         catch (error) {
           // A watch that threw proved nothing about the run itself; the error says why it stopped.
           span.setOutcome({ status: "abandoned", error });

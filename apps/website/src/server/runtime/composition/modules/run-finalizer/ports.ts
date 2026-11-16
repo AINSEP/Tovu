@@ -12,3 +12,7 @@ export interface RunTimerPort { schedule(required: { delayMs: number; run: () =>
 export interface RunLogPort {
   error(required: { operation: "checkpoint"; runId: string; error: unknown }, optional?: {}): void;
 }
+
+/** How a watch ended: the run's terminal status, `interrupted` when the watch handed the run to
+ * recovery or gave it up as unproven, `abandoned` when the watch itself failed. */
+export type RunWatchOutcome = "succeeded" | "failed" | "canceled" | "interrupted" | "abandoned";
