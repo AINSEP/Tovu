@@ -5,7 +5,7 @@ Revision 1 was judged "needs rework" (1 blocker, 7 majors, 1 minor). All nine fi
 
 ## 1. What the code really is (verified)
 
-One async closure. Statement order is behaviour (boot promise chains serialize SQLite writes; `onStoreClose` registrations are pushed in order). The closure is **not** a top-to-bottom pipeline: 31 reads are deferred to bindings that are created later. Any design that turns those reads into ordinary arguments evaluates them too early (TDZ `ReferenceError` at boot).
+One async closure. Statement order is behaviour (boot promise chains serialize SQLite writes; `onStoreClose` registrations are pushed in order). The closure is **not** a top-to-bottom pipeline: the reads in the table below are deferred to bindings that are created later (measured with `work/deferred-reads.cjs`, output in `work/deferred-reads.md`; the `let` cells were found by reading). Any design that turns those reads into ordinary arguments evaluates them too early (TDZ `ReferenceError` at boot).
 
 ### 1.1 Deferred reads (consumer line → binding, init line)
 
@@ -22,7 +22,6 @@ One async closure. Statement order is behaviour (boot promise chains serialize S
 | 1609, 1658 | `mediaRepo`, `entryRefsRepo`, `postRepo`, `assetBlobRepo` | as above | closure reads inside trash adapters / transaction |
 | 1787-1793, 1805 | `mediaRepo`, `mediaContentTypeStore`, `postRepo` | 2108, 2112, 2095 | closure reads inside resolvers / comments lookup |
 | 1797 | `formCollectionProviders` | `let` 1768 (**working empty-registry fallback**), reassigned 2015 | never throws; changes implementation |
-| 1997 | `providerPlugins` | 1975 | closure read inside hoisted `compositionProjectKeys` |
 | 2005 | `bindSharedApiOAuth` | `let` 1989 (undefined), set 2244 | **domain error** with user text "Shared connections are not available yet. Reopen this saved connection and try again." |
 | 2048 | `mailDurableOutboxReady` | 2053 | closure read |
 | 2141 | `trashAdapters` (Map from 1595) | mutated here | theme adapter is **added late**, after `siteThemes` (2132) exists; `removeTheme` (2143) needs `trash` (1651) |
