@@ -1910,5 +1910,593 @@
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts",
    "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts"
   ]
+ },
+ {
+  "id": "RF1",
+  "what": "small files are not scanned for secrets",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (size <= BACKSTOP_LIMITS.scanBytes) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF2",
+  "what": "state hash not compared",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "return contentHash({ entityType: \"raw-file\", state: entity.state }) === entity.contentHash ? null : \"The raw file does not match its checked content hash.\";",
+  "replace": "return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF3",
+  "what": "byte length not compared with the stated size",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "bytes.byteLength !== size || ",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF4",
+  "what": "sha256 of the bytes not compared",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "|| sha(bytes) !== sha256) return \"The file's verified",
+  "replace": ") return \"The file's verified",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF5",
+  "what": "a destination with no blob store does not treat bytes as missing",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "      if (!deps.backstop?.blobs) return null;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF6",
+  "what": "missing media policy deps do not fail closed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!media || await isDocumentOnlyBlob",
+  "replace": "if (await isDocumentOnlyBlob",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF7",
+  "what": "document-only refusal reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Library documents cannot be published\"",
+  "replace": "\"Not allowed\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF8",
+  "what": "blob read does not ask exists() first",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "return await deps.backstop.blobs.exists({ storageKey }) ? deps.backstop.blobs.get({ storageKey }) : null;",
+  "replace": "return deps.backstop.blobs.get({ storageKey });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF9",
+  "what": "non-string path refusal reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Choose a regular file inside the site folder.\"",
+  "replace": "\"Bad path\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF10",
+  "what": "files.check not consulted",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "const denied = pathReason({ relPath }) ?? await files.check({ relPath });",
+  "replace": "const denied = pathReason({ relPath });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF11",
+  "what": "wire metadata not validated",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!validRawFileMetadata({ entity, relPath })) return \"The raw file has an invalid address, size, mode or checksum.\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF12",
+  "what": "missing selected file reason reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "reason = \"The selected file no longer exists.\";\n      return { reason, file };",
+  "replace": "reason = \"Gone.\";\n      return { reason, file };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF13",
+  "what": "unexpected read failure swallowed in pack",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "        if (!(error instanceof BackstopRefusal)) throw error;\n        reason = error.message;",
+  "replace": "        reason = (error as Error).message;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF14",
+  "what": "blob index records a zero size",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "entry: { absPath: file.absPath, size: file.bytes.byteLength } }",
+  "replace": "entry: { absPath: file.absPath, size: 0 } }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF15",
+  "what": "undo inverse not recorded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "deps.backstop?.inverses?.push({ kind: \"raw-file\", entity, before: inverse, afterHash: entity.contentHash });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF16",
+  "what": "compensation not registered",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "deps.backstop?.fileRollbacks?.push(async () => {",
+  "replace": "void (async () => {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF17",
+  "what": "compensation failure swallowed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "        if (reason) throw new Error(reason);\n      });",
+  "replace": "        void reason;\n      });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF18",
+  "what": "pack does not need the blob index to run",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!files || !deps.backstop?.fileBlobIndex) return null;",
+  "replace": "if (!files) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF19",
+  "what": "file cap off by one",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "selected.length > BACKSTOP_LIMITS.files",
+  "replace": "selected.length >= BACKSTOP_LIMITS.files",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF20",
+  "what": "file cap message reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Choose at most 50 files per send.\"",
+  "replace": "\"Too many.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF21",
+  "what": "pack does not reset skipped",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "        skipped.length = 0;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF22",
+  "what": "total byte cap removed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (total > BACKSTOP_LIMITS.bytes) throw",
+  "replace": "if (false) throw",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF23",
+  "what": "total byte cap message reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Choose files totaling at most 50 MB per send.\"",
+  "replace": "\"Too big.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF24",
+  "what": "inspect reads a refused path",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!files || pathReason({ relPath })) return null;",
+  "replace": "if (!files) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF25",
+  "what": "inspect throws a read failure",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "try { file = await files.read({ relPath }); } catch { return null; }",
+  "replace": "file = await files.read({ relPath });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF26",
+  "what": "precheck lets a row error escape",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "          if (error instanceof PublishContentApplyRowError) return error.message;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF27",
+  "what": "apply does not require the outbox",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "!files || !deps.changeSets || !deps.outbox || !deps.authorize",
+  "replace": "!files || !deps.changeSets || !deps.authorize",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF28",
+  "what": "OCC ignores the captured prior version",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
+  "replace": "currentVersion !== input.expectedVersion",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF29",
+  "what": "OCC ignores the current version",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
+  "replace": "priorVersion !== input.expectedVersion",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF30",
+  "what": "bytes not re-verified before the write",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!bytes || sha(bytes) !== input.entity.state.sha256) throw new Error(\"The raw file bytes changed before apply.\");",
+  "replace": "if (!bytes) throw new Error(\"The raw file bytes changed before apply.\");",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF31",
+  "what": "rollback never knows the file was written",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "              written = true;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF32",
+  "what": "rollback restores a file that was never written (equivalent: the gateway calls rollback only after execute returned, so `written` is always true there)",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (written && prior) await files.restore",
+  "replace": "if (prior) await files.restore",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF33",
+  "what": "written mode ignores the entity mode",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "mode: input.entity.state.mode as number }",
+  "replace": "mode: 0o644 }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF34",
+  "what": "prior version of a missing file is not undefined",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "priorVersion = prior.sha256 === null ? undefined :",
+  "replace": "priorVersion =",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF35",
+  "what": "reported version derived from fewer digits",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "version: Number.parseInt(input.entity.contentHash.slice(0, 12), 16)",
+  "replace": "version: Number.parseInt(input.entity.contentHash.slice(0, 11), 16)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF36",
+  "what": "undo accepts an inverse of another file",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (before.relPath !== entity.id) return \"The saved undo file does not match this item.\";\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF37",
+  "what": "undo ignores a newly covered root",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (isCoveredPath({ deps, relPath: entity.id })) return `File '${entity.id}' already publishes normally; it was left alone.`;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF38",
+  "what": "undo ignores a later edit",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!current || hash({ relPath: entity.id, file: current }) !== afterHash) return",
+  "replace": "if (!current) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF39",
+  "what": "coverage is case-sensitive",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "const normalizedPath = relPath.toLowerCase();",
+  "replace": "const normalizedPath = relPath;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF40",
+  "what": "a trailing slash on a root breaks coverage",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "root.toLowerCase().replace(/\\/$/, \"\")",
+  "replace": "root.toLowerCase()",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF41",
+  "what": "requiredBlobs not checked",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "return entity.requiredBlobs.length === 1 && entity.requiredBlobs[0] === sha256;",
+  "replace": "return true;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF42",
+  "what": "mode not validated",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (mode !== 0o644 && mode !== 0o755) return false;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF43",
+  "what": "listSkipped hands out the live list",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "listSkipped: async () => [...skipped],",
+  "replace": "listSkipped: async () => skipped,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF44",
+  "what": "per-run command key dropped",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "dependsOn: [], idempotencyScope: \"run\",",
+  "replace": "dependsOn: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF45",
+  "what": "mode not normalized in state",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "mode: normalizeMode({ mode: file.mode }) }",
+  "replace": "mode: file.mode }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF46",
+  "what": "size upper bound not checked",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "Number.isSafeInteger(size) && size >= 0 && size <= BACKSTOP_LIMITS.bytes",
+  "replace": "Number.isSafeInteger(size) && size >= 0",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF47",
+  "what": "handler permission changed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "permission: \"publish.backstop\", dependsOn",
+  "replace": "permission: \"publish.other\", dependsOn",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF48",
+  "what": "gateway-not-wired message reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"The raw file command gateway is not wired.\"",
+  "replace": "\"Missing.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF49",
+  "what": "summary reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "summary: `Send '${input.entity.id}' by hand`",
+  "replace": "summary: `Send ${input.entity.id}`",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
  }
 ]
