@@ -26,7 +26,8 @@ mock.module("../../lifecycle/daemon-supervisor.js", {
     },
   },
 });
-const { createApp, createRouteDeps, siteAppBootWorkByDeps } = await import("../app.js");
+const { createApp, createRouteDeps } = await import("../app.js");
+const { siteAppBootWorkByDeps } = await import("../site-app-boot-work.js");
 const { createAssistantByokModule } = await import("../modules/assistant-byok.js");
 const { SITE_SLEEP_EXIT_CODE } = await import("../../../../assistant/daemon-exit-codes.js");
 

@@ -394,6 +394,7 @@ import { createMediaProviderRegistry } from "@jini-ai/integrations/media-provide
 import { startSettingsRegistration } from "./settings-registration.js";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { mountRoutes, startModule } from "./http-app/module-handles.js";
+import { siteAppBootWorkByDeps, trackByokBootWork } from "./site-app-boot-work.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -1771,9 +1772,6 @@ const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => expo
 /** Buses that already carry the handlers {@link subscribeSiteEventHandlersOnce} attaches. */
 const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
 
-/** The real composition's mutable collector; RouteDeps exposes the same set as read-only. */
-export const siteAppBootWorkByDeps = new WeakMap<RouteDeps, Set<Promise<void>>>();
-
 /**
  * Attaches the site's outbox event handlers to `routeDeps.bus`, once per bus (2026-09-14).
  *
@@ -1879,19 +1877,6 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       clock: routeDeps.clock,
     })
   );
-}
-
-/** Track the existing tool-surface pass for the app/store lifetime. O(1) time and space. */
-function trackByokBootWork(
-  { routeDeps, byokAssistantModule, bootWorkByDeps }: { routeDeps: RouteDeps; byokAssistantModule: ReturnType<typeof createAssistantByokModule>; bootWorkByDeps: typeof siteAppBootWorkByDeps },
-  options: CreateAppOptions = {},
-): void {
-  // Track serving apps too: they share the same store lifetime as export/inspection apps.
-  const bootWork = byokAssistantModule.toolSurface.ready;
-  const pendingBootWork = bootWorkByDeps.get(routeDeps);
-  pendingBootWork?.add(bootWork);
-  void bootWork.then(() => pendingBootWork?.delete(bootWork), () => pendingBootWork?.delete(bootWork));
-  options.onBootWork?.({ work: byokAssistantModule.toolSurface.ready });
 }
 
 /** Install the ordered public request guards before any normal routes. O(1) setup. */
