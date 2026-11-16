@@ -1,4 +1,4 @@
-import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { statfs } from "node:fs/promises";

@@ -3,6 +3,7 @@ import test from "node:test";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderDocNodeWith } from "../render/doc/doc-nodes.js";
 import { WIDGET_PLACEHOLDER_IR } from "../render/widgets/placeholder.js";
+import { renderDocNode } from "../render/content-html.js";
 
 /**
  * @file The doc renderer reaches the widget renderer only through the injected `renderWidget` port
@@ -45,4 +46,12 @@ test("the port reaches a widgetEmbed nested under other nodes, and wraps with th
   const html = renderDocNodeWith({ node: doc, renderWidget }, { inlineResolved: new Map([["p1", RESOLVED_IR]]) });
   assert.equal(html, `<ul><li><div class="widget-embed wide"><fake-widget n="1"/></div></li></ul>`);
   assert.deepEqual(seen, [RESOLVED_IR]);
+});
+
+test("renderDocNode binds the real widget renderer to the port", () => {
+  const html = renderDocNode(
+    { node: { type: "widgetEmbed", attrs: { placementId: "p1" } } },
+    { inlineResolved: new Map([["p1", RESOLVED_IR]]) },
+  );
+  assert.equal(html, `<div class="widget widget-text">hello</div>`);
 });

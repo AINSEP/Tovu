@@ -3,7 +3,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { sanitizePageHtml, renderMediaRawHtml } from '#src/features/widgets/media-html';
-import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render';
+import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 import { collectBodyReferences } from '#src/features/publish-content/content-references';
 import { extractEntryRefs, extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
@@ -62,7 +62,8 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   const { buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } = await import('@jini-ai/cms/widgets');
   const { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } = await import('@jini-ai/cms/widgets/html');
   const { registerCoreResolver, createGalleryWidgetResolver } = await import('@jini-ai/cms/widgets/resolvers');
-  const { renderHtmlPageBody, renderDocNode } = await import('#src/server/inbound/public-http/http/site/render');
+  const { renderHtmlPageBody } = await import('#src/server/inbound/public-http/http/site/render');
+  const { renderDocNode } = await import('#src/server/inbound/public-http/http/site/render/content-html');
   t.diagnostic(`phase: seed (${Math.round(performance.now() - started)}ms)`);
   const workspaceId = 'mediawidget-ws', now = '2026-10-10T00:00:00.000Z';
   const entryRepo = new InMemoryEntryRepo(), mediaRepo = new InMemoryMediaRepo({}), transformRepo = new InMemoryTransformDefinitionRepo({});
@@ -162,7 +163,7 @@ test('assistant contracts advertise both Media modes and allow placement content
 
 
 test('audio shares player styling and forwarded marker attributes in widgets and TipTap media nodes', async () => {
-  const { renderDocNode } = await import('#src/server/inbound/public-http/http/site/render');
+  const { renderDocNode } = await import('#src/server/inbound/public-http/http/site/render/content-html');
   const html = renderWidgetIr({ componentId: 'media-image', props: { assetId: 'sound-id', slug: 'sound', contentType: 'audio/wav', cssClass: 'stored', htmlAttributes: 'class="asset" data-kui="stored"', markerAttributes: [{ name: 'class', value: 'placed' }, { name: 'data-kui', value: 'scroll-snap-x' }], controls: false } });
   assert.ok(html.includes('<audio'));
   assert.ok(html.includes('placed'));

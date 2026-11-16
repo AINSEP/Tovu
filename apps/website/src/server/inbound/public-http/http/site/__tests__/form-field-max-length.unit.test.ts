@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { stampFormFieldMaxLengths } from "../form-render.js";
 import { formValidationMessages } from "../form-validation-message.js";
-import { injectFormSubmissionResultIntoHtml, renderWidgetIr } from "../render.js";
+import { injectFormSubmissionResultIntoHtml } from "../render.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 const FIELDS: import("@jini-ai/core/primitives").JsonObject[] = [
   { id: "name", label: "Name", type: "text", required: true },

@@ -1,6 +1,6 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 /** Write-free host composition for owner-only reads of registered local SQLite sites. */
-import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import fs from 'node:fs';
 import path from 'node:path';
 import { sql } from 'kysely';

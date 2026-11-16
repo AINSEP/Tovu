@@ -327,7 +327,7 @@ test("countSyllables: vowel groups, silent trailing e, consonant+le keeps its sy
 
 // Todo 21: the TOC must link to ids emitted by the actual renderer.
 test("non-ASCII TOC anchors exist in the rendered document; unanchorable headings are omitted", async () => {
-  const { renderDocNode } = await import("#src/server/inbound/public-http/http/site/render");
+  const { renderDocNode } = await import("#src/server/inbound/public-http/http/site/render/content-html");
   const texts = ["Café Münster", "Привет", "—", "日本語"];
   const report = analyzeContent({ title: OK_TITLE, blocks: texts.map(text => ({ kind: "heading" as const, level: 2 as const, text })) });
   const html = renderDocNode({ node: { type: "doc", content: texts.map(text => ({ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] })) } });

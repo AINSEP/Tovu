@@ -10,7 +10,7 @@ import type { DiscoveredTheme } from "../../theme/index.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
 import { buildPagesRegistrations, type PagesToolDeps } from "../tool-registrations.js";
-import { renderDocBodyAsPageHtml } from "../../../server/inbound/public-http/http/site/render.js";
+import { renderDocBodyAsPageHtml } from "../../../server/inbound/public-http/http/site/render/content-html.js";
 
 const workspaceId = "page-reader-workspace";
 const clock = { nowMs: () => Date.parse("2026-10-23T00:00:00.000Z") };

@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { renderSite, renderWidgetIr } from "../render.js";
+import { renderSite } from "../render.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 test("a declarative theme region renders an HTML menu widget all the way into the public page", async () => {
   const theme: DiscoveredTheme = {

@@ -1612,13 +1612,6 @@
       "value": 92
     },
     {
-      "file": "apps/website/src/server/inbound/public-http/http/site/render.ts",
-      "function": "<file>",
-      "line": 1243,
-      "rule": "max-lines",
-      "value": 1664
-    },
-    {
       "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
       "function": "registerPublishTrustHandshakeRoutes#1",
       "line": 130,

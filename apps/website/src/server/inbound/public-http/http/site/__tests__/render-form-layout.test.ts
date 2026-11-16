@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { injectFormSubmissionResultIntoHtml, renderHtmlPageBody, renderWidgetRegion, renderWidgetIr } from "../render.js";
+import { injectFormSubmissionResultIntoHtml, renderHtmlPageBody } from "../render.js";
+import { renderWidgetRegion, renderWidgetIr } from "../render/content-html.js";
 import type { SiteRenderContext } from "../render.js";
 
 test("repeated Builder forms across embeds and regions keep every ID and association within its occurrence", () => {

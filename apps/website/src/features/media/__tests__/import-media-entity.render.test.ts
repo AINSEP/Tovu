@@ -25,7 +25,8 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
-import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
+import { type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { importMediaEntity, type ImportMediaEntityDeps } from "../import-media-entity.js";
 

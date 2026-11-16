@@ -8,24 +8,8 @@ import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import {
-  renderBlockSeam,
-  renderDocNode,
-  renderHtmlPageBody,
-  renderSite,
-  renderWidgetIr,
-  decodeFormSubmissionResultFromQuery,
-  encodeFormSubmissionResultQuery,
-  injectFormSubmissionResultIntoHtml,
-  decodeFormFlashCookieValue,
-  encodeFormFlashCookieValue,
-  mergeFormFlashIntoResult,
-  type FormSubmissionRedirectResult,
-  type FormFlashPayload,
-  type MediaAssetRenderMeta,
-  type SiteProduct,
-  type SiteRenderContext,
-} from "../render.js";
+import { renderBlockSeam, renderHtmlPageBody, renderSite, decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormSubmissionRedirectResult, type FormFlashPayload, type MediaAssetRenderMeta, type SiteProduct, type SiteRenderContext } from "../render.js";
+import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 import {
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,

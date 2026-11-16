@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 import { FIELD_TYPE_REGISTRY, MAX_NAME_LENGTH, SLUG_PATTERN, validateFieldDescriptors, type FieldDescriptor } from "@jini-ai/cms/forms";
-import { renderWidgetIr } from "../../../server/inbound/public-http/http/site/render.js";
+import { renderWidgetIr } from "../../../server/inbound/public-http/http/site/render/content-html.js";
 
 /**
  * @file The all-fields demo form (`fixtures/all-fields-demo.json`): one field of every registry type,

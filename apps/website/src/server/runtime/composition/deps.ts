@@ -1,5 +1,5 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
-import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";

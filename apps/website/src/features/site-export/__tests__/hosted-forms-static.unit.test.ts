@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import * as yauzl from 'yauzl';
 import type { FormCollectionProvider } from '@jini-ai/core/contracts/forms';
 import type { JsonObject } from '@jini-ai/core/primitives';
-import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render.js';
+import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render/content-html.js';
 import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';
 import { downloadForms, exportHtml } from '../export-html-policy.js';
 import { buildStaticSiteZip } from '../../site-backup/share-zip.js';

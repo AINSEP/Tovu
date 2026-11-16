@@ -8,7 +8,8 @@ import ts from "typescript";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { renderDocNode, renderWidgetIr, type MediaAssetRenderMeta } from "../render.js";
+import { type MediaAssetRenderMeta } from "../render.js";
+import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 
 /**
  * @file Table-driven TipTap-JSON→HTML round-trip contract for the public renderer
