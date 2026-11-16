@@ -46,12 +46,12 @@ export interface Watch {
   checkpointRetryAt?: number;
   /** Stops progress scheduling as soon as the terminal outcome is known, before its durable write. */
   terminal: boolean;
-  /** The trailing checkpoint armed when the interval skipped one (see `checkpoint`). */
-  trailing?: ReturnType<typeof setTimeout>;
+  /** Cancels the trailing checkpoint armed when the interval skipped one (see `checkpoint`). */
+  trailing?: () => void;
 }
 
 export function clearTrailing({ watch }: { watch: Watch }, _options = {}): void {
-  clearTimeout(watch.trailing);
+  watch.trailing?.();
   watch.trailing = undefined;
 }
 

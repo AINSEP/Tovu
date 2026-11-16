@@ -30,7 +30,7 @@ import type { Tracker } from "@jini-ai/diagnostics/observability";
  * daemon cannot finalize its own death. The daemon saves early session locators and mutation
  * barriers through the same guarded persistence ports; projection recovery remains API-owned.
  */
-import { checkpointIntervalMs as scaledCheckpointIntervalMs, checkpointProgress, type ChatMessage } from "@jini-ai/chat/core";
+import type { ChatMessage } from "@jini-ai/chat/core";
 import { randomUUID } from "node:crypto";
 import { createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
 import type { DurableRecovery, RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
@@ -41,8 +41,9 @@ import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node"
 
 import { type ChatRunLedger, type RunSettlement } from "#src/assistant/index";
 import { createHttpRunDaemonClient, type RunDaemonClient, type RunDaemonRequest } from "./run-daemon-http-client.js";
-import { approximateJsonBytes, checkpointGrew, hasUnsavedCheckpointGrowth } from "./run-finalizer/checkpoint-policy.js";
-import { clearTrailing, interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
+import { createCheckpointer } from "./run-finalizer/checkpointer.js";
+import type { RunLogPort, RunTimerPort } from "./run-finalizer/ports.js";
+import { interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
 import {
   readSseFrames,
   runContentFromEvents,
@@ -114,12 +115,20 @@ function recoverySettings({ options }: { options: AssistantRunFinalizerOptions }
 }
 
 
-/** Preserve injected host/test overrides while the shared pure policy owns the default cadence.
- * @complexity O(1) time and space. */
-function checkpointDelay({ bytes, options }: { bytes: number; options: AssistantRunFinalizerOptions }, _options = {}): number {
-  return options.checkpointIntervalMs ?? scaledCheckpointIntervalMs({ bytes });
-}
+/** The trailing checkpoint timer. A global timer the process may exit past: a quiet run must not
+ * hold an idle site open. `setTimeout` and `clearTimeout` are read at every call, so a test that
+ * replaces the globals still sees this timer; an injected `scheduler` never does. */
+const unrefTimers: RunTimerPort = {
+  schedule({ delayMs, run }) {
+    const timer = setTimeout(run, delayMs);
+    timer.unref();
+    return () => { clearTimeout(timer); };
+  },
+};
 
+const consoleRunLog: RunLogPort = {
+  error({ runId, error }) { console.error(`[assistant-run-finalizer] checkpoint of run ${runId} failed`, error); },
+};
 
 /** Releases an events response that will never be read. An unread body stays open, and a run
  * reconnects up to maxReconnects times. Not awaited: a body that never finishes cancelling must
@@ -145,6 +154,9 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
   const recoveryStore = options.ledger.durable;
   const newAttempts = new Set<string>();
+  const checkpointer = createCheckpointer({
+    ledger: options.ledger, now, checkpointTimers: unrefTimers, log: consoleRunLog, checkpointIntervalMs: options.checkpointIntervalMs,
+  });
   const recovery = recoveryStore ? createDurableRecovery({
     store: recoveryStore, now, mintRunId: randomUUID,
     async probe(run, _options) {
@@ -235,101 +247,6 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     await recovery.recover({ messageId: watch.messageId, expectedRunId: watch.runId, trigger }, {});
   }
 
-  /** One cancelable timer owns skipped frames and failed-write retries. Its callback reuses the
-   * terminal, pending-write and unsaved-growth guards, including callbacks queued before cleanup.
-   * @complexity O(1) time and space; replaces at most one timer per watch. */
-  function scheduleCheckpoint({ watch, delayMs }: { watch: Watch; delayMs: number }, _options = {}): void {
-    clearTrailing({ watch });
-    watch.trailing = setTimeout(() => {
-      watch.trailing = undefined;
-      void checkpoint(watch);
-    }, delayMs);
-    watch.trailing.unref();
-  }
-
-  /** Failed storage writes retry during quiet tool/approval waits, at most once per interval and
-   * never faster than once per second. False (fenced/unchanged) results do not retry.
-   * @complexity O(events + tool identities) growth comparison; one timer per watch. */
-  function retryCheckpoint({ watch, interval }: { watch: Watch; interval: number }, _options = {}): void {
-    if (watch.terminal || !hasUnsavedCheckpointGrowth({ watch, progress: checkpointProgress({ events: watch.events }) })) return;
-    const delayMs = Math.max(interval, 1_000);
-    watch.checkpointRetryAt = now() + delayMs;
-    scheduleCheckpoint({ watch, delayMs });
-  }
-
-  /**
-   * Saves what the run has produced so far, when it has grown since the last save and the interval
-   * has passed. Only growth counts: a reconnect replays from event 0, and a checkpoint of the
-   * replay's first events would shrink the saved answer.
-   *
-   * A save the interval skips is not dropped: a trailing checkpoint is armed for the end of the
-   * interval. Without it, a run that goes quiet (a long tool call) right after a skipped frame kept
-   * its last text and tool-call start in memory only, lost on any stop — the process `exit` flush
-   * that used to cover a graceful stop is gone (an `exit` listener cannot await an async write).
-   * At most one checkpoint is pending per run. It never blocks frame consumption: otherwise a
-   * slow progress write holds an already-buffered `end` behind it, leaving a finished turn running
-   * for startup repair to misclassify. Later progress is coalesced when the pending write finishes.
-   * Terminal settlement uses the ledger's terminal guard to reject any late checkpoint.
-   * The last saved payload selects the shared size-based interval (or an injected host override):
-   * a merge fallback still rewrites the projection, so large turns need fewer checkpoints.
-   * @complexity O(saved events) per write, with one pending write and one trailing timer per run.
-   */
-  async function checkpoint(watch: Watch): Promise<void> {
-    if (watch.terminal || watch.checkpointPending) return;
-    const interval = checkpointDelay({ bytes: watch.checkpointedBytes, options });
-    const wait = Math.max(watch.checkpointedAt + interval, watch.checkpointRetryAt ?? Number.NEGATIVE_INFINITY) - now();
-    // An armed timer will consume the latest frames; avoid rescanning them on every delta.
-    if (wait > 0 && watch.trailing) return;
-    const progress = checkpointProgress({ events: watch.events });
-    // Completion rechecks for coalesced frames. Do not arm a timer for an unchanged projection:
-    // only unsaved growth should start the trailing deadline that protects a quiet run.
-    if (!hasUnsavedCheckpointGrowth({ watch, progress })) return;
-    if (wait > 0) {
-      scheduleCheckpoint({ watch, delayMs: wait });
-      return;
-    }
-    const content = runContentFromEvents(watch.events);
-    const events = runEventsForSave(watch.events);
-    clearTrailing({ watch });
-    watch.checkpointedAt = now();
-    watch.checkpointRetryAt = undefined;
-    watch.checkpointPending = true;
-    // Best effort: a failed checkpoint only loses what a restart would keep; the stream goes on.
-    await options.ledger
-      .checkpoint({
-        conversationId: watch.conversationId,
-        messageId: watch.messageId,
-        runId: watch.runId,
-        content,
-        events,
-      }, {
-        expected: watch.checkpointState?.length,
-        previous: watch.checkpointState,
-        onPersisted: (state) => { watch.checkpointState = state; },
-      })
-      .then((written) => {
-        if (!written) return;
-        watch.checkpointedTextCharacters = progress.textCharacters;
-        watch.checkpointedExtensionEvents = progress.extensionEvents;
-        for (const key of progress.tools) watch.checkpointedTools.add(key);
-        watch.checkpointedBytes = approximateJsonBytes({ value: events });
-      })
-      .catch((error: unknown) => {
-        console.error(`[assistant-run-finalizer] checkpoint of run ${watch.runId} failed`, error);
-        retryCheckpoint({ watch, interval });
-      })
-      .finally(() => {
-        watch.checkpointPending = false;
-        // A false result (including a fenced row) or failure leaves the saved baseline behind.
-        // Retrying that same attempt here spins at interval 0, or rearms forever at other intervals.
-        // Only newer coalesced progress schedules from completion. Rejections alone also arm the
-        // backed-off retry above, so quiet runs are protected without resurrecting the spin.
-        if (!watch.terminal && checkpointGrew({ previous: progress, progress: checkpointProgress({ events: watch.events }) })) {
-          void checkpoint(watch);
-        }
-      });
-  }
-
   /** Reads one connection to the end. The daemon replays from event 0 on every connection, so the
    *  events collected by an earlier, dropped connection are discarded rather than doubled. */
   async function readStream(watch: Watch): Promise<StreamResult> {
@@ -364,7 +281,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       watch.terminal = true;
       return { kind: "ended", status: watch.failed && outcome.terminal === "succeeded" ? "failed" : outcome.terminal };
     }
-    void checkpoint(watch);
+    checkpointer.onFrame({ watch });
     return undefined;
   }
 
