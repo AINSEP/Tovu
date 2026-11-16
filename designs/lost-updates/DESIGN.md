@@ -9,12 +9,12 @@ Personas: software-architect (lead), database, programmer, tdd.
 
 - **28 of the 97 sites are a real risk.** 13 have no guard at all. 15 have a guard that the caller can
   skip (the version is optional) or that sits in application code before a blind write.
-- **9 sites are already guarded** (7 by Wave B, 2 by older domain code). **60 are not lost-update
+- **9 sites are already guarded** (6 by Wave B, 3 by older domain code). **60 are not lost-update
   bugs**: 27 single-writer or lock-serialised, 14 last-writer-wins on purpose, 19 false positives.
 - **The generic mechanism already exists**: `@jini-ai/core/optimistic-concurrency`
   (`packages/core/src/optimistic-concurrency.ts`). This design does not add a second one. It closes
   five gaps in how that module is used and rolls it out to the 28 sites.
-- The 28 sites are 17 records: external MCP servers, webhook subscriptions, roles, policies, member
+- The 28 sites are 23 records: external MCP servers, webhook subscriptions, roles, policies, member
   subscriptions, member consents, member tiers, redirects, posts, entries, content types, taxonomy
   terms, newsletter campaigns, newsletter lists, newsletter subscriptions, media metadata, media
   provider credentials, plugin activations, forms, SEO entry overrides, and three settings groups
@@ -35,7 +35,7 @@ Storage-neutral and server-neutral; imports only core files. Exports:
 | `versionConflictRule({ readToolId })` | Model-facing rule: re-read, reapply, resend; never resend unchanged |
 | `fromSettingsRevisionConflict` | Maps the settings ledger's `SettingsRevisionConflictError` onto the shared error |
 
-Consumers today (28 import sites): forms, SEO entry overrides, workspace, webhooks (update), member
+Consumers today (about 29 import sites, tests included): forms, SEO entry overrides, workspace, webhooks (update), member
 tiers, theme preview switcher. `requireEditorVersion` and the 428 body have **no consumer** outside
 their own unit test.
 
@@ -85,8 +85,9 @@ message. Every other editor treats a 409 as a generic failure. It re-declares th
 Read, not run: `packages/cms/src/forms/write-service.ts:276-288` builds the next record with
 `version: existing.version + 1` and a fresh `updatedAt` whatever the patch holds, then writes. A patch
 that changes nothing takes the row from 1 to 2. Every other editor holding version 1 then gets a
-conflict for a change that never happened. The same shape is in every service that computes
-`version + 1` before comparing content. Fixed in step S0.
+conflict for a change that never happened. Only forms was read. Workspace, webhooks update, SEO
+entry and member tiers are candidates with the same `version + 1` habit; S0 writes the no-op test
+(T3) for each and fixes the ones that go red.
 
 ## 3. Classes used in `SITES.tsv`
 
@@ -94,7 +95,7 @@ conflict for a change that never happened. The same shape is in every service th
 |---|---|---|
 | `REAL` | 13 | Two writers exist in code; the write has no guard |
 | `REAL-OPT` | 15 | A guard exists, but the basis is optional and a writer omits it, or the compare is strength B |
-| `GUARDED` | 9 | Basis required and compared (7 Wave B; email templates and page HTML use their own spelling) |
+| `GUARDED` | 9 | Compared in the write (6 Wave B; email templates, page HTML and the trash marker are older code) |
 | `SAFE` | 27 | One writer, or serialised under a lock, or fenced by a state/lease predicate |
 | `LWW-OK` | 14 | Last writer wins on purpose: write-only secret, one selector field, idempotent grant |
 | `FP` | 19 | Create-only, derived projection, content-addressed, or fenced in a helper the audit cannot see |
@@ -151,8 +152,8 @@ export function hasRecordChanged<T extends object>(
 ```
 
 Structural compare of plain JSON records (the services already hold both as plain objects). O(size
-of record), no I/O. It has five users on day one (forms, workspace, webhooks, SEO entry, member
-tiers), so it is not a one-user abstraction.
+of record), no I/O. Forms needs it on day one and every step S1–S9 uses it, so it is not a
+one-user abstraction.
 
 **M6. One conflict shape on the wire.** HTTP: `409` with `versionConflictBody`. Tools:
 `versionConflictRule`. Settings: `fromSettingsRevisionConflict` first, then the same two.
@@ -163,8 +164,8 @@ audit's lost-update count is a ratchet in CI: it may not grow (step S10).
 
 ### 4.1 How routes carry the basis
 
-Body field `expectedVersion` (integer). Reasons: about twelve routes and the admin client already do
-this; tools cannot send headers, so a body field gives one name across HTTP, tools and services; no
+Body field `expectedVersion` (integer). Reasons: a dozen or more routes and the admin client already
+do this; tools cannot send headers, so a body field gives one name across HTTP, tools and services; no
 cache sits in front of the admin API. `ETag` / `If-Match` is rejected as a second carrier for the
 same value (owner decision D1). GET and list responses include `version` on every editable record
 (most already do; S1, S3, S9 add it where missing).
@@ -276,7 +277,7 @@ overlap (`LANES-files.tsv`) was not checked — the coordinator runs `overlap.py
 
 | Step | Sites | Repo | What changes | Callers updated in the same commit | Tests red first |
 |---|---|---|---|---|---|
-| **S0** | none (prerequisite) + fixes §2.6 | Jini core, cms; Tovu | Add `hasRecordChanged`. Apply M5 in forms, workspace, webhooks update, SEO entry, member tiers. | Those five services only; no signature change | T3 ×5 |
+| **S0** | none (prerequisite) + fixes §2.6 | Jini core, cms; Tovu | Add `hasRecordChanged`. Write T3 for forms, workspace, webhooks update, SEO entry, member tiers; apply M5 where it is red (forms confirmed by reading). | Those services only; no signature change | T3 ×5 |
 | **S0b** | none (prerequisite) | Tovu admin | Shared conflict notice + 428 case in `lib/version-conflict.ts`; import the code constant from core | No editor wired yet | Component tests: 409, deleted, 428, Copy details has no values |
 | **S1** | 21, 87 | Tovu | External MCP. Split the writer: OAuth callback/refresh writes only the OAuth columns, fenced on the secret id it replaced; `saveExternalMcpServer` does the conditional update. Route parses `expectedVersion`, maps 409. GET returns `version`. Admin form sends it. | `put.ts`, OAuth callback, token refresh, `external-mcp/tool-registrations.ts`, admin MCP form, memory repo | T1; T2 refresh-vs-PUT |
 | **S2** | 76 | Jini integrations, Tovu | Webhook pause / resume / delete use the read version as basis with one retry (M4). | `subscriptions.ts` (both repos), `integrations/pause.ts`, tool handlers, memory fixtures | T2 pause-vs-update |
@@ -307,7 +308,7 @@ are create-only today and are covered by M7 and the ratchet.
 | S4 | 1 day | S11 | 1.5 days (optional) |
 | S5 | 0.5 day | | |
 
-About 13 working days without S11, roughly 11 agent lanes. S1–S5 can run in parallel after S0
+About 13 working days without S11, 12 agent lanes. S1–S5 can run in parallel after S0
 (disjoint files); S6–S9 in parallel after that; S10 is last and serial. These are estimates from
 reading the code, not from a spike.
 
