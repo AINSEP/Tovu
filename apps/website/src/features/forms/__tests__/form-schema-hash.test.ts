@@ -13,11 +13,11 @@ const builder: HtmlFormDefinitionRecord = {
 
 test('builder and authored HTML pages share the receiver/native evidence hash', async () => {
   for (const definition of [builder, { ...builder, mode: 'html' as const, html: '<p>Current privacy notice</p><input name="email" type="email"><input type="checkbox" name="consent">' }]) {
-    const resolver = createContactFormResolver({ formDefinitionRepo: { findById: async () => definition, findBySlug: async () => definition } });
+    const resolver = createContactFormResolver({ formDefinitionRepo: { findById: async () => definition, findBySlug: async () => definition }, crypto: globalThis.crypto });
     const resolved = (await resolver.resolveMany([{ id: 'widget', widgetType: 'contact-form', config: { formDefinitionId: 'form' } }], { workspaceId: 'ws', preview: false })).get('widget');
     assert.equal(resolved?.ok, true);
     if (!resolved?.ok) throw new Error('Expected resolved current form');
-    const native = await captureSubmissionEvidence({ definition, capturedAt: 'now', source: 'native' });
+    const native = await captureSubmissionEvidence({ definition, capturedAt: 'now', source: 'native', crypto: globalThis.crypto });
     const manifest = buildFormDestinationManifest({ definitions: [definition] });
     assert.equal(manifest[0]!.evidence.schemaHash, native.schemaHash);
     assert.equal(resolved.ir.props.schemaHash, native.schemaHash);

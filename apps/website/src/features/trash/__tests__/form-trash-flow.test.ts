@@ -118,6 +118,7 @@ function refusingSubmitDeps(h: Harness): SubmitFormDeps {
     throw new Error(`submitForm reached ${name} for a trashed form`);
   };
   return {
+    crypto: globalThis.crypto,
     definitionRepo: h.definitions,
     submissionRepo: h.submissions,
     outbox: { enqueue: unreachable("outbox") } as unknown as SubmitFormDeps["outbox"],
@@ -160,7 +161,7 @@ test("public submit to a trashed form is refused as not-found, and writes no sub
 test("a contact-form widget embedding a trashed form renders the target-disabled placeholder", async () => {
   const h = harness();
   seedFormWithSubmissions(h, "f1", 0);
-  const resolver = createContactFormResolver({ formDefinitionRepo: h.definitions });
+  const resolver = createContactFormResolver({ formDefinitionRepo: h.definitions, crypto: globalThis.crypto });
   const instance = { id: "w1", config: { formDefinitionId: "f1" } };
 
   const before = await resolver.resolveMany([instance] as never, { workspaceId: WS } as never);

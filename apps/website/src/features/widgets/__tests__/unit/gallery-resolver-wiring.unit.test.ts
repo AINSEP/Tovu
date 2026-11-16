@@ -9,6 +9,7 @@ import { widgetCollectionListPort } from "../../../entries/public-list.js";
 test('core assembly injects the Gallery media port with the render workspace context', async () => {
   const seen: string[] = [];
   const resolvers = createCoreResolvers({
+    crypto: globalThis.crypto,
     menus: { resolveMenuDoc },
     collectionList: widgetCollectionListPort,
     entryList: new TrashAwareInMemoryEntryRepo(), contentTypes: { findByKey: async () => null },

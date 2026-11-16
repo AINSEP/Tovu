@@ -149,6 +149,7 @@ test("form_submitted on a consented public submission: committed ids under a req
   }).start?.();
   registerFormsSubmitRoute(app, { workspaceId: "ws", tracker, idGen: { newId: () => "request-1" },
     visitorAnalyticsProof: async () => consentProof, visitorAnalyticsDeliveryAllowed, submitForm: {
+    crypto: globalThis.crypto,
     definitionRepo, submissionRepo, outbox: new InMemoryOutbox(), bus, clock,
     idGen: { newId: () => `id-${++counter}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
   } });

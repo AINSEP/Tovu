@@ -113,6 +113,7 @@ test("AC-16: an accepted submission queues a matching webhook subscription's del
 
   await submitForm({
     deps: {
+      crypto: globalThis.crypto,
       definitionRepo: harness.definitionRepo,
       submissionRepo: harness.submissionRepo,
       outbox: harness.outbox,
@@ -145,6 +146,7 @@ test("EC-07: no matching subscription -> no delivery row queued (not an error)",
 
   await submitForm({
     deps: {
+      crypto: globalThis.crypto,
       definitionRepo: harness.definitionRepo,
       submissionRepo: harness.submissionRepo,
       outbox: harness.outbox,

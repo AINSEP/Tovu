@@ -38,6 +38,7 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
   registerAdminFormsCreateRoute({ app, deps });
   registerAdminFormsAuthoringRoute({ app, deps });
   registerFormsSubmitRoute(app, { workspaceId: "ws", submitForm: {
+    crypto: globalThis.crypto,
     definitionRepo: formDefinitionRepo, submissionRepo: formSubmissionRepo,
     ...deps, rateLimiter: { check: () => ({ allowed: true as const }) },
   } });

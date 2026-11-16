@@ -41,9 +41,10 @@ export async function runFormsMaintenanceCommand(
     const kernel = contentKernel({ store: native });
     const exists = await kernel.run(db => db.selectFrom('workspaces').select('id').where('id', '=', workspace).executeTakeFirst());
     if (!exists) throw new Error('The selected workspace is absent from this database. No form files were changed.');
+    const clock = { nowMs: () => Date.now() };
     const media = { mediaRepo: new SqlMediaRepo(kernel), blobRepo: new SqlAssetBlobRepo(kernel), renditionRepo: new SqlAssetRenditionRepo(kernel),
-      entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo({ store: kernel }) };
-    return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqlOutboxAdapter(kernel), clock: { nowMs: () => Date.now() } }, { apply, ...(after === undefined ? {} : { after }) });
+      entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo({ store: kernel }), clock };
+    return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqlOutboxAdapter(kernel), clock }, { apply, ...(after === undefined ? {} : { after }) });
   } finally { native.close(); }
 }
 

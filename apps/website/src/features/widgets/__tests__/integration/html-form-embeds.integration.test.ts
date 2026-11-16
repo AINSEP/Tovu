@@ -27,7 +27,7 @@ async function harness() {
     bodyJson: null, publishedAt: now, createdAt: now, updatedAt: now, version: 1,
     fieldsJson: { ext: { [WIDGET_FIELD_NAMESPACE]: { [WIDGET_PAYLOAD_FIELD]: JSON.stringify({ status: "active", widgetType: "contact-form", config: { formDefinitionId: "form-1" } }) } } },
   });
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
   return { entryRepo, formDefinitionRepo };
 }
 

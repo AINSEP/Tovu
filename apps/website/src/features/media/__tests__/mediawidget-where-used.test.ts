@@ -57,7 +57,7 @@ test('Tovu purge refuses retired slug references from current post bodies and su
   const { purgeMedia, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore } = await import('../index.js');
   const workspaceId = 'purge-ws', entryRefsRepo = new InMemoryEntryRefsRepo(), postRepo = new InMemoryPostRepo({});
   const mediaRepo = new InMemoryVersionedMediaRepo({});
-  const deps = { entryRefsRepo, postRepo, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() };
+  const deps = { entryRefsRepo, postRepo, mediaRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => Date.now() } };
   await mediaRepo.save({ id: 'asset', workspaceId, slug: 'photo', title: 'Photo', alt: '', caption: '', credit: '', source: { sha256: 'sha' }, status: 'trashed', createdAt: '2026-10-17T00:00:00.000Z', updatedAt: '2026-10-17T00:00:00.000Z', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'ref-post', workspaceId, title: 'Referencing post', slug: 'ref-post', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { src: '/m/photo' } }] } } });
   // Use the same raw-HTML placement format as the existing scanner contract above.
@@ -91,7 +91,7 @@ test('cleanup usage includes restorable posts when requested and purge refuses t
   const entryRefsRepo = new InMemoryEntryRefsRepo();
   const { post } = await createPost({ deps: { clock: { nowMs: () => 0 }, repo: postRepo, outbox: new InMemoryOutbox() }, input: { id: 'restorable', workspaceId, title: 'Trash', slug: 'trash', actorId: 'owner', bodyJson: { type: 'doc', content: [{ type: 'image', attrs: { assetId: 'asset' } }] } } });
   await postRepo.save({ ...post, deletedAt: '2026-10-10T00:00:00Z' });
-  const deps = { postRepo, mediaRepo, entryRefsRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore() };
+  const deps = { postRepo, mediaRepo, entryRefsRepo, blobRepo: new InMemoryAssetBlobRepo({}), renditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(), clock: { nowMs: () => 0 } };
   await mediaRepo.save({ id: 'asset', workspaceId, slug: 'photo', title: '', alt: '', caption: '', credit: '', source: { sha256: 'sha' }, status: 'trashed', createdAt: 'now', updatedAt: 'now', version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const usage = await findMediaWhereUsed({ deps, input: { workspaceId, mediaId: 'asset', slug: 'photo' } }, { includeTrashed: true });
   assert.deepEqual(usage.references.map(row => row.sourceEntryId), ['restorable']);

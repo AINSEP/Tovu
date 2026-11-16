@@ -84,7 +84,7 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
       scopeId: "workspace-local",
       ownerKind: "user",
       ownerId: "u1",
-    } });
+    }, clock: { nowMs: () => Date.now() } });
     return (async () => {
       await store.create({ id: "c1", title: "Parity check" });
       await store.appendMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hello" } });
@@ -103,7 +103,7 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
       scopeId: "workspace-local",
       ownerKind: "user",
       ownerId: "u1",
-    } });
+    }, clock: { nowMs: () => Date.now() } });
     return (async () => {
       await store.create({ id: "c1" });
       await store.appendMessage({ conversationId: "c1", message: { id: "m1", role: "user", content: "hello" } });

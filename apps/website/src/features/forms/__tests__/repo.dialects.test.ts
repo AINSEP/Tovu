@@ -103,6 +103,7 @@ describeEachDialect(
         },
       });
       const deps = {
+        crypto: globalThis.crypto,
         definitionRepo: defs, submissionRepo: subs, outbox, bus: new InMemoryEventBus(), clock,
         idGen: { newId: () => `id-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
       };
@@ -132,6 +133,7 @@ describeEachDialect(
       const clock = { nowMs: () => Date.parse(T0) };
       let n = 0;
       const deps = {
+        crypto: globalThis.crypto,
         definitionRepo: defs, submissionRepo: subs, outbox: new SqlOutboxAdapter(kernel), bus: new InMemoryEventBus(), clock,
         idGen: { newId: () => `id-${++n}` }, rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
       };
