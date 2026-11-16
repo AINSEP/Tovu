@@ -15,7 +15,7 @@ Docs only. Nothing here was executed. Read with `INDEX.md` (order, prerequisites
 | Thing | Count | How counted |
 |---|---|---|
 | `mountJsonRoute(` calls | **83** in 19 files | `rg -c "mountJsonRoute\("` |
-| Hand-mounted routes (`app.get/post/delete`) | **17** from 12 call sites in 10 files | model-proxy's loop makes 5, its catch-all 1 |
+| Hand-mounted routes (`app.get/post/delete`) | **17** from 13 call sites in 10 files | model-proxy's loop makes 5, its catch-all 1 |
 | Path gates (middleware with no answer of their own) | **3** | `remote-run-events.ts:269-270` (2 × `app.use`), `frontend-sessions.ts:307` (conditional `app.post(..., next)`) |
 | Exported `register*` functions | **28** (+1 private `registerGenericProxyStreamRoute`) | §1.2 |
 | Other exports typed with Express | **12** | §1.4 |
@@ -99,7 +99,7 @@ Not mounted by the preset at all: rows 3, 21–25. They exist only for Tovu and 
 | Express error-handler middleware | `bodyParserFailure` in tool-exec | `readJsonBody` returns a `Result` (413 / 400); no error middleware |
 | Registration order decides a match | memory (`/tree` before `/:id`) | the `Server` contract makes a literal segment win over `:name`, so order stops mattering; pinned in Phase 0 |
 | `app.use(path, gate)` | remote-run-events | `withRouteMiddleware` on those two routes (§2.3) |
-| Host hooks typed with Express | `resolveOwner({ req, res })`, `resolveOwnerId({ req })`, `allowsRequest({ req })`, `authorizeRun: RequestHandler` | hooks take `{ request: Request }` (+ `locals`); `authorizeRun` becomes a `ServerMiddleware` |
+| Host hooks typed with Express | `resolveOwner({ req, res })`, `resolveOwnerId({ req })`, `allowsRequest({ req })`, `authorizeRun: RequestHandler` | hooks take `{ request: Request }` (+ `locals`); `authorizeRun` becomes the typed `AuthorizeToolRun` port (§3.5): it rewrites the parsed body today |
 
 ---
 
@@ -184,7 +184,7 @@ Tests need "method + path + gate order" without booting a server. `ServerRoute` 
 // packages/daemon/src/http/route-table.ts (NEW, ~40 lines)
 /** A daemon route plus the names of the gates in front of it, in run order. Assignable to ServerRoute. */
 export interface DaemonRoute extends ServerRoute { readonly gates: readonly DaemonGateName[] }
-export type DaemonGateName = 'same-origin' | 'tool-exec-caller' | 'remote-bridge-token' | 'frontend-session-owner' | 'host-authorize-run';
+export type DaemonGateName = 'same-origin' | 'tool-exec-caller' | 'remote-bridge-token' | 'frontend-session-owner';
 export function gated(required: { route: ServerRoute; gates: readonly { name: DaemonGateName; middleware?: ServerMiddleware }[] }): DaemonRoute
 export function describeRoutes(required: { routes: readonly ServerRoute[] }): { method: string; path: string; gates: readonly string[] }[]
 ```
@@ -272,10 +272,20 @@ A route group must be **called once per listener**. Calling it twice now gives t
 | Remote-bridge token | `withRouteMiddleware` on the two remote-run-event routes; replaces the two `app.use(path, gate)` | daemon |
 | Frontend-session ownership (`resolveOwner` + bind token) | `withRouteMiddleware` on the responses route when `deps.resolveOwner` is set | daemon runs it, host supplies `resolveOwner({ request, locals })` |
 | Host bearer gate, origin middleware, run-ownership gate, idle-park, 6 MB parser | stay Express middleware in Tovu, above the line where the route list is mounted | Tovu |
-| `authorizeRun` (host gate between parser and handler) | `ServerMiddleware`, placed after the caller gate and **before** the body is read | host supplies, daemon orders |
+| `authorizeRun` (host check between parse and execute; may replace the principal) | typed port `AuthorizeToolRun`, called after the body is parsed (see below) | host supplies, daemon orders |
 | Guest cookie (`frontend-guest-scope.ts`) | `issue({ request })` returns `{ tabCredential, setCookie: string }`; the route puts `setCookie` on its `Response`. `secure: req.secure` becomes `isSecureRequest({ request })`, a required host port, because "is this HTTPS" behind a proxy is host policy (Express answered it from `trust proxy`). | daemon builds the cookie text; Tovu answers "secure?" |
 
-**Order change to pin (tool-exec).** Today: caller gate → parser → `authorizeRun` → handler. Target: caller gate → `authorizeRun` → handler reads the body. `authorizeRun` therefore can no longer read `req.body`. VERIFY at dispatch what Tovu's `authorizeRun` reads (`assistant-tool-exec.ts`); if it reads the body, the handler reads and parses first and passes the parsed call through `locals`, keeping today's order. Do not guess.
+**Tool-exec `authorizeRun` is not a gate; it is a decision that rewrites the call (verified).** Tovu passes `authorizeRun: requireSiteToolRun(...)` (`modules/assistant-tool-exec.ts:91, 222-238`). That Express handler (a) reads the **parsed body** (`run.id`, `principal.id`) on POST and the query on GET, (b) looks the run up, and (c) **overwrites `req.body.principal`** with the run's recorded principal before the handler runs. A `ServerMiddleware` cannot do (c): a web `Request` body is immutable and read once. So the order stays exactly as today (caller gate → read + parse body → authorize → execute) and the hook becomes a typed port that returns its verdict as data:
+
+```ts
+/** Host check that a tool call belongs to a live run. May replace the principal the call runs as. */
+export type AuthorizeToolRun = (
+  required: { readonly kind: 'execute'; readonly call: ToolExecutionWireRequest } | { readonly kind: 'catalog'; readonly principalId: string; readonly runId: string | undefined },
+  optional?: Record<string, never>,
+) => Promise<{ readonly allowed: true; readonly principal?: Principal } | { readonly allowed: false; readonly response: Response }>;
+```
+
+The route calls it after `parseExecutionRequest` and uses `verdict.principal ?? call.principal`. Tovu's `requireSiteToolRun` body is kept, with its `refuse()` returning the same 403 JSON as a `Response`. Phase 0 (T9) pins: a body naming principal A for a run recorded under principal B executes as **B**; `toolAccess: 'read-only'` survives the rewrite; an unknown run → 403 with that exact body; the lookup rejecting → the adapter's error path (today `.catch(next)`). This is a security-relevant rewrite: a conversion that drops it lets a caller pick its own principal.
 
 **D3: the three middleware factories leave Jini.** `createDaemonAuthMiddleware`, `createRunOwnershipMiddleware`, `createOwnedRunListHandler` (`http/run-credentials.ts`, 83 lines) are Express glue around decisions the **host** already supplies (`authorize`, `filterOwnedRuns`). Their only production callers are Tovu's `agent-daemon-scope.ts` and `daemon-access.ts`. One of them mutates `req.headers` so later Express handlers see a principal header, which a web `Request` cannot express. They move to Tovu beside their callers (lesson 9: host binding stays in the host), with their test. `RunAccessDecision` is referenced nowhere else in Jini (`rg` at `02edbb68`), so it moves too. This is a move + delete, not a rewrite. See INDEX owner decision O-3 for the alternative.
 
@@ -427,7 +437,7 @@ Clock, UUIDs and timers are pinned (injected `now`, `newRequestId`, fake schedul
 | 7 | Boundaries; no server framework in Jini | After Z: daemon imports core + protocol only for HTTP; `express` leaves daemon's manifest. `server` preset still uses Express until R13 (O-4). http-kit keeps `node-bridge` (Node, not a framework). |
 | 8 | Fakes of interfaces | §6. No real http-kit, no `vi.mock` of another package. |
 | 9 | Errors | SEC-005 path unchanged and pinned (T3). Plain-string bodies in frontend-request and `{ error: { code, message } }` literals in message-relay are kept byte for byte (changing them is a behaviour change for another lane). |
-| 10 | No new disables, no silent changes | Two known differences are named, not hidden: abort answer (§2.3), tool-exec gate order (§3.5). Any other difference found by Phase 0 is a STOP. |
+| 10 | No new disables, no silent changes | One known difference is named, not hidden: the abort answer (§2.3). The tool-exec order is kept (§3.5). Any other difference found by Phase 0 is a STOP. |
 | 11 | Smallest change, reuse | Reuses d2 `node-bridge`, d2's `message-relay.ts`, core `createInMemoryServer`, core `runChain`. No `ServerRoute` change. |
 | 12 | Hot-path cost | §3.6 (double parse, removed at G3-6). SSE queues stay capped at 1000. `describeRoutes` runs once at startup for the manifest, never per request. |
 
@@ -437,7 +447,7 @@ Clock, UUIDs and timers are pinned (injected `now`, `newRequestId`, fake schedul
 
 - Phase 0 is not green on the unmodified tree, or a Phase 0 case cannot be made to fail by a deliberate one-line break of the thing it names.
 - C-ORIGIN-PORT, G-HTTP-AUTH, C4-a/C4-b or P-NODE-BRIDGE is not on the base branch.
-- A converted route's Phase 0 row changes (status, code, header, body bytes, frame bytes, listener count) other than the two named differences.
+- A converted route's Phase 0 row changes (status, code, header, body bytes, frame bytes, listener count) other than the one named difference (abort answer).
 - A host hook (`resolveOwner`, `resolveOwnerId`, `allowsRequest`, `authorizeRun`) in Tovu reads something a web `Request` + `locals` + `client` cannot give it.
 - A file's blob differs from the base in a way that moves a registration line (size lanes may have split `agent-daemon-scope.ts`): re-read, continue only if the same statement still exists.
 - A function would exceed 50 lines or complexity 10 after conversion.

@@ -70,8 +70,8 @@ R7's per-file recipe gains one step for these six files: "take the port as a **r
 | `createAgentExecutor` | Jini `packages/server/src/kernel-base.ts`; `examples/minimal-host/src/index.ts`; `examples/reference-web/src/{daemon,mcp-bridge}.ts`; Tovu `agent-daemon-scope.ts` (which documents a nested-copy hazard at :522-526) | Jini 15 files (`agent-executor.test.ts` is 7,228 lines), Tovu 1 |
 | `createTerminalSessionManager` | `server` preset (`builtin-features.ts:416` region), `frontend-capability-tools.ts` (type) | `terminal-session.test.ts`, `terminal-optional-peer.test.ts` |
 | `loadRealSpawnPty` (`@jini-ai/daemon/terminal`) | no importer found in Jini `packages/*` or Tovu outside daemon itself (`rg` at the bases) | 1 |
-| `openSqliteEventLog` | VERIFY at dispatch: `rg -n "openSqliteEventLog\(" packages examples` and Tovu | — |
-| `withAiTracing` | VERIFY at dispatch | — |
+| `openSqliteEventLog` | Jini `packages/server/src/kernel-base.ts` only (verified) | — |
+| `withAiTracing` | Jini `packages/server/src/kernel-base.ts`; Tovu `server/inbound/assistant/run-lifecycle-tracing.ts` (verified) | — |
 
 Test coupling today: 35 daemon test files import `@jini-ai/agent-runtime`, 11 import `@jini-ai/db`, 2 `@jini-ai/platform`; 3 `vi.mock('node:child_process')`, 1 `vi.mock('@jini-ai/platform')`, 1 `vi.mock('node-pty')`, 1 `vi.mock('@jini-ai/db/kernel/pglite')`.
 
@@ -118,12 +118,11 @@ export interface AgentExecutorRuntimePorts {
   readonly processes: ProcessControlPort;
   readonly command: CommandInvocationPort;
   readonly fileLock: FileLockPort;
+  /** Also carries `backupOriginalOnce` (core `contracts/runtime/fs.ts:13`), used by the antigravity permissions rewrite. */
   readonly writer: AtomicFileWriterPort;
-  /** One-time backup of a user file before the first rewrite (antigravity permissions). */
-  readonly backupOriginalOnce: (required: { readonly path: string }) => Promise<void>;
 }
 ```
-`backupOriginalOnce` is not in C5's runtime contract (VERIFY: `rg backupOriginalOnce packages/core`). It has one consumer, so it is declared here, not added to core. VERIFY its real signature in `platform/src/fs` and restate it exactly.
+`backupOriginalOnce` is already a member of core's `AtomicFileWriterPort` (verified, `core/src/contracts/runtime/fs.ts:13`), so no extra field is declared.
 
 | # | New port | File | Signature | Replaces |
 |---|---|---|---|---|
@@ -131,7 +130,7 @@ export interface AgentExecutorRuntimePorts {
 | 2 | `AgentExecutorRuntimePorts` | `ports/runtime.ts` | above | `resolveProcessDeps` defaults (`launch.ts:297-306`) |
 | 3 | `EventLogConnectionOpener` | `store/event-log/ports.ts` | `(required: { filePath: string; open: SqliteSyncOpener }, optional?: { pragmas?: readonly string[] }) => SqliteDb` (the shape of `openSqliteConnection` as called at `sqlite.ts:80`; C3's worked name) | `@jini-ai/db/sqlite` import |
 | 4 | `AiTraceRecorderFactory` (only if C6 keeps the recorder in agent-runtime) | `ports/ai-trace.ts` | `(required: { sink; runId; agentId }, optional?: AiTraceRecorderOptions) => AiTraceRecorder` (types from `core/contracts/ai-trace`) | `createAiTraceRecorder` at `ai-trace-lifecycle.ts:75` |
-| 5 | `TerminalServicePort` = the service type C5 put in `core/contracts/runtime/terminal.ts` | — (core type) | `createTerminalSessionManager({ terminalService }, optional)`: `terminalService` moves from the optional `Pick` to **required** | `createTerminalService` default at `terminal-session.ts:213` |
+| 5 | `TerminalService` (core `contracts/runtime/terminal.ts:81`, landed by C5; core also has `PtyPort { createTerminalService }` at :95) | — (core type) | `createTerminalSessionManager({ terminalService }, optional)`: `terminalService` moves from the optional `Pick` to **required** | `createTerminalService` default at `terminal-session.ts:213` |
 
 ### 2.3 Signature changes (exported functions)
 
@@ -146,7 +145,7 @@ export function createAgentExecutor(
 - Deleted from the options type: `getAgentDef`, `resolveAgentLaunch`, `ensureAgentCapabilities`, `applyAgentLaunchEnv`, `attachAcpSession`, `attachPiRpcSession`, `preparePromptFileForAgent`, `prepareAgentLogFile`, `runtimeState`, `createCommandInvocation`, `spawn`, `listProcessSnapshots`, `collectProcessTreePids`, `stopProcesses`. (`collectProcessTreePids` is pure and in core; it is called directly, not injected.)
 - Deleted functions: `resolveAgentRuntimeDeps`, `resolveProcessDeps`. `resolveMiscExecutorDeps` stays (two plain defaults, no concrete import).
 - `AgentExecutor['run']`, `sendUserMessage`, `claimUserMessages` keep their contracts exactly (`contracts.ts:270`: required run fields + optional settings, `Promise<void>`).
-- VERIFY at dispatch whether `createAgentExecutor` already takes two objects; the wave-B arg-convention lanes touched daemon. Keep whatever split exists and move fields between the two objects only.
+- `createAgentExecutor` already takes two objects (verified, `launch.ts:1009`: required `Pick<…, "lifecycle">`, everything else optional; `hostEnv ?? process.env` at :1011). R8 moves `agentRuntime`, `runtime` and `hostEnv` into the required object and deletes the override fields from the optional one. Nothing else in the split changes.
 
 `openSqliteEventLog({ file, open, clock, openConnection }, options = {})`; `withAiTracing({ lifecycle, sink[, createRecorder] }, options = {})`; `createTerminalSessionManager({ terminalService }, optional = {})`.
 
@@ -160,7 +159,7 @@ export function createAgentExecutor(
 import { spawn } from 'node:child_process';
 import { listProcessSnapshots, stopProcesses, waitForProcessExit } from '@jini-ai/platform/process';
 import { createCommandInvocation } from '@jini-ai/platform/command';
-import { backupOriginalOnce, withFileLock, writeFileAtomicAsync, writeJsonFileAtomicAsync } from '@jini-ai/platform/fs';
+import { runtimePorts } from './jini-runtime-ports';   // C5's worked binding: fileLock + writer
 import { openSqliteConnection } from '@jini-ai/db/sqlite';
 import type { AgentExecutorRuntimePorts } from '@jini-ai/daemon/ports';
 import type { EventLogConnectionOpener } from '@jini-ai/daemon/store/event-log/sqlite';
@@ -171,8 +170,7 @@ export const daemonRuntimePorts = {
   processes: { listProcessSnapshots, stopProcesses, waitForProcessExit },
   command: createCommandInvocation,
   fileLock: /* platform's FileLockPort object, as C5's worked binding builds it */,
-  writer: /* platform's AtomicFileWriterPort object, same */,
-  backupOriginalOnce,
+  writer: /* platform's AtomicFileWriterPort object, same (it includes backupOriginalOnce) */,
 } satisfies AgentExecutorRuntimePorts;
 export const openEventLogConnection = openSqliteConnection satisfies EventLogConnectionOpener;
 ```
@@ -229,12 +227,12 @@ Nothing in this table changes owner in R8 except: the **host** now also owns con
 | R3 | Handoff path | lock released at handoff, not again at exit. |
 | R4 | Each pre-spawn refusal (native-tool policy, filesystem path, filesystem runtime, prompt budget) | error code + `releaseStagedResources` called once + `spawn` **never** called. One case per refusal (AP8). |
 | R5 | Cancel | `listProcessSnapshots` called once, `stopProcesses` receives the tree pids of the fake snapshot (3 processes, the child in the middle), SIGKILL fallback when `stopProcesses` rejects; no pending timers after (AP10). |
-| R6 | Failing ports (AP11) | each of `spawn`, `listProcessSnapshots`, `stopProcesses`, `command`, `fileLock`, `writer`, `attachAcp`: throws an `Error`, throws a non-`Error`, rejects → the documented outcome (typed executor error or `onCleanupFailure` report), never an unhandled rejection. |
+| R6 | Failing ports (AP11) | each of `spawn`, `listProcessSnapshots`, `stopProcesses`, `command`, `fileLock`, `writer` (incl. `backupOriginalOnce`), `attachAcp`: throws an `Error`, throws a non-`Error`, rejects → the documented outcome (typed executor error or `onCleanupFailure` report), never an unhandled rejection. |
 | R7 | Two executors, overlapping runs | independent temp maps, relays, cleanup logs. |
 | R8 | argv/env goldens per agent def | exact argv array and exact env **values** for a pinned host env (not sorted keys). |
 | R9 | Event log | `openSqliteEventLog` with a fake opener: pragmas requested = `['journal_mode = WAL']`; setup failure closes the db and rethrows the setup error; `close()` twice closes once. Borrowed `createSqliteEventLog` never closes. |
 | R10 | Terminal manager | with a fake `TerminalService`: create/kill/attach/shutdown pass through; `shutdownActive` forwards `graceMs`. Existing `terminal-session.test.ts` keeps its cases. |
-| R11 | Antigravity permissions | fake `fileLock`/`writer`/`backupOriginalOnce` record call order: lock → backup → write; a write failure leaves the backup and releases the lock. |
+| R11 | Antigravity permissions | a fake `fileLock` and `writer` (incl. its `backupOriginalOnce`) record call order: lock → backup → write; a write failure leaves the backup and releases the lock. |
 | R12 | AI trace | one recorder per run id; outcome recorded once on success, failure and cancel. |
 
 Clock, UUIDs, pids and platform are injected or pinned. The real-CLI tests (`claude-bash-sandbox.live.test.ts`, `*-acp.integration.test.ts`) are not characterization; they move to `packages/integration-tests` with Q5's lane, not here.
@@ -263,9 +261,9 @@ After R8 the 35 daemon test files that import `@jini-ai/agent-runtime` are in th
 |---|---|---|---|
 | 0 | Phase 0 tests (§5.1), no source change | daemon tests | green on the unmodified tree |
 | 1 | `ports/process.ts`, `ports/runtime.ts`, `store/event-log/ports.ts`, fakes + their self-checks; `./ports` export lines (C6 created the subpath) | new files only | nothing uses them yet |
-| 2 | **Event-log opener** injected | `store/event-log/sqlite.ts` + callers (VERIFY list) + Tovu/preset binding | smallest, calibrates the "port + binding" rate; removes `@jini-ai/db` from daemon `dependencies` |
+| 2 | **Event-log opener** injected | `store/event-log/sqlite.ts` + its one caller (`packages/server/src/kernel-base.ts`, verified) + the preset binding | smallest, calibrates the "port + binding" rate; removes `@jini-ai/db` from daemon `dependencies` |
 | 3 | **Terminal:** `terminalService` required; `terminal.adapter.ts` → preset (Q8); manifests | `terminal-session.ts`, `terminal.adapter.ts`, `index.ts`, daemon + server `package.json`, 2 tests | pure move for the adapter (one commit), then the required-port change (second commit) |
-| 4 | **Antigravity permissions** take `fileLock`/`writer`/`backupOriginalOnce` | `antigravity/permissions.ts` + its caller chain up to the executor options | VERIFY how it is reached from `createAgentExecutor`; thread `runtime` down, no module-level access |
+| 4 | **Antigravity permissions** take `fileLock`/`writer` | `antigravity/permissions.ts` + its caller chain up to the executor options | VERIFY how it is reached from `createAgentExecutor`; thread `runtime` down, no module-level access |
 | 5 | **Process ports** required: delete `resolveProcessDeps`, the `spawn`/`listProcessSnapshots`/`stopProcesses`/`createCommandInvocation` imports and options; `mcp-bridge-probe.ts` takes `spawn` | `launch.ts`, `events.ts`, `contracts.ts`, `mcp-bridge-probe.ts`, 4 host call sites, tests | removes `@jini-ai/platform` from daemon `dependencies` together with step 3/4 and R7's two http files (whichever lands last removes the manifest line) |
 | 6 | **Agent runtime:** `agentRuntime: AgentRuntimePort` required; delete `resolveAgentRuntimeDeps` and the 22-name import; `events.ts` streams/sessions through the port; `claude/filesystem.ts` through `port.filesystem`; `model-receipts.ts`, `event-translation.ts`, `session-coordination.ts` | 7 files + `contracts.ts` + hosts + tests | the largest step. Split in two commits: (6a) `launch.ts` + `contracts.ts` + hosts; (6b) `events.ts` and the 4 small files. Needs C6 landed with §4b signatures. |
 | 7 | **AI trace** per C6's answer (core import, or recorder factory) | `ai-trace-lifecycle.ts` + callers | |
@@ -328,6 +326,6 @@ rg -c "process\.(env|platform|pid|cwd)" --glob '!**/__tests__/**' | sort -t: -k2
 - C6 is not landed, or `satisfies AgentRuntimePort` needs a cast (R8b only; R8a proceeds).
 - Phase 0 is not green on the unmodified tree, or R1 cannot be made to fail by inserting an `await` before listener registration.
 - A port would have to return a promise where the code today is synchronous (`spawn`, `CommandInvocationPort`).
-- `backupOriginalOnce`, `createTerminalService` or `openSqliteConnection` has a signature that cannot be restated without importing a platform/db type.
+- `createTerminalService` or `openSqliteConnection` has a signature that cannot be restated without importing a platform/db type.
 - Removing a default changes what a **test** observes other than "must now pass the fake".
 - Any function in a touched file gains lines or complexity.
