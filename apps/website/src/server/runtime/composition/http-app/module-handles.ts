@@ -5,7 +5,11 @@
 import type { Express } from "express";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
+import type { registerThemePreviewRefresh } from "../../../inbound/public-http/middleware/theme-preview-refresh.js";
 import type { ServerModuleHandle } from "../modules/types.js";
+
+/** The preview-revision predicate `mountCoreContent` produces and `mountPublicSite` consumes. */
+export type PreviewRevisionCheck = ReturnType<typeof registerThemePreviewRefresh>;
 
 /** What every mount takes: the Express app it registers on and the composed deps. */
 export type MountInput = { app: Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps };
