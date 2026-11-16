@@ -1,0 +1,70 @@
+{
+  "plain reply": {
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ]
+    ],
+    "body": "event: text\ndata: {\"delta\":\"Hello from the site.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n"
+  },
+  "ask tool, allow=true": {
+    "status": 200,
+    "body": "event: client_directive\ndata: {\"kind\":\"tool_confirmation\",\"challengeId\":\"<challenge>\",\"title\":\"Allow listing categories?\",\"summary\":\"List published categories.\"}\n\nevent: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "[]",
+        "isError": false
+      }
+    ]
+  },
+  "ask tool, allow=false": {
+    "status": 200,
+    "body": "event: client_directive\ndata: {\"kind\":\"tool_confirmation\",\"challengeId\":\"<challenge>\",\"title\":\"Allow listing categories?\",\"summary\":\"List published categories.\"}\n\nevent: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "I can't help with that request here.",
+        "isError": true
+      }
+    ]
+  },
+  "ask tool, no capacity": {
+    "status": 200,
+    "body": "event: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "I can't help with that request here.",
+        "isError": true
+      }
+    ]
+  },
+  "provider error": {
+    "status": 200,
+    "body": "event: error\ndata: {\"code\":\"provider_error\",\"errorId\":\"<uuid>\",\"message\":\"The assistant couldn't answer right now. Please try again. (error <uuid>)\"}\n\nevent: end\ndata: {\"reason\":\"error\"}\n\n"
+  },
+  "visitor abort": {
+    "status": 200,
+    "bodyBeforeLeaving": ""
+  }
+}
