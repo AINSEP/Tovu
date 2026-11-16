@@ -1509,5 +1509,175 @@
    "apps/website/src/server/__tests__/routes/publish-content-types-round-trip.test.ts",
    "apps/website/src/features/publish-content/__tests__/planner.test.ts"
   ]
+ },
+ {
+  "id": "RH1",
+  "what": "an omitWhenAbsent field is packed as null instead of left out",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "(omittable.has(field) && (row as Record<string, unknown>)[field] === undefined)",
+  "replace": "(false)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH2",
+  "what": "schemaVersion defaults to 2",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "config.schemaVersion ?? 1",
+  "replace": "config.schemaVersion ?? 2",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH3",
+  "what": "requiredBlobs default is not empty",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "config.requiredBlobs?.(row) ?? []",
+  "replace": "config.requiredBlobs?.(row) ?? [\"x\"]",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH4",
+  "what": "displayLabel always present",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "...(displayLabel ? { displayLabel } : {}),",
+  "replace": "displayLabel,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH5",
+  "what": "legacyHashState gets the hashed fields instead of the packed ones",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "packedState: pick(row, packedFields) }) : pick(row, hashedFields)",
+  "replace": "packedState: pick(row, hashedFields) }) : pick(row, hashedFields)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH6",
+  "what": "portsKey default is not the entity type",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "config.portsKey ?? entityType",
+  "replace": "config.portsKey ?? \"ports\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH7",
+  "what": "unwired apply message reworded",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "requires ${what} — wire it",
+  "replace": "needs ${what} — wire it",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH8",
+  "what": "custom conflictError ignored",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "return config.conflictError?.({ message }) ?? new PublishContentApplyRowError({ rowOutcome: \"conflict\", message });",
+  "replace": "return new PublishContentApplyRowError({ rowOutcome: \"conflict\", message });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH9",
+  "what": "sourceReplacement always set on the write context",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "...(input.sourceReplacement ? { sourceReplacement: input.sourceReplacement } : {}),",
+  "replace": "sourceReplacement: input.sourceReplacement,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH10",
+  "what": "default change-set summary reworded",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "`Import ${entityType} '${entity.id}' via publish-content`",
+  "replace": "`Import ${entityType} ${entity.id}`",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH11",
+  "what": "rollback side effects run first-registered first",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "for (const sideEffect of rollbacks.reverse())",
+  "replace": "for (const sideEffect of rollbacks)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH12",
+  "what": "inverse not captured",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "return prior ? ({ ...prior } as unknown as JsonObject) : null;",
+  "replace": "return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH13",
+  "what": "gatewayDeps does not require the outbox",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (!changeSets || !authorize || !outbox) {\n    throw new Error(`publish-content: ${entityType}",
+  "replace": "if (!changeSets || !authorize) {\n    throw new Error(`publish-content: ${entityType}",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH14",
+  "what": "okOrThrow returns the value of a failed result",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (!result.ok) throw result.error;",
+  "replace": "if (false) throw result.error;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH15",
+  "what": "coversRoots dropped from the contributor",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "coversTables: config.coversTables, coversRoots: config.coversRoots }",
+  "replace": "coversTables: config.coversTables }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH16",
+  "what": "apply with undo does not refuse a missing outbox",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (!changeSets || !authorize || !outbox) throw unwired",
+  "replace": "if (!changeSets || !authorize) throw unwired",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.test.ts"
+  ]
+ },
+ {
+  "id": "RH17",
+  "what": "a conflict-class error maps to blocked",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (config.errors?.conflict?.some((cls) => err instanceof cls)) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
  }
 ]
