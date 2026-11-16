@@ -1364,7 +1364,7 @@
   "id": "P6a",
   "what": "file provisioning: changed grant list no longer written",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    await io.write({ path, contents: encoded.contents });\n",
+  "find": "  await io.write({ path, contents: encoded.contents });\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
@@ -1377,8 +1377,8 @@
   "id": "P6b",
   "what": "file provisioning: unchanged edit still writes the file",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    if (!next.changed) {",
-  "replace": "    if (false) {",
+  "find": "  if (!next.changed) {",
+  "replace": "  if (false) {",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
    "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
@@ -1390,7 +1390,7 @@
   "id": "P6c",
   "what": "file provisioning: read event no longer reported",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    if (current.ok) onEvent?.({ kind: \"read\", target, grants: current.grants.length });\n",
+  "find": "  if (current.ok) file.onEvent?.({ kind: \"read\", target: file.target, grants: current.grants.length });\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
@@ -1403,8 +1403,8 @@
   "id": "P6d",
   "what": "file provisioning: edit re-encoded into different file contents than were decoded",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    const encoded = codec.encode({\n      fileContents,",
-  "replace": "    const encoded = codec.encode({\n      fileContents: null,",
+  "find": "  const encoded = codec.encode({\n    fileContents,",
+  "replace": "  const encoded = codec.encode({\n    fileContents: null,",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
    "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
@@ -1416,8 +1416,8 @@
   "id": "P6e",
   "what": "file provisioning: an unparsable document no longer stops an edit",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    if (!current.ok) return current;\n\n    const next = edit(current.grants);",
-  "replace": "    const next = edit(current.ok ? current.grants : []);",
+  "find": "  if (!current.ok) return current;\n\n  const next = edit(current.grants);",
+  "replace": "  const next = edit(current.ok ? current.grants : []);",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
    "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
@@ -1429,7 +1429,7 @@
   "id": "P6f",
   "what": "file provisioning: parse error no longer reported as an event",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "      onEvent?.({ kind: \"error\", target, reason: parsed.reason });\n",
+  "find": "    file.onEvent?.({ kind: \"error\", target: file.target, reason: parsed.reason });\n",
   "replace": "",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
@@ -1442,8 +1442,8 @@
   "id": "P6g",
   "what": "file provisioning: the file is read a second time for the parse",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    const current = grantsIn({ fileContents });\n    if (!current.ok) return current;",
-  "replace": "    const current = grantsIn({ fileContents: await io.read({ path }) });\n    if (!current.ok) return current;",
+  "find": "  const current = grantsInFile({ file, fileContents });\n  if (!current.ok) return current;",
+  "replace": "  const current = grantsInFile({ file, fileContents: await io.read({ path }) });\n  if (!current.ok) return current;",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
    "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
@@ -1455,8 +1455,8 @@
   "id": "P6h",
   "what": "file provisioning: a codec encode failure no longer stops the write",
   "file": "apps/website/src/features/publish-trust/provisioning.ts",
-  "find": "    if (!encoded.ok) {\n      onEvent?.({ kind: \"error\", target, reason: encoded.reason });\n      return encoded;\n    }\n    await io.write({ path, contents: encoded.contents });",
-  "replace": "    await io.write({ path, contents: encoded.ok ? encoded.contents : \"\" });",
+  "find": "  if (!encoded.ok) {\n    onEvent?.({ kind: \"error\", target, reason: encoded.reason });\n    return encoded;\n  }\n  await io.write({ path, contents: encoded.contents });",
+  "replace": "  await io.write({ path, contents: encoded.ok ? encoded.contents : \"\" });",
   "tests": [
    "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
    "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",

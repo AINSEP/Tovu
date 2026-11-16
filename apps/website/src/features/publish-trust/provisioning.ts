@@ -514,56 +514,76 @@ export function createFileProvisioning(deps: {
 }): PublishTrustProvisioningPort {
   const { io, codec, path, onEvent } = deps;
   const target: ProvisioningTarget = { kind: codec.kind, path, nextStep: codec.nextStep };
-
-  const grantsIn = ({ fileContents }: { fileContents: string | null }, _optional = {}): ProvisionedRead => {
-    const parsed = parseGrantDocument({ text: codec.decode({ fileContents }) ?? "" });
-    if (!parsed.ok) {
-      onEvent?.({ kind: "error", target, reason: parsed.reason });
-      return { ok: false, reason: parsed.reason };
-    }
-    return { ok: true, grants: parsed.grants };
-  };
-
-  const readGrants = async (): Promise<ProvisionedRead> => {
-    const current = grantsIn({ fileContents: await io.read({ path }) });
-    if (current.ok) onEvent?.({ kind: "read", target, grants: current.grants.length });
-    return current;
-  };
-
-  const applyEdit = async ({ edit }: { edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit }, _optional = {}): Promise<ProvisioningWrite> => {
-    // One read, reused for both the parse and the re-encode: reading twice could decode one
-    // version of the file and write its edit back into another.
-    const fileContents = await io.read({ path });
-    const current = grantsIn({ fileContents });
-    if (!current.ok) return current;
-
-    const next = edit(current.grants);
-    if (!next.ok) {
-      onEvent?.({ kind: "error", target, reason: next.reason });
-      return next;
-    }
-    if (!next.changed) {
-      onEvent?.({ kind: "write", target, grants: next.grants.length, changed: false });
-      return { ok: true, grants: next.grants, changed: false, target };
-    }
-
-    const encoded = codec.encode({
-      fileContents,
-      document: serializeGrantDocument(next.grants, { pretty: codec.pretty }),
-    });
-    if (!encoded.ok) {
-      onEvent?.({ kind: "error", target, reason: encoded.reason });
-      return encoded;
-    }
-    await io.write({ path, contents: encoded.contents });
-    onEvent?.({ kind: "write", target, grants: next.grants.length, changed: true });
-    return { ok: true, grants: next.grants, changed: true, target };
-  };
+  const file: ProvisioningFile = { io, codec, path, target, onEvent };
 
   return {
     target,
-    readProvisioned: readGrants,
-    connect: ({ grant }) => applyEdit({ edit: (grants) => mergeGrant(grants, grant) }),
-    disconnect: ({ sourceInstallationId }) => applyEdit({ edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
+    readProvisioned: () => readProvisionedGrants({ file }),
+    connect: ({ grant }) => applyGrantEdit({ file, edit: (grants) => mergeGrant(grants, grant) }),
+    disconnect: ({ sourceInstallationId }) => applyGrantEdit({ file, edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
   };
+}
+
+/** The one config file a provisioning port works on. Every field is fixed when the port is built,
+ *  so the functions below read nothing that can change between two calls on the same port. */
+interface ProvisioningFile {
+  readonly io: ProvisioningFileIo;
+  readonly codec: ProvisioningCodec;
+  readonly path: string;
+  readonly target: ProvisioningTarget;
+  readonly onEvent?: (event: ProvisioningEvent) => void;
+}
+
+/** Decodes and parses the grant document out of the file's text; a parse failure is reported as an
+ *  event and returned, never thrown. @complexity O(n) in the document length. */
+function grantsInFile({ file, fileContents }: { file: ProvisioningFile; fileContents: string | null }, _optional = {}): ProvisionedRead {
+  const parsed = parseGrantDocument({ text: file.codec.decode({ fileContents }) ?? "" });
+  if (!parsed.ok) {
+    file.onEvent?.({ kind: "error", target: file.target, reason: parsed.reason });
+    return { ok: false, reason: parsed.reason };
+  }
+  return { ok: true, grants: parsed.grants };
+}
+
+/** Reads the provisioned grants and reports the read. @complexity One file read, O(n) parse. */
+async function readProvisionedGrants({ file }: { file: ProvisioningFile }, _optional = {}): Promise<ProvisionedRead> {
+  const current = grantsInFile({ file, fileContents: await file.io.read({ path: file.path }) });
+  if (current.ok) file.onEvent?.({ kind: "read", target: file.target, grants: current.grants.length });
+  return current;
+}
+
+/** Applies one edit to the grant list: read, decode, parse, edit, encode, write. An edit that
+ *  changes nothing writes nothing. @complexity One file read and at most one write. */
+async function applyGrantEdit({ file, edit }: {
+  file: ProvisioningFile;
+  edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit;
+}, _optional = {}): Promise<ProvisioningWrite> {
+  const { io, codec, path, target, onEvent } = file;
+  // One read, reused for both the parse and the re-encode: reading twice could decode one
+  // version of the file and write its edit back into another.
+  const fileContents = await io.read({ path });
+  const current = grantsInFile({ file, fileContents });
+  if (!current.ok) return current;
+
+  const next = edit(current.grants);
+  if (!next.ok) {
+    onEvent?.({ kind: "error", target, reason: next.reason });
+    return next;
+  }
+  if (!next.changed) {
+    onEvent?.({ kind: "write", target, grants: next.grants.length, changed: false });
+    return { ok: true, grants: next.grants, changed: false, target };
+  }
+
+  const encoded = codec.encode({
+    fileContents,
+    document: serializeGrantDocument(next.grants, { pretty: codec.pretty }),
+  });
+  if (!encoded.ok) {
+    onEvent?.({ kind: "error", target, reason: encoded.reason });
+    return encoded;
+  }
+  await io.write({ path, contents: encoded.contents });
+  onEvent?.({ kind: "write", target, grants: next.grants.length, changed: true });
+  return { ok: true, grants: next.grants, changed: true, target };
 }
