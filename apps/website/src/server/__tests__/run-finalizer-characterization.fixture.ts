@@ -47,8 +47,9 @@ export async function until(check: () => boolean, label: string): Promise<void> 
 /** An events stream the test feeds frame by frame and closes from the daemon side. */
 export function liveStream() {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
-  const body = new ReadableStream<Uint8Array>({ start(started) { controller = started; } });
   let open = true;
+  // A reader that cancels (an aborted watch) closes the stream too; `close` is then a no-op.
+  const body = new ReadableStream<Uint8Array>({ start(started) { controller = started; }, cancel() { open = false; } });
   return {
     response: new Response(body, { status: 200 }),
     push: (...frames: string[]) => { controller.enqueue(encoder.encode(frames.join(""))); },
