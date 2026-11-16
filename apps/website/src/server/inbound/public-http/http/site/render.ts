@@ -58,6 +58,7 @@ import { renderWidgetContactForm } from "./render/contact-form-widget.js";
 import { mediaPlaceholder } from "./render/media-placeholder.js";
 import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
+import { isPlausibleMediaRefId, plausibleMediaRefId } from "./render/doc/media-ref.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -110,24 +111,6 @@ const EMPTY_MEDIA_ASSET_METADATA: ReadonlyMap<string, MediaAssetRenderMeta> = ne
  * "optional, defaults to empty, degrades to no block" convention as {@link EMPTY_MEDIA_ASSET_METADATA}
  * immediately above. */
 const EMPTY_ASSIGNED_TERMS: readonly AssignedTermView[] = [];
-
-/** `assetId`/`transformName` become `/m/` URL path segments (`media-rendition.ts`), so — same
- * discipline `html-embeds.ts`'s `MAX_EMBED_ID_LENGTH` applies to its own author-supplied ids —
- * shape is checked before either value is trusted into a path: non-empty, bounded, and free of
- * `/`/whitespace so an author-authored ref can never smuggle an extra path segment. An id that
- * fails this is treated exactly like a name absent from `mediaTransformVersions`: safe
- * placeholder degrade, never a malformed URL. */
-const MAX_MEDIA_REF_ID_LENGTH = 200;
-const PLAUSIBLE_MEDIA_REF_ID_PATTERN = /^[^\s/]+$/;
-
-function isPlausibleMediaRefId({ value }: { value: string }, _optional = {}): boolean {
-  return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
-}
-
-/** `value` when it is a string passing {@link isPlausibleMediaRefId}; `undefined` otherwise. */
-function plausibleMediaRefId({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
-  return typeof value === "string" && isPlausibleMediaRefId({ value }) ? value : undefined;
-}
 
 /**
  * Render-time recursion bound (worklist #5, TM-TOVU-2026-08-12-A request-cost audit) — same
