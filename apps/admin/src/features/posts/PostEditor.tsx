@@ -290,9 +290,3 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     </div>
   );
 }
-
-  // ONE control for both directions, in the same place either way — the way out of the expanded
-  // panel must always be visible on screen (the earlier overlay attempt died on an operator who
-  // could not find it). The glyph is `aria-hidden`, so `aria-label` is the ONLY thing telling a
-  // screen reader or `page.find_elements` which way this goes; keep the two names distinct.
-
