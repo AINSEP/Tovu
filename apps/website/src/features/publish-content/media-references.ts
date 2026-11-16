@@ -43,9 +43,9 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function addUrlKeys({ text, out }: { text: string; out: Set<string> }, _optional = {}): void {
   for (const match of text.matchAll(MEDIA_URL_PATTERN)) {
     try {
-      out.add(decodeURIComponent(match[1]));
+      out.add(decodeURIComponent(match[1]!));
     } catch {
-      out.add(match[1]); // a malformed %-escape: keep the raw segment rather than throw
+      out.add(match[1]!); // a malformed %-escape: keep the raw segment rather than throw
     }
   }
 }

@@ -550,6 +550,14 @@ function selectThemeReadContent(
     returned: { startLine: selection.startLine, endLine: end } };
 }
 
+/** Whether the byte at `index` sits inside a UTF-8 character rather than starting one. An index at
+ * the very end of the text has no byte: that is a boundary, so the answer is no.
+ * @complexity O(1). */
+function isUtf8ContinuationByte({ bytes, index }: { bytes: Buffer; index: number }, _options = {}): boolean {
+  const byte = bytes[index];
+  return byte !== undefined && (byte & 0xc0) === 0x80;
+}
+
 /** Bound theme read results even when one CSS line fills the whole file. Uses library_read's
  * offset/nextOffset UTF-8 byte convention, retaining whole characters and the small-read shape.
  * @param required.content Selected theme text; offset is validated by the tool boundary.
@@ -559,12 +567,12 @@ function selectThemeReadContent(
 function pageThemeReadContent({ content, offset }: { content: string; offset: number | undefined }, _options = {}) {
   const bytes = Buffer.from(content, "utf8");
   const start = offset ?? 0;
-  if (start > bytes.length || (bytes[start] & 0xc0) === 0x80) {
+  if (start > bytes.length || isUtf8ContinuationByte({ bytes, index: start })) {
     throw new ToolInputError({ message: "theme_read_file: offset must be a UTF-8 boundary within the selected text. Use the preceding nextOffset and keep the line selection unchanged." });
   }
   if (offset === undefined && bytes.length <= 4000) return { content };
   let end = Math.min(bytes.length, start + 4000);
-  while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
+  while (end < bytes.length && isUtf8ContinuationByte({ bytes, index: end })) end--;
   const truncated = end < bytes.length;
   return { content: bytes.subarray(start, end).toString("utf8"), offset: start,
     nextOffset: truncated ? end : null, totalBytes: bytes.length, truncated };

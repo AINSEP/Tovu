@@ -43,14 +43,15 @@ export async function prepareArchiveExtensions(required: { sources: SiteBackupSo
 function isSupersededBundledRevision(required: { file: PlannedDiskFile; selected: ReadonlyMap<string, string> }): boolean {
   const revision = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/package\/sha256\/([a-f0-9]{64})\//.exec(required.file.path);
   if (!revision) return false;
-  const selected = required.selected.get(revision[1]);
+  const selected = required.selected.get(revision[1]!);
   return selected !== undefined && selected !== revision[2];
 }
 
 async function includeThemeOriginals(required: { sources: SiteBackupSources; files: PlannedDiskFile[]; notices: string[] }, optional: { packageThemesRoot?: string }): Promise<void> {
   const themes = required.files.filter(file => /^themes\/(static|declarative|code)\/[^/]+\/theme.json$/.test(file.path));
   for (const file of themes) {
-    const [, tier, id] = file.path.split("/");
+    // The filter above kept only `themes/<tier>/<id>/theme.json`, so both segments exist.
+    const [, tier, id] = file.path.split("/") as [string, string, string];
     const originalPrefix = `themes/__original-themes__/${tier}/${id}/`;
     if (required.files.some(file => file.path.startsWith(originalPrefix))) continue;
     const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
@@ -101,7 +102,8 @@ async function unindexedAgentRecords(required: { files: readonly PlannedDiskFile
   for (const file of required.files) {
     const match = /^agent-plugins\/ws\/[^/]+\/([^/]+)\/package\/sha256\/([a-f0-9]{64})\//.exec(file.path);
     if (!match) continue;
-    const [, id, digest] = match;
+    const id = match[1]!;
+    const digest = match[2]!;
     const previous = known.get(id);
     if (previous && previous !== digest) throw new SiteShareRefusal({ code: "UNSUPPORTED_PLUGIN", message: `Plugin '${id}' has multiple installed digests.` });
     if (!previous) {

@@ -53,7 +53,7 @@ function isMediaNode(node: Record<string, unknown>): node is Record<string, unkn
 function pushReversed<T, U>({ stack, items, wrap }: { stack: U[]; items: readonly T[]; wrap: (item: T) => U }, _optional: Record<string, never> = {}): void {
   for (let i = items.length - 1; i >= 0; i--) {
     if (!(i in items)) throw new Error("Cover image traversal has a missing item");
-    stack.push(wrap(items[i]));
+    stack.push(wrap(items[i] as T)); // as T: the `in` check above proved this slot is filled
   }
 }
 

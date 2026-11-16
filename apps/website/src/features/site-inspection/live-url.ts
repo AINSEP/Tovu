@@ -98,7 +98,7 @@ function redirectTarget({ location, current, origin }: { location: string; curre
   catch { throw new ToolInputError({ message: "fetch_live_url: the live site returned an invalid redirect address. Check the hosting service before retrying." }); }
   if (next.origin !== origin) return null;
   if (next.username || next.password) throw new ToolInputError({ message: "fetch_live_url: redirects with embedded credentials are refused." });
-  const rawPath = location.replace(/^(?:[a-z][a-z0-9+.-]*:)?\/\/[^/?#]*/i, "").split("#")[0];
+  const rawPath = location.replace(/^(?:[a-z][a-z0-9+.-]*:)?\/\/[^/?#]*/i, "").split("#")[0]!; // split always returns a first piece
   resolveLivePath({ path: rawPath.startsWith("/") ? rawPath : "/" + rawPath, origin });
   resolveLivePath({ path: next.pathname + next.search, origin });
   next.hash = "";

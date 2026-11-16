@@ -670,7 +670,8 @@ function publishConnectionFromPayload({ providerId, spec, summary, payload }: {
 }, _options = {}): PublishConnectionInput {
   if (!payload) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   const { vendorId: _vendorId, ...fields } = payload as Record<string, string>;
-  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token } : { ...fields, providerId };
+  // A custom payload with no token becomes the blank token the check below refuses.
+  const connection = summary.meta.credentialType === "custom" ? { providerId, [spec.tokenField]: fields.token ?? "" } : { ...fields, providerId };
   const token = connection[spec.tokenField];
   if (typeof token !== "string" || !token.trim()) throw new PublishCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   return connection;
