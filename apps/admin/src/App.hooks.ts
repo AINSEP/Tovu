@@ -2,6 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
+import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, createFrontendRequestCaller, createFrontendNavigationGuard, type FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -104,31 +105,17 @@ export function useAdminSession(_required: Record<string, never> = {}, {
   sessionApi = api, location = window.location, history = window.history,
   subscribeUnauthenticated = onUnauthenticated,
   subscribeSettingsChanges = subscribeToSettingsChanges,
-}: {
-  sessionApi?: Pick<typeof api, "me" | "redeemBootSession" | "signInLocalOwner" | "logout">;
-  location?: Pick<Location, "hostname" | "hash" | "pathname" | "search">;
-  history?: Pick<History, "replaceState">;
-  subscribeUnauthenticated?: typeof onUnauthenticated;
-  subscribeSettingsChanges?: typeof subscribeToSettingsChanges;
-} = {}): UseAdminSession {
+}: AdminSessionOptions = {}): UseAdminSession {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [effectivePermissions, setEffectivePermissions] = useState<readonly string[] | undefined>(undefined);
   // Ignore a previous session read after logout/relogin; grants must never cross identities.
   const sessionEpoch = useRef(0);
   // Retain the initial read across Strict Mode's effect replay: one bootstrap per page load.
-  const initialSession = useRef<Promise<Awaited<ReturnType<typeof api.me>>> | null>(null);
+  const initialSession = useRef<Promise<MeResponse> | null>(null);
   const initialReadPending = useRef(true);
-
-  function acceptSession(r: Awaited<ReturnType<typeof api.me>>) {
-    setPublishToLiveAvailable({ next: readPublishToLiveAvailability(r) });
-    if (getAdminDraftIdentity() !== r.user.id) adminFailureChannel.reset();
-    setAdminDraftIdentity({ id: r.user.id });
-    setUser(r.user);
-    // No `?? []`: an absent field stays "not known", so the nav filter shows everything instead
-    // of hiding every gated section (see `UseAdminSession.effectivePermissions`).
-    setEffectivePermissions(r.effectivePermissions);
-  }
+  const refs = { sessionEpoch, initialReadPending };
+  const setters = { setUser, setEffectivePermissions, setChecking };
 
   useEffect(() => {
     // The zip launcher's one-time sign-in link (run-from-zip plan S2): `#boot=<token>`. Read and
@@ -137,19 +124,12 @@ export function useAdminSession(_required: Record<string, never> = {}, {
     // case for other launch paths) checks the current session, then tries guarded local bootstrap.
     sessionEpoch.current += 1;
     const readEpoch = sessionEpoch.current;
-    if (initialSession.current === null) {
-      const bootToken = takeBootToken(location, history);
-      if (bootToken) {
-        initialSession.current = sessionApi.redeemBootSession({ token: bootToken }).catch((error: unknown) => { console.error("[admin] Could not redeem the boot session", describeErrorForLog({ err: error })); }).then(() => sessionApi.me());
-      } else {
-        initialSession.current = readInitialAdminSession({ hostname: location.hostname, port: sessionApi }, { onLocalSignIn: publishSettingsRefresh });
-      }
-    }
+    const initial = ensureInitialSession({ initialSession, sessionApi, location, history });
 
-    initialSession.current
+    initial
       .then((r) => {
         if (sessionEpoch.current !== readEpoch) return;
-        acceptSession(r);
+        acceptSession({ r, setUser, setEffectivePermissions });
       })
       .catch(() => { if (sessionEpoch.current === readEpoch) { setUser(null); setEffectivePermissions([]); } })
       .finally(() => {
@@ -170,17 +150,7 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * fixes, 2026-08-17 — see `onUnauthenticated`'s own doc comment in `lib/api.ts`).
    */
   useEffect(() => {
-    const unsubscribe = subscribeUnauthenticated(() => {
-      // The initial reader handles its own 401. Later 401s must never retry local bootstrap:
-      // login's settings readers also run unauthenticated when that endpoint is disabled.
-      if (initialReadPending.current) return;
-      adminFailureChannel.reset();
-      sessionEpoch.current++;
-      setAdminDraftIdentity({ id: null });
-      setUser(null);
-      setEffectivePermissions([]);
-      setChecking(false);
-    });
+    const unsubscribe = subscribeUnauthenticated(() => handleSessionUnauthenticated({ refs, setters }));
     // Invalidate outstanding identity/permission reads when the shell unmounts.
     return () => { sessionEpoch.current++; unsubscribe(); };
   }, []);
@@ -218,40 +188,11 @@ export function useAdminSession(_required: Record<string, never> = {}, {
    * feed above on `user`; this is the read side of it.
    */
   function handleLogin(next: AdminUser) {
-    adminFailureChannel.reset();
-    initialReadPending.current = false;
-    sessionEpoch.current += 1;
-    const readEpoch = sessionEpoch.current;
-    setAdminDraftIdentity({ id: next.id });
-    setUser(next);
-    // "Not known yet" rather than `[]` until the `/auth/me` below answers, so a fresh sign-in does
-    // not flash an emptied nav or a no-access screen at an operator who has access.
-    setEffectivePermissions(undefined);
-    publishSettingsRefresh();
-    // A fresh sign-in skipped the boot effect's `/auth/me`, which is what says whether this is the
-    // live site (`publish-availability.store.ts`); a failed read leaves the default in place.
-    sessionApi
-      .me()
-      .then((r) => {
-        if (sessionEpoch.current !== readEpoch) return;
-        setPublishToLiveAvailable({ next: readPublishToLiveAvailability(r) });
-        setEffectivePermissions(r.effectivePermissions);
-      })
-      .catch((error: unknown) => console.error("[admin] Could not refresh the signed-in session", describeErrorForLog({ err: error })));
+    signInSession({ next, sessionApi, refs, setters });
   }
 
   async function logout() {
-    adminFailureChannel.reset();
-    // Late 401s from unmounting screens must not undo an explicit sign-out in this tab.
-    initialReadPending.current = false;
-    sessionEpoch.current++;
-    setChecking(false);
-    setEffectivePermissions([]);
-    await sessionApi.logout().catch((error: unknown) => console.error("[admin] Could not end the server session", describeErrorForLog({ err: error })));
-    setAdminDraftIdentity({ id: null });
-    adminFailureChannel.reset();
-    setUser(null);
-    setEffectivePermissions([]);
+    await signOutSession({ sessionApi, refs, setters });
   }
 
   return { user, checking, handleLogin, logout, effectivePermissions };

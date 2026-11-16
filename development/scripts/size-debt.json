@@ -3,17 +3,10 @@
   "violations": [
     {
       "file": "apps/admin/src/App.hooks.ts",
-      "function": "useAdminSession#1",
-      "line": 103,
-      "rule": "max-lines-per-function",
-      "value": 96
-    },
-    {
-      "file": "apps/admin/src/App.hooks.ts",
       "function": "<file>",
-      "line": 1141,
+      "line": 1177,
       "rule": "max-lines",
-      "value": 562
+      "value": 513
     },
     {
       "file": "apps/admin/src/App.tsx",
