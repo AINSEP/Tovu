@@ -3,7 +3,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Kysely, Selectable, Updateable } from "kysely";
 
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
-import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
+import { assertEntityLive } from "@jini-ai/cms/core";
+import { type OutboxPort } from "@jini-ai/core/contracts/events";
 
 import type { ContentDatabase, PostsTable } from "../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";

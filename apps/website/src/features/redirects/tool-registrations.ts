@@ -14,7 +14,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * here rather than inside the domain function).
  */
 import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalOneOf, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";

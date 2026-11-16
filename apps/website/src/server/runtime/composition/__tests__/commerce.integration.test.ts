@@ -8,7 +8,7 @@ import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
-import { listTables, type StorageKernel } from '@jini-ai/db/kernel';
+import { listTables, type KyselyKernel } from '@jini-ai/db/kernel';
 import { commercePriceRepoFor, commerceProductRepoFor } from '@jini-ai/commerce/repo';
 import { sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { leasedProviderItem, paymentsProviderContract, type LoadedProviderItem } from '@jini-ai/commerce/payments/kernel';
@@ -60,7 +60,7 @@ async function eventually<T>(read: () => Promise<T>, accepts: (value: T) => bool
 async function fixture(t: test.TestContext, dialect: 'sqlite' | 'pglite') {
   const root = await mkdtemp(path.join(os.tmpdir(), `commerce-compose-${dialect}-`));
   const { host, item } = await provider();
-  let kernel: StorageKernel<unknown> | undefined, current: Runtime | undefined;
+  let kernel: KyselyKernel<unknown> | undefined, current: Runtime | undefined;
   t.after(async () => {
     try { await current?.close(); await kernel?.close(); await host.dispose({}); }
     finally { await rm(root, { recursive: true, force: true }); }

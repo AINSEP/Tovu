@@ -11,7 +11,7 @@ import type {
   ChangeSetRepoPort,
   ChangeSetStatus,
   ChangeSetWithItems,
-} from "@jini-ai/cms/core";
+} from "@jini-ai/core/contracts/events";
 
 /**
  * @file SPEC-023 / ADR-046 Phase 1 — THE `ChangeSetRepoPort` adapter: one Kysely query body for every

@@ -67,7 +67,7 @@ import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { loadSiteVaultKinds, normalizeSiteVaultAtBoot } from "./vault-boot.js";
 import { composeAgentPluginConnections, sharedApiConnectionOptions, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { createPeerSiteReads } from "./peer-site-reads.js";
 
 import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
@@ -1943,12 +1943,12 @@ async function composeSiteRouteDeps(
   // its exact objects). See `provider-plugins.ts`.
   // Saved provider settings: the project store when one is open, else sealed plugin-state rows in this
   // site's vault (see provider-config-source.ts and project-store.ts).
-  const siteReferenceRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const siteReferenceRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const projectKeyReferences = createSiteKeyReferences({ workspaceId, repo: siteReferenceRepo,
     vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) });
   const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ overrides, runtimeMode, onStoreClose, binding: resolvedSiteBinding, references: projectKeyReferences,
     site: createVaultProviderConfigSource({ workspaceId, scope: "site", state: createAgentPluginStateStore({ workspaceId,
-      vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
+      vault: createApiConnectionVault({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) }) }) });
   const providerConfigSource = withProviderSettingsMigrations({ source: savedProviderConfig, providers: async ({ pluginId }) =>
     (await pluginRuntime.discoverPlugins()).find(record => record.id === pluginId)?.manifest?.contributes?.providers ?? [] });
   // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
@@ -2005,7 +2005,7 @@ async function composeSiteRouteDeps(
   onStoreClose({ registration: watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
     pluginIdOf: providerPluginOf,
     reapply: input => providerPlugins.reapply(input) }, {
-    readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
+    readSite: () => siteProviderRevisions({ kernel: kernel as unknown as KyselyKernel<unknown>, workspaceId }),
   }) });
   const { observability, tracker, aiTraceSink } = providerPlugins;
   formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});
@@ -2227,7 +2227,7 @@ async function composeSiteRouteDeps(
   // connection port and one sealed vault (kind `api-connection`, migration 0020).
   const agentPluginConnections = composeAgentPluginConnections({
     workspaceId, loadContributions: agentPluginLifecycle.loadPluginContributions,
-    vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }),
+    vaultRepo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }),
     keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, customCredentialRepo: customCredentialSetRepo, clock, http: guardedOutboundHttpClient,
     env: process.env, derivedPublicOrigin,
   }, {
@@ -2931,7 +2931,7 @@ async function composeSiteRouteDeps(
   /** Assemble the commerce runtime with this process's existing site and worker ownership.
    * @complexity O(1) composition; the commerce service owns subsequent bounded work. */
   function compositionCommerce() {
-    return composeCommerce({ kernel: kernel as unknown as StorageKernel<unknown>,
+    return composeCommerce({ kernel: kernel as unknown as KyselyKernel<unknown>,
       workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root,
       workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
       settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,

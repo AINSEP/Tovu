@@ -1,4 +1,4 @@
-import type { EventBusPort } from "@jini-ai/cms/core";
+import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { submissionEvidenceDefinition, createFormDeliverySubscriptions, planFormDeliveries, type FormDefinitionRepoPort, type FormDeliveryJob, type FormDeliveryPlan,
   type FormDeliveryPlanPort, type FormDeliveryResult, type FormDeliverySnapshot, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";

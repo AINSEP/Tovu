@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 import type { SecretSealerPort } from "../features/webhooks/index.js";
 

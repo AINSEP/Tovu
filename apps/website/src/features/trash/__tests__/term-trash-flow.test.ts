@@ -2,7 +2,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import * as schema from "#src/platform/db/schema.sqlite";
 import {

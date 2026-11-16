@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
-import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import type { SqliteSyncOpener } from "@jini-ai/core/contracts/storage";
 import { DatabaseDiskSpaceError, pruneDatabaseCopies } from "@jini-ai/db/sqlite";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";

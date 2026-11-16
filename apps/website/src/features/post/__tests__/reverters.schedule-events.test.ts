@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type {
+  ChangeSetItemRecord,
+  ChangeSetRecord,
+  DomainEvent,
+  OutboxPort,
+} from "@jini-ai/core/contracts/events";
 import { revertChangeSet } from "#src/contracts/core/commands/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/repo.memory";
 import { announceDueGoLives } from "../go-live.js";

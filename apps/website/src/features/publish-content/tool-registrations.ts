@@ -51,7 +51,7 @@ import { selectConnectedDestination, type PublishContentPeerRecord, type Publish
 import { PUBLISH_CONTENT_APPLY_PERMISSION, PUBLISH_CONTENT_READ_PERMISSION } from "./permissions.js";
 import { describePublishReadiness, siteLabelFor, type PublishReadiness } from "./publish-readiness.js";
 import type { BeforeSaveHookPort } from "#src/features/post/index";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { publishContentFromTool } from "./publish-tool.js";
 import type { CompositeBlobStoreRead } from "./composite-blob-source.js";

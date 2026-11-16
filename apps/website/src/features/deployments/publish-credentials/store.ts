@@ -2,8 +2,8 @@ import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, n
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { ProjectKeyCreateConflictError } from "../../project-keys/create-vault.js";
-import { isUniqueViolation } from "@jini-ai/db/kernel";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import { VaultError, matchingCredentialProviderIds, selectCredentialForProvider, normalizeCredentialWorksFor, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
@@ -588,7 +588,7 @@ export async function findPublishCredentialRecord(deps: { repo: Pick<VendorCrede
  *  A project row is removed only when no other site uses it; its attachments are removed with it. */
 export async function deletePublishCredential(deps: {
   repo: Pick<VendorCredentialSetRepoPort, "delete" | "findById" | "project">;
-  transaction?: Pick<StorageKernel<unknown>, "transaction">;
+  transaction?: Pick<KyselyKernel<unknown>, "transaction">;
 }, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   const owner = await ownerOf(deps.repo, input);
   await owner.repo.delete({ workspaceId: owner.workspaceId, id: input.id });

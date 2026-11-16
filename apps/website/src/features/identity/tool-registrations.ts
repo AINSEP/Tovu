@@ -30,7 +30,7 @@ import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createUsernameChangePort } from "./username-change-ports.js";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 
 export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps };

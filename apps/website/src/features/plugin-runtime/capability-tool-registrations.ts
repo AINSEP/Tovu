@@ -4,7 +4,7 @@ import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import type { DerivedRiskByToolId } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";

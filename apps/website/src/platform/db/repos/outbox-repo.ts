@@ -4,7 +4,7 @@ import type { ContentKernel } from "../content-kernel.js";
 import type { OutboxEventsTable } from "../content-database.generated.js";
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/index";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/core/contracts/events";
 
 /**
  * @file THE `OutboxPort` adapter over `outbox_events` (ADR-046 Phase 1): one Kysely query body for

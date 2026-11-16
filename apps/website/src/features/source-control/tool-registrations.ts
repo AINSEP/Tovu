@@ -13,7 +13,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 // than redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";

@@ -5,9 +5,8 @@ import {
   DuplicateCommandError,
   ForbiddenError,
   executeCommand,
-  type AuthorizeFn,
-  type CommandMutation,
 } from "@jini-ai/cms/core";
+import { type AuthorizeFn, type CommandMutation } from "@jini-ai/core/contracts/events";
 import { InMemoryChangeSetRepo } from "../repo.memory.js";
 
 /**

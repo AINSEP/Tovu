@@ -13,7 +13,7 @@
  * cursor discloses nothing its rows did not.
  */
 import { ToolInputError } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   MAIL_ACTIVITY_OUTCOMES, MAIL_ACTIVITY_USES, type MailActivityFilter, type MailActivityPosition, type MailActivityRecord, type MailActivityRepo, type MailFeedbackRecord,
 } from "../mail/activity.repo.js";

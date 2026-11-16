@@ -1,7 +1,7 @@
 import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PrincipalRecord } from "@jini-ai/user-management";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "../dev-auth.js";

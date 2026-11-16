@@ -1,4 +1,4 @@
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { toEnqueueOnlyOutbox as jiniEnqueueOnlyOutbox } from "@jini-ai/infra/events/outbox";
 import { toCmsOutbox, toJiniOutbox } from "./jini-outbox-adapter.js";
 

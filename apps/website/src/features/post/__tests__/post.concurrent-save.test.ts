@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { PostNotFoundError, PostVersionConflictError, updatePost, type PostRecord, type UpdatePostInput } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";

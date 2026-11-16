@@ -1,6 +1,6 @@
 import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 // `#src/*` maps to `./src/*.ts` (package.json `imports`), so the subpath carries no `.js`
 // suffix — unlike a relative specifier, which does. `#src/assistant/mcp-services` below is the same shape.

@@ -1,7 +1,7 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { outboxEventValues } from "../../platform/db/repos/outbox-repo.js";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "./user-purge-types.js";
 
 /**

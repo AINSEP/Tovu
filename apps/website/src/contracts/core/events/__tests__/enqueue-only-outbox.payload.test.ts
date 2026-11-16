@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { DomainEvent } from '@jini-ai/cms/core';
+import type { DomainEvent } from '@jini-ai/core/contracts/events';
 
 import { toEnqueueOnlyOutbox } from '../enqueue-only-outbox.js';
 import { InMemoryEventBus, InMemoryOutbox } from '../memory-bus.js';

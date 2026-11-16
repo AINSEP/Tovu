@@ -1,5 +1,6 @@
 import { DEFAULT_MAX_BATCH_ITEMS, requireInputRecord, requireString, ToolInputError, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { findMediaByIdOrSlug, type MediaRepoPort } from "@jini-ai/cms/media";
 import { PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";

@@ -3,7 +3,13 @@ import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission, type AuthorizeFn, type ChangeSetRecord, type OutboxPort } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import {
+  type AuthorizeFn,
+  type ChangeSetRecord,
+  type OutboxPort,
+  type ChangeSetRepoPort,
+} from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
 import {
@@ -12,7 +18,6 @@ import {
   RevertConflictError,
   RevertNotPossibleError,
   revertChangeSet,
-  type ChangeSetRepoPort,
   type RevertRegistry,
 } from "#src/contracts/core/commands/index";
 

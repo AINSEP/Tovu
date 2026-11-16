@@ -4,7 +4,7 @@ import { isAutomaticPostSlug, derivePostSlugBase, MAX_SLUG_LENGTH, DERIVED_SLUG_
 import { isDeepStrictEqual } from "node:util";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, JsonObject, UUID } from "@jini-ai/core/primitives";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";

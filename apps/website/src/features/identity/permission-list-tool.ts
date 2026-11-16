@@ -1,7 +1,8 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import type { PolicyRepoPort, PolicyPermissionRepoPort } from "@jini-ai/user-management";
 

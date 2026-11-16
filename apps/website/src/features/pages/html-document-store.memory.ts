@@ -2,7 +2,8 @@ import type { PagesHtmlDocumentStoreDeps } from "./html-document-store.js";
 import type { PluginEmbedDiagnostic } from "../agent-plugins/exports/diagnostics.js";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { type Clock as ClockPort } from "@jini-ai/core/primitives";
-import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
+import { assertEntityLive } from "@jini-ai/cms/core";
+import { type OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.

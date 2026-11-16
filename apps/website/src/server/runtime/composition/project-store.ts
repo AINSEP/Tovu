@@ -8,7 +8,7 @@ import fs from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 
@@ -235,7 +235,7 @@ export async function openProjectStore(
   const db = openProjectDb({ dbPath });
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
   try {
-    await migrateProjectDatabase(kernel as unknown as StorageKernel<unknown>);
+    await migrateProjectDatabase(kernel as unknown as KyselyKernel<unknown>);
   } catch (error) {
     closeSqliteConnection(db);
     throw error;
@@ -265,6 +265,6 @@ export async function openProjectStore(
     },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
-    attachments: createKeyAttachments({ kernel: kernel as unknown as StorageKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection(db) };
+    attachments: createKeyAttachments({ kernel: kernel as unknown as KyselyKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection(db) };
   return store;
 }

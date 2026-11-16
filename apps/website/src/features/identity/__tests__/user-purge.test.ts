@@ -10,7 +10,7 @@ import type { ContentDatabase } from "#src/platform/db/content-database.generate
 import type { SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 /**
  * @file RED-first coverage for `UserPurgePort`'s two adapters (delete-user plan Slice 1): seed the

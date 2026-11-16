@@ -5,7 +5,7 @@ import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailProviderControl, MailProviderConfigurationReport } from "../../platform/mail/index.js";
 import { mailProviderAgentToolCatalog } from "./provider-agent-tools.js";
 import { MailProviderOperationError, planMailProviderCredential, readMailProviderConfigurations, type MailProviderCredentialPlan } from "./provider-operations.js";

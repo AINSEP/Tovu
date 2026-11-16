@@ -5,13 +5,15 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import { updatePost, InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
 import {
   executeCommand,
+} from "@jini-ai/cms/core";
+import {
   type ChangeSetItemRecord,
   type ChangeSetRecord,
   type ChangeSetRepoPort,
   type ChangeSetWithItems,
   type CommandMutation,
   type DomainEvent,
-} from "@jini-ai/cms/core";
+} from "@jini-ai/core/contracts/events";
 import { InMemoryChangeSetRepo } from "../repo.memory.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 

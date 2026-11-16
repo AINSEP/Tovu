@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { ChangeSetItemRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { copyBodyJsonWithFreshEmbedPlacements } from "../duplicate-embeds.js";

@@ -1,4 +1,4 @@
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 /** Theme editors need the preview channel even when they cannot read administrative settings. */
 export async function authorizeChangeFeed(

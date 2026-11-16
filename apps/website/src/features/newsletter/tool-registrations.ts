@@ -13,7 +13,12 @@ import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-error
  * locates it.
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, type EventBusPort, type OutboxPort, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import {
+  type AuthorizeFn,
+  type EventBusPort,
+  type OutboxPort,
+} from "@jini-ai/core/contracts/events";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { ToolContributor } from "@jini-ai/core";

@@ -1,4 +1,4 @@
-import type { ChangeSetItemRecord, ChangeSetRecord } from "#src/contracts/core/commands/index";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 import { toChangeSetView } from "#src/features/change-sets/tool-registrations";
 
 /**

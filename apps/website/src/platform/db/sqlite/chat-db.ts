@@ -1,5 +1,5 @@
 import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
-import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import type { SqliteSyncOpener } from "@jini-ai/core/contracts/storage";
 import { openNativeSqlite } from "../kernel/drivers/sqlite.js";
 
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";

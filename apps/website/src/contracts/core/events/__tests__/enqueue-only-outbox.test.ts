@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox, toEnqueueOnlyOutbox } from "../index.js";
 

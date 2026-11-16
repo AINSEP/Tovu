@@ -3,7 +3,7 @@ import { createMfaStore } from "./mfa.repo.js";
 import type { MfaStore, PasskeyStore, RecoveryCodeStore } from "@jini-ai/user-management/server";
 import { createRecoveryCodeStore } from "./recovery-codes.repo.js";
 // Shared identity boundaries: Jini/packages/user-management/src/core/index.ts and Jini/packages/user-management/src/server/index.ts.
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";

@@ -14,7 +14,7 @@ import { defineSecretCardTool, type SecretCardField, type SecretCardRun } from '
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { SourceControlCredentialDuplicateLabelError, createSourceControlCredential, type SourceControlCredentialWriteDeps } from './store.js';
 import type { LoadSourceControlProviders, SourceControlProviderDescriptor } from './provider-registry.js';
-import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 
 /** Narrow save dependencies; independent of the registration module to avoid a type-import cycle.
  * `loadSourceControlProviders` is required: the composition root (`tool-registrations.ts`) resolves the

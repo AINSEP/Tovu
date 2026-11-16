@@ -25,8 +25,8 @@ import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { RemoveEntity, TrashDb, TrashKindMover, TrashRegistry } from "#src/features/trash/index";
 import type { ForgetRemovedEntity, TrashPort, TrashSweepOnce } from "@jini-ai/cms/trash";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
-import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
+import type { EventBusPort, OutboxPort, AuthorizeFn, ChangeSetRepoPort, TransactionalRepoPort } from "@jini-ai/core/contracts/events";
+import type { RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
   PasswordHasherPort,
   PolicyPermissionRepoPort,
@@ -127,7 +127,6 @@ import type {
   TaxonomyRevisionRepoPort,
   TermListPort,
   TermRepoPort,
-  TransactionalRepoPort,
   UnassignableEntryTermRepoPort,
   ImportableTaxonomyRepoPort,
   ImportableTermRepoPort,

@@ -7,7 +7,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PostRecord, PostRepoPort } from "./post.js";
 import { extractPostPlainText } from "./search.js";
 import { extractPlainTextFromHtml } from "./html-plain-text.js";

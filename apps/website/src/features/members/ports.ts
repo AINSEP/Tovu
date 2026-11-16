@@ -27,7 +27,7 @@ import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/ind
 import type { MailStatus } from "@jini-ai/platform/mail";
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -232,7 +232,7 @@ export interface MembersWriteServiceDeps {
   /** Password writes require the SAME kernel as members/sessions. No non-atomic fallback.
    * Optional for compositions that only use the other member workflows.
    */
-  credentialLifecycle?: Pick<StorageKernel<unknown>, "transaction" | "lockKey">;
+  credentialLifecycle?: Pick<KyselyKernel<unknown>, "transaction" | "lockKey">;
   clock: ClockPort;
   ids: IdGeneratorPort;
   members: MemberRepoPort;

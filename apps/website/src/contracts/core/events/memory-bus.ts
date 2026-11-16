@@ -1,4 +1,9 @@
-import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
+import type {
+  DomainEvent,
+  EventBusPort,
+  OutboxPort,
+  OutboxRecord,
+} from "@jini-ai/core/contracts/events";
 
 import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "./outbox-worker.js";
 

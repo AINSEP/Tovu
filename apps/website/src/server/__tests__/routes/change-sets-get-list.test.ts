@@ -10,7 +10,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { registerAdminChangeSetGetRoute } from "../../inbound/admin-http/routes/change-sets/get.js";
 import { registerAdminChangeSetListRoute } from "../../inbound/admin-http/routes/change-sets/list.js";
 import type { RouteDeps } from "../../routes/types.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**

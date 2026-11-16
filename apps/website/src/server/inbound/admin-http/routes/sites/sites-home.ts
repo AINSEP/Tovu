@@ -6,7 +6,7 @@ import type { Express, Request, Response } from "express";
 import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import { isSiteSwitcherEnabled, type SitesWorkspace } from "#src/platform/site-dir/index";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { UUID } from "@jini-ai/core/primitives";
 import { DirectoryUserConfigRefusal, validateDirectoryUserConfig } from "@jini-ai/platform/fs";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

@@ -10,7 +10,6 @@
 // publish_key must remain publish_key in the audit trail, rather than masquerade as a human user;
 // composition binds its real identity/authorization evaluator without expanding approval privileges.
 export type { PrincipalKind, InstanceAuthorizeFn } from "@jini-ai/core/gated-mutations";
-export type { AuthorizeFn } from "@jini-ai/cms/core";
 
 /**
  * A site's restore-point mechanism, evaluated per dialect (SQLite: always cheap file-snapshot;

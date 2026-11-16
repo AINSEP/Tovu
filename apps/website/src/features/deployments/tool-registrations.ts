@@ -8,7 +8,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";

@@ -12,7 +12,7 @@
  */
 import { ToolInputError } from "@jini-ai/core";
 import type { MailSuppressionScope } from "@jini-ai/platform/mail";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailSuppressionAdminRepo, MailSuppressionEntry, MailSuppressionReason, MailSuppressionRemoval } from "../mail/suppression-admin.repo.js";
 import type { MailActivityPosition } from "../mail/activity.repo.js";
 import { MailActivityForbiddenError, nextMailCursor, readMailCursor, readMailPageLimit } from "./activity.js";

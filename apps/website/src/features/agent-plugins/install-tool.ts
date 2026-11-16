@@ -7,7 +7,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, require
 import { FolderZipError } from "@jini-ai/agent-plugins/folder-zip";
 import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader, type PluginInstallSourcePort } from "../../contracts/headless/index.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";

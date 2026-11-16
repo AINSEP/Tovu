@@ -10,7 +10,8 @@ import {
   plan,
 } from "../../gateway.js";
 import { InMemoryTokenStore, TokenAlreadyRedeemedError, TokenExpiredError, isRedeemable, mintToken } from "../../token.js";
-import type { AuthorizeFn, PrincipalKind } from "../../ports.js";
+import type { PrincipalKind } from "../../ports.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 /**
  * @file SPEC-016 C-001/C-002/C-003 — the plan() -> confirm() -> execute() gated-mutation gateway.

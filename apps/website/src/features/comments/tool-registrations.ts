@@ -14,7 +14,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
  * documented at its own handler.
  */
 import { buildDomainRegistrations, indexCatalogById, optionalOneOf, optionalString, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, type AuthorizeFn, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather

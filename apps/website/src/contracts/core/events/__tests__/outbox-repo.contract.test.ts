@@ -8,7 +8,7 @@ import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus.js";
 import { MAX_OUTBOX_ATTEMPTS } from "../outbox-worker.js";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 /**
  * @file ADR-046 Phase 1 — shared `OutboxPort` contract-test suite, run against BOTH

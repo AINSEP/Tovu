@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 
 /**
  * @file Direct unit coverage of `change-set-repo.sqlite.ts` — no dedicated unit test file existed

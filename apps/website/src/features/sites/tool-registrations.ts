@@ -3,7 +3,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
 import path from "node:path";
 
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, ToolInputError, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 import type { ToolContributor } from "@jini-ai/core";
 import {

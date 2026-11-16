@@ -16,7 +16,7 @@
  * - `../features/plugins` — the ADR-023 declared-schema shape core executes.
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { DataModuleDecl } from "@jini-ai/db/data-modules";
 
 /* ------------------------------------------------------------------------------------------------

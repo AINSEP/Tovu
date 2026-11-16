@@ -12,7 +12,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
-import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
+import type { DomainEvent, EventBusPort } from "@jini-ai/core/contracts/events";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { removeFrozenPackageTree } from "#src/features/agent-plugins/lifecycle";

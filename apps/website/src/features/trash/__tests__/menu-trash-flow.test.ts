@@ -9,7 +9,7 @@ import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "#src/features/navi
 import { createNavMenuReadModel, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuReadModel } from "#src/features/navigation/index";
 import { buildMenuTrashFollowUpHooks } from "#src/features/navigation/menu-trash-follow-ups";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 
 import { moveToTrash } from "../move-to-trash.js";

@@ -7,7 +7,7 @@ import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { describeErrorForLog, forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE, type MailerPort, type MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailProviderControl, MailStatusReport } from "../../platform/mail/index.js";
 import { mailStatusAgentToolCatalog } from "./agent-tools.js";

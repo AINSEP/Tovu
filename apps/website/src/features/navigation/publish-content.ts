@@ -1,7 +1,7 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { createRepoPublishHandler } from "#src/features/publish-content/repo-handler";
 import type {

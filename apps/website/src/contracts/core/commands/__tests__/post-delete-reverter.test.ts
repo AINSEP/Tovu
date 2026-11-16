@@ -10,7 +10,7 @@ import {
   type PostRecord,
   type PostReverterDeps,
 } from "#src/features/post/index";
-import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/cms/core";
+import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 

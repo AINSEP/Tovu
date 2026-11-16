@@ -26,7 +26,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * `gated-hooks.ts`'s `buildMergeTermHooks` directly.
  */
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, type OutboxPort, requireToolPermission } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn, type OutboxPort, type TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.
@@ -70,7 +71,6 @@ import {
   type ImportableTermRepoPort,
   type UnassignableEntryTermRepoPort,
   type WriteServiceDeps,
-  type TransactionalRepoPort,
 } from "./index.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

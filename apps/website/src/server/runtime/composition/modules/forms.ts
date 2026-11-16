@@ -18,13 +18,13 @@
  */
 import { registerFormAttachmentCleanup, registerFormNotifySubscriber, type FormDefinitionRepoPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { EventBusPort } from "@jini-ai/cms/core";
+import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import { mailSenderIdentityFor, type MailerPort, type MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { ServerModuleHandle } from "./types.js";
 
 export interface FormsModuleDeps {
   bus: EventBusPort;
-  outbox?: import("@jini-ai/cms/core").OutboxPort;
+  outbox?: import("@jini-ai/core/contracts/events").OutboxPort;
   fileCleanup?: Omit<Parameters<typeof registerFormAttachmentCleanup>[0], "bus">;
   tracker: Tracker;
   mailer: MailerPort;

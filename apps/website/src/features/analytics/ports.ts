@@ -24,7 +24,7 @@
  *   only one query evaluator — exactly ADR-021 §2's reasoning for "no PolicyPort."
  */
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import type {
   AnalyticsAggregateRow,
   AnalyticsDomainEventName,

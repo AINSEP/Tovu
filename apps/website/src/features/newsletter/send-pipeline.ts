@@ -11,7 +11,7 @@
  * wires onto `newsletter.send.batch.claimed` (T040), mirroring the existing
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
-import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { isMailRateLimited } from "@jini-ai/platform/mail";

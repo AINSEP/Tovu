@@ -1,5 +1,5 @@
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { TovuCredentialSetVaultAdapter } from "#src/features/vendor-credentials/vault-adapter";
 import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort } from "#src/features/source-control/types";
 import type { CredentialProjectHalf } from "#src/features/vendor-credentials/project-scope";
@@ -11,7 +11,7 @@ export class SqlSourceControlCredentialSetRepo extends TovuCredentialSetVaultAda
   readonly project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>;
   /** @param optional.project The project store this site's rows fall back to (`features/source-control/types.ts`). */
   constructor(kernel: ContentKernel, optional: { project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>; canonical?: import("./types.js").CanonicalSourceControlKeys } = {}) {
-    super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> }), kind: "source-control" });
+    super({ vault: new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> }), kind: "source-control" });
     this.canonical = optional.canonical;
     if (optional.project) this.project = optional.project;
   }

@@ -6,7 +6,11 @@ import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlChangeSetRepo } from "#src/platform/db/repos/change-set-repo";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { InMemoryChangeSetRepo } from "../repo.memory.js";
-import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/cms/core";
+import type {
+  ChangeSetItemRecord,
+  ChangeSetRecord,
+  ChangeSetRepoPort,
+} from "@jini-ai/core/contracts/events";
 
 /**
  * @file SPEC-023 / ADR-046 Phase 1 — shared `ChangeSetRepoPort` contract-test suite, run against

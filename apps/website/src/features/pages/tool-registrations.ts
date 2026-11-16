@@ -6,7 +6,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { EXPECTED_VERSION_REJECTION, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";

@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { FORM_DELIVERY_EVENT, type FormDeliveryJob, type FormDeliveryQueuedJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import { set, type AuthorizeFn, type SettingsWriteServiceDeps } from "@jini-ai/core/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";

@@ -2,12 +2,12 @@ import type { ToolRegistration } from '@jini-ai/core';
 import { formatErrorForLog } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
-import type { AuthorizeFn } from '@jini-ai/cms/core';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { buildRegistrations as buildCommerceStatusTools, buildCommerceCatalogRegistrations } from '@jini-ai/commerce/tools';
 import { buildCommerceResolutionRegistrations, type CommerceResolutionToolsRequired } from '@jini-ai/commerce/payments/tools';
 import { createCommerceWorker } from './commerce-worker.js';
 import { commerceConfigurationKey, readCommerceDrain, selectCommerceDrain } from './commerce-drain.js';
-import { tableExists, withKernelSessionLock, kernelSessionPoolMax, type StorageKernel } from '@jini-ai/db/kernel';
+import { tableExists, withKernelSessionLock, kernelSessionPoolMax, type KyselyKernel } from '@jini-ai/db/kernel';
 import type { Clock, HttpClientPort, IdGenerator } from '@jini-ai/core/primitives';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
 import { createCommerceServer, CommerceUnavailableError, createOrderPaymentProjector, readOwnedCommerceOrder, type PayOrderDeps } from '@jini-ai/commerce';
@@ -39,7 +39,7 @@ export interface CommerceRuntime {
   resolveReceiver(): WebhookReceiver | null;
 }
 export interface ComposeCommerceRequired {
-  kernel: StorageKernel<unknown>; workerOwner: boolean; workerDirectory: string; workspaceId: string; siteId: string; workspaceRoot: string;
+  kernel: KyselyKernel<unknown>; workerOwner: boolean; workerDirectory: string; workspaceId: string; siteId: string; workspaceRoot: string;
   settingsRepo: SettingsRepoPort; settingsReady: Promise<unknown>; providerConfig: ProviderConfigSource;
   providers: Pick<ProviderPluginPorts, 'paymentProviders'>; httpClient: HttpClientPort; clock: Clock; idGen: IdGenerator;
 }

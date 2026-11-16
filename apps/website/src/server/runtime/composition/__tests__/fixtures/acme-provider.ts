@@ -23,7 +23,7 @@ import { loadPluginContributionsFromSource, type LoadPluginContributions } from 
 import { runApiConnectionConnect } from "#src/features/api-connections/connect";
 import { registerApiConnectionOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/api-connections/oauth-callback";
 import { trackStartingBrowser, type StartingBrowser } from "#src/features/api-connections/__tests__/support/starting-browser";
-import type { AuthorizeFn } from "#src/contracts/core/commands/index";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { composeAgentPluginConnections } from "../../agent-plugin-connections.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));

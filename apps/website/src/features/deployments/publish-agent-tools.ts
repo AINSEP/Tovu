@@ -46,7 +46,7 @@ import { buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-
 // Type-only ExportReport avoids a runtime export/server cycle. ExportSiteBoundFn names the narrow
 // operation contract locally instead of importing the composition root's RouteDeps type.
 import type { ExportReport } from "#src/features/site-export/index";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";

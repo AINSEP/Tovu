@@ -7,7 +7,7 @@ import type {
 } from "#src/features/webhooks/index";
 import { enqueueDelivery } from "#src/features/webhooks/delivery";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, JsonObject } from "@jini-ai/core/primitives";
-import type { EventBusPort } from "@jini-ai/cms/core";
+import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

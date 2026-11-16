@@ -13,7 +13,7 @@ import {
   type PublicDnsResolver,
   type TlsStatus,
 } from "@jini-ai/diagnostics/domain-dns";
-import type { AuthorizeFn } from "#src/contracts/core/commands/index";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
 // These types remain on the registration adapter's public surface until r15 redirects the
 // feature barrel. They denote the package contract, rather than a second set of DNS shapes.

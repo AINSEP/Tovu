@@ -4,7 +4,7 @@ import type { ConsentReceiptStorageHealth } from '@jini-ai/cookie-consent/node';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { formatErrorForLog, ToolInputError } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import type { AuthorizeFn } from '#src/contracts/core/commands/index';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { SiteConsentState, SiteConsentStore } from './revisions.js';
 import { SiteConsentConflict } from './revisions.js';
 import { consentConfigProblems, parseConsentConfig, type ConsentProblem } from './validation.js';

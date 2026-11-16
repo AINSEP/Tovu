@@ -19,7 +19,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * located where the real route locates it.
  */
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
 // for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
 // than redacting it into a message-stripped 500.

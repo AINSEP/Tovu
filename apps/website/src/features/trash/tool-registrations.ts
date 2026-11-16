@@ -23,7 +23,8 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/core";
-import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'` rather than the redacted-500 `'internal'` bucket a bare
 // `Error` gets. Same reasoning as `features/database/tool-registrations.ts`'s identical import.

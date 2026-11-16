@@ -1,6 +1,6 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, JsonObject } from "@jini-ai/core/primitives";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../contracts/core/commands/index.js";
 import {
   emitPublicTransitionEvent,

@@ -9,7 +9,7 @@ import { ToolInputError } from "@jini-ai/core";
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { ToolContributor } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "./agent-tools.js";
 import { SITE_EVIDENCE_LIMITS, type SiteEvidenceBrowserFactory } from "@jini-ai/diagnostics/web-evidence";

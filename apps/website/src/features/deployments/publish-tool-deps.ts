@@ -5,7 +5,7 @@ import type { GatewayDeps } from '#src/contracts/core/gated-mutations/gateway';
 import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock } from "@jini-ai/core/primitives";
 import type { ExportReport } from "#src/features/site-export/index";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";

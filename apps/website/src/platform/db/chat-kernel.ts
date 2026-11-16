@@ -4,7 +4,7 @@ export type { AiChatsTable, AiChatMessagesTable } from "@jini-ai/chat/store/sqli
 // Dedicated db entries keep migrations driver-free; sqliteKernel memoizes the same host client
 // used by the packaged history adapter, sessions and Tovu's run ledger.
 import { type SqliteConnectionSource, sqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import { scopeToSchema, type StorageKernel } from "@jini-ai/db/kernel";
+import { scopeToSchema, type KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The chat database (`chat.db`, see `sqlite/chat-db.ts`) as a storage kernel:
@@ -40,7 +40,7 @@ export type ChatDatabase = JiniChatDatabase & {
   assistant_conversation_tool_approvals: AssistantConversationToolApprovalsTable;
 };
 
-export type ChatKernel = StorageKernel<ChatDatabase>;
+export type ChatKernel = KyselyKernel<ChatDatabase>;
 
 /**
  * The kernel itself, or the one kernel of an open SQLite `chat.db` handle (the call sites that
@@ -60,6 +60,6 @@ export const AI_CHAT_SCHEMA = "ai_chat";
  * statement addressed to {@link AI_CHAT_SCHEMA} (`@jini-ai/db/kernel`). The tables come from
  * `migrateChatDatabase`.
  */
-export function pgChatKernel(kernel: StorageKernel<unknown>): ChatKernel {
+export function pgChatKernel(kernel: KyselyKernel<unknown>): ChatKernel {
   return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);
 }

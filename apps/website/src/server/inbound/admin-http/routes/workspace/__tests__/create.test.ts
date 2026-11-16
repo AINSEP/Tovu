@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";

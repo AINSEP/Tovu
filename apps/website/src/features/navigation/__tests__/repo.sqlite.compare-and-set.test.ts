@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { assignLocation, MenuConflictError, updateMenuTree, type MenuRepoPort, type NavLocationBindingRepoPort, type NavMenuEntry } from "@jini-ai/cms/navigation";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { importMenuEntity } from "../import-menu.js";
 import { SqlMenuRepo, SqlNavLocationBindingRepo } from "../repo.js";
 import { TrashAwareInMemoryMenuRepo } from "../trash-aware-memory-menu-repo.js";

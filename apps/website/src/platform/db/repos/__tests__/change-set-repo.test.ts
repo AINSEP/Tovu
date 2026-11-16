@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent } from "@jini-ai/cms/core";
+import type {
+  ChangeSetItemRecord,
+  ChangeSetRecord,
+  DomainEvent,
+} from "@jini-ai/core/contracts/events";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlChangeSetRepo } from "../change-set-repo.js";

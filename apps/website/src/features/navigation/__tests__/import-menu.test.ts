@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, MenuConflictError, MenuNotFoundError, type MenuRepoPort, type NavMenuEntry } from "../index.js";
 import { MenuVersionConflictError } from "../menu-version-conflict-error.js";
 import { importMenuEntity } from "../import-menu.js";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 const NOW = "2026-10-01T12:00:00.000Z";
 function menu(overrides: Partial<NavMenuEntry> = {}): NavMenuEntry {

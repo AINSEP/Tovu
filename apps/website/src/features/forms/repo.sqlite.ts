@@ -1,6 +1,6 @@
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import {
   SqlFormDefinitionRepo, SqlFormSubmissionRepo,
   createSubmissionIpRetentionRepo as createPackageRetentionRepo,
@@ -18,14 +18,14 @@ export const FORMS_TABLES = { definitions: "form_definitions", submissions: "for
 export class SqliteFormDefinitionRepo extends SqlFormDefinitionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super({ kernel: contentKernel({ store }) as unknown as StorageKernel<FormDefinitionDatabase>, tables: FORMS_TABLES }, {});
+    super({ kernel: contentKernel({ store }) as unknown as KyselyKernel<FormDefinitionDatabase>, tables: FORMS_TABLES }, {});
   }
 }
 
 export class SqliteFormSubmissionRepo extends SqlFormSubmissionRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super({ kernel: contentKernel({ store }) as unknown as StorageKernel<FormSubmissionDatabase>, tables: FORMS_TABLES }, {});
+    super({ kernel: contentKernel({ store }) as unknown as KyselyKernel<FormSubmissionDatabase>, tables: FORMS_TABLES }, {});
   }
 }
 

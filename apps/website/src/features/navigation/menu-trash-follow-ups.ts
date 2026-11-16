@@ -1,7 +1,7 @@
 // The local trash fork was removed; @jini-ai/cms/trash owns the shared adapter/hooks.
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
-import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { NavigationEventName, NavMenuChangedPayload, NavMenuEntry } from "@jini-ai/cms/navigation";
 
 /**

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { FORM_DELIVERY_EVENT, FormDeliveryError } from "@jini-ai/cms/forms";
 import { InMemoryEventBus, InMemoryOutbox } from "../memory-bus.js";
 import { startOutboxDrainer } from "../outbox-drainer.js";

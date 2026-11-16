@@ -48,7 +48,8 @@ import {
   type ToolRegistration,
   type AgentToolDefinition,
 } from "@jini-ai/core";
-import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // `ToolInputError` so a refusal reaches the model with its message intact rather than as a redacted
 // 500 — see `features/comments/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";

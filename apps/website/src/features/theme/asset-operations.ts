@@ -1,5 +1,5 @@
 /** Shared theme file gates and live reload, independent of tool registration. */
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isGeneratedThemePath, listThemeFiles, renameThemeFile, resolveThemeFileWriteScope, ThemePathError } from "./theme-files.js";
 import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath, trashDestinationFor, validateFileIdentityChange } from "./file-identity-lock.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";

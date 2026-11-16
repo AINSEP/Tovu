@@ -19,7 +19,7 @@ import type {
   ChangeSetWithItems,
   DomainEvent,
   OutboxPort,
-} from "@jini-ai/cms/core";
+} from "@jini-ai/core/contracts/events";
 
 /**
  * @file Direct unit coverage of `revert.ts`'s `revertChangeSet` — its own precondition ladder

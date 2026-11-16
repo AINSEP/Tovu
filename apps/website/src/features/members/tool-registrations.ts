@@ -14,7 +14,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * which is ADR-021 §2's single evaluation for these tools, located where the real route locates it.
  */
 import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLimit, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 import { encodeListCursor, listPageForModel } from "@jini-ai/core/list-page";
 

@@ -4,7 +4,7 @@ import type { InstalledAgentPlugin, SetAgentPluginEnabledInput as AgentPluginEna
 import type { AccessApprovalResource, ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import type { SettingsRepoPort } from '@jini-ai/core/settings';
-import type { AuthorizeFn } from '../core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import type { UninstallAgentPluginRequired as JiniUninstallRequired, UninstallAgentPluginOptional, UninstallAgentPluginResult } from '@jini-ai/agent-plugins/lifecycle';
 
 export type { PluginLookupPort, PluginProvider } from '@jini-ai/core/plugin-directory';

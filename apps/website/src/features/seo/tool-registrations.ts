@@ -27,7 +27,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/seo.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
@@ -59,8 +60,8 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: getSeoAgentToolCatalog() });
  * a tool invalidates the serving app's workspace cache, not a disconnected second cache.
  */
 export interface SeoToolDeps {
-  outbox: import("@jini-ai/cms/core").OutboxPort;
-  bus: import("@jini-ai/cms/core").EventBusPort;
+  outbox: import("@jini-ai/core/contracts/events").OutboxPort;
+  bus: import("@jini-ai/core/contracts/events").EventBusPort;
   authorize: AuthorizeFn;
   workspaceId: string;
   clock: { nowIso(): string };

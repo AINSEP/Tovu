@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
-import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { GatedMutationHooks, GatewayDeps } from "./gateway.js";
 import { InMemoryTokenStore } from "./token.js";
 import type { TokenStorePort } from "./token.js";

@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /** Host-owned project transaction; callers share the vault and reference commit boundary. */
 export type ProjectKeyTransaction = <T>(required: { run: () => Promise<T> }, optional?: Record<string, never>) => Promise<T>;
@@ -17,7 +17,7 @@ export interface KeyAttachments {
 }
 
 /** One indexed lookup per check; no cache so attach/detach changes the next credential read. */
-export function createKeyAttachments({ kernel }: { kernel: StorageKernel<unknown> }, _optional = {}): KeyAttachments {
+export function createKeyAttachments({ kernel }: { kernel: KyselyKernel<unknown> }, _optional = {}): KeyAttachments {
   return {
     async keyForLabel({ siteId, label }) {
       if (!siteId) return null;

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
+import type {
+  ChangeSetItemRecord,
+  ChangeSetRecord,
+  ChangeSetRepoPort,
+  OutboxPort,
+} from "@jini-ai/core/contracts/events";
 
 import { PublishContentApplyRowError } from "../apply-errors.js";
 import { contentHash } from "../content-hash.js";

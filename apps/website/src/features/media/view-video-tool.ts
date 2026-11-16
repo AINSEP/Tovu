@@ -4,7 +4,7 @@ import { VIDEO_MAX_FRAMES, VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_INPUT_BYTES, VIDEO_M
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
 import { prepareMessageAttachments } from '@jini-ai/daemon';
 import type { ToolContributor } from '@jini-ai/core';
-import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type MediaRepoPort } from './index.js';
 import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult } from './read-chat-attachment.js';
 

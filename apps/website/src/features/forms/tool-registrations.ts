@@ -17,9 +17,10 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
  * bypassable by any future non-tool caller of the same domain function.
  */
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
-import type { AuthorizeFn, ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type OutboxPort, ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type OutboxPort } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import type { ToolContributor } from "@jini-ai/core";

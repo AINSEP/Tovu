@@ -1,5 +1,5 @@
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlWidgetRegionBindingRepo, type WidgetsDatabase } from "@jini-ai/cms/widgets/sql";
 
@@ -14,6 +14,6 @@ export { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables
 export class SqliteWidgetRegionBindingRepo extends SqlWidgetRegionBindingRepo {
   /** @param store - The connection's kernel, or the content db handle it is derived from. */
   constructor(store: ContentKernel | ContentDb) {
-    super({ kernel: contentKernel({ store }) as unknown as StorageKernel<WidgetsDatabase>, tables: { regionBindings: WIDGET_REGION_BINDINGS_TABLE } }, {});
+    super({ kernel: contentKernel({ store }) as unknown as KyselyKernel<WidgetsDatabase>, tables: { regionBindings: WIDGET_REGION_BINDINGS_TABLE } }, {});
   }
 }

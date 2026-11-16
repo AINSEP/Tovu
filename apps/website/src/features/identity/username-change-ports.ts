@@ -1,4 +1,4 @@
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import type { IdGenerator } from "@jini-ai/core/primitives";
 import { IdentityValidationError, type UsernameChangePort } from "@jini-ai/user-management";
 

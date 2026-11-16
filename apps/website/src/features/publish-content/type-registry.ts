@@ -26,7 +26,7 @@ import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 import type { EntryListExcludingTypesPort, EntryPublishReadPort } from "#src/features/entries/contracts";
 import type { FileBlobIndexPort } from "./file-blob-index.js";
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
-import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";

@@ -5,7 +5,8 @@ import pg from "pg";
 import { openPostgresKernel } from "@jini-ai/db/kernel/postgres";
 import { openPgliteKernel } from "@jini-ai/db/kernel/pglite";
 import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import type { StorageDialect, StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { StorageDialect } from "@jini-ai/core/contracts/storage";
 import { PGlite } from "@electric-sql/pglite";
 
 import { type ChatDatabase, type ChatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
@@ -22,9 +23,9 @@ import { openChatDb } from "#src/platform/db/sqlite/chat-db";
  * sequence.
  */
 
-let sharedPg: StorageKernel<unknown> | undefined;
+let sharedPg: KyselyKernel<unknown> | undefined;
 let migrated: Promise<unknown> | undefined;
-let sharedRealPg: StorageKernel<unknown> | undefined;
+let sharedRealPg: KyselyKernel<unknown> | undefined;
 let realPgMigrated: Promise<unknown> | undefined;
 
 /** Explicit acceptance only: a real server, guarded by a disposable database-name prefix. */

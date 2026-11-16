@@ -18,7 +18,8 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/webhooks.js';
  * same via the kit's `requireToolPermission`.
  */
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // The transport raises ToolInputError for a missing channel: delegated tools must see the
 // missing capability, not an opaque SEC-005-redacted internal error that invites retries.
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";

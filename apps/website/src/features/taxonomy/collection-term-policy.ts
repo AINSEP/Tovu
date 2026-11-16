@@ -1,4 +1,5 @@
-import { type AuthorizeFn, ForbiddenError } from "@jini-ai/cms/core";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   createContentLookup,
   isContentTypeOnAllowList,

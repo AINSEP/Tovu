@@ -11,7 +11,7 @@ import type { ToolContributor } from "@jini-ai/core";
 // the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
 // anything; see {@link isImportShapeRejection}.
 import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   sniffContentType,
   TOVU_MAX_UPLOAD_BYTES,

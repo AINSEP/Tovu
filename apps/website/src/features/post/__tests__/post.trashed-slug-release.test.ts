@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
 
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { bindRemoveEntity, createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPostTrashAdapter, POST_ENTITY_TYPE } from "#src/features/trash/adapters/post";

@@ -11,7 +11,7 @@ import {
   type SqliteKernel,
 } from "@jini-ai/db/kernel/sqlite";
 import type { SnapshotClient } from "@jini-ai/db/transfer";
-import type { StorageKernel } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 export type NativeSqliteDatabase = Database.Database;
 
@@ -40,7 +40,7 @@ export function sqliteClientOf(source: SqliteConnectionSource): Database.Databas
 }
 
 /** Kernels opened here carry Tovu's native handle in Jini's shared reverse cache. */
-export function sqliteConnectionOf<DB>(kernel: StorageKernel<DB>): Database.Database | undefined {
+export function sqliteConnectionOf<DB>(kernel: KyselyKernel<DB>): Database.Database | undefined {
   return jiniSqliteConnectionOf(kernel) as Database.Database | undefined;
 }
 

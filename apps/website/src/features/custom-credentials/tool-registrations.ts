@@ -18,7 +18,7 @@ import type { Clock } from "@jini-ai/core/primitives";
 
 import { createApprovalHandler, indexCatalogById, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   describeErrorForLog,
   forbiddenRule,

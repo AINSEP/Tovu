@@ -37,7 +37,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * the registry's contents visible here at all.
  */
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 
 import type {

@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { createSearchIndexer, createSearchProviderRegistry, encodeSearchKey, type SearchDocumentSource, type SearchProviderContext, type SearchTarget } from "@jini-ai/search";
 import { createInMemorySearchProvider, createInMemorySearchState } from "@jini-ai/search/testkit";
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { SqlPagesHtmlDocumentStore } from "../../pages/html-document-store.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";

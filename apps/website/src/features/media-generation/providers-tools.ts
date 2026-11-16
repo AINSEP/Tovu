@@ -11,7 +11,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
 import type { MediaModel, MediaProvider } from '@jini-ai/integrations/media-providers/catalog';
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
-import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from '@jini-ai/core';
 import { getMediaProviderCredentials, type MediaProviderCredentialRepoPort } from '../media/provider-credential-store.js';

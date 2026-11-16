@@ -49,7 +49,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { isDeepStrictEqual } from "node:util";
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireObject, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
-import { requireToolPermission, type EventBusPort, type OutboxPort } from "@jini-ai/cms/core";
+import { requireToolPermission } from "@jini-ai/cms/core";
+import { type EventBusPort, type OutboxPort, type AuthorizeFn, type ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
@@ -61,7 +62,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
+import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
 import type { ToolContributor } from "@jini-ai/core";

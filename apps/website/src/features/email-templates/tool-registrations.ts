@@ -3,7 +3,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type Ag
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { PAGES_EDIT_HTML_PERMISSION } from "../pages/index.js";
 import { emailTemplatesAgentToolCatalog } from "./agent-tools.js";
 import {

@@ -7,7 +7,7 @@ import type { ImageCodecPort } from "@jini-ai/cms/media";
 
 import type { ToolContributor } from "@jini-ai/core";
 import { readStoredBytes } from "./original-bytes.js";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type MediaRecord, type MediaRepoPort } from "./index.js";
 
 /**

@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { bindRemoveEntity, createTrashService, type TrashItem } from "@jini-ai/cms/trash";
-import type { OutboxPort } from "@jini-ai/cms/core";
+import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createPost, deletePost, SqlitePostRepo } from "#src/features/post/index";

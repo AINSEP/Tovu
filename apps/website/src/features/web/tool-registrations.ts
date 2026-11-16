@@ -4,7 +4,7 @@ import { createSystemClock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
 import type { ToolContributor } from "@jini-ai/core";
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { createRateLimiter, type RateLimitProfile } from "../../contracts/core/rate-limit/rate-limit.js";
 import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "./agent-tools.js";

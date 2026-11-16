@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "#src/contracts/core/events/memory-bus";
 import { announceDueGoLives } from "../go-live.js";
 import { createPost, deletePost, importPostEntity, restorePostForward, updatePost, type PostRecord } from "../post.js";

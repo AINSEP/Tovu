@@ -1,4 +1,4 @@
-import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/cms/core";
+import type { DomainEvent, OutboxPort, OutboxRecord } from "@jini-ai/core/contracts/events";
 import { FORM_DELIVERY_EVENT, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryBinding, type FormDeliveryPlan,
   type FormDeliveryPlanPort, type FormDeliveryQueuedJob } from "@jini-ai/cms/forms";
 import type { HttpClientPort } from "@jini-ai/core/primitives";

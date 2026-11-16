@@ -1,5 +1,6 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
-import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import {
   buildDomainRegistrations,
   indexCatalogById,

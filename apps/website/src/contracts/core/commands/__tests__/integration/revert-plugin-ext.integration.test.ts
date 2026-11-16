@@ -4,7 +4,7 @@ import test from "node:test";
 import { revertChangeSet } from "../../index.js";
 import { InMemoryChangeSetRepo } from "../../repo.memory.js";
 import { createPostRevertRegistry, InMemoryPostRepo } from "#src/features/post/index";
-import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";

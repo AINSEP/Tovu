@@ -8,7 +8,7 @@ import path from "node:path";
 import { requireInputRecord, requireString } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
-import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
+import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";

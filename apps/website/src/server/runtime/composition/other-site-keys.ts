@@ -57,7 +57,7 @@ function keyName({ row, site }: { row: MetaRow; site: string }, _options = {}): 
 }
 
 function siteVaultService({ kernel, workspaceId, keyring }: { kernel: ContentKernel; workspaceId: string; keyring: EnvOrFileKeyring }, _options = {}): SecretsVaultService {
-  return new SecretsVaultService({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as import("@jini-ai/db/kernel").StorageKernel<SecretsVaultDatabase> }), keyring, sealer: new AesGcmSecretSealer({ keyring }), metaParsers,
+  return new SecretsVaultService({ repo: new SqlSecretsVaultRepo({ kernel: kernel as unknown as import("@jini-ai/db/kernel").KyselyKernel<SecretsVaultDatabase> }), keyring, sealer: new AesGcmSecretSealer({ keyring }), metaParsers,
     now: () => new Date().toISOString(), newId: () => { throw new VaultError({ code: "invalid-record" }); },
     authorize: async ({ context }) => {
       if (context.workspaceId !== workspaceId || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });

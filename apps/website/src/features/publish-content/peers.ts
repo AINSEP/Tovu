@@ -1,5 +1,5 @@
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
-import { isUniqueViolation } from "@jini-ai/db/kernel";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { credentialTokenHint } from "#src/contracts/core/credential-token";
 import { byVaultLabel, createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";

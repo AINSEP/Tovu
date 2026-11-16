@@ -9,7 +9,7 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/prim
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createIssuedTokenMemories } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { createAdminSurfaceActionDispatcher, type LoadedAdminSurface } from '@jini-ai/agent-plugins/admin-surfaces';
-import type { AuthorizeFn } from '../../../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
 import { allowAll, fakeConnections, fakeHttp, PLUGIN, WORKSPACE, startConfirmingCall } from './fixtures.js';

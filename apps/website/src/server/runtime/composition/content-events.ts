@@ -1,4 +1,4 @@
-import type { EventBusPort } from "@jini-ai/cms/core";
+import type { EventBusPort } from "@jini-ai/core/contracts/events";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 
 function contentEventName({ topic, kind }: { topic: string; kind: string }, _optional = {}): string {

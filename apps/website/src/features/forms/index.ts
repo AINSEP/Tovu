@@ -40,7 +40,7 @@
 import { createHash } from "node:crypto";
 import type { FormFileStorage } from "./form-file-storage.js";
 import type { Logger } from "@jini-ai/core/primitives";
-import type { EventBusPort, OutboxPort } from "@jini-ai/cms/core";
+import type { EventBusPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import {
   createFormDefinition as createPackageFormDefinition,
   updateFormDefinition as updatePackageFormDefinition,

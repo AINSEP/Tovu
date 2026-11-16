@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { DomainEvent } from "@jini-ai/cms/core";
+import type { DomainEvent } from "@jini-ai/core/contracts/events";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormDeliveryReferenceJob, type FormDeliveryResult } from "@jini-ai/cms/forms";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";

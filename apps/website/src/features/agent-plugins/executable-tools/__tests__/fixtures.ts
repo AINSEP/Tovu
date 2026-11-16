@@ -10,7 +10,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator, type HttpClientPort, type HttpRequest } from '@jini-ai/core/primitives';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createIssuedTokenMemories, type LoadedAgentPluginTool, type AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';
-import type { AuthorizeFn } from '../../../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { applyToolApprovalPolicy } from '../../../../assistant/tool-approval-policy.js';
 import { registerAgentPluginExecutableTools, type AgentPluginExecutableToolHost } from '../register.js';
 import type { AgentPluginConnectionAccess, AgentPluginConnectionTarget } from '@jini-ai/agent-plugins/connect/executable';

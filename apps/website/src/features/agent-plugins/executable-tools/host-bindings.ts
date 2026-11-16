@@ -11,7 +11,7 @@ import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSur
 import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
 import { EXTENSION_TOOL_APPROVAL_POLICY } from '../../../contracts/headless/index.js';
 import type { ApplyExtensionApprovalPolicy } from '#src/contracts/headless/assistant-tool-approval-policy';
-import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
+import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { APPROVAL_FAMILY_BY_EFFECT } from './approval.js';
 import { agentPluginDisclosureMessages } from './approval-bindings.js';
 

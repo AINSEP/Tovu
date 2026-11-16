@@ -1,6 +1,6 @@
 /** Transactional member adapter; protocol validation happens before this service is called. */
 import { nowIso } from "@jini-ai/core/primitives";
-import { isUniqueViolation } from "@jini-ai/db/kernel";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "../members/index.js";
 import { completeSignIn, createMember, issueMemberSession, requestSignInLink, notifyMemberCreated } from "../members/index.js";
