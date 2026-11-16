@@ -21,7 +21,7 @@ import { collectTransferTables, countPartialExclusions, DEFAULT_TRANSFER_SCHEMA,
 import { TOVU_TRANSFER_MESSAGES } from "../transfer-messages.js";
 import { EXCLUDED_CORE_TABLES } from "../exclusions.js";
 import { createPsqlPostgresTarget } from "../postgres-target.js";
-import { openSqliteSnapshotSource } from "../sqlite-source.js";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 
 /**
  * @file P0's end-to-end proof against a REAL local Postgres (Homebrew 14, `/tmp` socket, role `la` —
@@ -95,7 +95,7 @@ async function count(table: string, schema: string): Promise<number> {
 async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureSnapshot()): Promise<{ schema: string; result: CopyResult }> {
   const inspected = await inspectTarget({ target: TARGET(), site, naming: TRANSFER_NAMING });
   assert.ok(inspected.ok && inspected.schema !== null, JSON.stringify(inspected));
-  const source = openSqliteSnapshotSource({ bytes: bytes, open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: bytes }, { open: data => openSqliteSnapshot({ data }) });
   try {
     const { tables, leftOut } = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
     const result = await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema: inspected.schema, marker: { site, snapshotAt }, replaceExisting: inspected.lastCopy !== null }, { messages: TOVU_TRANSFER_MESSAGES });
@@ -107,7 +107,7 @@ async function copyAs(site: string, snapshotAt: string, bytes: Buffer = fixtureS
 
 /** A copy straight into `schema`, skipping the inspection — what a stale plan or a race would do. */
 async function copyInto(schema: string, site: string): Promise<CopyResult> {
-  const source = openSqliteSnapshotSource({ bytes: fixtureSnapshot(), open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: fixtureSnapshot() }, { open: data => openSqliteSnapshot({ data }) });
   try {
     const { tables, leftOut } = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
     return await runCopy({ sources: [{ name: "content.db", source, tables, counts: countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }), leftOut }], target: TARGET(), naming: TRANSFER_NAMING, schema, marker: { site, snapshotAt: "x" }, replaceExisting: false }, { messages: TOVU_TRANSFER_MESSAGES });
@@ -133,7 +133,7 @@ test("the first site's copy lands in `tovu` with the same row count as SQLite fo
   const before = await inspectTarget({ target: TARGET(), site: SITE, naming: TRANSFER_NAMING });
   assert.deepEqual(before.ok && [before.schemaState, before.schema, before.lastCopy], ["absent", DEFAULT_TRANSFER_SCHEMA, null]);
 
-  const source = openSqliteSnapshotSource({ bytes: fixtureSnapshot(), open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: fixtureSnapshot() }, { open: data => openSqliteSnapshot({ data }) });
   const counts = countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES });
   source.close();
   const { schema, result } = await copyAs(SITE, "2026-09-27T12:00:00.000Z");
@@ -230,7 +230,7 @@ test("a count mismatch or rejected replacement preserves the earlier rows and ma
   assert.ok(original.result.ok, JSON.stringify(original.result));
   await sql(FIXTURE_DB, "UPDATE tovu.menus SET title = 'original sentinel' WHERE id = 'menu-1'");
   const replacement = fixtureSnapshot();
-  const source = openSqliteSnapshotSource({ bytes: replacement, open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: replacement }, { open: data => openSqliteSnapshot({ data }) });
   try {
     const { tables, leftOut } = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
     const counts = countSourceRows({ source, tables }, { messages: TOVU_TRANSFER_MESSAGES }).map((entry) => entry.table.name === "menus" ? { ...entry, rows: entry.rows + 1 } : entry);
@@ -280,7 +280,7 @@ test("a setting marked secret stays behind (values at every scope and its histor
   } finally {
     c.close();
   }
-  const source = openSqliteSnapshotSource({ bytes: bytes, open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: bytes }, { open: data => openSqliteSnapshot({ data }) });
   const counts = countSourceRows({ source, tables: collectTransferTables({ catalog: createCoreTableCatalog({}) }) }, { messages: TOVU_TRANSFER_MESSAGES });
   assert.equal(counts.find((entry) => entry.table.name === "setting_values_global")?.rows, 1);
   assert.equal(counts.find((entry) => entry.table.name === "setting_revisions")?.rows, 0);
@@ -329,7 +329,7 @@ test("T1: the copy carries the schema's indexes, foreign keys, checks, defaults 
   const copied = new Set(result.tables.map((table) => table.name));
   const declared = declaredFor(copied);
   const coreNames = new Set(collectCoreTables().map(({ table }) => getSqliteTableConfig(table).name));
-  const source = openSqliteSnapshotSource({ bytes: bytes, open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: bytes }, { open: data => openSqliteSnapshot({ data }) });
   try {
     // Migration-only tables have no Drizzle declaration; their source layout is the reference.
     for (const name of [...copied].filter(name => !coreNames.has(name))) {
@@ -385,7 +385,7 @@ test("T2: every table in the snapshot is copied or left out with a reason; a plu
     c.prepare("INSERT INTO p_demo__links (id, item_id, url) VALUES (1, 3, 'https://x')").run();
     c.prepare("INSERT INTO p_demo__tokens (id, token_hash) VALUES (1, 'SECRET-TOKEN-HASH')").run();
   });
-  const source = openSqliteSnapshotSource({ bytes: bytes, open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: bytes }, { open: data => openSqliteSnapshot({ data }) });
   const inventory = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
   const all = source.tableNames();
   source.close();

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { useState } from "react";
+import { createElement, useState } from "react";
 import { describe, expect, it } from "vitest";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
 import { LocalSiteConfirmDialog } from "../LocalSiteConfirmDialog";
@@ -201,16 +201,17 @@ it("resolveTrashCardActions exposes delete only after selection and blocks both 
 describe("useSiteConfirm", () => {
   it("resolves true/false from the dialog and titles itself per action", async () => {
     const { result } = renderHook(() => useSiteConfirm({ t }));
-    expect(result.current.open).toBe(false);
+    expect(result.current.dialog.open).toBe(false);
     let answer!: Promise<boolean>;
     act(() => { answer = result.current.confirm({ message: "Move this site to Trash? You can restore it later.", action: "trash" }); });
-    expect(result.current).toMatchObject({ open: true, title: "Move site to Trash?", confirmLabel: "Move to Trash", tone: "danger", body: "Move this site to Trash? You can restore it later." });
-    act(() => result.current.onConfirm());
+    expect(result.current.dialog).toMatchObject({ open: true, title: "Move site to Trash?", confirmLabel: "Move to Trash", tone: "danger" });
+    expect(result.current.dialog.body).toEqual(createElement("p", null, "Move this site to Trash? You can restore it later."));
+    act(() => result.current.dialog.onConfirm());
     await expect(answer).resolves.toBe(true);
-    expect(result.current.open).toBe(false);
+    expect(result.current.dialog.open).toBe(false);
     act(() => { answer = result.current.confirm({ message: "Switch now? Unsaved changes will be lost.", action: "switch" }); });
-    expect(result.current).toMatchObject({ title: "Switch to this site now?", confirmLabel: "Switch now", tone: "warning" });
-    act(() => result.current.onCancel());
+    expect(result.current.dialog).toMatchObject({ title: "Switch to this site now?", confirmLabel: "Switch now", tone: "warning" });
+    act(() => result.current.dialog.onCancel());
     await expect(answer).resolves.toBe(false);
   });
 
@@ -220,8 +221,9 @@ describe("useSiteConfirm", () => {
     act(() => { first = result.current.confirm({ message: "one", action: "trash" }); });
     act(() => { second = result.current.confirm({ message: "two", action: "delete" }); });
     await expect(first).resolves.toBe(false);
-    expect(result.current).toMatchObject({ body: "two", title: "Delete site permanently?", confirmLabel: "Delete permanently" });
-    act(() => result.current.onConfirm());
+    expect(result.current.dialog).toMatchObject({ title: "Delete site permanently?", confirmLabel: "Delete permanently" });
+    expect(result.current.dialog.body).toEqual(createElement("p", null, "two"));
+    act(() => result.current.dialog.onConfirm());
     await expect(second).resolves.toBe(true);
   });
 });

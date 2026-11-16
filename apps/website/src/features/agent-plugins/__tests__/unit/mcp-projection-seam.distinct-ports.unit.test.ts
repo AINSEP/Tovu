@@ -19,7 +19,7 @@ import { hasStoredAgentPluginCredential } from '../../connect-tool.js';
 import { resolveAgentPluginLayout } from '../../layout.js';
 import { createBundledSourceArchiveReader, installAgentPlugin, packAgentPluginDirectory } from '../../lifecycle.js';
 import { forceRemove } from '../fixtures/force-remove.js';
-import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '../../service-ports.js';
+import type { AgentPluginMcpProjectionPorts, AgentPluginMcpProjections } from '@jini-ai/agent-plugins/connect';
 import type { McpServerConfig } from '../../mcp-metadata.js';
 
 // S4-0b A7 F1: a second host's projections and classifier must reach every path, never Tovu's.

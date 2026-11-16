@@ -354,7 +354,7 @@ it("the shared confirmation modal presents and settles a site switch", async () 
   const { result, unmount } = renderHook(() => useSiteConfirm({ t }));
   let answer!: Promise<boolean>;
   act(() => { answer = result.current.confirm({ message: "Switch now? Unsaved changes will be lost.", action: "switch" }); });
-  expect(result.current.open).toBe(true); expect(result.current.title).toBe("Switch to this site now?");
-  expect(result.current.confirmLabel).toBe("Switch now"); expect(result.current.tone).toBe("warning");
-  act(() => result.current.onConfirm()); expect(await answer).toBe(true); expect(result.current.open).toBe(false); unmount();
+  expect(result.current.dialog.open).toBe(true); expect(result.current.dialog.title).toBe("Switch to this site now?");
+  expect(result.current.dialog.confirmLabel).toBe("Switch now"); expect(result.current.dialog.tone).toBe("warning");
+  act(() => result.current.dialog.onConfirm()); expect(await answer).toBe(true); expect(result.current.dialog.open).toBe(false); unmount();
 });

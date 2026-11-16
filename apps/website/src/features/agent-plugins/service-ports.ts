@@ -3,9 +3,7 @@ import type { ChatAgentPlugins } from "@jini-ai/agent-plugins/lifecycle";
 import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
 import type { ExternalMcpConnectStart } from "../external-mcp/contracts.js";
 import type { AgentPluginMcpPort as PortableAgentPluginMcpPort, AgentPluginMcpProjectionPorts, AgentPluginMcpServicesPort as PortableAgentPluginMcpServicesPort } from "@jini-ai/agent-plugins/connect";
-/** The MCP ports moved to `@jini-ai/agent-plugins/connect` (A9); re-exported so Tovu callers keep this path,
- * bound to Tovu's tool-access change record. */
-export type { AgentPluginMcpRecord, AgentPluginMcpSave, AgentPluginMcpView, AgentPluginMcpRepo, AgentPluginMcpAccessSnapshot, AgentPluginMcpProjections, AgentPluginMcpProjectionPorts } from "@jini-ai/agent-plugins/connect";
+/** The MCP ports live in `@jini-ai/agent-plugins/connect`; these two bind them to Tovu's tool-access change record. */
 export type AgentPluginMcpPort = PortableAgentPluginMcpPort<import("@jini-ai/daemon").ToolAccessChange>;
 export type AgentPluginMcpServicesPort = PortableAgentPluginMcpServicesPort<import("@jini-ai/daemon").ToolAccessChange>;
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
@@ -61,5 +59,3 @@ export interface AgentPluginSignInPort {
    * the consumer passes model-facing text through the core redaction boundary. */
   isSignInRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
 }
-/** Card ports moved to the portable card body (A10); re-exported so Tovu callers keep this path. */
-export type { AgentPluginCardsPort, AgentPluginCardBuilders } from "@jini-ai/agent-plugins/connect";

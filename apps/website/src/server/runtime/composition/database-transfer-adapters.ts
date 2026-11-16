@@ -6,7 +6,7 @@ import { openSqliteFileKernel, openSqliteSnapshot, type SqliteKernel } from "#sr
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { computeCoreTableCopyOrder, DERIVED_OBJECTS } from "#src/platform/db/migration/manifest";
 import * as schema from "#src/platform/db/schema.postgres";
-import { openSqliteSnapshotSource } from "#src/features/database-transfer/sqlite-source";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 import { planSnapshotTables, planChatSnapshotTables, type CoreTableCatalogPorts } from "#src/features/database-transfer/table-catalog";
 import type { DatabaseTransferAdapters, DatabaseTransferToolDeps } from "#src/features/database-transfer/tool-registrations";
 
@@ -23,7 +23,7 @@ export function createCoreTableCatalog(_required = {}, _optional = {}): CoreTabl
 export function createDatabaseTransferAdapters(_required = {}, _optional = {}): DatabaseTransferAdapters {
   const catalog = createCoreTableCatalog({});
   return {
-    openSource: bytes => openSqliteSnapshotSource({ bytes, open: data => openSqliteSnapshot({ data }) }),
+    openSource: bytes => openSqliteSnapshotSource({ bytes }, { open: data => openSqliteSnapshot({ data }) }),
     catalog: (name, source) => name === "chat" ? planChatSnapshotTables(source) : planSnapshotTables({ source, catalog }),
     captureChatSnapshot,
   };

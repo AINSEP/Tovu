@@ -3,7 +3,8 @@
  * copy (tool names, "this Tovu version", "restart Tovu"), public callback URL, installed/activation
  * reads, trust rule, declined actor and card waiters. Bytes unchanged from the pre-seam body. */
 import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
-import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpRecord, AgentPluginMcpContext, AgentPluginSignInPort } from "./service-ports.js";
+import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort, AgentPluginMcpContext, AgentPluginSignInPort } from "./service-ports.js";
+import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import type { AgentToolDefinition, DerivedRiskByToolId } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { tovuEnableAccessMessages } from "./enable-access.js";
