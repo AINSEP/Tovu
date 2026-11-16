@@ -3,13 +3,21 @@ import { render as originalRender, renderHook as originalRenderHook, queries, ty
 import type { Container as RootContainer } from "react-dom/client";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
 import { withChatSurfaces } from "./chat-surfaces-render";
+import { KitProvider } from "@jini-ai/ui-kit/react";
+import { AdminKitProvider } from "@jini-ai/admin/react/kit";
+import { UiKitProvider } from "@jini-ai/ui/react-kit";
+import { adminKit, uiKit } from "../integrations/jini-kits";
+import { tovuAgentAttrs, tovuKit } from "../integrations/jini-admin/kit";
 export * from "@testing-library/react";
 
 /** Keep test reads on the production adapter; each tree gets a fresh cache and rerenders retain it. */
 function scope(wrapper?: ComponentType<{ children: ReactNode }>) {
   const SurfacesScope = withChatSurfaces(wrapper); // built once per tree, so rerenders keep component identity
   return function QueryScope({ children }: { children: ReactNode }) {
-    return createElement(FetchQueryProvider, { children: createElement(SurfacesScope, { children }) });
+    // Same tree as main.tsx: KitProvider > FetchQueryProvider > UiKitProvider > AdminKitProvider (inner providers a test mounts itself win).
+    return createElement(KitProvider, { kit: tovuKit, agent: tovuAgentAttrs, children: createElement(FetchQueryProvider, {
+      children: createElement(UiKitProvider, { kit: uiKit, children: createElement(AdminKitProvider, { kit: adminKit, children: createElement(SurfacesScope, { children }) }) }),
+    }) });
   };
 }
 export function render<Q extends Queries = typeof queries, Container extends RootContainer = HTMLElement, BaseElement extends RootContainer = Container>(
