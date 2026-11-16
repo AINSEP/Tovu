@@ -5,7 +5,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { RuntimeAgentDef } from "@jini-ai/agent-runtime";
+import type { RuntimeAgentDef } from "@jini-ai/core/contracts/agents";
 import { modelReasoningOptions } from "@jini-ai/agent-runtime/model-selection";
 
 import { createAgentInventory, summarizeAgent, type AgentRuntimePorts } from "./desktop-agent-inventory.ts";

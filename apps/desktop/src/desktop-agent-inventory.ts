@@ -9,7 +9,7 @@
  * Cached once per process like the site's: a PATH probe spawns every installed CLI for its version
  * and model list, which is far too slow to repeat on every pane mount. `rescan` forces a fresh one.
  */
-import type { RuntimeAgentDef } from "@jini-ai/agent-runtime";
+import type { RuntimeAgentDef } from "@jini-ai/core/contracts/agents";
 import type { RunnerAgentSummary } from "./contracts/runtime-inventory.ts";
 
 /** The slice of `@jini-ai/agent-runtime` this module reads — injected so tests probe nothing. */
