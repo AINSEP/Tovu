@@ -2,6 +2,7 @@
 // Read-only env-read scanner for the env-schema design (2026-11-16).
 // Usage: node env-reads.mjs <repo-label> <repo-root> > reads.tsv
 // Regex-based (no TypeScript install needed). Limits are listed in DESIGN.md §0.3.
+// r2: comment-line hits are tagged `comment:*`; name lists read through a computed key are added by build-vars.py DECLARED_SETS.
 // Output columns: repo, name, file, line, kind, scope, area
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -44,7 +45,9 @@ const areaOf = (f) => {
 };
 
 const rows = [];
-const emit = (name, file, line, kind) => rows.push([label, name, file, line, kind, scopeOf(file), areaOf(file)].join('\t'));
+// r2 (judge finding 11): a hit on a comment line is kept, but as kind `comment:<kind>`, so it is never counted as a read.
+let commentLines = new Set();
+const emit = (name, file, line, kind) => rows.push([label, name, file, line, commentLines.has(line) && kind !== 'deploy-mention' ? `comment:${kind}` : kind, scopeOf(file), areaOf(file)].join('\t'));
 const lineAt = (text, idx) => text.slice(0, idx).split('\n').length;
 
 for (const f of files) {
@@ -53,6 +56,8 @@ for (const f of files) {
   if (!isCode && !DEPLOY.test(f)) continue;
   let text;
   try { text = readFileSync(join(root, f), 'utf8'); } catch { continue; }
+  commentLines = new Set();
+  if (isCode) text.split('\n').forEach((l, i) => { if (/^\s*(\/\/|\*|\/\*)/.test(l)) commentLines.add(i + 1); });
   if (!isCode) {
     for (const m of text.matchAll(/\b((?:TOVU|JINI|VITE|OTEL)_[A-Z0-9_]+|NODE_ENV|PORT|ANALYTICS_ROOT_KEY_SEED|COMMENTS_IP_SALT)\b/g)) emit(m[1], f, lineAt(text, m.index), 'deploy-mention');
     continue;
@@ -85,7 +90,8 @@ for (const f of files) {
   for (const m of text.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\??\.([A-Z][A-Za-z0-9_]{2,})\b/g)) {
     const owner = m[1];
     if (owner === 'process.env' || owner === 'import.meta.env') continue;
-    if (!/(^|\.)(\w*[eE]nv(ironment)?|ENV)$/.test(owner)) continue;
+    // r2: a TOVU_/JINI_ member on any owner is an env read (catches `const e = env; e.JINI_X`).
+    if (!/(^|\.)(\w*[eE]nv(ironment)?|ENV)$/.test(owner) && !/^(TOVU|JINI)_[A-Z0-9_]+$/.test(m[2])) continue;
     const after = text.slice(m.index + m[0].length, m.index + m[0].length + 4);
     emit(m[2], f, lineAt(text, m.index), /^\s*=[^=]/.test(after) ? 'env-param-write' : 'env-param');
   }

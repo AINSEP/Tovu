@@ -1,0 +1,57 @@
+repo	site	env_names_nearby	class
+tovu	apps/desktop/src/desktop-agent-service.ts:181	TOVU_SITE_DIR	NOT CLASSIFIED
+tovu	apps/desktop/src/desktop-agent-service.ts:182	TOVU_SITE_DIR	NOT CLASSIFIED
+tovu	apps/desktop/src/desktop-agent-service.ts:229	TOVU_AGENT_DAEMON_TOKEN	NOT CLASSIFIED
+tovu	apps/desktop/src/desktop-agent-service.ts:231	TOVU_AGENT_DAEMON_TOKEN	NOT CLASSIFIED
+tovu	apps/desktop/src/desktop-user-data-dir.ts:81	TOVU_DESKTOP_USER_DATA_DIR	NOT CLASSIFIED
+tovu	apps/desktop/src/main/windows/site-folder-prompt.ts:58	TOVU_DESKTOP_SELFTEST TOVU_DESKTOP_SITE_DIR	NOT CLASSIFIED
+tovu	apps/desktop/src/move-site-home.ts:16	TOVU_ADMIN_PASSWORD	NOT CLASSIFIED
+tovu	apps/desktop/src/smoke-bridge.ts:148	ELECTRON_RUN_AS_NODE JINI_RUN_ID	NOT CLASSIFIED
+tovu	apps/website/src/cli/commands/plugin/install.ts:24	TOVU_PLUGINS_DIR	NOT CLASSIFIED
+tovu	apps/website/src/cli/commands/reset-owner.ts:27	TOVU_ADMIN_RESET_PASSWORD TOVU_ADMIN_RESET_USERNAME	NOT CLASSIFIED
+tovu	apps/website/src/cli/commands/serve.ts:227	TOVU_RUNNING_APP	NOT CLASSIFIED
+tovu	apps/website/src/features/agent-plugins/layout.ts:63	TOVU_AGENT_PLUGINS_DIR	NOT CLASSIFIED
+tovu	apps/website/src/features/external-mcp/tool-registrations.ts:165	TOVU_PUBLIC_URL	NOT CLASSIFIED
+tovu	apps/website/src/features/external-mcp/tool-registrations.ts:168	TOVU_PUBLIC_URL	NOT CLASSIFIED
+tovu	apps/website/src/features/external-mcp/tool-registrations.ts:181	TOVU_PUBLIC_URL	NOT CLASSIFIED
+tovu	apps/website/src/features/external-mcp/tool-registrations.ts:731	TOVU_PUBLIC_URL	NOT CLASSIFIED
+tovu	apps/website/src/features/external-mcp/tool-registrations.ts:732	TOVU_PUBLIC_URL	NOT CLASSIFIED
+tovu	apps/website/src/features/identity/wiring.ts:97	TOVU_ADMIN_PASSWORD	NOT CLASSIFIED
+tovu	apps/website/src/features/site-backup/share-hosting.ts:40	TOVU_SHARE_PUBLIC_ORIGIN	NOT CLASSIFIED
+tovu	apps/website/src/features/site-backup/share-hosting.ts:45	TOVU_SHARE_PUBLIC_ORIGIN	NOT CLASSIFIED
+tovu	apps/website/src/features/skills/layout.ts:77	TOVU_SKILLS_DIR	NOT CLASSIFIED
+tovu	apps/website/src/platform/db/client/open-site-db-client.ts:101	TOVU_DB	NOT CLASSIFIED
+tovu	apps/website/src/platform/headless-browser/desktop-render.ts:17	JINI_DESKTOP_RENDER_TOKEN JINI_DESKTOP_RENDER_URL	NOT CLASSIFIED
+tovu	apps/website/src/platform/site-dir/active-site.ts:92	TOVU_SITE	NOT CLASSIFIED
+tovu	apps/website/src/platform/site-dir/local-admin-bundle.ts:150	VITE_TOVU_SITE_URL	NOT CLASSIFIED
+tovu	apps/website/src/platform/site-dir/local-site-child.ts:50	TOVU_LOCAL_SITE_OWNER_PID	NOT CLASSIFIED
+tovu	apps/website/src/platform/site-dir/local-site-child.ts:129	TOVU_ADMIN_DIST TOVU_LOCAL_ADMIN_BUILD_ROOT TOVU_REPO_ROOT	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts:23	TOVU_SITE_DIR	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope-control.ts:67	TOVU_AGENT_DAEMON_TOKEN TOVU_SITE_CALLBACK_ORIGIN TOVU_SITE_DIR TOVU_SITE_LISTENER_ORIGIN	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:168	TOVU_SITE_DIR	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:175	JINI_AGENT_DAEMON_URL TOVU_SITE_DIR TOVU_SITE_PROCESS_CWD TOVU_WORKSPACE	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts:212	JINI_AGENT_DAEMON_PORT	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts:230	TOVU_WORKSPACE	NOT CLASSIFIED
+tovu	apps/website/src/server/inbound/public-http/routes/oauth/public-origin.ts:81	TOVU_PUBLIC_URL	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/boot/bind-host.ts:80	TOVU_HOST	boot refusal (security): invalid TOVU_HOST / --host throws ValidationError; a fallback would widen the listener
+tovu	apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:101	TOVU_WORKSPACE	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:102	TOVU_SITE_DIR TOVU_WORKSPACE	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/composition/deps.ts:947	TOVU_ADMIN_RESET_PASSWORD TOVU_ADMIN_RESET_USERNAME	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/composition/deps.ts:1127	TOVU_MEDIA_BLOB_STORE	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/composition/deps.ts:1408	TOVU_MEDIA_BLOB_STORE	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/composition/deps.ts:3021	TOVU_SHARE_PERSISTENT_STORAGE TOVU_SHARE_PUBLIC_ORIGIN	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/composition/site-paths.ts:177	TOVU_CONTENT_DB	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/lifecycle/local-site-host.ts:38	PORT	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts:196	TOVU_DEV_TSX_CLI	NOT CLASSIFIED
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts:239	TOVU_ADMIN_DIST	NOT CLASSIFIED
+jini	packages/agent-runtime/src/model-discovery-adapters.ts:149	HOME	NOT CLASSIFIED
+jini	packages/agent-runtime/src/model-discovery-adapters.ts:240	VELA_DEFAULT_MODEL	NOT CLASSIFIED
+jini	packages/daemon/src/agent-executor/codex/isolation.ts:65	JINI_MCP_SERVER_KEY	NOT CLASSIFIED
+jini	packages/daemon/src/http/attachments.ts:1620	JINI_ALLOWED_ORIGINS	NOT CLASSIFIED
+jini	packages/daemon/src/http/model-proxy.ts:613	JINI_ALLOWED_ORIGINS	NOT CLASSIFIED
+jini	packages/daemon/src/http/model-proxy.ts:615	JINI_ALLOWED_ORIGINS	NOT CLASSIFIED
+jini	packages/platform/src/resource-paths.ts:201	LOGNAME USER	NOT CLASSIFIED
+jini	packages/server/src/storage/backend-config.ts:46	JINI_PG_SSL_MODE	boot refusal, only when JINI_SQLITE_BACKEND=postgres (conditional)
+jini	packages/server/src/storage/backend-config.ts:59	JINI_PG_PORT	boot refusal, only when JINI_SQLITE_BACKEND=postgres (conditional)
+jini	packages/server/src/storage/backend-config.ts:75	JINI_PG_DATABASE JINI_PG_HOST JINI_PG_USER	boot refusal, only when JINI_SQLITE_BACKEND=postgres (conditional)
+jini	packages/server/src/storage/backend-config.ts:109	JINI_SQLITE_BACKEND	boot refusal: unknown JINI_SQLITE_BACKEND

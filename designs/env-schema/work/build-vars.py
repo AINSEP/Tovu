@@ -38,25 +38,26 @@ NOT_ENV = {  # scanner hits that are code constants, comments about retired name
  'TOVU_CREDENTIAL_COPY_HOST': 'code constant', 'TOVU_CUSTOM_CREDENTIAL_HOST': 'code constant', 'TOVU_DATABASE_MESSAGES': 'code constant', 'TOVU_FRONTEND_CAPABILITIES': 'code constant',
  'TOVU_MAX_UPLOAD_BYTES': 'code constant', 'TOVU_MCP_FIELD_SPECS': 'comment about a removed export', 'TOVU_OBSERVATION_POLICY': 'code constant', 'TOVU_PLUGIN_RUNTIME_TEXT': 'code constant',
  'TOVU_SECRET_POLICY': 'code constant', 'TOVU_TRANSFER_MESSAGES': 'code constant', 'TOVU_SUPABASE_MCP_ACCESS_TOKEN': 'comment about a retired name', 'TOVU_S3_ACCESS_KEY_ID': 'comment example (name comes from a plugin declaration; see family F2)',
+ 'JINI_CORE_VERSION': 'r2: build constant __JINI_CORE_VERSION__ from the installed package manifest (apps/admin/vite.config.ts:129), not an env variable',
  'SafeString': 'Handlebars env object, not process env', 'ASSETS': 'Cloudflare Worker binding object, not process env', 'JINI_PROTOCOL_PROXY_FAILED': 'error code',
 }
 DECISION = {  # name -> (decision, new_name, step, note). Everything else is keep.
- 'JINI_AGENT_DAEMON_PORT': ('rename', 'TOVU_AGENT_DAEMON_PORT', 'T4', 'Tovu-owned name with a JINI_ prefix; no Jini package reads it (grep packages/*/src = 0 files)'),
- 'JINI_AGENT_DAEMON_URL': ('rename', 'TOVU_AGENT_DAEMON_URL', 'T4', 'same; pairs with TOVU_AGENT_DAEMON_TOKEN'),
- 'TOVU_STOP_ON_STDIN_EOF': ('rename', 'JINI_STOP_ON_STDIN_EOF', 'T4', 'same meaning as the sidecar child contract name Jini already sets; UNVERIFIED which launcher sets the TOVU_ spelling'),
- 'TOVU_AGENT_NATIVE_FALLBACKS': ('delete', '', 'T9', 'code calls it an alias of TOVU_AGENT_FULL_CLI_ACCESS (assistant-native-fallbacks.ts:45); .env.example recommends it. OWNER D3'),
- 'TOVU_AGENT_FORBID_BASH': ('delete', '', 'T9', '.env.example calls it legacy; it also selects the strict prompt (assistant-system-overlay.ts:147) so removal changes behaviour. OWNER D3'),
- 'TOVU_CONSENT_REGION_HEADER': ('delete', '', 'T9', '"older setting" next to TOVU_CONSENT_INGRESS (site-cookie-consent.ts:15); removal drops one trusted header. OWNER D3'),
+ # r2 (judge findings 1, 3): operator-settable names are an installation surface. No rename, no delete.
+ 'JINI_AGENT_DAEMON_PORT': ('keep', '', 'T4', 'r2: rename WITHDRAWN. Tovu-owned despite the JINI_ prefix (0 files in Jini packages/*/src read it), but operators set it: .env.example:26, Dockerfile:194, Admin deployment page (apps/admin/src/features/deployment/rules.ts:355)'),
+ 'JINI_AGENT_DAEMON_URL': ('keep', '', 'T4', 'r2: rename WITHDRAWN. Operator-settable (agent-daemon-port.ts:60) and also set by launchers'),
+ 'TOVU_STOP_ON_STDIN_EOF': ('keep', '', 'T4', 'r2: rename WITHDRAWN, and it is not a duplicate. Desktop sets it for the SERVER child (apps/desktop/src/tovu-server.ts:911 -> cli/commands/serve.ts:490); Jini sidecar sets JINI_STOP_ON_STDIN_EOF for the DAEMON child (supervisor-node.ts:107 -> agent-daemon-server.ts:67). One shared name would be inherited by the wrong child'),
+ 'TOVU_AGENT_NATIVE_FALLBACKS': ('keep', '', 'T5', 'r2: delete WITHDRAWN. Security deny switch: value 0/false denies CLI access (assistant-native-fallbacks.ts:52-53, 64-65). Documented in .env.example:217'),
+ 'TOVU_AGENT_FORBID_BASH': ('keep', '', 'T5', 'r2: delete WITHDRAWN. Security deny switch (assistant-native-fallbacks.ts:51) and prompt selector (assistant-system-overlay.ts:144-147). Documented in .env.example:38'),
+ 'TOVU_CONSENT_REGION_HEADER': ('keep', '', 'T5', 'r2: delete WITHDRAWN. Documented in .env.example:93; removal would drop a trusted region header on installs that set it (site-cookie-consent.ts:24, deps.ts:3093)'),
  'TOVU_ALLOWED_ORIGINS': ('delete', '', 'T9', 'inert: the name is handed to a Jini adapter together with env: {} (visitor-frontend-control.ts:67-68), so nothing can read it'),
  'JINI_ALLOWED_ORIGINS': ('keep', '', 'J3', 'Jini preset var. Tovu only passes the NAME to a Jini adapter; after J3 Tovu passes the value and stops naming it'),
  'JINI_WEB_PORT': ('keep', '', 'J3', 'same as JINI_ALLOWED_ORIGINS'),
  'JINI_BIND_HOST': ('keep', '', 'J3', 'same as JINI_ALLOWED_ORIGINS'),
- 'TOVU_FORMS': ('rename', 'FORMS (host-chosen binding name)', 'J6', 'Cloudflare Worker binding name inside a Jini plugin payload; "no Tovu in Jini" rule. OWNER D6'),
- 'TOVU_FORMS_SECRET': ('rename', 'FORMS_SECRET (host-chosen binding name)', 'J6', 'same. OWNER D6'),
- 'TOVU_GOOGLE_PICKER_APP_ID': ('rename', 'host passes the config name', 'J6', 'Tovu name hard-coded in a Jini plugin (picker-flow.mjs:31). OWNER D6'),
- 'TOVU_GOOGLE_PICKER_BROWSER_KEY': ('rename', 'host passes the config name', 'J6', 'same. OWNER D6'),
+ 'TOVU_FORMS': ('not-env', '', '-', 'r2 (judge finding 8): Cloudflare D1 database binding, an object with prepare() (forms-receiver.mjs:80,298), not a string. Producer and reader ship in one worker upload (cloudflare/lib/forms.mjs:281). Outside the env schema'),
+ 'TOVU_FORMS_SECRET': ('not-env', '', '-', 'r2 (judge finding 8): Cloudflare secret_text binding set by the same upload (forms.mjs:281), read at forms-receiver.mjs:80,275. A worker binding, not OS env. Outside the env schema'),
+ 'TOVU_GOOGLE_PICKER_APP_ID': ('keep', '', 'T5', 'r2: rename WITHDRAWN. Sites already set it (picker-flow.mjs:29 says so). Host public-config family F4; the plugin reads it through the publicConfig port'),
+ 'TOVU_GOOGLE_PICKER_BROWSER_KEY': ('keep', '', 'T5', 'r2: rename WITHDRAWN, as TOVU_GOOGLE_PICKER_APP_ID'),
  'TEST_API_KEY': ('keep', '', '-', 'semgrep rule fixture, not product code; exempt path'),
- 'JINI_CORE_VERSION': ('keep', '', 'T7', 'declared in apps/admin/src/vite-env.d.ts; how Vite injects it was NOT VERIFIED'),
  'OTEL_EXPORTER_OTLP_ENDPOINT': ('keep', '', 'T1', 'read by the OpenTelemetry SDK, not by our code (11-11 hand check, not re-verified); schema lists it as external'),
  'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT': ('keep', '', 'T1', 'as OTEL_EXPORTER_OTLP_ENDPOINT'),
  'OTEL_EXPORTER_OTLP_HEADERS': ('keep', '', 'T1', 'as OTEL_EXPORTER_OTLP_ENDPOINT; may carry credentials'),
@@ -66,6 +67,18 @@ DECISION = {  # name -> (decision, new_name, step, note). Everything else is kee
  'TOVU_HOSTED': ('keep', '', 'T5', 'near-duplicate of TOVU_RUNTIME_MODE=production for the hosted check (assistant-native-fallbacks.ts:35). OWNER D3'),
  'TOVU_EXECUTION_MODE': ('keep', '', 'T5', 'third "hosted" switch (hosted-api-only). OWNER D3'),
 }
+J, T = 'jini', 'tovu'
+DECLARED_SETS = [
+ dict(repo=J, file='packages/integrations/src/media-providers/providers.ts', first=233, last=253, mode='literal', kind='vendor-passthrough', secret='yes', area='pkg:integrations (declared)', step='J4', phase='call (computed key)', how='PROVIDER_CREDENTIAL_ENV_VARS; read by resolveProviderCredentialsFromEnv (dispatch/credentials.ts:16-21)'),
+ dict(repo=J, file='packages/daemon/src/agent-executor/agent-env.ts', first=7, last=18, mode='literal', kind='os-ambient', area='pkg:daemon (declared)', step='J2', phase='call (computed key)', how='BASELINE_AGENT_ENV_KEYS; copied from hostEnv into the agent child (agent-env.ts:30-32)'),
+ dict(repo=J, file='packages/platform/src/child-environment.ts', first=21, last=22, mode='literal', kind='os-ambient', area='pkg:platform (declared)', step='J2', phase='call (computed key)', how='LOGIN_SHELL_BOOTSTRAP_KEYS; copied from baseEnv (child-environment.ts:84-86)'),
+ dict(repo=J, file='packages/platform/src/proxy-env.ts', first=24, last=31, mode='literal', lower=True, kind='os-ambient', area='pkg:platform (declared)', step='J2', phase='call (computed key)', how='CANONICAL_PROXY_ENV_KEYS, both spellings; normalised from every source env (proxy-env.ts:102-110)'),
+ dict(repo=J, file='packages/db/src/transfer/postgres-target.ts', first=71, last=74, mode='key', kind='vendor-passthrough', area='pkg:db (written for a child)', step='J2', phase='written into the pg tool child env, never read as host config', how='parseConnectionString builds the child env (postgres-target.ts:71-74)'),
+ dict(repo=J, file='packages/agent-runtime/src/env.ts', first=84, last=90, mode='literal', kind='vendor-passthrough', area='pkg:agent-runtime (declared)', step='J4', phase='call (computed key)', skip=('OPENCODE', 'MIMOCODE'), how='agent identity keys cleared or set for the agent child (env.ts:84,90)'),
+ dict(repo=T, file='apps/website/src/contracts/core/host-signals.ts', first=39, last=39, mode='literal', kind='runtime-ambient', area='web/contracts (declared)', step='T2', phase='boot+call (computed key)', skip=('Fly.io (FLY_APP_NAME)',), how='core host-signal fallback; read at host-signals.ts:84'),
+ dict(repo=T, file='apps/website/src/server/runtime/lifecycle/local-site-process.ts', first=117, last=117, mode='literal', kind='os-ambient', area='web/server (declared)', step='T2', phase='call (computed key)', how='allow-list copied into a local-site child env'),
+ dict(repo=T, file='apps/desktop/src/desktop-agent-service.ts', first=50, last=50, mode='literal', kind='os-ambient', area='desktop-main (declared)', step='T2', phase='call (computed key)', how='allow-list copied into the desktop agent service env'),
+]
 def area_short(a): return a.replace('website-', 'web/').replace('desktop-main', 'desktop-main').replace('admin-browser', 'admin(browser)').replace('site-chat', 'site-chat')
 def load(tsv): return list(csv.DictReader(open(tsv), delimiter='\t', quoting=csv.QUOTE_NONE))
 cache = {}
@@ -75,7 +88,17 @@ def src(root, f, n):
         except OSError: cache[(root, f)] = []
     L = cache[(root, f)]; n = int(n)
     return L[n - 1] if 0 < n <= len(L) else ''
+KIND_OVERRIDE = {'TOVU_FORMS': 'native-binding', 'TOVU_FORMS_SECRET': 'native-binding'}
+def surface_of(kind, name, in_example, deploy):
+    # r2: who can have this name stored in an installation. 'operator' names are frozen (DESIGN 4.3).
+    if kind == 'native-binding': return 'worker-binding'
+    if kind == 'launch-binding': return 'operator+launcher' if in_example or deploy else 'launcher'
+    if kind in ('os-ambient', 'runtime-ambient'): return 'platform'
+    if kind == 'vendor-passthrough': return 'operator(vendor)'
+    if kind in ('test-hook', 'dev-flag'): return 'operator' if in_example else 'developer'
+    return 'operator'
 def kind_of(name, writes):
+    if name in KIND_OVERRIDE: return KIND_OVERRIDE[name]
     if name in OS: return 'os-ambient'
     if name in TESTHOOK: return 'test-hook'
     if name in RUNTIME: return 'runtime-ambient'
@@ -102,7 +125,7 @@ def default_of(root, reads, name):
         m = re.search(re.escape(name) + r"\]?\s*(?:\?\?|\|\|)\s*(\"[^\"]*\"|'[^']*'|`[^`]*`|-?\d[\d_]*|true|false|[A-Z][A-Z0-9_]{3,})", line)
         if m: return m.group(1).strip('"\'`'), f"{r['file']}:{r['line']}"
     return '', ''
-out = [['name', 'repo', 'readers', 'phase', 'secret', 'default', 'decision', 'step', 'kind', 'new_name', 'prod_read_sites', 'prod_files', 'in_env_example', 'also_in', 'evidence', 'note']]
+out = [['name', 'repo', 'readers', 'phase', 'secret', 'default', 'decision', 'step', 'kind', 'new_name', 'prod_read_sites', 'prod_files', 'in_env_example', 'also_in', 'evidence', 'note', 'surface']]
 counts = collections.Counter()
 for repo, tsv, root in (('tovu', tovu_tsv, tovu_root), ('jini', jini_tsv, jini_root)):
     rows = [r for r in load(tsv) if not r['name'].startswith('<')]
@@ -128,6 +151,8 @@ for repo, tsv, root in (('tovu', tovu_tsv, tovu_root), ('jini', jini_tsv, jini_r
         if any(r['scope'] == 'test' for r in rs): also.append('tests')
         if deploy: also.append('deploy:' + '|'.join(deploy))
         if writes: also.append(f'set-for-child×{len(writes)}')
+        ncomm = sum(1 for r in rs if r['kind'].startswith('comment:') and r['scope'] in ('prod', 'build'))
+        if ncomm: also.append(f'comments×{ncomm}')
         d, dsite = default_of(root, reads, name)
         dec, new, step, note = DECISION.get(name, ('keep', '', '', ''))
         if not step:
@@ -142,8 +167,25 @@ for repo, tsv, root in (('tovu', tovu_tsv, tovu_root), ('jini', jini_tsv, jini_r
         secret = 'yes' if SECRET.search(name) and not re.search(r'BROWSER_KEY|PUBLIC_KEY|KEY_NOTICE|TOKENS_DIR', name) else 'no'
         if d and secret == 'yes': d = '(has a development default in code; value not copied here)'
         default = f'{d} [code {dsite}]' if d else (f'{ex_default[name]} [.env.example text, not code-verified]' if name in ex_default and repo == 'tovu' else ('NOT VERIFIED (not on the read line)' if reads else ''))
-        out.append([name, repo, readers, phase_of(root, reads, k), secret, default, dec, step, k, new, str(len(reads)), str(len({r['file'] for r in reads})), ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '; '.join(also), ev, note])
+        out.append([name, repo, readers, phase_of(root, reads, k), secret, default, dec, step, k, new, str(len(reads)), str(len({r['file'] for r in reads})), ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '; '.join(also), ev, note, surface_of(k, name, name in ex and repo == 'tovu', bool(deploy))])
         counts[(repo, dec)] += 1; counts[(repo, 'kind:' + k)] += 1; counts[(repo, 'secret:' + secret)] += 1
+    # r2 (judge finding 4): names that exist only inside a declaration (array, map, object keys) and are read or written
+    # through a computed key. Each set was read by hand at the cited lines; nothing here is inferred from a name shape.
+    index = {row[0]: row for row in out if row[1] == repo}
+    for d in [x for x in DECLARED_SETS if x['repo'] == repo]:
+        lines = open(f"{root}/{d['file']}", errors='replace').read().split('\n')[d['first'] - 1:d['last']]
+        text = '\n'.join(l for l in lines if not re.match(r'\s*(//|\*|/\*)', l))
+        names = re.findall(r"['\"]([A-Za-z][A-Za-z0-9_]{2,})['\"]", text) if d['mode'] == 'literal' else re.findall(r'\b([A-Z][A-Z0-9_]{2,})\s*:', text) + re.findall(r'\benv\.([A-Z][A-Z0-9_]{2,})\s*=', text)
+        for name in sorted(set(names)):
+            if name in NOT_ENV or name in d.get('skip', ()) or (name.islower() and d['mode'] == 'literal' and not d.get('lower')): continue
+            where = f"{d['file']}:{d['first']}-{d['last']}"
+            if name in index:
+                index[name][15] = (index[name][15] + '; ' if index[name][15] else '') + f"also in the declared set at {where}"
+                continue
+            secret = d.get('secret') or ('yes' if SECRET.search(name) else 'no')
+            row = [name, repo, d['area'], d['phase'], secret, '', 'keep', d['step'], d['kind'], '', '0', '0', ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', 'declared-set', where, f"r2: declared set, {d['how']}", surface_of(d['kind'], name, False, False)]
+            out.append(row); index[name] = row
+            counts[(repo, 'keep')] += 1; counts[(repo, 'kind:' + d['kind'])] += 1; counts[(repo, 'secret:' + secret)] += 1; counts[(repo, 'declared-set-added')] += 1
     # names never read in product code: script/build-only and test-only (one row each, so the schema's dev/ci slice and the test advisory have an inventory)
     prodnames = {row[0] for row in out if row[1] == repo}
     RW = READ | {'process.env-write', 'env-param-write'}
