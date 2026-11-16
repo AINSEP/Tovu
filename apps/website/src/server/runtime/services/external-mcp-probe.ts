@@ -35,7 +35,7 @@ export type ExternalMcpProbeServiceDeps = Pick<ExternalMcpToolDeps, "workspaceId
  *  call, then is closed immediately after — for THIS session, `connectTimeoutMs` bounds the
  *  handshake and is the correct bound rather than a reused wrong one.
  *  @complexity O(1) beyond the remote's round-trip. */
-async function defaultProbeConnect(spec: McpHttpLaunchSpec, requestTimeoutMs: number): Promise<McpSessionPort> {
+async function defaultProbeConnect({ spec, requestTimeoutMs }: { spec: McpHttpLaunchSpec; requestTimeoutMs: number }, _optional = {}): Promise<McpSessionPort> {
   return connectMcpHttpSession({ exchange: createFetchMcpHttpExchange({ fetch }), spec, requestTimeoutMs });
 }
 
@@ -57,7 +57,7 @@ type ProbeTargetResolution = { readonly ok: true; readonly target: ProbeTarget }
  *  purely to keep that function's complexity under the shop ceiling.
  *  @returns The response to send, or `null` to continue resolving.
  *  @complexity O(1). */
-function refuseBeforeResolving(record: ExternalMcpServerRecord, serverId: string): Extract<ProbeTargetResolution, { ok: false }> | null {
+function refuseBeforeResolving({ record, serverId }: { record: ExternalMcpServerRecord; serverId: string }, _optional = {}): Extract<ProbeTargetResolution, { ok: false }> | null {
   if (record.transport === "stdio") {
     return {
       ok: false,
@@ -88,7 +88,7 @@ function refuseBeforeResolving(record: ExternalMcpServerRecord, serverId: string
  *  response. Split out of {@link resolveProbeTarget} purely to keep that function's complexity under
  *  the shop ceiling.
  *  @complexity O(1) given the caller already located `failure`. */
-function respondToResolutionFailure(serverId: string, reason: string): Extract<ProbeTargetResolution, { ok: false }> {
+function respondToResolutionFailure({ serverId, reason }: { serverId: string; reason: string }, _optional = {}): Extract<ProbeTargetResolution, { ok: false }> {
   /** `true` only for the fixed prose {@link resolveProbeTarget}'s failure branch and
    *  `external-mcp-oauth.ts`'s `ExternalMcpReauthRequiredError` share today — see this file's header
    *  on the residual race this covers: a row whose STORED status is `"connected"` but whose live token
@@ -114,13 +114,13 @@ function respondToResolutionFailure(serverId: string, reason: string): Extract<P
  *  second, parallel reading of the row.
  *  @complexity O(n) in the workspace's configured server count — bounded by the store's own
  *  per-workspace server cap. */
-async function resolveProbeTarget(deps: ExternalMcpProbeServiceDeps, serverId: string): Promise<ProbeTargetResolution> {
+async function resolveProbeTarget({ deps, serverId }: { deps: ExternalMcpProbeServiceDeps; serverId: string }, _optional = {}): Promise<ProbeTargetResolution> {
   const record = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId });
   if (!record) {
     return { ok: false, status: 400, body: { error: `no external MCP server is configured as '${serverId}'`, code: "INVALID_MCP_SERVER", details: { field: "id" } } };
   }
 
-  const earlyRefusal = refuseBeforeResolving(record, serverId);
+  const earlyRefusal = refuseBeforeResolving({ record, serverId });
   if (earlyRefusal) return earlyRefusal;
 
   const { configs, failures } = await readEnabledExternalMcpConfigs(
@@ -131,7 +131,7 @@ async function resolveProbeTarget(deps: ExternalMcpProbeServiceDeps, serverId: s
   const config = configs.find((candidate) => candidate.serverId === serverId);
   if (!config) {
     const failure = failures.find((candidate) => candidate.serverId === serverId);
-    return respondToResolutionFailure(serverId, failure?.reason ?? "this server's connection could not be resolved");
+    return respondToResolutionFailure({ serverId, reason: failure?.reason ?? "this server's connection could not be resolved" });
   }
 
   const [resolved] = toResolvedFederatedConnections([config]);
@@ -187,8 +187,8 @@ async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTa
  * OAuth resolution can refresh and persist a grant, so this operation is not declared read-only.
  * @complexity O(n + t) time and O(n + t) space for saved servers and advertised tools, plus bounded I/O.
  */
-export async function probeExternalMcpServer(deps: ExternalMcpProbeServiceDeps, serverId: string) {
-  const resolution = await resolveProbeTarget(deps, serverId);
+export async function probeExternalMcpServer({ deps, serverId }: { deps: ExternalMcpProbeServiceDeps; serverId: string }, _optional = {}) {
+  const resolution = await resolveProbeTarget({ deps, serverId });
   if (!resolution.ok) return resolution;
   const outcome = await runProbe(deps.connect ?? defaultProbeConnect, resolution.target);
   if (!outcome.ok) {
