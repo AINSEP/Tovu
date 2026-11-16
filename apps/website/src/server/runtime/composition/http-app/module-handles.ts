@@ -1,0 +1,25 @@
+/**
+ * @file The two hoisted `ServerModuleHandle` guards `createApp` and its mounts share. Moved verbatim out of `app.ts`.
+ */
+
+import type { Express } from "express";
+import type { ServerModuleHandle } from "../modules/types.js";
+
+/**
+ * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
+ * identical `mod.registerRoutes?.(app)` guard (`registerRoutes` is optional per
+ * `modules/types.ts`'s `ServerModuleHandle` doc: a module may own only subscriptions, only routes,
+ * or both). ESLint's `complexity` rule counts every `?.` as its own branch, so 30 inlined copies of
+ * the SAME guard cost `createApp` 30 points of complexity for zero actual decision-making — the
+ * guard never varies. Hoisting it here means the branch is counted once, in this 2-line function,
+ * instead of once per call site.
+ */
+export function mountRoutes(app: Express, mod: ServerModuleHandle): void {
+  mod.registerRoutes?.({ app });
+}
+
+/** Same hoisted-guard rationale as {@link mountRoutes}, for the `start?.()` half of
+ * `ServerModuleHandle` (a module's optional subscriptions/workers, started once at boot). */
+export function startModule(mod: ServerModuleHandle): void {
+  mod.start?.();
+}

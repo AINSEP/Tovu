@@ -390,10 +390,10 @@ import type { RouteDeps } from "../../routes/types.js";
 // {@link runExportSite} below.
 import type { ExportEngine } from "#src/features/deployments/export-run";
 import type { Express } from "express";
-import type { ServerModuleHandle } from "./modules/types.js";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import { startSettingsRegistration } from "./settings-registration.js";
 import type { CreateAppOptions } from "./create-app-options.js";
+import { mountRoutes, startModule } from "./http-app/module-handles.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -1767,25 +1767,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * `ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`'s "Route A".
  */
 const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => exportSite(options);
-
-/**
- * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
- * identical `mod.registerRoutes?.(app)` guard (`registerRoutes` is optional per
- * `modules/types.ts`'s `ServerModuleHandle` doc: a module may own only subscriptions, only routes,
- * or both). ESLint's `complexity` rule counts every `?.` as its own branch, so 30 inlined copies of
- * the SAME guard cost `createApp` 30 points of complexity for zero actual decision-making — the
- * guard never varies. Hoisting it here means the branch is counted once, in this 2-line function,
- * instead of once per call site.
- */
-function mountRoutes(app: Express, mod: ServerModuleHandle): void {
-  mod.registerRoutes?.({ app });
-}
-
-/** Same hoisted-guard rationale as {@link mountRoutes}, for the `start?.()` half of
- * `ServerModuleHandle` (a module's optional subscriptions/workers, started once at boot). */
-function startModule(mod: ServerModuleHandle): void {
-  mod.start?.();
-}
 
 /** Buses that already carry the handlers {@link subscribeSiteEventHandlersOnce} attaches. */
 const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
