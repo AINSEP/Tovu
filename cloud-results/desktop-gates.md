@@ -165,7 +165,30 @@ JS) installs fine here; only its binary download is absent.
 
 ## Gates with the pinned Jini release instead of a linked checkout
 
-See the end of this file; filled in by a follow-up commit if the run had time for it.
+I reinstalled the way CI does (`npm ci` at the root, in `apps/desktop` and in `apps/admin`, no
+Jini link) with the patch applied, then tried the CI steps. **The branch does not build against
+published Jini, with or without this patch**, so `.github/workflows/desktop.yml` will stay red
+until Jini is published and the lockfiles are bumped. This is not something the patch can fix.
+
+- Root `npm run build` fails: `packages/sdk` imports `@jini-ai/core/contracts/plugin-sdk`, which
+  the published core does not export.
+- Desktop typecheck: 9 errors, all one cause. Missing in the published packages:
+  `@jini-ai/core/contracts/runtime` (imported by `desktop-resources.ts`, `tovu-server.ts`,
+  `smoke-packaged-chat-gate.ts`), `@jini-ai/ui/react-kit`, and `ChatSurfacesProvider`,
+  `ChatSurfaces` and `McpUiHost` from `@jini-ai/chat/react`. Four of the nine are in the two new
+  test files, because the bindings they test need those same entry points.
+- I checked the newest published versions too (`@jini-ai/core@0.7.2`, `@jini-ai/ui@0.7.2`): they
+  do not have these entry points either.
+- Of the five Jini-wording tests, the three files that can load against 0.7.0 pass there
+  (73 pass, 0 fail in those files). `site-dir-store.test.ts` and `tracked-sites.test.ts` cannot
+  load at all against 0.7.0, for the missing `contracts/runtime` entry point above.
+
+So the claim this run can make is narrower than "CI is green": **the gates pass with Jini linked
+at `refactor/terra`**, which is how the pre-push hook runs on a development machine. After the
+next Jini publish and lockfile bump, the two-wording test expectations can be reduced to the new
+wording only.
+
+The container was put back to the linked setup afterwards.
 
 ## Not mine, found on the way
 
