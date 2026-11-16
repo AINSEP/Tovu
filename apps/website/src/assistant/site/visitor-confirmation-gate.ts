@@ -36,7 +36,7 @@ function confirmationCopy({ request }: { request: ToolConfirmationRequest }, _op
   const value = copy.field && input?.[copy.field];
   if (typeof value !== "string") return { title: copy.title, summary: copy.summary };
   const field = stripControlSequences({ text: value })
-    .replace(/[‎‏‪-‮⁦-⁩]/g, "")
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "")
     .replace(/\s+/g, " ").trim()
     .replace(/https?:\/\/\S+/gi, "[link]").slice(0, 120)
     .replace(/\b[\w-]+\.[a-z]{2,}\S*/gi, "[link]").slice(0, 120);
