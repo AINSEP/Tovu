@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
-import { createRecordingAiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
+import { createRecordingAiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 
 import { traceRunLifecycle } from "../run-lifecycle-tracing.js";
 

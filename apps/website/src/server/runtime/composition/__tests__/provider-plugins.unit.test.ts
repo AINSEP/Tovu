@@ -10,7 +10,7 @@ import test from "node:test";
 import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
 import type { ProductConsent, ProductProviderInput, ProductTelemetry } from '../product-telemetry.js';
-import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
+import { createAiTraceRecorder } from "@jini-ai/core/contracts/ai-trace";
 import { createPluginContributionRegistry } from "@jini-ai/plugins/host";
 import {
   type PluginProviderFactory,

@@ -6,7 +6,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 import { createTracker, redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/agent-runtime/ai-trace";
+import type { AiTraceEvent, AiTraceSink, AiContentCapture } from "@jini-ai/core/contracts/ai-trace";
 import type { getEffective } from "@jini-ai/core/settings";
 import { DaemonCoreError, daemonCoreSnapshot, type DaemonCoreRequest, type DaemonDurableRunStore, type DaemonCoreSnapshot, daemonToolConsentSnapshot, type DaemonToolConsentSnapshot, type DaemonCliConsentTarget, type DaemonCliConsentAllow } from "#src/assistant/daemon-core-protocol";
 
