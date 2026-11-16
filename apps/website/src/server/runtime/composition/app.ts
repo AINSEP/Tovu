@@ -74,6 +74,7 @@ import {
   type TrashAdapter,
   withFollowUps,
 } from "@jini-ai/cms/trash";
+import { memoryFormSubmissionTrashAdapter, memoryFormTrashAdapter, memoryMenuTrashAdapter, memoryWidgetTrashAdapter } from "./memory-deps/slices/trash-adapters-forms-widgets.js";
 import { memoryCommentTrashAdapter, memoryMediaTrashAdapter, memoryPostTrashAdapter, memoryRedirectTrashAdapter } from "./memory-deps/slices/trash-adapters-content.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
@@ -136,7 +137,7 @@ import {
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
 import { ConsoleMailerAdapter, InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/index";
 import { InMemoryNavLocationBindingRepo, registerMenuReverters } from "#src/features/navigation/index";
-import { TrashAwareInMemoryMenuRepo, type TrashableMenuRecord } from "#src/features/navigation/trash-aware-memory-menu-repo";
+import { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
@@ -160,7 +161,6 @@ import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsle
 import {
   InMemoryFormDefinitionRepo,
   InMemoryFormSubmissionRepo,
-  type StoredFormSubmission,
 } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
@@ -181,7 +181,7 @@ import {
   InMemoryDatabaseLedgerRepo,
 } from "#src/features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { TrashAwareInMemoryEntryRepo, type TrashableEntryRecord } from "#src/features/entries/trash-aware-memory-repo";
+import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
@@ -493,109 +493,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     [REDIRECT_ENTITY_TYPE, memoryRedirectTrashAdapter({ redirectRepo })],
     [COMMENT_ENTITY_TYPE, memoryCommentTrashAdapter({ commentRepo })],
     [MEDIA_ENTITY_TYPE, memoryMediaTrashAdapter({ mediaRepo })],
-    [
-      "form",
-      createRecordStoreTrashAdapter({
-        entityType: "form",
-        store: {
-          findById: (required) => formDefinitionRepo.findAnyById(required),
-          save: ({ record }) => formDefinitionRepo.save(record),
-        },
-        isHidden: ({ record }) => record.deletedAt !== null,
-        hidden: ({ record, at }) => ({ ...record, deletedAt: at }),
-        shown: ({ record }) => ({ ...record, deletedAt: null }),
-      }, {
-        // Match the durable adapter's cascade, including independently trashed submissions' index rows.
-        hardDelete: async ({ workspaceId, id }) => {
-          const submissions = await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: id });
-          for (const submission of submissions) {
-            await trashRepo.deleteByEntity({ workspaceId, entityType: "form_submission", entityId: submission.id });
-          }
-          await formSubmissionRepo.deleteAllForDefinition({ workspaceId, formDefinitionId: id });
-          await formDefinitionRepo.hardDelete({ workspaceId, id });
-        },
-      }),
-    ],
-    [
-      "form_submission",
-      createRecordStoreTrashAdapter<StoredFormSubmission>({
-        entityType: "form_submission",
-        // The repo's trash-blind, memory-only seam — its port reads hide a trashed submission.
-        store: {
-          findById: (required) => formSubmissionRepo.findAnyById(required),
-          save: ({ record }) => formSubmissionRepo.save(record)
-        },
-        isHidden: ({ record }) => record.deletedAt !== null,
-        hidden: ({ record, at }) => ({
-          ...record,
-          deletedAt: at
-        }),
-        shown: ({ record }) => ({
-          ...record,
-          deletedAt: null
-        })
-      }, {
-        hardDelete: (required) => formSubmissionRepo.hardDelete(required)
-      }),
-    ],
-    [
-      "widget",
-      createRecordStoreTrashAdapter<TrashableEntryRecord>({
-        entityType: "widget",
-        // The repo's trash-blind seam — its port reads hide a trashed entry.
-        store: {
-          findById: (required) => entryRepo.findAnyById(required),
-          save: ({ record }) => entryRepo.saveAny(record)
-        },
-        isHidden: ({ record }) => record.deletedAt !== null,
-        hidden: ({ record, at }) => ({
-          ...record,
-          deletedAt: at
-        }),
-        shown: ({ record }) => ({
-          ...record,
-          deletedAt: null
-        })
-      }, {
-        // Remove only outgoing references; other content may still refer to this now-missing widget.
-        hardDelete: async (required) => {
-          await entryRefsRepo.removeBySource({ workspaceId: required.workspaceId, sourceEntryId: required.id });
-          await entryRepo.hardDelete(required);
-        },
-      }),
-    ],
-    [
-      "menu",
-      createRecordStoreTrashAdapter<TrashableMenuRecord>({
-        entityType: "menu",
-        // The repo's trash-blind seam — its port reads hide a trashed menu. Purge must remove
-        // location bindings first, matching the durable registry's purgeFirst contract.
-        store: {
-          findById: (required) => menuRepo.findAnyById(required),
-          save: ({ record }) => menuRepo.saveAny(record)
-        },
-        isHidden: ({ record }) => record.status === "trash",
-        // Stash the pre-trash status so `shown` can restore it — `flip()` has no side-channel of its
-        // own for it (see `trash-aware-memory-menu-repo.ts`'s file doc).
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "trash",
-          updatedAt: at,
-          priorStatus: record.status
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          status: record.priorStatus ?? "published",
-          updatedAt: at,
-          priorStatus: null
-        })
-      }, {
-        hardDelete: async ({ workspaceId, id }) => {
-          await navLocationBindingRepo.removeByMenu({ workspaceId, menuId: id });
-          await menuRepo.remove({ workspaceId, id });
-        },
-      }),
-    ],
+    ["form", memoryFormTrashAdapter({ formDefinitionRepo: () => formDefinitionRepo, formSubmissionRepo, trashRepo })],
+    ["form_submission", memoryFormSubmissionTrashAdapter({ formSubmissionRepo })],
+    ["widget", memoryWidgetTrashAdapter({ entryRepo, entryRefsRepo: () => entryRefsRepo })],
+    ["menu", memoryMenuTrashAdapter({ menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo })],
     [
       "term",
       withFollowUps({
