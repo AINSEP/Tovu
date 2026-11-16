@@ -129,6 +129,8 @@ test("parked frontend stream returns 503 without demand", () => {
 });
 
 test("a refused parked mutation waits for replacement and is dispatched once", async t => {
+  // why: the daemon origin is explicit config or a port ensure() allocated; `fetch` is mocked, so an explicit dummy origin suffices.
+  withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9", [TOKEN_ENV]: "tok-123" });
   let ready = 0; let parking = 0; let dispatches = 0; let sends = 0;
   t.mock.method(globalThis, "fetch", async () => {
     if (++sends === 1) return Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } });
@@ -143,6 +145,8 @@ test("a refused parked mutation waits for replacement and is dispatched once", a
 });
 
 test("a passive frontend stream cannot wake a daemon racing park", async t => {
+  // why: the daemon origin is explicit config or a port ensure() allocated; `fetch` is mocked, so an explicit dummy origin suffices.
+  withEnv(t, { JINI_AGENT_DAEMON_URL: "http://127.0.0.1:9", [TOKEN_ENV]: "tok-123" });
   let wakes = 0;
   t.mock.method(globalThis, "fetch", async () => Response.json({ code: "AGENT_DAEMON_PARKED" }, { status: 503, headers: { "x-tovu-daemon-parked": "1", "x-tovu-daemon-pid": "800" } }));
   const response = await demandFetch(fakeReq({ method: "GET", originalUrl: "/api/frontend-sessions/stream" }), fakeRes().res, {
