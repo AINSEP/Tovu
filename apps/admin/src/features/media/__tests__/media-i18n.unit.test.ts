@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@/__tests__/render-with-jini-kits";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";

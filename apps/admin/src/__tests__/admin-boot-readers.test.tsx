@@ -1,4 +1,4 @@
-import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, renderHook, screen, waitFor } from "@/__tests__/render-with-jini-kits";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";

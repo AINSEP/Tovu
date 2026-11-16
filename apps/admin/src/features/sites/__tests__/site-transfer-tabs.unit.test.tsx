@@ -1,6 +1,6 @@
 import userEvent from "@testing-library/user-event";
 import type { SiteExportController, SiteImportController } from "../hooks/use-site-transfer.hooks";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The tabs take the viewer's zone from the admin boundary; a getter lets one test pick a zone.

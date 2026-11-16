@@ -1,5 +1,4 @@
-import { act, fireEvent, render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
-import { renderHook } from "@/__tests__/chat-surfaces-render";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, StrictMode, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -59,14 +58,9 @@ function AssistantDock(props: ComponentProps<typeof RealAssistantDock>) {
     useByokRuntime={useTestByokRuntime} useLocalCliSelection={useTestLocalCliSelection} {...props} />;
 }
 
-import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { writeAgentsSnapshot } from "../../lib/assistant-agents-snapshot";
 
-/** Every render sits under the app's query-cache provider, as `main.tsx` mounts the real dock:
- *  `useRuntimeAccess`/`useAgentsPlaceholder` read the agents list through that cache. */
-function render(ui: ReactNode) {
-  return renderWithoutProvider(ui, { wrapper: FetchQueryProvider });
-}
+// `render` (from the kits helper) mounts the production query cache, kits and chat surfaces, as `main.tsx` does for the real dock.
 import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,

@@ -3,8 +3,10 @@ import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
+import { UiKitProvider } from "@jini-ai/ui/react-kit";
+import { uiKit } from "@/integrations/jini-kits";
 import { renderToStaticMarkup } from "react-dom/server";
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@/__tests__/render-with-jini-kits";
 import { DEFAULT_PROVIDER_PRESETS, mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
@@ -353,7 +355,7 @@ describe("installed Jini credential components (source checkout not required)", 
   ] as const;
   it.each(components)("%s renders an explicitly protected password input", (_name, build) => {
     const container = document.createElement("div");
-    container.innerHTML = renderToStaticMarkup(build());
+    container.innerHTML = renderToStaticMarkup(createElement(UiKitProvider, { kit: uiKit, children: build() }));
     const passwords = container.querySelectorAll('input[type="password"]');
     expect(passwords).toHaveLength(1);
     expect(passwords[0].getAttribute("autocomplete")).toBe("new-password");
