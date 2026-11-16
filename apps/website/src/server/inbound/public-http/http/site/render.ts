@@ -4,7 +4,6 @@ import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
-import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { randomUUID } from "node:crypto";
 import { type SiteChatSelection } from "./site-chat-markup.js";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
@@ -21,8 +20,6 @@ import type { AssignedTermView } from "#src/features/taxonomy/contracts";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { formatDateLabel, formatIsoDate } from "@jini-ai/cms/widgets/date-label";
 import { substituteHtmlEmbeds, type EmbedOccurrence, type PageHtmlEmbedRef } from "@jini-ai/cms/widgets/html/html-embeds";
-import { renderGallery, type GalleryImageRenderer } from "@jini-ai/cms/widgets/html/gallery-render";
-import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { LISTING_BATCH_DEFAULT, listingBatchPath, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
 import {
@@ -41,8 +38,6 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { postAuthorForContentHeader } from "#src/features/theme/static-render";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
-import { NO_MARKER_ATTRIBUTES } from "./render/doc/html-attributes.js";
-import { renderImageTag, renderVideoTag } from "./render/doc/media-tags.js";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
 import { isObject, str } from "./render/value-readers.js";
@@ -54,10 +49,10 @@ import { renderWidgetContactForm } from "./render/contact-form-widget.js";
 import { mediaPlaceholder } from "./render/media-placeholder.js";
 import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
-import { plausibleMediaRefId } from "./render/doc/media-ref.js";
 import type { DocRenderOptions, WidgetDocRendering } from "./render/doc/doc-render-contract.js";
 import { renderDocNodeWith, renderNodes, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
 import { swapManagedDocNodes } from "./render/doc/managed-markers.js";
+import { renderWidgetMediaImage, renderMediaWidget } from "./render/widgets/media.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -498,126 +493,6 @@ export const COMPONENTS: Record<string, Component> = {
   "tovu/cta": ctaBand,
   "tovu/footer": siteFooterRich,
 };
-
-/**
- * Renders a resolved `data-embed-type="media"` Page embed (SPEC-047, generalized 2026-08-07;
- * video/embed capability added 2026-08-24) — `resolver-service.ts`'s `resolveMediaTypeEmbeds`
- * already did the I/O (asset lookup, content-type lookup, and — for a non-video asset — transform
- * version lookup) and only ever puts a `"media-image"` IR into its result map once every value
- * below is a validated primitive, so this function's own `isPlausibleMediaRefId`/`typeof` checks
- * are defense-in-depth (mirrors Jini form renderer's re-check-even-though-upstream-
- * validated precedent), not the primary guard. A malformed `props` shape — which should never
- * happen from this codebase's own resolver, only from some future/foreign IR producer — degrades to
- * the ordinary widget placeholder rather than emitting a malformed or unsafe `<img>`/`<video>` tag.
- *
- * Dispatches on `props.contentType` (present only for a video asset — see `resolveMediaTypeEmbeds`'s
- * own doc for why an image asset's IR never carries it) to `renderVideoTag` instead of
- * `renderImageTag`; `transformName`/`version` are irrelevant to a video tag and simply aren't read
- * on that branch. `props.width`/`height`/`cssClass` come through as `JsonValue` (a
- * `WidgetRenderIR.props` is `JsonObject`, so `null` and `number` both need explicit narrowing) —
- * normalized to each render function's `number | null` / `string | null` contract before
- * delegating, same "own it once, reuse everywhere" split `renderImageTag`'s own doc describes.
- */
-/** Shape-narrows `renderWidgetMediaImage`'s optional sizing/class props from raw `JsonValue` to each
- *  render function's own `number | null` / `string | null` contract — pulled out so this one
- *  three-field narrowing step stops being three of `renderWidgetMediaImage`'s own branches (complexity-
- *  debt sweep, 2026-09-03; that function was at cyclomatic 11 against this repo's 9 ceiling). No
- *  behavior change: same "wrong-typed value degrades to null, never a lie" rule as before. */
-/** Narrows `props.markerAttributes` (the plain-object array {@link withOccurrenceMediaAttributes}
- *  wrote) back to {@link MarkerAttribute}[] — a malformed entry (wrong-typed `name`, a `value` that
- *  is neither `string` nor `null`) is dropped rather than trusted, the same "wrong-typed value
- *  degrades to null/empty, never a lie" rule {@link normalizeMediaDimensions} already applies to
- *  every other field here; this codebase's own IR is the only producer, so this should never actually
- *  reject anything, but a malformed/foreign IR must still degrade safely rather than throw.
- *  @complexity O(n) in the array's length. */
-function normalizeMarkerAttributesProp({ value }: { value: JsonValue | undefined }, _optional = {}): readonly MarkerAttribute[] {
-  if (!Array.isArray(value)) return NO_MARKER_ATTRIBUTES;
-  const attrs: MarkerAttribute[] = [];
-  for (const entry of value) {
-    if (!isObject(entry) || typeof entry.name !== "string") continue;
-    if (typeof entry.value === "string" || entry.value === null) attrs.push({ name: entry.name, value: entry.value });
-  }
-  return attrs;
-}
-
-function normalizeMediaDimensions(props: JsonObject): {
-  width: number | null;
-  height: number | null;
-  cssClass: string | null;
-  htmlAttributes: string | null;
-  markerAttributes: readonly MarkerAttribute[];
-  controls: boolean;
-} {
-  return {
-    width: typeof props.width === "number" ? props.width : null,
-    height: typeof props.height === "number" ? props.height : null,
-    cssClass: typeof props.cssClass === "string" ? props.cssClass : null,
-    htmlAttributes: typeof props.htmlAttributes === "string" ? props.htmlAttributes : null,
-    markerAttributes: normalizeMarkerAttributesProp({ value: props.markerAttributes }),
-    // `EmbedOccurrence.controls`'s own default (`html-embeds.ts`) is `true`; the ONLY way this ends up
-    // `false` is `withOccurrenceMediaAttributes` writing the literal JSON boolean `false` here.
-    controls: props.controls !== false,
-  };
-}
-
-function renderWidgetMediaImage(props: JsonObject): string {
-  const assetId = plausibleMediaRefId({ value: props.assetId });
-  if (!assetId) {
-    return renderWidgetPlaceholder();
-  }
-  const { width, height, cssClass, htmlAttributes, markerAttributes, controls } = normalizeMediaDimensions(props);
-  const alt = str({ value: props.alt });
-  // Readable-slugs S3: `resolver-service.ts`'s `resolveOneMediaEmbed` (both its video and image IR
-  // branches) stashes the resolved record's `slug` onto the IR alongside `assetId` — same
-  // `mediaUrlKey` fallback-to-id rule every other emitter here uses.
-  const urlKey = mediaUrlKey({ id: assetId, slug: typeof props.slug === "string" ? props.slug : null });
-  const sha256 = typeof props.sha256 === "string" ? props.sha256 : undefined;
-
-  if (typeof props.contentType === "string" && props.contentType.startsWith("audio/")) {
-    return renderVideoTag({ kind: "audio", contentType: props.contentType, sha256, urlKey, alt, width: null, height: null, cssClass, htmlAttributes, markerAttributes, controls });
-  }
-  if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
-    return renderVideoTag({ contentType: props.contentType, sha256, urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
-  }
-
-  const transformName = plausibleMediaRefId({ value: props.transformName });
-  const version = props.version;
-  if (!transformName || typeof version !== "number") {
-    return renderWidgetPlaceholder();
-  }
-  return renderImageTag({ urlKey, sha256, transformName, version, alt, width, height, cssClass, htmlAttributes, markerAttributes, responsive: props.galleryResponsive === true });
-}
-
-/** Gallery image adapter: managed media uses the canonical renderer; URL images retain the
- * document image renderer's scheme, credential and private-admin-route guards. No I/O.
- */
-function renderGalleryImage({ image, media, docRendering }: Parameters<GalleryImageRenderer>[0] & { docRendering: WidgetDocRendering }, _optional = {}): string {
-  const slug = (image as typeof image & { slug?: string }).slug;
-  // URL image: no managed reference. `parseGalleryConfig` (Jini `markers/gallery.ts`) accepts a
-  // legacy image only with exactly one of `mediaId`/`src`, and media-mode items are slug-only, so an
-  // image reaching here with neither `slug` nor `mediaId` always carries its `src` (L082b: the old
-  // `src ?? ""` fallback could not run).
-  if (slug === undefined && image.mediaId === undefined && image.src !== undefined) {
-    return docRendering.renderDocNode({ node: { type: "image", attrs: { src: image.src, alt: image.alt } } });
-  }
-  // No `!media` guard here: `renderGallery`'s `renderFigure` (Jini `gallery-render.ts`), this
-  // adapter's only caller, already returns `""` for a managed image without a media record before
-  // calling it. Even if that ever changed, `media` undefined spreads to no `assetId`, which
-  // `renderWidgetMediaImage` already renders as the same widget placeholder.
-  return renderWidgetMediaImage({ ...media, alt: image.alt, galleryResponsive: true });
-}
-
-/** Gallery compatibility and generic media share one renderer. HTML uses the page-body policy. */
-function renderMediaWidget({ ir, docRendering }: { ir: WidgetRenderIR; docRendering: WidgetDocRendering }, _optional: Record<string, never> = {}): string {
-  const renderImage: GalleryImageRenderer = ({ image, media }) => renderGalleryImage({ image, media, docRendering });
-  const renderOptions = {
-    config: ir.props.config, media: ir.props.media, renderImage,
-    renderRawHtml: ({ html, media }: { html: string; media: Record<string, JsonObject> }) => renderMediaRawHtml({
-      html, media, renderMedia: ({ props }) => renderWidgetMediaImage(props),
-    }),
-  };
-  return renderGallery(renderOptions);
-}
 
 /**
  * Renders a resolved `data-embed-type="post"` embed (post-template-picker feature, 2026-08-10) —
