@@ -9,8 +9,6 @@ import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import {
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
   renderBlockSeam,
   renderDocNode,
   renderHtmlPageBody,
@@ -28,6 +26,10 @@ import {
   type SiteProduct,
   type SiteRenderContext,
 } from "../render.js";
+import {
+  injectExtraHeadIntoStaticPage,
+  injectSiteAssistantIntoStaticPage,
+} from "../render/static-page-injection.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 

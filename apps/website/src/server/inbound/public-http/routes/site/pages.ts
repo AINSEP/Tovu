@@ -84,8 +84,6 @@ import {
   renderSite,
   renderHtmlPageBody,
   renderAssignedTermsBlock,
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
   decodeFormSubmissionResultFromQuery,
   injectFormSubmissionResultIntoHtml,
   decodeFormFlashCookieValue,
@@ -95,6 +93,10 @@ import {
   type FormSubmissionRedirectResult,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
+import {
+  injectExtraHeadIntoStaticPage,
+  injectSiteAssistantIntoStaticPage,
+} from "../../http/site/render/static-page-injection.js";
 import { renderBareEntryDocument } from "../../http/site/bare-page.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { injectFormAttemptTokens } from "../../http/site/form-render.js";

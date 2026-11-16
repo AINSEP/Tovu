@@ -6,8 +6,6 @@ import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import {
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
   pageShell,
   renderBlockSeam,
   renderSite,
@@ -15,6 +13,10 @@ import {
   type RenderSiteRequired,
   type SiteRenderContext,
 } from "../render.js";
+import {
+  injectExtraHeadIntoStaticPage,
+  injectSiteAssistantIntoStaticPage,
+} from "../render/static-page-injection.js";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 
 // ---------------------------------------------------------------------------

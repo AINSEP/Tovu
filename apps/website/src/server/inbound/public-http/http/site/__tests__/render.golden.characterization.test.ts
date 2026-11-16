@@ -12,8 +12,6 @@ import {
   COMPONENTS,
   DOC_NODE_HANDLERS,
   MARK_RENDERERS,
-  injectExtraHeadIntoStaticPage,
-  injectSiteAssistantIntoStaticPage,
   pageShell,
   renderDocBodyAsPageHtml,
   renderDocNode,
@@ -22,6 +20,10 @@ import {
   type MediaAssetRenderMeta,
   type SiteRenderContext,
 } from "../render.js";
+import {
+  injectExtraHeadIntoStaticPage,
+  injectSiteAssistantIntoStaticPage,
+} from "../render/static-page-injection.js";
 
 process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
 
