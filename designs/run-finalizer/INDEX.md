@@ -1,6 +1,7 @@
 # Run finalizer design: index
 
-Status: **COMPLETE** (design only; nothing executed, no source changed). 2026-11-16.
+Status: **COMPLETE, revision 2** (design only; nothing executed, no source changed). 2026-11-16.
+Revision 2 answers the Codex gpt-6.1-sol HIGH judgment (`CODEX-JUDGE.md`, verdict "needs rework": 1 blocker, 6 majors, 3 minors). All 10 findings were checked against the code. 10 accepted, 0 rebutted. Blockers left: 0.
 Branch: `plan/run-finalizer-design-2026-11-16` (from `plan/terra-2026-11-15`).
 Code read: Tovu `integ/wave-b-r2` @ `65302ee5`, Jini `integ/wave-b-r2` @ `02edbb68`.
 
@@ -8,7 +9,8 @@ Code read: Tovu `integ/wave-b-r2` @ `65302ee5`, Jini `integ/wave-b-r2` @ `02edbb
 
 | File | What it holds |
 |---|---|
-| `DESIGN.md` | The whole design: inventory, dependency graph, generic/host split, target shape, correctness, migration, decisions |
+| `DESIGN.md` | The whole design, revision 2. Last section: `## Judge response` |
+| `CODEX-JUDGE.md` | The judgment this revision answers |
 | `INDEX.md` | This page |
 
 ## Where to look in DESIGN.md
@@ -19,46 +21,76 @@ Code read: Tovu `integ/wave-b-r2` @ `65302ee5`, Jini `integ/wave-b-r2` @ `02edbb
 | 1 | Verified inventory: declarations by line, 12 responsibilities, every consumer, the stale Jini copy, other Jini owners checked |
 | 2 | Call graph, mutable state and its owner, late and eager reads, the four time sources |
 | 3 | What is generic and what is host |
-| 4 | Target folder trees, port signatures, slice contracts, port bindings checked for behaviour |
-| 5 | Safety mechanisms, crash at every step, concurrency with a live run, clock and timeouts |
-| 6 | Three suspected defects (F1 to F3), pinned and not fixed |
-| 7 | Migration: Phase 0 (15 characterization tests, each with the mutation that fails it), Phase A (7 commits in Tovu), Phase B (2 commits, Jini then Tovu), Phase C (2 commits) |
-| 8 | Interaction with untangle lanes R4-chat, C6, C0, daemon R7/R8, size designs 01/02 |
-| 9 | Estimate |
-| 10 | Owner decisions OD-1 to OD-7 |
-| 11 | The 12 owner practices, checked one by one |
+| 4 | Target folder trees, port signatures, slice contracts, the late-binding hand-off per phase (4.2), port bindings (4.3), two guarantees kept from the Jini copy (4.4) |
+| 5 | Safety mechanisms, the two concurrency boundaries (durable CAS, external launch), process death at every step, rejections, concurrency, timeouts per request and per operation |
+| 6 | Five suspected defects (F1 to F5); F5 is fixed in Phase X, the rest are pinned |
+| 7 | Migration: Phase 0 (about 45 characterization cases, one predicate and one mutation each), Phase X (1 fix), Phase A (7 commits in Tovu), Phase B (2 commits; the Jini copy's 26 tests reconciled row by row), Phase C (2 commits) |
+| 8 | Interaction with untangle C6 / R4-chat (hard prerequisite of B1), C0, daemon R7/R8, size designs 01/02 |
+| 9 | Estimate, with the change from revision 1 |
+| 10 | Owner decisions OD-1 to OD-9 |
+| 11 | The 12 owner practices, the 11 lessons, the judge's 4 recurring classes |
 | 12 | What was not verified |
+| Judge response | One row per finding: verdict, evidence checked, what changed |
 
-## Key numbers (all measured on the commits above)
+## What changed in revision 2
+
+| Judge finding | Change |
+|---|---|
+| 1 Blocker: B2 breaks late binding | The engine has no setter methods and no cells. `recoveryDaemon` and `onAttemptEnded` are function ports called at every use. The shared wrapper moves in B2 with no edit; C1 and C2 gate B2. Cells and install methods exist only in Phase C, on the Tovu object |
+| 2 Launching a terminal successor | The CAS and the launch are treated as two boundaries. New suspected defect F4, with a second, wider window found during the launch request. Pinned by C16 and C17; OD-8 |
+| 3 C6, C13, C14 not mutation-sensitive | Split into C6a to C6e, C13a to C13e, C14 with a concurrency count; each names one predicate and a schedule that reaches it |
+| 4 Crash is not a rejection | C11 split: rejection matrix (C11-R), halt-harness crash matrix (C11-H), one real `SIGKILL` (C11-P), guard races (C11-G1 to G3) |
+| 5 C5, C15 not a green contract | C5 asserts a delta against the deadline timer that already exists. C15 is run-time exports per stage, object keys, and a type contract; its edits are listed per commit. `npm run typecheck:tests` added to every gate |
+| 6 Jini baseline not reconciled | All 26 tests of the copy have a row. Body cancel kept (fix X1). Reporter containment kept (`reportSafely`). Seven deliberate differences named D1 to D7 |
+| 7 B1 purity depended on an option | Untangle C6 + R4-chat is a hard prerequisite of B1. One target shape: `RunFinalizerPorts.agents` |
+| 8 Args convention | New port methods take `(required, optional?: {})`. Four zero-argument functions are listed as exceptions (OD-9) |
+| 9 Bounds too strong | Checkpoint-loss bound restated with its assumptions. Request timeouts separated from whole operations. Boot cost per row corrected; C18 |
+| 10 A late-install test exists | C1 is the existing test at `assistant-chat-recovery.unit.test.ts:201-214`. C2 stays new |
+
+## Key numbers
 
 | Fact | Value |
 |---|---|
-| File | `apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts`, 809 lines, 7 exports, 1 module-level `WeakMap` |
+| File | `apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts`, 809 lines, 7 exports (4 interfaces, 3 functions), 1 module-level `WeakMap` |
 | Files that reference it | 24 including itself: 4 production, 15 test files (109 test call sites), 2 scripts, 2 debt JSON files |
 | Recorded debt | 3 size entries (functions of 101 and 325 lines, file of 580 counted lines), 1 complexity entry (11) |
 | Existing Jini owner | `@jini-ai/chat/server/run-finalizer`, 248 lines, 26 tests, no importer anywhere |
-| Target | 8 engine files (largest about 190 lines) in Jini; 3 files in Tovu (HTTP adapter, origins, binding) |
-| Estimate | about 1.56M Sonnet + 90k Opus; Phase 0 + A alone about 730k |
+| Target | 9 engine files (largest about 190 lines) and 15 ports in Jini; 3 files in Tovu (HTTP adapter, origins, binding) |
+| Estimate | about 1.85M Sonnet + 130k Opus (was 1.56M + 90k); Phase 0 + X + A alone about 970k |
 
-## Decisions the owner must make before dispatch
+## Owner decisions
 
-1. **OD-1** Engine home: move to Jini and replace the stale copy (recommended), or delete the Jini copy and keep the engine in Tovu.
-2. **OD-2** Shared instance: `RouteDeps.assistantRuns()` (recommended), or keep the per-ledger `WeakMap` as an exception to practice 1.
-3. **OD-3** Keep two timer ports so the checkpoint timer stays unref'd (recommended), or unify.
-4. **OD-4** Keep `runStatus` as an HTTP status number in this refactor (recommended).
-5. **OD-5** Fix the unredacted logs and silent catches after the refactor, red-first (recommended).
-6. **OD-6** Pin F1 to F3 now and fix them separately (recommended).
-7. **OD-7** Accept the breaking change to the Jini export in the next 0.x, with no alias (recommended).
+| # | Decision | Status |
+|---|---|---|
+| OD-1 | Engine home | **Resolved: move to Jini, replace the stale copy, reconcile its baseline** |
+| OD-2 | Shared instance: `RouteDeps.assistantRuns()` (recommended) or keep the `WeakMap` | open; needed for Phase C |
+| OD-3 | Two timer ports (recommended) or one | open |
+| OD-4 | Keep `runStatus` as an HTTP status number (recommended) | open |
+| OD-5 | Fix unredacted logs and silent catches after the refactor, red-first (recommended) | open |
+| OD-6 | Pin F1 to F4 now, fix separately (recommended) | open |
+| OD-7 | Accept the breaking change to the Jini export, API and behaviours D1 to D7, in the next 0.x (recommended) | open; needed for B1 |
+| OD-8 | New. F4: fix in Jini `recover.ts` as its own red-first change (recommended) | open; does not block the refactor |
+| OD-9 | New. Leave zero-argument functions outside practice 2 (recommended) | open |
 
-Phase 0 and Phase A need none of these answers and can be dispatched now.
+Fix X1 (cancel unusable response bodies) follows from OD-1 and needs no new decision. The owner can veto it; the alternative is to record the missing cancel as an accepted regression.
 
-## Order of work
+## What can start now
 
-1. Phase 0: characterization tests, green on the unmodified tree.
-2. Phase A, commits A1 to A7, each green alone.
-3. Phase B (after OD-1): B1 in Jini, then B2 in Tovu. Rebase B1 on untangle R4-chat/C6 if they merged first.
-4. Phase C (after OD-2): after size design 01; coordinate the one moved line with size design 02.
+1. Phase 0: characterization tests, green on the unmodified tree, each named mutation run once.
+2. Phase X: fix X1, red-first.
+3. Phase A, commits A1 to A7, each green alone.
+
+Not yet:
+- B1 waits for untangle C6 and R4-chat to merge in Jini (`recover.ts` without `@jini-ai/agent-runtime`, `RecoveryPorts.agents`), and for OD-7.
+- B2 waits for B1.
+- Phase C waits for OD-2 and size design 01; one moved line is shared with size design 02.
+
+## Flags
+
+- The brief names 20 rules in `size-designs/LESSONS-FOR-DESIGN-BRIEFS.md`. The file on `plan/size-designs-2026-11-16` holds 11. All 11 were applied.
+- Practice 9 conflict: `reportSafely` swallows a throw from the log or span port. It is the only way to keep a host reporter from changing run behaviour.
+- Practice 2 is met only partly (OD-9).
 
 ## Not verified (full list in DESIGN.md §12)
 
-No test, typecheck or lint was run. F1 to F3 come from reading code. The `Tracker` to `RunSpanPort` assignability needs a `tsc` check at dispatch. Size designs 01/02 were searched by keyword, not read in full.
+No test, typecheck or lint of either repository was run, and no named mutation was run. F1 to F5 come from reading code; two small Node scripts outside the repositories support the body-cancel and reporter findings. The `Tracker` to `RunSpanPort` assignability and the child-process seam of C11-P need a check at dispatch.
