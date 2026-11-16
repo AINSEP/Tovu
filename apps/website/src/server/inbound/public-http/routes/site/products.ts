@@ -1,3 +1,4 @@
+import type { Request, Response } from "express";
 import { resolveProtocol } from "../oauth/public-origin.js";
 import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
@@ -61,6 +62,27 @@ async function findStorefrontProduct({ deps, id, readiness }: { deps: CommerceSi
   return await deps.commerceCatalog?.findProduct?.({ idOrSlug: id }, { readiness }) ?? null;
 }
 
+/** The theme, assistant widget flag and site title a storefront page renders with; null once the "no themes installed" 500 is sent. */
+async function resolveStorefrontPage(required: { req: Request; res: Response; deps: CommerceSiteAdapterDeps }, _optional = {}) {
+  const { req, res, deps } = required;
+  const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
+    resolveRenderThemeId(res, deps),
+    resolveSiteAssistantWidgetForRequest({ request: req, deps }),
+    resolveSiteTitleForRender(deps),
+  ]);
+  const resolved = resolveActiveTheme({ deps, activeThemeId });
+  if (resolved === null) {
+    res.status(500).type("html").send("<h1>No themes installed</h1>");
+    return null;
+  }
+  // `NO_THEME_ID` -> `null`, which `renderSite` reads as "render this page unstyled". The two
+  // must not share a guard: `null` here means nothing is INSTALLED (a broken site, hence the
+  // 500 above), while the sentinel means the operator turned styling off on purpose and expects
+  // a real page back.
+  const theme = resolved === NO_THEME_ID ? null : resolved;
+  return { theme, siteAssistantEnabled, siteTitle };
+}
+
 /**
  * Public site: `/products` (grid) and `/products/:id` (detail), rendered through the active
  * theme's own `products`/`product` templates. Registered BEFORE the `/:slug` catch-all, same
@@ -70,21 +92,9 @@ export const registerProductRoutes = (app: import("express").IRouter, deps: Comm
   app.get("/products", async (req, res) => {
     try {
       const products = await resolveStorefrontProducts(deps, { readiness: res.locals?.commerceStatus });
-      const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
-        resolveRenderThemeId(res, deps),
-        resolveSiteAssistantWidgetForRequest({ request: req, deps }),
-        resolveSiteTitleForRender(deps),
-      ]);
-      const resolved = resolveActiveTheme({ deps, activeThemeId });
-      if (resolved === null) {
-        res.status(500).type("html").send("<h1>No themes installed</h1>");
-        return;
-      }
-      // `NO_THEME_ID` -> `null`, which `renderSite` reads as "render this page unstyled". The two
-      // must not share a guard: `null` here means nothing is INSTALLED (a broken site, hence the
-      // 500 above), while the sentinel means the operator turned styling off on purpose and expects
-      // a real page back.
-      const theme = resolved === NO_THEME_ID ? null : resolved;
+      const page = await resolveStorefrontPage({ req, res, deps });
+      if (page === null) return;
+      const { theme, siteAssistantEnabled, siteTitle } = page;
       const html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "products", siteTitle, posts: [], products, siteAssistantEnabled });
       res.set("Cache-Control", cacheControlFor(req)).type("html").send(markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }));
     } catch (error) {
@@ -102,21 +112,9 @@ export const registerProductRoutes = (app: import("express").IRouter, deps: Comm
         res.status(404).type("html").send("<h1>404 — product not found</h1><p><a href='/products'>All products</a></p>");
         return;
       }
-      const [activeThemeId, siteAssistantEnabled, siteTitle] = await Promise.all([
-        resolveRenderThemeId(res, deps),
-        resolveSiteAssistantWidgetForRequest({ request: req, deps }),
-        resolveSiteTitleForRender(deps),
-      ]);
-      const resolved = resolveActiveTheme({ deps, activeThemeId });
-      if (resolved === null) {
-        res.status(500).type("html").send("<h1>No themes installed</h1>");
-        return;
-      }
-      // `NO_THEME_ID` -> `null`, which `renderSite` reads as "render this page unstyled". The two
-      // must not share a guard: `null` here means nothing is INSTALLED (a broken site, hence the
-      // 500 above), while the sentinel means the operator turned styling off on purpose and expects
-      // a real page back.
-      const theme = resolved === NO_THEME_ID ? null : resolved;
+      const page = await resolveStorefrontPage({ req, res, deps });
+      if (page === null) return;
+      const { theme, siteAssistantEnabled, siteTitle } = page;
       let html = await renderSite({ renderAssets: res.locals.siteConsentAssets, theme, route: "product", siteTitle, posts: [], products: [product], product, siteAssistantEnabled });
       html = await productCheckoutWhenReady({ html, workspaceId: deps.workspaceId, priceId: product.priceId,
         productSlug: product.slug || product.id, currentOrigin: `${resolveProtocol(req)}://${req.get("host")}`, commerce: deps.commerce }, { readiness: res.locals?.commerceStatus });
