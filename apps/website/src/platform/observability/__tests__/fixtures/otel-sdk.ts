@@ -22,6 +22,9 @@ import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
+  errorType,
+  redactLabel,
+  redactOperationAttributes,
   type ObservabilityConfigEnabled,
   type ObservabilityPort,
   type TraceSpanPort,
@@ -96,5 +99,9 @@ export function createOtelObservabilityPort({ config }: { config: ObservabilityC
       const provider = new NodeTracerProvider({ resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName }), spanProcessors: options.spanProcessors });
       return { getTracer: ({ name }) => adaptTracer({ tracer: provider.getTracer(name) }) };
     },
-  } }, { scope: createAsyncLocalSpanScope({}) });
+  } }, {
+    scope: createAsyncLocalSpanScope({}),
+    // Why: the Jini port no longer imports the domain's redaction/error-label helpers; the host hands them over (as the real provider does).
+    helpers: { errorType, redactOperationAttributes, redactLabel },
+  });
 }
