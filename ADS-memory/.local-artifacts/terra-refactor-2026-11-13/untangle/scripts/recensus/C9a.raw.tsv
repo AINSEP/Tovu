@@ -1,0 +1,133 @@
+repo	file	old_spec	names	new_spec	rename	phase	note
+jini	packages/admin/src/media/react/components/MediaLightbox.tsx	@jini-ai/ui/admin-widgets	Lightbox	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/MediaPage.hooks.ts	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/__tests__/fqfix-loading.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider as BuiltinProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/__tests__/fqfix-loading.unit.test.tsx	@jini-ai/ui/fetch-query/tanstack	FetchQueryProvider as TanstackProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/pages/SeoPage.tsx	@jini-ai/ui/tab-strip	TabBar	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/pages/SeoPage.tsx	@jini-ai/ui/admin-widgets	InfoTip	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/pages/SeoPage.tsx	@jini-ai/ui/admin-widgets	Select	../../../react/kit.js	Select->WidgetSelect (import { WidgetSelect as Select })	wave	
+jini	packages/admin/src/media/react/components/MediaPicker.tsx	@jini-ai/ui-kit/react	Button, IconButton, TextField	../../../react/kit.js		wave	
+jini	packages/admin/src/__tests__/fetch-query-support.ts	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/media/react/components/MediaDialog.tsx	@jini-ai/ui-kit/react	Dialog	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/use-seo.hooks.ts	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/components/MediaCard.tsx	@jini-ai/ui-kit/react	Badge, Button, Menu	../../../react/kit.js		wave	
+jini	packages/admin/src/consent/react/ConsentFields.tsx	@jini-ai/ui/theme	defaultAdminTheme	MANUAL		wave	hand edit R1 (C9a section R, hand edits 1 and 2): useAdminThemeKit() in the component/hook
+jini	packages/admin/src/media/react/components/UploadButton.tsx	@jini-ai/ui-kit/react	Button, TextField	../../../react/kit.js		wave	
+jini	packages/admin/src/agent-plugins/react/pages/AgentPluginsPage.tsx	@jini-ai/ui-kit/react	ConfirmDialog, Notice, Spinner, Tabs	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/components/EditMediaPanel.tsx	@jini-ai/ui-kit/react	Button, TextField	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/MediaDialog.hooks.ts	@jini-ai/ui-kit/react	type DialogProps	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/use-seo-entry-panel.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/components/MediaPurgeDialog.tsx	@jini-ai/ui-kit/react	ConfirmDialog	../../../react/kit.js		wave	
+jini	packages/admin/src/widgets/react/hooks/use-widget-instance-editor.hooks.ts	@jini-ai/ui/panel-kit	type DirtyGuard	../../../react/kit.js		wave	
+jini	packages/admin/src/widgets/react/hooks/use-widget-instance-editor.hooks.ts	@jini-ai/ui/panel-kit	useDirtyGuard	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/SeoPage.hooks.ts	@jini-ai/ui/tab-strip	type TabBarTab	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/MediaQuery.hooks.ts	@jini-ai/ui/fetch-query	useCachedLoader, useFetchMutation, useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/widgets/react/hooks/use-widgets-library.hooks.ts	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	@jini-ai/ui	extensionForMimeType	C1+ (see C1-plus.repoint.tsv)		wave	
+jini	packages/admin/src/media/react/tabs/LibraryTab.tsx	@jini-ai/ui-kit/react	Button, Select, TextField	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/LibraryTab.hooks.ts	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/widgets/react/hooks/WidgetsQuery.hooks.ts	@jini-ai/ui/fetch-query	useCachedLoader, useFetchMutation, useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/security/react/pages/SecurityPage.tsx	@jini-ai/ui-kit/react	Tabs, Notice, Spinner	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/SeoQuery.hooks.ts	@jini-ai/ui/fetch-query	useCachedLoader, useFetchMutation, useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/widgets/react/hooks/use-widget-regions.hooks.ts	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/hooks/use-entry-picker.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	@jini-ai/ui/fetch-query	useFetchMutation	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	@jini-ai/ui	useMediaProvidersTab	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	@jini-ai/ui	sortProvidersByConfigured, isEntryPresent, isMarkerOnlyEntry, maskedKeyLabel, isProviderBaseUrlInvalid, invalidBaseUrlProviderIds	MANUAL		wave	hand edit R1 (section R, hand edit 3): call as useMediaProviderRules().<name>
+jini	packages/admin/src/agent-plugins/react/__tests__/agent-plugins.test.tsx	@jini-ai/ui-kit/react	createKit, KitProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/agent-plugins/react/__tests__/agent-plugins.test.tsx	@jini-ai/ui-kit/react	type ButtonProps	../../../react/kit.js		wave	
+jini	packages/admin/src/widgets/react/__tests__/widgets-binding.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/__tests__/seo-hooks-fallbacks.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/media/react/__tests__/media.test.tsx	@jini-ai/ui-kit/react	KitProvider, createKit	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/media/react/__tests__/media.test.tsx	@jini-ai/ui-kit/react	Button, Dialog, TextField	../../../react/kit.js		wave	
+jini	packages/admin/src/media/react/__tests__/media.test.tsx	@jini-ai/ui-kit/react	type ButtonProps	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/__tests__/share-image-warning.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/media/react/__tests__/library-tab-hooks.test.tsx	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx	@jini-ai/ui-kit/react	Button, Notice, Spinner	../../../react/kit.js		wave	
+jini	packages/admin/src/security/react/__tests__/security-editor.test.tsx	@jini-ai/ui-kit/react	KitProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/__tests__/seo-binding.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/redirects/react/hooks/use-hit-count-cell.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginInspector.tsx	@jini-ai/ui-kit/react	Dialog, Notice	../../../react/kit.js		wave	
+jini	packages/admin/src/security/react/__tests__/RootKeyTab.test.tsx	@jini-ai/ui-kit/react	KitProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/__tests__/harness/render.tsx	@jini-ai/ui-kit/react	Dialog	../../../../react/kit.js		wave	
+jini	packages/admin/src/redirects/react/hooks/use-redirects.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery, useFetchMutation, useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginFileContent.tsx	@jini-ai/ui-kit/react	Button	../../../react/kit.js		wave	
+jini	packages/admin/src/redirects/react/hooks/use-import-redirects-form.hooks.ts	@jini-ai/ui/fetch-query	useFetchMutation	../../../react/kit.js		wave	
+jini	packages/admin/src/security/react/__tests__/security.test.tsx	@jini-ai/ui-kit/react	KitProvider, createKit, type ConfirmViewProps	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	@jini-ai/ui-kit/react	Badge, Button, IconButton, Switch	../../../react/kit.js		wave	
+jini	packages/admin/src/security/react/components/CredentialEditor.tsx	@jini-ai/ui-kit/react	Button, TextField, TextArea, Select, Dialog	../../../react/kit.js		wave	
+jini	packages/admin/src/agent-plugins/react/tabs/MarketplaceTab.tsx	@jini-ai/ui-kit/react	Notice	../../../react/kit.js		wave	
+jini	packages/admin/src/redirects/react/__tests__/use-redirects.hooks.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/__tests__/copy-polish.unit.test.tsx	@jini-ai/ui-kit/react	Dialog	../../../react/kit.js		wave	
+jini	packages/admin/src/security/react/tabs/RootKeyTab.tsx	@jini-ai/ui-kit/react	Button, TextField, Notice, ConfirmDialog, Spinner	../../../react/kit.js		wave	
+jini	packages/admin/src/redirects/react/__tests__/redirects-binding.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	@jini-ai/ui-kit/react	Button, TextField, Select, Notice, ConfirmDialog, Spinner	../../../react/kit.js		wave	
+jini	packages/admin/src/redirects/react/__tests__/copy-polish.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/redirects/react/__tests__/Redirects.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/playground/react/pages/PlaygroundPage.tsx	@jini-ai/ui-kit/react	Notice, Spinner	../../../react/kit.js		wave	
+jini	packages/admin/src/seo/react/__tests__/SitemapModal.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider as BuiltinProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/__tests__/SitemapModal.unit.test.tsx	@jini-ai/ui/fetch-query/tanstack	FetchQueryProvider as TanstackProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/widgets/react/__tests__/fetch-query-migration.test.ts	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/redirects/react/__tests__/use-import-redirects-form.hooks.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/seo/react/components/SitemapModal.tsx	@jini-ai/ui-kit/react	Dialog	../../../react/kit.js		wave	
+jini	packages/admin/src/playground/react/components/Canvas.tsx	@jini-ai/ui-kit/react	Notice	../../../react/kit.js		wave	
+jini	packages/admin/src/source-control/react/pages/SourceControlPage.tsx	@jini-ai/ui-kit/react	Notice, Spinner, Tabs	../../../react/kit.js		wave	
+jini	packages/admin/src/react/entities/EntityField.tsx	@jini-ai/ui	useAgentHandle	../kit.js		wave	
+jini	packages/admin/src/react/entities/EntityField.tsx	@jini-ai/ui/admin-widgets	Select	../kit.js	Select->WidgetSelect (import { WidgetSelect as Select })	wave	
+jini	packages/admin/src/react/shell/__tests__/admin-theme.test.tsx	@jini-ai/ui/theme	defaultAdminTheme	MANUAL		wave	test: read the theme from the fake kit (useAdminThemeKit().defaultAdminTheme) or keep a local fixture
+jini	packages/admin/src/react/shell/__tests__/admin-theme.test.tsx	@jini-ai/ui/theme	type ColorSchemePreference	../../kit.js		wave	
+jini	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	@jini-ai/ui-kit/react	Button, Notice, Spinner	../../../react/kit.js		wave	
+jini	packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	@jini-ai/ui-kit/react	Button, Notice, TextField	../../../react/kit.js		wave	
+jini	packages/admin/src/react/shell/theme-ports.ts	@jini-ai/ui/theme	type AdminThemeDocument, type AdminThemeTarget, type ColorScheme, type ColorSchemePreference, type MatchMediaPort	../kit.js		wave	
+jini	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	@jini-ai/ui-kit/react	Notice	../../../react/kit.js		wave	
+jini	packages/admin/src/react/shell/use-admin-theme.ts	@jini-ai/ui/theme	applyAdminTheme, resolveColorScheme	MANUAL		wave	hand edit R1 (C9a section R, hand edits 1 and 2): useAdminThemeKit() in the component/hook
+jini	packages/admin/src/react/shell/use-admin-theme.ts	@jini-ai/ui/theme	type AdminTheme, type ColorSchemePreference	../kit.js		wave	
+jini	packages/admin/src/react/shell/__tests__/use-admin-theme.unit.test.tsx	@jini-ai/ui/theme	defaultAdminTheme	MANUAL		wave	test: read the theme from the fake kit (useAdminThemeKit().defaultAdminTheme) or keep a local fixture
+jini	packages/admin/src/react/shell/__tests__/use-admin-theme.unit.test.tsx	@jini-ai/ui/theme	type ColorSchemePreference	../../kit.js		wave	
+jini	packages/admin/src/react/shell/types.ts	@jini-ai/ui/theme	type AdminTheme, type ColorSchemePreference	../kit.js		wave	
+jini	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.hooks.tsx	@jini-ai/ui-kit/react/native	useNativeDialog	../../kit.js		wave	
+jini	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.hooks.tsx	@jini-ai/ui/panel-kit	useFocusTrap	../../kit.js		wave	
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.wiring.test.tsx	@jini-ai/ui/html-editor	type InteractiveHtmlEditorProps as HtmlEditorProps	../../../kit.js		wave	kit names are HtmlEditor / HtmlEditorProps: import { HtmlEditor, type HtmlEditorProps } (importer renames uses, or keep alias HtmlEditor)
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.wiring.test.tsx	vi.mock('@jini-ai/ui/html-editor')	dynamic/mock	MANUAL		wave	test mock/dynamic: person edits
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.wiring.test.tsx	import('@jini-ai/ui/html-editor')		MANUAL		wave	import() type
+jini	packages/admin/src/react/components/ConfirmDialog/confirm-dialog-attrs.ts	@jini-ai/ui-kit	type AgentAttrsPort, type KitAttrs	../../kit.js		wave	
+jini	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.tsx	@jini-ai/ui-kit/react	useConfirmController	../../kit.js		wave	
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/InteractiveHtmlEditor.tsx	@jini-ai/ui/html-editor	InteractiveHtmlEditor as HtmlEditor, type CanvasEmbedPlaceholderDescriptor, type InteractiveHtmlEditorProps as HtmlEditorProps	../../kit.js		wave	kit names are HtmlEditor / HtmlEditorProps: import { HtmlEditor, type HtmlEditorProps } (importer renames uses, or keep alias HtmlEditor)
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/InteractiveHtmlEditor.tsx	@jini-ai/ui/html-editor	hasAttributeOnAnyNodeShape	C1+ (see C1-plus.repoint.tsv)		wave	
+jini	packages/admin/src/comments/react/hooks/use-comment-queue.hooks.ts	@jini-ai/ui/fetch-query	useCachedLoader, useFetchQuery, useInvalidate, useFetchQueryScope	../../../react/kit.js		wave	
+jini	packages/admin/src/comments/react/hooks/use-comment-settings.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery, useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/comments/react/__tests__/use-comment-queue.boundary.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/hooks/use-form-submission-detail.hooks.ts	@jini-ai/ui/fetch-query	useFetchMutation, useFetchQuery, useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/comments/react/__tests__/use-comment-settings.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/comments/react/__tests__/use-comment-settings.unit.test.tsx	@jini-ai/ui/fetch-query	useFetchQuery, useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/comments/react/__tests__/use-comments.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/comments/react/__tests__/use-comment-settings.boundary.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/comments/react/__tests__/Comments.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	@jini-ai/ui/panel-kit	useDirtyGuard	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	@jini-ai/ui/fetch-query	useFetchMutation, useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/comments/react/hooks/use-comments.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery	../../../react/kit.js		wave	
+jini	packages/admin/src/comments/react/__tests__/use-comment-queue.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/comments/react/__tests__/comments-states.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/rules.ts	@jini-ai/ui/fetch-query	type QueryKey	@jini-ai/core/fetch		wave	
+jini	packages/admin/src/forms/react/hooks/use-forms-list.hooks.ts	@jini-ai/ui/fetch-query	useFetchMutation, useFetchQuery, useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/hooks/use-form-submissions.hooks.ts	@jini-ai/ui/fetch-query	useFetchQuery, useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/hooks/use-form-submissions.hooks.ts	@jini-ai/ui/panel-kit	useSettlementGeneration	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/components/FieldSettingsRows.tsx	@jini-ai/ui/admin-widgets	InfoTip	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	@jini-ai/ui-kit/react	Dialog	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	@jini-ai/ui/admin-widgets	InfoTip	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/__tests__/FormEditor.leave-and-focus.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/use-form-submissions.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/use-form-submissions.unit.test.tsx	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/__tests__/native-dialog-dismissal.unit.test.ts	@jini-ai/ui-kit/react	Dialog	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/__tests__/use-forms-list.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/submissions-states.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/harness.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/html-mode.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/use-form-editor.branches.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/use-form-editor.branches.unit.test.tsx	@jini-ai/ui/fetch-query	useInvalidate	../../../react/kit.js		wave	
+jini	packages/admin/src/forms/react/__tests__/FormsModule.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/use-form-editor.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/use-form-submission-detail.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests
+jini	packages/admin/src/forms/react/__tests__/copy-polish.unit.test.tsx	@jini-ai/ui/fetch-query	FetchQueryProvider	MANUAL		wave	test harness: no kit slot. Render through renderWithAdminKit (fake-admin-kit.tsx) for kit-only tests; a test that needs real ui-kit/ui moves to packages/integration-tests

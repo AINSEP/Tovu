@@ -1,0 +1,1 @@
+{"src_dirs":["packages/ui-kit/src"],"c_lane_files":{"packages/ui-kit/src/attrs.test.ts":"MOVE secretControlAttrs cases -> packages/core/src/agent-handles/__tests__/secret-attrs.test.ts"}}

@@ -1,0 +1,7 @@
+id: RP-observability-1   (EXECUTED, Tovu 54dac1ff3; sheet written from the working notes, filled before the edit)
+tovu_file: apps/website/src/platform/observability/index.ts | blob 17ef051047fdb1c4246becde1070ee2eb43f277a
+symbol_map: createNoopObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort, trackFetch, trackHttpClient, and the types AgentRunStatus, ObservabilityConfig(+Disabled/Enabled), ObservabilityPort, RequestTracker, RequestTrackingInput/Options/Outcome -> @jini-ai/diagnostics/observability (packages/diagnostics/package.json:40 "./observability")
+jini_why: pointer only (Jini noop.ts/ports.ts already carry the zero-alloc and vendor-neutral rationale; the Tovu-specific hermetic-root rationale already sits at composition/app.ts:1416 and provider-plugins.ts header). No Jini commit.
+importers: 54 static imports (census python resolver, saved as scratchpad/w0-kinds/obs-census.txt): 53 "#src/platform/observability/index" or "../../platform/observability/index.js" style, 1 "../../index.js" (otel-surfaces.unit.test.ts). No dynamic, import-type, mock, namespace.
+comment_refs: none changed (remaining mentions name the folder platform/observability, which stays: its __tests__ remain)
+baselines: apps/website/src/features/deployments/deploy-targets/__tests__/vendor-exceptions.json: remove the "opentelemetry" entry for apps/website/src/platform/observability/index.ts

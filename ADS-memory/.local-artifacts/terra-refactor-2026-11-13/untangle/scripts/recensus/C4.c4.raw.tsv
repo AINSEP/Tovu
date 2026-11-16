@@ -1,0 +1,246 @@
+repo	file	old_spec	names	new_spec
+jini	packages/cms/src/redirects/__tests__/host-config.golden.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/host-config.matcher-guard.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/open-redirect.matrix.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/phase-handler.oracle.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/phase-handler.read-path-target.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/redirects.chain-loop.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/redirects.reserved-target.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/redirects.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/redirects.write-boundaries.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/reserved-destination.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/reserved-destination.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/__tests__/target-gate.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/host-config/index.ts	@jini-ai/http-kit/verified-origin	checkSiteRelativeTarget	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	hasForbiddenRawUrlCharacter	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type RedirectTargetContext	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	checkSiteRelativeTarget	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	type SiteRelativeTargetCheck	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/reserved-destination.ts	@jini-ai/http-kit/verified-origin	isSameOrigin,normalizeOriginCandidate,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/reserved-destination.ts	@jini-ai/http-kit/verified-origin	checkSitePathname,type SitePathCheck	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/redirects/target-gate.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type RedirectTargetContext,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/absolute-url.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/feed.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/head-escaping.golden.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/page-head-contributor.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/robots.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/seo.analyze.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/seo.featured-image.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/seo.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/sitemap-cache.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/sitemap-service.factory.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/sitemap.schedule-expiry.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/sitemap.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,OriginRegistry,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/sitemap.test.ts	import('@jini-ai/http-kit/verified-origin')	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/sitemap.test.ts	import('@jini-ai/http-kit/verified-origin')	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/__tests__/support/legacy-api.fixture.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/absolute-url.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/absolute-url.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/seo.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/cms/src/seo/sitemap.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/daemon/src/http/__tests__/args-convention.test.ts	@jini-ai/http-kit	ClientFacingError,defineJsonRoute	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/args-convention.test.ts	@jini-ai/http-kit	ok,err	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/attachments-coverage.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/attachments-idle-activity.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/connectors.test.ts	@jini-ai/http-kit	ClientFacingError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/frontend-control.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/integration-contracts.test.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/memory-entry-parse.test.ts	@jini-ai/http-kit	type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/__tests__/run-message-parse.test.ts	@jini-ai/http-kit	type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/active-context.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/active-context.ts	@jini-ai/http-kit	err,ok,type Result	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/agents.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/agents.ts	@jini-ai/http-kit	ok	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/attachments.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/attachments.ts	@jini-ai/http-kit	guardSameOrigin	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/catalog-route-input.ts	@jini-ai/http-kit	err,ok,validationError,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/component-catalog.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/component-catalog.ts	@jini-ai/http-kit	err,ok	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/connectors.ts	@jini-ai/http-kit	ClientFacingError,defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/connectors.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/connectors.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/daemon-status.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/daemon-status.ts	@jini-ai/http-kit	ok	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/db-ops.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/db-ops.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/db-ops.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/delegated-tools.ts	@jini-ai/http-kit	defineJsonRoute,err,ok,validationError,type AdapterContext,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/frontend-control.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	guardSameOrigin	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	statusForError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/health.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/health.ts	@jini-ai/http-kit	err,ok	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/host-tools.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/host-tools.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/host-tools.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/media.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/media.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/media.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/memory.ts	@jini-ai/http-kit	defineJsonRoute,err,guardSameOrigin,ok,statusForError,validationError,type AdapterContext,type Result,type RouteInputContext,type SseEvent	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/model-proxy-fields.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	guardSameOrigin	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	type SseEvent	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	err,ok,type Result	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	statusForError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/research.ts	@jini-ai/http-kit	defineJsonRoute,err,ok,validationError,type AdapterContext,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/resource-request.ts	@jini-ai/http-kit	err,ok,validationError,type Result	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/routines.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/routines.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/routines.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/runs.ts	@jini-ai/http-kit	defineJsonRoute,err,ok,validationError,type AdapterContext,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	guardSameOrigin	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	statusForError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	type SseEvent	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/tool-catalog.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/tool-catalog.ts	@jini-ai/http-kit	err,ok	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/tool-execution-routes.ts	@jini-ai/http-kit	statusForError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/xai.ts	@jini-ai/http-kit	defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/xai.ts	@jini-ai/http-kit	validationError	@jini-ai/core/contracts/server
+jini	packages/daemon/src/http/xai.ts	@jini-ai/http-kit	err,ok,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/adapter-pins.test.ts	../adapter.js	ClientFacingError,defineJsonRoute,type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/adapter-pins.test.ts	../types.js	err,ok,type JsonRouteSpec	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/adapter-ports.test.ts	../adapter.js	defineJsonRoute	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/adapter-ports.test.ts	../types.js	err,ok	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/adapter.test.ts	../adapter.js	ClientFacingError,defineJsonRoute	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/adapter.test.ts	../types.js	err,ok	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/index.test.ts	../index.js	*ns:HttpBarrel (48 moved names reachable)	MANUAL
+jini	packages/http-kit/src/__tests__/internal-error.test.ts	../index.js	*ns:HttpBarrel (48 moved names reachable)	MANUAL
+jini	packages/http-kit/src/__tests__/origin.test.ts	../origin.js	guardSameOrigin	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/request.test.ts	../request.js	validationError	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/response.test.ts	../response.js	statusForError	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/sse.test.ts	../sse.js	DEFAULT_MAX_QUEUED_SSE_EVENTS,type SseEvent	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts	../verified-origin.js	InMemoryOriginSettingRepo,OriginRegistry,normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-branches.test.ts	../verified-origin.js	InMemoryOriginSettingRepo,OriginRegistry,isSameOrigin,normalizeOriginCandidate,resolveConfiguredOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-branches.test.ts	../verified-origin/ports.js	type OriginSettingRepoPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-branches.test.ts	../verified-origin/types.js	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-configured.test.ts	../verified-origin.js	planOriginBoot,resolveConfiguredOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-configured.test.ts	../verified-origin.js	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-normalize.test.ts	../verified-origin.js	normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-registry.test.ts	../verified-origin.js	OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-registry.test.ts	../verified-origin.js	InMemoryOriginSettingRepo	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-registry.test.ts	../verified-origin.js	OriginNotVerifiedError,createVerifiedOrigin,InsecureOriginSourceError	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-repo.test.ts	../verified-origin.js	InMemoryOriginSettingRepo,createVerifiedOrigin,type OriginSettingRepoPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin-site-path.test.ts	../verified-origin/index.js	checkSitePathname,checkSiteRelativeTarget,hasControlCharacter	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin.hostile.test.ts	../verified-origin/origin.js	OriginRegistry,isSameOrigin,normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/__tests__/verified-origin.hostile.test.ts	../verified-origin/configured-origin.js	planOriginBoot,resolveConfiguredOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/adapter.ts	./response.js	statusForError	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/adapter.ts	./origin.js	type OriginContext	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/adapter.ts	./types.js	type JsonRouteAuthorize,type JsonRouteSpec,type Result	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export-from ./types.js	type Handler,type HttpMethod,type InputParser,type JsonRouteSpec,type JsonRoutePorts,type JsonRouteAuthorize,type Result,type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export-from ./types.js	err,ok	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export-from ./adapter.js	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export-from ./adapter.js	ClientFacingError,defineJsonRoute	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export-from ./sse.js	type SseEvent	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export-from ./sse.js	DEFAULT_MAX_QUEUED_SSE_EVENTS	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/index.ts	export * from ./verified-origin.js	* (OriginScheme OriginSource VerifiedOrigin InsecureOriginSourceError OriginNotVerifiedError createVerifiedOrigin VerifiedOriginRequestContext RedirectTargetContext EgressTargetContext OriginRegistryPort OriginSettingRepoPort OriginRegistry hasForbiddenRawUrlCharacter isSameOrigin normalizeOriginCandidate NormalizedTarget OriginRegistryDeps InMemoryOriginSettingRepo OriginSettingSeed planOriginBoot resolveConfiguredOrigin ConfiguredOriginRequired OriginBootRequired OriginBootPlan hasControlCharacter checkSitePathname checkSiteRelativeTarget SitePathCheck SiteRelativeTargetCheck)	MANUAL
+jini	packages/http-kit/src/index.ts	export * from ./request.js	* (validationError)	MANUAL
+jini	packages/http-kit/src/index.ts	export * from ./response.js	* (statusForError)	MANUAL
+jini	packages/http-kit/src/index.ts	export * from ./origin.js	* (OriginContext guardSameOrigin)	MANUAL
+jini	packages/http-kit/src/origin.ts	./types.js	err,ok,type Result	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/origin.ts	./response.js	statusForError	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/request.ts	./types.js	type RouteInputContext	@jini-ai/core/contracts/server
+jini	packages/http-kit/src/verified-origin.ts	export * from ./verified-origin/index.js	* (OriginScheme OriginSource VerifiedOrigin InsecureOriginSourceError OriginNotVerifiedError createVerifiedOrigin VerifiedOriginRequestContext RedirectTargetContext EgressTargetContext OriginRegistryPort OriginSettingRepoPort OriginRegistry hasForbiddenRawUrlCharacter isSameOrigin normalizeOriginCandidate NormalizedTarget OriginRegistryDeps InMemoryOriginSettingRepo OriginSettingSeed planOriginBoot resolveConfiguredOrigin ConfiguredOriginRequired OriginBootRequired OriginBootPlan hasControlCharacter checkSitePathname checkSiteRelativeTarget SitePathCheck SiteRelativeTargetCheck)	MANUAL
+jini	packages/http-kit/src/verified-origin/index.ts	export-from ./types.js	type OriginScheme,type OriginSource,type VerifiedOrigin,InsecureOriginSourceError,OriginNotVerifiedError,createVerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/verified-origin/index.ts	export-from ./ports.js	type VerifiedOriginRequestContext,type RedirectTargetContext,type EgressTargetContext,type OriginRegistryPort,type OriginSettingRepoPort	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/verified-origin/index.ts	export-from ./origin.js	OriginRegistry,hasForbiddenRawUrlCharacter,isSameOrigin,normalizeOriginCandidate,type NormalizedTarget,type OriginRegistryDeps	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/verified-origin/index.ts	export-from ./repo.memory.js	InMemoryOriginSettingRepo,type OriginSettingSeed	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/verified-origin/index.ts	export-from ./configured-origin.js	planOriginBoot,resolveConfiguredOrigin,type ConfiguredOriginRequired,type OriginBootRequired,type OriginBootPlan	@jini-ai/core/contracts/server/verified-origin
+jini	packages/http-kit/src/verified-origin/index.ts	export-from ./site-path.js	hasControlCharacter,checkSitePathname,checkSiteRelativeTarget,type SitePathCheck,type SiteRelativeTargetCheck	@jini-ai/core/contracts/server/verified-origin
+jini	packages/server/src/__tests__/builtin-features.mounts.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/server/src/__tests__/builtin-features.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/server/src/__tests__/compose-jini-kernel.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/server/src/compose-jini-kernel.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/server/src/create-local-node-daemon.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+jini	packages/server/src/feature.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/assistant/__tests__/run-ownership.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+tovu	apps/website/src/assistant/__tests__/run-scoped-credential.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+tovu	apps/website/src/assistant/__tests__/tool-registrations.redirects.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/assistant/site/visitor-frontend-control.ts	@jini-ai/http-kit/verified-origin	isSameOrigin,normalizeOriginCandidate,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/assistant/site/visitor-request-origin.ts	@jini-ai/http-kit/verified-origin	normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/deployments/static-publish/__tests__/deploy-public-url.integration.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/mail-status/feedback-setup.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/mail/__tests__/capture-auth.dialects.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/mail/capture.repo.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/member-login/oidc-login.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/members/__tests__/write-service.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/members/ports.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/members/write-service.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/newsletter/confirmation.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/newsletter/confirmation.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/newsletter/launch-gate.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/newsletter/tool-registrations.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/newsletter/unsubscribe.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/newsletter/unsubscribe.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/configured-origin.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/normalize-origin-candidate.test.ts	@jini-ai/http-kit/verified-origin	normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/origin.test.ts	@jini-ai/http-kit/verified-origin	OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/origin.test.ts	@jini-ai/http-kit/verified-origin	InMemoryOriginSettingRepo	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/origin.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,createVerifiedOrigin,InsecureOriginSourceError	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/repo.contract.test.ts	@jini-ai/http-kit/verified-origin	InMemoryOriginSettingRepo	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/repo.contract.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/__tests__/repo.contract.test.ts	@jini-ai/http-kit/verified-origin	type OriginSettingRepoPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/configured-origin.ts	@jini-ai/http-kit/verified-origin	resolveConfiguredOrigin as resolveJiniConfiguredOrigin,planOriginBoot as planJiniOriginBoot,type VerifiedOrigin,type OriginBootPlan	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/configured-origin.ts	export-from @jini-ai/http-kit/verified-origin	type OriginBootPlan	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/origin/index.ts	export-from ./configured-origin.js	type OriginBootPlan	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/publish-content/peer-url.ts	@jini-ai/http-kit/verified-origin	hasForbiddenRawUrlCharacter	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/redirects/__tests__/agent-tools.tombstone-confirmation.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/redirects/__tests__/phase-handler.disposer-scope.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/redirects/__tests__/publish-content.characterization.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/redirects/__tests__/publish-content.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/redirects/__tests__/tool-registrations.model-facing-errors.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/seo/__tests__/sitemap-invalidation.integration.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/seo/__tests__/sitemap.test.ts	@jini-ai/http-kit/verified-origin	OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/seo/index.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/seo/tool-registrations.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-evidence/__tests__/unit/collect-page-evidence.unit.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-evidence/__tests__/unit/tool-registrations.unit.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-evidence/collect-page-evidence.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-evidence/tool-registrations.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-export/media-original-urls.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-export/public-origin-policy.ts	@jini-ai/http-kit/verified-origin	resolveConfiguredOrigin,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-export/site-exporter.ts	@jini-ai/http-kit/verified-origin	resolveConfiguredOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-inspection/__tests__/fetch-live-url.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-inspection/__tests__/L131-characterization.unit.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-inspection/live-url.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/site-inspection/published-page.ts	@jini-ai/http-kit/verified-origin	hasControlCharacter	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/features/webhooks/tool-registrations.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/platform/db/repos/origin-repo.ts	@jini-ai/http-kit/verified-origin	type OriginSettingRepoPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/platform/db/repos/origin-repo.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,type OriginScheme,type OriginSource,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/platform/routing/reserved-paths.ts	@jini-ai/http-kit/verified-origin	checkSitePathname as sharedCheckSitePathname,checkSiteRelativeTarget as sharedCheckSiteRelativeTarget,type SitePathCheck as SharedSitePathCheck,type SiteRelativeTargetCheck as SharedSiteRelativeTargetCheck	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/error-mapping/respond.ts	@jini-ai/http-kit	statusForError	@jini-ai/core/contracts/server
+tovu	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/get-entry-analyze.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/get-entry.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/post-sitemap-regenerate.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/put-entry.test.ts	@jini-ai/http-kit/verified-origin	type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/admin-http/routes/settings/shared.ts	@jini-ai/http-kit	defineJsonRoute,ok,type HttpMethod,type JsonRouteAuthorize,type RouteInputContext	@jini-ai/core/contracts/server
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server
+tovu	apps/website/src/server/inbound/public-http/middleware/__tests__/canonical-site-host.test.ts	@jini-ai/http-kit/verified-origin	InMemoryOriginSettingRepo,OriginNotVerifiedError,OriginRegistry,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/public-http/middleware/canonical-site-host.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/public-http/routes/members/deps.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/public-http/routes/site/__tests__/llms.route.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/public-http/routes/site/__tests__/robots.route.test.ts	@jini-ai/http-kit/verified-origin	OriginNotVerifiedError,type OriginRegistryPort,type VerifiedOrigin	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/public-http/routes/site/newsletter-deps.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/inbound/shared/__tests__/observability-middleware.test.ts	@jini-ai/http-kit	defineJsonRoute	@jini-ai/core/contracts/server
+tovu	apps/website/src/server/routes/types.ts	@jini-ai/http-kit/verified-origin	type OriginRegistryPort	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/runtime/composition/__tests__/publish-content-manifest.test.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/runtime/composition/app.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,InMemoryOriginSettingRepo,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/runtime/composition/deps.ts	@jini-ai/http-kit/verified-origin	createVerifiedOrigin,OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/runtime/composition/modules/site-assistant.ts	@jini-ai/http-kit/verified-origin	isSameOrigin,normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin
+tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts	@jini-ai/http-kit/verified-origin	OriginRegistry	@jini-ai/core/contracts/server/verified-origin
+tovu	development/evals/tool-search-caller2-compliance-harness.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server

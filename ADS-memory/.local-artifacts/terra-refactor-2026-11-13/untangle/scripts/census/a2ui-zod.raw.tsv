@@ -1,0 +1,13 @@
+repo	file	old_spec	names	new_spec
+jini	examples/reference-web/src/A2uiLab.tsx	@jini-ai/agentic/a2ui	DynamicValueSchema	@jini-ai/protocol/a2ui
+jini	packages/agentic/src/core/a2ui/__tests__/index.test.ts	../index.js	*ns:a2ui (34 moved names reachable)	MANUAL
+jini	packages/agentic/src/core/a2ui/__tests__/surface-properties.test.ts	../index.js	*ns:a2ui (34 moved names reachable)	MANUAL
+jini	packages/agentic/src/core/a2ui/agent-to-renderer.ts	./common-types.js	ComponentIdSchema,FunctionCallSchema,CallIdSchema	@jini-ai/protocol/a2ui
+jini	packages/agentic/src/core/a2ui/catalog.ts	./common-types.js	AccessibilityAttributesSchema,ActionSchema,CheckRuleSchema,ChildListSchema,ChildSchema,DataBindingSchema,DynamicBooleanSchema,DynamicNumberSchema,DynamicStringListSchema,DynamicStringSchema	@jini-ai/protocol/a2ui
+jini	packages/agentic/src/core/a2ui/index.ts	export * from ./common-types.js	* (ComponentIdSchema CallIdSchema DataBindingSchema FunctionCallSchema DynamicValueSchema DynamicStringSchema DynamicNumberSchema DynamicBooleanSchema DynamicStringListSchema IndexSystemFunctionSchema AccessibilityAttributesSchema ComponentCommonSchema ChildSchema ChildListSchema CheckRuleSchema CheckableSchema AgentActionEventSchema ActionSchema)	MANUAL
+jini	packages/agentic/src/core/a2ui/index.ts	export * from ./agent-to-renderer.js	* (WireComponentSchema ComponentsListSchema CreateSurfaceMessageSchema UpdateComponentsMessageSchema UpdateDataModelMessageSchema DeleteSurfaceMessageSchema CallFunctionMessageSchema ActionResponseMessageSchema)	MANUAL
+jini	packages/agentic/src/core/a2ui/index.ts	export * from ./renderer-to-agent.js	* (ActionMessagePayloadSchema FunctionResponsePayloadSchema ValidationFailedErrorSchema GenericErrorSchema ErrorPayloadSchema ActionMessageSchema FunctionResponseMessageSchema ErrorMessageSchema)	MANUAL
+jini	packages/agentic/src/core/a2ui/index.ts	export * from ./interpreter.js	* (WireComponentSchema)	MANUAL
+jini	packages/agentic/src/core/a2ui/interpreter.ts	./agent-to-renderer.js	WireComponentSchema	@jini-ai/protocol/a2ui
+jini	packages/agentic/src/core/a2ui/renderer-to-agent.ts	./common-types.js	CallIdSchema	@jini-ai/protocol/a2ui
+jini	packages/chat/src/react/components/A2uiSurfaceCard.rules.ts	@jini-ai/agentic/a2ui	DynamicValueSchema	@jini-ai/protocol/a2ui

@@ -1,0 +1,155 @@
+repo	file	old_spec	names	new_spec	rename	phase	note
+jini	examples/reference-web/src/a2ui-demo-run.test.ts	@jini-ai/agentic/a2ui	type RendererToAgentMessage	@jini-ai/protocol/a2ui		wave	
+jini	examples/reference-web/src/a2ui-demo-run.ts	@jini-ai/agentic/a2ui	createLabCatalog,parseAgentToRendererMessage,type AgentToRendererMessage,type RendererToAgentMessage	@jini-ai/protocol/a2ui		wave	
+jini	examples/reference-web/src/A2uiLab.tsx	@jini-ai/agentic/a2ui	createA2uiInterpreter,createLabCatalog,type A2uiInterpreter	@jini-ai/protocol/a2ui		wave	B3: other names move; DynamicValueSchema has its own MANUAL row
+jini	examples/reference-web/src/A2uiLab.tsx	@jini-ai/agentic/a2ui	DynamicValueSchema	MANUAL		wave	B3: line 98 `DynamicValueSchema.safeParse(value)` -> `parseDynamicValue({ value })` (`{ ok, value } | { ok: false, error }`); adapt the success/failure branches, no cast; import parseDynamicValue from @jini-ai/protocol/a2ui (merge into the moved statement)
+jini	examples/reference-web/src/daemon.ts	@jini-ai/agentic/a2ui	parseRendererToAgentMessage,type RendererToAgentMessage	@jini-ai/protocol/a2ui		wave	
+jini	examples/reference-web/src/webmcp-lab-capabilities.ts	@jini-ai/agentic	type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	examples/reference-web/src/WebMcpLab.tsx	@jini-ai/agentic	findCapabilityInputError,type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/__tests__/root-entry.contract.test.ts	../core/index.js	*ns:core (7 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/agentic/src/__tests__/root-entry.contract.test.ts	../index.js	*ns:root (7 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/agentic/src/core/__tests__/args-convention.contract.test.ts	../index.js	findCapability	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/__tests__/args-convention.contract.test.ts	../a2ui/index.js	createA2uiInterpreter,createLabCatalog,resolveDynamicValue	@jini-ai/protocol/a2ui		wave	
+jini	packages/agentic/src/core/__tests__/capability.l077.characterization.test.ts	../capability.js	findCapabilityInputError,type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/__tests__/capability.test.ts	../index.js	availableCapabilities,findCapability,findCapabilityInputError,type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/__tests__/gen-ui-barrel.test.ts	../index.js	*ns:agui (7 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/agentic/src/core/__tests__/webmcp.test.ts	../index.js	type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/a2ui/__tests__/agent-to-renderer.test.ts	../agent-to-renderer.js	parseAgentToRendererMessage	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/agent-to-renderer.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/catalog.test.ts	../catalog.js	callableFromOf,createLabCatalog,isComponentAllowed,isFunctionRegistered	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/catalog.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/catalog.test.ts	../catalog.js	type Catalog	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/catalog.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/common-types.test.ts	../common-types.js	isAgentEventAction,isLocalFunctionAction,type Action	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/common-types.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/index.test.ts	../index.js	*ns:a2ui (126 moved names reachable)	MANUAL		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/index.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/interpreter.test.ts	../agent-to-renderer.js	type ParseFailure	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/interpreter.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/interpreter.test.ts	../catalog.js	createLabCatalog	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/interpreter.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/interpreter.test.ts	../common-types.js	type LocalFunctionAction	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/interpreter.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/interpreter.test.ts	../interpreter.js	buildParseFailureResult,createA2uiInterpreter,runLocalFunctionAction	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/interpreter.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/interpreter.test.ts	../renderer-to-agent.js	parseRendererToAgentMessage	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/interpreter.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/json-pointer.test.ts	../json-pointer.js	getAtPointer,joinPointer,parsePointerTokens,setAtPointer	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/json-pointer.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/renderer-to-agent.test.ts	../renderer-to-agent.js	buildActionMessage,buildFunctionResponseMessage,buildGenericErrorMessage,buildValidationFailedMessage,parseRendererToAgentMessage	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/renderer-to-agent.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/resolve.test.ts	../catalog.js	createLabCatalog,type Catalog,type FunctionSpec	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/resolve.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/resolve.test.ts	../resolve.js	resolveDynamicValue,type ResolveContext	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/resolve.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/spec-fixtures.test.ts	../agent-to-renderer.js	parseAgentToRendererMessage	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/spec-fixtures.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/spec-fixtures.test.ts	../renderer-to-agent.js	parseRendererToAgentMessage	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/spec-fixtures.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/spec-fixtures.test.ts	../interpreter.js	createA2uiInterpreter	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/spec-fixtures.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/spec-fixtures.test.ts	../catalog.js	createLabCatalog	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/spec-fixtures.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/surface-properties.test.ts	../agent-to-renderer.js	parseAgentToRendererMessage	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/surface-properties.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/surface-properties.test.ts	../surface-properties.js	A2UI_DISPLAY_ONLY_PROPERTY,a2uiSurfaceIdOf,displayOnlySurfaceIdOf	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/surface-properties.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/surface-properties.test.ts	../index.js	*ns:a2ui (126 moved names reachable)	MANUAL		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/surface-properties.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/a2ui/__tests__/tree.test.ts	../tree.js	MAX_RENDER_NODES,flattenRenderTree,type ComponentLike	@jini-ai/protocol/a2ui		C-lane	MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/tree.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/agentic/src/core/ag-ui.ts	./capability.js	type CapabilityDef,type CapabilityInputSchema	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/index.ts	export-from ./capability.js	findCapability,findCapabilityInputError,availableCapabilities,type CapabilityDef,type CapabilityInputSchema,type CapabilityRisk,type CapabilitySurface	DROP		wave	shell: delete these names from the barrel
+jini	packages/agentic/src/core/page-capabilities.ts	./capability.js	type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/page-executor.ts	./capability.js	findCapability,findCapabilityInputError	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/core/webmcp.ts	./capability.js	findCapabilityInputError,type CapabilityDef,type CapabilityInputSchema	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/agentic/src/index.ts	export * from ./core/index.js	* (findCapability findCapabilityInputError availableCapabilities CapabilityDef CapabilityInputSchema CapabilityRisk CapabilitySurface)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/chat/src/core/__tests__/agentic/chat-capabilities.test.ts	@jini-ai/agentic	findCapability,findCapabilityInputError,type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/chat/src/core/agentic/chat-capabilities.ts	@jini-ai/agentic	type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/chat/src/core/agentic/index.ts	export-from @jini-ai/agentic	type CapabilityDef,type CapabilityInputSchema,type CapabilityRisk	@jini-ai/core/contracts/capabilities		wave	export-from: keep the line, new spec
+jini	packages/chat/src/core/index.ts	export * from ./agentic/index.js	* (CapabilityDef CapabilityInputSchema CapabilityRisk)	MANUAL		wave	star re-export of moved names from another package: shell, delete the moved names
+jini	packages/chat/src/core/run-activity.ts	@jini-ai/agentic/a2ui	a2uiSurfaceIdOf,displayOnlySurfaceIdOf	@jini-ai/protocol/a2ui		wave	
+jini	packages/chat/src/react/components/__tests__/A2uiSurfaceCard.delivery.test.tsx	@jini-ai/agentic/a2ui	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/chat/src/react/components/__tests__/A2uiSurfaceCard.registry.test.tsx	@jini-ai/agentic/a2ui	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/chat/src/react/components/__tests__/A2uiSurfaceCard.test.tsx	@jini-ai/agentic/a2ui	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/chat/src/react/components/__tests__/answered-question.test.tsx	@jini-ai/ui/mcp-ui	MCP_UI_MIME_TYPE	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/components/__tests__/answered-question.test.tsx	vi.mock('@jini-ai/ui/mcp-ui')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/chat/src/react/components/__tests__/McpUiSurfaceCard.j5-03.characterization.test.tsx	@jini-ai/ui/mcp-ui	MCP_UI_EXPIRES_AT_META_KEY,MCP_UI_MIME_TYPE,type McpUiToolCallHandler	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/components/__tests__/McpUiSurfaceCard.j5-03.characterization.test.tsx	vi.mock('@jini-ai/ui/mcp-ui')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/chat/src/react/components/__tests__/McpUiSurfaceCard.l199.characterization.test.tsx	@jini-ai/ui/mcp-ui	MCP_UI_EXPIRES_AT_META_KEY,MCP_UI_MIME_TYPE	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/components/__tests__/McpUiSurfaceCard.test.tsx	@jini-ai/ui/mcp-ui	MCP_UI_ACTION_PLAN_META_KEY,MCP_UI_EXPIRES_AT_META_KEY,MCP_UI_MIME_TYPE,MCP_UI_PREFERRED_FRAME_SIZE_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/components/__tests__/standalone-approval.test.tsx	vi.mock('@jini-ai/ui/mcp-ui')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/chat/src/react/components/__tests__/surface-question-replay.test.tsx	vi.mock('@jini-ai/ui/mcp-ui')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts	@jini-ai/agentic/a2ui	createA2uiInterpreter,createLabCatalog,type A2uiInterpreter	@jini-ai/protocol/a2ui		wave	
+jini	packages/chat/src/react/components/A2uiSurfaceCard.rules.ts	@jini-ai/agentic/a2ui	type A2uiInterpreter	@jini-ai/protocol/a2ui		wave	B3: other names move; DynamicValueSchema has its own MANUAL row
+jini	packages/chat/src/react/components/A2uiSurfaceCard.rules.ts	@jini-ai/agentic/a2ui	DynamicValueSchema	MANUAL		wave	B3: line 13 `DynamicValueSchema.parse(value)` -> `const parsed = parseDynamicValue({ value }); if (!parsed.ok) throw new Error(parsed.error);` then `parsed.value` (keeps today's throw-on-invalid behavior); import parseDynamicValue from @jini-ai/protocol/a2ui (merge into the moved statement)
+jini	packages/chat/src/react/components/mcp-ui-question-input.ts	@jini-ai/ui/mcp-ui	parseUIResource,readActionPlan,type UIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/components/mcp-ui-surface-state.ts	@jini-ai/ui/mcp-ui	type McpUiToolCallHandler	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/components/McpUiSurfaceCard.tsx	@jini-ai/ui/mcp-ui	parseUIResource,readActionPlan,readExpiresAt,readPreferredFrameSize,type McpUiActionPlan,type McpUiToolCallHandler,type UIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/features/chat-pane/agent-tools.ts	@jini-ai/agentic	type CapabilityDef,type CapabilityInputSchema,type CapabilityRisk	@jini-ai/core/contracts/capabilities		wave	
+jini	packages/chat/src/react/features/chat-pane/create-mcp-ui-tool-caller.ts	@jini-ai/ui/mcp-ui	type McpUiToolCall,type McpUiToolCallHandler	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/hooks/__tests__/useSurfaceRecovery.test.ts	@jini-ai/ui/mcp-ui	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/chat/src/react/hooks/useSurfaceRecovery.ts	@jini-ai/ui/mcp-ui	parseUIResource,type McpUiToolCallHandler,type UIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/provider-plugins/src/charts-recharts/__tests__/provider.test.tsx	@jini-ai/ui/a2ui	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/a2ui-entry.test.ts	../index.js	*ns:a2ui (11 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/ui/src/features/a2ui/__tests__/a2ui-entry.test.ts	@jini-ai/agentic/a2ui	createA2uiInterpreter	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/catalog-from-registry.test.ts	../protocol.js	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/provider-actions.integration.test.tsx	../protocol.js	createA2uiInterpreter,createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/real-catalog-components.test.tsx	../protocol.js	createA2uiInterpreter,createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/renderer-characterization.test.tsx	../protocol.js	createA2uiInterpreter,createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/renderer.test.tsx	../protocol.js	createA2uiInterpreter,createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/surface-updates.integration.test.tsx	../protocol.js	createA2uiInterpreter,createLabCatalog	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/__tests__/use-a2ui-surface.test.ts	../protocol.js	type A2uiInterpreter,type ComponentInstance	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/catalog-from-registry.ts	./protocol.js	type Catalog,type ComponentKind	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/index.ts	export-from ./protocol.js	createA2uiInterpreter,createLabCatalog,type A2uiInterpreter,type A2uiIdsPort,type ApplyMessageResult,type BuildActionResult,type ComponentInstance,type SurfaceSnapshot,type Catalog,type ComponentSpec,type ComponentKind	DROP		wave	shell: delete these names from the barrel
+jini	packages/ui/src/features/a2ui/protocol.ts	export-from @jini-ai/agentic/a2ui	createA2uiInterpreter,createLabCatalog,type A2uiInterpreter,type A2uiIdsPort,type ApplyMessageResult,type BuildActionResult,type ComponentInstance,type SurfaceSnapshot,type Catalog,type ComponentSpec,type ComponentKind	DROP		wave	shell: delete these names from the barrel
+jini	packages/ui/src/features/a2ui/renderer.hooks.ts	./protocol.js	type A2uiInterpreter	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/renderer.tsx	./protocol.js	type A2uiInterpreter,type ComponentInstance	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/a2ui/use-a2ui-surface.ts	./protocol.js	type A2uiInterpreter,type ComponentInstance,type SurfaceSnapshot	@jini-ai/protocol/a2ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/index.test.ts	../index.js	*ns:mcpUi (24 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/ui/src/features/mcp-ui/__tests__/resource.test.ts	../resource.js	MCP_UI_ACTION_PLAN_META_KEY,MCP_UI_EXPIRES_AT_META_KEY,MCP_UI_MIME_TYPE,MCP_UI_METADATA_PREFIX,MCP_UI_PREFERRED_FRAME_SIZE_META_KEY,MCP_UI_RESOURCE_URI_META_KEY,UI_RESOURCE_MIME_TYPES,buildUIToolResult,createUIResource,parseUIResource,readActionPlan,readExpiresAt,readPreferredFrameSize	@jini-ai/protocol/mcp-ui		C-lane	MOVE -> packages/protocol/src/__tests__/mcp-ui-resource.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/ui/src/features/mcp-ui/__tests__/secret-card.unit.test.ts	../resource.js	parseUIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/sign-in-card.unit.test.ts	../resource.js	parseUIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/surfaces/access-approval.test.ts	../../resource.js	MCP_UI_ACTION_PLAN_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/surfaces/choice-group.test.ts	../../resource.js	type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/surfaces/confirmation.test.ts	../../resource.js	MCP_UI_ACTION_PLAN_META_KEY,MCP_UI_EXPIRES_AT_META_KEY,MCP_UI_PREFERRED_FRAME_SIZE_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/surfaces/form.test.ts	../../resource.js	MCP_UI_PREFERRED_FRAME_SIZE_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/surfaces/outcome-cancellation.test.ts	../../resource.js	MCP_UI_ACTION_PLAN_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/__tests__/surfaces/outcome.test.ts	../../resource.js	MCP_UI_ACTION_PLAN_META_KEY,MCP_UI_PREFERRED_FRAME_SIZE_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/cards.ts	./resource.js	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/index.ts	export * from ./resource.js	* (UIResourceUri UIResourceMimeType MCP_UI_MIME_TYPE UI_RESOURCE_MIME_TYPES MCP_UI_RESOURCE_URI_META_KEY MCP_UI_METADATA_PREFIX MCP_UI_PREFERRED_FRAME_SIZE_META_KEY JINI_MCP_UI_METADATA_PREFIX MCP_UI_ACTION_PLAN_META_KEY MCP_UI_EXPIRES_AT_META_KEY McpUiActionPlanAction McpUiActionPlan UIResourceContent UIResource TextContent UIToolResult createUIResource buildUIToolResult parseUIResource readPreferredFrameSize readActionPlan readExpiresAt UIActionType UIActionResult)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/ui/src/features/mcp-ui/secret-card.ts	./resource.js	type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/sign-in-card.ts	./resource.js	type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/surfaces/confirmation.ts	../resource.js	createUIResource,type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/surfaces/form.ts	../resource.js	createUIResource,type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/features/mcp-ui/surfaces/outcome.ts	../resource.js	createUIResource,type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+jini	packages/ui/src/react/mcp-ui/__tests__/index.test.ts	../index.js	*ns:reactMcpUi (26 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/ui/src/react/mcp-ui/__tests__/index.test.ts	../../../features/mcp-ui/index.js	*ns:features (24 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/ui/src/react/mcp-ui/__tests__/McpUiHost.height.test.tsx	vi.mock('../useMcpUiHost.js')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/ui/src/react/mcp-ui/index.ts	export * from ./useMcpUiHost.js	* (McpUiToolCall McpUiToolCallHandler)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/ui/src/react/mcp-ui/index.ts	export * from ../../features/mcp-ui/index.js	* (UIResourceUri UIResourceMimeType MCP_UI_MIME_TYPE UI_RESOURCE_MIME_TYPES MCP_UI_RESOURCE_URI_META_KEY MCP_UI_METADATA_PREFIX MCP_UI_PREFERRED_FRAME_SIZE_META_KEY JINI_MCP_UI_METADATA_PREFIX MCP_UI_ACTION_PLAN_META_KEY MCP_UI_EXPIRES_AT_META_KEY McpUiActionPlanAction McpUiActionPlan UIResourceContent UIResource TextContent UIToolResult createUIResource buildUIToolResult parseUIResource readPreferredFrameSize readActionPlan readExpiresAt UIActionType UIActionResult)	KEEP		wave	export * line stays; the moved names leave with their definitions
+tovu	apps/admin/src/components/AssistantDock/__tests__/chart-provider.contract.unit.test.tsx	@jini-ai/agentic/a2ui	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+tovu	apps/admin/src/components/AssistantDock/__tests__/RoutedA2uiSurfaceCard.contract.unit.test.tsx	@jini-ai/agentic/a2ui	createLabCatalog	@jini-ai/protocol/a2ui		wave	
+tovu	apps/admin/src/components/AssistantDock/__tests__/unit/commit-approval.integration.test.tsx	vi.mock('@jini-ai/ui/mcp-ui')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/admin/src/lib/__tests__/credential-copy-card-frame.unit.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/__tests__/support/render-human-approval.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/byok-tool-surface.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/external-mcp-reauth-tool.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui.test.ts	@jini-ai/ui/mcp-ui/surfaces	createUIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui.test.ts	../mcp-ui.js	type UIResourceUri	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/render-ui-tool.test.ts	@jini-ai/agentic/a2ui	A2UI_DISPLAY_ONLY_PROPERTY	@jini-ai/protocol/a2ui		wave	
+tovu	apps/website/src/assistant/__tests__/tool-approval-policy.test.ts	await import('@jini-ai/agentic')	dynamic (7 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/assistant/__tests__/tool-failure-recovery.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts	../index.js	MCP_UI_MIME_TYPE,type UIResource	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.themes-trash-restore.test.ts	../index.js	type UIResource	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/assistant/__tests__/tool-registrations.webhooks.test.ts	../index.js	type UIResource	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/assistant/a2ui-actions-route.ts	@jini-ai/agentic/a2ui	parseRendererToAgentMessage,type RendererToAgentMessage	@jini-ai/protocol/a2ui		wave	
+tovu	apps/website/src/assistant/ask-choice-tool.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/ask-choice-ui-resource.ts	./mcp-ui.js	type UIResource	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/assistant/demo-a2ui-tool.ts	@jini-ai/agentic/a2ui	createLabCatalog,parseAgentToRendererMessage,type ActionMessagePayload,type AgentToRendererMessage	@jini-ai/protocol/a2ui		wave	
+tovu	apps/website/src/assistant/demo-choices-tool.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/external-mcp-reauth-tool.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/frontend-control-capabilities.ts	@jini-ai/agentic	type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+tovu	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces	buildUIToolResult as buildResult	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces	type UIToolResult as OwnerToolResult,type UIResource,type TextContent	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/assistant/render-ui-tool.ts	@jini-ai/agentic/a2ui	A2UI_DISPLAY_ONLY_PROPERTY,createLabCatalog,parseAgentToRendererMessage,type AgentToRendererMessage	@jini-ai/protocol/a2ui		wave	
+tovu	apps/website/src/assistant/site/visitor-page-tools.ts	@jini-ai/agentic	findCapabilityInputError,type CapabilityDef	@jini-ai/core/contracts/capabilities		wave	
+tovu	apps/website/src/assistant/tool-recovery-preset.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/contracts/core/__tests__/human-confirm.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY,type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/contracts/core/human-confirm.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/comments/__tests__/provider-tools.test.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/confirmation-ui.unit.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/tool-registrations.faults.unit.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY,type UIResource	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/database-transfer/destination-ui.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/deployments/publish-agent-tools.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResource,type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/trash/trash-item-tool.ts	@jini-ai/ui/mcp-ui/surfaces	type UIResourceUri	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/features/webhooks/__tests__/agent-tools.delete-confirmation.test.ts	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_EXPIRES_AT_META_KEY	@jini-ai/protocol/mcp-ui		wave	
+tovu	apps/website/src/server/runtime/composition/site-guide.ts	@jini-ai/agentic/core	*ns:agentic (7 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	development/e2e/journeys/release-0113-ui.journey.ts	@jini-ai/ui/mcp-ui	createUIResource	@jini-ai/protocol/mcp-ui		wave	

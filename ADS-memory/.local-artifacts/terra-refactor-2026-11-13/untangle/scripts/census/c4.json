@@ -1,0 +1,18 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "extraNeedles":["from '","from \""],
+ "moves":[
+  {"file":"packages/http-kit/src/types.ts","names":["Result","ok","err","RouteInputContext","InputParser","Handler","HttpMethod","JsonRouteAuthorize","JsonRoutePorts","JsonRouteSpec"],"to":"@jini-ai/core/contracts/server"},
+  {"file":"packages/http-kit/src/request.ts","names":["validationError"],"to":"@jini-ai/core/contracts/server"},
+  {"file":"packages/http-kit/src/response.ts","names":["statusForError"],"to":"@jini-ai/core/contracts/server"},
+  {"file":"packages/http-kit/src/adapter.ts","names":["AdapterContext","ClientFacingError","defineJsonRoute"],"to":"@jini-ai/core/contracts/server"},
+  {"file":"packages/http-kit/src/origin.ts","names":["OriginContext","guardSameOrigin"],"to":"@jini-ai/core/contracts/server"},
+  {"file":"packages/http-kit/src/sse.ts","names":["SseEvent","DEFAULT_MAX_QUEUED_SSE_EVENTS"],"to":"@jini-ai/core/contracts/server"},
+  {"file":"packages/http-kit/src/verified-origin/configured-origin.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"},
+  {"file":"packages/http-kit/src/verified-origin/loopback-host.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"},
+  {"file":"packages/http-kit/src/verified-origin/origin.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"},
+  {"file":"packages/http-kit/src/verified-origin/ports.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"},
+  {"file":"packages/http-kit/src/verified-origin/repo.memory.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"},
+  {"file":"packages/http-kit/src/verified-origin/site-path.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"},
+  {"file":"packages/http-kit/src/verified-origin/types.ts","names":"*","to":"@jini-ai/core/contracts/server/verified-origin"}
+ ],
+ "exclude":["packages/http-kit/src/verified-origin/configured-origin.ts","packages/http-kit/src/verified-origin/loopback-host.ts","packages/http-kit/src/verified-origin/origin.ts","packages/http-kit/src/verified-origin/ports.ts","packages/http-kit/src/verified-origin/repo.memory.ts","packages/http-kit/src/verified-origin/site-path.ts","packages/http-kit/src/verified-origin/types.ts"]}

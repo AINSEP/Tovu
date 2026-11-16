@@ -1,0 +1,397 @@
+owner	target	subpath	kind	files	import_lines	file_loc	allowed	fix	lane
+admin	agent-plugins	agent-plugins/lifecycle	type	1	1	46	no	CONTRACT -> local type (admin owns its plugin-list port)	L-ADMIN-PORTS
+admin	agentic	agentic	react	33	33	4682	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+admin	cms	cms/comments	value	1	1	84	no	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS
+admin	cms	cms/forms	type	7	9	854	no	CONTRACT -> core/contracts/forms (shared with provider-plugins)	L-ADMIN-PORTS
+admin	cms	cms/forms	value	3	3	1067	no	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS
+admin	cms	cms/widgets/markers	value	1	1	102	no	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS
+admin	core	core	type	1	1	208	yes	-	-
+admin	core	core	value	1	1	84	yes	-	-
+admin	core	core/model-facing-tool-errors	value	1	1	86	yes	-	-
+admin	core	core/text	react	1	1	83	yes	-	-
+admin	core	core/text	value	3	3	787	yes	-	-
+admin	ui	ui	react	3	3	337	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/admin-widgets	react	5	5	1320	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/fetch-query	react	22	22	2206	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/fetch-query	type	1	1	436	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/html-editor	react	1	1	178	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/i18n	react	2	2	276	no	PURE -> core/text (KIT §2.6)	L-TEXT
+admin	ui	ui/i18n	value	1	1	466	no	PURE -> core/text (KIT §2.6)	L-TEXT
+admin	ui	ui/panel-kit	react	4	4	783	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/panel-kit	react	3	3	573	no	PURE -> core/text (KIT §2.6)	L-TEXT
+admin	ui	ui/panel-kit	type	1	1	75	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/panel-kit	type	1	1	152	no	PURE -> core/text (KIT §2.6)	L-TEXT
+admin	ui	ui/tab-strip	react	1	1	840	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/tab-strip	type	1	1	46	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/theme	react	2	2	219	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui	ui/theme	type	2	2	109	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui-kit	ui-kit	type	1	1	27	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui-kit	ui-kit/react	react	26	26	1080	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui-kit	ui-kit/react	type	1	1	23	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+admin	ui-kit	ui-kit/react/native	react	1	1	164	no	KIT slot (KIT-INJECTION)	L-KIT-ADMIN
+agent-plugins	core	core	type	9	10	1694	yes	-	-
+agent-plugins	core	core	value	21	25	4920	yes	-	-
+agent-plugins	core	core/contracts/cards	type	5	6	730	yes	-	-
+agent-plugins	core	core/contracts/credentials	type	9	10	1817	yes	-	-
+agent-plugins	core	core/contracts/hosted-mcp	type	2	2	732	yes	-	-
+agent-plugins	core	core/contracts/mail	type	5	6	620	yes	-	-
+agent-plugins	core	core/contracts/vault	type	3	3	212	yes	-	-
+agent-plugins	core	core/plugin-directory	type	1	1	94	yes	-	-
+agent-plugins	core	core/plugin-directory	value	6	6	1935	yes	-	-
+agent-plugins	core	core/primitives	type	6	6	954	yes	-	-
+agent-plugins	core	core/primitives	value	1	1	162	yes	-	-
+agent-plugins	core	core/provider-registry	value	2	2	321	yes	-	-
+agent-plugins	platform	platform/fs	value	1	1	162	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-plugins	platform	platform/fs/file-lock	type	1	1	78	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+agent-plugins	platform	platform/fs/file-lock	value	1	1	931	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+agent-plugins	platform	platform/fs/file-lock	value	3	3	1008	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-plugins	platform	platform/mail/smtp	type	1	1	111	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+agent-runtime	core	core	value	12	12	5306	yes	-	-
+agent-runtime	core	core/primitives	type	2	2	101	yes	-	-
+agent-runtime	core	core/primitives	value	2	2	257	yes	-	-
+agent-runtime	core	core/text	value	11	11	4131	yes	-	-
+agent-runtime	integrations	integrations/media-providers/catalog	type	1	2	450	no	PORT: vendor base-URL catalog injected	L-AGENTS
+agent-runtime	integrations	integrations/media-providers/catalog	value	1	1	450	no	PORT: vendor base-URL catalog injected	L-AGENTS
+agent-runtime	oauth	oauth	value	2	2	546	no	PORT: oauth client port injected	L-AGENTS
+agent-runtime	platform	platform/command	value	3	3	842	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-runtime	platform	platform/fetch-with-timeout	value	1	1	241	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-runtime	platform	platform/fs/guarded-reader	value	1	1	244	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-runtime	platform	platform/net	value	1	1	378	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+agent-runtime	platform	platform/proxy-env	value	1	1	107	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-runtime	platform	platform/toolchain	value	1	1	337	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+agent-runtime	protocol	protocol	type	2	4	904	yes	-	-
+agent-runtime	protocol	protocol	value	1	1	972	yes	-	-
+agentic	core	core/primitives	type	2	2	604	yes	-	-
+agentic	protocol	protocol	type	1	1	171	yes	-	-
+analytics	agent-runtime	agent-runtime/ai-trace	type	1	1	52	no	CONTRACT -> core/contracts/ai-trace	L-AGENTS
+analytics	core	core	value	1	1	199	yes	-	-
+analytics	core	core/primitives	type	5	5	1450	yes	-	-
+analytics	core	core/provider-registry	value	1	1	285	yes	-	-
+artifacts	core	core	value	1	1	10	yes	-	-
+capability-providers	core	core	value	3	3	58	yes	-	-
+capability-providers	core	core/optional-peer	value	1	1	214	yes	-	-
+capability-providers	platform	platform	type	1	1	98	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+capability-providers	platform	platform	value	1	1	98	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+chat	agent-runtime	agent-runtime	value	1	1	320	no	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS
+chat	agent-runtime	agent-runtime/model-selection	react	3	3	1142	no	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS
+chat	agent-runtime	agent-runtime/native-tool-policy	react	1	1	611	no	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS
+chat	agent-runtime	agent-runtime/native-tool-policy	type	1	1	450	no	CONTRACT -> core/contracts/agents	L-AGENTS
+chat	agentic	agentic	react	7	7	1602	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+chat	agentic	agentic	type	3	3	165	no	SURFACES port (a2ui/page driver injected; Opus design S)	L-SURF
+chat	agentic	agentic	value	1	1	562	no	SURFACES port (a2ui/page driver injected; Opus design S)	L-SURF
+chat	agentic	agentic/a2ui	react	2	2	231	no	SURFACES port (a2ui/page driver injected; Opus design S)	L-SURF
+chat	agentic	agentic/a2ui	value	1	1	369	no	SURFACES port (a2ui/page driver injected; Opus design S)	L-SURF
+chat	agentic	agentic/dom	react	2	2	719	no	SURFACES port (a2ui/page driver injected; Opus design S)	L-SURF
+chat	core	core	type	8	8	2650	yes	-	-
+chat	core	core	value	1	1	256	yes	-	-
+chat	core	core/list-page	type	1	1	168	yes	-	-
+chat	core	core/list-page	value	1	1	256	yes	-	-
+chat	core	core/model-facing-tool-errors	react	8	8	1956	yes	-	-
+chat	core	core/primitives	react	2	2	612	yes	-	-
+chat	core	core/primitives	type	4	4	331	yes	-	-
+chat	core	core/primitives	value	7	7	2523	yes	-	-
+chat	core	core/records	value	1	1	215	yes	-	-
+chat	db	db/core	type	2	2	640	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+chat	db	db/core	value	2	2	640	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+chat	db	db/kernel	type	6	6	200	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+chat	db	db/kernel	value	1	1	631	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+chat	db	db/kernel/sqlite	value	1	1	46	no	PORT: opener/kernel/adapter injected by host	L-STORAGE
+chat	db	db/sqlite	type	3	3	738	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+chat	diagnostics	diagnostics/redaction/secrets-only	value	1	1	149	no	DEDUPE -> core redact (pure)	L-PLATFORM
+chat	ui	ui	react	7	7	2978	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/a2ui	react	1	1	203	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/admin-widgets	react	2	2	740	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/interactive-ui	react	1	1	220	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/interactive-ui	type	1	1	203	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/mcp-ui	react	3	3	561	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/mcp-ui	type	2	2	293	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/panel-kit	react	1	1	75	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+chat	ui	ui/tab-strip	react	1	1	129	no	KIT slot (KIT-INJECTION)	L-KIT-CHAT
+cli	core	core	value	1	1	14	yes	-	-
+cli	core	core/primitives	value	1	1	257	yes	-	-
+cli	core	core/text	value	4	4	832	yes	-	-
+cli	platform	platform/net	value	1	1	137	ask	HOST-composition-package (Q1)	Q1
+cli	sidecar	sidecar	value	1	1	65	ask	HOST-composition-package (Q1)	Q1
+cms	core	core	type	6	6	1236	yes	-	-
+cms	core	core	value	19	20	5132	yes	-	-
+cms	core	core/contracts/content-types	type	1	2	138	yes	-	-
+cms	core	core/model-facing-tool-errors	value	1	1	843	yes	-	-
+cms	core	core/naming	value	1	1	132	yes	-	-
+cms	core	core/object-store	type	1	1	54	yes	-	-
+cms	core	core/optimistic-concurrency	value	5	5	1106	yes	-	-
+cms	core	core/optional-peer	value	3	3	628	yes	-	-
+cms	core	core/primitives	type	84	94	21449	yes	-	-
+cms	core	core/primitives	value	32	34	10817	yes	-	-
+cms	core	core/records	value	6	6	843	yes	-	-
+cms	core	core/settings	value	1	1	5	yes	-	-
+cms	core	core/settings/express	value	1	1	5	yes	-	-
+cms	core	core/text	value	6	6	727	yes	-	-
+cms	db	db/kernel	type	4	4	836	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+cms	db	db/kernel	value	2	2	149	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+cms	http-kit	http-kit/rate-limit	type	1	1	274	no	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES
+cms	http-kit	http-kit/verified-origin	type	5	6	1746	no	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES
+cms	http-kit	http-kit/verified-origin	value	4	6	1243	no	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES
+cms	platform	platform/mail/senders	type	1	1	64	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+cms	platform	platform/mail/senders	value	1	1	129	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+cms-forms	cms	cms/core	type	3	6	497	no	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	L-STORAGE
+cms-forms	core	core/primitives	type	5	6	665	yes	-	-
+cms-forms	core	core/primitives	value	2	2	431	yes	-	-
+commerce	agentic	agentic	react	1	1	134	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+commerce	core	core	type	1	1	131	yes	-	-
+commerce	core	core	value	10	13	772	yes	-	-
+commerce	core	core/primitives	type	7	7	899	yes	-	-
+commerce	core	core/primitives	value	4	4	421	yes	-	-
+commerce	db	db/kernel	type	11	11	1419	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+commerce	db	db/migrate	type	4	4	311	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+commerce	db	db/migrate	value	1	1	52	no	REG: commerce exports migrations; host runs them	L-STORAGE
+commerce	ui	ui/panel-kit	react	1	1	72	no	PURE -> core/text (KIT §2.6)	L-TEXT
+daemon	agent-runtime	agent-runtime	type	9	15	3196	no	CONTRACT -> core/contracts/agents	L-AGENTS
+daemon	agent-runtime	agent-runtime	type	3	3	852	no	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	L-AGENTS
+daemon	agent-runtime	agent-runtime	value	10	10	5367	no	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	L-AGENTS
+daemon	agent-runtime	agent-runtime/native-tool-policy	type	1	1	105	no	CONTRACT -> core/contracts/agents	L-AGENTS
+daemon	core	core	type	23	24	7165	yes	-	-
+daemon	core	core	value	20	20	5584	yes	-	-
+daemon	core	core/composition	value	1	1	798	yes	-	-
+daemon	core	core/list-page	value	1	1	236	yes	-	-
+daemon	core	core/optional-peer	value	2	2	224	yes	-	-
+daemon	core	core/primitives	type	8	8	1325	yes	-	-
+daemon	core	core/primitives	value	8	8	3710	yes	-	-
+daemon	core	core/text	value	2	2	974	yes	-	-
+daemon	db	db/core	type	1	1	197	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+daemon	db	db/kernel	type	5	5	451	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+daemon	db	db/sqlite	type	1	1	197	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+daemon	db	db/sqlite	value	1	1	215	no	PORT: opener/kernel/adapter injected by host	L-STORAGE
+daemon	http-kit	http-kit	type	4	4	2663	no	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES
+daemon	http-kit	http-kit	value	20	24	5475	no	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES
+daemon	http-kit	http-kit	value	23	41	8912	no	REG routes: daemon exports route descriptors; host mounts via http-kit	L-ROUTES
+daemon	platform	platform	type	1	1	402	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+daemon	platform	platform	value	2	2	463	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+daemon	platform	platform/command	type	1	1	738	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+daemon	platform	platform/command	value	2	2	2142	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+daemon	platform	platform/fs	value	2	2	1709	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+daemon	platform	platform/process	type	1	1	738	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+daemon	platform	platform/process	value	2	2	3110	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+daemon	protocol	protocol	type	19	20	5653	yes	-	-
+daemon	protocol	protocol	value	23	23	9643	yes	-	-
+db	core	core	type	4	6	326	yes	-	-
+db	core	core	value	4	4	1033	yes	-	-
+db	core	core/gated-mutations	type	2	2	149	yes	-	-
+db	core	core/gated-mutations	value	1	2	205	yes	-	-
+db	core	core/primitives	type	4	4	709	yes	-	-
+db	core	core/primitives	value	5	5	898	yes	-	-
+db	platform	platform/secrets/credential-sets/contracts	value	1	1	217	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+desktop-host	core	core	value	2	2	308	yes	-	-
+desktop-host	core	core/model-facing-tool-errors	value	1	1	164	yes	-	-
+desktop-host	core	core/primitives	type	1	1	285	yes	-	-
+desktop-host	core	core/primitives	value	2	2	266	yes	-	-
+devops	core	core	type	2	2	259	yes	-	-
+devops	core	core	value	8	8	946	yes	-	-
+devops	core	core/contracts/cards	type	1	1	106	yes	-	-
+devops	core	core/contracts/credentials	type	1	1	106	yes	-	-
+devops	core	core/primitives	type	4	5	482	yes	-	-
+devops	core	core/primitives	value	5	5	920	yes	-	-
+devops	core	core/provider-registry	type	3	3	543	yes	-	-
+devops	core	core/provider-registry	value	4	4	475	yes	-	-
+devops	core	core/records	value	1	1	276	yes	-	-
+devops	core	core/text	type	1	1	218	yes	-	-
+devops	core	core/text	value	1	1	255	yes	-	-
+devops	platform	platform	value	1	1	65	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+diagnostics	core	core	value	5	6	1077	yes	-	-
+diagnostics	core	core/primitives	type	8	8	1469	yes	-	-
+diagnostics	core	core/primitives	value	3	3	390	yes	-	-
+http-kit	core	core	type	2	2	126	yes	-	-
+http-kit	core	core	value	4	4	549	yes	-	-
+http-kit	core	core/primitives	type	2	3	263	yes	-	-
+http-kit	core	core/primitives	value	2	2	169	yes	-	-
+http-kit	platform	platform/net	value	2	2	245	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+http-kit	protocol	protocol	type	3	3	301	yes	-	-
+http-kit	protocol	protocol	value	5	5	486	yes	-	-
+infra	core	core	value	1	1	404	yes	-	-
+infra	core	core/primitives	type	1	1	135	yes	-	-
+infra	core	core/primitives	value	1	1	404	yes	-	-
+infra	core	core/records	value	1	1	15	yes	-	-
+infra	db	db/core	type	1	1	9	ask	HOST-deprecated-forwarder (Q2)	Q2
+infra	db	db/core	value	1	1	9	ask	HOST-deprecated-forwarder (Q2)	Q2
+infra	db	db/sqlite	type	1	1	4	ask	HOST-deprecated-forwarder (Q2)	Q2
+infra	db	db/sqlite	value	1	1	4	ask	HOST-deprecated-forwarder (Q2)	Q2
+integrations	core	core	type	5	5	1587	yes	-	-
+integrations	core	core	value	6	6	1600	yes	-	-
+integrations	core	core/contracts/cards	type	4	4	1418	yes	-	-
+integrations	core	core/contracts/credentials	type	6	6	2077	yes	-	-
+integrations	core	core/contracts/hosted-mcp	type	3	3	1589	yes	-	-
+integrations	core	core/contracts/oauth	type	16	16	3237	yes	-	-
+integrations	core	core/contracts/vault	type	8	8	1951	yes	-	-
+integrations	core	core/gated-mutations	type	1	1	158	yes	-	-
+integrations	core	core/model-facing-tool-errors	type	1	1	232	yes	-	-
+integrations	core	core/model-facing-tool-errors	value	1	1	890	yes	-	-
+integrations	core	core/optional-peer	value	1	1	8	yes	-	-
+integrations	core	core/primitives	type	16	17	2809	yes	-	-
+integrations	core	core/primitives	value	10	10	3234	yes	-	-
+integrations	core	core/provider-registry	value	1	1	191	yes	-	-
+integrations	db	db/sqlite	type	3	3	591	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+integrations	platform	platform/fetch-with-timeout	value	4	4	752	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+integrations	platform	platform/http/guarded	type	2	2	94	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+integrations	platform	platform/http/guarded	value	3	3	213	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+integrations	platform	platform/net	value	2	2	275	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+mcp	core	core	type	3	3	646	yes	-	-
+mcp	core	core	value	16	16	6044	yes	-	-
+mcp	core	core/contracts/hosted-mcp	type	8	12	2913	yes	-	-
+mcp	core	core/contracts/vault	type	5	5	2098	yes	-	-
+mcp	core	core/optional-peer	value	1	1	518	yes	-	-
+mcp	core	core/primitives	type	5	5	721	yes	-	-
+mcp	core	core/primitives	value	6	6	3275	yes	-	-
+mcp	core	core/records	value	1	1	110	yes	-	-
+mcp	core	core/text	value	4	4	817	yes	-	-
+mcp	platform	platform/fetch-with-timeout	type	1	1	518	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+mcp	platform	platform/fetch-with-timeout	value	1	1	518	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+mcp	platform	platform/fs	value	2	2	406	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+mcp	platform	platform/net	value	2	2	325	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+mcp	protocol	protocol	type	1	1	78	yes	-	-
+mcp	protocol	protocol	value	1	1	342	yes	-	-
+oauth	core	core/contracts/oauth	type	14	34	1483	yes	-	-
+oauth	core	core/primitives	type	4	4	446	yes	-	-
+oauth	core	core/primitives	value	7	7	1034	yes	-	-
+platform	core	core	value	4	4	1194	yes	-	-
+platform	core	core/contracts/mail	type	7	10	194	yes	-	-
+platform	core	core/contracts/vault	type	4	5	63	yes	-	-
+platform	core	core/filesystem	value	1	2	525	yes	-	-
+platform	core	core/object-store	type	1	1	148	yes	-	-
+platform	core	core/primitives	type	12	13	1953	yes	-	-
+platform	core	core/primitives	value	6	6	1650	yes	-	-
+platform	core	core/provider-registry	type	3	3	549	yes	-	-
+platform	core	core/provider-registry	value	3	3	283	yes	-	-
+platform	core	core/text	value	2	2	1074	yes	-	-
+plugins	core	core	type	1	1	387	yes	-	-
+plugins	core	core	value	7	7	2749	yes	-	-
+plugins	core	core/contracts/content-types	type	1	1	495	yes	-	-
+plugins	core	core/contribution-registry	value	1	1	211	yes	-	-
+plugins	core	core/model-facing-tool-errors	type	1	1	387	yes	-	-
+plugins	core	core/model-facing-tool-errors	value	1	1	758	yes	-	-
+plugins	core	core/plugin-directory	type	2	2	265	yes	-	-
+plugins	core	core/plugin-directory	value	5	5	2884	yes	-	-
+plugins	core	core/primitives	type	5	5	1682	yes	-	-
+plugins	core	core/primitives	value	4	4	1894	yes	-	-
+plugins	core	core/provider-registry	value	2	2	449	yes	-	-
+plugins	core	core/records	value	2	2	583	yes	-	-
+plugins	core	core/text	value	1	1	52	yes	-	-
+plugins	db	db/kernel	type	1	1	73	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+plugins	db	db/kernel	value	1	1	47	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+plugins	platform	platform/fs/file-lock	value	1	1	358	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+provider-plugins	agent-runtime	agent-runtime/ai-trace	type	1	1	127	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	analytics	analytics/product	type	3	3	347	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	cms	cms/forms	type	2	2	58	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	commerce	commerce/payments/kernel	type	2	2	106	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	commerce	commerce/payments/kernel	value	4	4	201	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	cookie-consent	cookie-consent	type	2	2	290	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	cookie-consent	cookie-consent/client	value	1	1	203	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	diagnostics	diagnostics/observability	value	4	4	658	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	diagnostics	diagnostics/observability/node	value	1	1	301	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	plugins	plugins/host	type	7	7	193	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	plugins	plugins/host	value	1	1	138	no	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	L-PROV
+provider-plugins	ui	ui/charts	type	5	5	444	no	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	L-PROV
+provider-plugins	ui	ui/charts/browser	react	1	1	80	no	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	L-PROV
+provider-plugins	ui	ui/charts/browser	value	1	1	92	no	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	L-PROV
+registry	core	core	type	1	1	47	yes	-	-
+registry	core	core	value	2	2	165	yes	-	-
+registry	core	core/primitives	type	5	5	1202	yes	-	-
+registry	core	core/primitives	value	1	1	93	yes	-	-
+registry	db	db/sqlite	type	3	3	172	no	CONTRACT/PURE -> core/contracts/storage	L-STORAGE
+registry	platform	platform/fetch-with-timeout	value	1	1	333	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+registry	protocol	protocol	type	4	4	1159	yes	-	-
+registry	protocol	protocol	value	2	2	584	yes	-	-
+search	agent-plugins	agent-plugins/lifecycle	value	1	2	128	no	REG contribution descriptor; host registers	L-REG-MISC
+search	core	core	value	2	2	259	yes	-	-
+search	core	core/primitives	type	1	1	141	yes	-	-
+search	core	core/primitives	value	1	1	239	yes	-	-
+search	core	core/provider-registry	type	4	4	1184	yes	-	-
+search	core	core/provider-registry	value	3	3	791	yes	-	-
+server	agent-runtime	agent-runtime	type	1	1	513	ask	HOST-composition-package (Q1)	Q1
+server	agent-runtime	agent-runtime	value	2	2	945	ask	HOST-composition-package (Q1)	Q1
+server	chat	chat/store/legacy/sqlite	value	1	1	66	ask	HOST-composition-package (Q1)	Q1
+server	core	core	type	2	2	747	yes	-	-
+server	core	core	value	5	5	1640	yes	-	-
+server	core	core/composition	type	1	1	513	yes	-	-
+server	core	core/primitives	value	1	1	513	yes	-	-
+server	daemon	daemon	type	1	1	513	ask	HOST-composition-package (Q1)	Q1
+server	daemon	daemon	value	3	3	1371	ask	HOST-composition-package (Q1)	Q1
+server	daemon	daemon/http	type	2	2	617	ask	HOST-composition-package (Q1)	Q1
+server	daemon	daemon/http	value	2	2	817	ask	HOST-composition-package (Q1)	Q1
+server	daemon	daemon/store/agent-sessions/sqlite	value	1	1	66	ask	HOST-composition-package (Q1)	Q1
+server	daemon	daemon/store/event-log/sqlite	value	1	1	232	ask	HOST-composition-package (Q1)	Q1
+server	db	db/core	type	1	1	395	ask	HOST-composition-package (Q1)	Q1
+server	db	db/kernel	type	1	1	117	ask	HOST-composition-package (Q1)	Q1
+server	db	db/kernel/sqlite	value	1	1	117	ask	HOST-composition-package (Q1)	Q1
+server	db	db/secrets-vault	value	1	1	117	ask	HOST-composition-package (Q1)	Q1
+server	db	db/sqlite	type	4	4	1086	ask	HOST-composition-package (Q1)	Q1
+server	db	db/sqlite	value	3	3	1011	ask	HOST-composition-package (Q1)	Q1
+server	http-kit	http-kit	type	1	1	234	ask	HOST-composition-package (Q1)	Q1
+server	http-kit	http-kit	value	2	2	939	ask	HOST-composition-package (Q1)	Q1
+server	platform	platform/secrets	value	2	2	274	ask	HOST-composition-package (Q1)	Q1
+server	platform	platform/secrets/credential-sets	value	2	2	274	ask	HOST-composition-package (Q1)	Q1
+server	platform	platform/secrets/credential-sets/contracts	value	2	2	274	ask	HOST-composition-package (Q1)	Q1
+server	registry	registry/tool-catalog/sqlite	value	1	1	713	ask	HOST-composition-package (Q1)	Q1
+server	sidecar	sidecar	value	1	1	513	ask	HOST-composition-package (Q1)	Q1
+sidecar	core	core	value	1	1	540	yes	-	-
+sidecar	core	core/primitives	value	1	1	540	yes	-	-
+sidecar	platform	platform/child-environment	value	1	1	343	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+sidecar	platform	platform/command	value	1	1	343	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+sidecar	platform	platform/fs	value	1	1	53	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+sidecar	platform	platform/process	value	1	1	343	no	PORT: consumer-owned port; host binds the platform implementation	L-PLATFORM
+sqlite	chat	chat/store/legacy	type	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	chat	chat/store/legacy/sqlite	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	chat	chat/store/sqlite	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	daemon	daemon/store/agent-sessions/sqlite	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	daemon	daemon/store/event-log/sqlite	type	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	daemon	daemon/store/event-log/sqlite	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	db	db/core	type	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	db	db/core	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	db	db/sqlite	type	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	db	db/sqlite	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	registry	registry/tool-catalog	type	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+sqlite	registry	registry/tool-catalog/sqlite	value	1	1	20	ask	HOST-deprecated-forwarder (Q2)	Q2
+ui	agentic	agentic	react	51	52	8087	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+ui	agentic	agentic	type	1	1	268	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+ui	agentic	agentic	type	1	1	80	no	WIRE -> protocol/mcp-ui (repoint)	L-HANDLES
+ui	agentic	agentic	value	3	3	757	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+ui	agentic	agentic	value	1	1	80	no	WIRE -> protocol/mcp-ui (repoint)	L-HANDLES
+ui	agentic	agentic/a2ui	value	1	1	19	no	SURFACES port (a2ui/page driver injected; Opus design S)	L-SURF
+ui	core	core	type	7	8	698	yes	-	-
+ui	core	core	value	4	4	420	yes	-	-
+ui	core	core/contracts/cards	type	13	24	2952	yes	-	-
+ui	core	core/contracts/credentials	type	1	1	55	yes	-	-
+ui	core	core/fetch	react	2	2	410	yes	-	-
+ui	core	core/fetch	type	6	8	500	yes	-	-
+ui	core	core/model-facing-tool-errors	react	1	1	172	yes	-	-
+ui	core	core/optional-peer	value	1	1	67	yes	-	-
+ui	core	core/primitives	value	2	2	576	yes	-	-
+ui	core	core/text	value	1	1	70	yes	-	-
+ui	platform	platform/net/endpoint-policy	value	1	1	71	no	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	L-PLATFORM
+ui	ui-kit	ui-kit	react	1	1	99	ask	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+ui	ui-kit	ui-kit/react	react	6	6	1327	ask	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+user-management	admin	admin/core/module	type	8	8	172	no	REG -> core/contracts/admin-module	L-REG-ADMIN
+user-management	admin	admin/core/module	value	4	4	59	no	REG -> core/contracts/admin-module	L-REG-ADMIN
+user-management	admin	admin/react	react	3	3	1254	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	admin	admin/react	type	3	3	411	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	agentic	agentic	react	4	4	1368	no	PURE -> core/agent-handles (repoint)	L-HANDLES
+user-management	core	core	type	1	1	347	yes	-	-
+user-management	core	core	value	1	1	575	yes	-	-
+user-management	core	core/contracts/oauth	type	1	1	48	yes	-	-
+user-management	core	core/list-page	value	1	1	292	yes	-	-
+user-management	core	core/optional-peer	value	1	1	105	yes	-	-
+user-management	core	core/primitives	type	10	10	3454	yes	-	-
+user-management	core	core/primitives	value	4	4	2064	yes	-	-
+user-management	core	core/records	value	1	1	263	yes	-	-
+user-management	ui	ui	react	3	3	1068	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui	ui/admin-widgets	react	1	1	969	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui	ui/fetch-query	react	1	1	242	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui	ui/panel-kit	react	4	5	2017	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui	ui/panel-kit	react	2	2	992	no	PURE -> core/text (KIT §2.6)	L-TEXT
+user-management	ui	ui/panel-kit	type	1	1	216	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui	ui/panel-kit	type	12	12	1984	no	PURE -> core/text (KIT §2.6)	L-TEXT
+user-management	ui-kit	ui-kit	react	1	1	34	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui-kit	ui-kit/react	react	17	17	274	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+user-management	ui-kit	ui-kit/react	type	6	6	252	no	KIT slot (KIT-INJECTION)	L-KIT-UM
+vibecoding	core	core	value	1	1	299	yes	-	-
+vibecoding	core	core/filesystem	type	1	1	19	yes	-	-
+vibecoding	core	core/filesystem	value	1	1	341	yes	-	-
+vibecoding	core	core/primitives	value	1	1	206	yes	-	-

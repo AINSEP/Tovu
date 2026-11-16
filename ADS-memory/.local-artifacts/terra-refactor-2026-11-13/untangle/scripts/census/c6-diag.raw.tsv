@@ -1,0 +1,4 @@
+repo	file	old_spec	names	new_spec
+jini	packages/agent-runtime/src/types.ts	@jini-ai/protocol	type AgentDiagnostic	@jini-ai/protocol
+jini	packages/agent-runtime/src/types.ts	export-from @jini-ai/protocol	type AgentDiagnostic,type AgentDiagnosticReason,type AgentDiagnosticSeverity,type AgentFixIntent	@jini-ai/protocol
+jini	packages/protocol/src/index.ts	export * from ./agent-catalog.js	* (AgentFixIntent AgentDiagnosticReason AgentDiagnosticSeverity AgentDiagnostic)	MANUAL

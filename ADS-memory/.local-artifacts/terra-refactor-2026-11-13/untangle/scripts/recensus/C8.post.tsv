@@ -1,0 +1,160 @@
+repo	file	old_spec	names	new_spec	rename	phase	note
+jini	packages/admin/src/core/ports/forms.ts	@jini-ai/cms/forms	type FormAnswer	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/core/ports/forms.ts	import('@jini-ai/cms/forms')	type FormSubmissionEvidence	@jini-ai/core/contracts/forms		wave	core type is generic: inside cms write FormSubmissionEvidence<FieldType>; elsewhere the default <string>
+jini	packages/admin/src/core/ports/forms.ts	import('@jini-ai/cms/forms')	type FormProviderDescription	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/forms/__tests__/field-settings-upload-choices.unit.test.ts	vi.mock('@jini-ai/cms/forms')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/admin/src/forms/adapters/http.ts	import('@jini-ai/cms/forms')	type FormProviderDescription	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/forms/adapters/memory.ts	@jini-ai/cms/forms	type FormProviderDescription	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/forms/models.ts	@jini-ai/cms/forms	type FormAnswer	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx	@jini-ai/cms/forms	type FormProviderDescription	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/forms/react/components/FormProviderSettings.tsx	@jini-ai/cms/forms	type FormProviderDescription	@jini-ai/core/contracts/forms		wave	
+jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	@jini-ai/cms/forms	type FormProviderDescription	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/core/form-schema.ts	../forms/submission-evidence.js	type FormSubmissionEvidence	@jini-ai/core/contracts/forms		wave	core type is generic: inside cms write FormSubmissionEvidence<FieldType>; elsewhere the default <string>
+jini	packages/cms/src/forms/__tests__/file-fields.test.ts	../types.js	type FormFileReference	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/__tests__/forms-barrel.characterization.test.ts	../index.js	*ns:forms (9 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/cms/src/forms/__tests__/submit-service.boundaries.test.ts	../types.js	type FormFileReference	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/delivery/__tests__/index.unit.test.ts	../../index.js	*ns:forms (9 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/cms/src/forms/field-registry.ts	./types.js	type FormAnswer	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/fields-json.ts	./provider.js	type FormProviderSelection	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/forms.ts	./types.js	type FormAnswer	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/html-render.ts	import('./provider.js')	type FormCollectionPlan	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/index.ts	export * from ./types.js	* (FormFileReference FormAnswer)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/cms/src/forms/index.ts	export * from ./provider.js	* (FormProviderSelection FormCollectionCapabilities FormProviderDescription FormCollectionPlan FormCollectionProvider FORM_COLLECTION_CONTRACT)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/cms/src/forms/index.ts	export * from ./submission-evidence.js	* (FormSubmissionEvidence)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/cms/src/forms/portable-validation.ts	./types.js	type FormAnswer	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/provider.ts	export * from ../core/form-collection.js	* (FormProviderSelection FormCollectionCapabilities FormProviderDescription FormCollectionPlan FormCollectionProvider FORM_COLLECTION_CONTRACT)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/cms/src/forms/submit-service.ts	./types.js	type FormFileReference	@jini-ai/core/contracts/forms		wave	
+jini	packages/cms/src/forms/types.ts	import('./submission-evidence.js')	type FormSubmissionEvidence	@jini-ai/core/contracts/forms		wave	core type is generic: inside cms write FormSubmissionEvidence<FieldType>; elsewhere the default <string>
+jini	packages/cms/src/widgets/resolvers/ports.ts	import('../../forms/provider.js')	type FormProviderSelection	@jini-ai/core/contracts/forms		wave	
+jini	packages/diagnostics/src/__tests__/observability-contract.test.ts	../observability/otel.js	createOtelObservabilityPort	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	MOVE otel cases -> packages/provider-plugins/src/observability-opentelemetry/__tests__/otel-port.contract.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/__tests__/observability-fakes.ts	../observability/otel.js	createOtelObservabilityPort	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	SPLIT: OTel fakes move next to the provider tests; noop/fan-out fakes stay (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/__tests__/observability-hooks.test.ts	../observability/index.js	createObservabilityPort	DELETED (no replacement; C8 decision 6)		C-lane	SPLIT: delete the createObservabilityPort cases (selector deleted) (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/__tests__/observability-tracing.test.ts	../observability/otel.js	createOtelObservabilityPort	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	MOVE -> packages/provider-plugins/src/observability-opentelemetry/__tests__/otel-port.tracing.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/__tests__/package-surface.integration.test.ts	../observability/index.js	*ns:observability (11 moved names reachable)	MANUAL		C-lane	SPLIT: drop the moved/deleted names from the expected surface (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/observability/__tests__/unit/provider-boundaries.unit.test.ts	../../otel.js	createOtelObservabilityPort	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	SPLIT: createOtelObservabilityPort cases move to the provider (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/observability/index.ts	./ports.js	type ExporterFactory,type TracerProviderFactory	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	C-lane: these imports existed only for createObservabilityPort, which is deleted (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/observability/index.ts	./otel.js	createOtelObservabilityPort,type OtelAdapterOptions	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	C-lane: these imports existed only for createObservabilityPort, which is deleted (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/observability/index.ts	export * from ./ports.js	* (TraceSpanKind TracerPort TracerProviderPort ExporterFactory TracerProviderFactory)	MANUAL		C-lane	C-lane: these imports existed only for createObservabilityPort, which is deleted (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/observability/index.ts	export * from ./otel.js	* (OtelAdapterDependencies OtelAdapterOptions redactRequestTarget outboundTargetAttributes createOtelObservabilityPort)	MANUAL		C-lane	C-lane: these imports existed only for createObservabilityPort, which is deleted (the C lane does it with the move; relative import inside core)
+jini	packages/diagnostics/src/observability/otel.ts	./ports.js	type ExporterFactory,type TracerProviderFactory,type TraceSpanKind,type TracerPort	@jini-ai/provider-plugins/observability-opentelemetry		C-lane	SPLIT: otel.ts keeps errorType + redactOperationAttributes only; the moved code takes these imports with it (the C lane does it with the move; relative import inside core)
+jini	packages/plugins/src/__tests__/package-surface.integration.test.ts	await import('../host/index.js')	dynamic (29 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/plugins/src/host/__tests__/support/fixture-bindings.ts	../../ports.js	type BeforeSaveFilter as HostFilter	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/support/hook-registry.ts	../../ports.js	type BeforeSaveFilter as HostFilter	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/support/manifest.ts	export * from ../../manifest.js	* (PluginProviderDeclaration PluginProviderSettingsMigration PluginProviderSettingField PluginProviderSettingOption)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/__tests__/unit/contributions.l121.characterization.unit.test.ts	../../contributions.js	type PluginToolContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/unit/contributions.l121.characterization.unit.test.ts	../../ports.js	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts	../../index.js	*ns:host (29 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/plugins/src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts	../../index.js	type ContentEntryDraft,type HookContext	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/unit/provider-contributions.unit.test.ts	../../ports.js	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/unit/provider-contributions.unit.test.ts	../../provider-contributions.js	type PluginProviderContribution,type PluginProviderResource	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/unit/provider-guidance.unit.test.ts	../../provider-host.js	PluginProviderStartupError,pluginProviderStartupGuidance	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts	../../contributions.js	type PluginInvocationContext	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/attach-loaded-plugin.ts	./ports.js	type BeforeSaveFilter	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/capability-sdk.ts	./ports.js	type BeforeSaveFilter,type ContentEntryDraft,type PluginSdk,type HookPoints	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/capability-sdk.ts	./provider-contributions.js	PLUGIN_PROVIDER_CAPABILITY	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/capability-sdk.ts	import('./contributions.js')	type PluginRouteContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/capability-sdk.ts	import('./contributions.js')	type PluginToolContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/capability-sdk.ts	import('./contributions.js')	type PluginWidgetContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/contributions.ts	./provider-contributions.js	PLUGIN_PROVIDER_CAPABILITY,type PluginProviderContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/contributions.ts	./ports.js	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/hook-registry.ts	./ports.js	type BeforeSaveFilter,type ContentEntryDraft,type HookContext,type HookPoints	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/index.ts	export * from ./ports.js	* (ContentEntryDraft HookContext ExtPatch BeforeSaveFilter HookPoints PluginSdk DefinedPlugin)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/index.ts	export * from ./manifest.js	* (PluginProviderDeclaration PluginProviderSettingsMigration PluginProviderSettingField PluginProviderSettingOption)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/index.ts	export * from ./contributions.js	* (PluginRouteAccess PluginAuthContext PluginInvocationContext PluginRouteInput PluginRouteResult PluginRouteContribution PluginToolEffect PluginToolContribution PluginWidgetContribution PluginContribution)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/index.ts	export-from ./provider-contributions.js	PLUGIN_PROVIDER_CAPABILITY	DROP		wave	shell: delete these names from the barrel
+jini	packages/plugins/src/host/index.ts	export-from ./provider-contributions.js	type PluginProviderResource,type PluginProviderFactory,type PluginProviderContribution,type PluginProvidersSdk	DROP		wave	shell: delete these names from the barrel
+jini	packages/plugins/src/host/index.ts	export * from ./provider-host.js	* (PluginProviderStartupError pluginProviderStartupGuidance)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/index.ts	export * from ./provider-setting-required.js	* (hasProviderAuthHeader)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/manifest.ts	export-from ./manifest-types.js	type PluginProviderDeclaration,type PluginProviderSettingsMigration,type PluginProviderSettingField,type PluginProviderSettingOption	DROP		wave	shell: delete these names from the barrel
+jini	packages/plugins/src/host/manifest.ts	./ports.js	type HookPoints	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/node/invocation-binding.ts	../ports.js	type BeforeSaveFilter,type ContentEntryDraft	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/node/loader.ts	../provider-contributions.js	PLUGIN_PROVIDER_CAPABILITY	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/node/loader.ts	../ports.js	type HookPoints	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/node/provider-artifact.ts	../provider-contributions.js	type PluginProviderResource	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/node/provider-artifact.ts	../ports.js	type HookPoints	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/node/runtime-core.ts	../ports.js	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/ports.ts	import('./provider-contributions.js')	type PluginProvidersSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/ports.ts	import('./contributions.js')	type PluginRouteContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/ports.ts	import('./contributions.js')	type PluginToolContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/ports.ts	import('./contributions.js')	type PluginWidgetContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/ports.ts	import('./contributions.js')	type PluginContribution	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/provider-contributions.ts	./manifest-types.js	type PluginProviderDeclaration	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/provider-contributions.ts	import('./manifest-types.js')	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/provider-contributions.ts	import('./manifest-types.js')	type PluginProviderDeclaration	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/provider-host.ts	./provider-contributions.js	type PluginProviderContribution,type PluginProviderResource	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/provider-setting-required.ts	./manifest-types.js	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/provider-settings-migrations.ts	./manifest-types.js	type PluginProviderDeclaration	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/tool-contributions.ts	./contributions.js	type PluginAuthContext	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/worker/__tests__/run-call.l237.characterization.test.ts	../../ports.js	type DefinedPlugin	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/worker/import-seam.ts	../ports.js	type ExtPatch	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/worker/protocol.ts	../ports.js	type ContentEntryDraft,type HookContext	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/plugins/src/host/worker/run-call.ts	../ports.js	type BeforeSaveFilter	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/__tests__/observability-opentelemetry.test.ts	await import('@jini-ai/plugins/host')	dynamic (29 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/provider-plugins/src/__tests__/observability-sentry.test.ts	await import('@jini-ai/diagnostics/observability')	dynamic (11 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/provider-plugins/src/ai-trace-langfuse/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/analytics-posthog/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/charts-echarts/__tests__/descriptor.test.ts	@jini-ai/ui/charts	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-echarts/__tests__/mount.test.ts	@jini-ai/ui/charts	type ChartInstance,type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-echarts/__tests__/option.test.ts	@jini-ai/ui/charts	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-echarts/__tests__/provider.test.ts	@jini-ai/ui/charts	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-echarts/descriptor.ts	@jini-ai/ui/charts	type ChartSpec,type ChartValue	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-echarts/mount.ts	@jini-ai/ui/charts	type ChartInstance,type ChartMountOptions,type ChartRenderInput,type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-echarts/option.ts	@jini-ai/ui/charts	type ChartSpec,type ChartValue	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-recharts/__tests__/mount.test.tsx	@jini-ai/ui/charts	type ChartSpec,type ChartInstance	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-recharts/__tests__/y-axis-ticks.test.tsx	@jini-ai/ui/charts	type ChartInstance	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-recharts/descriptor.ts	@jini-ai/ui/charts	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/charts-recharts/mount.tsx	@jini-ai/ui/charts	type ChartInstance,type ChartMountOptions,type ChartRenderInput	@jini-ai/core/contracts/charts		wave	
+jini	packages/provider-plugins/src/fixture-provider/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/formspree/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/formspree/provider.ts	@jini-ai/cms/forms	type FormCollectionProvider,type FormCollectionPlan	@jini-ai/core/contracts/forms		wave	
+jini	packages/provider-plugins/src/google-forms/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/google-forms/provider.ts	@jini-ai/cms/forms	type FormCollectionProvider,type FormCollectionPlan	@jini-ai/core/contracts/forms		wave	
+jini	packages/provider-plugins/src/observability-opentelemetry/index.ts	@jini-ai/plugins/host	hasProviderAuthHeader,PluginProviderStartupError,type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/observability-opentelemetry/opentelemetry.ts	@jini-ai/diagnostics/observability	createOtelObservabilityPort,type ExporterFactory,type TraceSpanKind,type TracerPort,type TracerProviderFactory	./otel-port.js		wave	vendor code moved into the OTel provider (C8 decision 6)
+jini	packages/provider-plugins/src/observability-sentry/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/payments-stripe/__tests__/payments-stripe-kernel.test.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/provider-plugins/src/payments-stripe/index.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+jini	packages/ui/src/features/charts/__tests__/browser.characterization.test.ts	../contract.js	DEFAULT_CHART_THEME,type ChartInstance,type ChartMountOptions,type ChartProvider,type ChartProviderEntry,type ChartSpec	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProvider<HTMLElement> (core type is generic over the element); ui alias deleted: write ChartProviderEntry<HTMLElement>
+jini	packages/ui/src/features/charts/__tests__/catalog-registry.test.tsx	../index.js	type ChartProviderEntry,type ChartSpec	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProviderEntry<HTMLElement>
+jini	packages/ui/src/features/charts/__tests__/provider-edges.test.tsx	../contract.js	type ChartProviderEntry,type ChartSpec	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProviderEntry<HTMLElement>
+jini	packages/ui/src/features/charts/__tests__/provider-selection.test.ts	../index.js	type ChartProviderEntry,type ChartSpec	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProviderEntry<HTMLElement>
+jini	packages/ui/src/features/charts/__tests__/react-host.test.tsx	../index.js	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/charts/__tests__/series-label.test.tsx	../index.js	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/charts/__tests__/table.characterization.test.ts	../contract.js	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/charts/browser.ts	./contract.js	DEFAULT_CHART_THEME,type ChartInstance,type ChartProvider,type ChartRenderInput,type ChartSpec,type ChartTheme	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProvider<HTMLElement> (core type is generic over the element)
+jini	packages/ui/src/features/charts/catalog-manifests.ts	./contract.js	type ChartKind	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/charts/index.ts	export * from ./contract.js	* (ChartKind ChartValue ChartSpec ChartTheme DEFAULT_CHART_THEME ChartRenderInput ChartMountOptions ChartInstance ChartProvider ChartProviderEntry)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/ui/src/features/charts/react.tsx	./contract.js	DEFAULT_CHART_THEME,type ChartSpec,type ChartTheme	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/charts/registry.ts	./contract.js	type ChartKind,type ChartProviderEntry,type ChartSpec	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProviderEntry<HTMLElement>
+jini	packages/ui/src/features/charts/table.ts	./contract.js	type ChartSpec,type ChartTheme	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/charts/wire.ts	./contract.js	type ChartSpec	@jini-ai/core/contracts/charts		wave	
+jini	packages/ui/src/features/interactive-ui/__tests__/manifests.test.ts	await import('../../charts/index.js')	dynamic (10 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/admin/src/integrations/chart-providers/__tests__/use-chart-registry.unit.test.tsx	@jini-ai/ui/charts	type ChartProvider	@jini-ai/core/contracts/charts		wave	ui alias deleted: write ChartProvider<HTMLElement> (core type is generic over the element)
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts	await import('@jini-ai/plugins/host')	dynamic (29 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/contracts/core/__tests__/provider-setting-field.typecheck.ts	@jini-ai/plugins/host	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/features/custom-credentials/provider-settings-card.ts	@jini-ai/plugins/host	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/features/forms/form-destination-manifest.ts	@jini-ai/cms/forms	type FormSubmissionEvidence	@jini-ai/core/contracts/forms		wave	core type is generic: inside cms write FormSubmissionEvidence<FieldType>; elsewhere the default <string>
+tovu	apps/website/src/features/forms/import-remote-submissions.ts	@jini-ai/cms/forms	type FormAnswer	@jini-ai/core/contracts/forms		wave	
+tovu	apps/website/src/features/forms/submission-ip-expiry-sweep.ts	@jini-ai/cms/forms	*ns:forms (9 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/forms/tool-registrations.ts	@jini-ai/cms/forms	type FormProviderSelection	@jini-ai/core/contracts/forms		wave	
+tovu	apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts	await import('@jini-ai/plugins/host')	dynamic (29 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/site-export/__tests__/hosted-forms-static.unit.test.ts	@jini-ai/cms/forms	type FormCollectionProvider	@jini-ai/core/contracts/forms		wave	
+tovu	apps/website/src/features/site-glue/__tests__/integration/content-lifecycle.integration.test.ts	@jini-ai/plugins/host	type BeforeSaveFilter	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/platform/observability/__tests__/fixtures/otel-sdk.ts	@jini-ai/diagnostics/observability	createOtelObservabilityPort as createDiagnosticOtelPort,type TraceSpanKind,type TracerPort	@jini-ai/provider-plugins/observability-opentelemetry		wave	vendor code moved into the OTel provider (C8 decision 6)
+tovu	apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts	@jini-ai/plugins/host	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/inbound/public-http/http/site/render.ts	@jini-ai/cms/forms	type FormCollectionPlan	@jini-ai/core/contracts/forms		wave	
+tovu	apps/website/src/server/inbound/public-http/routes/__tests__/plugin-contributions.unit.test.ts	@jini-ai/plugins/host	type PluginRouteContribution,type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/inbound/public-http/routes/plugin-contributions.ts	@jini-ai/plugins/host	type PluginAuthContext,type PluginRouteResult	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts	@jini-ai/plugins/host	type PluginSdk	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/provider-config-source.unit.test.ts	@jini-ai/plugins/host	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts	@jini-ai/plugins/host	type PluginProviderFactory,type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/provider-settings-required.unit.test.ts	@jini-ai/plugins/host	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts	await import('@jini-ai/diagnostics/observability')	dynamic (11 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/composition/provider-config-source.ts	@jini-ai/plugins/host	type PluginProviderDeclaration	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/provider-plugins.ts	@jini-ai/cms/forms	type FormCollectionProvider	@jini-ai/core/contracts/forms		wave	
+tovu	apps/website/src/server/runtime/composition/provider-plugins.ts	@jini-ai/plugins/host	pluginProviderStartupGuidance,type PluginProviderDeclaration	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	apps/website/src/server/runtime/composition/provider-settings-save.ts	@jini-ai/plugins/host	type PluginProviderSettingField	@jini-ai/core/contracts/plugin-sdk		wave	
+tovu	packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts	../../index	*ns:sdk (10 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	packages/sdk/src/index.ts	export-from @jini-ai/plugins/host	type PluginRouteContribution,type PluginToolContribution,type PluginWidgetContribution,type PluginContribution,type PluginRouteInput,type PluginRouteResult,type PluginAuthContext,type PluginProviderContribution,type PluginProviderFactory,type PluginProviderResource	@jini-ai/core/contracts/plugin-sdk		wave	export-from: keep the line, new spec
+tovu	packages/sdk/src/index.ts	@jini-ai/plugins/host	type PluginRouteContribution,type PluginToolContribution,type PluginWidgetContribution,type PluginContribution,type PluginProviderContribution	@jini-ai/core/contracts/plugin-sdk		wave	

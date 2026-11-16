@@ -1,0 +1,3 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "moves":[{"file":"packages/protocol/src/agent-catalog.ts","names":["AgentDiagnostic","AgentDiagnosticReason","AgentDiagnosticSeverity","AgentFixIntent"],"to":"@jini-ai/protocol"}],
+ "exclude":[]}

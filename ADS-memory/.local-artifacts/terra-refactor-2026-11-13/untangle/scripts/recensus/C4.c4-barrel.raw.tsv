@@ -1,0 +1,87 @@
+repo	file	old_spec	names	new_spec
+jini	packages/agent-runtime/src/providers/connection-guard.ts	@jini-ai/core	isIpLiteralHostname	@jini-ai/core
+jini	packages/cli/src/daemon-url.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/core/src/__tests__/args-convention.test.ts	../index.js	configuredAllowedOrigins	@jini-ai/core
+jini	packages/core/src/__tests__/integration-contract.test.ts	../index.js	*ns:core (13 moved names reachable)	MANUAL
+jini	packages/core/src/__tests__/origin-validation.boundaries.test.ts	../origin-validation.js	assertValidAllowedOrigins,configuredAllowedOrigins,isIpLiteralHostname,isLoopbackOrPrivateLanHost,isPrivateIpv4,parseHostHeader	@jini-ai/core
+jini	packages/core/src/__tests__/origin-validation.characterization.test.ts	../origin-validation.js	assertValidAllowedOrigins,configuredAllowedOrigins,isAllowedBrowserHost,isAllowedBrowserOrigin,isIpLiteralHostname,isLocalSameOrigin,isPrivateIpv4	@jini-ai/core
+jini	packages/core/src/__tests__/origin-validation.test.ts	../origin-validation.js	allowedBrowserPorts,assertValidAllowedOrigins,configuredAllowedHosts,configuredAllowedOrigins,isAllowedBrowserHost,isAllowedBrowserOrigin,isIpLiteralHostname,isLocalSameOrigin,isLoopbackOrPrivateLanHost,isPrivateIpv4,parseHostHeader	@jini-ai/core
+jini	packages/core/src/__tests__/security-vocabulary.test.ts	../index.js	*ns:core (13 moved names reachable)	MANUAL
+jini	packages/core/src/__tests__/tool-registry.test.ts	../index.js	*ns:publicBarrel (13 moved names reachable)	MANUAL
+jini	packages/core/src/index.ts	export * from ./origin-validation.js	* (ParsedHostHeader RequestWithOriginHeaders configuredAllowedOrigins assertValidAllowedOrigins configuredAllowedHosts allowedBrowserPorts parseHostHeader isPrivateIpv4 isIpLiteralHostname isLoopbackOrPrivateLanHost isAllowedBrowserHost isAllowedBrowserOrigin isLocalSameOrigin)	MANUAL
+jini	packages/daemon/src/__tests__/tool-input-normalization.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+jini	packages/daemon/src/http/__tests__/active-context.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/active-context.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/agents.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/agents.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/connectors.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/connectors.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/daemon-status.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/daemon-status.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/db-ops.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/db-ops.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/delegated-tools-host-safe-failure.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/delegated-tools.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/delegated-tools.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/health.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/health.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/host-tools.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/host-tools.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/media.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/media.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/memory.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/memory.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/model-proxy.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/model-proxy.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/research-handle.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/research.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/research.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/routines.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/routines.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/run-messages.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/run-messages.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/runs.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/runs.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/daemon/src/http/__tests__/terminals.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/daemon/src/http/__tests__/terminals.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/http-kit/src/__tests__/adapter.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/http-kit/src/__tests__/adapter.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/http-kit/src/__tests__/index.test.ts	../index.js	*ns:HttpBarrel (14 moved names reachable)	MANUAL
+jini	packages/http-kit/src/__tests__/internal-error.test.ts	../index.js	*ns:HttpBarrel (14 moved names reachable)	MANUAL
+jini	packages/http-kit/src/__tests__/local-daemon-request.test.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/http-kit/src/__tests__/origin-validation.test.ts	@jini-ai/core	allowedBrowserPorts,assertValidAllowedOrigins,configuredAllowedOrigins,isAllowedBrowserOrigin,isIpLiteralHostname,isLocalSameOrigin,isLoopbackOrPrivateLanHost,isPrivateIpv4,parseHostHeader	@jini-ai/core
+jini	packages/http-kit/src/__tests__/origin.test.ts	@jini-ai/core	isLocalSameOrigin	@jini-ai/core
+jini	packages/http-kit/src/__tests__/origin.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/http-kit/src/api-security-middleware.ts	@jini-ai/core	allowedBrowserPorts,isAllowedBrowserOrigin	@jini-ai/core
+jini	packages/http-kit/src/index.ts	export-from @jini-ai/core	type ParsedHostHeader,type RequestWithOriginHeaders	@jini-ai/core
+jini	packages/http-kit/src/index.ts	export-from @jini-ai/core	allowedBrowserPorts,assertValidAllowedOrigins,configuredAllowedHosts,configuredAllowedOrigins,isAllowedBrowserHost,isAllowedBrowserOrigin,isIpLiteralHostname,isLoopbackOrPrivateLanHost,isLocalSameOrigin,isPrivateIpv4,parseHostHeader	@jini-ai/core
+jini	packages/http-kit/src/index.ts	export-from @jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/http-kit/src/local-daemon-request.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/http-kit/src/origin.ts	@jini-ai/core	isLocalSameOrigin,type RequestWithOriginHeaders	@jini-ai/core
+jini	packages/integrations/src/media-providers/dispatch/ssrf-guard.ts	@jini-ai/core	isIpLiteralHostname	@jini-ai/core
+jini	packages/mcp/src/bin/serve.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/mcp/src/core/config-shared.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/platform/src/__tests__/entry-barrels.test.ts	../net/index.js	*ns:net (1 moved names reachable)	MANUAL
+jini	packages/platform/src/__tests__/entry-barrels.test.ts	../net/address.js	*ns:address (1 moved names reachable)	MANUAL
+jini	packages/platform/src/http/guarded/client.ts	../../net/address.js	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/platform/src/net/__tests__/loopback-hostname.test.ts	../address.js	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/platform/src/net/index.ts	export-from ./address.js	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/platform/src/net/local-http-probe.ts	./address.js	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/platform/src/net/local-http-request.ts	./address.js	isLoopbackHostname	@jini-ai/core/net (after C5)
+jini	packages/plugins/src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts	@jini-ai/core	*ns:core (13 moved names reachable)	MANUAL
+jini	packages/plugins/src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts	vi.mock('@jini-ai/core')	mock	MANUAL
+jini	packages/server/src/__tests__/create-local-node-daemon.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+jini	packages/server/src/compose-jini-kernel.ts	@jini-ai/core	assertValidAllowedOrigins,configuredAllowedOrigins	@jini-ai/core
+tovu	apps/website/src/assistant/__tests__/byok-provider-turn.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/assistant/__tests__/merged-readers-batch.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/assistant/__tests__/tool-catalog-audit.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/features/mail/capture.repo.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net (after C5)
+tovu	apps/website/src/features/pages/__tests__/tool-registrations.write-region.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/__tests__/warm-site-control.errors.unit.test.ts	await import('@jini-ai/platform/net')	dynamic (1 moved names reachable)	MANUAL
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.federation-runtime-wiring.unit.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts	await import('@jini-ai/core')	dynamic (13 moved names reachable)	MANUAL
+tovu	apps/website/src/server/runtime/lifecycle/__tests__/local-site-start.unit.test.ts	await import('@jini-ai/platform/net')	dynamic (1 moved names reachable)	MANUAL

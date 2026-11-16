@@ -1,0 +1,21 @@
+{
+ "src_dirs": [
+  "packages/agentic/src",
+  "packages/ui/src"
+ ],
+ "c_lane_files": {
+  "packages/agentic/src/core/a2ui/__tests__/agent-to-renderer.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/agent-to-renderer.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/catalog.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/catalog.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/common-types.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/common-types.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/fixture-ports.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/fixture-ports.ts",
+  "packages/agentic/src/core/a2ui/__tests__/index.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/index.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/interpreter.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/interpreter.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/json-pointer.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/json-pointer.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/renderer-to-agent.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/renderer-to-agent.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/resolve.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/resolve.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/spec-fixtures.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/spec-fixtures.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/surface-properties.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/surface-properties.test.ts",
+  "packages/agentic/src/core/a2ui/__tests__/tree.test.ts": "MOVE (git mv) -> packages/protocol/src/a2ui/__tests__/tree.test.ts",
+  "packages/ui/src/features/mcp-ui/__tests__/resource.test.ts": "MOVE -> packages/protocol/src/__tests__/mcp-ui-resource.test.ts"
+ }
+}

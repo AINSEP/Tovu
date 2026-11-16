@@ -1,0 +1,8 @@
+id: DL-headless-browser-1   RESULT: SKIPPED at sheet-fill (nothing edited, no commit)
+tovu_file: apps/website/src/platform/headless-browser/lazy-browser.ts | blob 5b9cee61219c96c255eddbe26727ad1ef2b38373
+why_dead: NOT dead and NOT a pure pass-through. It re-exports Jini createLazyBrowser (+3 types) but also holds two real Tovu functions:
+  importPlaywrightChromium (wraps ./playwright-loader.js playwrightModuleLoader; callers: features/web-screenshot/playwright-page-capture.ts:91, test features/sites/__tests__/playwright-site-preview-capture.unit.test.ts:87 which asserts it delegates to the loader)
+  encodeJpeg (default quality 72, Buffer.from; caller: features/sites/site-preview/playwright-site-preview-capture.ts:75)
+importers (census, 5 files): playwright-page-capture.ts:3, playwright-site-preview-capture.ts:26, sites/__tests__/playwright-site-preview-capture.unit.test.ts:8, platform/headless-browser/__tests__/lazy-browser.unit.test.ts:7, features/image-transform/__tests__/image-codec.boundary.test.ts:6 (a path literal in a list of files it scans)
+tests: __tests__/lazy-browser.unit.test.ts (112 lines) covers createLazyBrowser (Jini twin test exists: diagnostics/src/web-evidence/__tests__/lazy-browser.test.ts), encodeJpeg x2 (real sharp) and importPlaywrightChromium (module mock). Neither "delete" nor "repoint" fits: encodeJpeg/importPlaywrightChromium assertions must be relocated.
+SKIP reason: fold needs (1) a home + export decision for two moved function bodies, (2) relocating their tests (rule 20 forbids dropping assertions), (3) a path-literal list in a boundary test. T-DELETE has no "move function body into caller" or "relocate test" field.

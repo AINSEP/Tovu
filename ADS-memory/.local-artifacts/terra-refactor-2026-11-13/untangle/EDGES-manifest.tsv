@@ -1,0 +1,214 @@
+owner	target	field	optional	allowed
+admin	agent-plugins	devDependencies	optional	yes
+admin	agent-plugins	peerDependencies	optional	no
+admin	agentic	devDependencies	optional	yes
+admin	agentic	peerDependencies	optional	no
+admin	cms	devDependencies	optional	yes
+admin	cms	peerDependencies	optional	no
+admin	core	devDependencies		yes
+admin	core	peerDependencies		yes
+admin	ui	devDependencies	optional	yes
+admin	ui	peerDependencies	optional	no
+admin	ui-kit	devDependencies	optional	yes
+admin	ui-kit	peerDependencies	optional	no
+agent-plugins	cms	devDependencies		yes
+agent-plugins	commerce	peerDependencies	optional	no
+agent-plugins	core	devDependencies		yes
+agent-plugins	core	peerDependencies		yes
+agent-plugins	oauth	devDependencies		yes
+agent-plugins	platform	devDependencies	optional	yes
+agent-plugins	platform	peerDependencies	optional	no
+agent-plugins	plugins	devDependencies		yes
+agent-runtime	core	dependencies		yes
+agent-runtime	core	devDependencies		yes
+agent-runtime	integrations	dependencies		no
+agent-runtime	integrations	devDependencies		yes
+agent-runtime	oauth	dependencies		no
+agent-runtime	platform	dependencies		no
+agent-runtime	platform	devDependencies		yes
+agent-runtime	protocol	dependencies		yes
+agentic	core	devDependencies	optional	yes
+agentic	core	peerDependencies	optional	yes
+agentic	protocol	devDependencies	optional	yes
+agentic	protocol	peerDependencies	optional	yes
+analytics	agent-runtime	devDependencies	optional	yes
+analytics	agent-runtime	peerDependencies	optional	no
+analytics	core	dependencies		yes
+artifacts	core	dependencies		yes
+artifacts	core	devDependencies		yes
+capability-providers	core	dependencies		yes
+capability-providers	core	devDependencies		yes
+capability-providers	platform	devDependencies	optional	yes
+capability-providers	platform	peerDependencies	optional	no
+chat	agent-runtime	devDependencies	optional	yes
+chat	agent-runtime	peerDependencies	optional	no
+chat	agentic	dependencies		no
+chat	agentic	devDependencies		yes
+chat	core	dependencies		yes
+chat	core	devDependencies		yes
+chat	db	dependencies		no
+chat	db	devDependencies		yes
+chat	diagnostics	dependencies		no
+chat	diagnostics	devDependencies		yes
+chat	protocol	devDependencies	optional	yes
+chat	protocol	peerDependencies	optional	yes
+chat	ui	devDependencies	optional	yes
+chat	ui	peerDependencies	optional	no
+chat	ui-kit	devDependencies		yes
+cli	core	dependencies		yes
+cli	core	devDependencies		yes
+cli	platform	dependencies		no
+cli	platform	devDependencies		yes
+cli	sidecar	dependencies		no
+cli	sidecar	devDependencies		yes
+cms	core	dependencies		yes
+cms	core	devDependencies		yes
+cms	db	devDependencies	optional	yes
+cms	db	peerDependencies	optional	no
+cms	http-kit	devDependencies	optional	yes
+cms	http-kit	peerDependencies	optional	no
+cms	platform	devDependencies	optional	yes
+cms	platform	peerDependencies	optional	no
+cms-forms	cms	dependencies		no
+cms-forms	core	dependencies		yes
+commerce	agentic	devDependencies	optional	yes
+commerce	agentic	peerDependencies	optional	no
+commerce	cms	devDependencies		yes
+commerce	core	dependencies		yes
+commerce	core	devDependencies		yes
+commerce	db	devDependencies	optional	yes
+commerce	db	peerDependencies	optional	no
+commerce	ui	devDependencies	optional	yes
+commerce	ui	peerDependencies	optional	no
+daemon	agent-runtime	dependencies		no
+daemon	agent-runtime	devDependencies		yes
+daemon	chat	devDependencies		yes
+daemon	core	dependencies		yes
+daemon	core	devDependencies		yes
+daemon	db	dependencies		no
+daemon	db	devDependencies		yes
+daemon	http-kit	dependencies		no
+daemon	http-kit	devDependencies		yes
+daemon	platform	dependencies		no
+daemon	platform	devDependencies		yes
+daemon	protocol	dependencies		yes
+daemon	protocol	devDependencies		yes
+db	core	dependencies		yes
+db	core	devDependencies		yes
+db	platform	devDependencies	optional	yes
+db	platform	peerDependencies	optional	no
+desktop-host	core	dependencies		yes
+desktop-host	core	devDependencies		yes
+devops	core	dependencies		yes
+devops	core	devDependencies		yes
+devops	daemon	devDependencies		yes
+devops	platform	devDependencies	optional	yes
+devops	platform	peerDependencies	optional	no
+diagnostics	analytics	devDependencies		yes
+diagnostics	core	dependencies		yes
+diagnostics	core	devDependencies		yes
+http-kit	core	dependencies		yes
+http-kit	core	devDependencies		yes
+http-kit	platform	dependencies		no
+http-kit	platform	devDependencies		yes
+http-kit	protocol	dependencies		yes
+http-kit	protocol	devDependencies		yes
+infra	core	dependencies		yes
+infra	core	devDependencies		yes
+infra	db	devDependencies	optional	yes
+infra	db	peerDependencies	optional	no
+integrations	core	dependencies		yes
+integrations	core	devDependencies		yes
+integrations	db	devDependencies	optional	yes
+integrations	db	peerDependencies	optional	no
+integrations	oauth	devDependencies	optional	yes
+integrations	oauth	peerDependencies	optional	no
+integrations	platform	devDependencies	optional	yes
+integrations	platform	peerDependencies	optional	no
+mcp	core	dependencies		yes
+mcp	core	devDependencies		yes
+mcp	daemon	devDependencies		yes
+mcp	platform	dependencies		no
+mcp	platform	devDependencies		yes
+mcp	protocol	dependencies		yes
+oauth	core	dependencies		yes
+oauth	core	devDependencies		yes
+oauth	platform	devDependencies		yes
+platform	core	dependencies		yes
+plugin-fixture-provider	cookie-consent	devDependencies		yes
+plugin-fixture-provider	plugins	devDependencies		yes
+plugins	core	dependencies		yes
+plugins	core	devDependencies		yes
+plugins	db	devDependencies	optional	yes
+plugins	db	peerDependencies	optional	no
+plugins	platform	devDependencies	optional	yes
+plugins	platform	peerDependencies	optional	no
+provider-plugins	agent-runtime	devDependencies		yes
+provider-plugins	analytics	devDependencies		yes
+provider-plugins	capability-providers	devDependencies		yes
+provider-plugins	cms	devDependencies		yes
+provider-plugins	commerce	devDependencies		yes
+provider-plugins	cookie-consent	devDependencies		yes
+provider-plugins	diagnostics	devDependencies		yes
+provider-plugins	plugins	devDependencies		yes
+provider-plugins	ui	devDependencies		yes
+registry	core	dependencies		yes
+registry	core	devDependencies		yes
+registry	db	devDependencies	optional	yes
+registry	db	peerDependencies	optional	no
+registry	platform	dependencies		no
+registry	platform	devDependencies		yes
+registry	protocol	dependencies		yes
+registry	protocol	devDependencies		yes
+search	agent-plugins	devDependencies	optional	yes
+search	agent-plugins	peerDependencies	optional	no
+search	core	dependencies		yes
+server	agent-runtime	dependencies		no
+server	agent-runtime	devDependencies		yes
+server	chat	devDependencies	optional	yes
+server	chat	peerDependencies	optional	no
+server	core	dependencies		yes
+server	core	devDependencies		yes
+server	daemon	dependencies		no
+server	daemon	devDependencies		yes
+server	db	dependencies		no
+server	db	devDependencies		yes
+server	http-kit	dependencies		no
+server	http-kit	devDependencies		yes
+server	platform	devDependencies	optional	yes
+server	platform	peerDependencies	optional	no
+server	registry	dependencies		no
+server	registry	devDependencies		yes
+server	sidecar	dependencies		no
+server	sidecar	devDependencies		yes
+sidecar	core	dependencies		yes
+sidecar	core	devDependencies		yes
+sidecar	platform	dependencies		no
+sidecar	platform	devDependencies		yes
+sqlite	chat	dependencies		no
+sqlite	daemon	dependencies		no
+sqlite	db	dependencies		no
+sqlite	registry	dependencies		no
+ui	agent-runtime	devDependencies		yes
+ui	agentic	dependencies		no
+ui	agentic	devDependencies		yes
+ui	core	dependencies		yes
+ui	core	devDependencies		yes
+ui	integrations	devDependencies		yes
+ui	platform	dependencies		no
+ui	platform	devDependencies		yes
+ui	ui-kit	dependencies		no
+user-management	admin	devDependencies	optional	yes
+user-management	admin	peerDependencies	optional	no
+user-management	agentic	devDependencies	optional	yes
+user-management	agentic	peerDependencies	optional	no
+user-management	cms	devDependencies		yes
+user-management	core	dependencies		yes
+user-management	core	devDependencies		yes
+user-management	ui	devDependencies	optional	yes
+user-management	ui	peerDependencies	optional	no
+user-management	ui-kit	devDependencies	optional	yes
+user-management	ui-kit	peerDependencies	optional	no
+vibecoding	core	dependencies		yes
+vibecoding	core	devDependencies		yes
+vibecoding	platform	devDependencies		yes

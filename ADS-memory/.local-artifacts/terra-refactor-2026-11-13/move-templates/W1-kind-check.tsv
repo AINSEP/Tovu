@@ -1,0 +1,41 @@
+feature	classified_kind	drh_files_checked	suspect	reason
+website/contracts/core/commands	REPOINT	2	no	only re-exports / dead code / runtime parity to verify
+website/platform/observability	REPOINT	1	no	index.ts(REPOINT): already landed (file gone from clone)
+website/server/error-mapping	DELETE	1	no	respond.ts(DELETE): small fold with real code, OK as T-DELETE moved_bodies; note: Inline at the single caller (`routes/analytics/recent-hits.ts:77,:90`,
+website/features/site-guide	DELETE	1	yes	contracts.ts(DELETE): 0 runtime + 4 type decls, 16 prod importers ['CapabilityCard', 'SiteFact', 'SiteGuideService'] | note: Repoint to J `@jini-ai/agentic` types `GuideTopic`, `GuideFact`, `Site
+website/features/plugins	DELETE	6	yes	migration-recovery.ts(DELETE): 2 runtime + 0 type decls, 1 prod importers ['recoverIncompleteDataModuleMigrations', 'restoreSqliteSnapshots'] | note: Repoint `composition/open-site-content-db.ts:1` (pass `{dbPath, entrie; snapshot.ts(DELETE): 2 runtime + 0 type decls, 1 prod importers ['isInMemoryDbPath', 'discardCommittedSnapshot'] | note: Repoint `composition/deps.ts:194` (`isInMemoryDbPath({dbPath})`)
+website/platform/headless-browser	DELETE	1	no	lazy-browser.ts(DELETE): small fold with real code, OK as T-DELETE moved_bodies; note: Re-exports from @jini-ai/diagnostics/web-evidence/playwright. `importP
+website/platform/db/postgres	DELETE	1	yes	db-ops.ts(DELETE): 1 runtime + 1 type decls, 1 prod importers ['evaluatePostgresRestoreCapability', 'PostgresRestoreToolingConfig'] | note: n/a
+admin/features/dashboard	UI	0	n/a	no DELETE/REPOINT/HARDEN file
+website/platform/html	MOVE	0	n/a	no DELETE/REPOINT/HARDEN file
+website/features/workspace	MOVE	0	n/a	no DELETE/REPOINT/HARDEN file
+website/platform/routing	DELETE	1	yes	reserved-paths.ts(DELETE): 4 runtime + 3 type decls, 11 prod importers ['RESERVED_SEGMENTS', 'hasControlCharacter', 'checkSitePathname'] | note: Jini http-kit/verified-origin already has the functions. Keep only RES
+website/platform/mail	SPLIT	1	yes	mail-status.ts(DELETE): 0 runtime + 1 type decls, 5 prod importers ['MailProviderControl'] | note: The re-exports go away. `MailProviderControl` is a Tovu port.
+website/contracts/headless	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/components/Select	DELETE	2	yes	Select.hooks.tsx(DELETE): 11 runtime + 0 type decls, 1 prod importers ['useSelectDropdown', 'ESTIMATED_PANEL_HEIGHT', 'FOCUSABLE_SELECTOR'] | note: Repoint 1 prod importer, `Select.tsx:3` (a `import type` only), to `Pa; Select.tsx(DELETE): 2 runtime + 1 type decls, 1 prod importers ['Select', 'resolveSelectTriggerLabel', 'SelectProps'] | note: Repoint 1 caller (WidgetPickerDialog.tsx:9) to `@jini-ai/ui/admin-widg
+website/cli/commands	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+website/contracts/core/events	MOVE	2	yes	outbox-worker.ts(DELETE): 2 runtime + 0 type decls, 17 prod importers ['computeOutboxBackoffMs', 'processOutbox'] | note: Keep only `processOutbox` bound to the retry policy. Re-exports of Jin
+website/platform/db/kernel	MOVE	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/observability	MOVE	1	no	use-recent-error-item.hooks.ts(DELETE): small fold with real code, OK as T-DELETE moved_bodies; note: `useCopyToClipboard` + `useState`/`useId` inline in the panel | route:
+website/contracts/core/entry-refs	MOVE	0	n/a	no DELETE/REPOINT/HARDEN file
+website/features/email-templates	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+website/platform/db/migration	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+website/features/plugin-runtime	MOVE	2	yes	declarative-content-types.ts(DELETE): 5 runtime + 3 type decls, 2 prod importers ['declarative', 'parseDeclaredContentTypes', 'validateDeclarativeManifest'] | note: Rules already in @jini-ai/plugins host; invocation-core-deps.ts(DELETE): 1 runtime + 3 type decls, 1 prod importers ['createPluginInvocationCoreDeps', 'CreatePluginInvocationCoreDepsRequired', 'CreatePluginInvocationCoreDepsOptional'] | note: n/a
+website/features/web	SPLIT	2	yes	"web-page.ts(DELETE): 2 runtime + 1 type decls, 2 prod importers ['WEB_FETCH_USER_AGENT', 'fetchWebPage', 'WebFetchPorts'] | note: Composition passes `userAgent: ""Tovu/0.1 …""` through the existing Jini"
+website/features/skills	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+website/platform/site-dir	SPLIT	1	yes	atomic-write.ts(DELETE): 2 runtime + 1 type decls, 7 prod importers ['writeFileAtomic', 'writeJsonFileAtomic', 'SiteAtomicWriteOptions'] | note: `@jini-ai/platform/fs`
+website/server/runtime/services	MOVE	0	n/a	no DELETE/REPOINT/HARDEN file
+website/features/object-storage	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+website/features/member-login	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/analytics	DELETE	2	no	analytics-dependencies.hooks.ts(DELETE): small fold with real code, OK as T-DELETE moved_bodies; note: move fake to tests | route: 02b: ADAPTER-INLINE (survey asks to inline; analytics-port.hooks.ts(DELETE): small fold with real code, OK as T-DELETE moved_bodies; note: inline | route: 02b: ADAPTER-INLINE (survey asks to inline/fold/reloca
+admin/features/members	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/sites	UI	1	no	only re-exports / dead code / runtime parity to verify
+admin/features/users	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/publish-content	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/database	UI	6	yes	migrate-forward-section-dependencies.hooks.ts(DELETE): 3 runtime + 1 type decls, 1 prod importers ['defaultMigrateForwardSectionPort', 'DEFAULT_PLAN', 'createFakeMigrateForwardSectionPort'] | note: n/a; migrate-forward-section-port.hooks.ts(DELETE): 0 runtime + 1 type decls, 2 prod importers ['MigrateForwardSectionPort'] | note: n/a; schema-state-section-dependencies.hooks.ts(DELETE): 2 runtime + 1 type decls, 1 prod importers ['defaultSchemaStateSectionPort', 'createFakeSchemaStateSectionPort', 'FakeSchemaStateSectionPortOptions'] | note: n/a; schema-state-section-port.hooks.ts(DELETE): 0 runtime + 1 type decls, 2 prod importers ['SchemaStateSectionPort'] | note: n/a; timeline-section-dependencies.hooks.ts(DELETE): 2 runtime + 1 type decls, 1 prod importers ['defaultTimelineSectionPort', 'createFakeTimelineSectionPort', 'FakeTimelineSectionPortOptions'] | note: n/a; timeline-section-port.hooks.ts(DELETE): 0 runtime + 1 type decls, 2 prod importers ['TimelineSectionPort'] | note: n/a
+admin/integrations/jini-admin	SPLIT	1	no	only re-exports / dead code / runtime parity to verify
+website/features/media-generation	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/media	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/consent	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+website/features/asset-transfer	SPLIT	0	n/a	no DELETE/REPOINT/HARDEN file
+admin/features/themes	UI	0	n/a	no DELETE/REPOINT/HARDEN file

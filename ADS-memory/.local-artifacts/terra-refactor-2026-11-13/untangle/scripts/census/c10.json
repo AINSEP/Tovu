@@ -1,0 +1,87 @@
+{
+ "jini": "/Users/la/Programming/jini-terra-base",
+ "tovu": "/Users/la/Programming/tovu-codex-trial-terra",
+ "extraNeedles": [
+  "from '",
+  "from \""
+ ],
+ "moves": [
+  {
+   "file": "packages/agentic/src/core/a2ui/agent-to-renderer.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/catalog.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/common-types.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/interpreter.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/json-pointer.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/renderer-to-agent.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/resolve.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/surface-properties.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/agentic/src/core/a2ui/tree.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/a2ui"
+  },
+  {
+   "file": "packages/ui/src/features/mcp-ui/resource.ts",
+   "names": "*",
+   "to": "@jini-ai/protocol/mcp-ui"
+  },
+  {
+   "file": "packages/ui/src/react/mcp-ui/useMcpUiHost.ts",
+   "names": [
+    "McpUiToolCall",
+    "McpUiToolCallHandler"
+   ],
+   "to": "@jini-ai/protocol/mcp-ui"
+  },
+  {
+   "file": "packages/agentic/src/core/capability.ts",
+   "names": "*",
+   "to": "@jini-ai/core/contracts/capabilities"
+  }
+ ],
+ "exclude": [
+  "packages/agentic/src/core/a2ui/agent-to-renderer.ts",
+  "packages/agentic/src/core/a2ui/catalog.ts",
+  "packages/agentic/src/core/a2ui/common-types.ts",
+  "packages/agentic/src/core/a2ui/interpreter.ts",
+  "packages/agentic/src/core/a2ui/json-pointer.ts",
+  "packages/agentic/src/core/a2ui/renderer-to-agent.ts",
+  "packages/agentic/src/core/a2ui/resolve.ts",
+  "packages/agentic/src/core/a2ui/surface-properties.ts",
+  "packages/agentic/src/core/a2ui/tree.ts",
+  "packages/agentic/src/core/a2ui/index.ts",
+  "packages/ui/src/features/mcp-ui/resource.ts",
+  "packages/agentic/src/core/capability.ts"
+ ]
+}

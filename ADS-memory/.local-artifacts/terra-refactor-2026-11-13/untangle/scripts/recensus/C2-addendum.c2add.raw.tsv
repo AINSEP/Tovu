@@ -1,0 +1,7 @@
+repo	file	old_spec	names	new_spec
+jini	packages/ui-kit/src/attrs.test.ts	./attrs.js	secretControlAttrs	@jini-ai/core/agent-handles
+jini	packages/ui-kit/src/index.ts	export-from ./attrs.js	secretControlAttrs	@jini-ai/core/agent-handles
+jini	packages/ui-kit/src/react/agent-attrs.hooks.ts	../attrs.js	secretControlAttrs	@jini-ai/core/agent-handles
+jini	packages/ui-kit/src/react/native/Controls.hooks.ts	../../attrs.js	secretControlAttrs	@jini-ai/core/agent-handles
+jini	packages/ui-kit/src/react/SecretInput.tsx	../attrs.js	secretControlAttrs	@jini-ai/core/agent-handles
+jini	packages/ui/src/react/components/SecretInput.tsx	@jini-ai/ui-kit	secretControlAttrs	@jini-ai/core/agent-handles

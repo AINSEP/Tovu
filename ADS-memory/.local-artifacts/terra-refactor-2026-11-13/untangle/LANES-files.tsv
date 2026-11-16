@@ -1,0 +1,634 @@
+lane	file	spec	line	fix	needs
+R1-admin-react	packages/admin/src/agent-plugins/react/components/AgentPluginFileContent.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/agent-plugins/react/components/AgentPluginInspector.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/agent-plugins/react/pages/AgentPluginsPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/agent-plugins/react/tabs/MarketplaceTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/comments/react/components/QueueSection.tsx	@jini-ai/agentic	7	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/comments/react/components/QueueSection.tsx	@jini-ai/ui/panel-kit	8	PURE -> core/text (KIT §2.6)	C1
+R1-admin-react	packages/admin/src/comments/react/components/SettingsSection.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/comments/react/hooks/QueueSection.hooks.ts	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/comments/react/hooks/QueueSection.hooks.ts	@jini-ai/ui/panel-kit	3	PURE -> core/text (KIT §2.6)	C1
+R1-admin-react	packages/admin/src/comments/react/hooks/use-comment-queue.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/comments/react/hooks/use-comment-settings.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/comments/react/hooks/use-comments.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/consent/react/ConsentFields.tsx	@jini-ai/ui/theme	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	@jini-ai/ui-kit/react	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	@jini-ai/ui/admin-widgets	4	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	@jini-ai/agentic	5	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FieldSettingsRows.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FieldSettingsRows.tsx	@jini-ai/ui/admin-widgets	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/components/FieldSettingsSection.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx	@jini-ai/cms/forms	1	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R1-admin-react	packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx	@jini-ai/agentic	6	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FormEditorTabStrip.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FormFieldsEditor.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FormProviderSettings.tsx	@jini-ai/cms/forms	1	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R1-admin-react	packages/admin/src/forms/react/components/FormSubmissionDetail.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/components/FormSubmissionsTable.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/hooks/forms-view.hooks.ts	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	@jini-ai/cms/forms	1	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R1-admin-react	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	@jini-ai/ui/panel-kit	10	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	@jini-ai/ui/fetch-query	13	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/hooks/use-form-submission-detail.hooks.ts	@jini-ai/ui/fetch-query	10	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/hooks/use-form-submissions.hooks.ts	@jini-ai/ui/fetch-query	10	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/hooks/use-form-submissions.hooks.ts	@jini-ai/ui/panel-kit	11	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/hooks/use-forms-list.hooks.ts	@jini-ai/ui/fetch-query	9	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/forms/react/pages/FormEditor.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/forms/react/pages/FormsList.tsx	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/media/react/components/EditMediaPanel.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/components/MediaCard.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/components/MediaDialog.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/components/MediaLightbox.tsx	@jini-ai/ui/admin-widgets	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/components/MediaPicker.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/components/MediaPurgeDialog.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/components/UploadButton.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/hooks/LibraryTab.hooks.ts	@jini-ai/ui/fetch-query	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/hooks/MediaDialog.hooks.ts	@jini-ai/ui-kit/react	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/hooks/MediaPage.hooks.ts	@jini-ai/ui/fetch-query	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/hooks/MediaQuery.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	@jini-ai/ui/fetch-query	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	@jini-ai/ui	5	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/media/react/tabs/LibraryTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/playground/react/components/Canvas.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/playground/react/pages/PlaygroundPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.hooks.tsx	@jini-ai/ui-kit/react/native	11	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.hooks.tsx	@jini-ai/ui/panel-kit	12	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/components/ConfirmDialog/ConfirmDialog.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/components/ConfirmDialog/confirm-dialog-attrs.ts	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/react/components/ConfirmDialog/confirm-dialog-attrs.ts	@jini-ai/ui-kit	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/components/InteractiveHtmlEditor/InteractiveHtmlEditor.tsx	@jini-ai/ui/html-editor	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/components/RowMenu/RowMenu.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/react/entities/EntityField.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/react/entities/EntityField.tsx	@jini-ai/ui	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/entities/EntityField.tsx	@jini-ai/ui/admin-widgets	4	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/shell/theme-ports.ts	@jini-ai/ui/theme	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/shell/types.ts	@jini-ai/ui/theme	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/react/shell/use-admin-theme.ts	@jini-ai/ui/theme	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/redirects/react/components/HitCountCell.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/redirects/react/components/ImportRedirectsForm.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/redirects/react/hooks/use-hit-count-cell.hooks.ts	@jini-ai/ui/fetch-query	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/redirects/react/hooks/use-import-redirects-form.hooks.ts	@jini-ai/ui/fetch-query	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/redirects/react/hooks/use-redirects.hooks.ts	@jini-ai/ui/fetch-query	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/redirects/react/hooks/use-redirects.hooks.ts	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/redirects/react/pages/RedirectsPage.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/security/react/components/CredentialEditor.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/security/react/pages/SecurityPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/security/react/tabs/AccessTokensTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/security/react/tabs/RootKeyTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/components/MediaRefField.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/seo/react/components/MediaRefField.tsx	@jini-ai/ui/i18n	2	PURE -> core/text (KIT §2.6)	C1
+R1-admin-react	packages/admin/src/seo/react/components/SitemapModal.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/seo/react/components/SitemapModal.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/components/SitemapModal.tsx	@jini-ai/ui/panel-kit	3	PURE -> core/text (KIT §2.6)	C1
+R1-admin-react	packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	@jini-ai/ui/fetch-query	7	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	@jini-ai/ui	8	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/SeoPage.hooks.ts	@jini-ai/ui/tab-strip	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/SeoQuery.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/SitemapModal.hooks.ts	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/seo/react/hooks/use-entry-picker.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/use-seo-entry-panel.hooks.ts	@jini-ai/ui/fetch-query	4	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/use-seo.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/hooks/use-share-image-warning.hooks.ts	@jini-ai/ui/i18n	2	PURE -> core/text (KIT §2.6)	C1
+R1-admin-react	packages/admin/src/seo/react/pages/SeoPage.tsx	@jini-ai/agentic	5	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/seo/react/pages/SeoPage.tsx	@jini-ai/ui/tab-strip	7	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/seo/react/pages/SeoPage.tsx	@jini-ai/ui/admin-widgets	8	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/source-control/react/pages/SourceControlPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/widgets/react/components/WidgetRegionEditorHeaderActions.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/widgets/react/hooks/WidgetsQuery.hooks.ts	@jini-ai/ui/fetch-query	2	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/widgets/react/hooks/page-views.hooks.ts	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/widgets/react/hooks/use-widget-instance-editor.hooks.ts	@jini-ai/ui/panel-kit	3	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/widgets/react/hooks/use-widget-instance-editor.hooks.ts	@jini-ai/ui/panel-kit	36	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/widgets/react/hooks/use-widget-regions.hooks.ts	@jini-ai/ui/fetch-query	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/widgets/react/hooks/use-widgets-library.hooks.ts	@jini-ai/ui/fetch-query	1	KIT slot (KIT-INJECTION)	C9a
+R1-admin-react	packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx	@jini-ai/ui/panel-kit	7	PURE -> core/text (KIT §2.6)	C1
+R1-admin-react	packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/widgets/react/pages/WidgetRegions.tsx	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R1-admin-react	packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx	@jini-ai/agentic	7	PURE -> core/agent-handles (repoint)	C2
+R10-agent-runtime	packages/agent-runtime/src/claude-code-models.ts	@jini-ai/platform/command	43	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/claude-filesystem-policy.ts	@jini-ai/platform/fs/guarded-reader	4	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/defs/antigravity/index.ts	@jini-ai/oauth	2	PORT: oauth client port injected	C6
+R10-agent-runtime	packages/agent-runtime/src/env.ts	@jini-ai/platform/proxy-env	10	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/executables.ts	@jini-ai/platform/toolchain	27	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/invocation.ts	@jini-ai/platform/command	16	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/model-discovery-adapters.ts	@jini-ai/platform/command	6	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/model-discovery-adapters.ts	@jini-ai/integrations/media-providers/catalog	309	PORT: vendor base-URL catalog injected	C6
+R10-agent-runtime	packages/agent-runtime/src/model-discovery-adapters.ts	@jini-ai/integrations/media-providers/catalog	312	PORT: vendor base-URL catalog injected	C6
+R10-agent-runtime	packages/agent-runtime/src/model-discovery-adapters.ts	@jini-ai/integrations/media-providers/catalog	325	PORT: vendor base-URL catalog injected	C6
+R10-agent-runtime	packages/agent-runtime/src/providers/connection-guard.ts	@jini-ai/platform/net	48	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R10-agent-runtime	packages/agent-runtime/src/providers/elevenlabs.ts	@jini-ai/platform/fetch-with-timeout	20	PORT: consumer-owned port; host binds the platform implementation	C5
+R10-agent-runtime	packages/agent-runtime/src/providers/pkce.ts	@jini-ai/oauth	28	PORT: oauth client port injected	C6
+R10-agent-runtime	packages/analytics/src/product/ai-generations.ts	@jini-ai/agent-runtime/ai-trace	1	CONTRACT -> core/contracts/ai-trace	C6
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/activation.ts	@jini-ai/platform/fs/file-lock	46	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/activation.ts	@jini-ai/platform/fs/file-lock	47	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/mail/catalog.ts	@jini-ai/platform/mail/smtp	3	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/node.ts	@jini-ai/platform/fs/file-lock	6	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/persistent-state.ts	@jini-ai/platform/fs/file-lock	4	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/ports.ts	@jini-ai/platform/fs/file-lock	2	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/agent-plugins/src/lifecycle/update-store.ts	@jini-ai/platform/fs	2	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/capability-providers/src/adapters/blob-storage/index.ts	@jini-ai/platform	18	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/capability-providers/src/adapters/blob-storage/index.ts	@jini-ai/platform	19	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/db/src/secrets-vault/repo.sql.ts	@jini-ai/platform/secrets/credential-sets/contracts	2	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/devops/src/deploy/node.ts	@jini-ai/platform	4	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/http-kit/src/index.ts	@jini-ai/platform/net	67	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/http-kit/src/local-daemon-request.ts	@jini-ai/platform/net	14	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/index.ts	@jini-ai/platform/net	18	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/node.ts	@jini-ai/platform/fetch-with-timeout	3	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/node.ts	@jini-ai/platform/http/guarded	4	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/node.ts	@jini-ai/platform/http/guarded	5	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/operation-runtime.ts	@jini-ai/platform/fetch-with-timeout	28	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/outbound.ts	@jini-ai/platform/http/guarded	2	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts	@jini-ai/db/sqlite	32	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/ssrf-guard.ts	@jini-ai/platform/net	40	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/ssrf-guard.ts	@jini-ai/platform/fetch-with-timeout	44	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/dispatch/vendor-adapter.ts	@jini-ai/platform/fetch-with-timeout	29	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/integrations/src/media-providers/sqlite-driver.adapter.ts	@jini-ai/db/sqlite	3	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/integrations/src/media-providers/sqlite-task-store.ts	@jini-ai/db/sqlite	42	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/integrations/src/saved-requests/execute.ts	@jini-ai/platform/http/guarded	1	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/integrations/src/saved-requests/types.ts	@jini-ai/platform/http/guarded	3	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/mcp/src/agent-install/owned-json-install.ts	@jini-ai/platform/fs	3	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/mcp/src/bin/serve.ts	@jini-ai/platform/net	42	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/mcp/src/core/config-shared.ts	@jini-ai/platform/net	1	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/mcp/src/core/config.ts	@jini-ai/platform/fs	28	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/mcp/src/federation/adapter.http.ts	@jini-ai/platform/fetch-with-timeout	7	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/mcp/src/federation/adapter.http.ts	@jini-ai/platform/fetch-with-timeout	513	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/plugins/src/host/node/source-drafts.ts	@jini-ai/platform/fs/file-lock	8	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/plugins/src/host/sql/repo.rows.ts	@jini-ai/db/kernel	9	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/plugins/src/host/sql/repo.ts	@jini-ai/db/kernel	1	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/registry/src/github-client.ts	@jini-ai/platform/fetch-with-timeout	27	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R11-platform-consumers	packages/registry/src/ports.ts	@jini-ai/db/sqlite	1	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/registry/src/tool-catalog-builder/sqlite.ts	@jini-ai/db/sqlite	9	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/registry/src/tool-catalog/sqlite.ts	@jini-ai/db/sqlite	29	CONTRACT/PURE -> core/contracts/storage	C3
+R11-platform-consumers	packages/search/src/contribution.ts	@jini-ai/agent-plugins/lifecycle	22	REG contribution descriptor; host registers	C8
+R11-platform-consumers	packages/search/src/contribution.ts	@jini-ai/agent-plugins/lifecycle	29	REG contribution descriptor; host registers	C8
+R11-platform-consumers	packages/sidecar/src/json-file.ts	@jini-ai/platform/fs	13	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/sidecar/src/supervision/supervisor-node.ts	@jini-ai/platform/command	6	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/sidecar/src/supervision/supervisor-node.ts	@jini-ai/platform/child-environment	7	PORT: consumer-owned port; host binds the platform implementation	C5
+R11-platform-consumers	packages/sidecar/src/supervision/supervisor-node.ts	@jini-ai/platform/process	8	PORT: consumer-owned port; host binds the platform implementation	C5
+R12-providers	packages/provider-plugins/src/ai-trace-langfuse/index.ts	@jini-ai/plugins/host	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/ai-trace-langfuse/langfuse.ts	@jini-ai/agent-runtime/ai-trace	22	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/browser.ts	@jini-ai/analytics/product	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/consent-adapter.ts	@jini-ai/cookie-consent/client	5	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/consent-adapter.ts	@jini-ai/cookie-consent	6	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/consent.ts	@jini-ai/cookie-consent	5	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/consent.ts	@jini-ai/analytics/product	6	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/index.ts	@jini-ai/plugins/host	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/analytics-posthog/posthog.ts	@jini-ai/analytics/product	23	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/charts-echarts/descriptor.ts	@jini-ai/ui/charts	2	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/charts-echarts/mount.ts	@jini-ai/ui/charts	6	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/charts-echarts/mount.ts	@jini-ai/ui/charts/browser	7	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/charts-echarts/option.ts	@jini-ai/ui/charts	4	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/charts-recharts/descriptor.ts	@jini-ai/ui/charts	2	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/charts-recharts/mount.tsx	@jini-ai/ui/charts	4	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/charts-recharts/mount.tsx	@jini-ai/ui/charts/browser	5	PROVIDER: chart contract types -> core/contracts/charts; applyChartTheme via render ctx	C8
+R12-providers	packages/provider-plugins/src/fixture-provider/index.ts	@jini-ai/plugins/host	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/formspree/index.ts	@jini-ai/plugins/host	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/formspree/provider.ts	@jini-ai/cms/forms	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/google-forms/index.ts	@jini-ai/plugins/host	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/google-forms/provider.ts	@jini-ai/cms/forms	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/observability-opentelemetry/index.ts	@jini-ai/plugins/host	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/observability-opentelemetry/index.ts	@jini-ai/diagnostics/observability	3	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/observability-opentelemetry/opentelemetry.ts	@jini-ai/diagnostics/observability	38	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/observability-opentelemetry/opentelemetry.ts	@jini-ai/diagnostics/observability/node	39	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/observability-sentry/index.ts	@jini-ai/plugins/host	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/observability-sentry/sentry.ts	@jini-ai/diagnostics/observability	37	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/amount.ts	@jini-ai/commerce/payments/kernel	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/checkout-session.ts	@jini-ai/commerce/payments/kernel	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/http.ts	@jini-ai/commerce/payments/kernel	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/index.ts	@jini-ai/plugins/host	2	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/provider.ts	@jini-ai/commerce/payments/kernel	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/session-reading.ts	@jini-ai/commerce/payments/kernel	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/payments-stripe/webhook.ts	@jini-ai/commerce/payments/kernel	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R12-providers	packages/provider-plugins/src/telemetry-reporter.ts	@jini-ai/diagnostics/observability	1	PROVIDER: contract types -> core/contracts/<topic> or structural; helpers via the ctx the domain passes	C8
+R13-hosts	packages/cli/src/daemon-url.ts	@jini-ai/platform/net	1	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/cli/src/local-daemon-discovery.ts	@jini-ai/sidecar	20	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/infra/src/db/driver/index.ts	@jini-ai/db/core	2	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/infra/src/db/driver/index.ts	@jini-ai/db/core	8	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/infra/src/db/sqlite/index.ts	@jini-ai/db/sqlite	2	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/infra/src/db/sqlite/index.ts	@jini-ai/db/sqlite	3	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/server/src/builtin-features.ts	@jini-ai/agent-runtime	23	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/builtin-features.ts	@jini-ai/daemon	24	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/builtin-features.ts	@jini-ai/registry/tool-catalog/sqlite	34	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/builtin-features.ts	@jini-ai/db/sqlite	40	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/builtin-features.ts	@jini-ai/daemon/http	41	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/compose-jini-kernel.ts	@jini-ai/daemon	45	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/compose-jini-kernel.ts	@jini-ai/http-kit	46	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.ts	@jini-ai/db/sqlite	2	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.ts	@jini-ai/agent-runtime	39	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.ts	@jini-ai/daemon	42	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.ts	@jini-ai/http-kit	43	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.ts	@jini-ai/daemon/http	44	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.ts	@jini-ai/sidecar	45	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/create-local-node-daemon.typecheck.ts	@jini-ai/db/sqlite	1	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/feature.ts	@jini-ai/http-kit	23	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/index.ts	@jini-ai/daemon/http	94	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/index.ts	@jini-ai/daemon/http	95	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/kernel-base.ts	@jini-ai/db/sqlite	16	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/kernel-base.ts	@jini-ai/agent-runtime	18	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/kernel-base.ts	@jini-ai/daemon	21	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/kernel-base.ts	@jini-ai/daemon/store/event-log/sqlite	36	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/backup.ts	@jini-ai/platform/secrets	1	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/backup.ts	@jini-ai/platform/secrets/credential-sets	2	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/backup.ts	@jini-ai/platform/secrets/credential-sets/contracts	3	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/db/secrets-vault	3	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/db/kernel	4	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/db/kernel/sqlite	5	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/db/sqlite	6	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/platform/secrets	7	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/platform/secrets/credential-sets	8	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/owner-store/legacy.ts	@jini-ai/platform/secrets/credential-sets/contracts	9	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/storage/legacy/sqlite.ts	@jini-ai/db/sqlite	4	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/storage/legacy/sqlite.ts	@jini-ai/chat/store/legacy/sqlite	5	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/storage/legacy/sqlite.ts	@jini-ai/daemon/store/agent-sessions/sqlite	6	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/store/projects/sqlite.ts	@jini-ai/db/sqlite	17	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/server/src/store/projects/sqlite.ts	@jini-ai/db/core	18	HOST-composition-package (Q1)	Q1
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/daemon/store/event-log/sqlite	8	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/daemon/store/event-log/sqlite	9	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/db/sqlite	10	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/db/sqlite	11	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/db/core	12	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/db/core	13	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/chat/store/legacy	14	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/chat/store/sqlite	15	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/registry/tool-catalog	16	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/registry/tool-catalog/sqlite	17	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/chat/store/legacy/sqlite	18	HOST-deprecated-forwarder (Q2)	Q2
+R13-hosts	packages/sqlite/src/index.ts	@jini-ai/daemon/store/agent-sessions/sqlite	19	HOST-deprecated-forwarder (Q2)	Q2
+R2-admin-core	packages/admin/src/agent-plugins/models.ts	@jini-ai/agent-plugins/lifecycle	1	CONTRACT -> local type (admin owns its plugin-list port)	C8
+R2-admin-core	packages/admin/src/comments/adapters/memory.ts	@jini-ai/cms/comments	1	PORT: cms forms catalog / comment repo / embed policy injected by host	C8
+R2-admin-core	packages/admin/src/core/ports/forms.ts	@jini-ai/cms/forms	62	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R2-admin-core	packages/admin/src/core/ports/forms.ts	@jini-ai/cms/forms	122	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R2-admin-core	packages/admin/src/core/ports/forms.ts	@jini-ai/cms/forms	168	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R2-admin-core	packages/admin/src/forms/adapters/http.ts	@jini-ai/cms/forms	24	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R2-admin-core	packages/admin/src/forms/adapters/memory.ts	@jini-ai/cms/forms	1	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R2-admin-core	packages/admin/src/forms/field-settings.ts	@jini-ai/cms/forms	2	PORT: cms forms catalog / comment repo / embed policy injected by host	C8
+R2-admin-core	packages/admin/src/forms/html-rules.ts	@jini-ai/cms/forms	1	PORT: cms forms catalog / comment repo / embed policy injected by host	C8
+R2-admin-core	packages/admin/src/forms/models.ts	@jini-ai/cms/forms	2	CONTRACT -> core/contracts/forms (shared with provider-plugins)	C8
+R2-admin-core	packages/admin/src/forms/rules.ts	@jini-ai/ui/fetch-query	5	KIT slot (KIT-INJECTION)	C9a
+R2-admin-core	packages/admin/src/forms/rules.ts	@jini-ai/cms/forms	6	PORT: cms forms catalog / comment repo / embed policy injected by host	C8
+R2-admin-core	packages/admin/src/media/html-attributes.ts	@jini-ai/cms/widgets/markers	8	PORT: cms forms catalog / comment repo / embed policy injected by host	C8
+R2-admin-core	packages/admin/src/seo/rules.ts	@jini-ai/ui/i18n	2	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/admin/auth.module.ts	@jini-ai/admin/core/module	1	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/members.module.ts	@jini-ai/admin/core/module	1	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/components/DestructiveDialog.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/DestructiveDialog.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/MemberRow.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/MembersConfirmation.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/PermissionPanel.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/PolicyRow.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/RoleRow.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/UserRow.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/hooks/AuthBinding.hooks.ts	@jini-ai/admin/core/module	6	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/AuthScope.hooks.ts	@jini-ai/admin/core/module	4	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/MembersBinding.hooks.ts	@jini-ai/admin/core/module	6	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/MembersPage.hooks.ts	@jini-ai/ui-kit/react	6	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/hooks/MembersScope.hooks.ts	@jini-ai/admin/core/module	4	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/PoliciesTab.hooks.ts	@jini-ai/ui-kit/react	3	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/hooks/RolesBinding.hooks.ts	@jini-ai/admin/core/module	6	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/RolesPage.hooks.ts	@jini-ai/ui-kit/react	7	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/hooks/RolesScope.hooks.ts	@jini-ai/admin/core/module	4	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/RolesTab.hooks.ts	@jini-ai/ui-kit/react	3	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/hooks/UsersBinding.hooks.ts	@jini-ai/admin/core/module	6	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/UsersScope.hooks.ts	@jini-ai/admin/core/module	4	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/react/hooks/UsersTab.hooks.ts	@jini-ai/ui-kit/react	6	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/index.ts	@jini-ai/ui-kit	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/pages/LoginPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/pages/MembersPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/pages/RolesPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/pages/UsersPage.tsx	@jini-ai/ui-kit/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/tabs/AuthTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/tabs/MembersTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/tabs/RolesTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/react/tabs/UsersTab.tsx	@jini-ai/ui-kit/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/admin/roles.module.ts	@jini-ai/admin/core/module	1	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/admin/users.module.ts	@jini-ai/admin/core/module	1	REG -> core/contracts/admin-module	C7
+R3-user-management	packages/user-management/src/react/auth/Login.tsx	@jini-ai/ui	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/auth/Passkeys.hooks.ts	@jini-ai/ui/panel-kit	2	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/auth/Passkeys.tsx	@jini-ai/ui/panel-kit	1	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/auth/TotpSettings.hooks.ts	@jini-ai/ui/panel-kit	2	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/auth/TotpSettings.tsx	@jini-ai/ui	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/auth/TotpSettings.tsx	@jini-ai/ui/panel-kit	2	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/auth/hooks/use-login.hooks.ts	@jini-ai/ui/panel-kit	1	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/errors.ts	@jini-ai/ui/panel-kit	1	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/members/Members.tsx	@jini-ai/admin/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/members/Members.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R3-user-management	packages/user-management/src/react/members/Members.tsx	@jini-ai/ui/panel-kit	5	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/members/Members.tsx	@jini-ai/ui/panel-kit	6	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/members/Members.tsx	@jini-ai/ui/panel-kit	7	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/members/hooks/use-members.hooks.ts	@jini-ai/ui/fetch-query	6	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/members/hooks/use-members.hooks.ts	@jini-ai/ui/panel-kit	8	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/members/rules.ts	@jini-ai/ui/panel-kit	2	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/members/rules.ts	@jini-ai/admin/react	4	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/ChangeUsernameDialog.tsx	@jini-ai/admin/react	1	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/ChangeUsernameDialog.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R3-user-management	packages/user-management/src/react/users/ChangeUsernameDialog.tsx	@jini-ai/ui/panel-kit	3	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/users/UserRowParts.tsx	@jini-ai/admin/react	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/UserRowParts.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R3-user-management	packages/user-management/src/react/users/UserRowParts.tsx	@jini-ai/ui/panel-kit	4	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/users/Users.tsx	@jini-ai/admin/react	3	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/Users.tsx	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R3-user-management	packages/user-management/src/react/users/Users.tsx	@jini-ai/ui/panel-kit	5	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/Users.tsx	@jini-ai/ui/panel-kit	11	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/users/Users.tsx	@jini-ai/ui/admin-widgets	12	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/Users.tsx	@jini-ai/ui	13	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/hooks/use-change-username.hooks.ts	@jini-ai/ui/panel-kit	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/hooks/use-users.hooks.ts	@jini-ai/ui/panel-kit	4	PURE -> core/text (KIT §2.6)	C1
+R3-user-management	packages/user-management/src/react/users/hooks/use-users.hooks.ts	@jini-ai/ui/panel-kit	5	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/hooks/use-users.hooks.ts	@jini-ai/ui/panel-kit	6	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/rules.ts	@jini-ai/ui/panel-kit	2	KIT slot (KIT-INJECTION)	C9c
+R3-user-management	packages/user-management/src/react/users/rules.ts	@jini-ai/admin/react	4	KIT slot (KIT-INJECTION)	C9c
+R4-chat	packages/chat/src/core/agentic/chat-capabilities.ts	@jini-ai/agentic	14	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/core/agentic/index.ts	@jini-ai/agentic	8	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/core/run-activity.ts	@jini-ai/agentic/a2ui	20	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/core/user-text-redaction.ts	@jini-ai/diagnostics/redaction/secrets-only	2	DEDUPE -> core redact (pure)	C5
+R4-chat	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	@jini-ai/agentic	39	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/embed-widget/react/dialog.hooks.ts	@jini-ai/ui/panel-kit	2	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts	@jini-ai/agentic/a2ui	2	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts	@jini-ai/ui/a2ui	4	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts	@jini-ai/ui/interactive-ui	5	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/A2uiSurfaceCard.rules.ts	@jini-ai/agentic/a2ui	2	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/react/components/A2uiSurfaceCard.tsx	@jini-ai/ui/interactive-ui	34	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/AttachmentTray.tsx	@jini-ai/agentic	14	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/components/ChatSettingsDialog.tsx	@jini-ai/ui/tab-strip	2	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/ChatSettingsDialog.tsx	@jini-ai/ui/admin-widgets	3	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/Composer.tsx	@jini-ai/ui	21	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/Composer.tsx	@jini-ai/agentic	22	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/components/ComposerDiscovery.tsx	@jini-ai/ui	2	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/ComposerDiscovery.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/components/CopyMessageButton.tsx	@jini-ai/agentic	5	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/components/FolderChips.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/components/McpUiSurfaceCard.tsx	@jini-ai/ui/mcp-ui	67	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/QuestionForm.tsx	@jini-ai/ui	22	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/mcp-ui-question-input.ts	@jini-ai/ui/mcp-ui	2	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/components/mcp-ui-surface-state.ts	@jini-ai/ui/mcp-ui	9	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/agent-tools.ts	@jini-ai/agentic	15	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	@jini-ai/agent-runtime/model-selection	1	PORT: agent-runtime policy helpers via chat agents port	C6
+R4-chat	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	@jini-ai/ui	5	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	@jini-ai/agentic	6	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	@jini-ai/ui/admin-widgets	7	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	@jini-ai/agent-runtime/native-tool-policy	8	PORT: agent-runtime policy helpers via chat agents port	C6
+R4-chat	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	@jini-ai/ui	6	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx	@jini-ai/ui	3	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx	@jini-ai/agentic	5	PURE -> core/agent-handles (repoint)	C2
+R4-chat	packages/chat/src/react/features/chat-pane/create-mcp-ui-tool-caller.ts	@jini-ai/ui/mcp-ui	37	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts	@jini-ai/agentic/dom	2	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts	@jini-ai/ui	7	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/features/chat-pane/model-options.ts	@jini-ai/agent-runtime/model-selection	1	PORT: agent-runtime policy helpers via chat agents port	C6
+R4-chat	packages/chat/src/react/features/chat-pane/rules.ts	@jini-ai/agent-runtime/model-selection	1	PORT: agent-runtime policy helpers via chat agents port	C6
+R4-chat	packages/chat/src/react/features/chat-pane/types.ts	@jini-ai/agent-runtime/native-tool-policy	3	CONTRACT -> core/contracts/agents	C6
+R4-chat	packages/chat/src/react/hooks/useSurfaceRecovery.ts	@jini-ai/ui/mcp-ui	2	KIT slot (KIT-INJECTION)	C9b
+R4-chat	packages/chat/src/react/index.ts	@jini-ai/agentic/dom	375	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R4-chat	packages/chat/src/server/durable-runs/recover.ts	@jini-ai/agent-runtime	2	PORT: agent-runtime policy helpers via chat agents port	C6
+R4-chat	packages/chat/src/store/legacy/sqlite/conversations.ts	@jini-ai/db/sqlite	6	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/legacy/sqlite/conversations.ts	@jini-ai/db/core	7	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/legacy/sqlite/conversations.ts	@jini-ai/db/core	9	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/legacy/sqlite/messages.ts	@jini-ai/db/sqlite	17	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/legacy/sqlite/messages.ts	@jini-ai/db/core	18	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/legacy/sqlite/messages.ts	@jini-ai/db/core	20	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/pglite/index.ts	@jini-ai/db/kernel	4	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/postgres/index.ts	@jini-ai/db/kernel	4	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/runtime/kernel.ts	@jini-ai/db/kernel	1	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/sql/boundary.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/sql/maintenance.ts	@jini-ai/db/kernel	4	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/sql/store.ts	@jini-ai/db/kernel	21	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/sqlite/index.ts	@jini-ai/db/kernel	6	CONTRACT/PURE -> core/contracts/storage	C3
+R4-chat	packages/chat/src/store/sqlite/index.ts	@jini-ai/db/kernel/sqlite	32	PORT: opener/kernel/adapter injected by host	C3
+R4-chat	packages/chat/src/store/sqlite/schema.ts	@jini-ai/db/sqlite	12	CONTRACT/PURE -> core/contracts/storage	C3
+R5-ui	packages/ui/src/features/a2ui/protocol.ts	@jini-ai/agentic/a2ui	6	SURFACES port (a2ui/page driver injected; Opus design S)	C10
+R5-ui	packages/ui/src/features/admin-widgets/components/ComingSoonNotice.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/admin-widgets/components/ImagePreviewModal.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/admin-widgets/components/InfoTip.tsx	@jini-ai/agentic	4	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/admin-widgets/components/SeeMore/SeeMore.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/admin-widgets/components/Select/Select.tsx	@jini-ai/ui-kit/react	1	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/features/admin-widgets/components/Select/Select.tsx	@jini-ai/agentic	5	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/admin-widgets/components/Select/Select.tsx	@jini-ai/agentic	6	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/admin-widgets/components/SuggestInput/SuggestInput.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/appearance/react/components/AppearanceTab.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/connectors/ConnectorsBrowser.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/connectors/components/ConnectorCard.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/connectors/components/ConnectorDetailDrawer.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/connectors/components/ConnectorGrid.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/connectors/components/ConnectorSearchBar.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/connectors/components/ProviderTabBar.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/ByokProviderForm.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/ExecutionTab.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/LocalCliAgentCard.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/LocalCliAgentList.hooks.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/LocalCliAgentList.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/LocalCliAgentSettings.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/ProviderChipGroup.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/execution/react/components/SearchableModelSelect.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/instructions/react/components/InstructionsTab.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/integrations/react/components/ClientPicker.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/integrations/react/components/CodexInstallToggleButton.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/integrations/react/components/IntegrationsTab.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/interactive-ui/providers/shadcn/checkbox-field.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/interactive-ui/providers/shadcn/select-field.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/interactive-ui/providers/shadcn/select.tsx	@jini-ai/ui-kit/react	8	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/features/language/react/components/LanguageTab.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/mcp-ui/protocol.ts	@jini-ai/agentic	25	WIRE -> protocol/mcp-ui (repoint)	C2
+R5-ui	packages/ui/src/features/mcp-ui/protocol.ts	@jini-ai/agentic	42	WIRE -> protocol/mcp-ui (repoint)	C2
+R5-ui	packages/ui/src/features/mcp-ui/surfaces/document.ts	@jini-ai/agentic	16	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/media-providers/react/components/MediaProviderCard.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/media-providers/react/components/MediaProvidersTab.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/memory/react/components/MemoryEntryCard.tsx	@jini-ai/agentic	9	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/memory/react/components/MemoryExtractionCard.tsx	@jini-ai/agentic	5	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/memory/react/components/MemoryHooksPanel.tsx	@jini-ai/agentic	15	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/memory/react/components/MemoryList.tsx	@jini-ai/agentic	6	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx	@jini-ai/agentic	19	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/notifications/react/components/NotificationsTab.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/panel-kit/index.ts	@jini-ai/agentic	17	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/privacy/react/components/PrivacyTab.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/skills/react/components/SkillDraftForm.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/skills/react/components/SkillRow.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/skills/react/components/SkillsTab.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/source-config-list/agent-handles.ts	@jini-ai/agentic	41	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/source-config-list/react/components/SourceConfigField.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/tab-strip/react/components/TabBar.hooks.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/tab-strip/react/components/TabBar.tsx	@jini-ai/agentic	3	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/tab-strip/react/components/TabStrip.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/tab-strip/react/components/TabStripItem.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/features/viewer-shell/react/components/CodeWrapToggle.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/index.ts	@jini-ai/ui-kit/react	154	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/react/components/CustomSelect.hooks.tsx	@jini-ai/agentic	1	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/react/components/CustomSelect.tsx	@jini-ai/ui-kit/react	14	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/react/components/CustomSelect.tsx	@jini-ai/agentic	17	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/react/components/PillButton.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/react/components/PopoverItem.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/react/components/PopoverMenu.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/react/components/SecretInput.hooks.ts	@jini-ai/ui-kit/react	2	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/react/components/SecretInput.tsx	@jini-ai/ui-kit/react	2	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/react/components/SecretInput.tsx	@jini-ai/ui-kit	3	UI-FAMILY ui -> ui-kit facades (Q4)	Q4
+R5-ui	packages/ui/src/react/hooks/useAgentHandle.ts	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R5-ui	packages/ui/src/utils/endpoint-policy.ts	@jini-ai/platform/net/endpoint-policy	38	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R6-commerce	packages/commerce/src/catalog/database.ts	@jini-ai/db/kernel	1	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/catalog/repo.order-payments.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/catalog/repo.price-refs.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/catalog/repo.storefront.ts	@jini-ai/db/kernel	1	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/catalog/repo.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0001_payments_ledger.ts	@jini-ai/db/migrate	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0001_payments_ledger.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0002_payments_operator_actions.ts	@jini-ai/db/migrate	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0002_payments_operator_actions.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0004_payments_attempt_recovery.ts	@jini-ai/db/migrate	1	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0004_payments_attempt_recovery.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0005_payments_intent_replay.ts	@jini-ai/db/migrate	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/0005_payments_intent_replay.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/index.ts	@jini-ai/db/migrate	1	REG: commerce exports migrations; host runs them	C3
+R6-commerce	packages/commerce/src/payments/ledger/migrations/index.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/payments/ledger/repo.sql.ts	@jini-ai/db/kernel	5	CONTRACT/PURE -> core/contracts/storage	C3
+R6-commerce	packages/commerce/src/react/Payments.tsx	@jini-ai/agentic	2	PURE -> core/agent-handles (repoint)	C2
+R6-commerce	packages/commerce/src/react/commerce-i18n.ts	@jini-ai/ui/panel-kit	1	PURE -> core/text (KIT §2.6)	C1
+R7-daemon-http	packages/daemon/src/http/active-context.ts	@jini-ai/http-kit	24	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/active-context.ts	@jini-ai/http-kit	25	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/agents.ts	@jini-ai/http-kit	18	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/agents.ts	@jini-ai/http-kit	19	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/agents.ts	@jini-ai/agent-runtime	20	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R7-daemon-http	packages/daemon/src/http/attachment-lookup-routes.ts	@jini-ai/http-kit	20	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/attachments.ts	@jini-ai/http-kit	107	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/attachments.ts	@jini-ai/http-kit	108	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/attachments.ts	@jini-ai/http-kit	109	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/attachments.ts	@jini-ai/platform/fs	110	PORT: consumer-owned port; host binds the platform implementation	C5
+R7-daemon-http	packages/daemon/src/http/catalog-route-input.ts	@jini-ai/http-kit	1	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/component-catalog.ts	@jini-ai/http-kit	20	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/component-catalog.ts	@jini-ai/http-kit	21	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/connectors.ts	@jini-ai/http-kit	49	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/connectors.ts	@jini-ai/http-kit	50	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/connectors.ts	@jini-ai/http-kit	51	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/daemon-status.ts	@jini-ai/http-kit	15	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/daemon-status.ts	@jini-ai/http-kit	16	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/db-ops.ts	@jini-ai/http-kit	44	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/db-ops.ts	@jini-ai/http-kit	45	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/db-ops.ts	@jini-ai/http-kit	46	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/delegated-tools.ts	@jini-ai/http-kit	35	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/frontend-control.ts	@jini-ai/http-kit	48	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	36	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	37	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	38	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	39	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	40	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/frontend-sessions.ts	@jini-ai/http-kit	41	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/health.ts	@jini-ai/http-kit	57	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/health.ts	@jini-ai/http-kit	58	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/host-tools.ts	@jini-ai/platform/command	22	PORT: consumer-owned port; host binds the platform implementation	C5
+R7-daemon-http	packages/daemon/src/http/host-tools.ts	@jini-ai/http-kit	25	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/host-tools.ts	@jini-ai/http-kit	26	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/host-tools.ts	@jini-ai/http-kit	27	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/media.ts	@jini-ai/http-kit	45	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/media.ts	@jini-ai/http-kit	46	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/media.ts	@jini-ai/http-kit	47	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/memory.ts	@jini-ai/http-kit	52	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/message-relay.ts	@jini-ai/http-kit	2	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy-fields.ts	@jini-ai/http-kit	10	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/agent-runtime	85	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	125	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	126	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	127	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	128	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	129	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	130	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/model-proxy.ts	@jini-ai/http-kit	131	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	28	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	29	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	30	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	31	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/remote-run-events.ts	@jini-ai/http-kit	32	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/research-tavily.adapter.ts	@jini-ai/agent-runtime	2	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R7-daemon-http	packages/daemon/src/http/research.ts	@jini-ai/http-kit	101	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/resource-request.ts	@jini-ai/http-kit	11	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/route-manifest.ts	@jini-ai/http-kit	50	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/routines.ts	@jini-ai/http-kit	82	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/routines.ts	@jini-ai/http-kit	83	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/routines.ts	@jini-ai/http-kit	84	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/runs.ts	@jini-ai/http-kit	10	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	40	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	41	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	42	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	43	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	44	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/terminals.ts	@jini-ai/http-kit	47	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/tool-catalog.ts	@jini-ai/http-kit	24	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/tool-catalog.ts	@jini-ai/http-kit	25	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R7-daemon-http	packages/daemon/src/http/tool-execution-routes.ts	@jini-ai/http-kit	28	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/xai.ts	@jini-ai/agent-runtime	122	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R7-daemon-http	packages/daemon/src/http/xai.ts	@jini-ai/http-kit	144	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/xai.ts	@jini-ai/http-kit	145	REG routes: daemon exports route descriptors; host mounts via http-kit	C4
+R7-daemon-http	packages/daemon/src/http/xai.ts	@jini-ai/http-kit	146	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R8-daemon-runtime	packages/daemon/src/agent-executor/antigravity/permissions.ts	@jini-ai/platform/fs	5	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/agent-executor/claude/config-dir.ts	@jini-ai/agent-runtime	4	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/claude/filesystem.ts	@jini-ai/agent-runtime	2	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/codex/home-staging.ts	@jini-ai/agent-runtime	10	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/codex/home-staging.ts	@jini-ai/agent-runtime	200	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/codex/home-staging.ts	@jini-ai/agent-runtime	206	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/codex/home-staging.ts	@jini-ai/agent-runtime	227	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/contracts.ts	@jini-ai/agent-runtime	24	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/contracts.ts	@jini-ai/platform/command	40	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/agent-executor/contracts.ts	@jini-ai/platform/process	41	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/agent-executor/contracts.ts	@jini-ai/agent-runtime	184	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/event-translation.ts	@jini-ai/agent-runtime	5	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/events.ts	@jini-ai/agent-runtime	10	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/events.ts	@jini-ai/agent-runtime	24	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/events.ts	@jini-ai/platform/process	36	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/agent-executor/handoff.ts	@jini-ai/agent-runtime	1	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/http-mcp.ts	@jini-ai/agent-runtime	2	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/launch.ts	@jini-ai/agent-runtime	22	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/launch.ts	@jini-ai/platform/command	55	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/agent-executor/launch.ts	@jini-ai/platform/process	56	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/agent-executor/mcp-bridge.ts	@jini-ai/agent-runtime	15	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/mcp-bridge.ts	@jini-ai/agent-runtime	225	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/mcp-bridge.ts	@jini-ai/agent-runtime	233	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/mcp-bridge.ts	@jini-ai/agent-runtime	273	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/message-relay.ts	@jini-ai/agent-runtime	1	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/agent-executor/model-receipts.ts	@jini-ai/agent-runtime	2	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/ai-trace-lifecycle.ts	@jini-ai/agent-runtime	15	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/chat-settings.ts	@jini-ai/agent-runtime/native-tool-policy	2	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/continuation/continuation-transport.ts	@jini-ai/agent-runtime	28	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/image-prompt-delivery.ts	@jini-ai/agent-runtime	33	CONTRACT -> core/contracts/agents	C6
+R8-daemon-runtime	packages/daemon/src/session-coordination.ts	@jini-ai/agent-runtime	3	PORT: daemon agent-launch port; host binds agent-runtime (Opus design A)	C6
+R8-daemon-runtime	packages/daemon/src/store/agent-sessions/pglite.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/agent-sessions/postgres.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/agent-sessions/sql.ts	@jini-ai/db/kernel	4	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/agent-sessions/sqlite.ts	@jini-ai/db/sqlite	11	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/agent-sessions/sqlite.ts	@jini-ai/db/core	12	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/agent-sessions/sqlite.ts	@jini-ai/db/kernel	188	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/event-log/sqlite-kernel.ts	@jini-ai/db/kernel	4	CONTRACT/PURE -> core/contracts/storage	C3
+R8-daemon-runtime	packages/daemon/src/store/event-log/sqlite.ts	@jini-ai/db/sqlite	25	PORT: opener/kernel/adapter injected by host	C3
+R8-daemon-runtime	packages/daemon/src/terminal-session.ts	@jini-ai/platform	49	PORT: consumer-owned port; host binds the platform implementation	C5
+R8-daemon-runtime	packages/daemon/src/terminal-session.ts	@jini-ai/platform	57	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R8-daemon-runtime	packages/daemon/src/terminal.adapter.ts	@jini-ai/platform	8	PORT: consumer-owned port; host binds the platform implementation	C5
+R9-cms	packages/cms/forms/src/notify-subscriber.ts	@jini-ai/cms/core	4	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	C3
+R9-cms	packages/cms/forms/src/ports.ts	@jini-ai/cms/core	47	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	C3
+R9-cms	packages/cms/forms/src/ports.ts	@jini-ai/cms/core	69	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	C3
+R9-cms	packages/cms/forms/src/write-service.ts	@jini-ai/cms/core	3	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	C3
+R9-cms	packages/cms/forms/src/write-service.ts	@jini-ai/cms/core	5	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	C3
+R9-cms	packages/cms/forms/src/write-service.ts	@jini-ai/cms/core	321	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	C3
+R9-cms	packages/cms/src/comments/ingress.ts	@jini-ai/http-kit/rate-limit	29	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/comments/sql/repo.ts	@jini-ai/db/kernel	1	CONTRACT/PURE -> core/contracts/storage	C3
+R9-cms	packages/cms/src/forms/email-sender-fields.ts	@jini-ai/platform/mail/senders	3	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R9-cms	packages/cms/src/forms/email-sender.ts	@jini-ai/platform/mail/senders	3	CONTRACT/PURE -> core (net|contracts/vault|contracts/mail|contracts/blob|contracts/process)	C5
+R9-cms	packages/cms/src/forms/sql/repo.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3
+R9-cms	packages/cms/src/forms/sql/submission-ip-retention-repo.ts	@jini-ai/db/kernel	2	CONTRACT/PURE -> core/contracts/storage	C3
+R9-cms	packages/cms/src/redirects/host-config/index.ts	@jini-ai/http-kit/verified-origin	2	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	26	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	27	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	29	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/redirects.ts	@jini-ai/http-kit/verified-origin	30	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/reserved-destination.ts	@jini-ai/http-kit/verified-origin	31	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/reserved-destination.ts	@jini-ai/http-kit/verified-origin	32	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/redirects/sql/repo.rows.ts	@jini-ai/db/kernel	4	CONTRACT/PURE -> core/contracts/storage	C3
+R9-cms	packages/cms/src/redirects/sql/repo.ts	@jini-ai/db/kernel	1	CONTRACT/PURE -> core/contracts/storage	C3
+R9-cms	packages/cms/src/redirects/target-gate.ts	@jini-ai/http-kit/verified-origin	2	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/seo/absolute-url.ts	@jini-ai/http-kit/verified-origin	1	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/seo/absolute-url.ts	@jini-ai/http-kit/verified-origin	2	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/seo/seo.ts	@jini-ai/http-kit/verified-origin	2	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/seo/sitemap.ts	@jini-ai/http-kit/verified-origin	4	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	C4
+R9-cms	packages/cms/src/widgets/sql/repo.ts	@jini-ai/db/kernel	3	CONTRACT/PURE -> core/contracts/storage	C3

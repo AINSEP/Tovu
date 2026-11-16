@@ -1,0 +1,10 @@
+owner	target	spec	kind	file	line	allowed	fix
+agent-plugins	core	@jini-ai/core/object-store	value	packages/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs	157	yes	-
+agent-plugins	core	@jini-ai/core/object-store	value	packages/agent-plugins/s3-compatible/object-stores/s3-compatible.mjs	252	yes	-
+agent-plugins	devops	@jini-ai/devops/deploy	value	packages/agent-plugins/vercel/object-stores/vercel-blob.mjs	76	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes
+agent-plugins	commerce	@jini-ai/commerce	type	packages/agent-plugins/core/commerce-server.d.ts	1	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes
+agent-plugins	commerce	@jini-ai/commerce	type	packages/agent-plugins/core/commerce-server.d.ts	2	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes
+agent-plugins	commerce	@jini-ai/commerce	value	packages/agent-plugins/core/commerce-server.mjs	2	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes
+agent-plugins	devops	@jini-ai/devops/deploy	value	packages/agent-plugins/netlify/targets/netlify.mjs	16	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes
+agent-plugins	devops	@jini-ai/devops/deploy	value	packages/agent-plugins/netlify/targets/netlify.mjs	17	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes
+agent-plugins	devops	@jini-ai/devops/deploy	value	packages/agent-plugins/netlify/targets/netlify.mjs	22	no	PROVIDER payload: contract via core/contracts/<topic>; implementation helpers via the factory input the host passes

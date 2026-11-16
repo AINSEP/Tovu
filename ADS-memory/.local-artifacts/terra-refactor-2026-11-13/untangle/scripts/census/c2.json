@@ -1,0 +1,9 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "moves":[
+  {"file":"packages/agentic/src/core/handle.ts","names":"*","to":"@jini-ai/core/agent-handles"},
+  {"file":"packages/agentic/src/core/list-handles.ts","names":"*","to":"@jini-ai/core/agent-handles"},
+  {"file":"packages/agentic/src/core/element-handles.ts","names":"*","to":"@jini-ai/core/agent-handles"},
+  {"file":"packages/agentic/src/core/guards.ts","names":["FieldDescriptor"],"to":"@jini-ai/core/agent-handles"},
+  {"file":"packages/agentic/src/core/mcp-ui-apps.ts","names":"*","to":"@jini-ai/protocol/mcp-ui"},
+  {"file":"packages/agentic/src/core/omit-keys.ts","names":"*","to":"DELETED(use @jini-ai/core omitKeys)"}],
+ "exclude":["packages/agentic/src/core/handle.ts","packages/agentic/src/core/list-handles.ts","packages/agentic/src/core/element-handles.ts","packages/agentic/src/core/mcp-ui-apps.ts","packages/agentic/src/core/omit-keys.ts"]}

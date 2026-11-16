@@ -1,0 +1,41 @@
+{
+ "src_dirs": [
+  "packages/http-kit/src"
+ ],
+ "deleted_files": [
+  "packages/http-kit/src/verified-origin.ts",
+  "packages/http-kit/src/verified-origin/index.ts",
+  "packages/http-kit/src/verified-origin/configured-origin.ts",
+  "packages/http-kit/src/verified-origin/loopback-host.ts",
+  "packages/http-kit/src/verified-origin/origin.ts",
+  "packages/http-kit/src/verified-origin/ports.ts",
+  "packages/http-kit/src/verified-origin/repo.memory.ts",
+  "packages/http-kit/src/verified-origin/site-path.ts",
+  "packages/http-kit/src/verified-origin/types.ts"
+ ],
+ "renames": {
+  "AdapterContext": "RouteHostContext"
+ },
+ "phase_by_name": {
+  "JsonRoutePorts": "route-conversion",
+  "JsonRouteSpec": "route-conversion",
+  "defineJsonRoute": "route-conversion"
+ },
+ "c_lane_files": {
+  "packages/http-kit/src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-allowlist-boundaries.unit.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin-branches.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-branches.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin-configured.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-configured.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin-normalize.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-normalize.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin-registry.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-registry.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin-repo.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-repo.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin-site-path.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin-site-path.test.ts",
+  "packages/http-kit/src/__tests__/verified-origin.hostile.test.ts": "MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin.hostile.test.ts",
+  "packages/http-kit/src/__tests__/request.test.ts": "SPLIT validationError cases -> packages/core/src/contracts/server/__tests__/api-error.test.ts",
+  "packages/http-kit/src/__tests__/response.test.ts": "SPLIT statusForError cases -> packages/core/src/contracts/server/__tests__/api-error.test.ts",
+  "packages/http-kit/src/__tests__/origin.test.ts": "SPLIT guardSameOrigin cases -> packages/core/src/contracts/server/__tests__/origin.test.ts",
+  "packages/http-kit/src/__tests__/sse.test.ts": "SPLIT: DEFAULT_MAX_QUEUED_SSE_EVENTS/SseEvent imports repoint; createSseChannel cases stay"
+ },
+ "in_src_phase_note": {
+  "route-conversion": "Express-side definition stays in http-kit; deleted with mountJsonRoute in O6 (no rename, no @deprecated)"
+ }
+}

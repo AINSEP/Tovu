@@ -1,0 +1,9 @@
+{
+ "src_dirs": ["packages/platform/src"],
+ "deleted_files": ["packages/platform/src/net/endpoint-policy.ts","packages/platform/src/http/guarded/ports.ts","packages/platform/src/http/guarded/types.ts","packages/platform/src/mail/email-sender.ts"],
+ "renames": {"HttpTransportAdapter": "PinnedHttpTransport"},
+ "note_by_name": {
+  "BlobStorage": "core BlobStorage<Bytes extends Uint8Array = Uint8Array>: if the file uses Buffer-only methods on bytes it reads, write BlobStorage<Buffer> (C5 revision R3)",
+  "HttpTransportAdapter": "alias deleted (no-shells): use PinnedHttpTransport"
+ }
+}

@@ -1,0 +1,21 @@
+repo	file	old_spec	names	new_spec
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/__tests__/InteractiveHtmlEditor.wiring.test.tsx	vi.mock('@jini-ai/ui/html-editor')	mock	MANUAL
+jini	packages/admin/src/react/components/InteractiveHtmlEditor/InteractiveHtmlEditor.tsx	@jini-ai/ui/html-editor	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives
+jini	packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	@jini-ai/ui	extensionForMimeType	@jini-ai/core/text
+jini	packages/ui/src/__tests__/index.test.ts	../index.js	*ns:barrel (1 moved names reachable)	MANUAL
+jini	packages/ui/src/features/asset-tree-browser/__tests__/index.test.ts	../index.js	*ns:AssetTreeBrowserFeature (1 moved names reachable)	MANUAL
+jini	packages/ui/src/features/asset-tree-browser/__tests__/rules.test.ts	../rules.js	extensionForMimeType	@jini-ai/core/text
+jini	packages/ui/src/features/asset-tree-browser/index.ts	export-from ./rules.js	extensionForMimeType	@jini-ai/core/text
+jini	packages/ui/src/features/asset-tree-browser/rules.ts	export-from ../../utils/file-transfer.js	extensionForMimeType	@jini-ai/core/text
+jini	packages/ui/src/features/html-editor/__tests__/dom.test.ts	../dom.js	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives
+jini	packages/ui/src/features/html-editor/__tests__/index.test.ts	../index.js	*ns:HtmlEditor (1 moved names reachable)	MANUAL
+jini	packages/ui/src/features/html-editor/__tests__/index.test.ts	../dom.js	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives
+jini	packages/ui/src/features/html-editor/index.ts	export-from ./dom.js	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives
+jini	packages/ui/src/features/media-providers/__tests__/missing-peer.test.ts	await import('../../../index.js')	dynamic (1 moved names reachable)	MANUAL
+jini	packages/ui/src/index.ts	export * from ./features/asset-tree-browser/index.js	* (extensionForMimeType)	MANUAL
+jini	packages/ui/src/utils/__tests__/file-transfer.test.ts	../file-transfer.js	extensionForMimeType	@jini-ai/core/text
+tovu	apps/admin/src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx	vi.mock('@jini-ai/ui/html-editor')	mock	MANUAL
+tovu	apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx	vi.mock('@jini-ai/ui/html-editor')	mock	MANUAL
+tovu	apps/admin/src/features/pages/__tests__/use-interactive-flush.unit.test.ts	await import('@jini-ai/ui/html-editor')	dynamic (1 moved names reachable)	MANUAL
+tovu	apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts	await import('@jini-ai/ui/html-editor')	dynamic (1 moved names reachable)	MANUAL
+tovu	apps/admin/src/features/pages/lib/embed-placeholder.ts	@jini-ai/ui/html-editor	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives

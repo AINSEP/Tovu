@@ -1,0 +1,240 @@
+repo	file	old_spec	names	new_spec	rename	phase	note
+jini	examples/neutral-host/src/neutral-host/neutral-host.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+jini	examples/neutral-host/src/provider-status.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+jini	examples/notes-app/src/ports.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	coordinator: add "@jini-ai/platform": "workspace:^" to examples/notes-app/package.json
+jini	examples/reference-web/src/A2uiLab.tsx	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+jini	packages/agent-runtime/src/providers/elevenlabs.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.1 createCompatibilityClient takes { clock } required; its caller passes the clock it already has (no import of @jini-ai/platform from a Jini package)
+jini	packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.2 clock from the hook's required props (A2uiSurfaceCard gets clock from its caller); C9b later moves it to the chat kit (no import of @jini-ai/platform from a Jini package)
+jini	packages/chat/src/store/sql/store.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.3 createSqlChatStore: clock moves from optional to required (no import of @jini-ai/platform from a Jini package)
+jini	packages/cms/src/media/media-service.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.4 purgeMedia deps.clock (and PurgeMediaDeps/MediaService deps clock) required; drop the ?? default (no import of @jini-ai/platform from a Jini package)
+jini	packages/core/src/primitives/__tests__/defaults.test.ts	../index.js	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		C-lane	MOVE -> packages/platform/src/__tests__/system.test.ts (git mv; import from ../system.js)
+jini	packages/core/src/primitives/index.ts	export * from ./time.js	* (createSystemClock)	KEEP		wave	export * line stays; the two names leave with their definitions
+jini	packages/core/src/primitives/index.ts	export * from ./ids.js	* (createRandomUuidGenerator)	KEEP		wave	export * line stays; the two names leave with their definitions
+jini	packages/core/src/settings/index.ts	export-from ./settings.js	registerCoercer	DROP		wave	C11 §2.4: registerCoercer deleted (module registry); coercers pass through the resolver's optional arg
+jini	packages/daemon/src/http/__tests__/surface-callback.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	MANUAL		wave	test: write a local fake ({ nowMs: () => Date.now() } or a fixed clock; ids { newId: () => crypto.randomUUID() } or a counter): a package test may import only /testing and /conformance
+jini	packages/daemon/src/store/agent-sessions/sql.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.5 createSqlAgentSessionStore: clock moves to required (no import of @jini-ai/platform from a Jini package)
+jini	packages/daemon/src/store/event-log/sqlite-kernel.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.6 createKernelSqliteEventLog: clock required (no import of @jini-ai/platform from a Jini package)
+jini	packages/daemon/src/store/event-log/sqlite.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.7 openSqliteEventLog/SqliteEventLogOptions.clock required (no import of @jini-ai/platform from a Jini package)
+jini	packages/daemon/src/tool-recovery/__tests__/recovery-branches.test.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	test: write a local fake ({ nowMs: () => Date.now() } or a fixed clock; ids { newId: () => crypto.randomUUID() } or a counter): a package test may import only /testing and /conformance
+jini	packages/daemon/src/tool-recovery/__tests__/recovery.test.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	test: write a local fake ({ nowMs: () => Date.now() } or a fixed clock; ids { newId: () => crypto.randomUUID() } or a counter): a package test may import only /testing and /conformance
+jini	packages/daemon/src/tool-recovery/__tests__/stack.test.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	test: write a local fake ({ nowMs: () => Date.now() } or a fixed clock; ids { newId: () => crypto.randomUUID() } or a counter): a package test may import only /testing and /conformance
+jini	packages/mcp/src/core/tokens.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.8 sanitizeTokensFile and isTokenExpired: clock required (no import of @jini-ai/platform from a Jini package)
+jini	packages/platform/src/fs/file-lock.ts	@jini-ai/core/primitives	createSystemClock	../system.js		wave	platform owns the adapter: relative import
+jini	packages/user-management/src/server/seed.ts	@jini-ai/core/primitives	createSystemClock	MANUAL		wave	§3.9 ensurePrincipal: clock moves to required (no import of @jini-ai/platform from a Jini package)
+tovu	apps/admin/src/lib/__tests__/agent-plugin-choice-replay.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/admin/src/lib/__tests__/execution-settings.test.ts	await import('@jini-ai/core/primitives')	dynamic (2 moved names reachable)	MANUAL		wave	change the await import spec to "@jini-ai/platform/system" (same destructured names)
+tovu	apps/website/src/assistant/__tests__/_tmp-full-sweep.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/a2ui-actions-route.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/access-approval.integration.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/agent-plugin-executable-tools.characterization.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/ask-choice-custom-answer.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/ask-choice-tool.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/assistant-tool-executor-audit-sink.unit.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/automatic-agent-plugin-choice.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/automatic-plugin-access.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/byok-tool-surface.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/content-read-post-filters.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/content-read-retired-id-rewrite.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/delegated-tool-error-disclosure.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/demo-a2ui-tool.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/demo-choices-tool.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/external-mcp-connection-source.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/external-mcp-reauth-tool.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/fixtures/confirmed-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-federation.call-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-federation.extra-approval-checks.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-federation.remembered-approvals.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.agent-plugins-uninstall.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice-typed-answer.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.ask-choice.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.content-search.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.permanent-delete.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.restoration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.secret-forms.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/moved-tools.golden.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/render-ui-tool.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-approval-policy.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-executor-stack.failure-redaction.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-failure-recovery.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.custom-credentials-egress-refusal.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.external-mcp.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.identity-authorization.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.newsletter.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.post.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.themes-trash-restore.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.trash-item.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.webhooks.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/byok-tool-surface.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/assistant/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/contracts/core/__tests__/human-confirm.lifecycle.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/contracts/core/__tests__/human-confirm.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/contracts/core/__tests__/tool-surface-exchanges.pb1.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/contracts/core/__tests__/tool-surface-exchanges.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool-busy.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/a10d-remaining-seams.unit.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/cards-port.generic.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/connect-destination-flow.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/mcp-projection-seam.distinct-ports.unit.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/oauth-sign-in-refusal.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/sign-in-refusal.safe-text.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/write-note-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/executable-tools/__tests__/admin-action-tools.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/executable-tools/__tests__/capability-lifetime.security.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/agent-plugins/executable-tools/__tests__/fixtures.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/change-sets/__tests__/tool-registrations.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/comments/__tests__/agent-tools.trash-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/comments/__tests__/provider-tools.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/comments/__tests__/tool-registrations.update-settings-validation-status.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/comments/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/consent/__tests__/tools.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/content-duplication/__tests__/tool-registrations.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/credential-safety/__tests__/probes-and-cards.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/create-agent-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/credential-save-probe.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/list-agent-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/write-files-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/write-files-network-failure.model-facing.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/confirmation-policy.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/tool-registrations.faults.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/transfer-snapshots.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/database/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/deployments/deploy-ops/__tests__/secrets.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/deployments/deploy-ops/__tests__/tool-registrations-secret-cards.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/deployments/deploy-ops/__tests__/typed-secret-card.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/access-save.integration.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/unit/operations-tools.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/unit/save-form.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/unit/static-token-setup.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/fs-files/__tests__/asset-tool-fixture.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/fs-files/__tests__/write-files.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/fs-files/tool-registrations.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/identity/__tests__/tool-registrations.human-confirm.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/identity/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/mail-status/__tests__/mail-status-tool.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/mail-status/__tests__/provider-tools.unit.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/mail-status/__tests__/test-send.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/media-generation/__tests__/providers-tools.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/media/__tests__/agent-tools.trash-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/media/__tests__/created-by.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/media/__tests__/view-video-tool.guards.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/newsletter/__tests__/delivery-tools.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/newsletter/delivery/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/permanent-delete/__tests__/deps.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/permanent-delete/__tests__/tool-registrations.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/plugin-runtime/__tests__/integration/source-runtime.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins-rows.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/plugin-runtime/__tests__/unit/plugins-list.agent-plugins.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/plugin-runtime/__tests__/unit/source-tools.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/agent-tools.delete-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/content-post-list-filters.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.admin-url.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.author.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.featured-image-refusal.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.guards.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.header-navigation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.html-page-body.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.kind-status-validation-status.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.list-compact.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.list-scale.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.model-facing-errors.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.optimistic-concurrency.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.partial-update.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.plugin-hook-failed.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.public-url.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.published-where.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.revisions-sink.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/post/__tests__/tool-registrations.schedule-featured.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/project-keys/__tests__/tools.unit.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/recovery/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/redirects/__tests__/agent-tools.tombstone-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/redirects/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/settings/__tests__/settings-write-tools.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/settings/index.ts	export-from @jini-ai/core/settings	registerCoercer	DROP		wave	C11 §2.4: registerCoercer deleted
+tovu	apps/website/src/features/site-backup/__tests__/tool-registrations-host-connection.unit.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/sites/__tests__/tool-registrations.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/source-control/__tests__/propose-credential-tool.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/taxonomy/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/theme/__tests__/existing-site-template-fallback.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/theme/__tests__/theme-file-safety.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/theme/import-theme-file-tool.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/theme/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/trash/__tests__/member-adapter.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/trash/__tests__/trash-item-user.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/web/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/webhooks/__tests__/agent-tools.delete-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/webhooks/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/widgets/__tests__/agent-tools.trash-confirmation.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/features/widgets/tool-registrations.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/admin-mcp-ui-tool-calls-route.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/assistant-agent-list-live-models.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/assistant-byok-routes.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/assistant-proxy-routes.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/content-type-write-provenance.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/integration/slug-change-redirect-real-composition.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/routes/get-chat-attachment-route.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/__tests__/routes/publish-site-route.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/inbound/admin-http/routes/settings/__tests__/comments-provider-protection.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-confirmation.integration.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts	await import('@jini-ai/core/primitives')	dynamic (2 moved names reachable)	MANUAL		wave	change the await import spec to "@jini-ai/platform/system" (same destructured names)
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-idle-park.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/account-purge-protections.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/commerce-attention.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts	@jini-ai/core/primitives	createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/site-search-tools.test.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/skill-supporting-files.chat.integration.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/supporting-files-fixture-isolation.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/tool-catalog-manifest.observability.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/tool-supporting-files.unit.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/trash-user-tool-port.test.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	
+tovu	development/e2e/journeys/surfaces.pins.journey.ts	@jini-ai/core/primitives	createRandomUuidGenerator,createSystemClock	@jini-ai/platform/system		wave	
+tovu	development/evals/tool-search-caller2-compliance-harness.ts	@jini-ai/core/primitives	createSystemClock,createRandomUuidGenerator	@jini-ai/platform/system		wave	

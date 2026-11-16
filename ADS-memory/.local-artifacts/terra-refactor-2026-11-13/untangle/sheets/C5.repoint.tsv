@@ -1,0 +1,384 @@
+repo	file	old_spec	names	new_spec	rename	phase	note
+jini	examples/minimal-host/src/index.ts	@jini-ai/platform	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	examples/neutral-host/src/credential-sets.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	examples/reference-web/src/A2uiLab.tsx	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	examples/reference-web/src/daemon-transport.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	examples/reference-web/src/runtime-access.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/agent-plugins/src/lifecycle/__tests__/unit/exclusive-file-lock.unit.test.ts	@jini-ai/platform/fs/file-lock	FileLockLostError,FileLockTimeoutError,type FileLockHolder	@jini-ai/core/contracts/runtime		wave	
+jini	packages/agent-plugins/src/lifecycle/activation.ts	@jini-ai/platform/fs/file-lock	FileLockLostError,FileLockTimeoutError,type FileLockHolder,type HeldFileLock	@jini-ai/core/contracts/runtime		wave	
+jini	packages/agent-plugins/src/lifecycle/mail/catalog.ts	@jini-ai/platform/mail/smtp	type SmtpMailPayload as SmtpPayload	@jini-ai/core/contracts/mail		wave	
+jini	packages/agent-plugins/src/lifecycle/ports.ts	@jini-ai/platform/fs/file-lock	type BootIdentity	@jini-ai/core/contracts/runtime		wave	
+jini	packages/agent-runtime/src/providers/__tests__/connection-guard.test.ts	@jini-ai/platform/net	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
+jini	packages/agent-runtime/src/providers/__tests__/elevenlabs-owned-client.test.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/agent-runtime/src/providers/connection-guard.ts	@jini-ai/platform/net	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
+jini	packages/agent-runtime/src/providers/elevenlabs.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/capability-providers/src/adapters/blob-storage/__tests__/index.test.ts	@jini-ai/platform	type BlobFileMeta,type BlobStorage	@jini-ai/core/contracts/blob		wave	core BlobStorage<Bytes extends Uint8Array = Uint8Array>: if the file uses Buffer-only methods on bytes it reads, write BlobStorage<Buffer> (C5 revision R3)
+jini	packages/capability-providers/src/adapters/blob-storage/__tests__/index.test.ts	@jini-ai/platform	StorageError	@jini-ai/core/contracts/blob		wave	
+jini	packages/capability-providers/src/adapters/blob-storage/index.ts	@jini-ai/platform	type BlobFileMeta,type BlobStorage	@jini-ai/core/contracts/blob		wave	core BlobStorage<Bytes extends Uint8Array = Uint8Array>: if the file uses Buffer-only methods on bytes it reads, write BlobStorage<Buffer> (C5 revision R3)
+jini	packages/capability-providers/src/adapters/blob-storage/index.ts	@jini-ai/platform	StorageError as BlobStorageError	@jini-ai/core/contracts/blob		wave	
+jini	packages/cli/src/daemon-url.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/cms/src/forms/__tests__/email-sender.unit.test.ts	@jini-ai/platform/mail/senders	EmailSenderError,type EmailBindingInput,type EmailTemplatePort	@jini-ai/core/contracts/mail		wave	
+jini	packages/cms/src/forms/email-sender-fields.ts	@jini-ai/platform/mail/senders	type EmailSourceField	@jini-ai/core/contracts/mail		wave	
+jini	packages/cms/src/forms/email-sender.ts	@jini-ai/platform/mail/senders	EmailSenderError,validateEmailSourceTemplate,type EmailBinding,type EmailReadiness,type EmailSender,type EmailSenderContext,type EmailSourceRequest,type EmailSourceSummary,type EmailTemplatePort	@jini-ai/core/contracts/mail		wave	
+jini	packages/daemon/src/__tests__/terminal-session.test.ts	@jini-ai/platform	type PtyProcess,type PtySpawn,type PtySpawnOptions,type TerminalSseSink	@jini-ai/core/contracts/runtime		wave	
+jini	packages/daemon/src/__tests__/terminal-session.test.ts	vi.mock('@jini-ai/platform')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/daemon/src/agent-executor/contracts.ts	@jini-ai/platform/process	type ProcessSnapshot,type StopProcessesResult	@jini-ai/core/contracts/runtime		wave	
+jini	packages/daemon/src/agent-executor/launch.ts	@jini-ai/platform/process	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+jini	packages/daemon/src/http/__tests__/routines.test.ts	vi.mock('../../index.js')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/daemon/src/http/__tests__/terminals.test.ts	@jini-ai/platform	type PtyProcess,type PtySpawn	@jini-ai/core/contracts/runtime		wave	
+jini	packages/daemon/src/http/terminals.ts	../index.js	type TerminalSseSink	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+jini	packages/daemon/src/terminal-session.ts	@jini-ai/platform	type PtySpawn,type TerminalService,type TerminalSession as PlatformTerminalSession,type TerminalSseSink	@jini-ai/core/contracts/runtime		wave	
+jini	packages/daemon/src/terminal-session.ts	export-from @jini-ai/platform	type TerminalSseSink	@jini-ai/core/contracts/runtime		wave	export-from: keep the line, new spec
+jini	packages/daemon/src/terminal.adapter.ts	@jini-ai/platform	type PtyProcess,type PtySpawn,type PtySpawnOptions	@jini-ai/core/contracts/runtime		wave	
+jini	packages/db/src/__tests__/secrets-vault.repo.contract.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultPutRecord	@jini-ai/core/contracts/vault		wave	
+jini	packages/db/src/secrets-vault/__tests__/repo.sql.characterization.test.ts	@jini-ai/platform/secrets/credential-sets/contracts	type VaultPutRecord	@jini-ai/core/contracts/vault		wave	
+jini	packages/db/src/secrets-vault/__tests__/repo.sql.rows.test.ts	@jini-ai/platform/secrets/credential-sets/contracts	VaultError,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+jini	packages/db/src/secrets-vault/repo.sql.ts	@jini-ai/platform/secrets/credential-sets/contracts	assertVaultReplacement,VaultError,type VaultBatchOp,type VaultBatchResult,type VaultDefaultQuery,type VaultSingletonQuery,type VaultMeta,type VaultOptions,type VaultQuery,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/devops/src/deploy/__tests__/node-lookup.test.ts	vi.mock('@jini-ai/platform')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/http-kit/src/__tests__/internal-error.test.ts	../index.js	*ns:HttpBarrel (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/http-kit/src/__tests__/local-daemon-request.test.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/http-kit/src/index.ts	export-from @jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	export-from: keep the line, new spec
+jini	packages/http-kit/src/local-daemon-request.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/integrations/src/api-connections/__tests__/fixtures/real-capabilities.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	packages/integrations/src/api-connections/__tests__/real-oauth-conformance.integration.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	packages/integrations/src/api-connections/token-store/__tests__/fixtures.ts	@jini-ai/platform/secrets/credential-sets	type VaultContext	@jini-ai/core/contracts/vault		wave	
+jini	packages/integrations/src/api-connections/token-store/__tests__/vault-token-store.security.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	packages/integrations/src/api-connections/token-store/__tests__/vault-token-store.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	packages/integrations/src/credentialed-http/sets/__tests__/extract-s8-sets.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	packages/integrations/src/media-providers/dispatch/__tests__/engine.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/media-egress.regression.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/node.integration.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/node.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/openai-compatible.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/operation-runtime.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/outbound.test.ts	@jini-ai/platform/http/guarded	type DnsResolver	@jini-ai/core/contracts/runtime		wave	
+jini	packages/integrations/src/media-providers/dispatch/__tests__/outbound.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/ssrf-guard.test.ts	@jini-ai/platform/net	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
+jini	packages/integrations/src/media-providers/dispatch/__tests__/ssrf-guard.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/__tests__/vendor-adapter.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/index.ts	export-from @jini-ai/platform/net	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	export-from: keep the line, new spec
+jini	packages/integrations/src/media-providers/dispatch/node.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/integrations/src/media-providers/dispatch/node.ts	@jini-ai/platform/http/guarded	type DnsResolver	@jini-ai/core/contracts/runtime		wave	
+jini	packages/integrations/src/media-providers/dispatch/operation-runtime.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/aihubmix.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/custom-image.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/elevenlabs.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/fishaudio.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/grok.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/imagerouter.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/minimax.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/nanobanana.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/openai.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/openrouter.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/senseaudio.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/providers/__tests__/volcengine.test.ts	vi.mock('@jini-ai/platform/http/guarded')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/integrations/src/media-providers/dispatch/ssrf-guard.ts	@jini-ai/platform/net	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
+jini	packages/integrations/src/media-providers/dispatch/ssrf-guard.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/integrations/src/media-providers/dispatch/vendor-adapter.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/integrations/src/saved-requests/__tests__/fixtures.ts	@jini-ai/platform/http/guarded	type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/integrations/src/saved-requests/types.ts	@jini-ai/platform/http/guarded	type DnsResolver,type GuardedClock,type PinnedHttpTransport	@jini-ai/core/contracts/runtime		wave	
+jini	packages/mcp/src/bin/serve.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/mcp/src/core/config-shared.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/mcp/src/federation/__tests__/http-fetch-guards.test.ts	vi.mock('@jini-ai/platform/fetch-with-timeout')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/mcp/src/federation/adapter.http.ts	@jini-ai/platform/fetch-with-timeout	type TextReadOptions	@jini-ai/core/net		wave	
+jini	packages/mcp/src/federation/adapter.http.ts	await import('@jini-ai/platform/fetch-with-timeout')	dynamic (2 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/__tests__/blob-storage-boundaries.test.ts	../blob-storage.js	StorageError	@jini-ai/core/contracts/blob		wave	
+jini	packages/platform/src/__tests__/blob-storage.test.ts	../blob-storage.js	StorageError	@jini-ai/core/contracts/blob		wave	
+jini	packages/platform/src/__tests__/child-environment.test.ts	../child-environment.js	omitEnvironmentKeys	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/__tests__/entry-barrels.test.ts	../net/index.js	*ns:net (4 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/__tests__/entry-barrels.test.ts	../net/address.js	*ns:address (5 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/__tests__/fetch-with-timeout.test.ts	../fetch-with-timeout.js	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/platform/src/__tests__/index.test.ts	../index.js	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/__tests__/integration-contracts.test.ts	../index.js	*ns:platform (21 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/__tests__/process.test.ts	../process.js	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/__tests__/terminal.test.ts	../terminal.js	type CreateTerminalServiceOptions,type PtyProcess,type PtySpawn,type TerminalEventData,type TerminalSseSink	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/boot-identity.test.ts	await import('../boot-identity.js')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/fs/__tests__/boot-identity.test.ts	await import('../boot-identity.js')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/fs/__tests__/boot-identity.test.ts	await import('../boot-identity.js')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/fs/__tests__/directory-running-lock.boundaries.test.ts	../boot-identity.js	type BootIdentity	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/directory-running-lock.test.ts	../boot-identity.js	type BootIdentity	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/file-lock.agent-plugins.test.ts	../file-lock.js	FileLockLostError,FileLockTimeoutError,type FileLockHolder	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/file-lock.boundaries.test.ts	../file-lock.js	FileLockLostError,FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/file-lock.hostname-variants.test.ts	../file-lock.js	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/file-lock.incomplete-holder.test.ts	../file-lock.js	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/file-lock.no-age-steal.test.ts	../file-lock.js	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/__tests__/file-lock.test.ts	../file-lock.js	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/directory-running-lock.ts	./boot-identity.js	type BootIdentity	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/durable-json.ts	./boot-identity.js	type BootIdentity	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/file-lock.ts	./boot-identity.js	type BootIdentity	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/fs/file-lock.ts	export-from ./boot-identity.js	type BootIdentity	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/http/guarded/__tests__/adapters.test.ts	../index.js	type EgressPolicy,type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/__tests__/body-bytes.test.ts	../ports.js	type EgressPolicy,type HttpTransportAdapter,type PinnedPeer	@jini-ai/core/contracts/runtime	HttpTransportAdapter->PinnedHttpTransport	wave	alias deleted (no-shells): use PinnedHttpTransport
+jini	packages/platform/src/http/guarded/__tests__/client-boundaries.test.ts	../ports.js	type DnsResolver,type GuardedClock,type EgressPolicy,type HttpTransportAdapter,type PinnedPeer	@jini-ai/core/contracts/runtime	HttpTransportAdapter->PinnedHttpTransport	wave	alias deleted (no-shells): use PinnedHttpTransport
+jini	packages/platform/src/http/guarded/__tests__/client-request-pins.test.ts	../ports.js	type EgressPolicy,type GuardedClock,type HttpTransportAdapter	@jini-ai/core/contracts/runtime	HttpTransportAdapter->PinnedHttpTransport	wave	alias deleted (no-shells): use PinnedHttpTransport
+jini	packages/platform/src/http/guarded/__tests__/client.test.ts	../ports.js	type EgressPolicy,type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/__tests__/client.test.ts	../ports.js	type HttpTransportAdapter	@jini-ai/core/contracts/runtime	HttpTransportAdapter->PinnedHttpTransport	wave	alias deleted (no-shells): use PinnedHttpTransport
+jini	packages/platform/src/http/guarded/__tests__/client.test.ts	await import('../client.js')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/http/guarded/__tests__/own-origin.test.ts	../ports.js	type EgressPolicy,type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/__tests__/render-rebinding.test.ts	../ports.js	type EgressPolicy,type DnsResolver,type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/__tests__/timeouts.test.ts	../ports.js	type EgressPolicy	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/__tests__/transport-request-port.test.ts	await import('../client.js')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/http/guarded/__tests__/transport-response.test.ts	../types.js	type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/client.ts	../../net/address.js	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/http/guarded/client.ts	./ports.js	type EgressPolicy,type HttpTransportAdapter	@jini-ai/core/contracts/runtime	HttpTransportAdapter->PinnedHttpTransport	wave	alias deleted (no-shells): use PinnedHttpTransport
+jini	packages/platform/src/http/guarded/client.ts	./ports.js	type DnsResolver,type GuardedHttpRequired	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/client.ts	./types.js	type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/client.ts	export-from ../../net/address.js	type AddressClass	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/http/guarded/index.ts	export-from ./client.js	type AddressClass	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/http/guarded/index.ts	export * from ./types.js	* (PinnedPeer)	DROP		wave	export * line: delete it (target file deleted)
+jini	packages/platform/src/http/guarded/index.ts	export * from ./ports.js	* (DnsResolver GuardedClock PinnedHttpTransport HttpTransportAdapter EgressPolicy GuardedHttpRequired PinnedPeer)	DROP		wave	export * line: delete it (target file deleted)
+jini	packages/platform/src/http/guarded/node-ports.ts	./ports.js	type GuardedClock,type DnsResolver,type PinnedHttpTransport	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/transport.fetch.ts	./types.js	type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/http/guarded/transport.fetch.ts	./ports.js	type HttpTransportAdapter	@jini-ai/core/contracts/runtime	HttpTransportAdapter->PinnedHttpTransport	wave	alias deleted (no-shells): use PinnedHttpTransport
+jini	packages/platform/src/index.ts	export-from ./command.js	type CommandInvocation,type CommandInvocationRequest	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./child-environment.js	omitEnvironmentKeys	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./process.js	type ProcessSnapshot,type StopProcessesResult	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./process.js	collectProcessTreePids	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./fetch-with-timeout.js	FETCH_TIMEOUT_MS	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./terminal.js	type CreateTerminalOptions,type CreateTerminalServiceOptions,type PtyProcess,type PtySpawn,type PtySpawnOptions,type TerminalEventData,type TerminalEventRecord,type TerminalService,type TerminalSession,type TerminalSessionState,type TerminalSseSink	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./blob-storage.js	type BlobFileMeta,type BlobStorage	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/index.ts	export-from ./blob-storage.js	StorageError	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/mail/__tests__/email-sender.unit.test.ts	../senders.js	EmailSenderError,validateEmailSourceTemplate,type EmailSender,type EmailSourceDescription,type EmailTemplatePort	@jini-ai/core/contracts/mail		wave	
+jini	packages/platform/src/mail/__tests__/provider.test.ts	../smtp.js	type SmtpTransport	@jini-ai/core/contracts/mail		wave	
+jini	packages/platform/src/mail/__tests__/smtp.test.ts	../smtp.js	type SmtpMailPayload,type SmtpTransport	@jini-ai/core/contracts/mail		wave	
+jini	packages/platform/src/mail/builtin-providers.ts	./smtp.js	type SmtpTransport	@jini-ai/core/contracts/mail		wave	
+jini	packages/platform/src/mail/email-sender-registry.ts	./email-sender.js	EmailSenderError,type EmailSender,type EmailSenderContext,type EmailSourceSummary	@jini-ai/core/contracts/mail		wave	
+jini	packages/platform/src/mail/index.ts	export * from ./senders.js	* (EmailSenderContext EmailSourceRef EmailSourceSummary EmailSourceField EmailRecipientChoice EmailReadiness EmailBindingInput EmailBinding EmailSourceDescription ResolvedEmailEvent EmailSourceRequest EmailSender EmailTemplatePort EmailSenderError validateEmailSourceTemplate)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/platform/src/mail/prepare-sender-email.ts	./email-sender.js	EmailSenderError,type EmailSender,type EmailSourceDescription,type EmailSourceField,type EmailSourceRequest,type EmailTemplatePort,type ResolvedEmailEvent	@jini-ai/core/contracts/mail		wave	
+jini	packages/platform/src/mail/senders.ts	export * from ./email-sender.js	* (EmailSenderContext EmailSourceRef EmailSourceSummary EmailSourceField EmailRecipientChoice EmailReadiness EmailBindingInput EmailBinding EmailSourceDescription ResolvedEmailEvent EmailSourceRequest EmailSender EmailTemplatePort EmailSenderError)	DROP		wave	export * line: delete it (target file deleted)
+jini	packages/platform/src/mail/senders.ts	export * from ./prepare-sender-email.js	* (validateEmailSourceTemplate)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/platform/src/net/__tests__/address.test.ts	../address.js	expandIpv6	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/api-host.agent-runtime.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/api-host.integrations.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.boundaries.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost,isDeployedApiHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.contract.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.contract.test.ts	../address.js	isBlockedExternalApiHostname as nodeBlocked,isLoopbackApiHost as nodeLoopback	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.f1-expand.test.ts	../endpoint-policy.js	classifyAddressLiteral,expandIpv6	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.parity.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/loopback-hostname.test.ts	../address.js	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/ssrf-regressions.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/unit/address.property.unit.test.ts	../../endpoint-policy.js	classifyAddressLiteral,isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/unit/address.property.unit.test.ts	../../endpoint-policy.js	type AddressClass	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/address.ts	./endpoint-policy.js	classifyAddressLiteral,type AddressClass	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/address.ts	export-from ./endpoint-policy.js	expandIpv6	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/net/address.ts	export-from ./endpoint-policy.js	type AddressClass	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/net/address.ts	export-from ./endpoint-policy.js	isLoopbackApiHost,isBlockedExternalApiHostname	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/net/index.ts	export-from ./address.js	expandIpv6,isLoopbackApiHost,isBlockedExternalApiHostname,isLoopbackHostname	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/net/local-http-probe.ts	./address.js	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/local-http-request.ts	./address.js	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/process.ts	./command.js	type CommandInvocationRequest	@jini-ai/core/contracts/runtime		wave	
+jini	packages/platform/src/secrets/__tests__/exports.test.ts	../credential-sets/contracts.js	*ns:contracts (25 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/secrets/__tests__/exports.test.ts	../credential-sets/vault.types.js	*ns:existingContracts (25 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/secrets/__tests__/exports.test.ts	../credential-sets/index.js	VaultError	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/secret-sealer.aesgcm.test.ts	../ports.js	type KeyringPort,type RootKeyHandle	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/site-key-exports.test.ts	../index.js	*ns:secrets (4 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/platform/src/secrets/__tests__/site-key-exports.test.ts	../index.js	type SiteKeyHandle [declared RootKeyHandle]	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault-contracts.typecheck.ts	../credential-sets/vault.types.js	type VAULT_KINDS	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.api-connection-kind.test.ts	../credential-sets/index.js	VAULT_KINDS,type VaultContext,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.copy.test.ts	../credential-sets/index.js	VAULT_KINDS,type VaultContext,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.meta.test.ts	../credential-sets/index.js	VaultError,type VaultMeta,type VaultMetaParser	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.repo.memory.test.ts	../credential-sets/index.js	type VaultRecord,type VaultPutRecord	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.service.pins.test.ts	../credential-sets/index.js	type VaultContext,type VaultIdentity,type VaultMetaParsers,type VaultQuery,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.service.test.ts	../credential-sets/index.js	VAULT_KINDS,VaultError,type VaultIdentity,type VaultMeta,type VaultMetaParsers,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/__tests__/vault.types.test.ts	../credential-sets/index.js	assertVaultReplacement,vaultGroupKey,VaultError,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/contracts.ts	export * from ./vault.types.js	* (VAULT_KINDS VaultError isInVaultQueryScope vaultGroupKey assertVaultReplacement VaultKind CredentialType CredentialMeta VaultJson VaultMeta VaultOptions VaultContext VaultIdentity VaultRecord VaultSummary VaultPutRecord VaultQuery VaultDefaultQuery VaultSingletonQuery VaultBatchOp VaultBatchResult VaultCopyResult VaultMetaParser VaultMetaParsers VaultRepoPort)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/platform/src/secrets/credential-sets/index.ts	export-from ./types.js	type VendorCredentialSetRecord,type VendorCredentialSetSummary,type VendorCredentialSetRepoPort	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/secrets/credential-sets/index.ts	export * from ./vault.types.js	* (VAULT_KINDS VaultError isInVaultQueryScope vaultGroupKey assertVaultReplacement VaultKind CredentialType CredentialMeta VaultJson VaultMeta VaultOptions VaultContext VaultIdentity VaultRecord VaultSummary VaultPutRecord VaultQuery VaultDefaultQuery VaultSingletonQuery VaultBatchOp VaultBatchResult VaultCopyResult VaultMetaParser VaultMetaParsers VaultRepoPort)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/platform/src/secrets/credential-sets/provider-matches.ts	./vault.types.js	VaultError,type VaultOptions	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/types.ts	export * from @jini-ai/core/contracts/vault	* (RootKeyHandle KeyringPort SecretSealerPort VendorCredentialSetRecord VendorCredentialSetSummary VendorCredentialSetRepoPort VaultKind CredentialType CredentialMeta VaultJson VaultMeta VaultOptions VaultContext VaultIdentity VaultRecord VaultSummary VaultPutRecord VaultQuery VaultDefaultQuery VaultSingletonQuery VaultBatchOp VaultBatchResult VaultCopyResult VaultMetaParser VaultMetaParsers VaultRepoPort VaultErrorCode)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/platform/src/secrets/credential-sets/vault-archive.ts	./vault.types.js	VaultError,isInVaultQueryScope,type VaultKind,type VaultMeta,type VaultOptions,type VaultPutRecord,type VaultQuery,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/vault.aad.ts	./vault.types.js	type VaultIdentity,type VaultOptions	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/vault.meta.ts	./vault.types.js	VAULT_KINDS,VaultError,type VaultJson,type VaultKind,type VaultMeta,type VaultMetaParser,type VaultMetaParsers,type VaultOptions	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/vault.repo.memory.ts	./vault.types.js	assertVaultReplacement,isInVaultQueryScope,vaultGroupKey,VaultError,type VaultBatchOp,type VaultBatchResult,type VaultDefaultQuery,type VaultSingletonQuery,type VaultMeta,type VaultOptions,type VaultQuery,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/vault.service.ts	../ports.js	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/vault.service.ts	./vault.types.js	VAULT_KINDS,VaultError,isInVaultQueryScope,type VaultContext,type VaultIdentity,type VaultKind,type VaultMeta,type VaultMetaParsers,type VaultCopyResult,type VaultDefaultQuery,type VaultOptions,type VaultQuery,type VaultRecord,type VaultPutRecord,type VaultRepoPort,type VaultSummary	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/credential-sets/vault.types.ts	export-from @jini-ai/core/contracts/vault	type VaultKind,type CredentialType,type CredentialMeta,type VaultJson,type VaultMeta,type VaultOptions,type VaultContext,type VaultIdentity,type VaultRecord,type VaultSummary,type VaultPutRecord,type VaultQuery,type VaultDefaultQuery,type VaultSingletonQuery,type VaultBatchOp,type VaultBatchResult,type VaultCopyResult,type VaultMetaParser,type VaultMetaParsers,type VaultRepoPort	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/secrets/index.ts	export-from ./ports.js	type KeyringPort,type SecretSealerPort	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/secrets/index.ts	export-from ./ports.js	type RootKeyHandle as SiteKeyHandle	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/secrets/index.ts	export-from ./ports.js	type RootKeyHandle	DROP		wave	shell: delete these names from the barrel
+jini	packages/platform/src/secrets/keyring.env.ts	./ports.js	type KeyringPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/ports.ts	export * from @jini-ai/core/contracts/vault	* (RootKeyHandle KeyringPort SecretSealerPort VendorCredentialSetRecord VendorCredentialSetSummary VendorCredentialSetRepoPort VaultKind CredentialType CredentialMeta VaultJson VaultMeta VaultOptions VaultContext VaultIdentity VaultRecord VaultSummary VaultPutRecord VaultQuery VaultDefaultQuery VaultSingletonQuery VaultBatchOp VaultBatchResult VaultCopyResult VaultMetaParser VaultMetaParsers VaultRepoPort VaultErrorCode)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/platform/src/secrets/secret-sealer.aesgcm.ts	./ports.js	type KeyringPort,type RootKeyHandle,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+jini	packages/platform/src/secrets/types.ts	export * from @jini-ai/core/contracts/vault	* (RootKeyHandle KeyringPort SecretSealerPort VendorCredentialSetRecord VendorCredentialSetSummary VendorCredentialSetRepoPort VaultKind CredentialType CredentialMeta VaultJson VaultMeta VaultOptions VaultContext VaultIdentity VaultRecord VaultSummary VaultPutRecord VaultQuery VaultDefaultQuery VaultSingletonQuery VaultBatchOp VaultBatchResult VaultCopyResult VaultMetaParser VaultMetaParsers VaultRepoPort VaultErrorCode)	KEEP		wave	export * line stays; the moved names leave with their definitions
+jini	packages/plugins/src/host/node/source-drafts.ts	@jini-ai/platform/fs/file-lock	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+jini	packages/registry/src/__tests__/github-client.test.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/registry/src/github-client.ts	@jini-ai/platform/fetch-with-timeout	FETCH_TIMEOUT_MS	@jini-ai/core/net		wave	
+jini	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	@jini-ai/platform	type PtyProcess	@jini-ai/core/contracts/runtime		wave	
+jini	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	vi.mock('@jini-ai/daemon')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/server/src/owner-store/__tests__/fixture.ts	@jini-ai/platform/secrets/credential-sets/contracts	type VaultSummary	@jini-ai/core/contracts/vault		wave	
+jini	packages/server/src/owner-store/backup.ts	@jini-ai/platform/secrets/credential-sets/contracts	VAULT_KINDS,type VaultKind,type VaultOptions,type VaultSummary	@jini-ai/core/contracts/vault		wave	
+jini	packages/server/src/owner-store/legacy.ts	@jini-ai/platform/secrets/credential-sets/contracts	VaultError,type VaultContext,type VaultKind,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+jini	packages/sidecar/src/__tests__/supervisor-isolation.test.ts	vi.mock('@jini-ai/platform')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/sidecar/src/__tests__/supervisor-isolation.test.ts	vi.mock('@jini-ai/platform/command')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/sidecar/src/__tests__/supervisor-isolation.test.ts	vi.mock('@jini-ai/platform/process')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/sidecar/src/supervision/__tests__/supervisor-node.test.ts	vi.mock('@jini-ai/platform/command')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/sidecar/src/supervision/__tests__/supervisor-node.test.ts	vi.mock('@jini-ai/platform/process')	mock	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+jini	packages/sidecar/src/supervision/supervisor-node.ts	@jini-ai/platform/child-environment	omitEnvironmentKeys	@jini-ai/core/contracts/runtime		wave	
+jini	packages/sidecar/src/supervision/supervisor-node.ts	@jini-ai/platform/process	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+jini	packages/ui/src/__tests__/utils/endpoint-policy.browser.test.ts	@jini-ai/platform/net/endpoint-policy	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
+jini	packages/ui/src/__tests__/utils/endpoint-policy.browser.test.ts	../../utils/endpoint-policy.js	isBlockedEndpointHost [declared isBlockedExternalApiHostname],isLoopbackEndpointHost [declared isLoopbackApiHost]	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+jini	packages/ui/src/utils/endpoint-policy.ts	@jini-ai/platform/net/endpoint-policy	isLoopbackApiHost as isLoopbackEndpointHost,isBlockedExternalApiHostname as isBlockedEndpointHost	@jini-ai/core/net		wave	
+tovu	apps/desktop/scripts/smoke-packaged-chat.ts	@jini-ai/platform/process	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/desktop/src/desktop-resources.ts	@jini-ai/platform/process	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/desktop/src/smoke-packaged-chat-gate.ts	@jini-ai/platform/process	*ns:platformProcess (3 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/desktop/src/tovu-server.ts	@jini-ai/platform/child-environment	omitEnvironmentKeys	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/assistant/__tests__/assistant-vault.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultContext,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/__tests__/credential-store.memory.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/__tests__/fixtures/execute-registered-tool.ts	await import('@jini-ai/daemon')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/assistant/__tests__/site-credential-store.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/__tests__/small-contracts.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts	await import('@jini-ai/platform/fs/file-lock')	dynamic (6 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/assistant/assistant-vault-compat.ts	@jini-ai/platform/secrets/credential-sets	type VaultContext,type VaultMeta,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/assistant-vault.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultContext,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/credential-store-fields.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/execution-credential-store.memory.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/execution-credential-store.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/site-credential-store.memory.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/assistant/site-credential-store.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/cli/__tests__/integration/import-local.integration.test.ts	@jini-ai/platform/fs/file-lock	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/cli/__tests__/unit/owner-store-import.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/cli/commands/import-local.ts	@jini-ai/platform/fs/file-lock	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/cli/commands/owner-store-import.ts	@jini-ai/platform/secrets/credential-sets	type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/cli/commands/owner-store-mapping.ts	@jini-ai/platform/secrets/credential-sets	type VaultMeta,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/cli/commands/owner-store.ts	@jini-ai/platform/secrets/credential-sets	VAULT_KINDS,VaultError,type VaultKind,type VaultMeta,type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/cli/commands/owner-store.ts	import('@jini-ai/platform/secrets/credential-sets')	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool-busy.integration.test.ts	await import('@jini-ai/platform/fs/file-lock')	dynamic (6 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/agent-plugins/__tests__/unit/activation-lock-busy.unit.test.ts	await import('@jini-ai/platform/fs/file-lock')	dynamic (6 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/agent-plugins/uninstall-tool.ts	@jini-ai/platform/fs/file-lock	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/features/api-connections/__tests__/host.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/__tests__/plugin-state.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/__tests__/vault-stores.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/byo-client.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/host-bindings.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/host-bindings.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/plugin-state-bindings.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/shared-owner.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/shared-owner.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/shared-owner.ts	@jini-ai/platform/secrets/credential-sets	type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/vault-stores.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultContext,type VaultMeta,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/api-connections/vault-stores.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-old-shape.types.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-second-host.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-source-scan.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/resolve-by-label.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/__tests__/vault-repo.tw4.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/tovu-credential-sets.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/custom-credentials/vault-repo.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/destination-repo.dialects.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/destination-store.authorize.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/destination-store.l240.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/database-transfer/__tests__/destination-store.sqlite.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/database-transfer/destination-store.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRepoPort,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/deployments/deploy-ops/__tests__/run-ops.test.ts	await import('../../../../platform/http/index.js')	dynamic (2 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/deployments/publish-credentials/__tests__/credential-works-for.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts	import('@jini-ai/platform/secrets/credential-sets')	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/deployments/publish-credentials/store.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/external-mcp-payload-version.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/external-mcp-vault.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/__tests__/h1b/hosted-store-seams.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/external-mcp-repo.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/external-mcp-vault.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultMeta,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/external-mcp/external-mcp-vault.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts	await import('@jini-ai/platform/secrets/credential-sets')	dynamic (28 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/mail/capture.repo.ts	@jini-ai/platform/net	isLoopbackHostname	@jini-ai/core/net		wave	
+tovu	apps/website/src/features/media/__tests__/provider-credential-store.memory.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/media/__tests__/provider-credential-vault.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultBatchOp,type VaultBatchResult,type VaultQuery,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/media/provider-credential-contracts.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/media/provider-credential-store.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/media/provider-credential-vault.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultBatchOp,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/newsletter/__tests__/send-pipeline.test.ts	await import('@jini-ai/platform/mail')	dynamic (15 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/project-keys/__tests__/helpers.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/project-keys/attached-vault.ts	@jini-ai/platform/secrets/credential-sets	isInVaultQueryScope,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/project-keys/create-vault.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/project-keys/service.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/project-keys/site-references.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/publish-content/__tests__/peers.l061.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/publish-content/__tests__/peers.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/publish-content/peers.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRepoPort,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/site-backup/__tests__/integration/saved-keys-store.fixture.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts	await import('@jini-ai/platform/secrets/credential-sets')	dynamic (28 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/site-backup/import-database.ts	@jini-ai/platform/fs/file-lock	FileLockTimeoutError	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/features/site-backup/saved-keys.ts	@jini-ai/platform/secrets	type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/source-control/repo.memory.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/source-control/store.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/source-control/types.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/vendor-credentials/__tests__/vault-adapter.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultMeta,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/vendor-credentials/abort-guarded-repo.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/vendor-credentials/repo.memory.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/vendor-credentials/types.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort,type VendorCredentialSetRecord as JiniVendorRecord,type VendorCredentialSetRepoPort as JiniVendorRepo	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/vendor-credentials/types.ts	export-from @jini-ai/platform/secrets/credential-sets	type VendorCredentialSetSummary	@jini-ai/core/contracts/vault		wave	export-from: keep the line, new spec
+tovu	apps/website/src/features/vendor-credentials/vault-adapter.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRepoPort,type VaultRecord,type VaultSummary,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/features/web/__tests__/web-page.unit.test.ts	#src/platform/http/index	type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/features/webhooks/__tests__/keyring.env.jini-boundary.unit.test.ts	@jini-ai/platform/secrets	*ns:realSecrets (4 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/features/webhooks/index.ts	export-from ./ports.js	type EgressPolicy	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/platform/db/__tests__/vault-credential-inventory.test.ts	@jini-ai/platform/secrets	type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/__tests__/vault-credential.fixture.ts	@jini-ai/platform/secrets/credential-sets	type VaultKind,type VaultMeta,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/migrations/__tests__/secrets-vault.fixture.ts	@jini-ai/platform/secrets/credential-sets	type VaultKind	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/migrations/0012_secrets_vault.ts	@jini-ai/platform/secrets/credential-sets	type VaultKind,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/repos/__tests__/custom-credential-repo.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/vault-credential-inventory.ts	@jini-ai/platform/secrets/credential-sets	type VaultQuery,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/vault-credential-inventory.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort,type SiteKeyHandle [declared RootKeyHandle]	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/vault-credential-recovery.ts	@jini-ai/platform/secrets	type SecretSealerPort,type SiteKeyHandle [declared RootKeyHandle]	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/db/vault-credential-recovery.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/http/client.ts	@jini-ai/platform/http/guarded	type AddressClass	@jini-ai/core/net		wave	
+tovu	apps/website/src/platform/http/client.ts	@jini-ai/platform/http/guarded	type GuardedClock,type DnsResolver,type EgressPolicy	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/platform/http/client.ts	export-from @jini-ai/platform/http/guarded	type AddressClass	@jini-ai/core/net		wave	export-from: keep the line, new spec
+tovu	apps/website/src/platform/http/index.ts	export-from @jini-ai/platform/http/guarded	type PinnedPeer,type EgressPolicy	@jini-ai/core/contracts/runtime		wave	export-from: keep the line, new spec
+tovu	apps/website/src/platform/http/ports.ts	@jini-ai/platform/http/guarded	type EgressPolicy,type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/platform/http/ports.ts	export-from @jini-ai/platform/http/guarded	type EgressPolicy,type PinnedPeer	@jini-ai/core/contracts/runtime		wave	export-from: keep the line, new spec
+tovu	apps/website/src/platform/http/test-origin-allowlist.ts	@jini-ai/platform/http/guarded	type DnsResolver,type EgressPolicy	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/platform/mail/adapters/smtp.nodemailer.ts	@jini-ai/platform/mail/smtp	type SmtpMailPayload	@jini-ai/core/contracts/mail		wave	
+tovu	apps/website/src/platform/mail/adapters/smtp.nodemailer.ts	export-from @jini-ai/platform/mail/smtp	type SmtpMailPayload	@jini-ai/core/contracts/mail		wave	export-from: keep the line, new spec
+tovu	apps/website/src/platform/mail/index.ts	export-from ./adapters/smtp.nodemailer.js	type SmtpMailPayload	KEEP		wave	relative chain inside the importer's own package; resolves after the repoint of the file it names
+tovu	apps/website/src/platform/oauth/endpoint-safety.ts	@jini-ai/platform/net	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
+tovu	apps/website/src/platform/secrets/__tests__/store-vault-guards.unit.test.ts	@jini-ai/platform/secrets	type KeyringPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/__tests__/vault-kinds.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultContext,type VaultKind,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/__tests__/vault-meta-rules.unit.test.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultMetaParsers	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/store-vault-guards.ts	@jini-ai/platform/secrets	type KeyringPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/vault-api-connection-meta.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/vault-kinds.ts	@jini-ai/platform/secrets/credential-sets	VAULT_KINDS,VaultError,type VaultRepoPort,type VaultContext,type VaultKind,type VaultMeta,type VaultMetaParser,type VaultMetaParsers,type VaultOptions	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/vault-kinds.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/secrets/vault-meta-rules.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultJson,type VaultKind,type VaultMeta,type VaultMetaParsers	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/site-dir/__tests__/unit/local-site-child.unit.test.ts	@jini-ai/platform/process	type StopProcessesResult	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/platform/site-dir/ports.ts	@jini-ai/platform/secrets	type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/platform/site-dir/site-store.ts	@jini-ai/platform/secrets	type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled-busy.integration.test.ts	await import('@jini-ai/platform/fs/file-lock')	dynamic (6 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/__tests__/warm-site-control.errors.unit.test.ts	await import('@jini-ai/platform/net')	dynamic (4 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/inbound/admin-http/routes/system/__tests__/unit/h4-publish.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts	await import('@jini-ai/daemon')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-remote-tools.integration.test.ts	await import('@jini-ai/daemon')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts	await import('@jini-ai/daemon')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/boot/__tests__/mail-engine-adoption.unit.test.ts	@jini-ai/platform/mail	*ns:engine (15 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts	#src/platform/mail/index	type SmtpMailPayload	@jini-ai/core/contracts/mail		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/domain-dns-adapters.test.ts	await import('#src/platform/http/client')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/composition/__tests__/domain-tls-transport.test.ts	await import('@jini-ai/platform/http/guarded')	dynamic (8 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/composition/__tests__/domain-tls-transport.test.ts	await import('#src/platform/http/client')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/composition/__tests__/other-site-keys.integration.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/site-key-recovery.unit.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/vault-boot.integration.test.ts	@jini-ai/platform/secrets/credential-sets	VAULT_KINDS,type VaultKind,type VaultMeta	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/vault-l005-characterization.test.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/__tests__/web-fetch-own-origin.integration.test.ts	#src/platform/http/ports	type PinnedPeer	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/server/runtime/composition/agent-plugin-connections.ts	@jini-ai/platform/secrets/credential-sets	type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/agent-plugin-connections.ts	@jini-ai/platform/secrets	type KeyringPort,type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/commerce-origin.ts	@jini-ai/platform/net/endpoint-policy	isDeployedApiHostname	@jini-ai/core/net		wave	
+tovu	apps/website/src/server/runtime/composition/domain-dns-adapters.ts	#src/platform/http/index	type EgressPolicy	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/server/runtime/composition/other-site-keys.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultKind,type VaultMeta,type VaultRecord,type VaultSummary	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/project-store.ts	@jini-ai/platform/secrets/credential-sets	type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/site-key-recovery.ts	@jini-ai/platform/secrets/credential-sets	VAULT_KINDS,VaultError,type VaultMetaParsers,type VaultRecord	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/site-key-recovery.ts	@jini-ai/platform/secrets	type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/site-portability.ts	@jini-ai/platform/secrets	type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	#src/platform/http/index	type EgressPolicy	@jini-ai/core/contracts/runtime		wave	
+tovu	apps/website/src/server/runtime/composition/vault-boot.ts	@jini-ai/platform/secrets	type KeyringPort,type SiteKeyHandle [declared RootKeyHandle],type SecretSealerPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/vault-boot.ts	@jini-ai/platform/secrets/credential-sets	VaultError,VAULT_KINDS,type VaultKind,type VaultMeta,type VaultRecord,type VaultRepoPort	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/composition/vault-legacy-codecs.ts	@jini-ai/platform/secrets/credential-sets	VaultError,type VaultRecord,type VaultMeta,type VaultOptions	@jini-ai/core/contracts/vault		wave	
+tovu	apps/website/src/server/runtime/lifecycle/__tests__/local-site-start.unit.test.ts	await import('@jini-ai/platform/net')	dynamic (4 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts	@jini-ai/platform/child-environment	omitEnvironmentKeys	@jini-ai/core/contracts/runtime		wave	
+tovu	development/e2e/desktop/_assistant-release-gate.ts	@jini-ai/platform	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+tovu	development/e2e/desktop/multi-instance.desktop.ts	@jini-ai/platform	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	
+tovu	development/e2e/support/bug-pin-fixtures.ts	@jini-ai/platform	collectProcessTreePids	@jini-ai/core/contracts/runtime		wave	

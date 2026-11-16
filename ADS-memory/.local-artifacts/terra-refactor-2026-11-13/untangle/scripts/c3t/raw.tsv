@@ -1,0 +1,279 @@
+file	line	kind	old_spec	names	facade
+apps/website/src/assistant/execution-credential-repo.ts	2	import	../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/assistant/site-credential-repo.ts	2	import	../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts	12	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/contracts/core/events/__tests__/forms-notification-restart.integration.test.ts	13	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/consent/revisions.repo.ts	3	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/database-transfer/destination-repo.ts	3	import	../../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/features/domain-dns/binding.repo.ts	4	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/entries/__tests__/integration/repo.compare-and-set.postgres.test.ts	8	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts	7	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/features/entries/repo.ts	6	import	../../platform/db/kernel/dialect.js	isUniqueViolation,jsonScalarEquals,jsonSortKey	kernel/dialect.ts
+apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts	6	import	../../../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts	9	import	../../../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/features/external-mcp/external-mcp-repo.ts	6	import	../../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/features/external-mcp/external-mcp-repo.ts	14	import	../../platform/db/kernel/dialect.js	toBool	kernel/dialect.ts
+apps/website/src/features/forms/__tests__/submission-ip-retention.dialects.test.ts	8	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/identity/__tests__/passkeys.real-postgres.test.ts	1	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/identity/__tests__/passkeys.repo.dialects.test.ts	1	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/mail/__tests__/repos.dialects.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/mail/__tests__/retention.unit.test.ts	4	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/mail/__tests__/suppression-admin.repo.dialects.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/mail/ledger.repo.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/mail/site-feedback-route.ts	3	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/media/__tests__/created-by.test.ts	6	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/members/repo.rows.ts	5	import	../../platform/db/kernel/index.js	toBool	kernel/dialect.ts
+apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts	9	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/features/navigation/repo.ts	5	import	../../platform/db/kernel/dialect.js	isUniqueViolation	kernel/dialect.ts
+apps/website/src/features/newsletter/repo.rows.ts	4	import	../../platform/db/kernel/index.js	toBool	kernel/dialect.ts
+apps/website/src/features/plugins/__tests__/data-module.dialects.test.ts	9	import	#src/platform/db/kernel/dialect	listColumns,listIndexes,listTables	kernel/dialect.ts
+apps/website/src/features/post/repo.rows.ts	7	import	../../platform/db/kernel/index.js	toBool	kernel/dialect.ts
+apps/website/src/features/publish-content/publish-content-peer-repo.ts	4	import	../../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/features/site-backup/import-keep-off.ts	4	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/site-backup/import-restore.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	17	import	../../../platform/db/kernel/dialect.js	listColumns,listTables	kernel/dialect.ts
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	19	import	../../../platform/db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/features/site-search/index-state-store.ts	10	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/features/taxonomy/repo.rows.ts	4	import	../../platform/db/kernel/index.js	toBool	kernel/dialect.ts
+apps/website/src/platform/db/__tests__/parity/parity-harness.ts	10	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts	7	import	../kernel/index.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/__tests__/vault-credential.fixture.ts	7	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/client/__tests__/open-site-db-client.unit.test.ts	10	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/client/open-site-db-client.ts	7	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/content-kernel.ts	5	import	./kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/journal-kernel.ts	3	import	./kernel/index.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/database-types.test.ts	9	import	../dialect.js	listColumns,listTables	kernel/dialect.ts
+apps/website/src/platform/db/kernel/__tests__/dialect-json.test.ts	8	import	../dialect.js	jsonScalarEquals,jsonSortKey	kernel/dialect.ts
+apps/website/src/platform/db/kernel/__tests__/dialect-json.test.ts	11	import	../port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/dialect-matrix.ts	8	import	../port.js	type StorageDialect,type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/jini-db-facades.integration.test.ts	13	import	../dialect.js	jsonText	kernel/dialect.ts
+apps/website/src/platform/db/kernel/__tests__/jini-db-facades.integration.test.ts	14	import	../port.js	UnsupportedCapabilityError	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/jini-db-facades.integration.test.ts	20	import	../../migrations/step.js	MigrationChecksumError,UnknownAppliedMigrationError,type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/kernel/__tests__/kernel.postgres.test.ts	7	import	../port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/kernel.test.ts	9	import	../dialect.js	jsonSet,jsonText,listColumns,listTables,nowIso,tableExists,toBool,toBytes	kernel/dialect.ts
+apps/website/src/platform/db/kernel/__tests__/kernel.test.ts	12	import	../port.js	type StorageKernel,UnsupportedCapabilityError	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts	11	import	../port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/ops.test.ts	16	import	../port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/pglite-owner.test.ts	14	import	../dialect.js	jsonText,listTables,toBool	kernel/dialect.ts
+apps/website/src/platform/db/kernel/__tests__/pglite-owner.test.ts	28	import	../port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts	7	import	../port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/kernel/index.ts	2	export-from	./port.js	type StorageCapabilities,type StorageCapability,type StorageDialect,type StorageKernel,type StorageTransport,UnsupportedCapabilityError	kernel/port.ts
+apps/website/src/platform/db/kernel/index.ts	20	export-from	./dialect.js	autoIdColumnSql,checkpointWal,type ColumnAffinity,type ColumnInfo,columnTypeSql,type IndexInfo,isUniqueViolation,jsonScalarEquals,jsonSet,jsonSortKey,jsonText,listColumns,listIndexes,listTables,nowIso,tableExists,toBool,toBytes	kernel/dialect.ts
+apps/website/src/platform/db/kernel/sqlite-only.ts	3	import	./port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/key-dependent-data.ts	5	import	./kernel/dialect.js	listColumns,listTables,tableExists	kernel/dialect.ts
+apps/website/src/platform/db/key-dependent-data.ts	7	import	./kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	5	import	../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	6	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	10	import	./step.js	type MigrationContext,type MigrationStep,LegacyHistoryError	migrations/step.ts
+apps/website/src/platform/db/migrations/0001_post_search.ts	3	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0001_post_search.ts	4	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	3	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	4	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	5	import	./step.js	type MigrationContext,type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	3	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	4	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	3	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	4	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0005_media_createdby.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0005_media_createdby.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0007_publish_backstop.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0007_publish_backstop.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0008_posts_publish_at_featured_media.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0008_posts_publish_at_featured_media.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0009_posts_author.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0009_posts_author.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	3	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	4	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	6	import	./step.js	type MigrationContext,type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	159	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	160	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	161	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	4	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	5	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	6	import	./step.js	type MigrationContext,type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0014_media_library.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0014_media_library.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0016_publish_destination_history.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0016_publish_destination_history.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0017_publish_history_kind.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0017_publish_history_kind.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	3	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	4	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0027_search_index.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0027_search_index.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0034_member_auth.ts	2	import	../kernel/port.js	type StorageDialect,type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0034_member_auth.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0037_media_source_metadata.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0037_media_source_metadata.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	2	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	2	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	2	import	../kernel/port.js	type StorageDialect	kernel/port.ts
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	2	import	../kernel/port.js	type StorageDialect	kernel/port.ts
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	2	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	3	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/archive-legacy-commerce.postgres.test.ts	11	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/archive-legacy-commerce.postgres.test.ts	13	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/archive-legacy-commerce.test.ts	9	import	../../kernel/dialect.js	listIndexes,listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/archive-legacy-commerce.test.ts	12	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/chat-migration-behavior.test.ts	5	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/chat-migration-behavior.test.ts	11	import	../step.js	type MigrationContext	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/coercion-json-as-json-step.test.ts	8	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts	13	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/document-blob-ownership.test.ts	8	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/document-blob-ownership.test.ts	9	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/domain-binding-version-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/domain-bindings-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/drop-empty-core-commerce-tables-step.test.ts	6	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/drop-empty-core-commerce-tables-step.test.ts	9	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/drop-empty-legacy-chat-tables-step.test.ts	6	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/drop-empty-legacy-chat-tables-step.test.ts	9	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/drop-unused-deployment-tables-step.test.ts	4	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/drop-unused-deployment-tables-step.test.ts	7	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/form-delivery-plans-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/legacy-adoption.test.ts	11	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/legacy-adoption.test.ts	16	import	../step.js	LegacyHistoryError	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/mail-activity-indexes-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/mail-activity-message-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/mail-activity-retention-step.test.ts	4	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/mail-feedback-processed-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/mail-ledgers-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/mail-suppression-admin-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/media-createdby.test.ts	5	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/media-createdby.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/media-library.test.ts	6	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/media-library.test.ts	7	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/member-auth-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/member-external-identities-step.test.ts	7	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/member-signup-email-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/members-credentials-revoked-at.test.ts	5	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/members-credentials-revoked-at.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/migrated-copy.test.ts	12	import	../step.js	UnknownAppliedMigrationError	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/owner-mfa-step.test.ts	5	import	../../kernel/dialect.js	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/owner-mfa-step.test.ts	7	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/owner-recovery-codes-step.test.ts	5	import	../../kernel/dialect.js	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/owner-recovery-codes-step.test.ts	7	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/post-search-behavior.test.ts	8	import	../step.js	type MigrationContext	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/post-search-step.test.ts	8	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/post-search-step.test.ts	9	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts	8	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts	9	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/postgres-baseline.test.ts	13	import	../step.js	LegacyHistoryError	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/posts-author-migration.test.ts	5	import	#src/platform/db/kernel/dialect	listColumns,toBool	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/posts-author-migration.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/posts-publish-at-featured-media.test.ts	5	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/posts-publish-at-featured-media.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/publish-backstop.test.ts	4	import	#src/platform/db/kernel/dialect	listColumns,listIndexes,tableExists	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/publish-backstop.test.ts	7	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/publish-history-config-jsonb-step.test.ts	4	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts	11	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts	14	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/runner.test.ts	6	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/runner.test.ts	9	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/runner.test.ts	11	import	../step.js	MigrationChecksumError,type MigrationStep,UnknownAppliedMigrationError	migrations/step.ts
+apps/website/src/platform/db/migrations/__tests__/search-index-retired-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/search-index-step.test.ts	5	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/secrets-vault-step.test.ts	9	import	../../kernel/dialect.js	listColumns,listIndexes,listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/__tests__/secrets-vault.fixture.ts	7	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/__tests__/workspace-mcp-cascade.test.ts	6	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	3	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	4	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	3	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	4	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts	2	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts	3	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/chat/0003_active_run_index.ts	2	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/commerce/0000_catalog.ts	2	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/index.ts	29	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/index.ts	57	import	./step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/index.ts	179	export-from	./step.js	LegacyHistoryError,MigrationChecksumError,type MigrationStep,UnknownAppliedMigrationError	migrations/step.ts
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	8	import	../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	10	import	../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	14	import	./step.js	LegacyHistoryError	migrations/step.ts
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	3	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	4	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	3	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	4	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	2	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	3	import	../step.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/migrations/runner.ts	10	import	./step.js	UnknownAppliedMigrationError	migrations/step.ts
+apps/website/src/platform/db/prepare-content-store.ts	4	import	./kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/repos/__tests__/custom-credential-repo.test.ts	7	import	#src/platform/db/kernel/dialect	isUniqueViolation	kernel/dialect.ts
+apps/website/src/platform/db/repos/__tests__/vault-repo.fixture.ts	1	import	../../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/repos/__tests__/vault-repo.fixture.ts	2	import	../../kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/repos/media-repo.ts	5	import	../kernel/dialect.js	isUniqueViolation,listColumns	kernel/dialect.ts
+apps/website/src/platform/db/repos/publish-history-repo.ts	14	import	../kernel/index.js	toBool	kernel/dialect.ts
+apps/website/src/platform/db/sqlite/__tests__/chat-db.integration.test.ts	10	import	../../migrations/index.js	UnknownAppliedMigrationError	migrations/step.ts
+apps/website/src/platform/db/sqlite/__tests__/content-db-readonly.unit.test.ts	12	import	../../migrations/step.js	LegacyHistoryError	migrations/step.ts
+apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts	13	import	../../kernel/dialect.js	listColumns,listTables	kernel/dialect.ts
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	4	import	../kernel/dialect.js	listTables	kernel/dialect.ts
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	9	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/sqlite/fresh-content-db.ts	25	import	../migrations/index.js	type MigrationStep	migrations/step.ts
+apps/website/src/platform/db/sqlite/publish-backstop-audit.sqlite.ts	3	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	2	import	../kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/db/vault-credential-inventory.ts	6	import	./kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/db/vault-credential-inventory.ts	7	import	./kernel/dialect.js	listColumns,listTables	kernel/dialect.ts
+apps/website/src/platform/db/vault-credential-recovery.ts	5	import	./kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/site-dir/__tests__/integration/duplicate-pglite-store.integration.test.ts	11	import	../../../db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/site-dir/__tests__/read-applied-schema-identity.sqlite.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/platform/site-dir/duplicate-content-db.ts	5	import	../db/kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/site-dir/duplicate-pglite-store.ts	7	import	../db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/platform/site-dir/read-applied-schema-identity.ts	5	import	../db/kernel/dialect.js	tableExists	kernel/dialect.ts
+apps/website/src/platform/site-dir/read-applied-schema-identity.ts	7	import	../db/kernel/port.js	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts	15	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/__tests__/open-site-content-db.integration.test.ts	14	import	#src/platform/db/migrations/index	MigrationChecksumError	migrations/step.ts
+apps/website/src/server/runtime/composition/__tests__/project-store.unit.test.ts	23	import	#src/platform/db/migrations/step	UnknownAppliedMigrationError	migrations/step.ts
+apps/website/src/server/runtime/composition/__tests__/vault-boot.integration.test.ts	8	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/__tests__/vault-plugin-state.integration.test.ts	8	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/__tests__/vault-unified-credentials.integration.test.ts	6	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts	11	import	#src/platform/db/kernel/dialect	listColumns	kernel/dialect.ts
+apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts	13	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/move-site-storage.ts	7	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/open-site-store.ts	8	import	#src/platform/db/kernel/index	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/other-site-keys.ts	12	import	#src/platform/db/kernel/dialect	tableExists	kernel/dialect.ts
+apps/website/src/server/runtime/composition/site-key-recovery.ts	17	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts
+apps/website/src/server/runtime/composition/vault-boot.ts	16	import	#src/platform/db/kernel/port	type StorageKernel	kernel/port.ts

@@ -1,0 +1,305 @@
+repo	file	old_spec	names	new_spec
+jini	examples/minimal-host/src/acp-fixture.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution	@jini-ai/core/contracts/agents
+jini	examples/minimal-host/src/acp-fixture.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	examples/minimal-host/src/index.ts	@jini-ai/agent-runtime	type AgentLaunchResolution	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/anthropic-live-models.test.ts	../types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/claude-code-models.test.ts	../types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/detection.test.ts	../model-discovery-types.js	type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/detection.test.ts	../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/executables.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/index.test.ts	../index.js	*ns:pkgBarrel (78 moved names reachable)	MANUAL
+jini	packages/agent-runtime/src/__tests__/integration-contracts.test.ts	../index.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/launch-fs-errors-open.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/launch-fs-errors.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/launch.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/log-file.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/model-discovery-adapters.test.ts	../model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelProbeResult	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/model-discovery-config.test.ts	../model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/model-discovery-policy.test.ts	../model-discovery-types.js	type ModelCatalogSnapshot,type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelProbeResult	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/model-discovery-sdk.test.ts	../model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/model-discovery.test.ts	../model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelProbeResult	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/models.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/native-runtime.test.ts	../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/native-runtime.test.ts	../model-discovery-types.js	type ModelDiscoveryContext	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/native-runtime.test.ts	await import('../model-discovery.js')	dynamic (11 moved names reachable)	MANUAL
+jini	packages/agent-runtime/src/__tests__/ports.test.ts	../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/ports.test.ts	../prompt-augmenter.js	type PromptAugmenter	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/prompt-budget.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/__tests__/prompt-file.test.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/acp-model-probe.ts	./types.js	type AcpModelProbe,type AcpModelProbeRequest,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/acp-model-probe.ts	export-from ./types.js	type AcpModelProbeRequest,type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/agent-protocol/acp/__tests__/models.test.ts	await import('../../../acp-model-probe.js')	dynamic (2 moved names reachable)	MANUAL
+jini	packages/agent-runtime/src/agent-protocol/acp/rpc.ts	../../types.js	type RuntimeBuildOptions	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/agent-protocol/acp/session.ts	../../types.js	type RuntimeBuildOptions	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/agent-protocol/pi-rpc/models.ts	../../types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/ai-trace/__tests__/ai-trace.test.ts	../index.js	createAiTraceRecorder,createRecordingAiTraceSink,createLazyAiTraceSink,noopAiTraceSink,captureText,classifyToolError,normalizeAiUsage,type AiTraceEvent,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/capture-boundaries.unit.test.ts	../capture.js	captureText,stringifyForCapture	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/providers.test.ts	../index.js	createAiTraceRecorder,createRecordingAiTraceSink,type AiTraceEvent	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/recorder-boundaries.unit.test.ts	../recorder.js	createAiTraceRecorder	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/recorder-boundaries.unit.test.ts	../sinks.js	createRecordingAiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/recorder-boundaries.unit.test.ts	../types.js	type AiTraceEvent	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/regressions.test.ts	../index.js	createAiTraceRecorder,createRecordingAiTraceSink,createFanOutAiTraceSink,createLazyAiTraceSink,type AiTraceEvent,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/regressions.test.ts	../../providers/connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/ai-trace/__tests__/sink-policy.unit.test.ts	../sinks.js	createFanOutAiTraceSink,createLazyAiTraceSink,createRecordingAiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/ai-trace/__tests__/sink-policy.unit.test.ts	../types.js	type AiTraceEvent,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/agent-runtime/src/amr-model-cache.ts	./types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/anthropic-live-models.ts	./types.js	type RuntimeEnv,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/auth.ts	./types.js	type RuntimeAgentDef,type RuntimeEnv	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/claude-code-models.ts	./types.js	type RuntimeEnv,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/claude-filesystem-policy.ts	./types.js	type RuntimeBuildOptions	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/core/model-discovery-shared.ts	../types.js	type RuntimeModelOption,type RuntimeReasoningOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/core/model-discovery-shared.ts	../model-discovery-types.js	type DiscoveredModel,type ModelCatalogSnapshot	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/amr.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/antigravity.test.ts	../../model-discovery-types.js	type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/auggie.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/auggie.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/claude-chrome-integration.test.ts	../../types.js	type RuntimeBuildOptions	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/cline.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/cline.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/devin.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/devin.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/discovery-fakes.ts	../../model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/goose.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/goose.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/hermes.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/hermes.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/kilo.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/kilo.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/kimi.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/kimi.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/kiro.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/kiro.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/native-capability-isolation.test.ts	../../native-tool-policy.js	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/pi.test.ts	../../types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/reasonix.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/reasonix.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/trae-cli.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/trae-cli.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/vibe.test.ts	../../acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/__tests__/vibe.test.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/aider.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/aider.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/amp/index.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/amp/index.ts	import('../../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/amr/index.ts	../../types.js	type RuntimeAgentDef,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/amr/index.ts	import('../../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/antigravity/index.ts	../../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeContext,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/auggie.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/auggie.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/claude-compatible-args.ts	../types.js	type RuntimeBuildOptions,type RuntimeCapabilityMap,type RuntimeContext	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/claude.ts	../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeCapabilityMap,type RuntimeContext	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/claude.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/cline.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/cline.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codebuddy/index.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codebuddy/index.ts	import('../../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codex.ts	../types.js	type RuntimeModelOption,type RuntimeReasoningOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codex.ts	../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeContext	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codex.ts	../native-tool-policy.js	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codex.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/codex/launch.ts	../../launch.js	type AgentLaunchResolution	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/crush.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/crush.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/cursor-agent.ts	../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/cursor-agent.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/deepseek.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/deepseek.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/devin.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/devin.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/droid.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/droid.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/goose.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/goose.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/grok-build.ts	../types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/grok-build.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/grok-build.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/grok-build.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/hermes/index.ts	../../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/hermes/index.ts	import('../../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/kilo.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/kilo.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/kimi.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/kimi.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/kiro.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/kiro.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/mimo.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/mimo.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/opencode.ts	../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeContext	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/opencode.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/pi.ts	../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/qoder.ts	../types.js	type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeContext	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/qoder.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/qwen.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/qwen.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/reasonix.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/reasonix.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/shared.ts	../types.js	type RuntimeAgentDef,type RuntimeContext,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/trae-cli.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/trae-cli.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/vibe.ts	../types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/defs/vibe.ts	import('../types.js')	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/detection.ts	./model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelCatalogSnapshot,type DefaultModelResolution	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/detection.ts	./types.js	type RuntimeAgentDef,type RuntimeCapabilityMap,type RuntimeModelSource,type RuntimeModelOption,type RuntimeReasoningOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/diagnostics.ts	./launch.js	type AgentLaunchResolution	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/diagnostics.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/executables.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/index.test.ts	./index.js	*ns:barrel (78 moved names reachable)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./types.js	* (RuntimeModelSource RuntimeReasoningInModelId RuntimeBuildOptions RuntimeContext RuntimeCapabilityMap RuntimeListModels RuntimePromptBudgetError RuntimeStdoutPolicy RuntimeLockAcquireContext RuntimeLockHandoffContext RuntimeLockHold RuntimeLock RuntimeAgentDef AcpModelProbeRequest AcpModelProbe RuntimeEnv RuntimeModelOption RuntimeReasoningOption)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./native-tool-policy.js	* (NativeCapabilities NativeToolPolicyInput RunConsentKey RunPlan RunPlanHost)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./auth.js	* (AgentServiceFailureCode)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./launch.js	* (AgentLaunchKind AgentLaunchResolution)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./prompt-file.js	* (PreparedPromptFile)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./log-file.js	* (PreparedAgentLogFile)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export-from ./acp-model-probe.js	type AcpModelProbe,type AcpModelProbeRequest	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/index.ts	export * from ./prompt-augmenter.js	* (WorkspaceContextItem RunContextSelection PromptAugmenter)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./ai-trace/index.js	* (createAiTraceRecorder AiTraceRecorder AiTraceRecorderOptions noopAiTraceSink createRecordingAiTraceSink createFanOutAiTraceSink createLazyAiTraceSink DEFAULT_LAZY_SINK_QUEUE RecordingAiTraceSink captureText DEFAULT_MAX_CAPTURED_CHARS CaptureTextOptions classifyToolError normalizeAiUsage AiContentCapture AiToolErrorClass AiRunOutcome AiCapturedText AiTokenUsage AiCostSource AiTraceRunStarted AiTraceModelTurn AiTraceToolCall AiTraceTotals AiTraceRunFinished AiTraceEvent AiTraceSink)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./providers/index.js	* (ConnectionTestKind ConnectionTestProtocol ProviderModelOption ProviderModelsRequest ProviderModelsKind ProviderModelsResponse DnsLookupAddress DnsLookupFn ProviderModelsInput)	MANUAL
+jini	packages/agent-runtime/src/index.ts	export * from ./model-discovery-native.js	* (RuntimeSelectionError ModelSource DiscoveredModel ModelCatalogSnapshot DefaultModelResolution ModelDiscoveryContext AgentModelDiscoveryPort ModelProbeResult ModelCacheEntry ModelDiscoveryDeps ModelIdentityKind)	MANUAL
+jini	packages/agent-runtime/src/launch.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/log-file.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/mcp.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/mmd-routes.ts	./types.js	type RuntimeEnv,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-adapters.ts	./acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-adapters.ts	./providers/model-catalog.js	type ProviderModelsInput	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-adapters.ts	./model-discovery-types.js	type DiscoveredModel,type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelProbeResult	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-adapters.ts	./providers/types.js	type ProviderModelsKind	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-config-types.ts	./model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-config.ts	./model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-native.ts	./model-discovery-types.js	type AgentModelDiscoveryPort,type ModelDiscoveryContext,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-native.ts	export * from ./model-discovery.js	* (RuntimeSelectionError ModelSource DiscoveredModel ModelCatalogSnapshot DefaultModelResolution ModelDiscoveryContext AgentModelDiscoveryPort ModelProbeResult ModelCacheEntry ModelDiscoveryDeps ModelIdentityKind)	MANUAL
+jini	packages/agent-runtime/src/model-discovery-sdk.ts	./model-discovery-types.js	type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelProbeResult	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-shared.ts	export * from ./core/model-discovery-shared.js	* (RuntimeSelectionError)	MANUAL
+jini	packages/agent-runtime/src/model-discovery-types.ts	./model-contracts.js	type RuntimeEnv,type RuntimeModelOption,type ModelIdentityKind	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-types.ts	./providers/model-catalog.js	type ProviderModelsInput	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-types.ts	export-from ./model-contracts.js	type ModelIdentityKind	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery-types.ts	import('./providers/types.js')	type ProviderModelsResponse	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery.ts	./types.js	type RuntimeModelOption,type RuntimeReasoningOption,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery.ts	./model-discovery-types.js	type AgentModelDiscoveryPort,type DefaultModelResolution,type DiscoveredModel,type ModelCacheEntry,type ModelCatalogSnapshot,type ModelDiscoveryContext,type ModelDiscoveryDeps,type ModelProbeResult	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery.ts	./core/model-discovery-shared.js	RuntimeSelectionError	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery.ts	export-from ./core/model-discovery-shared.js	RuntimeSelectionError	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/model-discovery.ts	export * from ./model-discovery-types.js	* (ModelSource DiscoveredModel ModelCatalogSnapshot DefaultModelResolution ModelDiscoveryContext AgentModelDiscoveryPort ModelProbeResult ModelCacheEntry ModelDiscoveryDeps ModelIdentityKind)	MANUAL
+jini	packages/agent-runtime/src/models.ts	./types.js	type RuntimeAgentDef,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/native-runtime.ts	./acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/native-runtime.ts	./types.js	type RuntimeEnv	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/opencode-log.ts	./auth.js	type AgentServiceFailureCode	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/pi-models.ts	./types.js	type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/prompt-budget.ts	./types.js	type RuntimeAgentDef,type RuntimePromptBudgetError	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/prompt-file.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/__tests__/anthropic-messages.test.ts	vi.mock('../connection-guard.js')	mock	MANUAL
+jini	packages/agent-runtime/src/providers/__tests__/azure-chat.test.ts	vi.mock('../connection-guard.js')	mock	MANUAL
+jini	packages/agent-runtime/src/providers/__tests__/connection-guard.test.ts	../connection-guard.js	type DnsLookupAddress	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/__tests__/connection-test.test.ts	../connection-guard.js	type DnsLookupAddress	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/__tests__/google-messages.test.ts	vi.mock('../connection-guard.js')	mock	MANUAL
+jini	packages/agent-runtime/src/providers/__tests__/index.test.ts	../index.js	*ns:providers (9 moved names reachable)	MANUAL
+jini	packages/agent-runtime/src/providers/__tests__/model-catalog.test.ts	../model-catalog.js	type ProviderModelsInput	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/__tests__/model-catalog.test.ts	../connection-guard.js	type DnsLookupAddress	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/__tests__/ollama-chat.test.ts	vi.mock('../connection-guard.js')	mock	MANUAL
+jini	packages/agent-runtime/src/providers/__tests__/openai-chat.test.ts	vi.mock('../connection-guard.js')	mock	MANUAL
+jini	packages/agent-runtime/src/providers/anthropic-messages.ts	./connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/azure-chat.ts	./connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/connection-test.ts	./connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/connection-test.ts	./types.js	type ConnectionTestKind,type ConnectionTestProtocol	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/google-messages.ts	./connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/index.ts	export * from ./types.js	* (ConnectionTestKind ConnectionTestProtocol ProviderModelOption ProviderModelsRequest ProviderModelsKind ProviderModelsResponse)	MANUAL
+jini	packages/agent-runtime/src/providers/index.ts	export * from ./connection-guard.js	* (DnsLookupAddress DnsLookupFn)	MANUAL
+jini	packages/agent-runtime/src/providers/index.ts	export * from ./model-catalog.js	* (ProviderModelsInput)	MANUAL
+jini	packages/agent-runtime/src/providers/model-catalog.ts	./connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/model-catalog.ts	./types.js	type ConnectionTestKind,type ConnectionTestProtocol,type ProviderModelOption,type ProviderModelsRequest,type ProviderModelsResponse	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/ollama-chat.ts	./connection-guard.js	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/providers/openai-chat.ts	./connection-guard.js	type DnsLookupAddress,type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/registry.ts	./types.js	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/runtime-state.ts	./acp-model-probe.js	type AcpModelProbe	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/runtime-state.ts	./types.js	type RuntimeAgentDef,type RuntimeCapabilityMap,type RuntimeModelOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/runtime-state.ts	./model-discovery-types.js	type ModelCacheEntry,type ModelDiscoveryDeps	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/types.ts	./model-discovery-types.js	type AgentModelDiscoveryPort,type ModelCatalogSnapshot,type DefaultModelResolution	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/types.ts	./model-contracts.js	type RuntimeEnv,type RuntimeModelOption,type RuntimeReasoningOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/types.ts	export-from ./model-contracts.js	type RuntimeEnv,type RuntimeModelOption,type RuntimeReasoningOption	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/types.ts	import('./native-tool-policy.js')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/analytics/src/__tests__/ai-generations.test.ts	@jini-ai/agent-runtime/ai-trace	createAiTraceRecorder,createFanOutAiTraceSink,createRecordingAiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/analytics/src/__tests__/product-boundaries.unit.test.ts	@jini-ai/agent-runtime/ai-trace	createAiTraceRecorder	@jini-ai/core/contracts/ai-trace
+jini	packages/analytics/src/product/ai-generations.ts	@jini-ai/agent-runtime/ai-trace	type AiTraceModelTurn,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	@jini-ai/agent-runtime/native-tool-policy	type NativeToolPolicyInput	@jini-ai/core/contracts/agents
+jini	packages/chat/src/react/features/chat-pane/types.ts	@jini-ai/agent-runtime/native-tool-policy	type NativeToolPolicyInput	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/__tests__/ai-trace-lifecycle-regressions.test.ts	@jini-ai/agent-runtime	createRecordingAiTraceSink,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/daemon/src/__tests__/ai-trace-lifecycle.test.ts	@jini-ai/agent-runtime	createRecordingAiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/daemon/src/agent-executor/__tests__/access-approval-transport.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/agent-executor-acp.integration.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/agent-executor-capability-probe.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/agent-executor-filesystem-policy.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution,type RuntimeBuildOptions,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/agent-executor-read-only-dirs.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution,type RuntimeBuildOptions,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution,type PromptAugmenter,type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeLock,type RuntimeLockAcquireContext,type RuntimeLockHandoffContext	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/antigravity-permissions.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/attachment-stdin.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/host-env-ports.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/http-mcp-launch.integration.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/http-mcp.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/launch-defaults-and-staging.test.ts	@jini-ai/agent-runtime	RuntimeSelectionError,type AgentLaunchResolution,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/launch-relay-m1.unit.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/mid-run-user-message.test.ts	@jini-ai/agent-runtime	type AgentLaunchResolution,type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/model-discovery-fixture.ts	@jini-ai/agent-runtime	type AgentModelDiscoveryPort	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/runtime-policy.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/runtime-policy.test.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/split-parity.test.ts	@jini-ai/agent-runtime	type RuntimeLockHandoffContext,type RuntimeLockHold	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/starting-model.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/__tests__/usage-cost-basis.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/claude/config-dir.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/codex/__tests__/mcp-sources-isolation.test.ts	@jini-ai/agent-runtime	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/codex/home-staging.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/codex/home-staging.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/codex/home-staging.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/codex/home-staging.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/contracts.ts	@jini-ai/agent-runtime	type PromptAugmenter	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/contracts.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/event-translation.ts	@jini-ai/agent-runtime	normalizeAiUsage	@jini-ai/core/contracts/ai-trace
+jini	packages/daemon/src/agent-executor/events.ts	@jini-ai/agent-runtime	type ModelCatalogSnapshot	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/events.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/handoff.ts	@jini-ai/agent-runtime	type RuntimeAgentDef,type RuntimeLockHold	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/http-mcp.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/launch.ts	@jini-ai/agent-runtime	RuntimeSelectionError,type AgentLaunchResolution,type ModelCatalogSnapshot,type PreparedAgentLogFile,type PreparedPromptFile,type PromptAugmenter,type RuntimeAgentDef,type RuntimeBuildOptions,type RuntimeContext	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/mcp-bridge.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/mcp-bridge.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/mcp-bridge.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/mcp-bridge.ts	import('@jini-ai/agent-runtime')	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/message-relay.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/agent-executor/model-receipts.ts	@jini-ai/agent-runtime	type DiscoveredModel	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/ai-trace-lifecycle.ts	@jini-ai/agent-runtime	createAiTraceRecorder,type AiRunOutcome,type AiTraceRecorder,type AiTraceRecorderOptions,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/daemon/src/chat-settings.ts	@jini-ai/agent-runtime/native-tool-policy	type NativeCapabilities	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/continuation/continuation-transport.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/http/agents.ts	@jini-ai/agent-runtime	type ModelCatalogSnapshot,type DefaultModelResolution,type ModelIdentityKind	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/http/model-proxy.ts	@jini-ai/agent-runtime	type DnsLookupFn	@jini-ai/core/contracts/agents
+jini	packages/daemon/src/image-prompt-delivery.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+jini	packages/provider-plugins/src/__tests__/ai-trace-langfuse.test.ts	@jini-ai/agent-runtime/ai-trace	createAiTraceRecorder,createFanOutAiTraceSink,createRecordingAiTraceSink,noopAiTraceSink,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/provider-plugins/src/ai-trace-langfuse/langfuse.ts	@jini-ai/agent-runtime/ai-trace	type AiCapturedText,type AiTraceEvent,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+jini	packages/server/src/__tests__/builtin-features.test.ts	await import('@jini-ai/agent-runtime')	dynamic (78 moved names reachable)	MANUAL
+jini	packages/server/src/__tests__/kernel-base.test.ts	await import('@jini-ai/agent-runtime')	dynamic (78 moved names reachable)	MANUAL
+jini	packages/server/src/kernel-base.ts	@jini-ai/agent-runtime	type AiTraceSink	@jini-ai/core/contracts/ai-trace
+tovu	apps/admin/src/components/AssistantDock/__tests__/assistant-dock-props.unit.test.tsx	@jini-ai/agent-runtime/native-tool-policy	type NativeToolPolicyInput	@jini-ai/core/contracts/agents
+tovu	apps/admin/src/features/ai-assistant/hooks/use-admin-subagents.hooks.ts	@jini-ai/agent-runtime/native-tool-policy	type NativeToolPolicyInput	@jini-ai/core/contracts/agents
+tovu	apps/desktop/src/desktop-agent-inventory.test.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+tovu	apps/desktop/src/desktop-agent-inventory.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+tovu	apps/website/src/assistant/daemon-core-protocol.ts	@jini-ai/agent-runtime/ai-trace	type AiTraceEvent	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/assistant/live-model-cache.ts	@jini-ai/agent-runtime	type ProviderModelOption	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts	@jini-ai/agent-runtime	type RuntimeModelOption	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/__tests__/plugin-prompt-prefix.unit.test.ts	@jini-ai/agent-runtime	type PromptAugmenter	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/__tests__/run-lifecycle-tracing.unit.test.ts	@jini-ai/agent-runtime/ai-trace	createRecordingAiTraceSink	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts	@jini-ai/agent-runtime/ai-trace	type AiTraceEvent,type AiTraceSink,type AiContentCapture	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	@jini-ai/agent-runtime	type PromptAugmenter	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/assistant-run-tool-facts.ts	@jini-ai/agent-runtime/native-tool-policy	type RunPlan	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts	@jini-ai/agent-runtime/native-tool-policy	type RunConsentKey	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/assistant-run-tool-policy.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts	@jini-ai/agent-runtime	type RuntimeAgentDef,type RuntimeCapabilityMap	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/assistant-tool-consent.ts	@jini-ai/agent-runtime	type RuntimeAgentDef	@jini-ai/core/contracts/agents
+tovu	apps/website/src/server/inbound/assistant/run-lifecycle-tracing.ts	@jini-ai/agent-runtime/ai-trace	type AiTraceSink	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/routes/types.ts	import('@jini-ai/agent-runtime/ai-trace')	type AiTraceSink	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts	await import('@jini-ai/agent-runtime/native-tool-policy')	dynamic (5 moved names reachable)	MANUAL
+tovu	apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts	await import('@jini-ai/agent-runtime')	dynamic (78 moved names reachable)	MANUAL
+tovu	apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts	@jini-ai/agent-runtime/ai-trace	createAiTraceRecorder	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts	@jini-ai/agent-runtime/ai-trace	type AiTraceSink	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts	import('@jini-ai/agent-runtime/ai-trace')	type AiTraceEvent	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts	import('@jini-ai/agent-runtime/ai-trace')	type AiContentCapture	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts	@jini-ai/agent-runtime/ai-trace	createAiTraceRecorder	@jini-ai/core/contracts/ai-trace
+tovu	apps/website/src/server/runtime/composition/provider-plugins.ts	@jini-ai/agent-runtime/ai-trace	createFanOutAiTraceSink,type AiTraceSink	@jini-ai/core/contracts/ai-trace
+tovu	development/evals/tool-search-caller2-compliance-harness.ts	@jini-ai/agent-runtime	type PromptAugmenter	@jini-ai/core/contracts/agents
+jini	packages/agent-runtime/src/types.ts	@jini-ai/protocol	type AgentDiagnostic	@jini-ai/protocol
+jini	packages/agent-runtime/src/types.ts	export-from @jini-ai/protocol	type AgentDiagnostic,type AgentDiagnosticReason,type AgentDiagnosticSeverity,type AgentFixIntent	@jini-ai/protocol
+jini	packages/protocol/src/index.ts	export * from ./agent-catalog.js	* (AgentFixIntent AgentDiagnosticReason AgentDiagnosticSeverity AgentDiagnostic)	MANUAL

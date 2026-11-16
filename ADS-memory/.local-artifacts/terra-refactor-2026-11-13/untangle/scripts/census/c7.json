@@ -1,0 +1,6 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "moves":[
+  {"file":"packages/admin/src/core/module/types.ts","names":"*","to":"@jini-ai/core/contracts/admin-module"},
+  {"file":"packages/admin/src/core/module/token.ts","names":"*","to":"@jini-ai/core/contracts/admin-module"},
+  {"file":"packages/admin/src/core/module/define-admin-module.ts","names":"*","to":"@jini-ai/core/contracts/admin-module"}],
+ "exclude":["packages/admin/src/core/module/types.ts","packages/admin/src/core/module/token.ts","packages/admin/src/core/module/define-admin-module.ts"]}

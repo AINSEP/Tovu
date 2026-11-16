@@ -1,0 +1,58 @@
+repo	file	old_spec	names	new_spec
+jini	packages/admin/src/agent-plugins/agent-plugins.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/agent-plugins/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/comments/comments.module.ts	../core/module/define-admin-module.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/comments/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/contracts/credential-management.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/contracts/media-picker.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/contracts/playground-render-target.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/__tests__/composition.test.ts	../index.js	defineAdminModule,adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/__tests__/composition.typecheck.ts	../index.js	defineAdminModule,adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/__tests__/create-admin.boundary.test.ts	../index.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/__tests__/create-admin.boundary.test.ts	../types.js	type AdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/__tests__/create-admin.boundary.test.ts	../token.js	type AdminPortToken	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/create-admin.ts	./types.js	type AdminDescription,type AdminInstance,type AdminModule,type AdminPage,type AdminTab,type TabId,type ScopedPorts	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/create-admin.ts	./token.js	type AdminPortToken,type PortMap,type PortValues	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/index.ts	export-from ./token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/index.ts	export-from ./token.js	type AdminPortToken,type PortMap,type PortValues	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/index.ts	export-from ./define-admin-module.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/module/index.ts	export-from ./types.js	type AdminModule,type AdminPage,type AdminTab,type AdminInstance,type AdminDescription,type ScopedPorts,type TabId	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/react/__tests__/bind-react.test.tsx	../../module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/react/__tests__/bind-react.test.tsx	../../module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/core/react/bind-react.ts	../module/types.js	type AdminInstance,type AdminModule,type ScopedPorts	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/forms/forms.module.ts	../core/module/define-admin-module.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/forms/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/forms/react/index.ts	../../core/module/types.js	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/media/media.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/media/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/media/react/__tests__/media.test.tsx	../../../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/playground/playground.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/redirects/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/redirects/redirects.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/security/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/security/security.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/seo/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/seo/react/index.ts	../../core/module/types.js	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/seo/seo.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/source-control/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/source-control/source-control.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/widgets/ports.ts	../core/module/token.js	adminPort	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/widgets/react/hooks/WidgetsPorts.hooks.ts	../../../core/module/types.js	type ScopedPorts	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/widgets/react/index.ts	../../core/module/types.js	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/admin/src/widgets/widgets.module.ts	../core/module/index.js	defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/auth.module.ts	@jini-ai/admin/core/module	adminPort,defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/members.module.ts	@jini-ai/admin/core/module	adminPort,defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/__tests__/admin-pages.branches.test.tsx	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/AuthBinding.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/AuthScope.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/MembersBinding.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/MembersScope.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/RolesBinding.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/RolesScope.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/UsersBinding.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/react/hooks/UsersScope.hooks.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/roles.module.ts	@jini-ai/admin/core/module	adminPort,defineAdminModule	@jini-ai/core/contracts/admin-module
+jini	packages/user-management/src/admin/users.module.ts	@jini-ai/admin/core/module	adminPort,defineAdminModule	@jini-ai/core/contracts/admin-module
+tovu	apps/admin/src/integrations/jini-admin/__tests__/modules.hooks.unit.test.tsx	@jini-ai/admin/core/module	defineAdminModule	@jini-ai/core/contracts/admin-module
+tovu	apps/admin/src/integrations/jini-admin/module-context.ts	@jini-ai/admin/core/module	type AdminInstance	@jini-ai/core/contracts/admin-module
+tovu	apps/admin/src/integrations/jini-admin/modules.hooks.ts	@jini-ai/admin/core/module	defineAdminModule	@jini-ai/core/contracts/admin-module

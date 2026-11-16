@@ -1,0 +1,28 @@
+file	line	kind	old_spec	names	barrel	jini_spec
+apps/website/src/assistant/__tests__/mcp-ui.test.ts	5	import	../mcp-ui.js	type UIResourceUri	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.identity-authorization.test.ts	13	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts	14	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-families.test.ts	16	import	../index.js	MCP_UI_MIME_TYPE,type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.plugins-uninstall.test.ts	10	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts	10	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.themes-trash-restore.test.ts	15	import	../index.js	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/__tests__/tool-registrations.webhooks.test.ts	24	import	../index.js	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/ask-choice-ui-resource.ts	1	import	./mcp-ui.js	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/custom-credentials/__tests__/create-agent-tool.unit.test.ts	9	import	#src/assistant/index	MCP_UI_MIME_TYPE,type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts	7	import	#src/assistant/index	MCP_UI_MIME_TYPE,type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts	11	import	#src/assistant/index	MCP_UI_MIME_TYPE,type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts	11	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/identity/__tests__/tool-registrations.human-confirm.test.ts	12	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts	11	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/features/webhooks/__tests__/agent-tools.delete-confirmation.test.ts	6	import	#src/assistant/index	MCP_UI_MIME_TYPE,type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts	12	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/server/runtime/composition/__tests__/site-search-tools.test.ts	11	import	#src/assistant/index	type UIResource	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/server/runtime/composition/modules/__tests__/assistant-mcp-proxy.pin.test.ts	6	import	#src/assistant/index	SURFACE_EXCHANGE_ID_PARAM	apps/website/src/assistant/index.ts	@jini-ai/daemon/surface-exchanges
+apps/website/src/server/runtime/composition/modules/assistant.ts	57	import	#src/assistant/index	SURFACE_EXCHANGE_ID_PARAM,type SurfaceExchangeStore	apps/website/src/assistant/index.ts	@jini-ai/daemon/surface-exchanges
+apps/website/src/assistant/mcp-ui.ts	3	barrel-line	@jini-ai/ui/mcp-ui/surfaces	MCP_UI_MIME_TYPE	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/mcp-ui.ts	4	barrel-line	@jini-ai/ui/mcp-ui/surfaces	type UIResourceUri,type UIResourceMimeType,type UIResourceContent,type UIResource,type TextContent	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/mcp-ui.ts	13	barrel-line	@jini-ai/ui/mcp-ui/surfaces	type UIActionType,type UIActionResult	apps/website/src/assistant/mcp-ui.ts	@jini-ai/ui/mcp-ui/surfaces
+apps/website/src/assistant/index.ts	179	barrel-line	@jini-ai/daemon/surface-exchanges	SURFACE_EXCHANGE_ID_PARAM	apps/website/src/assistant/index.ts	@jini-ai/daemon/surface-exchanges
+apps/website/src/assistant/index.ts	180	barrel-line	@jini-ai/daemon/surface-exchanges	type SurfaceExchangeStore	apps/website/src/assistant/index.ts	@jini-ai/daemon/surface-exchanges
+apps/website/src/assistant/index.ts	206	barrel-line	@jini-ai/mcp/federation	FEDERATED_CONNECTION_DEFAULTS,isFederationEnabled,parseAllowedToolNames,positiveIntOrDefault	apps/website/src/assistant/index.ts	@jini-ai/mcp/federation
+apps/website/src/assistant/index.ts	207	barrel-line	@jini-ai/mcp/federation	type ResolvedFederatedConnection	apps/website/src/assistant/index.ts	@jini-ai/mcp/federation

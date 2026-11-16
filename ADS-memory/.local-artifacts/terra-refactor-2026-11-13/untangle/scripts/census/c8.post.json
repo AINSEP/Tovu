@@ -1,0 +1,12 @@
+{"src_dirs":["packages/cms/src","packages/ui/src/features/charts","packages/plugins/src/host","packages/diagnostics/src/observability"],
+ "new_spec_by_file_prefix":{"packages/provider-plugins/src/observability-opentelemetry/":{"@jini-ai/provider-plugins/observability-opentelemetry":"./otel-port.js"}},
+ "note_by_name":{"ChartProvider":"ui alias deleted: write ChartProvider<HTMLElement> (core type is generic over the element)","ChartProviderEntry":"ui alias deleted: write ChartProviderEntry<HTMLElement>","FormSubmissionEvidence":"core type is generic: inside cms write FormSubmissionEvidence<FieldType>; elsewhere the default <string>","createOtelObservabilityPort":"vendor code moved into the OTel provider (C8 decision 6)"},
+ "c_lane_files":{
+  "packages/diagnostics/src/__tests__/observability-contract.test.ts":"MOVE otel cases -> packages/provider-plugins/src/observability-opentelemetry/__tests__/otel-port.contract.test.ts",
+  "packages/diagnostics/src/__tests__/observability-tracing.test.ts":"MOVE -> packages/provider-plugins/src/observability-opentelemetry/__tests__/otel-port.tracing.test.ts",
+  "packages/diagnostics/src/__tests__/observability-fakes.ts":"SPLIT: OTel fakes move next to the provider tests; noop/fan-out fakes stay",
+  "packages/diagnostics/src/observability/__tests__/unit/provider-boundaries.unit.test.ts":"SPLIT: createOtelObservabilityPort cases move to the provider",
+  "packages/diagnostics/src/__tests__/observability-hooks.test.ts":"SPLIT: delete the createObservabilityPort cases (selector deleted)",
+  "packages/diagnostics/src/__tests__/package-surface.integration.test.ts":"SPLIT: drop the moved/deleted names from the expected surface",
+  "packages/diagnostics/src/observability/otel.ts":"SPLIT: otel.ts keeps errorType + redactOperationAttributes only; the moved code takes these imports with it",
+  "packages/diagnostics/src/observability/index.ts":"C-lane: these imports existed only for createObservabilityPort, which is deleted"}}

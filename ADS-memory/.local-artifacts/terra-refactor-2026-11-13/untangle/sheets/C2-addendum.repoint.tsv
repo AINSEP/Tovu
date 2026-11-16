@@ -1,0 +1,7 @@
+repo	file	old_spec	names	new_spec	rename	phase	note
+jini	packages/ui-kit/src/attrs.test.ts	./attrs.js	secretControlAttrs	@jini-ai/core/agent-handles		C-lane	MOVE secretControlAttrs cases -> packages/core/src/agent-handles/__tests__/secret-attrs.test.ts (the C lane does it with the move; relative import inside core)
+jini	packages/ui-kit/src/index.ts	export-from ./attrs.js	secretControlAttrs	DROP		wave	shell: delete these names from the barrel
+jini	packages/ui-kit/src/react/agent-attrs.hooks.ts	../attrs.js	secretControlAttrs	@jini-ai/core/agent-handles		wave	
+jini	packages/ui-kit/src/react/native/Controls.hooks.ts	../../attrs.js	secretControlAttrs	@jini-ai/core/agent-handles		wave	
+jini	packages/ui-kit/src/react/SecretInput.tsx	../attrs.js	secretControlAttrs	@jini-ai/core/agent-handles		wave	
+jini	packages/ui/src/react/components/SecretInput.tsx	@jini-ai/ui-kit	secretControlAttrs	@jini-ai/core/agent-handles		wave	

@@ -1,0 +1,2 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra","extraNeedles":["from '","from \""],
+"moves":[{"file":"packages/ui-kit/src/attrs.ts","names":["secretControlAttrs"],"to":"@jini-ai/core/agent-handles"}]}

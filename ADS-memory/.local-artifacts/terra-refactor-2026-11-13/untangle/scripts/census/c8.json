@@ -1,0 +1,17 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "extraNeedles":["from '","from \""],
+ "moves":[
+  {"file":"packages/cms/src/core/form-collection.ts","names":["FormProviderSelection","FormCollectionCapabilities","FormProviderDescription","FormCollectionPlan","FormCollectionProvider","FORM_COLLECTION_CONTRACT"],"to":"@jini-ai/core/contracts/forms"},
+  {"file":"packages/cms/src/forms/types.ts","names":["FormFileReference","FormAnswer"],"to":"@jini-ai/core/contracts/forms"},
+  {"file":"packages/cms/src/forms/submission-evidence.ts","names":["FormSubmissionEvidence"],"to":"@jini-ai/core/contracts/forms"},
+  {"file":"packages/ui/src/features/charts/contract.ts","names":["ChartKind","ChartValue","ChartSpec","ChartTheme","DEFAULT_CHART_THEME","ChartRenderInput","ChartMountOptions","ChartInstance","ChartProvider","ChartProviderEntry"],"to":"@jini-ai/core/contracts/charts"},
+  {"file":"packages/plugins/src/host/ports.ts","names":["ContentEntryDraft","HookContext","ExtPatch","BeforeSaveFilter","HookPoints","PluginSdk","DefinedPlugin"],"to":"@jini-ai/core/contracts/plugin-sdk"},
+  {"file":"packages/plugins/src/host/provider-contributions.ts","names":["PLUGIN_PROVIDER_CAPABILITY","PluginProviderResource","PluginProviderFactory","PluginProviderContribution","PluginProvidersSdk"],"to":"@jini-ai/core/contracts/plugin-sdk"},
+  {"file":"packages/plugins/src/host/contributions.ts","names":["PluginRouteAccess","PluginAuthContext","PluginInvocationContext","PluginRouteInput","PluginRouteResult","PluginRouteContribution","PluginToolEffect","PluginToolContribution","PluginWidgetContribution","PluginContribution"],"to":"@jini-ai/core/contracts/plugin-sdk"},
+  {"file":"packages/plugins/src/host/manifest-types.ts","names":["PluginProviderDeclaration","PluginProviderSettingsMigration","PluginProviderSettingField","PluginProviderSettingOption"],"to":"@jini-ai/core/contracts/plugin-sdk"},
+  {"file":"packages/plugins/src/host/provider-host.ts","names":["PluginProviderStartupError","pluginProviderStartupGuidance"],"to":"@jini-ai/core/contracts/plugin-sdk"},
+  {"file":"packages/plugins/src/host/provider-setting-required.ts","names":["hasProviderAuthHeader"],"to":"@jini-ai/core/contracts/plugin-sdk"},
+  {"file":"packages/diagnostics/src/observability/otel.ts","names":["OtelAdapterDependencies","OtelAdapterOptions","redactRequestTarget","outboundTargetAttributes","createOtelObservabilityPort"],"to":"@jini-ai/provider-plugins/observability-opentelemetry"},
+  {"file":"packages/diagnostics/src/observability/ports.ts","names":["TraceSpanKind","TracerPort","TracerProviderPort","ExporterFactory","TracerProviderFactory"],"to":"@jini-ai/provider-plugins/observability-opentelemetry"},
+  {"file":"packages/diagnostics/src/observability/index.ts","names":["createObservabilityPort"],"to":"DELETED (no replacement; C8 decision 6)"}
+ ]}
