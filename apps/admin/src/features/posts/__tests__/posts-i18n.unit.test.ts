@@ -152,8 +152,8 @@ for (const copy of LOCALIZED) {
     it("renders translated scheduling text and the URL dialog's accessible controls", async () => {
       language.locale = copy.locale;
       const port = createFakePostEditorPort();
-      function useEditor(id: string) {
-        return usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
+      function useEditor({ postId }: { postId: string }) {
+        return usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
       await screen.findByTitle(copy.drag);
@@ -169,8 +169,8 @@ for (const copy of LOCALIZED) {
     it.each(["saved", "published"] as const)("renders the translated %s version notice after saving", async (kind) => {
       const port = createFakePostEditorPort();
       let controller!: PostEditorController;
-      function useEditor(id: string) {
-        controller = usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
+      function useEditor({ postId }: { postId: string }) {
+        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
@@ -188,8 +188,8 @@ for (const copy of LOCALIZED) {
       const port = createFakePostEditorPort();
       const create = vi.spyOn(port, "createPost").mockRejectedValue(null);
       let controller!: PostEditorController;
-      function useEditor(id: string) {
-        controller = usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
+      function useEditor({ postId }: { postId: string }) {
+        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       // New Post now opens an unsaved local editor; creation happens on its first Save.
@@ -233,8 +233,8 @@ for (const copy of LOCALIZED) {
       if (action === "editorLoad") vi.spyOn(port, "getPost").mockRejectedValue(null);
       vi.spyOn(port, "deletePost").mockRejectedValue(null);
       let controller!: PostEditorController;
-      function useEditor(id: string) {
-        controller = usePostEditor({ postId: id, deps: { port, navigate: vi.fn(), t: translate } });
+      function useEditor({ postId }: { postId: string }) {
+        controller = usePostEditor({ postId, deps: { port, navigate: vi.fn(), t: translate } });
         return controller;
       }
       render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));

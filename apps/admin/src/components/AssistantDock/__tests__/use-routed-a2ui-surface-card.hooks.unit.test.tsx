@@ -95,7 +95,7 @@ describe("latestSurfaceIdIn", () => {
 });
 
 describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
-  const baseProps = { name: "a2ui", events: [], runStreaming: false, runSucceeded: true, runId: "run-1" };
+  const baseProps = { clock: { nowMs: () => Date.now() }, name: "a2ui", events: [], runStreaming: false, runSucceeded: true, runId: "run-1" };
 
   it("relays a non-error message straight through to the host's onAgentAction without touching hasError", () => {
     const onAgentAction = vi.fn();
@@ -139,7 +139,7 @@ describe("useRoutedA2uiSurfaceCard.handleAgentAction", () => {
 // surfaceId), and dismissing is per drawn surface. A single sticky boolean hid every later surface
 // of the same turn once the first was dismissed — the same mistake `hasError` was already fixed for.
 describe("useRoutedA2uiSurfaceCard dismiss", () => {
-  const base = { name: "a2ui", runStreaming: false, runSucceeded: true, runId: "run-1" };
+  const base = { clock: { nowMs: () => Date.now() }, name: "a2ui", runStreaming: false, runSucceeded: true, runId: "run-1" };
   const first = [{ createSurface: { surfaceId: "s1" } }];
 
   it("dismissing one surface does not hide a NEW surface the same turn opens afterwards", () => {

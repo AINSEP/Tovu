@@ -30,7 +30,7 @@ export function bindAgentPluginIdentity({ deps }: { deps: PluginsToolDeps }, _op
   return {
     previewEnableAccess: input => capability(deps).previewEnableAccess?.(input, {}) ?? Promise.resolve(undefined),
     listInstalled: async () => (await (deps.listInstalledAgentPlugins
-      ? deps.listInstalledAgentPlugins(deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root)
+      ? deps.listInstalledAgentPlugins({ workspaceRoot: deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root })
       : capability(deps).listInstalled({}, {}))).map(safeRevision),
     // The enable card names the copy the host's selection owner keeps. Only the bound capability
     // has that owner; the listing override (no capability) keeps every copy, as before.

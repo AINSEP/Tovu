@@ -112,7 +112,7 @@ describe.each(['tanstack', 'builtin'] as const)('fresh form hydration with %s', 
     expect(current.text).toBe('');
     await act(async () => { state = listing('Fresh note'); fresh.resolve(state); });
     await waitFor(() => expect(current.text).toBe('Fresh note'));
-    act(() => current.setText('Fresh note plus my edit'));
+    act(() => current.setText({ text: 'Fresh note plus my edit' }));
     await act(async () => { await current.save(); });
     expect(saved).toEqual(['Fresh note plus my edit']);
   });

@@ -32,7 +32,7 @@ export interface ExternalEntryRefreshInput<Row extends ExternalEntryRevision> {
    *  path and Load latest. */
   applyLatest: (row: Row) => void;
   /** Load latest only — the editor's `autosave.clearStandingDraft`. */
-  discardStandingDraft: () => Promise<void>;
+  discardStandingDraft: () => Promise<unknown>;
   /** Both apply paths, called with the applied row's version just before `applyLatest` — the
    *  editor's `autosave.supersedeBasis`, so no autosave built on the replaced version can still be
    *  refused and pause autosaving afterwards. */

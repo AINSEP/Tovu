@@ -146,7 +146,7 @@ describe("browser stream ownership", () => {
     stopC(); stopC(); stopA();
     await settleLocks();
     expect(emitters).toHaveLength(2);
-    emitters[0]!("stale"); emitters[1]!("current");
+    emitters[0]!({ frame: "stale" }); emitters[1]!({ frame: "current" });
     await settleLocks();
     expect(received).toEqual(["current"]);
     stopB(); await settleLocks();

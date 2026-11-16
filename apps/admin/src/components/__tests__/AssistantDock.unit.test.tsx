@@ -891,7 +891,7 @@ describe("AssistantDock — ext event renderer registrations", () => {
     expect(element.type).toBe(RoutedA2uiSurfaceCard);
     expect(element.props).toMatchObject({ actionId: "a-1", someProp: "value" });
     expect(typeof element.props.onAgentAction).toBe("function");
-    expect(typeof element.props.clock.nowMs).toBe("function");
+    expect(typeof (element.props.clock as { nowMs: unknown }).nowMs).toBe("function");
   });
 
   it("registers a renderer under 'slow_running' that renders SlowRunNoticeCard with every prop passed through", () => {

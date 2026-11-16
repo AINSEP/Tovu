@@ -135,7 +135,7 @@ describe("AssistantDock Chat settings", () => {
     let stored: ChatDisplayPreferences = { toolCalls: "show", showUsageLine: true, showThinking: false };
     const port = {
       load: async () => ({ ...stored }),
-      save: async (next: ChatDisplayPreferences) => { stored = { ...next }; },
+      save: async ({ next }: { next: ChatDisplayPreferences }) => { stored = { ...next }; },
       subscribeToSettingsRefresh: () => () => {},
     };
     const useStoredDisplay = () => useStoredDisplayPreferences(port);

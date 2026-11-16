@@ -122,7 +122,7 @@ test("injected Agent Plugin owners are used in place of the host capability, sco
     confirmEnable: () => false,
     injected: {
       assertAgentPluginActivationsWritable: async (required) => { calls.push(["assert", required]); },
-      listInstalledAgentPlugins: async (workspaceRoot) => { calls.push(["list", workspaceRoot]); return [installedAgentPlugin()]; },
+      listInstalledAgentPlugins: async ({ workspaceRoot }) => { calls.push(["list", workspaceRoot]); return [installedAgentPlugin()]; },
       setAgentPluginEnabled: async (required) => { calls.push(["set", required.enabled, required.agentPluginLayout === layout]); return { pluginId: required.pluginId, enabled: required.enabled }; },
     },
   });
