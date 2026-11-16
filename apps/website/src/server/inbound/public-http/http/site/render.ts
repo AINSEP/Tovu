@@ -1,7 +1,8 @@
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
-import { renderFormCollection, type FormCollectionPlan } from "@jini-ai/cms/forms";
+import { renderFormCollection } from "@jini-ai/cms/forms";
+import { type FormCollectionPlan } from "@jini-ai/core/contracts/forms";
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";

@@ -129,8 +129,13 @@ export interface HookAttachOptions {
  */
 // Generic contribution contracts stay with Jini's runtime owner. The SDK declares that package
 // as a dependency so a plugin consumer resolves these types without the host application's deps.
-export type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginRouteInput, PluginRouteResult, PluginAuthContext, PluginProviderContribution, PluginProviderFactory, PluginProviderResource } from '@jini-ai/plugins/host';
-import type { PluginRouteContribution, PluginToolContribution, PluginWidgetContribution, PluginContribution, PluginProviderContribution } from '@jini-ai/plugins/host';
+import type {
+  PluginRouteContribution,
+  PluginToolContribution,
+  PluginWidgetContribution,
+  PluginContribution,
+  PluginProviderContribution,
+} from '@jini-ai/core/contracts/plugin-sdk';
 
 export interface PluginSdk {
   readonly routes: { add(required: PluginRouteContribution, optional?: Record<string, never>): void };

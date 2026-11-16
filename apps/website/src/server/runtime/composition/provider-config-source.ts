@@ -1,7 +1,8 @@
 import { isDeepStrictEqual } from 'node:util';
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
 import type { SiteKeyReferences } from "#src/features/project-keys/site-references";
-import { migrateProviderSettings, type PluginProviderDeclaration } from "@jini-ai/plugins/host";
+import { migrateProviderSettings } from "@jini-ai/plugins/host";
+import { type PluginProviderDeclaration } from "@jini-ai/core/contracts/plugin-sdk";
 import { providerKeyId } from "#src/features/project-keys/service";
 import type { ProviderConfigSource, ProviderKeyUsage, ProviderPluginConfig, ProviderSettingsView } from "@jini-ai/plugins/host";
 export type { ProviderConfigSource, ProviderKeyUsage, ProviderPluginConfig, ProviderSettingsView, ProviderWriteResult } from "@jini-ai/plugins/host";

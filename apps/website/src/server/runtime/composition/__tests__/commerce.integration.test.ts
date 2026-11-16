@@ -13,7 +13,8 @@ import { commercePriceRepoFor, commerceProductRepoFor } from '@jini-ai/commerce/
 import { sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
 import { leasedProviderItem, paymentsProviderContract, type LoadedProviderItem } from '@jini-ai/commerce/payments/kernel';
 import { createPluginContributionCapture, createPluginContributionRegistry, createPluginProviderHost,
-  type PluginManifest, type PluginSdk } from '@jini-ai/plugins/host';
+  type PluginManifest } from '@jini-ai/plugins/host';
+import { type PluginSdk } from '@jini-ai/core/contracts/plugin-sdk';
 import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';

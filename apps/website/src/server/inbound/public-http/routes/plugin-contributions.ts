@@ -1,7 +1,8 @@
 /** Thin HTTP binding for the existing plugin host. A live Router per request generation avoids
  * Express stack surgery: disabled/reloaded handlers have no route entry to dispatch to. */
 import express, { type Express, type RequestHandler, type ErrorRequestHandler, type Response } from 'express';
-import type { PluginAuthContext, PluginContributionsSnapshot, PluginRouteResult } from '@jini-ai/plugins/host';
+import type { PluginContributionsSnapshot } from '@jini-ai/plugins/host';
+import type { PluginAuthContext, PluginRouteResult } from '@jini-ai/core/contracts/plugin-sdk';
 import type { RouteDeps } from '../../../routes/types.js';
 import { authorizeOrRespond } from '../../admin-http/authorize-guard.js';
 import { requireAdminSession } from '../../admin-http/dev-auth.js';

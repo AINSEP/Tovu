@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as yauzl from 'yauzl';
-import type { FormCollectionProvider } from '@jini-ai/cms/forms';
+import type { FormCollectionProvider } from '@jini-ai/core/contracts/forms';
 import type { JsonObject } from '@jini-ai/core/primitives';
 import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render.js';
 import { zipFolderFiles } from '@jini-ai/agent-plugins/folder-zip';

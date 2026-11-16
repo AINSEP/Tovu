@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
 import { buildProviderSettingsForm } from "#src/features/custom-credentials/provider-settings-card";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";

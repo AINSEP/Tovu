@@ -22,13 +22,15 @@ import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
 import type { SpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
-  createOtelObservabilityPort as createDiagnosticOtelPort,
   type ObservabilityConfigEnabled,
   type ObservabilityPort,
-  type TraceSpanKind,
   type TraceSpanPort,
-  type TracerPort,
 } from "@jini-ai/diagnostics/observability";
+import {
+  createOtelObservabilityPort as createDiagnosticOtelPort,
+  type TraceSpanKind,
+  type TracerPort,
+} from "@jini-ai/provider-plugins/observability-opentelemetry/port";
 import { createAsyncLocalSpanScope } from "@jini-ai/diagnostics/observability/node";
 
 /** Test seam: replace the OTLP batch pipeline with explicit SDK span processors. */

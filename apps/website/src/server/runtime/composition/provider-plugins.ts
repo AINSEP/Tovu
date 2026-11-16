@@ -1,4 +1,5 @@
-import { createFormCollectionRegistry, type FormCollectionProvider, type FormCollectionRegistry } from "@jini-ai/cms/forms";
+import { createFormCollectionRegistry, type FormCollectionRegistry } from "@jini-ai/cms/forms";
+import { type FormCollectionProvider } from "@jini-ai/core/contracts/forms";
 import { leasedProviderItem, type LoadedProviderItem } from "@jini-ai/commerce/payments/kernel";
 import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
@@ -7,7 +8,11 @@ import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker,
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginProviderHost, pluginProviderStartupGuidance, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderDeclaration, type PluginProviderLease } from "@jini-ai/plugins/host";
+import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderLease } from "@jini-ai/plugins/host";
+import {
+  pluginProviderStartupGuidance,
+  type PluginProviderDeclaration,
+} from "@jini-ai/core/contracts/plugin-sdk";
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 import { bootProductTelemetryFromEnv, type ProductTelemetry, type ProductTelemetryOptions } from './product-telemetry.js';

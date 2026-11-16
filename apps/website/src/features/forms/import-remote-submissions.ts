@@ -1,6 +1,7 @@
 import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
-import { readSubmissionEvidence, submissionEvidenceDefinition, retainedSubmissionIp, validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { readSubmissionEvidence, submissionEvidenceDefinition, retainedSubmissionIp, validateSubmissionPayload, type FieldError, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
+import { type FormAnswer } from "@jini-ai/core/contracts/forms";
 import type { FormPullRefusal } from "@jini-ai/cms/forms";
 import { htmlSubmissionDefinition } from "@jini-ai/cms/forms/html";
 import { FORM_LONG_TEXT_MAX_CHARS, capSubmissionFieldLengths, fieldMaxChars } from "./field-length-caps.js";

@@ -1,6 +1,6 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
-import type { PluginProviderSettingField } from "@jini-ai/plugins/host";
+import type { PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";

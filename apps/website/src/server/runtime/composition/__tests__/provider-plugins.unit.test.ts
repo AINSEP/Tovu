@@ -11,7 +11,11 @@ import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort
 import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
 import type { ProductConsent, ProductProviderInput, ProductTelemetry } from '../product-telemetry.js';
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
-import { createPluginContributionRegistry, type PluginProviderFactory, type PluginProviderSettingField } from "@jini-ai/plugins/host";
+import { createPluginContributionRegistry } from "@jini-ai/plugins/host";
+import {
+  type PluginProviderFactory,
+  type PluginProviderSettingField,
+} from "@jini-ai/core/contracts/plugin-sdk";
 
 import { attributionFor, bootProviderPlugins, legacyProviderCredentialCheck, PROVIDER_CONTRACTS, providerInputOf, type SiteIdentity } from "../provider-plugins.js";
 import type { ProviderConfigSource, ProviderPluginConfig } from "../provider-config-source.js";

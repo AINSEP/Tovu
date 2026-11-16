@@ -1,5 +1,6 @@
 import { createFormCollectionRegistry, describeFormCollectionProviders, type FormCollectionRegistry } from "@jini-ai/cms/forms";
-import type { FormAuthoring, FormProviderSelection } from "@jini-ai/cms/forms";
+import type { FormAuthoring } from "@jini-ai/cms/forms";
+import type { FormProviderSelection } from "@jini-ai/core/contracts/forms";
 import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
 /**
  * @file Forms' half of ADR-049 Decision 4 (SPEC-010): maps `agent-tools.ts`'s five catalog entries

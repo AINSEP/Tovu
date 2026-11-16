@@ -8,8 +8,8 @@ import express, { type RequestHandler } from 'express';
 import {
   createPluginContributionRegistry, InMemoryPluginActivationRepo,
   type PluginActivationRepoPort, type PluginContributionRegistry, type PluginContributionsSnapshot,
-  type PluginRouteContribution, type PluginSdk,
 } from '@jini-ai/plugins/host';
+import { type PluginRouteContribution, type PluginSdk } from '@jini-ai/core/contracts/plugin-sdk';
 import { createRouteDeps } from '../../../../runtime/composition/app.js';
 import type { RouteDeps } from '../../../../routes/types.js';
 import { loginAsOwner, startTestServer } from '../../../../__tests__/helpers/http-test-server.js';

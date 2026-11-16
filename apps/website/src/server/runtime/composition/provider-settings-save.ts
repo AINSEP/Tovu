@@ -1,4 +1,5 @@
-import { isProviderSettingRequired, type PluginProviderSettingField } from "@jini-ai/plugins/host";
+import { isProviderSettingRequired } from "@jini-ai/plugins/host";
+import { type PluginProviderSettingField } from "@jini-ai/core/contracts/plugin-sdk";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 
 import { ProviderConfigUnreadableError, ProviderStoreUnavailableError, type ProviderConfigSource, type ProviderKeyUsage } from "./provider-config-source.js";

@@ -2,7 +2,7 @@
  * This host-only pin compares both current public owners, including optional additions.
  */
 import type { ProviderSettingFieldProjection } from '@jini-ai/agent-plugins/lifecycle/host-tools';
-import type { PluginProviderSettingField } from '@jini-ai/plugins/host';
+import type { PluginProviderSettingField } from '@jini-ai/core/contracts/plugin-sdk';
 
 type Assert<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
