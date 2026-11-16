@@ -47,7 +47,7 @@ import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { parseEmbedHtmlAttributes } from "@jini-ai/cms/widgets/markers";
 import { LISTING_BATCH_DEFAULT, listingBatchPath, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
-import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
+import { safeAspectRatio, safeTextAlign } from "@jini-ai/cms/html/style-values";
 import { FORM_BASELINE_STYLE, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, renderFormSuccessSlot, renderFormErrorSlot, stampFormFieldMaxLengths } from "./form-render.js";
 import {
   decodeFormSubmissionResultFromQuery,

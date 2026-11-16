@@ -2710,7 +2710,7 @@ test("renderDocNode: no textAlign attr at all renders exactly as before this fea
 // `escapeHtml` alone stops attribute BREAKOUT, not a value that stays inside
 // the `style="…"` quotes and smuggles a second declaration. `styleForAlign`
 // and `mediaPlaceholder` now allowlist through `safeTextAlign`/`safeAspectRatio`
-// (platform/html/style-values.ts) instead of escaping-and-emitting whatever a
+// (`@jini-ai/cms/html/style-values`) instead of escaping-and-emitting whatever a
 // doc node's attrs carry.
 // ---------------------------------------------------------------------------
 
