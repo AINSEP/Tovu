@@ -9,6 +9,7 @@ import type { OtherCredentialRowState, OtherCredentialsController } from "./hook
 import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 
@@ -152,7 +153,7 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
         <span className="access-tokens-row-fact">{row.valueFact}</span>
         {row.updatedAt ? (
           <span className="access-tokens-row-summary-meta">
-            {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}
+            {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
           </span>
         ) : null}
       </div>
@@ -189,7 +190,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
               {translate("Access token")}
               {row.updatedAt ? (
                 <span className="access-tokens-row-summary-meta access-tokens-field-label-meta">
-                  {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}
+                  {translate("saved")} {formatTimestamp({ iso: row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
                 </span>
               ) : null}
             </label>

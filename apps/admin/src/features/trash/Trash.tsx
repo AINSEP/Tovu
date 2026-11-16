@@ -11,6 +11,7 @@ import { t } from "./trash-i18n";
 import { useWiredTrash, type TrashController } from "./hooks/use-trash.hooks";
 
 import { formatTimestamp, interpolate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Trash screen — markup only. Every piece of state lives in `hooks/use-trash.hooks.ts`.
  *
@@ -99,7 +100,7 @@ function trashColumns(props: {
     {
       key: "deleted",
       header: t({ locale: props.locale, key: "Deleted" }),
-      cell: (item) => formatTimestamp({ iso: item.trashedAt }, { timeZone: "local" }),
+      cell: (item) => formatTimestamp({ iso: item.trashedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }),
     },
     {
       key: "actor",

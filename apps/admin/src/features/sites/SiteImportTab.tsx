@@ -13,6 +13,7 @@ import { useDesktopImport, type DesktopImportController } from "./hooks/use-desk
 import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView, liveImportMode } from "./site-transfer-rules";
 
 import { formatTimestamp, interpolate, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The "Import Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
  * Import tab from 2026-10-25). Two ways in, under one ⓘ:
@@ -332,7 +333,7 @@ function ImportList({ controller, t }: { controller: SiteImportController; t: Tr
       empty={<div className="sites-empty"><p className="sites-empty-lead">{t("No imports yet.")}</p></div>}
       rowDetail={(item) => item.credentialWarnings?.length ? <div className="site-transfer-detail"><CredentialWarningList warnings={item.credentialWarnings} t={t} /></div> : null}
       columns={[
-        { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
+        { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
         { key: "source", header: t("Source"), cell: (item) => "url" in item.source ? <span className="site-transfer-link" title={item.source.url}>{importSourceLabel(item.source, t)}</span> : importSourceLabel(item.source, t) },
         { key: "site", header: t("New site"), cell: (item) => item.newSiteName ?? <span className="muted-cell">—</span> },
         {

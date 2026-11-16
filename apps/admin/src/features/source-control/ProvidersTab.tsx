@@ -15,6 +15,7 @@ import type {
 } from "./hooks/use-source-control-credentials.hooks";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Providers tab — `SourceControl.tsx`'s one tab today, and this feature's actual content.
  * Three always-visible rows — GitHub, GitLab, Bitbucket, in that order (GitHub is the one that
@@ -312,7 +313,7 @@ function SourceControlRowSummary({
         {connected && saved ? (
           <>
             <span translate="no">{label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-            {translate("saved")} {formatTimestamp({ iso: saved.updatedAt }, { timeZone: "local" })} <CredentialHint hint={saved.tokenHint} />
+            {translate("saved")} {formatTimestamp({ iso: saved.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })} <CredentialHint hint={saved.tokenHint} />
           </>
         ) : (
           <h3 className="source-control-row-title">

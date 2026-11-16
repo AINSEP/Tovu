@@ -42,6 +42,7 @@ import { CopyKeysDialog } from "./CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 
@@ -404,7 +405,7 @@ function TokenRow({
         <TokenRowDefaultIndicator state={state} showDefaultUi={showDefaultUi} controller={controller} t={translate} />
         <span className="access-tokens-row-summary-meta">
           {state.row.worksFor?.length ? <span>{translate("Works for")}: {state.row.worksFor.join(", ")} · </span> : null}
-          {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { timeZone: "local" })} <CredentialHint hint={state.row.tokenHint} />
+          {translate("saved")} {formatTimestamp({ iso: state.row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })} <CredentialHint hint={state.row.tokenHint} />
         </span>
         <span className="access-tokens-row-summary-expand">
           {translate(state.row.scope === "project" && !state.row.usedByThisSite ? "Details" : "Replace token")}

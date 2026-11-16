@@ -5,6 +5,7 @@ import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
 import { t } from "./workspace-i18n";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file "Workspace" admin screen (SPEC-044) — the `/admin/workspace` route — markup only.
  *
@@ -141,7 +142,7 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace, showPageHeader
                 exact class of bug `format-timestamp.ts`'s own file header describes fixing at ~a
                 dozen other call sites; this one was missed. Same shared helper, same YYYY-MM-DD
                 HH:MM display, no new formatting logic. */}
-            <span>{formatTimestamp({ iso: workspace.createdAt }, { timeZone: "local" })}</span>
+            <span>{formatTimestamp({ iso: workspace.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}</span>
           </div>
         </div>
       </form>

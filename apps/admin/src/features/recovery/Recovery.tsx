@@ -27,6 +27,7 @@ import {
 } from "./recovery-i18n";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
  *
@@ -149,7 +150,7 @@ function RestorePointsList(props: {
         </div>
       }
       columns={[
-        { key: "timestamp", header: t({ locale: locale, key: "Timestamp" }), cell: (p) => formatTimestamp({ iso: p.createdAt }, { timeZone: "local" }) },
+        { key: "timestamp", header: t({ locale: locale, key: "Timestamp" }), cell: (p) => formatTimestamp({ iso: p.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
         { key: "trigger", header: t({ locale: locale, key: "Trigger" }), cell: (p) => p.trigger },
         {
           key: "cost-class",
@@ -451,7 +452,7 @@ function RestoreFlow({
         <div className="recovery-ceremony-summary">
           <div className="recovery-restore-title-row">
             <h2 className="recovery-restore-title">
-              {t("Restore to")} {formatTimestamp({ iso: point.createdAt }, { timeZone: "local" })}
+              {t("Restore to")} {formatTimestamp({ iso: point.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
             </h2>
             <span className="visually-hidden">{t("Cost class")}</span>
             <span className={`status status-${point.costClass}`}>{costClassLabel({ costClass: point.costClass, locale: locale })}</span>

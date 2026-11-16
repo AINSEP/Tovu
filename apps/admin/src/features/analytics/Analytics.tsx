@@ -4,6 +4,7 @@ import { adminHref } from "@/lib/router";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only) — markup only.
  *
@@ -76,7 +77,7 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
             ),
           },
           { key: "kind", header: t({ key: "Kind" }), cell: (hit) => (hit.eventName ? `${t({ key: "event:" })} ${hit.eventName}` : hit.kind) },
-          { key: "time", header: t({ key: "Time" }), cell: (hit) => formatTimestamp({ iso: hit.occurredAt }, { timeZone: "local" }) },
+          { key: "time", header: t({ key: "Time" }), cell: (hit) => formatTimestamp({ iso: hit.occurredAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
         ]}
       />
     </div>

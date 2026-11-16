@@ -11,6 +11,7 @@ import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Admin landing screen — markup only.
  *
@@ -39,7 +40,7 @@ function ActivityRow({ row, t }: { row: AdminPost; t: Translate }) {
         {row.title || t("Untitled")}
       </a>
       <span className="dash-kind">{row.kind}</span>
-      <span className="dash-activity-time">{formatTimestamp({ iso: row.updatedAt }, { timeZone: "local" })}</span>
+      <span className="dash-activity-time">{formatTimestamp({ iso: row.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}</span>
     </div>
   );
 }

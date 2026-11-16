@@ -20,6 +20,7 @@ import {
 } from "./rules";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Library screen (`/admin/library`) — markup only; state lives in
  * `hooks/use-library.hooks.ts`. Private documents for this site that the assistant can read
@@ -251,7 +252,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
           },
           { key: "type", header: t("Type"), cell: (item) => <span className="library-type">{documentTypeLabel(item)}</span> },
           { key: "size", header: t("Size"), cellClassName: "library-num", cell: (item) => formatLibraryBytes({ bytes: item.byteSize }) },
-          { key: "uploaded", header: t("Upload date"), cellClassName: "library-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { timeZone: "local" }) },
+          { key: "uploaded", header: t("Upload date"), cellClassName: "library-num", cell: (item) => formatTimestamp({ iso: item.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
           {
             key: "by",
             header: t("Uploaded by"),

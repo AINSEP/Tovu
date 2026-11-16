@@ -2,6 +2,7 @@ import type { AdminDegradedBanner, AdminRestorePoint, DatabaseContextEnvelope } 
 import { t } from "./recovery-i18n";
 
 import { interpolate, localeEntry, formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Pure logic for the `recovery` feature — everything that computes a value rather than
  * rendering one. Follows the convention `features/posts/rules.ts` establishes: no React, no
@@ -158,5 +159,5 @@ export function parseDeepLinkEnvelope({ raw }: { raw: string }, _options: Record
  * @complexity O(1).
  */
 export function restoreButtonAccessibleName({ locale, point }: { locale: string; point: Pick<AdminRestorePoint, "createdAt"> }, _options: Record<string, never> = {}): string {
-  return `${t({ locale: locale, key: "Restore…" })} ${formatTimestamp({ iso: point.createdAt }, { timeZone: "local" })}`;
+  return `${t({ locale: locale, key: "Restore…" })} ${formatTimestamp({ iso: point.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}`;
 }

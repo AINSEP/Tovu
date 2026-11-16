@@ -18,6 +18,7 @@ import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Posts list screen — markup only.
  *
@@ -168,7 +169,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
             // "desc" (newest first) is this column's own starting direction, unlike the other
             // three's ascending default — unchanged from the pre-existing Updated-only feature.
             sort: { compare: compareAdminPostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel({ t: t, direction: direction }) },
-            cell: (post) => formatTimestamp({ iso: post.updatedAt }, { timeZone: "local" }),
+            cell: (post) => formatTimestamp({ iso: post.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }),
           },
           {
             key: "actions",

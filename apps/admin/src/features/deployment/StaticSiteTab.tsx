@@ -41,6 +41,7 @@ import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hook
 import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
 
 import { formatTimestamp, interpolate, splitOnPlaceholders, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 function PublishFailureNotice({ controller, t: translate }: { controller: StaticPublishController; t: Translate }) {
   if (controller.publishFailure) return <ErrorNotice failure={controller.publishFailure} t={translate} className="save-error" />;
   return controller.publishError ? <p className="save-error" role="alert">{controller.publishError}</p> : null;
@@ -1017,7 +1018,7 @@ function CredentialStepDone({
             <span translate="no">{row.label}</span>
           </TemplateWithNode>{" "}
           · {translate("token stored, encrypted")} ·{" "}
-          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: saved.updatedAt }, { timeZone: "local" }) } })} <CredentialHint hint={saved.tokenHint} />
+          {interpolate({ template: translate("saved {time}"), vars: { time: formatTimestamp({ iso: saved.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) } })} <CredentialHint hint={saved.tokenHint} />
           {saved.accountLabel ? (
             <>
               {" "}
@@ -1138,7 +1139,7 @@ function CredentialTokenPicker({
       >
         {options.map((credential) => (
           <option key={credential.id} value={credential.id}>
-            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp({ iso: credential.updatedAt }, { timeZone: "local" })}
+            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp({ iso: credential.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE })}
           </option>
         ))}
       </select>

@@ -7,6 +7,7 @@ import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
  * Same `.list-table` shape as `FormsList.tsx`/`Posts.tsx`.
@@ -119,7 +120,7 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
             header: t({ key: "Status" }),
             cell: (entry) => <span className={`status status-${entry.status}`}><ServerLabel value={entry.status} /></span>,
           },
-          { key: "updated", header: t({ key: "Updated" }), cell: (entry) => formatTimestamp({ iso: entry.updatedAt }, { timeZone: "local" }) },
+          { key: "updated", header: t({ key: "Updated" }), cell: (entry) => formatTimestamp({ iso: entry.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
         ]}
       />
     </div>

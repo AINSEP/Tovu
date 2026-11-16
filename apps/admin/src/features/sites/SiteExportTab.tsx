@@ -10,6 +10,7 @@ import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
 import { formatTimestamp, type Translate } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The "Export Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
  * Export tab from 2026-10-25): the primary action makes a
@@ -94,7 +95,7 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
       rowDetail={(share, index) => exportCredentialDetail({ share, index, controller, t })}
       columns={[
         { key: "type", header: t("Type"), cell: (share) => share.file.endsWith(".tovu.zip") ? t("Tovu backup") : t("Static site") },
-        { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { timeZone: "local" }) },
+        { key: "date", header: t("Date"), cellClassName: "site-transfer-num", cell: (share) => formatTimestamp({ iso: share.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }) },
         { key: "size", header: t("Size"), cellClassName: "site-transfer-num", cell: (share) => formatTransferBytes({ bytes: share.bytes }) },
         { key: "link", header: t("Link"), cell: (share) => <ShareLinkCell share={share} t={t} /> },
         {

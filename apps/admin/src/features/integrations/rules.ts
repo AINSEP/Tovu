@@ -6,6 +6,7 @@ import type { QueryKey } from "@jini-ai/core/fetch";
 import { t } from "./integrations-i18n";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file Pure logic for the `integrations` feature — everything that computes a value rather than
  * rendering one.
@@ -98,7 +99,7 @@ export function integrationRowMenuItems(
  * @overallScore 100
  */
 export function displayTimestamp(delivery: AdminWebhookDelivery): string {
-  return formatTimestamp({ iso: delivery.deliveredAt ?? delivery.createdAt }, { timeZone: "local" });
+  return formatTimestamp({ iso: delivery.deliveredAt ?? delivery.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE });
 }
 
 /**

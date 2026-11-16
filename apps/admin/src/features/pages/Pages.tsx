@@ -24,6 +24,7 @@ import { resolvePagesTabFromUrl, type PagesTabId } from "./hooks/pages-tab-url.h
 import { ThemePagesTab } from "./ThemePagesTab";
 
 import { type Translate, formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../lib/viewer-time-zone";
 /**
  * @file The Pages list screen — markup only.
  *
@@ -246,7 +247,7 @@ export function Pages(props: PagesProps) {
                 // "desc" (newest first) is this column's own starting direction, unlike the other
                 // three's ascending default — unchanged from the pre-existing Updated-only feature.
                 sort: { compare: compareAdminPostsByUpdated, defaultDirection: "desc", label: (direction) => updatedColumnSortLabel({ t, direction }) },
-                cell: (page) => formatTimestamp({ iso: page.updatedAt }, { timeZone: "local" }),
+                cell: (page) => formatTimestamp({ iso: page.updatedAt }, { viewerTimeZone: VIEWER_TIME_ZONE }),
               },
               {
                 key: "actions",

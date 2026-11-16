@@ -9,6 +9,7 @@ import type { WorkspaceController } from "../hooks/use-workspace.hooks";
 import type { AdminWorkspace } from "@/lib/api";
 
 import { formatTimestamp } from '@jini-ai/core/text';
+import { VIEWER_TIME_ZONE } from "../../../lib/viewer-time-zone";
 /**
  * @file `Workspace` — the `/admin/workspace` screen, driven through the `useWorkspaceHook`
  * dependency-injection seam. `features/workspace` was 0% covered with no test file at all before
@@ -61,7 +62,7 @@ describe("rename form", () => {
     expect(screen.getByText("w1")).toBeInTheDocument();
     // Formatted display (`formatTimestamp`), not the raw ISO-8601 value — see `Workspace.tsx`'s
     // own comment on the created-at cell for why.
-    expect(screen.getByText(formatTimestamp({ iso: WORKSPACE.createdAt }, { timeZone: "local" }))).toBeInTheDocument();
+    expect(screen.getByText(formatTimestamp({ iso: WORKSPACE.createdAt }, { viewerTimeZone: VIEWER_TIME_ZONE }))).toBeInTheDocument();
   });
 
   it("Save is disabled while the draft matches the persisted workspace (not dirty)", () => {
