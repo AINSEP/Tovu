@@ -2431,11 +2431,31 @@ const listingJsonPages = new WeakMap<ListingBatchRequest, ListingJsonPage<Listin
  *  `requestPath` is the path as requested, before the rewrite pointed `req.url` at its page. */
 const listingPageRequests = new WeakMap<Request, ListingPageRequest & { requestPath: string }>();
 
+/** Records `req` as a see-more batch request (the `/_more/` rewrite). */
+function recordListingBatchRequest({ req, listingBatch }: { req: Request; listingBatch: ListingBatchRequest }, _optional: Record<string, never> = {}): void {
+  listingBatchRequests.set(req, listingBatch);
+}
+
+/** The see-more batch request recorded for `req`, if any. */
+function listingBatchRequestOf({ req }: { req: Request }, _optional: Record<string, never> = {}): ListingBatchRequest | undefined {
+  return listingBatchRequests.get(req);
+}
+
+/** Records `req` as a numbered listing page request, with the path as requested (the `/page/<n>` rewrite). */
+function recordListingPageRequest({ req, listingPage }: { req: Request; listingPage: ListingPageRequest }, _optional: Record<string, never> = {}): void {
+  listingPageRequests.set(req, { ...listingPage, requestPath: req.path });
+}
+
+/** The numbered listing page request recorded for `req`, if any. */
+function listingPageRequestOf({ req }: { req: Request }, _optional: Record<string, never> = {}): (ListingPageRequest & { requestPath: string }) | undefined {
+  return listingPageRequests.get(req);
+}
+
 /** The path redirect rules are matched against: a `/page/<n>` request's own URL, never the page its
  *  rewrite points at (A-1, 2026-10-22). Matching the rewritten path made a rule on `/old/page/3` (a
  *  WordPress import's numbered archive) never fire, and a rule on `/old` catch every `/old/page/<n>`. */
 function redirectLookupPath({ req }: { req: Request }, _optional: Record<string, never> = {}): string {
-  return listingPageRequests.get(req)?.requestPath ?? req.path;
+  return listingPageRequestOf({ req })?.requestPath ?? req.path;
 }
 
 /** The page behind a batch URL has no see-more listing with that key, or the page behind a
@@ -2464,8 +2484,8 @@ function pluginExportSession({ deps, req }: { deps: RouteDeps; req: Request }, _
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
   deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
-  const listingBatch = listingBatchRequests.get(req);
-  const listingPage = listingPageRequests.get(req)?.page;
+  const listingBatch = listingBatchRequestOf({ req });
+  const listingPage = listingPageRequestOf({ req })?.page;
   const pluginExportRender = pluginExportSession({ deps, req });
   const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
   const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];
@@ -2485,7 +2505,7 @@ function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<
 async function listingBatchNotFound({ req, res, next, workspaceId }: {
   req: Request; res: Response; next: NextFunction; workspaceId: string;
 }, _optional: Record<string, never> = {}): Promise<void> {
-  const numberedPage = listingPageRequests.has(req);
+  const numberedPage = listingPageRequestOf({ req }) !== undefined;
   req.url = req.originalUrl;
   try {
     if (numberedPage && (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId, res }))) return undefined;
@@ -2692,7 +2712,7 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
   app.get(/\/_more\/[^/]+\/[^/]+\/?$/, (req, _res, next) => {
     const listingBatch = parseListingBatchPath({ path: req.path });
     if (listingBatch === undefined) return next();
-    listingBatchRequests.set(req, listingBatch);
+    recordListingBatchRequest({ req, listingBatch });
     rewriteToListingPage({ req, pagePath: listingBatch.pagePath });
     next();
     return undefined;
@@ -2703,7 +2723,7 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
   app.get(/\/page\/[^/]+\/?$/, (req, _res, next) => {
     const listingPage = parseListingPagePath({ path: req.path });
     if (listingPage === undefined) return next();
-    listingPageRequests.set(req, { ...listingPage, requestPath: req.path });
+    recordListingPageRequest({ req, listingPage });
     rewriteToListingPage({ req, pagePath: listingPage.pagePath });
     next();
     return undefined;

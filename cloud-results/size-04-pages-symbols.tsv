@@ -125,3 +125,7 @@ resolveHomePageContent	pages/handlers/home.ts
 serveHomePage	pages/handlers/home.ts
 serveContentHomePage	pages/handlers/home.ts
 registerSiteRoutes	pages.ts
+recordListingBatchRequest	pages/listing/listing-state.ts
+listingBatchRequestOf	pages/listing/listing-state.ts
+recordListingPageRequest	pages/listing/listing-state.ts
+listingPageRequestOf	pages/listing/listing-state.ts
