@@ -7,7 +7,7 @@ import { registerCommerceRoutes } from "#src/server/inbound/public-http/routes/c
 import { registerProductRoutes } from "#src/server/inbound/public-http/routes/site/products";
 import { pageShell } from "#src/server/inbound/public-http/http/site/render/document-shell";
 import { resolveRenderThemeId } from "#src/server/inbound/public-http/middleware/render-theme-override";
-import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/site-title";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 

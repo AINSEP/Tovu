@@ -8,14 +8,8 @@ import { reportServerFailure } from "#src/server/inbound/admin-http/routes/syste
 import type { RouteDeps } from "#src/server/routes/types";
 import { renderSite } from "../http/site/render-site.js";
 import type { SiteProduct } from "../http/site/render-context.js";
-import {
-  resolveWidgetsForRender,
-  resolveMediaTransformVersionsForRender,
-  resolveMediaAssetMetadataForRender,
-  resolveHtmlEmbedsForRender,
-  resolveSiteTitleForRender,
-  resolveSiteTimeZoneForRender,
-} from "../routes/site/pages.js";
+import { resolveWidgetsForRender, resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender, resolveHtmlEmbedsForRender } from "../routes/site/pages.js";
+import { resolveSiteTitleForRender, resolveSiteTimeZoneForRender } from "../routes/site/pages/render-context/site-title.js";
 
 const PLAIN_TEXT = "text/plain";
 /** Previews render apart from the site's own origin. Theme fonts already allow any origin, so they still look right. */
