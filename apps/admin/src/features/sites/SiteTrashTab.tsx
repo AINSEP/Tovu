@@ -1,4 +1,4 @@
-import type { AdminTrashedSite, AdminSitesSnapshot } from "@/lib/api";
+import type { AdminTrashedSite, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import { resolveSiteSubtitle, resolveTrashCardActions } from "./Sites.hooks";

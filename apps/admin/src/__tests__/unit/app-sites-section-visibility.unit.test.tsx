@@ -14,7 +14,7 @@ import {
   type SiteSectionAvailability,
 } from "../../App.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { api } from "../../lib/api";
+import { sitesApi } from "../../features/sites/api/sites-api";
 import type { AdminUser } from "../../features/auth/api/auth-api.types";
 import { ApiError } from "../../lib/admin-http/request";
 import { getNav } from "../../nav";
@@ -316,7 +316,7 @@ describe("useSiteSectionAvailability", () => {
     { desktop: false, switchingEnabled: false, expected: "unavailable", gate: "redirect" },
   ] as const)("desktop=$desktop, switchingEnabled=$switchingEnabled → $expected", async ({ desktop, switchingEnabled, expected, gate }) => {
     const user: AdminUser = { id: "u1", username: "admin" };
-    vi.spyOn(api, "listSites").mockResolvedValue(sitesSnapshot(switchingEnabled));
+    vi.spyOn(sitesApi, "listSites").mockResolvedValue(sitesSnapshot(switchingEnabled));
     const { result } = renderHook(() => useSiteSectionAvailability({ user }, { desktop }), { wrapper: FetchQueryProvider });
 
     await waitFor(() => expect(result.current).toBe(expected));
@@ -331,7 +331,7 @@ describe("useSiteSectionAvailability", () => {
   it("is unavailable from the first shell frame and never allows the Sites panel while the server is pending", async () => {
     const user: AdminUser = { id: "u1", username: "admin" };
     const pending = deferred<ReturnType<typeof sitesSnapshot>>();
-    const listSites = vi.spyOn(api, "listSites").mockReturnValue(pending.promise);
+    const listSites = vi.spyOn(sitesApi, "listSites").mockReturnValue(pending.promise);
     const frames: { availability: SiteSectionAvailability; gate: string }[] = [];
     const { result, rerender } = renderHook(() => {
       const availability = useSiteSectionAvailability({ user }, { desktop: true });
@@ -353,7 +353,7 @@ describe("useSiteSectionAvailability", () => {
     const bob: AdminUser = { id: "u2", username: "bob" };
     const second = deferred<ReturnType<typeof sitesSnapshot>>();
     const listSites = vi
-      .spyOn(api, "listSites")
+      .spyOn(sitesApi, "listSites")
       .mockResolvedValueOnce(sitesSnapshot(true))
       .mockReturnValueOnce(second.promise);
 

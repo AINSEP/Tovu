@@ -1,11 +1,4 @@
-import type {
-  AdminGeneratedSiteKey,
-  AdminImportedSiteKey,
-  AdminRevealedSiteKey,
-  AdminSiteKeyStartFreshPreview,
-  AdminSiteKeyStatus,
-  AdminStartedFreshSiteKey,
-} from "@/lib/api";
+import type { AdminGeneratedSiteKey, AdminImportedSiteKey, AdminRevealedSiteKey, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus, AdminStartedFreshSiteKey } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file What `useSiteKey` needs from the outside world, as an interface rather than a direct

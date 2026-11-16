@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAsyncAction } from "@jini-ai/ui/panel-kit";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { api, type SitesUserConfig, type SitesUserConfigPatch } from "@/lib/api";
+import type { SitesUserConfig, SitesUserConfigPatch } from "@/features/sites/api/sites-api.types";
+import { sitesApi } from "@/features/sites/api/sites-api";
 import { KEYS } from "../rules";
 
 /** Shared local settings effects stay here, including explicit sync-warning remedies. Saving
@@ -10,7 +11,7 @@ import { KEYS } from "../rules";
  * keep the one-per-line text view of the same list, and blank rows are dropped on save.
  * @complexity O(n) root strings; one API operation per action.
  */
-export function useSitesConfig(_required = {}, { port = api }: { port?: Pick<typeof api, "getSitesConfig" | "setSitesConfig"> } = {}) {
+export function useSitesConfig(_required = {}, { port = sitesApi }: { port?: Pick<typeof sitesApi, "getSitesConfig" | "setSitesConfig"> } = {}) {
   const [open, setOpen] = useState(false);
   const [config, setConfig] = useState<SitesUserConfig | null>(null);
   const [home, setHome] = useState("");

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { CreateSiteOnboarding } from "../CreateSiteOnboarding";
 import { AllSitesTab } from "../AllSitesTab";
 import { staticListPrefs } from "./site-list-prefs.fixture";

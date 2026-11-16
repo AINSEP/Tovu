@@ -1,4 +1,4 @@
-import type { AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Keep environment provenance in the status rules so rendering has no source policy. */

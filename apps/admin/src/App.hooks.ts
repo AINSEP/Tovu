@@ -24,7 +24,7 @@ import {
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
-import { api } from "./lib/api";
+import { sitesApi } from "./features/sites/api/sites-api";
 import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { authApi } from "./features/auth/api/auth-api";
@@ -371,7 +371,7 @@ export function useSiteSectionAvailability(
 ): SiteSectionAvailability {
   // Identity belongs in the query key: logout/401 must not paint the previous user's answer,
   // and an ordinary remount in this session should reuse the already authorized snapshot.
-  const snapshot = useSitesSnapshot({ port: api }, { enabled: !!user && !desktop, principalId: user?.id });
+  const snapshot = useSitesSnapshot({ port: sitesApi }, { enabled: !!user && !desktop, principalId: user?.id });
   return siteSectionAvailability({ desktop, user, snapshot });
 }
 

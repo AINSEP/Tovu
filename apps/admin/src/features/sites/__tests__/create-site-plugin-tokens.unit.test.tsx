@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/re
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
+import type { AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/features/sites/api/sites-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { CreateSiteOnboarding, type CreateSiteOnboardingProps } from "../CreateSiteOnboarding";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";

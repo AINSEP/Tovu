@@ -1,7 +1,7 @@
 import { act, renderHook } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { type AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { isSiteKeyLocked, useSiteKeyRecovery, type SiteKeyRecoveryPort } from "../hooks/use-site-key-recovery.hooks";
 

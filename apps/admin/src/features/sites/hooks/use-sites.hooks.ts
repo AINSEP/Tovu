@@ -3,7 +3,7 @@ import { useLocalSites, type LocalSitesController } from "./use-local-sites.hook
 import { useSiteConfirm, type SiteConfirmController } from "./use-site-confirm.hooks";
 import { useCallback, useRef, useState } from "react";
 
-import { type AdminSiteActivation, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteActivation, AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { QueryStatus } from "@jini-ai/core/fetch";

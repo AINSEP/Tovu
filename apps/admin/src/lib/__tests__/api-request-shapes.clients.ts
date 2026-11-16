@@ -1,6 +1,5 @@
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
-import { api } from "../api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { commentsApi } from "../../features/comments/api/comments-api";
@@ -24,6 +23,7 @@ import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { securityApi } from "../../features/security/api/security-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
+import { sitesApi } from "../../features/sites/api/sites-api";
 import { sourceControlApi } from "../../features/source-control/api/source-control-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { themesApi } from "../../features/themes/api/themes-api";
@@ -33,4 +33,4 @@ import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
-export const API_CLIENTS: Record<string, object> = { aiAssistantApi, analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, deploymentApi, formsApi, fsFilesApi, importExportApi, integrationsApi, mailStatusApi, mediaApi, membersApi, menusApi, observabilityApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, securityApi, settingsApi, sourceControlApi, taxonomyApi, themesApi, trashApi, usersApi, widgetsApi, workspaceApi };
+export const API_CLIENTS: Record<string, object> = { aiAssistantApi, analyticsApi, authApi, collectionsApi, commentsApi, databaseApi, deploymentApi, formsApi, fsFilesApi, importExportApi, integrationsApi, mailStatusApi, mediaApi, membersApi, menusApi, observabilityApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, securityApi, settingsApi, sitesApi, sourceControlApi, taxonomyApi, themesApi, trashApi, usersApi, widgetsApi, workspaceApi };

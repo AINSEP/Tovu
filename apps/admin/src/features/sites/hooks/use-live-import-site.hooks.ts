@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { type AdminLocalSiteState } from "@/lib/api";
+import type { AdminLocalSiteState } from "@/features/sites/api/sites-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 
 import { siteWriteErrorKey } from "../rules";

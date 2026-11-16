@@ -1,4 +1,5 @@
-import { api, type AdminSiteKeyState } from "@/lib/api";
+import type { AdminSiteKeyState } from "@/features/sites/api/sites-api.types";
+import { sitesApi } from "@/features/sites/api/sites-api";
 import { mediaApi } from "@/features/media/api/media-api";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
@@ -29,7 +30,7 @@ export const defaultDashboardPort: DashboardPort = {
     return { usesDefaultPassword: status.usesDefaultPassword, principalId: id };
   },
   getSiteKeyState: async () => {
-    const status = await api.getSiteKeyStatus();
+    const status = await sitesApi.getSiteKeyStatus();
     return { state: status.state };
   },
 };

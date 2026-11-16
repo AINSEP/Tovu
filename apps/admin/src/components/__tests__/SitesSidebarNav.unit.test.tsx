@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "@jini-ai/admin/react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { AdminNavGroup } from "@/nav";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { createFakeSitesPort } from "@/features/sites/hooks/sites-dependencies.hooks";
 import { useSites } from "@/features/sites/hooks/use-sites.hooks";
 import { publishContentRefresh } from "@/lib/content-refresh-bus";

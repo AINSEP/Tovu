@@ -1,4 +1,4 @@
-import type { AdminSiteKeyState } from "@/lib/api";
+import type { AdminSiteKeyState } from "@/features/sites/api/sites-api.types";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**

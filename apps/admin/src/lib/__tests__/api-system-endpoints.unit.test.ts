@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { sitesApi } from "../../features/sites/api/sites-api";
 import { securityApi } from "../../features/security/api/security-api";
 import { deploymentApi } from "../../features/deployment/api/deployment-api";
 import { sourceControlApi } from "../../features/source-control/api/source-control-api";
@@ -44,10 +44,10 @@ test("getServerLogs omits unspecified filters and encodes the supplied filters",
 
 test("site configuration and home requests keep their distinct paths and payloads", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.getSitesConfig();
-  await api.setSitesConfig({});
-  await api.setSitesHome({ path: "/temporary/Sites" });
-  await api.listTokenSignInPlugins();
+  await sitesApi.getSitesConfig();
+  await sitesApi.setSitesConfig({});
+  await sitesApi.setSitesHome({ path: "/temporary/Sites" });
+  await sitesApi.listTokenSignInPlugins();
   expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/system/sites/config", "GET"],
     ["/api/admin/v1/workspaces/workspace-local/system/sites/config", "PUT"],
@@ -60,7 +60,7 @@ test("site configuration and home requests keep their distinct paths and payload
 
 test("switching a local site requests an immediate restart through its activate route", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.manageLocalSite({ name: "my/site", action: "switch", confirmed: true });
+  await sitesApi.manageLocalSite({ name: "my/site", action: "switch", confirmed: true });
   expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/system/sites/my%2Fsite/activate");
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ restartNow: true });
@@ -68,7 +68,7 @@ test("switching a local site requests an immediate restart through its activate 
 
 test.each(["restore", "delete", "stop"] as const)("local site %s uses the correct active or trash route", async (action) => {
   const { calls, body } = stubFetchCapturing();
-  await api.manageLocalSite({ name: "my/site", action, confirmed: false, checked: true });
+  await sitesApi.manageLocalSite({ name: "my/site", action, confirmed: false, checked: true });
   const path = action === "stop" ? "my%2Fsite/stop" : `trash/my%2Fsite/${action}`;
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/system/sites/${path}`);
   expect(calls[0].init?.method).toBe("POST");
@@ -140,14 +140,14 @@ test("getDeploymentOverview is a bare GET at /system/deployment-overview", async
 
 test("listSites is a bare GET at /system/sites", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listSites();
+  await sitesApi.listSites();
   expect(calls[0].url).toBe(`${BASE}/system/sites`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("createSite POSTs { name } to /system/sites", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createSite({ name: "my-new-site" });
+  await sitesApi.createSite({ name: "my-new-site" });
   expect(calls[0].url).toBe(`${BASE}/system/sites`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ name: "my-new-site" });
@@ -155,14 +155,14 @@ test("createSite POSTs { name } to /system/sites", async () => {
 
 test("activateSite POSTs to /system/sites/:name/activate with the name percent-encoded", async () => {
   const { calls } = stubFetchCapturing();
-  await api.activateSite({ name: "my site" });
+  await sitesApi.activateSite({ name: "my site" });
   expect(calls[0].url).toBe(`${BASE}/system/sites/my%20site/activate`);
   expect(calls[0].init?.method).toBe("POST");
 });
 
 test("activateSite leaves an already-URL-safe name untouched", async () => {
   const { calls } = stubFetchCapturing();
-  await api.activateSite({ name: "tovu-com" });
+  await sitesApi.activateSite({ name: "tovu-com" });
   expect(calls[0].url).toBe(`${BASE}/system/sites/tovu-com/activate`);
 });
 

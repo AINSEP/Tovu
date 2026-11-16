@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../api";
+import { sitesApi } from "../../features/sites/api/sites-api";
 import { deploymentApi } from "../../features/deployment/api/deployment-api";
 import { observabilityApi } from "../../features/observability/api/observability-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
@@ -173,13 +173,13 @@ describe("endpoints", () => {
 
   it("site key lifecycle: status, reveal, generate, import, start-fresh preview and confirm", async () => {
     const calls = stubFetch();
-    await api.getSiteKeyStatus();
-    await api.revealSiteKey();
-    await api.generateSiteKey();
+    await sitesApi.getSiteKeyStatus();
+    await sitesApi.revealSiteKey();
+    await sitesApi.generateSiteKey();
     const imported = ["tovu", "sk", "fixture"].join("_");
-    await api.importSiteKey({ siteKey: imported });
-    await api.previewSiteKeyStartFresh();
-    await api.startFreshSiteKey({ confirm: "START FRESH" });
+    await sitesApi.importSiteKey({ siteKey: imported });
+    await sitesApi.previewSiteKeyStartFresh();
+    await sitesApi.startFreshSiteKey({ confirm: "START FRESH" });
     expect(calls).toEqual([
       { url: `${W}/system/site-key`, method: "GET" },
       { url: `${W}/system/site-key/reveal`, method: "POST" },
@@ -192,8 +192,8 @@ describe("endpoints", () => {
 
   it("an endpoint failure surfaces as an ApiError with the server's status", async () => {
     stubFetch(() => new Response(JSON.stringify({ error: "nope", code: "SITE_KEY_MISSING" }), { status: 404 }));
-    await expect(api.revealSiteKey()).rejects.toMatchObject({ status: 404, code: "SITE_KEY_MISSING" });
+    await expect(sitesApi.revealSiteKey()).rejects.toMatchObject({ status: 404, code: "SITE_KEY_MISSING" });
     stubFetch(() => new Response(JSON.stringify({ error: "nope" }), { status: 409 }));
-    await expect(api.generateSiteKey()).rejects.toBeInstanceOf(ApiError);
+    await expect(sitesApi.generateSiteKey()).rejects.toBeInstanceOf(ApiError);
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
-import { api } from "../api";
+import { sitesApi } from "../../features/sites/api/sites-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
@@ -95,7 +95,7 @@ it("clears retained details on genuine session invalidation and accepted site sw
   expect(adminFailureChannel.getSnapshot()).toBeNull();
   adminFailureChannel.publish({ failure });
   vi.stubGlobal("fetch", vi.fn(async () => new Response('{"restart":{"accepted":true}}')));
-  await api.manageLocalSite({ name: "other-site", action: "switch" });
+  await sitesApi.manageLocalSite({ name: "other-site", action: "switch" });
   expect(adminFailureChannel.getSnapshot()).toBeNull();
 });
 

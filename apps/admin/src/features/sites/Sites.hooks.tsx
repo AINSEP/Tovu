@@ -1,7 +1,7 @@
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";

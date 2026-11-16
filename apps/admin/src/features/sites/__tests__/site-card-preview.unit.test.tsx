@@ -1,6 +1,6 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
 import { AllSitesTab, type AllSitesTabProps } from "../AllSitesTab";
 import { staticListPrefs } from "./site-list-prefs.fixture";

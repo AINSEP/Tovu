@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import {
   resolveDatabaseOptionClassName,
   resolveSiteCardTitle,

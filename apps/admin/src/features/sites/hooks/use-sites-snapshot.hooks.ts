@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { QueryResult } from "@jini-ai/core/fetch";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { KEYS, SITES_RESOURCE } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_SITE_KEY_STATES } from "@/lib/api";
+import { ADMIN_SITE_KEY_STATES } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file Parity tripwire between `ADMIN_SITE_KEY_STATES`/`AdminSiteKeyState` (`lib/api.ts`) and
