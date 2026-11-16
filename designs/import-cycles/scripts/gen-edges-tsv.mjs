@@ -9,7 +9,7 @@ const SCC24 = new Set('api-connections consent content-types custom-credentials 
 const CUT = {
   'publish-trust>deployments': ['repoint-to-jini: import isContainedDeployConfigPath from @jini-ai/devops/deploy; delete the two re-export shells', 'S1'],
   'project-keys>api-connections': ['move-down: apiConnectionVaultScope + API_CONNECTION_VAULT_KIND -> platform/secrets/vault-api-connection-meta.ts; repoint 3 production + 6 test importers; delete the PLUGIN_STATE_FORMAT re-export', 'S2'],
-  'custom-credentials>source-control': ['repoint-to-jini (repositoryTargetError; delete forwarder repository-target.ts) + move-to-owner (bindSourceControlWritePort -> source-control/write-port.ts); RouteDeps.sourceControlWrite bound late by the host; 15 fixtures gain the field', 'S3'],
+  'custom-credentials>source-control': ['repoint-to-jini (repositoryTargetError; delete forwarder repository-target.ts) + move-to-owner (bindSourceControlWritePort -> source-control/write-port.ts); RouteDeps.sourceControlWrite bound late by the host; 16 fixtures gain the field', 'S3'],
   'custom-credentials>deployments': ['port-inversion: PublishCompatibilityPort declared by custom-credentials; binding = today\'s prepareInvalidation body moved verbatim to deployments/publish-credentials; RouteDeps.publishCompatibility bound by the host', 'S4'],
   'source-control>site-backup': ['port-inversion: StaticSitePackagerPort declared by source-control; reaches preview AND commit through CommitSiteInput.packager (RouteDeps.staticSitePackager -> SourceControlToolDeps -> commitInput); implemented in site-backup', 'S5'],
 };
