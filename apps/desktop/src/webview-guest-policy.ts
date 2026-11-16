@@ -7,11 +7,13 @@ import type { GuestPolicyOptions, GuestWebPreferences } from "@jini-ai/desktop-h
 
 interface GuestSourceOptions {
   // Guest policy rationale: Jini/packages/desktop-host/src/electron/navigation-policy/webview-guest-policy.ts.
-  isAllowedSource: (src: string) => boolean;
+  isAllowedSource: (required: { src: string }) => boolean;
 }
 
 /** Apply Jini isolation policy with the shell's required preload. Mutates preferences. @complexity O(1). */
-function applyGuestWebPreferences(webPreferences: GuestWebPreferences, options: GuestPolicyOptions): void {
+function applyGuestWebPreferences(
+  { webPreferences, options }: { webPreferences: GuestWebPreferences; options: GuestPolicyOptions }, _optional = {},
+): void {
   // D-10: deleting preload made the ordinary embedded admin tab report no desktop voice capability,
   // even though standalone windows worked. Grant the shell's required preload to both surfaces.
   if (typeof options?.preloadPath !== "string" || options.preloadPath.length === 0) {
@@ -24,7 +26,7 @@ function applyGuestWebPreferences(webPreferences: GuestWebPreferences, options: 
 function admitGuestSource(
   { event, params, options }: { event: { preventDefault(): void }; params: { src?: unknown }; options: GuestSourceOptions }, _options = {},
 ): boolean {
-  return admitSource({ event, params, isAllowedSource: ({ src }) => options.isAllowedSource(src) });
+  return admitSource({ event, params, isAllowedSource: options.isAllowedSource });
 }
 
 export { applyGuestWebPreferences, admitGuestSource };

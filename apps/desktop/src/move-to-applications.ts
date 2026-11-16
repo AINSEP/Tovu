@@ -170,14 +170,14 @@ interface MovePromptDeps {
   ask: () => Promise<"move" | "not-now">;
   /** `app.moveToApplicationsFolder({ conflictHandler })`. On success Electron relaunches from the new
    *  location and quits this process itself. */
-  move: (conflictHandler: (conflictType: MoveConflictType) => boolean) => boolean;
-  readExistingVersion: (appPath: string) => string | null;
-  openExisting: (appPath: string) => void;
+  move: (required: { conflictHandler: (conflictType: MoveConflictType) => boolean }) => boolean;
+  readExistingVersion: (required: { appPath: string }) => string | null;
+  openExisting: (required: { appPath: string }) => void;
   quit: () => void;
   recordDeclined: () => void;
-  showError: (message: string) => void;
+  showError: (required: { message: string }) => void;
   /** Must block until dismissed: {@link afterRefusedMove} quits right after it. */
-  showInfo: (message: string) => void;
+  showInfo: (required: { message: string }) => void;
 }
 
 type MovePromptOutcome = "declined" | "moved" | "opened-existing" | "blocked-by-running-copy" | "failed";
@@ -194,15 +194,15 @@ async function runMoveToApplicationsPrompt(deps: MovePromptDeps): Promise<MovePr
   }
   let decision: ReturnType<typeof decideMoveConflict> | null = null;
   const conflictHandler = (conflictType: MoveConflictType): boolean => {
-    decision = decideMoveConflict({ conflictType, existingVersion: deps.readExistingVersion(deps.targetPath), currentVersion: deps.currentVersion });
+    decision = decideMoveConflict({ conflictType, existingVersion: deps.readExistingVersion({ appPath: deps.targetPath }), currentVersion: deps.currentVersion });
     // `true` = Electron's own default: replace a stopped copy, or switch to a running one.
     return decision === "replace" || (decision === "open-existing" && conflictType === "existsAndRunning");
   };
   let moved: boolean;
   try {
-    moved = deps.move(conflictHandler);
+    moved = deps.move({ conflictHandler });
   } catch (error) {
-    deps.showError(`${MOVE_PROMPT.moveFailed} ${(error as Error).message}`);
+    deps.showError({ message: `${MOVE_PROMPT.moveFailed} ${(error as Error).message}` });
     return "failed";
   }
   return moved ? "moved" : afterRefusedMove({ deps, decision });
@@ -212,16 +212,16 @@ async function runMoveToApplicationsPrompt(deps: MovePromptDeps): Promise<MovePr
  *  @complexity O(1). */
 function afterRefusedMove({ deps, decision }: { deps: MovePromptDeps; decision: ReturnType<typeof decideMoveConflict> | null }, _options = {}): MovePromptOutcome {
   if (decision === "open-existing") {
-    deps.showInfo(MOVE_PROMPT.openingNewer);
-    deps.openExisting(deps.targetPath);
+    deps.showInfo({ message: MOVE_PROMPT.openingNewer });
+    deps.openExisting({ appPath: deps.targetPath });
     deps.quit();
     return "opened-existing";
   }
   if (decision === "blocked-by-running-copy") {
-    deps.showError(MOVE_PROMPT.olderCopyRunning);
+    deps.showError({ message: MOVE_PROMPT.olderCopyRunning });
     return "blocked-by-running-copy";
   }
-  deps.showError(MOVE_PROMPT.moveFailed);
+  deps.showError({ message: MOVE_PROMPT.moveFailed });
   return "failed";
 }
 

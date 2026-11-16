@@ -50,7 +50,7 @@ export const NO_LAYOUT: LayoutClaims = { onNameRow: MISSING_BOX, powerUnderText:
 const middle = (b: Box): number => (b.top + b.bottom) / 2;
 
 /** "align dotes with tovu-com" — the ⋮ sits on the same row as the name, not under it. */
-function onNameRow(name: Box, menu: Box): Claim {
+function onNameRow({ name, menu }: { name: Box; menu: Box }, _optional = {}): Claim {
   return {
     ok: Math.abs(middle(menu) - middle(name)) <= 4 && menu.left >= name.right,
     why: `⋮ middle ${middle(menu).toFixed(1)} vs name middle ${middle(name).toFixed(1)}; ⋮ left ${menu.left.toFixed(1)} vs name right ${name.right.toFixed(1)}`,
@@ -86,7 +86,7 @@ export function layoutClaims({ state }: { state: CardState | null }, _optional =
   if (!layout) return NO_LAYOUT;
   if (!layout.name || !layout.menu || !layout.details || !layout.status) return NO_LAYOUT;
   return {
-    onNameRow: onNameRow(layout.name, layout.menu),
+    onNameRow: onNameRow({ name: layout.name, menu: layout.menu }),
     powerUnderText: powerUnderText({ details: layout.details, status: layout.status, power: layout.power }),
     statusUnderMenu: statusUnderMenu({ menu: layout.menu, details: layout.details, status: layout.status }),
   };

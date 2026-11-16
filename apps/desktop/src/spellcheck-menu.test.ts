@@ -18,8 +18,8 @@ function fakeHandlers() {
   const calls: unknown[][] = [];
   return {
     calls,
-    replace: (word: string) => calls.push(["replace", word]),
-    addToDictionary: (word: string) => calls.push(["addToDictionary", word]),
+    replace: ({ word }: { word: string }) => calls.push(["replace", word]),
+    addToDictionary: ({ word }: { word: string }) => calls.push(["addToDictionary", word]),
     cut: () => calls.push(["cut"]),
     copy: () => calls.push(["copy"]),
     paste: () => calls.push(["paste"]),

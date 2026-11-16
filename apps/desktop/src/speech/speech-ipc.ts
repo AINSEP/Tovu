@@ -41,7 +41,7 @@ export function buildDefaultPort({ platform }: { platform: NodeJS.Platform }, op
 }
 interface RegisterSpeechIpcArgs {
   ipcMain: Pick<IpcMain, "handle"> & Partial<Pick<IpcMain, "removeHandler">>;
-  isTrustedSender: (senderUrl: string) => boolean;
+  isTrustedSender: (required: { senderUrl: string }) => boolean;
 }
 /** Adapt native IPC without changing the renderer's positional payloads. @complexity O(1) to register; O(n) per recording. */
 export function registerSpeechIpc({ ipcMain, isTrustedSender }: RegisterSpeechIpcArgs,
@@ -55,7 +55,7 @@ export function registerSpeechIpc({ ipcMain, isTrustedSender }: RegisterSpeechIp
   return registerIpc({
     channelNamespace: "tovu:speech", messages,
     port: port ?? buildDefaultPort({ platform }),
-    isTrustedSender: ({ senderUrl }) => isTrustedSender(senderUrl),
+    isTrustedSender,
     ipcMain: {
       handle: ({ channel, handler }) => ipcMain.handle(channel, (event, samples, sampleRate) => handler({ event, samples, sampleRate })),
       removeHandler: ({ channel }) => ipcMain.removeHandler?.(channel),

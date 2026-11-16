@@ -14,7 +14,7 @@ type RecordedHandler = (...args: any[]) => Promise<unknown>; // any: Electron's 
 /** The page every test below calls from, unless it is testing the sender check itself. */
 const TRUSTED_URL = "http://127.0.0.1:4567/admin/";
 const TRUSTED_EVENT = { senderFrame: { url: TRUSTED_URL } };
-const isTrustedSender = (url: string) => url === TRUSTED_URL;
+const isTrustedSender = ({ senderUrl }: { senderUrl: string }) => senderUrl === TRUSTED_URL;
 
 function fakeIpcMain() {
   const handlers = new Map<string, RecordedHandler>();
@@ -130,7 +130,7 @@ test("the sender check sees the sending frame's url, exactly", async () => {
   const ipcMain = fakeIpcMain();
   const seen: string[] = [];
   const port = { isAvailable: async () => ({ available: true }), transcribe: async () => assert.fail() };
-  registerSpeechIpc({ ipcMain, isTrustedSender: (url: string) => (seen.push(url), true) }, { port });
+  registerSpeechIpc({ ipcMain, isTrustedSender: ({ senderUrl }: { senderUrl: string }) => (seen.push(senderUrl), true) }, { port });
   await ipcMain.handlers.get(IPC_CHANNEL_IS_AVAILABLE)!({ senderFrame: { url: "http://127.0.0.1:9/admin/x?y=1" } });
   assert.deepEqual(seen, ["http://127.0.0.1:9/admin/x?y=1"]);
 });

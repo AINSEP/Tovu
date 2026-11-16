@@ -12,7 +12,7 @@ export type CliMode = "source" | "compiled";
 /** The candidate the startup picker is told was tried first and turned down: `site-dir-store.ts`'s
  *  `RejectedDevFallback`, read off {@link resolveSiteDir}'s picker seam because that module does not
  *  export it. */
-export type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]>;
+export type RejectedDefault = NonNullable<Parameters<NonNullable<Parameters<typeof resolveSiteDir>[0]["pickDir"]>>[0]["rejectedDefault"]>;
 
 /** The environment slice these decisions read. */
 export type StartupEnv = Readonly<Record<string, string | undefined>>;

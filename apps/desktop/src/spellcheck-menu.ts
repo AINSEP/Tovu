@@ -31,8 +31,8 @@ const labels: SpellCheckLabels = {
   cut: "Cut", copy: "Copy", paste: "Paste", selectAll: "Select All",
 };
 export interface SpellCheckMenuHandlers {
-  replace(word: string): void;
-  addToDictionary(word: string): void;
+  replace(required: { word: string }): void;
+  addToDictionary(required: { word: string }): void;
   cut(): void; copy(): void; paste(): void; selectAll(): void;
 }
 /**
@@ -44,8 +44,8 @@ export function buildSpellCheckMenuTemplate({ params, handlers }: {
   params: SpellCheckContextMenuParams; handlers: SpellCheckMenuHandlers;
 }): SpellCheckMenuItem[] {
   return buildTemplate({ params, labels, handlers: {
-    replace: ({ word }) => handlers.replace(word),
-    addToDictionary: ({ word }) => handlers.addToDictionary(word),
+    replace: ({ word }) => handlers.replace({ word }),
+    addToDictionary: ({ word }) => handlers.addToDictionary({ word }),
     cut: () => handlers.cut(), copy: () => handlers.copy(),
     paste: () => handlers.paste(), selectAll: () => handlers.selectAll(),
   } }, { maxSuggestions: 5 });

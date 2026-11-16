@@ -27,9 +27,9 @@ export function makeSiteTreeWritable(
 }
 export async function removeSiteTree(
   { root }: { root: string },
-  { files = fs, remove = (entry: string) => fsp.rm(entry, { recursive: true, force: true }) }:
-    { files?: WritableTreePort; remove?: (entry: string) => Promise<void> } = {},
+  { files = fs, remove = ({ entry }: { entry: string }) => fsp.rm(entry, { recursive: true, force: true }) }:
+    { files?: WritableTreePort; remove?: (required: { entry: string }) => Promise<void> } = {},
 ): Promise<void> {
   makeSiteTreeWritable({ root }, { files });
-  await remove(root);
+  await remove({ entry: root });
 }

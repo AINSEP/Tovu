@@ -14,7 +14,7 @@ function filesFake() {
 }
 test('D-01: owner-write is added recursively before removing the immutable store, without following links', async () => {
   const { files, writes } = filesFake();
-  await removeSiteTree({ root: '/site/package' }, { files, remove: async (root) => {
+  await removeSiteTree({ root: '/site/package' }, { files, remove: async ({ entry: root }) => {
     assert.equal(root, '/site/package');
     assert.deepEqual(writes, [['/site/package', 0o755], ['/site/package/mcp.json', 0o644]]);
   } });

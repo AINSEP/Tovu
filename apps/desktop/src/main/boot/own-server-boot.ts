@@ -38,10 +38,10 @@ export interface StartupSiteDirPorts {
   resolveOrInitSiteDir: (input: { dir: string; onMissingSite: typeof ENV_SITE_DIR_ON_MISSING; repoRoot: string; cliMode: CliMode }) => Promise<string>;
   resolveSiteDir: (input: {
     envDir: string | undefined; onMissingSite: typeof ENV_SITE_DIR_ON_MISSING; statePath: string; devFallbackDir: string | null;
-    repoRoot: string; cliMode: CliMode; pickDir: (rejectedDefault: RejectedDefault | null) => Promise<string | null>;
+    repoRoot: string; cliMode: CliMode; pickDir: (required: { rejectedDefault: RejectedDefault | null }) => Promise<string | null>;
   }) => Promise<string>;
   /** `main.ts`'s `promptForSiteDir`. */
-  pickDir: (rejectedDefault: RejectedDefault | null) => Promise<string | null>;
+  pickDir: (required: { rejectedDefault: RejectedDefault | null }) => Promise<string | null>;
 }
 
 /** Resolves the site dir(s) to open at launch: `TOVU_DESKTOP_SITE_DIRS` (plural) wins outright when
