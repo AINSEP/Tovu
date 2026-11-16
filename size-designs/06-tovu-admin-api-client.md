@@ -1,3 +1,5 @@
+> **Revision 2:** read `## Revision 2` at the end first; it overrides the sections above where they differ.
+
 # 06 — Tovu `apps/admin/src/lib/api.ts` (replaces `AssistantDock.tsx`)
 
 **Why this target:** `AssistantDock` is listed DONE on `origin/refactor/size-tovu` (4c3d6f46: state bundles + `DockChatPane`), so it is not redesigned. The next hardest Tovu entry in the 2026-11-11 ranking is hotspot **#2 overall**, `apps/admin/src/lib/api.ts`.
@@ -110,3 +112,83 @@ Every intermediate commit compiles because `api` still holds the members not yet
 ## 7. Estimate
 
 ≈40 commits. Sonnet executor **≈720k tokens** (inventory + request-shape table 90k; transport 70k; 32 feature commits × 16k; cleanup 50k). Risk: **medium-high** — mechanical, compile-checked, but the widest blast radius of the ten.
+
+
+## Revision 2 (2026-11-16, after the Codex judgment)
+
+Re-verified at Tovu `integ/wave-b-r2` (65302ee5): `apps/admin/src/lib/api.ts` 4,484 lines, 254 functions, none over 50 code lines. **642 files import it; 19 test files `vi.mock` it**; `development/scripts/check-admin-api-routes.ts:93-94` reads it by path. The admin app runs **vitest**. Judge: "needs rework" (6 majors, 2 minors). **8 accepted (one with a different staging than proposed), 0 rebutted.**
+
+### R1. Changes to the target (override §2-§4)
+
+1. **Transport layering (no cycle):**
+   ```
+   lib/admin-http/
+     config.ts          BASE ("/api/admin/v1", api.ts:23), WORKSPACE_ID (21)            imports nothing
+     request.ts         requestOnce (2671), requestRidingOutRestart, request (2719),
+                        authenticatedAdminRequest (2779), ApiError                      imports config
+     urls.ts            URL-only builders                                               imports config
+   ```
+   `requestOnce` reads `BASE` (2675) and `authenticatedAdminRequest` calls `request` (2783-2790); both now point downward. §2's `admin-urls.ts` that held `BASE` **and** `authenticatedAdminRequest` is replaced by this.
+2. **`request` complexity 11 → split:** the inner `try { if (error instanceof ApiError && (status === 0 || status >= 500)) publishAdminFailure(…) } catch {}` (2726-2730) becomes `publishFinalFailure(required)` with the comment "Notice effects must never replace the original request rejection" moved with it. `request` keeps try → `requestRidingOutRestart` → catch → publish → rethrow. Characterization first: 500 and network error publish once with the same body/path/method/generation; 4xx does not; a throwing publisher still rejects with the **original** error.
+3. **Self-references to the aggregate.** Four method bodies read `api.` and cannot move byte-for-byte: `api.me` (2860), `api.pollExternalMcpOAuthDevice` (3352), `api.mediaOriginalUrl` (3422), `api.spec` (3571). Rule: a self-reference is rewritten to the **feature object it now lives in** (`mediaApi.mediaOriginalUrl`), keeping the late property lookup so a `vi.spyOn(mediaApi, 'mediaOriginalUrl')` still intercepts. If caller and callee land in different features, the caller moves to the callee's feature file (they are one responsibility); it never imports a sibling feature client. Step 0b lists the four sites with caller, callee and chosen file; the sheet is reviewed before step 2. These four are the only authorised body edits.
+4. **Mock factories are migrated, not copied.** The 19 `vi.mock("…/lib/api")` factories return `{ ...actual, api: { ...actual.api, ...overrides } }`. For a feature module that exports `mediaApi` the same body overrides nothing. Per test file, in the commit that moves the methods it overrides: mocked specifier → the feature module; export key `api` → `<feature>Api`; `actual.api` → `actual.<feature>Api`; `importOriginal<typeof import(…)>` type path; if a test overrides methods of two features it gets two `vi.mock` calls. **Proof of interception:** for each migrated test, remove one override and run it — it must fail; restore. The executor records that check in the commit message.
+5. **Synchronous URL builders are a separate class.** `templatePreviewUrl` (2921), `mediaOriginalUrl` (3409), `mediaPreviewRenditionUrl` (3417) return strings and never fetch. The request-shape table covers fetching members only (216 of 219 if the member count stands; step 0b recounts); the three builders get return-value snapshots. Existing response-transformation and option-branch tests stay.
+6. **Host clients stay in Tovu.** §6's "features take their API folders into `@jini-ai/admin` / `@jini-ai/user-management`" is **withdrawn**. These clients hard-code Tovu's base path, workspace and routes; untangle `DESIGN.md` §3 keeps implementation bindings in the host and gives packages ports. Only a generic transport mechanism could ever be a Jini candidate, behind an injected contract, and nothing here creates one. The `PostsApiPort` example is removed: the real port is `PostEditorPort`, already bound in `post-editor-dependencies.hooks.ts:13-25`.
+7. **Tool consumer:** `check-admin-api-routes.ts` is updated in the final commit to read the feature client files and `lib/admin-http/urls.ts` (a glob over `apps/admin/src/**/api/*.api.ts` — the exact glob comes from the final tree). No forwarding file is kept for it.
+8. **Green baseline is a prerequisite.** "The same failing test names as before" is no longer an accepted gate. Step 0 runs `npx vitest run` in `apps/admin` and `npm run typecheck` on the unmodified base; if either is red the executor stops and reports the failures (owner decision 06-b: fix first or grant a named exception). Every later commit must be green.
+
+### R2. Signatures (practice 2) — staged, not optional
+
+The judge counted 62 zero-parameter and 42 one-parameter methods (not re-measured here). They break `(required, optional = {})`. Changing 219 signatures touches call sites in up to 642 files, so it is **not mixed into the move** (one refactor type per change), but it is no longer "optional":
+
+- **Phase 1 (this design):** move, repoint, delete `lib/api.ts`. No signature changes except R1.3.
+- **Phase 2 (mandatory follow-up, one commit per feature client):** each method becomes `(required, optional = {})`; every caller of that client is updated in the same commit; the request-shape table must stay byte-identical. A method with no inputs is `(required: Record<string, never>, optional = {})` only if the repo rule requires the placeholder — **owner decision 06-c**, because practice 2 also says "never `?: Record<string, never>`". Until that is answered phase 2 covers the 42 one-parameter and the multi-positional methods only.
+
+### R3. Migration graph (overrides §3)
+
+| # | commit | needs |
+|---|---|---|
+| 0a | green baseline; request-shape table (fetching members), URL-builder snapshots, `request` failure-publish tests | — |
+| 0b | sheets: member → feature file; importer → members used (642 files); 19 mock factories → members overridden; 4 self-references; tools reading the path | — |
+| 1 | `lib/admin-http/config.ts`, `request.ts` (with the `request` split), `urls.ts`; `api.ts` imports them | 0 |
+| 2 | one feature client per commit: methods + their DTO types + the callers and mock factories of those methods | 1 |
+| 3 | delete `lib/api.ts` (and its re-export lines 58/60); update `check-admin-api-routes.ts` | all of 2 |
+| P2 | phase 2 signatures, one feature per commit | 3 + decision 06-c |
+
+A feature-client commit is atomic: after it, no file imports a moved member from `lib/api.ts`, and `api` no longer has that member (so a missed caller is a compile error, not a silent stale path).
+
+### R4. Owner practices check
+
+| # | status |
+|---|---|
+| 1 DI | unchanged in phase 1: components still import a concrete client. **Conflict flagged:** practice 1 wants features to receive a port from the host; today only the post editor does (`PostEditorPort`). Binding every feature to a port is outside a size split — listed as follow-up, per feature |
+| 2 args | R2 |
+| 3 size | no function over 50; `request` complexity fixed (R1.2); files ≤500 after the split |
+| 4 slicing | one client file per admin feature, DTOs beside their client |
+| 5 no re-exports | `lib/api.ts` deleted, lines 58/60 gone, no forwarder |
+| 6 comments | move with methods |
+| 7 boundaries | nothing moves to Jini (R1.6) |
+| 8 tests | **conflict flagged:** the 19 tests use `vi.mock` of a module. It is the app's own module, not another package's internals, so it does not break practice 8's letter; replacing module mocks with injected fakes belongs to the port follow-up in row 1 |
+| 9 errors | no text changed; the failure-publish path is pinned |
+| 10 | no silent change; R1.3 edits are listed |
+| 11 | no new abstraction |
+| 12 memory/IO | no request added or removed; table proves the same requests |
+
+### R5. Estimate
+
+Phase 1: ≈44 commits, Sonnet **≈820k tokens** (was 720k: sheets, mock-factory migration with interception proof). Phase 2: ≈25 commits, ≈450k, not in the total until 06-c is decided. Risk: **medium-high**.
+
+## Judge response
+
+| # | sev | verdict | what changed / evidence |
+|---|---|---|---|
+| 1 | major | accepted | `api.mediaOriginalUrl` at 3422 confirmed; three more found (2860, 3352, 3571). R1.3 |
+| 2 | major | accepted | 19 `vi.mock` factories of `lib/api` on this base. R1.4, with a per-test interception proof |
+| 3 | major | accepted | `BASE` (23) read at 2675; `authenticatedAdminRequest` (2779) calls `request`. R1.1 |
+| 4 | major | accepted, staged differently | Complexity: fixed now (R1.2). Signatures: made mandatory but as phase 2, per feature, because mixing 219 signature changes into a move breaks "one refactor type per change"; the zero-parameter form needs decision 06-c |
+| 5 | major | accepted | `BASE`/`WORKSPACE_ID` hard-coded at 21-23; untangle DESIGN §3. R1.6 |
+| 6 | minor | accepted | Three synchronous builders at 2921, 3409, 3417. R1.5 |
+| 7 | minor | accepted | `check-admin-api-routes.ts:93-94` reads the path. R1.7 |
+| 8 | major | accepted | R1.8: green baseline or stop |
+
+Accepted 8 · rebutted 0 · blockers left 0.
