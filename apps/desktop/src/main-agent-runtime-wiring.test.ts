@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
+import { stripTypeScriptTypes } from "node:module";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 
@@ -86,7 +87,8 @@ test("quit waits for owned runtime disposal even without sites and disposes once
       exit: () => assert.fail("quit must drain rather than force exit"),
     },
   });
-  vm.runInContext(source.slice(start, end + "\n});".length), context);
+  // The entry is TypeScript: strip the handler's type annotations before the VM runs it as JavaScript.
+  vm.runInContext(stripTypeScriptTypes(source.slice(start, end + "\n});".length)), context);
   onQuit(event);
   onQuit(event);
   assert.equal(prevented, 2);

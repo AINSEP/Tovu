@@ -546,6 +546,30 @@ interface ResolveSiteDirInput {
 }
 
 /**
+ * Step 1 of {@link resolveSiteDir}: the operator's `TOVU_DESKTOP_SITE_DIR` override, which always
+ * wins. Routed through {@link resolveOrInitSiteDir} under the policy the caller declared.
+ *
+ * @throws {Error} when the caller declared no `onMissingSite` policy for the override, and
+ *   everything {@link resolveOrInitSiteDir} throws for a directory that is not a usable site.
+ * @complexity O(1) plus {@link resolveOrInitSiteDir}'s own cost.
+ */
+async function resolveOverrideSiteDir({ envDir, input }: { envDir: string; input: ResolveSiteDirInput }, _options = {}): Promise<string> {
+  if (input.onMissingSite !== "init" && input.onMissingSite !== "fail") {
+    throw new Error('resolveSiteDir: input.onMissingSite must be "init" or "fail" when envDir is set.');
+  }
+  return await resolveOrInitSiteDir({
+    dir: envDir,
+    onMissingSite: input.onMissingSite,
+    repoRoot: input.repoRoot,
+    name: input.name,
+    adminPassword: input.adminPassword,
+    baseEnv: input.baseEnv,
+    spawnFn: input.spawnFn,
+    cliMode: input.cliMode,
+  });
+}
+
+/**
  * Decide which site dir this launch serves.
  *
  * Precedence, most explicit first:
@@ -579,21 +603,7 @@ interface ResolveSiteDirInput {
  */
 async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
   const envDir = input.envDir?.trim();
-  if (envDir) {
-    if (input.onMissingSite !== "init" && input.onMissingSite !== "fail") {
-      throw new Error('resolveSiteDir: input.onMissingSite must be "init" or "fail" when envDir is set.');
-    }
-    return await resolveOrInitSiteDir({
-      dir: envDir,
-      onMissingSite: input.onMissingSite,
-      repoRoot: input.repoRoot,
-      name: input.name,
-      adminPassword: input.adminPassword,
-      baseEnv: input.baseEnv,
-      spawnFn: input.spawnFn,
-      cliMode: input.cliMode,
-    });
-  }
+  if (envDir) return await resolveOverrideSiteDir({ envDir, input });
 
   const [mostRecent] = existingRecentSiteDirs({ statePath: input.statePath }, { workspace: input.sharedSites });
   if (mostRecent !== undefined) return mostRecent;

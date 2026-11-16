@@ -6,13 +6,13 @@
  * render tests use, then serialized into the page Chromium lays out. The card below the header is a
  * hand-written layout fixture, not the card component.
  */
-import test, { after } from 'node:test';
+import test, { after, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { createElement } from 'react';
 // Before any jsdom global exists: the harness below installs `window`/`document` on first import.
-import { chromium } from 'playwright';
+import { chromium, type Browser } from 'playwright';
 import { visibleSections } from '../contracts/sections.js';
 
 // The CSS the renderer bundles: @jini-ai/ui's published dist, resolved as Vite resolves it. A
@@ -26,6 +26,31 @@ const UI_TABBED_DIALOG_CSS = requireFromHere.resolve('@jini-ai/ui/tabbed-dialog.
 // jsdom's visual clock keeps the process alive after the last test unless the window is closed.
 let closeHost: (() => void) | undefined;
 after(() => closeHost?.());
+
+/**
+ * Launches the Chromium these layout tests measure in, closed again when the test ends.
+ *
+ * A machine that has never run `playwright install` has no such browser. That is the one case that
+ * skips, and it says so in plain words. CI installs the browser (`.github/workflows/desktop.yml`),
+ * so there a missing one is a broken setup: the launch error is rethrown and the test fails. Any
+ * other launch failure is rethrown everywhere.
+ *
+ * @returns the browser, or `undefined` after skipping the test.
+ * @throws the launch error, unless it is a missing browser outside CI.
+ * @complexity O(1) plus the browser's own start-up.
+ */
+async function launchLayoutBrowser({ t }: { t: TestContext }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): Promise<Browser | undefined> {
+  const inCI = Boolean(env.CI) && env.CI !== 'false' && env.CI !== '0';
+  try {
+    const browser = await chromium.launch({ headless: true });
+    t.after(() => browser.close());
+    return browser;
+  } catch (error) {
+    if (inCI || !(error instanceof Error) || !error.message.includes("Executable doesn't exist")) throw error;
+    t.skip('Playwright\'s headless Chromium is not installed on this machine, so the page cannot be laid out. Run `npx playwright install --only-shell chromium` from the repo root, then run this test again.');
+    return undefined;
+  }
+}
 
 test('Websites fits at 375px with every nav control and header action inside the page', { timeout: 120_000 }, async (t) => {
   // Imported here, after the harness has registered its `.css` resolve hook and the DOM globals
@@ -57,8 +82,8 @@ test('Websites fits at 375px with every nav control and header action inside the
   // Embed the app's bundled fonts so the fit assertion includes the production text metrics.
   css = css.replace(/url\('\.\.\/(vendor\/fonts\/[^']+)'\)/g, (_match, file: string) =>
     `url('data:font/ttf;base64,${fs.readFileSync(new URL(`./public/${file}`, import.meta.url)).toString('base64')}')`);
-  const browser = await chromium.launch({ headless: true });
-  t.after(() => browser.close());
+  const browser = await launchLayoutBrowser({ t });
+  if (!browser) return;
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.route('**/*', (route) => route.abort());
   await page.setContent(`<style>${css}</style><div class="app">${nav}<main class="main">${header}
@@ -99,8 +124,8 @@ test('narrow collapsed multi-tab content fills the dialog, and the desktop singl
   const variables = fs.readFileSync(UI_VARIABLES_CSS, 'utf8');
   const sharedCss = fs.readFileSync(UI_TABBED_DIALOG_CSS, 'utf8').replace(/@import[^;]+;/g, '');
   const hostCss = fs.readFileSync(new URL('./app.css', import.meta.url), 'utf8');
-  const browser = await chromium.launch({ headless: true });
-  t.after(() => browser.close());
+  const browser = await launchLayoutBrowser({ t });
+  if (!browser) return;
   const page = await browser.newPage({ viewport: { width: 375, height: 812 } });
   await page.route('**/*', (route) => route.abort());
   await page.setContent(`<style>${variables}${sharedCss}${hostCss}</style>

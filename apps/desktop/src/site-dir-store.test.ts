@@ -661,9 +661,12 @@ test("a torn recent-sites file that cannot be moved aside is left untouched, and
 
   assert.equal(fs.readFileSync(statePath, "utf8"), torn);
   assert.deepEqual(fs.readdirSync(path.dirname(statePath)), [path.basename(statePath)], "no temp file, no aside copy, no lock left behind");
-  assert.deepEqual(errors.mock.calls.map((call) => call.arguments[0]), [
-    `tovu desktop: recent-sites list ${statePath} is unreadable and could not be moved aside (Error: EACCES: permission denied). Left untouched; nothing was written over it.`,
-  ]);
+  // Jini words the reason: its pinned release prints the error's own text, its next one a fixed label.
+  const notices = ["Error: EACCES: permission denied", "Error(EACCES)"].map((reason) =>
+    `tovu desktop: recent-sites list ${statePath} is unreadable and could not be moved aside (${reason}). Left untouched; nothing was written over it.`);
+  const logged = errors.mock.calls.map((call) => call.arguments[0]);
+  assert.equal(logged.length, 1);
+  assert.ok(notices.includes(String(logged[0])), `unexpected notice: ${String(logged[0])}`);
 });
 
 test("a recent-sites write that dies partway leaves the previous file whole", (t) => {
