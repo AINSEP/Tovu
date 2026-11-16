@@ -635,12 +635,8 @@ export async function serveVirtualPage({ req, res, deps, post }: {
   return undefined;
 }
 
-/**
- * Public site: server-rendered home and post pages through the active
- * declarative theme. Registered LAST — GET /:slug handles single-segment
- * pages; unmatched nested public paths consult redirects before the normal 404.
- */
-export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
+/** The two listing rewrites, `/_more/…` then `/page/<n>`: they run before every page route. */
+const registerListingRewrites: RouteRegistrar = ({ app }, _options = {}) => {
   // See-more batch URLs (`<page>/_more/<key>/<after>`): rewrite to the page itself so the `/` and
   // `/:slug` handlers below render it through every one of their branches unchanged (Express 4
   // re-matches the rewritten `req.url`); `finalizePublicPageHtml` then cuts out the one batch.
@@ -663,7 +659,10 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
     next();
     return undefined;
   });
+};
 
+/** `GET /`. */
+const registerHomeRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
   app.get("/", async (req, res, next) => {
     const deps = withListingBatch(appDeps, req);
     try {
@@ -675,7 +674,10 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
     }
     return undefined;
   });
+};
 
+/** Nested public paths: redirect rules, then the normal 404. */
+const registerNestedPathRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
   // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
   // nested paths so single-segment slug eligibility stays unchanged; admin/API misses stay theirs.
   app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
@@ -689,7 +691,10 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
     }
     return undefined;
   });
+};
 
+/** `GET /:slug`. */
+const registerSlugRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
   app.get("/:slug", asyncRoute({ handler: async (req, res, next) => {
     const deps = withListingBatch(appDeps, req);
     const slug = resolveRequestedSlug(req, next);
@@ -775,4 +780,17 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
       await handleSlugRouteError({ err, req, res, next, deps, theme, staticMenus, slug });
     }
   } }));
+};
+
+/**
+ * Public site: server-rendered home and post pages through the active
+ * declarative theme. Registered LAST — GET /:slug handles single-segment
+ * pages; unmatched nested public paths consult redirects before the normal 404.
+ */
+export const registerSiteRoutes: RouteRegistrar = (required, _options = {}) => {
+  // The order is the route table: the rewrites first, then `/`, nested paths, `/:slug`.
+  registerListingRewrites(required, {});
+  registerHomeRoute(required, {});
+  registerNestedPathRoute(required, {});
+  registerSlugRoute(required, {});
 };

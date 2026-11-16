@@ -132,3 +132,7 @@ listingPageRequestOf	pages/listing/listing-state.ts
 StaticTierDocumentInput	pages/static-tier.ts
 prepareStaticTierHtml	pages/static-tier.ts
 resolveStaticTierData	pages/static-tier.ts
+registerListingRewrites	pages/handlers/listing.ts
+registerHomeRoute	pages/handlers/home.ts
+registerNestedPathRoute	pages/handlers/slug-routes.ts
+registerSlugRoute	pages/handlers/slug-routes.ts
