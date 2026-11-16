@@ -1,0 +1,12 @@
+const ts = require('/opt/node-tools/node_modules/typescript');
+const fs = require('fs');
+const file = process.argv[2]; const min = Number(process.argv[3] || 51);
+const text = fs.readFileSync(file, 'utf8');
+const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+const lines = text.split('\n');
+const codeLines = (a, b) => { let n = 0, inBlock = false; for (let i = a; i <= b; i++) { const t = lines[i].trim(); if (inBlock) { if (t.includes('*/')) inBlock = false; continue; } if (!t) continue; if (t.startsWith('//')) continue; if (t.startsWith('/*')) { if (!t.includes('*/')) inBlock = true; continue; } n++; } return n; };
+const out = []; let total = 0;
+const nameOf = (n) => n.name && n.name.getText(sf) || (n.parent && ts.isVariableDeclaration(n.parent) && n.parent.name.getText(sf)) || (n.parent && ts.isPropertyAssignment(n.parent) && n.parent.name.getText(sf)) || '<anon>';
+const visit = (n) => { if (ts.isFunctionLike(n) && n.body) { total++; const a = sf.getLineAndCharacterOfPosition(n.getStart(sf)).line, b = sf.getLineAndCharacterOfPosition(n.end).line; const c = codeLines(a, b); if (c >= min) out.push(nameOf(n) + '@' + (a + 1) + '=' + c); } n.forEachChild(visit); };
+visit(sf);
+console.log(file.split('/').slice(-2).join('/') + ': ' + lines.length + ' lines, ' + total + ' fns, >' + (min - 1) + ': ' + (out.join(' ') || 'none'));
