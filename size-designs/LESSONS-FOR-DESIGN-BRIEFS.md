@@ -43,3 +43,6 @@ Paste these into every future split/move DESIGN brief (and executor brief):
 
 ## Added after the error-system judgment (2026-11-16)
 24. Redaction is not disclosure authorization (a scrubbed diagnostic can still leak private payloads/business facts); registrations are relations, not 1:1 tables (model cardinalities before lookup precedence); test compatibility in BOTH directions (old readers vs new responses too); lint exemptions need executable examples run against the combined rules; correlation metadata must survive consumers that rebuild a fresh Error.
+
+## Added after the publish-engine judgment (2026-11-16)
+25. Package moves: every export-map entry must exist (and build) in the commit that introduces it; universal entries must not load Node code or cross isolation domains; every prerequisite in the migration graph must already exist or be scheduled; authorization compensation (cleanup after a failed check) needs its own failure-reporting contract - never lose evidence that cleanup failed.
