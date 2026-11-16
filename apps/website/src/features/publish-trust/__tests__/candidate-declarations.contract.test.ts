@@ -31,8 +31,8 @@ test("candidate declarations preserve order across packages, with the core app.j
   assert.deepEqual(candidatePaths, ["example-first.toml", "example-second.yaml", "app.json", "example-late.yml"]);
   assert.equal(readBundledDeployWorkflowFile({ sourceRoot }), "example-deploy.yml");
   const reads: string[] = [];
-  assert.equal(await findCandidateDestination({ resolvePath: file => `/repo/${file}`, io: {
-    read: async file => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
+  assert.equal(await findCandidateDestination({ resolvePath: ({ relative: file }) => `/repo/${file}`, io: {
+    read: async ({ path: file }) => { reads.push(file); return file.endsWith("example-second.yaml") ? "TOVU_PUBLIC_URL: https://destination.example\n" : null; },
     write: async () => { throw new Error("read only"); },
   } }, { candidatePaths }), "https://destination.example");
   assert.deepEqual(reads, ["/repo/example-first.toml", "/repo/example-second.yaml"]);
@@ -79,10 +79,10 @@ test("a missing bundled root yields no hints instead of failing the composition 
 
 test('candidate discovery reads only supplied paths, with no implicit bundled manifest scan', async () => {
   const reads: string[] = [];
-  const io = { read: async (file: string) => { reads.push(file); return null; }, write: async () => assert.fail('read only') };
-  await findCandidateDestination({ io, resolvePath: file => file });
+  const io = { read: async ({ path: file }: { path: string }) => { reads.push(file); return null; }, write: async () => assert.fail('read only') };
+  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file });
   assert.deepEqual(reads, ['app.json']);
   reads.length = 0;
-  await findCandidateDestination({ io, resolvePath: file => file }, { candidatePaths: [] });
+  await findCandidateDestination({ io, resolvePath: ({ relative: file }) => file }, { candidatePaths: [] });
   assert.deepEqual(reads, []);
 });

@@ -53,8 +53,8 @@ function memoryIo(seed: Record<string, string> = {}): ProvisioningFileIo & { fil
   const files = { ...seed };
   return {
     files,
-    read: async (path) => (path in files ? files[path] : null),
-    write: async (path, contents) => {
+    read: async ({ path }) => (path in files ? files[path] : null),
+    write: async ({ path, contents }) => {
       files[path] = contents;
     },
   };

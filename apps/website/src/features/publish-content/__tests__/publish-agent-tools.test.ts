@@ -281,7 +281,7 @@ for (const failure of [null, "handshake", "provisioning"] as const) {
     const files = new Map<string, string>();
     const requests: unknown[] = [];
     const provisioning = createFileProvisioning({
-      io: { read: async path => failure === "provisioning" ? "{broken config" : files.get(path) ?? null, write: async (path, contents) => {
+      io: { read: async ({ path }) => failure === "provisioning" ? "{broken config" : files.get(path) ?? null, write: async ({ path, contents }) => {
         files.set(path, contents);
       } }, codec: COMMITTED_JSON_CODEC, path: "/test/publishing.json",
     });

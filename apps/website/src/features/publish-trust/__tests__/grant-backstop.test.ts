@@ -38,8 +38,8 @@ test("connecting never grants backstop, even when callers include raw types", as
 function connectionFixture() {
   const files = new Map<string, string>();
   const io: ProvisioningFileIo = {
-    read: async (file) => files.get(file) ?? null,
-    write: async (file, contents) => { files.set(file, contents); },
+    read: async ({ path: file }) => files.get(file) ?? null,
+    write: async ({ path: file, contents }) => { files.set(file, contents); },
   };
   const configPath = "/fixture/deploy/publish-trust.json";
   const provisioning = createFileProvisioning({ io, codec: COMMITTED_JSON_CODEC, path: configPath });
@@ -65,7 +65,7 @@ test("candidate discovery skips an existing config without a public URL", async 
   const { io, files } = connectionFixture();
   files.set("/fixture/example-one.toml", 'app = "demo"');
   files.set("/fixture/example-two.yaml", "TOVU_PUBLIC_URL: https://destination.example\n");
-  assert.equal(await findCandidateDestination({ io, resolvePath: (file) => `/fixture/${file}` }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
+  assert.equal(await findCandidateDestination({ io, resolvePath: ({ relative: file }) => `/fixture/${file}` }, { candidatePaths: ["example-one.toml", "example-two.yaml"] }), "https://destination.example");
 });
 
 test("reconnecting an unchanged grant says that nothing needs deploying", async () => {

@@ -75,11 +75,11 @@ const PUBLIC_URL_PATTERN = new RegExp(`${PUBLIC_URL_KEY}\\s*[:=]\\s*["']?(https:
 export async function findCandidateDestination(deps: {
   readonly io: ProvisioningFileIo;
   /** Absolute path for a repo-relative config file. */
-  readonly resolvePath: (relative: string) => string;
+  readonly resolvePath: (required: { relative: string }, optional?: Record<string, never>) => string;
 }, { candidatePaths = ["app.json"] }: { readonly candidatePaths?: readonly string[] } = {}): Promise<string | null> {
   for (const relative of candidatePaths) {
     if (!isContainedDeployConfigPath({ value: relative })) continue;
-    const contents = await deps.io.read(deps.resolvePath(relative));
+    const contents = await deps.io.read({ path: deps.resolvePath({ relative }) });
     if (contents !== null) {
       const found = PUBLIC_URL_PATTERN.exec(contents)?.[1];
       if (found !== undefined) return found;

@@ -67,7 +67,7 @@ export function createPublishContentModule(deps: PublishContentRouteDeps): Serve
   });
   const candidatePaths = readBundledDeployConfigCandidatePaths({ sourceRoot: bundledAgentPluginsDir() });
   const findCandidate = () =>
-    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: (relative) => path.join(repoRoot, relative) }, { candidatePaths });
+    findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(repoRoot, relative) }, { candidatePaths });
 
   return {
     name: "publish-content",

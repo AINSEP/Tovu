@@ -584,7 +584,7 @@ export function installFirstPartyToolContributors(
   const committedRoot = resolveCommittedConfigRoot();
   // Scan repo-relative configs against resolveCommittedConfigRoot, as the HTTP route does.
   // Own-server mode starts wherever Electron was opened; bare process.cwd() would scan the wrong repo.
-  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: relative => path.join(committedRoot, relative) }, { candidatePaths });
+  const findPublishCandidate = () => findCandidateDestination({ io: nodeProvisioningFileIo, resolvePath: ({ relative }) => path.join(committedRoot, relative) }, { candidatePaths });
   // One save registration routes metadata to existing domain owners; each keeps its own permission.
   contributions.contributors.register({ contribution: {
     domain: "credential-save", risk: credentialSaveDerivedRisk,

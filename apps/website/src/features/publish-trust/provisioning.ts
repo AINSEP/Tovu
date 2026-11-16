@@ -419,8 +419,8 @@ export interface ProvisioningTarget {
  *  a filesystem, and so nothing in this feature reaches for `node:fs` on its own. */
 export interface ProvisioningFileIo {
   /** File contents, or `null` when the file does not exist. */
-  read(path: string): Promise<string | null>;
-  write(path: string, contents: string): Promise<void>;
+  read(required: { path: string }, optional?: Record<string, never>): Promise<string | null>;
+  write(required: { path: string; contents: string }, optional?: Record<string, never>): Promise<void>;
 }
 
 /** Instrumentation seam for the only I/O this feature performs (Constitution Article VIII). The
@@ -525,7 +525,7 @@ export function createFileProvisioning(deps: {
   };
 
   const readGrants = async (): Promise<ProvisionedRead> => {
-    const current = grantsIn({ fileContents: await io.read(path) });
+    const current = grantsIn({ fileContents: await io.read({ path }) });
     if (current.ok) onEvent?.({ kind: "read", target, grants: current.grants.length });
     return current;
   };
@@ -533,7 +533,7 @@ export function createFileProvisioning(deps: {
   const applyEdit = async ({ edit }: { edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit }, _optional = {}): Promise<ProvisioningWrite> => {
     // One read, reused for both the parse and the re-encode: reading twice could decode one
     // version of the file and write its edit back into another.
-    const fileContents = await io.read(path);
+    const fileContents = await io.read({ path });
     const current = grantsIn({ fileContents });
     if (!current.ok) return current;
 
@@ -555,7 +555,7 @@ export function createFileProvisioning(deps: {
       onEvent?.({ kind: "error", target, reason: encoded.reason });
       return encoded;
     }
-    await io.write(path, encoded.contents);
+    await io.write({ path, contents: encoded.contents });
     onEvent?.({ kind: "write", target, grants: next.grants.length, changed: true });
     return { ok: true, grants: next.grants, changed: true, target };
   };
