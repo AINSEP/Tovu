@@ -120,21 +120,43 @@ export { resolveActiveThemeId, resolveActiveTheme };
  */
 export async function finishStaticTierDocument(
   deps: TemplateRenderDeps,
-  input: {
-    readonly theme: DiscoveredTheme;
-    readonly pageId: string;
-    readonly html: string;
-    readonly currentPath: string;
-    readonly staticMenus: StaticMenuMap | undefined;
-    readonly postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext };
-    /** The rendered post's featured image for a `{"type":"featured-image"}` marker (2026-10-05);
-     *  omitted on every surface that is not a post, which removes the marker. */
-    readonly featuredImage?: StaticFeaturedImage | null;
-    readonly postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">;
-  }
+  input: StaticTierDocumentInput
 ): Promise<string> {
   const { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess, featuredImage, postAuthor } = input;
 
+  const assembled = await prepareStaticTierHtml({ deps, theme, html, postAuthor });
+  const { menus, postPreviews, collectionLists } = await resolveStaticTierData({ deps, theme, assembled, currentPath, staticMenus, postPreviewsAccess });
+
+  return injectExtraHeadIntoStaticPage({ html: renderStaticPage({
+      theme,
+      pageId,
+      htmlOverride: assembled,
+      menus,
+      postPreviews: postPreviews?.previews,
+      postPreviewBatches: postPreviews?.batches,
+      postPreviewsPage: postPreviews?.page,
+      collectionLists,
+      featuredImage,
+      postAuthor,
+    }) ?? "", extraHead: (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head });
+}
+
+/** What {@link finishStaticTierDocument} finishes: one static-tier page of `theme`, and who is asking. */
+interface StaticTierDocumentInput {
+  readonly theme: DiscoveredTheme;
+  readonly pageId: string;
+  readonly html: string;
+  readonly currentPath: string;
+  readonly staticMenus: StaticMenuMap | undefined;
+  readonly postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext };
+  /** The rendered post's featured image for a `{"type":"featured-image"}` marker (2026-10-05);
+   *  omitted on every surface that is not a post, which removes the marker. */
+  readonly featuredImage?: StaticFeaturedImage | null;
+  readonly postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">;
+}
+
+/** Steps 1–2 of {@link finishStaticTierDocument}: partials expanded, embeds resolved, listing keys assigned. */
+async function prepareStaticTierHtml({ deps, theme, html, postAuthor }: { deps: TemplateRenderDeps } & Pick<StaticTierDocumentInput, "theme" | "html" | "postAuthor">, _optional: Record<string, never> = {}): Promise<string> {
   const expanded = expandPartials({ html: html, theme: theme });
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({ postRepo: deps.postRepo }, {}),
@@ -151,8 +173,11 @@ export async function finishStaticTierDocument(
   });
   // See-more listings get their keys here, on the one assembled document every resolver below and
   // the batch extractor (`finalizePublicPageHtml`) number the same way.
-  const assembled = assignListingKeys({ html: renderHtmlPageBody({ html: expanded, resolved }, { postAuthor }) });
+  return assignListingKeys({ html: renderHtmlPageBody({ html: expanded, resolved }, { postAuthor }) });
+}
 
+/** Steps 3–5 of {@link finishStaticTierDocument}: the menus the assembled html still names, post previews, collection lists. */
+async function resolveStaticTierData({ deps, theme, assembled, currentPath, staticMenus, postPreviewsAccess }: { deps: TemplateRenderDeps; assembled: string } & Pick<StaticTierDocumentInput, "theme" | "currentPath" | "staticMenus" | "postPreviewsAccess">, _optional: Record<string, never> = {}) {
   const knownMenuIds = new Set(Object.keys(staticMenus ?? {}));
   const missingMenuIds = Array.from(
     new Set(
@@ -174,19 +199,7 @@ export async function finishStaticTierDocument(
   // `{"type":"collection"}` marker authored in a Page/Post body or a partial resolves here too, not
   // only one hand-authored directly into a theme file.
   const collectionLists = await resolveCollectionListsForRender({ deps, html: assembled, pagePath: currentPath });
-
-  return injectExtraHeadIntoStaticPage({ html: renderStaticPage({
-      theme,
-      pageId,
-      htmlOverride: assembled,
-      menus,
-      postPreviews: postPreviews?.previews,
-      postPreviewBatches: postPreviews?.batches,
-      postPreviewsPage: postPreviews?.page,
-      collectionLists,
-      featuredImage,
-      postAuthor,
-    }) ?? "", extraHead: (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head });
+  return { menus, postPreviews, collectionLists };
 }
 
 /** Static pages and diagnostic templates share the theme's declared-script defaults. */

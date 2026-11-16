@@ -129,3 +129,6 @@ recordListingBatchRequest	pages/listing/listing-state.ts
 listingBatchRequestOf	pages/listing/listing-state.ts
 recordListingPageRequest	pages/listing/listing-state.ts
 listingPageRequestOf	pages/listing/listing-state.ts
+StaticTierDocumentInput	pages/static-tier.ts
+prepareStaticTierHtml	pages/static-tier.ts
+resolveStaticTierData	pages/static-tier.ts
