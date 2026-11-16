@@ -1,6 +1,6 @@
 # publish-p0: publish engine Phase 0, preparatory steps
 
-Status: **PARTIAL**. Done: P0.1, P0.2, P0.3. Not started: P0.5, P0.6, P0.8 (see "Next step").
+Status: **PARTIAL**. Done: P0.1, P0.2, P0.3, and 2 of the 8 function splits of P0.6. Not started: the other 6 splits, P0.5, P0.8 (see "Next step").
 Branch: Tovu `refactor/publish-p0`, from `origin/refactor/terra` @ `80b00f5b`. No Jini change was needed.
 Jini used: `refactor/terra` @ `02edbb68`, built and linked locally (`link-jini.mjs`).
 Design: `plan/publish-engine-design-2026-11-16:designs/publish-engine/DESIGN.md` (revision 2), `AMENDMENTS-B` X5, `SEQUENCE.md` H1/H8.
@@ -13,7 +13,11 @@ Design: `plan/publish-engine-design-2026-11-16:designs/publish-engine/DESIGN.md`
 | `04c25336` | P0.2 | T-FROZEN (every value of design 3.3) and T-D6 (pinned trusted-route list) |
 | `f7dce7eb` | P0.1 | Tests for the seven checks that survived the existing suites; mutation spec and runner |
 | `6fd46c35` | P0.3 | Port bag split into `tovu-publish-ports.ts`; `PublishContentDeps` / `PublishContentContributor` generic over the bag; before-save hook moved to `ports.hooks.beforeSave` |
-| (this commit) | P0.1 | T-D11c (run-scoped command key), this report, the mutation table |
+| `aa074e1b` | P0.1 | T-D11c (run-scoped command key), first report, the mutation table |
+| `08b58a3a` | P0.6 | Characterization of the file provisioning port with a codec that keeps other file content |
+| `93b99837` | P0.6 | `createFileProvisioning` split: `grantsInFile`, `readProvisionedGrants`, `applyGrantEdit` |
+| `57cfe190` | P0.6 | `buildPublishContentImportHooks` split: `planStagedImport`, `captureImportRestorePoint`, `executeConfirmedImport`; its `size-debt.json` entry deleted |
+| (this commit) | report | final report and table |
 
 ## Baseline on the unmodified tree
 
@@ -37,7 +41,7 @@ feature -> `publish-content/tovu-publish-ports` edges. Those edges are the desig
 Method: `cloud-results/publish-p0-mutation-proof.mjs` removes or inverts one check, runs the named
 test files, records the result and restores the file. Full table: `cloud-results/publish-p0-mutation-table.md`.
 
-**131 mutations: 130 red, 1 survived.** 105 are red on suites that existed before this run; 25
+**142 mutations: 140 red, 2 survived** (131 before the splits, 11 added for them). 105 are red on suites that existed before this run; 25
 are red on tests this run added. Of those 25, nine were first shown to **survive** the existing
 suites (K1b, D4c, H5, H7a, H12a, K9c, D9c, D12h, D11c); the rest are frozen values and the route
 list, which had no pin at all (F1-F7, D6a-c), or second pins of a check an existing suite also
@@ -60,14 +64,23 @@ Three rows were green on the design's candidate file and red on another existing
 names the suite that actually guards them: D12k (`backstop.l061`), D13b (`file-tree-policy.l044`),
 H12b (`publish-trust-gate`).
 
-**Survivor, recorded and not papered over. K6c**: the context check inside the peer vault's
+**Survivors, recorded and not papered over.**
+
+**D10e** (found while splitting the import ceremony; the gap predates the split): the plan step looks up
+the baseline under the staged bundle's own source principal, not the acting admin
+(`features/publish-content/gated-hooks.ts`, `planStagedImport`). Replacing it with the admin's id
+leaves the hook, execute-import, import-route, planner, zero-setup and round-trip suites green
+(91 cases). A wrong key would make every row of a second publish look like a first publish, or read
+another peer's baseline. **A test must be written before this file is touched again or moved (B02-S3).**
+
+**K6c**: the context check inside the peer vault's
 `authorize` callback (`features/publish-content/peers.ts`, `peerVault`). Every caller in the module
 builds the scope from the same constant, and when the check is gone the next step fails with the
 same typed error, so no outcome reachable through the module's exports distinguishes it. It is a
 second line behind K6d (the read-side kind/owner check, which is red). It stays in the Tovu vault
 adapter; design T-K6c is defined on that adapter's port surface and belongs to P0.7c.
 
-New test cases added: 8 + 11 + 6 + 5 + 2 + 2 = 34. No existing test was changed except the one
+New test cases added: 8 + 11 + 6 + 5 + 2 + 2 + 3 (file provisioning port) = 37. No existing test was changed except the one
 fixture line of the hook move (below). No test was deleted.
 
 ### Rows of design section 6 that cannot be written yet
@@ -113,6 +126,22 @@ Gates after P0.3: tsc root 0 errors, tsc tests 0 errors; publish-content + publi
 feature suites 1134 pass, 1 skipped (as before); publish route suites 439 pass; size, complexity
 and boundaries unchanged against base (above).
 
+## P0.6: function splits (2 of 8)
+
+Both were done characterization-first, and the mutation rows were repointed to the split code and
+re-run (a split moves the mutated text).
+
+| Function | Was | Now | Proof |
+|---|---|---|---|
+| `createFileProvisioning` (`publish-trust/provisioning.ts`) | 53 code lines, three closures | factory of about 12 lines + three module functions over one `ProvisioningFile` value built when the port is built | P6a-h all red; three of them (re-encode into other file contents, second read, write after a failed encode) had **no** failing test before `08b58a3a` |
+| `buildPublishContentImportHooks` (`publish-content/gated-hooks.ts`) | 104 lines | hooks object + plan, restore-point and execute steps; each still reads `input` when it runs | D10a-d red; D10e survives (above) |
+
+Late-read check (lesson 3) for both: every closure read only values fixed before it could run
+(`deps` fields destructured at construction; the `input` object). No read became eager.
+After both: tsc root and tests 0 errors; publish-trust + gate suites 479 pass; publish-content +
+publish route suites 929 pass, 1 skipped; `check:size` and `check:complexity` identical to base
+(with the retired debt entry removed).
+
 ## Findings (class, location, fix)
 
 1. **A host hook is not applied on one write path.** Class: the plugin before-save hook reaches
@@ -135,18 +164,20 @@ and boundaries unchanged against base (above).
 
 ## Not done
 
-- **P0.6** function splits (8 functions), **P0.5a/b** signature conversions (87 functions, about
-  39 port methods), **P0.8** file splits (7 files). None started; no partial edit is in the tree.
+- **P0.6**: six functions left (`createRepoPublishHandler`, `buildRawRowHandler`, `contributeRawFilePublish`,
+  `applyOneRow`, `applyReport`; `planPublishToPeer` stays in Tovu and is not part of the move).
+  **P0.5a/b** signature conversions (87 functions, about 39 port methods) and **P0.8** file splits
+  (7 files) are not started. No partial edit is in the tree.
 - P0.8 depends on P0.7 for three of its seven files (`peers.ts` needs `PeerStorePort`,
   `peer-transport.ts` and `file-tree-policy.ts` need their config/redact ports to end up at the
   design's target names). The four that do not are `apply-loop.ts`, `type-registry.ts` (needs P0.4
   for `registry.ts`), `planner.ts`, `provisioning.ts`.
-- The 14 `size-debt.json` entries for `publish-content/*` are untouched (P0.6/P0.8 retire them, X5 item 5).
+- 13 of the 14 `size-debt.json` entries for `publish-content/*` remain (one retired with the import-hooks split; X5 item 5).
 
 ## Next step
 
-P0.6, one commit per function, in this order (smallest blast radius first):
-`createFileProvisioning` -> `buildPublishContentImportHooks` -> `createRepoPublishHandler` ->
+First a test for D10e. Then P0.6, one commit per function, in this order (smallest blast radius first):
+`createRepoPublishHandler` ->
 `buildRawRowHandler` -> `contributeRawFilePublish` -> `applyOneRow` (free-variable check of the
 five closures first, lesson 3; the lifted functions take `{ step }`, X5 item 2) -> `applyReport`.
 Each commit deletes its `size-debt.json` rows. The mutation spec is the regression net: re-run
