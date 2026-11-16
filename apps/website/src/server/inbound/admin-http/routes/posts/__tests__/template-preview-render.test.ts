@@ -6,7 +6,7 @@ import { renderPostPreview } from "../template-preview-render.js";
 import { registerAdminPostTemplatePreviewRoute } from "../template-preview.js";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import { InMemoryTransformDefinitionRepo } from "#src/features/media/index";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
 import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
 import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 

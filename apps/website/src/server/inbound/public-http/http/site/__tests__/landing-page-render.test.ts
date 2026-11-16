@@ -9,7 +9,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
 import { renderSite } from "../render-site.js";
 
 // The Landing body the admin Interactive editor's locked script blocks (d6b6bbce6) are pinned against.

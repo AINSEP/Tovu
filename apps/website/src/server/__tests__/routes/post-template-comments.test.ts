@@ -8,7 +8,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages.js";
+import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages/template-render.js";
 
 const root = path.resolve(import.meta.dirname, "../../../../../..");
 

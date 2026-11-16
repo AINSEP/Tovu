@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildPostPreviewRegistrations } from "#src/features/post/preview-tool";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
 import { renderPostPreview } from "../../template-preview-render.js";
 import { registerAdminPostTemplatePreviewRoute } from "../../template-preview.js";
 import { postListPreviewDeps } from "../preview-fixtures.js";

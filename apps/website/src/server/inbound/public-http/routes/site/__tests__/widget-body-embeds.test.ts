@@ -8,7 +8,7 @@ import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderSite } from "#src/server/inbound/public-http/http/site/render-site";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { renderBareEntryDocument } from "#src/server/inbound/public-http/http/site/bare-page";
-import { renderViaTemplate } from "../pages.js";
+import { renderViaTemplate } from "../pages/template-render.js";
 import { finishStaticTierDocument } from "../pages/static-tier.js";
 import { resolveHtmlEmbedsForRender } from "../pages/render-context/widgets.js";
 
