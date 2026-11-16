@@ -488,12 +488,7 @@ function PostPreview({
   onToggleExpanded: () => void;
   t: Translate;
 }) {
-  // The same decision `usePostEditor` gates its auto-submit on — one shared copy in `rules.ts`, see
-  // `resolvePostPreviewBranches`. `PostPreviewFrame` needs only the first two flags: the
-  // pending-content surface is its unconditional final case.
-  const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, scheduled, dirty, contentDirty });
-  // Component-scoped like `ThemeExplorePreview`'s: the frame mounts/unmounts with this tab.
-  const { frameRef, paneWidth } = usePreviewPaneWidth();
+  const { canShowLiveSite, canShowTemplatePreview, frameRef, paneWidth } = usePostPreviewSource({ status, scheduled, dirty, contentDirty });
 
   // Keep the guard in the preview owner, after hooks so first Save can reveal the server frame.
   if (!postId) return <p className="notice" role="status">{t("Save this post to preview it.")}</p>;
@@ -521,11 +516,33 @@ function PostPreview({
     </>
   );
 
+  const fab = <PostPreviewFab expanded={expanded} onToggleExpanded={onToggleExpanded} t={t} />;
+
+  // Collapsed: the pane plus the control, wrapped in `.post-preview-surface` — that wrapper is the
+  // `position: relative` ancestor the fab's `position: absolute` resolves against (`editor.css`), so
+  // the fab must stay inside it. Same wrapper in the expanded branch below, for the same reason.
+  if (!expanded) return <div className="post-preview-surface">{pane}{fab}</div>;
+
+  // Expanded: `.post-preview-expanded` (`styles/editor.css`) is `position: absolute; inset: 0`
+  // against `.admin-main-col` — see that rule's own comment for the full containment argument (why
+  // this covers only the admin content column, never `.admin-chat-dock`). The same `fab` rides along
+  // inside the panel, in the same corner of the same surface, as the always-visible way back out.
+  return (
+    <div className="post-preview-expanded">
+      <div className="post-preview-surface">
+        {pane}
+        {fab}
+      </div>
+    </div>
+  );
+}
+
   // ONE control for both directions, in the same place either way — the way out of the expanded
   // panel must always be visible on screen (the earlier overlay attempt died on an operator who
   // could not find it). The glyph is `aria-hidden`, so `aria-label` is the ONLY thing telling a
   // screen reader or `page.find_elements` which way this goes; keep the two names distinct.
-  const fab = (
+function PostPreviewFab({ expanded, onToggleExpanded, t }: { expanded: boolean; onToggleExpanded: () => void; t: Translate }) {
+  return (
     <button
       type="button"
       className="post-preview-fab"
@@ -562,22 +579,30 @@ function PostPreview({
       <span aria-hidden="true">{expanded ? "\u2921" : "\u2922"}</span>
     </button>
   );
-
-  // Collapsed: the pane plus the control, wrapped in `.post-preview-surface` — that wrapper is the
-  // `position: relative` ancestor the fab's `position: absolute` resolves against (`editor.css`), so
-  // the fab must stay inside it. Same wrapper in the expanded branch below, for the same reason.
-  if (!expanded) return <div className="post-preview-surface">{pane}{fab}</div>;
-
-  // Expanded: `.post-preview-expanded` (`styles/editor.css`) is `position: absolute; inset: 0`
-  // against `.admin-main-col` — see that rule's own comment for the full containment argument (why
-  // this covers only the admin content column, never `.admin-chat-dock`). The same `fab` rides along
-  // inside the panel, in the same corner of the same surface, as the always-visible way back out.
-  return (
-    <div className="post-preview-expanded">
-      <div className="post-preview-surface">
-        {pane}
-        {fab}
-      </div>
-    </div>
-  );
 }
+
+
+/**
+ * The preview's data source: which surface to show (`resolvePostPreviewBranches`) and the measured
+ * pane the device frame scales into. Called above `PostPreview`'s early return, as before.
+ */
+function usePostPreviewSource({
+  status,
+  scheduled,
+  dirty,
+  contentDirty,
+}: {
+  status: "draft" | "published";
+  scheduled: boolean;
+  dirty: boolean;
+  contentDirty: boolean;
+}) {
+  // The same decision `usePostEditor` gates its auto-submit on — one shared copy in `rules.ts`, see
+  // `resolvePostPreviewBranches`. `PostPreviewFrame` needs only the first two flags: the
+  // pending-content surface is its unconditional final case.
+  const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, scheduled, dirty, contentDirty });
+  // Component-scoped like `ThemeExplorePreview`'s: the frame mounts/unmounts with this tab.
+  const { frameRef, paneWidth } = usePreviewPaneWidth();
+  return { canShowLiveSite, canShowTemplatePreview, frameRef, paneWidth };
+}
+
