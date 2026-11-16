@@ -80,7 +80,7 @@ import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/bootstrap";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/contracts";
 import { resolveSiteTitle } from "#src/features/settings/site-title";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
-import { renderSite } from "../../http/site/render.js";
+import { renderSite } from "../../http/site/render-site.js";
 import { decodeFormSubmissionResultFromQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, mergeFormFlashIntoResult, FORM_FLASH_COOKIE_NAME, type FormSubmissionRedirectResult } from "../../http/site/form-render.js";
 import type { MediaAssetRenderMeta } from "../../http/site/render-context.js";
 import { featuredImageView } from "../../http/site/render/template-render-data.js";

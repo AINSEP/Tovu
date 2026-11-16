@@ -3,7 +3,7 @@ import { reportServerFailure } from "#src/server/inbound/admin-http/routes/syste
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
-import { renderSite } from "../../http/site/render.js";
+import { renderSite } from "../../http/site/render-site.js";
 import type { SiteProduct } from "../../http/site/render-context.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest, resolveSiteTitleForRender, resolveSiteAssistantWidgetForRequest } from "./pages.js";

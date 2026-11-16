@@ -5,7 +5,7 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
-import { renderSite } from "../render.js";
+import { renderSite } from "../render-site.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run

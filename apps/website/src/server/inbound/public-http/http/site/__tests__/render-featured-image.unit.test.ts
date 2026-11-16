@@ -6,7 +6,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 
 import { runHandlebarsRender } from "../handlebars-render.js";
 import { runLiquidRender } from "../liquid-render.js";
-import { renderSite } from "../render.js";
+import { renderSite } from "../render-site.js";
 import type { MediaAssetRenderMeta, SiteRenderContext } from "../render-context.js";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
 import { renderHtmlPageBody } from "../render/page-body.js";

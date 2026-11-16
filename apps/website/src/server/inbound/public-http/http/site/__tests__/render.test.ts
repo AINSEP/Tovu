@@ -8,7 +8,7 @@ import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { renderSite } from "../render.js";
+import { renderSite } from "../render-site.js";
 import { decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormSubmissionRedirectResult, type FormFlashPayload } from "../form-render.js";
 import type { MediaAssetRenderMeta, SiteProduct, SiteRenderContext } from "../render-context.js";
 import { renderBlockSeam } from "../render/blocks.js";

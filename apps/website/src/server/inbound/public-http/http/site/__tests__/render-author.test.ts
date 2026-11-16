@@ -4,7 +4,7 @@ import test from "node:test";
 import { loadTheme } from "#src/features/theme/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { injectPostAuthor } from "#src/features/theme/static-render";
-import { renderSite } from "../render.js";
+import { renderSite } from "../render-site.js";
 import { renderHtmlPageBody } from "../render/page-body.js";
 
 const root = path.resolve(import.meta.dirname, "../../../../../../../../../");

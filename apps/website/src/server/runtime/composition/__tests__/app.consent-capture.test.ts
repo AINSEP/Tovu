@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createRouteDeps } from '../app.js';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { consentFixture } from '#src/features/consent/__tests__/fixture';
-import { renderSite } from '#src/server/inbound/public-http/http/site/render';
+import { renderSite } from '#src/server/inbound/public-http/http/site/render-site';
 import { siteConsentDocumentAssets } from '#src/server/inbound/public-http/middleware/site-cookie-consent';
 
 /**
