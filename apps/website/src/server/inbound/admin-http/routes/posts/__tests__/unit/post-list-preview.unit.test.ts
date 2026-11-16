@@ -19,7 +19,7 @@ function listedSlugs(html: string): string[] {
 
 test("draft homepage preview resolves an unsaved 24-post listing and its See more button without writes", async () => {
   const { deps, post, repo, writes } = postListPreviewDeps({ count: 25, slug: "/" });
-  const preview = await renderPostPreview(deps, { post, bodyHtml: PENDING_BODY });
+  const preview = await renderPostPreview({ deps, input: { post, bodyHtml: PENDING_BODY } });
   assert.deepEqual(listedSlugs(preview.html), Array.from({ length: 24 }, (_, i) => `listed-${i}`));
   assert.match(preview.html, /<button[^>]+data-jini-more="1"[^>]+data-jini-more-href="\/_more\/1\/24"[^>]*>See more<\/button>/);
   assert.match(preview.html, /data-jini-see-more-script/);
@@ -31,7 +31,7 @@ test("draft homepage preview resolves an unsaved 24-post listing and its See mor
 
 test("a full final 24-post batch has no See more button", async () => {
   const { deps, post, writes } = postListPreviewDeps({ count: 24, slug: "writing" });
-  const { html } = await renderPostPreview(deps, { post, bodyHtml: MORE_LIST });
+  const { html } = await renderPostPreview({ deps, input: { post, bodyHtml: MORE_LIST } });
   assert.equal(listedSlugs(html).length, 24);
   assert.doesNotMatch(html, /<button[^>]+data-jini-more=/);
   assert.equal(writes(), 0);
@@ -42,7 +42,7 @@ test("preview without a post-list keeps the existing output and performs no list
   deps.postRepo.listPublishedPreviews = async () => { throw new Error("unexpected listing read"); };
   const bodyHtml = "<p>Unsaved page without a listing</p>";
   const previous = await renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyJson: undefined, pendingBodyHtml: bodyHtml });
-  const preview = await renderPostPreview(deps, { post, bodyHtml });
+  const preview = await renderPostPreview({ deps, input: { post, bodyHtml } });
   assert.equal(preview.html, previous);
   assert.match(preview.html, /Unsaved page without a listing/);
   assert.doesNotMatch(preview.html, /data-jini-more/);
@@ -62,7 +62,7 @@ test("preview fills a batch after excluding gated, corrupt, draft, scheduled and
   const repo = new InMemoryPostRepo({}, { initialRows: [post, ...excluded, ...posts] });
   deps.postRepo.listPublishedPreviews = input => repo.listPublishedPreviews(input);
   deps.memberSessionRepo.findByTokenHash = async () => { throw new Error("preview must not read a member session"); };
-  const { html } = await renderPostPreview(deps, { post, bodyHtml: MORE_LIST });
+  const { html } = await renderPostPreview({ deps, input: { post, bodyHtml: MORE_LIST } });
   assert.deepEqual(listedSlugs(html), Array.from({ length: 24 }, (_, i) => `listed-${i}`));
   assert.doesNotMatch(html, /href="\/hidden-|Hidden \d/);
   assert.match(html, /data-jini-more-href="\/writing\/_more\/1\/28"/);
@@ -75,7 +75,7 @@ test("preview resolves plain, keyed and paged listings from the same assembled d
   theme.partials.nav = MORE_LIST;
   theme.pages.page = `<html><body><div data-embed-config='{"type":"partial","id":"nav"}'></div><div data-embed-config='{"type":"post-previews","limit":1}'>Plain placeholder</div><main data-embed-config='{"type":"content"}'></main></body></html>`;
   const bodyHtml = `<div data-embed-config='{"type":"post-previews","limit":2,"paged":true}'>Paged placeholder</div>`;
-  const { html } = await renderPostPreview(deps, { post, bodyHtml });
+  const { html } = await renderPostPreview({ deps, input: { post, bodyHtml } });
   assert.deepEqual(listedSlugs(html), [
     ...Array.from({ length: 24 }, (_, i) => `listed-${i}`), "listed-0", "listed-0", "listed-1",
   ]);
@@ -137,7 +137,7 @@ test("preview preserves keyed listing numbers and JSON card batch URLs", async (
   const { deps, post, writes } = postListPreviewDeps({ count: 25, slug: "writing" });
   const card = `<template data-jini-card><article><a data-field-href="href" data-field="title"></a></article></template>`;
   const jsonList = `<section data-jini-see-more data-embed-config='{"type":"post-previews","limit":2}'>${card}JSON placeholder</section>`;
-  const { html } = await renderPostPreview(deps, { post, bodyHtml: MORE_LIST + jsonList });
+  const { html } = await renderPostPreview({ deps, input: { post, bodyHtml: MORE_LIST + jsonList } });
   assert.deepEqual(listedSlugs(html), [...Array.from({ length: 24 }, (_, i) => `listed-${i}`), "listed-0", "listed-1"]);
   assert.match(html, /data-jini-more="1" data-jini-more-href="\/writing\/_more\/1\/24"/);
   assert.match(html, /data-jini-more="2" data-jini-more-href="\/writing\/_more\/2\/2\.json"/);
@@ -148,7 +148,7 @@ test("preview preserves keyed listing numbers and JSON card batch URLs", async (
 
 test("preview with no published posts retains the authored listing fallback", async () => {
   const { deps, post, writes } = postListPreviewDeps({ count: 0, slug: "writing" });
-  const { html } = await renderPostPreview(deps, { post, bodyHtml: MORE_LIST });
+  const { html } = await renderPostPreview({ deps, input: { post, bodyHtml: MORE_LIST } });
   assert.deepEqual(listedSlugs(html), []);
   assert.match(html, /List placeholder/);
   assert.doesNotMatch(html, /<button[^>]+data-jini-more=/);
@@ -159,7 +159,7 @@ test("listing read failures propagate without saving the pending preview", async
   const { deps, post, repo, writes } = postListPreviewDeps({ count: 25, slug: "writing" });
   const outage = new Error("listing store unavailable");
   deps.postRepo.listPublishedPreviews = async () => { throw outage; };
-  await assert.rejects(renderPostPreview(deps, { post, bodyHtml: PENDING_BODY }), error => error === outage);
+  await assert.rejects(renderPostPreview({ deps, input: { post, bodyHtml: PENDING_BODY } }), error => error === outage);
   assert.deepEqual(await repo.findById({ workspaceId: "w", id: post.id }), post);
   assert.equal(writes(), 0);
 });

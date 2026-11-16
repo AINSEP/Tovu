@@ -13,7 +13,7 @@ import { readPostTemplateOptions, type PostTemplateDeps } from "./template-optio
 export interface PostPreviewToolDeps extends PostTemplateDeps { authorize: AuthorizeFn; postRepo: PostRepoPort }
 export interface PostPreviewInput { post: PostRecord; templateChoice?: string | null; bodyJson?: JsonObject; bodyHtml?: string }
 export interface PostPreviewRenderer {
-  renderPostPreview(deps: PostPreviewToolDeps, input: PostPreviewInput): Promise<{ html: string; templateChoice: string | null }>;
+  renderPostPreview({ deps, input }: { deps: PostPreviewToolDeps; input: PostPreviewInput }, optional?: Record<string, never>): Promise<{ html: string; templateChoice: string | null }>;
 }
 export const postPreviewAgentToolCatalog = [{
   name: "content_post_preview",
@@ -72,7 +72,7 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
         if (error instanceof PostNotFoundError) throw new ToolInputError({ message: `content_post_preview: no post or page with id or slug '${postId}'. Use content_read.content_post to find it.` });
         throw error;
       }
-      const rendered = await renderer.renderPostPreview(deps, { post, ...overrides });
+      const rendered = await renderer.renderPostPreview({ deps, input: { post, ...overrides } });
       const availableTemplates = await readPostTemplateOptions({ deps, kind: post.kind });
       const shaped: ShapedPageBody = shapePageBody({ body: rendered.html, options });
       return { postId: post.id, title: post.title, status: post.status, templateChoice: rendered.templateChoice, availableTemplates, ...shaped };

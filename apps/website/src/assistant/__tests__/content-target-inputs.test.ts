@@ -25,7 +25,7 @@ test("shared content target input resolves preview slug, root id, and legacy pos
   const { deps, writes } = bareDeps([{ ...barePost, slug: "/" }]);
   const rendered: string[] = [];
   const registrations = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, {
-    renderPostPreview: async (_deps, { post }) => { rendered.push(post.id); return { html: "<p>Home</p>", templateChoice: "" }; },
+    renderPostPreview: async ({ input: { post } }) => { rendered.push(post.id); return { html: "<p>Home</p>", templateChoice: "" }; },
   }) });
   const registration = applyBatchInputs({ registrations })[0]!;
   const input = { items: [{ slug: "/" }, { id: "/" }, { postId: "/" }, { id: "missing" }, { id: barePost.id, invented: true }] };

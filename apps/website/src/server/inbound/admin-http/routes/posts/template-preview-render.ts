@@ -130,9 +130,9 @@ function resolvePreviewBodyOverrides(
  * template-selection meanings. Unsaved body fields override this render only.
  * @throws TemplatePreviewRenderError when a theme is unavailable for a template preview.
  * @complexity One bounded page render plus the existing theme, embed and menu repository reads.
- * @example await renderPostPreview(deps, { post, templateChoice: "article.html", bodyJson: pending });
+ * @example await renderPostPreview({ deps, input: { post, templateChoice: "article.html", bodyJson: pending } });
  */
-export async function renderPostPreview(deps: ContentRouteDeps, input: PostPreviewRenderInput): Promise<PostPreviewRenderResult> {
+export async function renderPostPreview({ deps, input }: { deps: ContentRouteDeps; input: PostPreviewRenderInput }, _optional = {}): Promise<PostPreviewRenderResult> {
   const post = input.post;
   const overrideTemplateChoice = input.templateChoice === undefined ? post.templateChoice ?? null : input.templateChoice;
   const pendingBodyJson = input.bodyJson;

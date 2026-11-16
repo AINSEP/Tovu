@@ -13,7 +13,7 @@ import { bareDeps, barePost } from "./preview-fixtures.js";
 test("real extracted renderer serves an unpublished bare page and pending body without changing the row", async () => {
   const { deps, repo, writes } = bareDeps();
   const bodyHtml = '<!doctype html><html><body><p>Pending draft</p></body></html>';
-  assert.deepEqual(await renderPostPreview(deps, { post: barePost, bodyHtml }), { html: bodyHtml, templateChoice: '' });
+  assert.deepEqual(await renderPostPreview({ deps, input: { post: barePost, bodyHtml } }), { html: bodyHtml, templateChoice: '' });
   assert.deepEqual(await repo.findById({ workspaceId: 'w', id: 'draft-1' }), barePost);
   assert.equal(writes(), 0);
 });
@@ -26,7 +26,7 @@ test("extracted rendering is byte-identical to the old route output for the same
   await handler!({ params: { workspaceId: 'w', postId: 'draft-1' }, query: { templateChoice: '' }, body: {} }, response);
   assert.equal(status, 200); assert.equal(headers['Cache-Control'], 'no-store');
   assert.equal(output, '<!doctype html><html><body><p>Saved draft</p></body></html>');
-  assert.equal((await renderPostPreview(deps, { post: barePost, templateChoice: '' })).html, output);
+  assert.equal((await renderPostPreview({ deps, input: { post: barePost, templateChoice: '' } })).html, output);
 });
 test("theme rendering keeps draft content, applies pending edits and never changes the saved template or body", async () => {
   const post = { ...barePost, kind: 'post' as const, bodyFormat: 'doc' as const, bodyHtml: null,
@@ -41,11 +41,11 @@ test("theme rendering keeps draft content, applies pending edits and never chang
   } as unknown as DiscoveredTheme];
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: 'w', activeThemeId: 'preview-theme', updatedAt: post.updatedAt }] });
   const pending = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Pending edit' }] }] };
-  const saved = await renderPostPreview(deps, { post });
+  const saved = await renderPostPreview({ deps, input: { post } });
   assert.equal(saved.templateChoice, 'saved.html');
   assert.match(saved.html, /data-template="saved"/);
   assert.match(saved.html, /Saved draft/);
-  const rendered = await renderPostPreview(deps, { post, templateChoice: 'pending.html', bodyJson: pending, bodyHtml: '<p>Ignored HTML for doc</p>' });
+  const rendered = await renderPostPreview({ deps, input: { post, templateChoice: 'pending.html', bodyJson: pending, bodyHtml: '<p>Ignored HTML for doc</p>' } });
   assert.equal(rendered.templateChoice, 'pending.html');
   assert.match(rendered.html, /data-template="pending"/);
   assert.match(rendered.html, /Pending edit/);
@@ -57,7 +57,7 @@ test("theme rendering keeps draft content, applies pending edits and never chang
 test("the extracted renderer preserves the route's actionable no-theme error", async () => {
   const { deps } = bareDeps();
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: 'w', activeThemeId: NO_THEME_ID, updatedAt: barePost.updatedAt }] });
-  await assert.rejects(renderPostPreview(deps, { post: { ...barePost, templateChoice: 'page.html' } }), {
+  await assert.rejects(renderPostPreview({ deps, input: { post: { ...barePost, templateChoice: 'page.html' } } }), {
     name: 'TemplatePreviewRenderError', status: 409,
     message: 'this site has no active theme, so there is no template to preview — activate a theme to use the template picker',
   });
@@ -66,14 +66,14 @@ test("the extracted renderer preserves the route's actionable no-theme error", a
 test("a template preview on a site whose stored active theme resolves to nothing installed is a 500 'no themes installed'", async () => {
   const { deps } = bareDeps();
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: 'w', activeThemeId: 'uninstalled-theme', updatedAt: barePost.updatedAt }] });
-  await assert.rejects(renderPostPreview(deps, { post: { ...barePost, templateChoice: 'page.html' } }), {
+  await assert.rejects(renderPostPreview({ deps, input: { post: { ...barePost, templateChoice: 'page.html' } } }), {
     name: 'TemplatePreviewRenderError', status: 500, message: 'no themes installed',
   });
 });
 
 test("a bare page preview reports its template choice as the empty string it was selected by", async () => {
   const { deps } = bareDeps();
-  const result = await renderPostPreview(deps, { post: barePost, bodyHtml: '<p>Pending</p>' });
+  const result = await renderPostPreview({ deps, input: { post: barePost, bodyHtml: '<p>Pending</p>' } });
   assert.equal(result.templateChoice, '');
   assert.match(result.html, /Pending/);
 });
@@ -102,12 +102,12 @@ test("postpolish: public static render and editor preview share saved cover choi
   for (const variant of [post, { ...post, ext: { "post-presentation": { hideCoverImageInBody: false } } }, { ...post, featuredMediaId: assetId }]) {
     await repo.save(variant);
     const publicHtml = await renderViaTemplate({ deps, theme, post: variant, staticMenus: undefined });
-    const preview = await renderPostPreview(deps, { post: variant });
+    const preview = await renderPostPreview({ deps, input: { post: variant } });
     assert.equal(preview.html, publicHtml);
     assert.equal((publicHtml.match(/<img /g) ?? []).length, variant.ext || variant.featuredMediaId ? 3 : 2);
   }
   const pending = { type: "doc", content: [image("Pending cover"), image("Pending repeat")] };
-  const preview = await renderPostPreview(deps, { post, bodyJson: pending });
+  const preview = await renderPostPreview({ deps, input: { post, bodyJson: pending } });
   assert.equal((preview.html.match(/alt="Pending cover"/g) ?? []).length, 1);
   assert.ok(preview.html.includes('alt="Pending repeat"'));
   assert.doesNotMatch(preview.html, /Saved cover/);
@@ -136,13 +136,13 @@ test("TW2 themed preview preserves saved and pending bodies across format and pu
     const { deps, repo, writes } = bareDeps([post]);
     deps.themes = [theme];
     deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: "pin-theme", updatedAt: post.updatedAt }] });
-    const saved = await renderPostPreview(deps, { post });
+    const saved = await renderPostPreview({ deps, input: { post } });
     if (bodyFormat === "doc" || bodyHtml !== null) assert.match(saved.html, /Saved body pin/);
     else assert.doesNotMatch(saved.html, /Saved body pin/);
-    const pending = await renderPostPreview(deps, { post, bodyJson: pendingJson, bodyHtml: "<p>Pending body pin</p>" });
+    const pending = await renderPostPreview({ deps, input: { post, bodyJson: pendingJson, bodyHtml: "<p>Pending body pin</p>" } });
     assert.match(pending.html, /Pending body pin/);
     assert.doesNotMatch(pending.html, /Saved body pin/);
-    const empty = await renderPostPreview(deps, { post, bodyJson: { type: "doc", content: [] }, bodyHtml: "" });
+    const empty = await renderPostPreview({ deps, input: { post, bodyJson: { type: "doc", content: [] }, bodyHtml: "" } });
     assert.doesNotMatch(empty.html, /Saved body pin|Pending body pin/);
     assert.equal(empty.templateChoice, "article.html");
     assert.deepEqual(await repo.findById({ workspaceId: "w", id: post.id }), post);
@@ -214,7 +214,7 @@ test("assigned menu links match in editor preview and the public template pipeli
   await deps.navLocationBindingRepo.upsert({ workspaceId: "w", locationKey: "primary", menuId: "assigned", boundAt: post.updatedAt });
   const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/draft-slug" });
   const publicHtml = await renderViaTemplate({ deps, theme, post, staticMenus: menus });
-  const preview = await renderPostPreview(deps, { post });
+  const preview = await renderPostPreview({ deps, input: { post } });
   assert.equal(preview.html, publicHtml);
   assert.match(publicHtml, /href="\/assigned-link"/);
 });

@@ -12,7 +12,7 @@ function context(input: unknown) { return { principal: { id: 'p' }, input, signa
 test("preview passes unsaved fields, shapes the page and is readOnly with no repo writes", async () => {
   const { deps, repo, writes } = bareDeps();
   const bodyJson = { type: 'doc', content: [] }; let received: unknown;
-  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview: async (_deps, input) => { received = input; return { html: '<style>hidden</style><p>Needle &amp; Pending</p>', templateChoice: 'other.html' }; } }) })[0]!;
+  const registration = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview: async ({ input }) => { received = input; return { html: '<style>hidden</style><p>Needle &amp; Pending</p>', templateChoice: 'other.html' }; } }) })[0]!;
   assert.equal(registration.descriptor.readOnly, true); assert.equal(postPreviewDerivedRisk.get('content_post_preview'), 'none');
   const result = await registration.handler(context({ postId: 'draft-slug', templateChoice: 'other.html', bodyJson, bodyHtml: '<p>pending</p>', find: 'needle', textOnly: true }));
   assert.deepEqual(received, { post: barePost, templateChoice: 'other.html', bodyJson, bodyHtml: '<p>pending</p>' });
@@ -41,7 +41,7 @@ test("unknown posts and invalid optional inputs are actionable refusals", async 
 test("preview body output strips before capping and preserves explicit empty unsaved fields", async () => {
   const { deps, writes } = bareDeps();
   const received: unknown[] = [];
-  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview: async (_deps, input) => {
+  const registration = buildPostPreviewRegistrations(deps, { renderPostPreview: async ({ input }) => {
     received.push(input);
     return { html: '<script>' + 'hidden'.repeat(100) + '</script><p>Hello there</p>', templateChoice: '' };
   } })[0]!;
@@ -86,7 +86,7 @@ test("L156 preview rejects every malformed override before authorization and kee
   let reads = 0;
   const registration = buildPostPreviewRegistrations({ ...deps, authorize: async () => {
     reads++; return { allowed: true, reason: "test" };
-  } }, { renderPostPreview: async (_deps, input) => {
+  } }, { renderPostPreview: async ({ input }) => {
     assert.deepEqual(Object.keys(input), ["post"]);
     return { html: "", templateChoice: null };
   } })[0]!;

@@ -209,10 +209,10 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = ({ a
       // existed" behavior this file's header promises for `GET`.
       const pendingBodyJson = extractPendingBodyJson({ body: req.body });
       const pendingBodyHtml = extractPendingBodyHtml({ body: req.body });
-      const { html } = await renderPostPreview(deps, {
+      const { html } = await renderPostPreview({ deps, input: {
         post, templateChoice: overrideTemplateChoice,
         bodyJson: pendingBodyJson, bodyHtml: pendingBodyHtml,
-      });
+      } });
 
       // Never cached: re-requested on every template selection, and a cached response would show
       // the operator a stale template and read as "the picker did nothing" — the exact bug this

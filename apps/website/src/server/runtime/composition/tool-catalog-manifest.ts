@@ -487,8 +487,8 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: { ...agentPluginsInstall, build: (deps, surfaces) => agentPluginsInstall.build({ ...deps, bundledAgentPluginsSourceRoot: bundledAgentPluginsDir() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
-  contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
-    try { return await renderPostPreview(deps as Parameters<typeof renderPostPreview>[0], input); }
+  contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async ({ deps, input }) => {
+    try { return await renderPostPreview({ deps: deps as Parameters<typeof renderPostPreview>[0]["deps"], input }); }
     catch (error) {
       if (error instanceof TemplatePreviewRenderError) throw new ToolInputError({ message: `content_post_preview: ${error.message}` });
       throw error;
