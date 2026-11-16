@@ -701,6 +701,7 @@ const REVIEWED_IMPORT_PAIRS = [
   ["server/inbound/admin-http/routes/media/upload.ts", "features/media/document-archive.ts"],
   ["server/inbound/assistant/agent-daemon-server.ts", "features/media/document-archive.ts"],
   ["server/inbound/public-http/http/site/render.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/doc/media-tags.ts", "features/media/public-path.ts"],
   ["features/deployments/static-publish/adapter.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/static-security-headers.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher-html.ts"],
