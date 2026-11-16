@@ -125,7 +125,7 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   const base = createRouteDeps();
   await base.identityReady;
   const audits: Array<Record<string, unknown>> = [];
-  const activeAudit = new SqliteToolAttemptAuditSink(a.kernel);
+  const activeAudit = new SqliteToolAttemptAuditSink({ store: a.kernel });
   const toolAttemptAuditSink: ToolAttemptAuditSink = { append: async (required, optional) => {
     audits.push({ ...required, ...optional });
     await activeAudit.append(required, optional);

@@ -24,7 +24,7 @@ export interface RenderableTheme { manifest: { id: string }; status: string }
  * `optional.consentAudit` leaves out the cookie consent layer. */
 export type OpenLoopbackSite = (required: {}, optional: { themeId?: string; consentAudit?: true }) => Promise<OwnSiteServer>;
 
-function refusal(message: string): ToolInputError {
+function refusal({ message }: { message: string }, _optional = {}): ToolInputError {
   return new ToolInputError({ message: `${WEB_SCREENSHOT_TOOL_ID}: ${message}` });
 }
 
@@ -41,9 +41,9 @@ export function createOwnSiteOpener({ themes, openLoopback }: { themes: readonly
     const theme = themes.find((candidate) => candidate.manifest.id === themeId);
     if (!theme) {
       const installed = themes.filter((candidate) => candidate.status === "valid").map((candidate) => candidate.manifest.id);
-      throw refusal(`themeId '${themeId}' is not an installed theme. Installed themes: ${installed.join(", ") || "none"}.`);
+      throw refusal({ message: `themeId '${themeId}' is not an installed theme. Installed themes: ${installed.join(", ") || "none"}.` });
     }
-    if (theme.status !== "valid") throw refusal(`themeId '${themeId}' is installed but invalid (it fails theme validation), so the site would render a different theme instead. Fix the theme first.`);
+    if (theme.status !== "valid") throw refusal({ message: `themeId '${themeId}' is installed but invalid (it fails theme validation), so the site would render a different theme instead. Fix the theme first.` });
     return openLoopback({}, { themeId, consentAudit: true });
   };
 }

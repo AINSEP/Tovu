@@ -70,7 +70,7 @@ export const IDLE_CLOSE_MS = 60_000;
  * page with CSS `scroll-behavior: smooth` otherwise animates each jump and never gets far. A string,
  * so no page-side function crosses the boundary; ~10 steps of 150 ms at the 8000 px cap.
  */
-const scrollThroughExpression = (cap: number) =>
+const scrollThroughExpression = ({ cap }: { cap: number }, _optional = {}) =>
   `(async () => { const end = Math.min(document.documentElement.scrollHeight, ${cap}); ` +
   `for (let y = 0; y < end; y += window.innerHeight) { window.scrollTo({ top: y, behavior: "instant" }); await new Promise((r) => setTimeout(r, 150)); } ` +
   `window.scrollTo({ top: 0, behavior: "instant" }); await new Promise((r) => setTimeout(r, 300)); })()`;
@@ -92,7 +92,7 @@ async function loadPlaywrightLauncher(): Promise<CaptureBrowserLauncher> {
   return { launch: (options) => chromium.launch({ ...options }) as Promise<CaptureBrowser> };
 }
 
-function clampHeight(raw: unknown, fallback: number): number {
+function clampHeight({ raw, fallback }: { raw: unknown; fallback: number }, _optional = {}): number {
   return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? Math.ceil(raw) : fallback;
 }
 
@@ -131,9 +131,9 @@ export function createPlaywrightPageCapture(
         browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
         url: request.url,
         consume: async ({ page, response, finalUrl, budget }) => {
-          if (request.fullPage) await budget.run({ work: () => page.evaluate(scrollThroughExpression(request.maxPageHeightPx)) }).catch(error => { if (error instanceof PageWorkTimeout) throw error; });
+          if (request.fullPage) await budget.run({ work: () => page.evaluate(scrollThroughExpression({ cap: request.maxPageHeightPx })) }).catch(error => { if (error instanceof PageWorkTimeout) throw error; });
           const pageHeight = request.fullPage
-            ? clampHeight(await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") }), viewport.height)
+            ? clampHeight({ raw: await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") }), fallback: viewport.height })
             : viewport.height;
           const capturedHeight = Math.min(pageHeight, request.fullPage ? request.maxPageHeightPx : viewport.height);
           if (!page.screenshot) throw new Error("Browser cannot take screenshots");
@@ -151,7 +151,7 @@ export function createPlaywrightPageCapture(
     } catch (error) {
       if (error instanceof PageWorkTimeout) throw new PageCaptureError({ kind: "timeout", message: `exceeded ${deadlineMs}ms` });
       if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
-      throw new PageCaptureError({ kind: "failed", message: navigationErrorCode(error) });
+      throw new PageCaptureError({ kind: "failed", message: navigationErrorCode({ error }) });
     } finally { lease.release(); }
   }
 
@@ -218,7 +218,7 @@ async function shootFrame(
 }
 
 /** Chromium's `net::ERR_*` code only — never a raw message that could echo an internal address. */
-function navigationErrorCode(error: unknown): string {
+function navigationErrorCode({ error }: { error: unknown }, _optional = {}): string {
   if (error instanceof Error && error.message === "too many redirects") return error.message;
   const code = /net::(ERR_[A-Z_]+)/.exec(error instanceof Error ? error.message : "")?.[1];
   return code ?? "navigation failed";

@@ -38,7 +38,7 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
       ? { vendorId: provider, credentialType: "vendor", worksFor: meta.worksFor as string[], tokenTail: credentialHint({ record: row })?.last4 ?? "" }
       : { providerId: provider };
   }
-  private record(row: VaultRecord | null, _options = {}): R | null {
+  private record({ row }: { row: VaultRecord | null }, _options = {}): R | null {
     if (!row || !this.owns({ row })) return null;
     const meta = registry.metaParsers[this.kind]({ meta: row.meta, provider: row.provider });
     if (this.kind === "vendor" && meta.credentialType !== "vendor") return null;
@@ -51,23 +51,23 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
     return record;
   }
   async findById(input: { workspaceId: string; id: string }, _options = {}): Promise<R | null> {
-    return this.record(await this.vault.find(input));
+    return this.record({ row: await this.vault.find(input) });
   }
   async findDefaultByProvider(input: { workspaceId: string; providerId: string }, _options = {}): Promise<R | null> {
     if (!this.vault.findDefault) throw new VaultError({ code: "invalid-record" });
-    return this.record(await this.vault.findDefault({ ...this.scope(input), provider: input.providerId }));
+    return this.record({ row: await this.vault.findDefault({ ...this.scope(input), provider: input.providerId }) });
   }
   async listByProvider(input: { workspaceId: string; providerId: string }, _options = {}): Promise<R[]> {
-    return (await this.vault.list(this.scope({ ...input, provider: input.providerId }))).flatMap(row => { const record = this.record(row); return record ? [record] : []; });
+    return (await this.vault.list(this.scope({ ...input, provider: input.providerId }))).flatMap(row => { const record = this.record({ row }); return record ? [record] : []; });
   }
   async listByWorkspace(input: { workspaceId: string }, _options = {}): Promise<R[]> {
-    return (await this.vault.list(this.scope(input))).flatMap(row => { const record = this.record(row); return record ? [record] : []; });
+    return (await this.vault.list(this.scope(input))).flatMap(row => { const record = this.record({ row }); return record ? [record] : []; });
   }
   /** Compatibility for callers holding sealed DTOs; the Jini repo owns defaults and CAS. */
   async insert(record: R, _options = {}): Promise<void> { await this.write({ record, expectedRevision: null }); }
   async update(record: R, _options = {}): Promise<void> {
     const existing = await this.vault.find(record);
-    if (!existing || !this.record(existing)) return;
+    if (!existing || !this.record({ row: existing })) return;
     await this.write({ record, expectedRevision: existing.revision, existing });
   }
   private writeMeta({ record, existing, provider }: { record: R; existing: VaultRecord | undefined; provider: string }, _options = {}) {
@@ -90,14 +90,14 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
   }
   async delete(input: { workspaceId: string; id: string }, _options = {}): Promise<void> {
     const row = await this.vault.find(input);
-    if (row && this.record(row)) await this.vault.delete({ ...input, expectedRevision: row.revision });
+    if (row && this.record({ row })) await this.vault.delete({ ...input, expectedRevision: row.revision });
   }
   /** Preserve the old missing/stale-probe no-op and updatedAt semantics. Jini's targeted JSON
    * patch increments revision, so a rotation racing the probe cannot be overwritten. */
   async updateAccountLabel(input: { workspaceId: string; id: string; accountLabel: string; expectedSealed?: SealedSecret }, _options = {}): Promise<void> {
     const row = await this.vault.find(input);
     if (!row) return;
-    const record = this.record(row);
+    const record = this.record({ row });
     if (!record) return;
     const expectedSealed = input.expectedSealed;
     if (expectedSealed && ["keyId", "ciphertext", "nonce", "alg"].some(key =>
@@ -119,24 +119,24 @@ export class TovuCredentialSetVaultAdapter<R extends Record> {
 export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sealer?: SecretSealerPort;
   keyring?: KeyringPort; clock?: Clock; idGen?: { newId(): string }; storageError: () => Error }, _options = {}): SecretsVaultService {
   if (!required.repo.vault) throw new VaultError({ code: "invalid-record" });
-  const protect = async <T>(operation: () => Promise<T>): Promise<T> => {
+  const protect = async <T>({ operation }: { operation: () => Promise<T> }, _optional = {}): Promise<T> => {
     try { return await operation(); } catch { throw required.storageError(); }
   };
   return new SecretsVaultService({ repo: required.repo.vault, metaParsers: registry.metaParsers,
     authorize: async ({ context }) => {
       if (!["vendor", "custom", "source-control"].includes(context.kind) || context.ownerKey !== "tovu" || context.principalId !== null) throw new VaultError({ code: "context" });
     },
-    keyring: { activeKey: () => protect(() => {
+    keyring: { activeKey: () => protect({ operation: () => {
       if (!required.keyring) throw required.storageError();
       return required.keyring.activeKey();
-    }) } as KeyringPort,
-    sealer: { seal: input => protect(() => {
+    } }) } as KeyringPort,
+    sealer: { seal: input => protect({ operation: () => {
       if (!required.sealer) throw required.storageError();
       return required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad });
-    }), open: (input, options) => protect(() => {
+    } }), open: (input, options) => protect({ operation: () => {
       if (!required.sealer) throw required.storageError();
       return required.sealer.open(input, options);
-    }) },
+    } }) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
     newId: () => { if (!required.idGen) { throw new VaultError({ code: "invalid-record" }); } return required.idGen.newId(); },
   });
