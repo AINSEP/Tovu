@@ -705,6 +705,15 @@ async function waitForRecordedCancelCall(daemonRunId: string, waitMs = 2000): Pr
   }
 }
 
+/** T0-5 (AG-UI design S0): the close state machine issues the cancel EXACTLY once per window. Waits
+ *  past the first cancel so a second, late one (a double-fire in the close handler) is counted too. */
+async function assertExactlyOneCancel(daemonRunId: string): Promise<void> {
+  await waitForRecordedCancelCall(daemonRunId);
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const cancels = recorded.filter((r) => r.method === "POST" && r.url === `/api/runs/${daemonRunId}/cancel`);
+  assert.equal(cancels.length, 1, `expected exactly one cancel call; recorded requests: ${JSON.stringify(recorded.map((r) => `${r.method} ${r.url}`))}`);
+}
+
 /**
  * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): the AG-UI Stop action used
  * to abort only the browser's own SSE subscription (`reader.cancel()`); it never called the
@@ -738,6 +747,7 @@ test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpo
   assert.equal(cancelCall?.headers.authorization, `Bearer ${TOKEN}`, "the cancel call must carry the same daemon bearer token every other proxied call does");
   assert.equal(cancelCall?.headers[RUN_PRINCIPAL_HEADER], expectedPrincipalId);
   assert.equal(runCanceled, true, "the daemon accepted cancellation as the run owner");
+  await assertExactlyOneCancel("daemon-run-1");
 });
 
 /**
@@ -774,6 +784,7 @@ test("abort while the daemon run is still starting still cancels it once it exis
     cancelCall,
     `expected a POST /api/runs/daemon-run-1/cancel call once the daemon run existed; recorded requests: ${JSON.stringify(recorded.map((r) => `${r.method} ${r.url}`))}`,
   );
+  await assertExactlyOneCancel("daemon-run-1");
 });
 
 /**
@@ -807,6 +818,7 @@ test("abort while waiting to subscribe to the daemon's event stream still cancel
     cancelCall,
     `expected a POST /api/runs/daemon-run-1/cancel call; recorded requests: ${JSON.stringify(recorded.map((r) => `${r.method} ${r.url}`))}`,
   );
+  await assertExactlyOneCancel("daemon-run-1");
 });
 
 /**
