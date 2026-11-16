@@ -1,4 +1,5 @@
 import { api, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import { ApiError } from "@/lib/admin-http/request";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
@@ -16,8 +17,8 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  *  `redirectsHostPorts`. */
 export const defaultTaxonomyPort: TaxonomyPort = {
   listTaxonomies: () => api.listTaxonomies(),
-  trashTerm: ({ id }) => api.trash({ type: "term", id }),
-  trashTaxonomy: ({ id }) => api.trash({ type: "taxonomy", id }),
+  trashTerm: ({ id }) => trashApi.trash({ type: "term", id }),
+  trashTaxonomy: ({ id }) => trashApi.trash({ type: "taxonomy", id }),
   renameTerm: (target) => api.renameTerm(target),
 };
 

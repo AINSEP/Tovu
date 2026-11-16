@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
-import { api } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { AdminMenu } from "@/features/menus/api/menus-api.types";
 import { menusApi } from "@/features/menus/api/menus-api";
 import { ApiError } from "@/lib/admin-http/request";
@@ -83,7 +83,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("requestTrash opens the confirm without calling the port; confirmTrash then calls trash exactly once and the row flips to trash once the list re-reads it", async () => {
-    const trashSpy = vi.spyOn(api, "trash");
+    const trashSpy = vi.spyOn(trashApi, "trash");
     const port = createFakeMenusPort({ menus: [MENU] });
     const portTrashSpy = vi.spyOn(port, "trash");
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));

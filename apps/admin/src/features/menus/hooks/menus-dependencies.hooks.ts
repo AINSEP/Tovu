@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { AdminMenu } from "@/features/menus/api/menus-api.types";
 import { menusApi } from "@/features/menus/api/menus-api";
 import type { MenusPort } from "./menus-port.hooks";
@@ -20,7 +21,7 @@ export const defaultMenusPort: MenusPort = {
   getMenu: ({ id }, _optional = {}) => menusApi.getMenu({ id }),
   createMenu: ({ input, options }, _optional = {}) => menusApi.createMenu(input, options),
   updateMenuTree: ({ target, options }, _optional = {}) => menusApi.updateMenuTree(target, options),
-  trash: ({ id }) => api.trash({ type: "menu", id }),
+  trash: ({ id }) => trashApi.trash({ type: "menu", id }),
 };
 
 /** Seed state for {@link createFakeMenusPort}. */

@@ -1,4 +1,5 @@
-import type { AdminIdentityUser, AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/lib/api";
+import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
 
 /**
  * @file What `use-trash.hooks.ts` needs from the outside world, as an interface rather than a

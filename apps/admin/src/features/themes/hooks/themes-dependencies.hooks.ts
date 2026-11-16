@@ -1,4 +1,5 @@
 import { api, type PresentationSettings, type ThemeTier } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { ThemesPort } from "./themes-port.hooks";
 import { asciiSlug } from "../../../lib/ascii-slug";
 
@@ -14,7 +15,7 @@ export const defaultThemesPort: ThemesPort = {
   setActiveTheme: ({ activeThemeId }, _optional = {}) => api.setActiveTheme({ activeThemeId }),
   duplicateTheme: ({ themeId, newName }, _optional = {}) => api.duplicateTheme({ themeId, newName }),
   trashTheme: async ({ themeId }) => {
-    await api.trash({ type: "theme", id: themeId });
+    await trashApi.trash({ type: "theme", id: themeId });
   },
 };
 

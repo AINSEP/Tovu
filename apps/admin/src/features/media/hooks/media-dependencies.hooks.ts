@@ -1,4 +1,5 @@
 import { api, type AdminMedia } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "./media-port.hooks";
 import { asciiSlug } from "../../../lib/ascii-slug";
 
@@ -18,7 +19,7 @@ export const defaultMediaPort: MediaPort = {
   deleteMedia: (id) => api.deleteMedia({ id }),
   // No media-specific restore route: the shared Trash restore already handles media rows.
   restoreMedia: async (id) => {
-    const report = await api.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
+    const report = await trashApi.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
     return { restored: report.restored === 1 };
   },
   mediaOriginalUrl: (id) => api.mediaOriginalUrl({ id }),

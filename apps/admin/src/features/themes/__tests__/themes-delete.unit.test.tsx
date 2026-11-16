@@ -2,7 +2,8 @@ import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fe
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type PresentationSettings } from "@/lib/api";
+import { type PresentationSettings } from "@/lib/api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import { Themes } from "../Themes";
 import { createFakeThemesPort, defaultThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemeDeleteRequest } from "../hooks/use-theme-delete-request.hooks";
@@ -136,7 +137,7 @@ describe("useThemes — trash", () => {
 
 describe("theme ports — trashTheme", () => {
   it("the real port moves the theme through the generic Trash route", async () => {
-    const spy = vi.spyOn(api, "trash").mockResolvedValue({ ok: true, version: null });
+    const spy = vi.spyOn(trashApi, "trash").mockResolvedValue({ ok: true, version: null });
     await expect(defaultThemesPort.trashTheme({ themeId: "plannie-copy" })).resolves.toBeUndefined();
     expect(spy).toHaveBeenCalledWith({ type: "theme", id: "plannie-copy" });
   });

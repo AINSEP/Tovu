@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminTrashItem } from "@/lib/api";
+import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
 import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "../rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
 import { describeTrashLoadError } from "../rules";

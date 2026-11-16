@@ -1,5 +1,5 @@
 import type { QueryKey } from "@jini-ai/core/fetch";
-import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@/lib/api";
+import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@/features/trash/api/trash-api.types";
 import { t } from "./trash-i18n";
 import { ApiError, REQUEST_TIMEOUT_CODE, describeApiError } from "@/lib/admin-http/request";
 

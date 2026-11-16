@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { type AdminTrashItem } from "@/lib/api";
+import type { AdminTrashItem } from "@/features/trash/api/trash-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

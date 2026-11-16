@@ -1,10 +1,6 @@
-import {
-  api,
-  type AdminIdentityUser,
-  type AdminTrashItem,
-  type AdminTrashPurgeReport,
-  type AdminTrashRestoreReport,
-} from "@/lib/api";
+import { api, type AdminIdentityUser } from "@/lib/api";
+import type { AdminTrashItem, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { TrashPort } from "./trash-port.hooks";
 
 /**
@@ -15,9 +11,9 @@ import type { TrashPort } from "./trash-port.hooks";
 /** The live implementation, as a module-level singleton. Same `listUsers()` the Users screen's own
  *  `users-dependencies.hooks.ts` wires — see `trash-port.hooks.ts` for why it is used here too. */
 export const defaultTrashPort: TrashPort = {
-  listTrash: (options) => api.listTrash(options),
-  restoreTrashItems: (input) => api.restoreTrashItems(input),
-  purgeTrashItems: (input) => api.purgeTrashItems(input),
+  listTrash: (options) => trashApi.listTrash(options),
+  restoreTrashItems: (input) => trashApi.restoreTrashItems(input),
+  purgeTrashItems: (input) => trashApi.purgeTrashItems(input),
   listUsers: () => api.listUsers(),
 };
 

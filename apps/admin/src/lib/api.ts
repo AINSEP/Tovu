@@ -1695,73 +1695,6 @@ export interface RestoreExecuteResult {
   restartRequired?: boolean;
 }
 
-/**
- * One row of the Trash. Mirrors `routes/trash/list.ts`'s `toAdminTrashResponse`.
- *
- * Every field is a SNAPSHOT captured when the thing was deleted, not a read of the thing itself —
- * which is what lets a row whose payload is corrupt still be listed and still be restored. `title`
- * can therefore be stale; that is the design, not a bug.
- */
-export interface AdminTrashItem {
-  /** The trash row's own id. Purge addresses rows by THIS, not by `entityId`. */
-  id: string;
-  entityType: string;
-  /** Presentation subtype; canonical entityType still addresses restore/purge. Older rows may omit it. */
-  displayKind?: "page" | "post";
-  entityId: string;
-  title: string;
-  subtitle: string | null;
-  trashedAt: string;
-  purgeAfter: string;
-  /** Whole days until auto-purge, floored at 0. Server-computed, so the clock is the server's. */
-  daysRemaining: number;
-  actorPrincipalId: string;
-  actorPluginId: string | null;
-  /** The server-resolved username for `actorPrincipalId`, or `null` when no user record matches
-   *  it (the account was since removed, or the principal is not a user). Never the raw id — that
-   *  resolution happens server-side so the admin UI never has to guess at a fallback. Optional
-   *  (rather than always `string | null`) because an older server build that predates username
-   *  resolution omits the field entirely — `rules.ts`'s `actorLabel` treats that absence
-   *  differently from an explicit `null`, so the type must let the two states be told apart. */
-  actorUsername?: string | null;
-  /** True when the row's actor is a non-human system principal (e.g. the boot-time widget
-   *  adoption), never a real user account. Optional because an older server predates this field;
-   *  absent means "not known to be a system actor", the same safe default as `false`. */
-  actorIsSystem?: boolean;
-}
-
-export interface AdminTrashPage {
-  items: AdminTrashItem[];
-  nextCursor: string | null;
-}
-
-/** Per-item outcomes. `forbidden` means the operator lacks THAT ROW'S kind's permission. */
-export type AdminTrashRestoreOutcome =
-  | "restored"
-  | "not-found"
-  | "version-changed"
-  | "adapter-unavailable"
-  | "forbidden";
-
-export type AdminTrashPurgeOutcome =
-  | "purged"
-  | "already-gone"
-  | "version-changed"
-  | "still-referenced"
-  | "not-found"
-  | "adapter-unavailable"
-  | "forbidden";
-
-export interface AdminTrashRestoreReport {
-  restored: number;
-  results: { entityType: string; entityId: string; outcome: AdminTrashRestoreOutcome }[];
-}
-
-export interface AdminTrashPurgeReport {
-  purged: number;
-  results: { id: string; outcome: AdminTrashPurgeOutcome }[];
-}
-
 /** Mirrors `apps/website/src/server/inbound/admin-http/http/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
  * §5) — the `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPlugin {
@@ -2944,32 +2877,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ confirmationToken, restorePointId }),
     } }),
-
-  // -------------------------------------------------------------------------
-  // Trash — the cross-domain recycle bin (design:
-  // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Keyset paging like
-  // `listCommentsQueue` above. Restore names items by `{entityType, entityId}` and purge by trash
-  // ROW id — that asymmetry is the server's, and it is deliberate: the purge endpoint resolves each
-  // row's kind itself rather than trusting one the client sent, so it cannot be told that a post is
-  // a comment.
-  // -------------------------------------------------------------------------
-  listTrash: (options: { cursor?: string; limit?: number; entityTypes?: string[] } = {}) => {
-    const params = new URLSearchParams();
-    if (options.cursor) params.set("cursor", options.cursor);
-    if (options.limit) params.set("limit", String(options.limit));
-    if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
-    const qs = params.toString();
-    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix({ query: qs })}` });
-  },
-  restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
-    authenticatedAdminRequest<AdminTrashRestoreReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
-  purgeTrashItems: ({ ids }: { ids: string[] }) =>
-    authenticatedAdminRequest<AdminTrashPurgeReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/purge`, body: { ids } }),
-  /** The generic single-item trash endpoint (`POST /trash/items`, `W/features/trash/`): the way
-   *  every OTHER admin feature's delete button (forms, widgets, menus, terms, taxonomies) moves one
-   *  row to the Trash, instead of each domain keeping its own bespoke delete call. */
-  trash: ({ type, id }: { type: string; id: string }) =>
-    authenticatedAdminRequest<{ ok: true; version: number | null }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/items`, body: { type, id } }),
 
   // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
   // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
