@@ -66,7 +66,7 @@ export function createTovuStoreVault(required: {
   context?: VaultContext; newId?: (input: VaultOptions) => string;
 }, _options = {}): SecretsVaultService {
   if (!required.repo.vault) throw new VaultError({ code: "invalid-record" });
-  const protect = <T>(operation: () => Promise<T>): Promise<T> => protectStorage({ operation, source: required });
+  const protect = <T>({ operation }: { operation: () => Promise<T> }, _optional = {}): Promise<T> => protectStorage({ operation, source: required });
   return new SecretsVaultService({ repo: required.repo.vault, metaParsers: storeMetaParsers,
     authorize: async ({ context }) => {
       if (required.context && context.workspaceId !== required.context.workspaceId) throw new VaultError({ code: "context" });
@@ -75,8 +75,8 @@ export function createTovuStoreVault(required: {
       if (invalidOwner || invalidScope) throw new VaultError({ code: "context" });
     },
     keyring: createStoreKeyring({ source: required }),
-    sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })),
-      open: (input, options) => protect(() => required.sealer.open(input, options)) },
+    sealer: { seal: input => protect({ operation: () => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad }) }),
+      open: (input, options) => protect({ operation: () => required.sealer.open(input, options) }) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
     newId: () => {
       if (required.newId) return required.newId({});

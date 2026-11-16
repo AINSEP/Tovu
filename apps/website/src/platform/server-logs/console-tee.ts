@@ -39,7 +39,7 @@ export function createRedactedOutputSink(
     pending = "";
     oversized = false;
   };
-  const append = (text: string) => {
+  const append = ({ text }: { text: string }, _optional = {}) => {
     let start = 0;
     while (start < text.length) {
       const newline = text.indexOf("\n", start);
@@ -51,9 +51,9 @@ export function createRedactedOutputSink(
       start = newline + 1;
     }
   };
-  const flush = () => { append(decoder.end()); if (pending || oversized) emit(); };
+  const flush = () => { append({ text: decoder.end() }); if (pending || oversized) emit(); };
   const writable = new Writable({
-    write(chunk: Buffer, _encoding, done) { append(decoder.write(chunk)); done(); },
+    write(chunk: Buffer, _encoding, done) { append({ text: decoder.write(chunk) }); done(); },
     final(done) { flush(); done(); },
   });
   // A source piped with { end: false } (Jini's daemon adapter keeps host sinks open across respawns)
@@ -78,10 +78,13 @@ export interface InstallConsoleTeeOptional {
   readonly target?: TeeableConsole;
   readonly source?: ServerLogSource;
   /** Applied before both copies; defaults to identity. Redactor failure never exposes raw text. */
-  readonly redact?: (text: string) => string;
+  readonly redact?: (required: { text: string }, optional?: Record<string, never>) => string;
 }
 
-function safeAppend(buffer: ServerLogBuffer, level: ServerLogLevel, source: ServerLogSource, message: string): void {
+function safeAppend(
+  { buffer, level, source, message }: { buffer: ServerLogBuffer; level: ServerLogLevel; source: ServerLogSource; message: string },
+  _optional = {},
+): void {
   try {
     buffer.append({ level, source, message });
   } catch {
@@ -101,7 +104,7 @@ function safeAppend(buffer: ServerLogBuffer, level: ServerLogLevel, source: Serv
 export function installConsoleTee(required: InstallConsoleTeeRequired, optional: InstallConsoleTeeOptional = {}): () => void {
   const target = optional.target ?? (console as unknown as TeeableConsole);
   const source = optional.source ?? "server";
-  const redact = optional.redact ?? (text => text);
+  const redact = optional.redact ?? (({ text }) => text);
   const originals = new Map<ConsoleMethod, (...args: unknown[]) => void>();
   for (const method of Object.keys(LEVEL_BY_METHOD) as ConsoleMethod[]) {
     const original = target[method];
@@ -109,12 +112,12 @@ export function installConsoleTee(required: InstallConsoleTeeRequired, optional:
     target[method] = (...args: unknown[]) => {
       let message = "[log redaction failed]";
       try {
-        message = redact(format(...args));
+        message = redact({ text: format(...args) });
       } catch {
         // Formatting or redaction failure must never send the raw arguments to a log shipper.
       }
       original.call(target, message);
-      safeAppend(required.buffer, LEVEL_BY_METHOD[method], source, message);
+      safeAppend({ buffer: required.buffer, level: LEVEL_BY_METHOD[method], source, message });
     };
   }
   return () => {

@@ -24,13 +24,13 @@ export async function protectStorage<T>(
  * @complexity O(1) per call; delegates all key work to the injected keyring.
  */
 export function createStoreKeyring({ source }: { source: StorageFailureSource }, _optional = {}): KeyringPort {
-  const withKeyring = <T>({ use }: { use: (keyring: KeyringPort) => Promise<T> }): Promise<T> => protectStorage({ source, operation: () => {
+  const withKeyring = <T>({ use }: { use: ({ keyring }: { keyring: KeyringPort }, optional?: Record<string, never>) => Promise<T> }): Promise<T> => protectStorage({ source, operation: () => {
     if (!source.keyring) throw source.storageError({});
-    return use(source.keyring);
+    return use({ keyring: source.keyring });
   } });
   return {
-    derive: input => withKeyring({ use: keyring => keyring.derive(input) }),
-    deriveSigningSecret: input => withKeyring({ use: keyring => keyring.deriveSigningSecret(input) }),
-    activeKey: () => withKeyring({ use: keyring => keyring.activeKey({}) }),
+    derive: input => withKeyring({ use: ({ keyring }) => keyring.derive(input) }),
+    deriveSigningSecret: input => withKeyring({ use: ({ keyring }) => keyring.deriveSigningSecret(input) }),
+    activeKey: () => withKeyring({ use: ({ keyring }) => keyring.activeKey({}) }),
   };
 }

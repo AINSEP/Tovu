@@ -51,7 +51,7 @@ export interface ServerLogBuffer {
   /** Oldest first. A copy: callers may not mutate the buffer through it. */
   entries(): readonly ServerLogEntry[];
   /** Called with each stored (redacted) entry; returns unsubscribe. A throwing listener is ignored. */
-  subscribe(listener: (entry: ServerLogEntry) => void): () => void;
+  subscribe(required: { listener: (entry: ServerLogEntry) => void }, optional?: Record<string, never>): () => void;
 }
 
 export const DEFAULT_MAX_ENTRIES = 2_000;
@@ -62,7 +62,7 @@ export const DEFAULT_MAX_MESSAGE_LENGTH = 8_000;
 
 export interface CreateLogBufferRequired {
   /** Applied to every message before it is stored. */
-  readonly redact: (text: string) => string;
+  readonly redact: (required: { text: string }, optional?: Record<string, never>) => string;
 }
 
 export interface CreateLogBufferOptional {
@@ -74,7 +74,7 @@ export interface CreateLogBufferOptional {
   readonly now?: () => Date;
 }
 
-function capMessage(message: string, maxLength: number): string {
+function capMessage({ message, maxLength }: { message: string; maxLength: number }, _optional = {}): string {
   if (message.length <= maxLength) return message;
   return `${message.slice(0, maxLength)}… [truncated ${message.length - maxLength} chars]`;
 }
@@ -120,7 +120,7 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
         at: now().toISOString(),
         level: input.level,
         source: input.source,
-        message: capMessage(required.redact(input.message), maxMessageLength),
+        message: capMessage({ message: required.redact({ text: input.message }), maxLength: maxMessageLength }),
       };
       items.push(entry);
       bytes += entry.message.length;
@@ -131,7 +131,7 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
       return entry;
     },
     entries: () => items.slice(head),
-    subscribe(listener) {
+    subscribe({ listener }) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },

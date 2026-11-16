@@ -14,7 +14,7 @@ export type { SmtpMailPayload } from "@jini-ai/platform/mail/smtp";
 
 /** Existing Tovu vendor seam; the Jini adapter receives an object-shaped wrapper. */
 export interface SmtpTransport {
-  sendMail(mail: SmtpMailPayload): Promise<{ messageId: string }>;
+  sendMail({ mail }: { mail: SmtpMailPayload }, optional?: Record<string, never>): Promise<{ messageId: string }>;
 }
 export interface SmtpMailerAdapterDeps {
   /** Retains the existing host clock seam; the constructor translates it to Jini's epoch clock. */
@@ -27,7 +27,7 @@ export class SmtpMailerAdapter implements MailerPort {
 
   constructor(transport: SmtpTransport, { clock = { nowIso: () => new Date().toISOString() } }: SmtpMailerAdapterDeps = {}) {
     this.mailer = toTovuMailer({ mailer: new JiniSmtpMailerAdapter({
-      transport: { sendMail: ({ mail }) => transport.sendMail(mail) },
+      transport: { sendMail: ({ mail }) => transport.sendMail({ mail }) },
       clock: { nowMs: () => Date.parse(clock.nowIso()) },
     }) });
   }
@@ -65,5 +65,5 @@ export function createNodemailerSmtpTransport({ timeoutMs, ...required }: Create
   // first-party TypeScript module graph that caused earlier require-based wiring bugs.
   const nodemailer: typeof import("nodemailer") = createRequire(import.meta.url)("nodemailer");
   const transport = createJiniSmtpTransport({ ...required, nodemailer }, { timeoutMs });
-  return { sendMail: (mail) => transport.sendMail({ mail }) };
+  return { sendMail: ({ mail }) => transport.sendMail({ mail }) };
 }

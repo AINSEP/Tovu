@@ -46,7 +46,7 @@ test('denied export preserves console output, the local buffer and file persiste
   const filePath = path.join(root, 'server.log');
   const lines: unknown[][] = [];
   const target = { log() {}, info() {}, debug() {}, warn() {}, error: (...args: unknown[]) => { lines.push(args); } };
-  const buffer = createLogBuffer({ redact: text => text });
+  const buffer = createLogBuffer({ redact: ({ text }) => text });
   const file = createRotatingLogFileSink({ filePath });
   const unsubscribe = buffer.subscribe(entry => file.write(entry));
   const uninstall = installConsoleTee({ buffer }, { target });

@@ -4,8 +4,8 @@ import test from "node:test";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import { createLogBuffer } from "../../log-buffer.js";
 
-const identity = (text: string) => text;
-const tovuRedact = (text: string) => redactSecretShapes({ text }).text;
+const identity = ({ text }: { text: string }) => text;
+const tovuRedact = ({ text }: { text: string }) => redactSecretShapes({ text }).text;
 const fixedClock = () => new Date("2026-10-05T12:00:00.000Z");
 
 test('metadata is captured per record, survives eviction, and never borrows an inactive trace', () => {
@@ -131,8 +131,8 @@ test("redaction runs before truncation, so a key cut at the cap cannot leak its 
 test("subscribers get each stored, redacted entry; a throwing subscriber does not break append", () => {
   const buffer = createLogBuffer({ redact: tovuRedact }, { now: fixedClock });
   const seen: string[] = [];
-  buffer.subscribe(() => { throw new Error("broken sink"); });
-  const unsubscribe = buffer.subscribe(entry => seen.push(entry.message));
+  buffer.subscribe({ listener: () => { throw new Error("broken sink"); } });
+  const unsubscribe = buffer.subscribe({ listener: entry => seen.push(entry.message) });
   buffer.append({ level: "error", source: "server", message: `key ${FAKE_SECRETS.githubPat}` });
   unsubscribe();
   buffer.append({ level: "error", source: "server", message: "after unsubscribe" });

@@ -38,7 +38,7 @@ test('each rotated record retains release/environment and its own active trace I
   const mem = memoryFs();
   const filePath = '/site/daemon.log';
   let trace: { traceId: string; spanId: string } | undefined;
-  const logs = createLogBuffer({ redact: text => text }, { metadata: () => ({ release: 'tovu@1.2.3+abcdef0', environment: 'desktop', ...trace }) });
+  const logs = createLogBuffer({ redact: ({ text }) => text }, { metadata: () => ({ release: 'tovu@1.2.3+abcdef0', environment: 'desktop', ...trace }) });
   const sink = createRotatingLogFileSink({ filePath }, { fs: mem.port, maxBytes: 1 });
   logs.subscribe(value => sink.write(value));
   logs.append({ level: 'info', source: 'daemon', message: 'boot' });

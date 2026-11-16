@@ -19,7 +19,7 @@ class FakeSmtpTransport implements SmtpTransport {
     this.outcomes = outcomes;
   }
 
-  async sendMail(mail: SmtpMailPayload): Promise<{ messageId: string }> {
+  async sendMail({ mail }: { mail: SmtpMailPayload }, _optional = {}): Promise<{ messageId: string }> {
     this.calls.push(mail);
     const outcome = this.outcomes[Math.min(this.cursor, this.outcomes.length - 1)];
     this.cursor += 1;
@@ -76,7 +76,7 @@ test("createNodemailerSmtpTransport maps configuration and forwards the complete
     assert.deepEqual(configurations.at(-1), {
       host: config.host, port: config.port, secure, auth: config.auth, connectionTimeout: 3210,
     });
-    assert.deepEqual(await transport.sendMail(payload), { messageId: "factory-message-id" });
+    assert.deepEqual(await transport.sendMail({ mail: payload }), { messageId: "factory-message-id" });
     assert.deepEqual(payloads.at(-1), payload);
   }
   assert.equal(configurations.length, 2);

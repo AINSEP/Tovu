@@ -14,7 +14,7 @@ function fakeConsole() {
   const target = Object.fromEntries((["debug", "log", "info", "warn", "error"] as const).map(m => [m, (...args: unknown[]) => { calls.push([m, args]); }])) as TeeableConsole;
   return { target, calls };
 }
-const buffer = () => createLogBuffer({ redact: text => redactSecretShapes({ text }).text }, { now: () => new Date("2026-10-05T12:00:00.000Z") });
+const buffer = () => createLogBuffer({ redact: ({ text }) => redactSecretShapes({ text }).text }, { now: () => new Date("2026-10-05T12:00:00.000Z") });
 
 test("the original console method receives the formatted string that is captured", () => {
   const { target, calls } = fakeConsole();
@@ -40,7 +40,7 @@ test("console methods map to levels: debug, log->info, info, warn, error", () =>
 test("format placeholders are applied like console does, and secrets inside are redacted", () => {
   const { target, calls } = fakeConsole();
   const logs = buffer();
-  installConsoleTee({ buffer: logs }, { target, redact: text => redactSecretShapes({ text }).text });
+  installConsoleTee({ buffer: logs }, { target, redact: ({ text }) => redactSecretShapes({ text }).text });
   const key = "sk-ant-api03-" + "x".repeat(90);
   target.warn("retrying %s with %d attempts, key %s", "anthropic", 3, key);
   assert.equal(logs.entries()[0].message, "retrying anthropic with 3 attempts, key [REDACTED:credential]");
@@ -50,7 +50,7 @@ test("format placeholders are applied like console does, and secrets inside are 
 test("all original console methods receive redacted strings", () => {
   const { target, calls } = fakeConsole();
   const logs = buffer();
-  installConsoleTee({ buffer: logs }, { target, redact: text => redactSecretShapes({ text }).text });
+  installConsoleTee({ buffer: logs }, { target, redact: ({ text }) => redactSecretShapes({ text }).text });
   const key = "sk-ant-api03-" + "x".repeat(90);
   for (const method of Object.keys(target) as Array<keyof TeeableConsole>) target[method]("key %s", key);
   assert.deepEqual(calls, Object.keys(target).map(method => [method, ["key [REDACTED:credential]"]]));
@@ -59,10 +59,10 @@ test("all original console methods receive redacted strings", () => {
 
 test("formatting and the injected redactor each run once before either copy", () => {
   const { target, calls } = fakeConsole();
-  const logs = createLogBuffer({ redact: text => text });
+  const logs = createLogBuffer({ redact: ({ text }) => text });
   let formats = 0;
   let redactions = 0;
-  installConsoleTee({ buffer: logs }, { target, redact: text => {
+  installConsoleTee({ buffer: logs }, { target, redact: ({ text }) => {
     redactions += 1;
     assert.equal(text, "secret");
     assert.equal(calls.length, 0);
@@ -78,7 +78,7 @@ test("formatting and the injected redactor each run once before either copy", ()
 
 test("the generic tee defaults to identity redaction", () => {
   const { target, calls } = fakeConsole();
-  const logs = createLogBuffer({ redact: text => text });
+  const logs = createLogBuffer({ redact: ({ text }) => text });
   installConsoleTee({ buffer: logs }, { target });
   target.log("password=hunter2hunter2");
   assert.deepEqual(calls, [["log", ["password=hunter2hunter2"]]]);
