@@ -409,13 +409,6 @@
     },
     {
       "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "PostEditorActions#1",
-      "line": 942,
-      "rule": "max-lines-per-function",
-      "value": 111
-    },
-    {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
       "function": "PostEditor#1",
       "line": 1512,
       "rule": "max-lines-per-function",
