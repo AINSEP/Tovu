@@ -2,7 +2,9 @@
 
 Owns Tovu's domain-to-HTTP classification policy. The generic envelope,
 serializer and default status mapping already belong to Jini; call them rather
-than implementing another version here.
+than implementing another version here. `respond.ts` stays in Tovu on purpose:
+it applies Tovu's request-tracking policy (reuse `res.locals.requestId`, omit it
+when absent) on top of those Jini owners.
 
 ## Contract to adopt
 
@@ -22,8 +24,9 @@ Status: analytics pilot migrated in source; compatible Jini decoder adopted by t
 ```
 
 `details` (JSON), `retryable` (boolean), and `requestId` (string) are optional
-fields inside `error`. `@jini-ai/http-kit` exports `createCompatApiError`,
-`sendApiError` and `statusForError`; the installed package already supplies them.
+fields inside `error`. `respond.ts` builds the error with `createApiError`
+(`@jini-ai/protocol`), maps its status with `statusForError`
+(`@jini-ai/core/contracts/server`) and writes it with `sendApiError` (`@jini-ai/http-kit`).
 Use `res.locals.requestId` from request tracking for correlation, matching the
 response's `x-request-id`. Never mint a second id during error translation.
 
@@ -66,9 +69,7 @@ Malformed object messages receive the existing fallback instead of `[object Obje
 
 Source tests cover decoder compatibility, admin transport, the analytics route, the
 async-error guard and `respond.ts` correlation. Auth/session and recovery middleware
-remain separate migration surfaces. Jini source changes need their normal package
-build/publication/adoption before this can run against registry artifacts; none was
-performed by this edit-only dispatch.
+remain separate migration surfaces.
 
 ## Remaining surfaces
 
