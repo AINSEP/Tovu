@@ -22,14 +22,8 @@ import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
-import {
-  finishStaticTierDocument,
-  placeAfterCurrentContent,
-  registerSiteRoutes,
-  resolveHtmlFormatContentMarkers,
-  resolveMarketingPageOrOverride,
-  resolveStaticMenusForRender,
-} from "../pages.js";
+import { finishStaticTierDocument, registerSiteRoutes, resolveHtmlFormatContentMarkers, resolveMarketingPageOrOverride, resolveStaticMenusForRender } from "../pages.js";
+import { placeAfterCurrentContent } from "../pages/render-context/taxonomy.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 
