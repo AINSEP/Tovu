@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SiteExportTab } from "../SiteExportTab";

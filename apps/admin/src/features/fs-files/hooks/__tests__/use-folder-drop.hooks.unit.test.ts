@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, createRef, type DragEvent } from "react";
 import { ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";

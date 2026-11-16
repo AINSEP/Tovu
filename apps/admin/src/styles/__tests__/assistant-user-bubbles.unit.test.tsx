@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { CSSProperties } from "react";
-import { cleanup } from "@testing-library/react";
+import { cleanup } from "@/__tests__/fetch-query-render";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, expect, it } from "vitest";
 import { ChatPane, registerMidRunUserMessageRenderer, type ChatTransport } from "@jini-ai/chat/react";

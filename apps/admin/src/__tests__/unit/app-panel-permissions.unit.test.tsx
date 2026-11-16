@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen } from "@/__tests__/fetch-query-render";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

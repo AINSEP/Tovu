@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Taxonomy } from "../Taxonomy";

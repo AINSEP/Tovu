@@ -1,6 +1,6 @@
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it, vi } from "vitest";
 import { PageEditor } from "../../pages/PageEditor";
 import { usePageEditor } from "../../pages/hooks/use-page-editor.hooks";

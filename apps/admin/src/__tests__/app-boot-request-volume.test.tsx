@@ -1,5 +1,5 @@
 import { StrictMode } from "react";
-import { act, cleanup, screen } from "@testing-library/react";
+import { act, cleanup, screen } from "@/__tests__/fetch-query-render";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { App } from "../App";

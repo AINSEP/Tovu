@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";

@@ -10,7 +10,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act } from "@testing-library/react";
+import { act } from "@/__tests__/fetch-query-render";
 
 /** Keep in step with RECHARTS_BROWSER_APPROVAL.version (the admin cannot import server composition). */
 const PINNED_VERSION = "0.7.0";

@@ -1,5 +1,5 @@
 import userEvent from "@testing-library/user-event";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatPane } from "@jini-ai/chat/react";

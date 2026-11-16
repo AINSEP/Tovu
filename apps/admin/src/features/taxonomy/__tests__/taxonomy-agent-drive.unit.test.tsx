@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";

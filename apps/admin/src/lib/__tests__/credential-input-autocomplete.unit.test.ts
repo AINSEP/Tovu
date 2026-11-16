@@ -4,7 +4,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@/__tests__/fetch-query-render";
 import { DEFAULT_PROVIDER_PRESETS, mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import { AgentCliEnvFields, ByokProviderForm, MediaProvidersTab, SourceConfigField } from "@jini-ai/ui";
 import { Users as JiniUsers } from "@jini-ai/user-management/react";
