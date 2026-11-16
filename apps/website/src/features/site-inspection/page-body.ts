@@ -72,7 +72,7 @@ function capText({ body, maxBytes }: { body: string; maxBytes: number }, _option
   const bytes = Buffer.from(body);
   if (bytes.length <= maxBytes) return body;
   let end = maxBytes;
-  while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
+  while (end > 0 && (bytes[end]! & 0xc0) === 0x80) end--; // end <= maxBytes < bytes.length
   return bytes.subarray(0, end).toString("utf8");
 }
 

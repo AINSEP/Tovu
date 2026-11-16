@@ -134,7 +134,7 @@ function opensFrontmatter({ lines, index }: { lines: readonly string[]; index: n
   const previous = lines[index - 1];
   if (previous !== undefined && previous.trim() !== "" && !previous.startsWith("<<AGENT_PLUGIN")) return false;
   let end = index + 1;
-  while (end < lines.length && lines[end].trimEnd() !== "---") end++;
+  while (end < lines.length && lines[end]!.trimEnd() !== "---") end++;
   if (end === lines.length) return false;
   try { return isNonArrayRecord({ value: load(lines.slice(index + 1, end).join("\n"), { schema: FAILSAFE_SCHEMA }) }); }
   catch { return false; }
@@ -160,7 +160,9 @@ export function removeChatRefusedToolPermissions({ text }: { text: string }, _op
   return lines.filter((line, index) => {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
     if (state === "body" && marker) {
-      const [, markerFence, markerSuffix] = marker;
+      // Both capture groups are required by the pattern, so a match always carries them.
+      const markerFence = marker[1]!;
+      const markerSuffix = marker[2]!;
       if (fence === undefined) fence = markerFence;
       else if (markerFence[0] === fence[0] && markerFence.length >= fence.length && markerSuffix.trim() === "") fence = undefined;
       return true;

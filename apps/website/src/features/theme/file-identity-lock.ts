@@ -204,7 +204,7 @@ export function trashDestinationFor({ relativePath }: { relativePath: string }, 
 export function originalPathFromTrashedPath({ trashedPath }: { trashedPath: string }, _optional = {}): string | null {
   const segments = normalizedPathSegments({ relativePath: trashedPath });
   if (segments.length < 3 || segments[0] !== TRASH_DIR_NAME) return null;
-  if (segments[1] === 'revisions') return segments.length >= 4 && /^\d+$/.test(segments[2]) ? segments.slice(3).join('/') : null;
+  if (segments[1] === 'revisions') return segments.length >= 4 && /^\d+$/.test(segments[2]!) ? segments.slice(3).join('/') : null;
   return segments.slice(2).join("/");
 }
 

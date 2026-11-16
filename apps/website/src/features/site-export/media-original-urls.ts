@@ -32,7 +32,7 @@ async function localOriginalPaths({ body, deps, locations }: { body: string; dep
       if (!origin || !sameOrigin({ url: match[0], origin })) continue;
     }
     let key: string | undefined;
-    try { key = decodeURIComponent(match[2]); } catch { /* Malformed escapes are not media keys. */ }
+    try { key = decodeURIComponent(match[2]!); } catch { /* Malformed escapes are not media keys. */ }
     // Absolute URLs stay absolute (sitemaps and og:image require them); only the path is upgraded.
     if (key !== undefined) paths.set(match[0], { prefix: match[1] ?? "", key });
   }

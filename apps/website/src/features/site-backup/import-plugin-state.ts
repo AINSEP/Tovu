@@ -73,10 +73,10 @@ function placeImportedMemory(required: { root: string; dir: string; files: reado
   const placed = new Set<string>();
   for (const file of required.files) {
     const match = /^agent-plugins\/([^/]+)\/memory\/(notes|learned)\/(.+)$/.exec(file);
-    if (!match || !required.pluginIds.has(match[1])) continue;
-    const memoryDir = required.workspace.pluginMemoryDir({ pluginId: match[1], kind: match[2] as "notes" | "learned" });
+    if (!match || !required.pluginIds.has(match[1]!)) continue;
+    const memoryDir = required.workspace.pluginMemoryDir({ pluginId: match[1]!, kind: match[2] as "notes" | "learned" });
     placed.add(file);
-    writeExclusive({ root: required.dir, relative: path.relative(required.dir, path.join(memoryDir, match[3])), bytes: fs.readFileSync(path.join(required.root, file)) });
+    writeExclusive({ root: required.dir, relative: path.relative(required.dir, path.join(memoryDir, match[3]!)), bytes: fs.readFileSync(path.join(required.root, file)) });
   }
   return placed;
 }

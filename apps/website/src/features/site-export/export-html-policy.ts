@@ -131,7 +131,7 @@ function emailAlternative({ nodes }: { nodes: Element[] }, _options = {}): strin
   if (!link) return "";
   const href = attribute({ node: link, name: "href" });
   if (href === undefined) throw new Error("Static export email link has no address");
-  const address = href.slice(7).split("?")[0];
+  const address = href.slice(7).split("?")[0]!; // split always returns a first piece
   return ` Email us at <a href="${escapeHtml({ text: href })}">${escapeHtml({ text: address })}</a> instead.`;
 }
 
@@ -243,7 +243,7 @@ function refreshEdit({ node, rewrite }: { node: Element; rewrite: (url: string) 
 function refreshContent({ content, rewrite }: { content: string; rewrite: (url: string) => string }, _options = {}): string | undefined {
   const match = /^([^;]*;[^=]*=)([\s\S]*)$/.exec(content);
   if (!match) return undefined;
-  if (!/;\s*url\s*=$/i.test(match[1])) return undefined;
-  const url = match[2].trim().replace(/^["']|["']$/g, "");
+  if (!/;\s*url\s*=$/i.test(match[1]!)) return undefined;
+  const url = match[2]!.trim().replace(/^["']|["']$/g, "");
   return match[1] + rewrite(url);
 }

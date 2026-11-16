@@ -32,8 +32,8 @@ export function unrecognisedThemes(required: { root: string; dir: string; files:
   const unrecognised = new Set<string>();
   for (const file of required.files) {
     const match = LIVE_THEME_FILE.exec(file);
-    if (!match || !required.liveThemes.has(match[1]) || unrecognised.has(match[2])) continue;
-    if (!sameBytes({ left: path.join(required.root, file), right: path.join(required.dir, file) })) unrecognised.add(match[2]);
+    if (!match || !required.liveThemes.has(match[1]!) || unrecognised.has(match[2]!)) continue;
+    if (!sameBytes({ left: path.join(required.root, file), right: path.join(required.dir, file) })) unrecognised.add(match[2]!);
   }
   return unrecognised;
 }

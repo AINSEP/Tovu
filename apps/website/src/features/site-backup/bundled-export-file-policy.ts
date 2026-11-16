@@ -37,6 +37,6 @@ export function createBundledExportFilePolicy(_required: Record<string, never>, 
   return async ({ path: archivePath, bytes }) => {
     const match = /^agent-plugins\/([^/]+)\/package\/(.+)$/.exec(archivePath);
     if (!match) return 'scan';
-    return classifyBundledPluginFile({ pluginId: match[1], relativePath: match[2], bytes, readFile: readBundledFile });
+    return classifyBundledPluginFile({ pluginId: match[1]!, relativePath: match[2]!, bytes, readFile: readBundledFile });
   };
 }
