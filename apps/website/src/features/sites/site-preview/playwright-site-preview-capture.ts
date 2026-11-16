@@ -11,8 +11,9 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
  * Same capture shape as the desktop's `captureSitePreview` (`apps/desktop/src/main/boot/site-preview.ts`): the site's
  * PUBLIC root at 1280×800, a short settle for late paint, stored at 640px wide.
  *
- * The lazy launch/close lifecycle and the JPEG encode are the shared headless-capture core
- * (`platform/headless-browser/lazy-browser.ts`), which `web_screenshot_page` uses too.
+ * The lazy launch/close lifecycle is the shared headless-capture core (`createLazyBrowser`,
+ * `@jini-ai/diagnostics/web-evidence/playwright`), which `web_screenshot_page` uses too; the JPEG
+ * encode is {@link encodeJpeg} below.
  *
  * Cost: one Chromium process (~150–250 MB RSS) is launched lazily for a drain of the service's
  * queue and closed when it empties; each page is ~1–2 s of CPU. With the service's throttle
@@ -23,8 +24,7 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
  * capture is `null` and cards show their placeholder; the service's retry delay keeps that from
  * relaunching on every listing.
  */
-import { createLazyBrowser, encodeJpeg } from "#src/platform/headless-browser/lazy-browser";
-import { openPlaywrightRenderBrowser } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { createLazyBrowser, openPlaywrightRenderBrowser } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import type { SitePreviewCapturePort } from "./site-preview-service.js";
 import { desktopRenderForHost } from '#src/platform/headless-browser/desktop-render';
@@ -69,6 +69,18 @@ async function loadPlaywrightLauncher(): Promise<PreviewBrowserLauncher> {
     if (!result.available) throw new Error(result.reason);
     return result.browser as unknown as PreviewBrowser;
   } };
+}
+
+/**
+ * Re-encodes a screenshot as JPEG no wider than `maxWidth` (never enlarged).
+ * @complexity O(pixels) — one decode and one encode.
+ */
+export async function encodeJpeg(
+  { image, maxWidth, imageCodec }: { image: Buffer; maxWidth: number; imageCodec: ImageCodecPort },
+  { quality = 72 }: { quality?: number } = {},
+): Promise<{ bytes: Buffer; width: number; height: number }> {
+  const encoded = await imageCodec.encode({ source: image, format: "jpeg", quality, resize: { width: maxWidth, withoutEnlargement: true } });
+  return { ...encoded, bytes: Buffer.from(encoded.bytes) };
 }
 
 async function resizeWithCodec({ png, width, imageCodec }: { png: Buffer; width: number; imageCodec: ImageCodecPort }, _options = {}): Promise<Buffer> {

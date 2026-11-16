@@ -32,3 +32,9 @@ export const playwrightModuleLoader = {
   },
 };
 
+
+/** Dynamic so a deployment without Playwright gets a rejected capture, not a boot failure. */
+export async function importPlaywrightChromium(): Promise<{ launch(options: Record<string, unknown>): Promise<unknown> }> {
+  const { chromium } = await playwrightModuleLoader.load({ moduleName: "playwright" });
+  return chromium as unknown as { launch(options: Record<string, unknown>): Promise<unknown> };
+}

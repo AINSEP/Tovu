@@ -1,13 +1,13 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease } from "@jini-ai/diagnostics/web-evidence/playwright";
-import { importPlaywrightChromium } from "#src/platform/headless-browser/lazy-browser";
+import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createRequestRouter, fetchOwnSiteResource, type OwnSiteFetch, type RequestRouterOptions, type RouteLike } from "./request-guard.js";
 import { CAPTURE_DEADLINE_MS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "./web-screenshot.js";
 
 /**
  * @file `web_screenshot_page`'s {@link PageCapturePort}: headless Chromium through Playwright, on the
- * shared lazy-browser core (`platform/headless-browser/lazy-browser.ts`) the Sites card previews use.
+ * shared lazy-browser core (`createLazyBrowser`, `@jini-ai/diagnostics/web-evidence/playwright`) the Sites card previews use.
  *
  * Isolation, per capture: a FRESH browser context (no cookies, storage or cache from any other
  * call), service workers blocked (so every request reaches the router), downloads refused,

@@ -4,9 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
 
-import { createPlaywrightSitePreviewCapture, createSitePreviewCaptureForHost, type PreviewBrowser, type PreviewBrowserLauncher } from "../site-preview/playwright-site-preview-capture.js";
-import { importPlaywrightChromium } from "../../../platform/headless-browser/lazy-browser.js";
-import { playwrightModuleLoader } from "../../../platform/headless-browser/playwright-loader.js";
+import { createPlaywrightSitePreviewCapture, createSitePreviewCaptureForHost, encodeJpeg, type PreviewBrowser, type PreviewBrowserLauncher } from "../site-preview/playwright-site-preview-capture.js";
+import { importPlaywrightChromium, playwrightModuleLoader } from "../../../platform/headless-browser/playwright-loader.js";
 
 /**
  * @file `playwright-site-preview-capture.ts` — the headless capture adapter, against a structural
@@ -206,4 +205,21 @@ test("a native capture with no injected resize stores a 640px JPEG via Sharp", a
   assert.ok(jpeg);
   const meta = await sharp(jpeg).metadata();
   assert.deepEqual({ format: meta.format, width: meta.width }, { format: "jpeg", width: 640 });
+});
+
+test("encodeJpeg downscales to maxWidth, keeps the aspect ratio, never enlarges, and returns real JPEG bytes", async () => {
+  const png = await sharp({ create: { width: 1280, height: 800, channels: 3, background: { r: 200, g: 10, b: 10 } } }).png().toBuffer();
+  const shrunk = await encodeJpeg({ imageCodec: new SharpImageTransformer(), image: png, maxWidth: 640 });
+  assert.deepEqual([shrunk.width, shrunk.height], [640, 400]);
+  assert.equal((await sharp(shrunk.bytes).metadata()).format, "jpeg");
+  const kept = await encodeJpeg({ imageCodec: new SharpImageTransformer(), image: png, maxWidth: 4000 });
+  assert.deepEqual([kept.width, kept.height], [1280, 800]);
+});
+
+test("encodeJpeg honors an explicit quality instead of its default", async () => {
+  const png = await sharp({ create: { width: 32, height: 20, channels: 3, background: { r: 200, g: 10, b: 10 } } }).png().toBuffer();
+  const encoded = await encodeJpeg({ imageCodec: new SharpImageTransformer(), image: png, maxWidth: 32 }, { quality: 35 });
+  assert.deepEqual([encoded.width, encoded.height], [32, 20]);
+  assert.deepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 35 }).toBuffer());
+  assert.notDeepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 72 }).toBuffer());
 });

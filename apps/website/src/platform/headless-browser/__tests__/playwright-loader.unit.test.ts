@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { playwrightModuleLoader } from "../playwright-loader.js";
+import { importPlaywrightChromium, playwrightModuleLoader } from "../playwright-loader.js";
 import type { PlaywrightLike } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 
@@ -71,4 +71,17 @@ test("the host loader adapts Playwright contexts and copies readonly launch argu
   assert.ok(fallback.available, "the host loader must forward the shared system Chrome fallback");
   assert.deepEqual(launches.slice(3), [PUBLIC_RENDER_LAUNCH_OPTIONS, { ...PUBLIC_RENDER_LAUNCH_OPTIONS, channel: "chrome" }]);
   await fallback.browser.close();
+});
+
+test("importPlaywrightChromium resolves the host's Playwright adapter, which launches the native chromium", async t => {
+  const launches: unknown[] = [];
+  const closed: string[] = [];
+  t.mock.module("playwright", { namedExports: { chromium: {
+    launch: async (options: unknown) => { launches.push(options); return { newContext: async () => ({}), close: async () => { closed.push("browser"); } }; },
+  } } });
+  const chromium = await importPlaywrightChromium();
+  const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] }) as { close(): Promise<void> };
+  await browser.close();
+  assert.deepEqual(launches, [{ headless: true, args: ["--no-sandbox"] }]);
+  assert.deepEqual(closed, ["browser"]);
 });
