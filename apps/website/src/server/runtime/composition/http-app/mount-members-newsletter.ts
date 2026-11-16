@@ -33,7 +33,33 @@ export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional
   // are whatever `routeDeps` carries: in-memory from `createRouteDeps()` (this
   // file, the hermetic test composition), durable SQL from `deps.ts`'s
   // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
-  const memberPublicDeps: MemberPublicRouteDeps = {
+  const memberPublicDeps = memberPublicDepsFor({ routeDeps, magicLinkPerEmailLimiter, magicLinkPerIpLimiter, magicLinkCompleteAttemptLimiter });
+  // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
+  // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
+  mountRoutes(app, createMembersModule({ admin: membersDeps, public: memberPublicDeps }));
+
+  // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
+  // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,
+  // token-only routes (`newsletter-confirm.ts`/`newsletter-unsubscribe.ts`), genuinely two deps
+  // objects, same rationale as `members` immediately above (see `modules/newsletter.ts`'s header).
+  // `routeDeps` is cast to `NewsletterRouteDeps` here (not widened) — mirrors every admin
+  // newsletter route file's own `routeDeps as NewsletterRouteDeps` cast (`routes/admin/newsletter/
+  // deps.ts`'s file header); `createRouteDeps()`'s actual return type already IS
+  // `NewsletterRouteDeps`, this parameter's own `RouteDeps` annotation is just narrower.
+  const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
+  const newsletterPublicDeps = newsletterPublicDepsFor({ routeDeps, newsletterAdminDeps });
+  mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
+}
+
+/** The members module's public deps: the root's member repos plus the shared magic-link limiters and password-sign-in limiters of this app. */
+function memberPublicDepsFor(required: {
+  routeDeps: MountInput["routeDeps"];
+  magicLinkPerEmailLimiter: MembersRouteDeps["magicLinkPerEmailLimiter"];
+  magicLinkPerIpLimiter: MemberPublicRouteDeps["magicLinkPerIpLimiter"];
+  magicLinkCompleteAttemptLimiter: MemberPublicRouteDeps["magicLinkCompleteAttemptLimiter"];
+}, _optional = {}): MemberPublicRouteDeps {
+  const { routeDeps, magicLinkPerEmailLimiter, magicLinkPerIpLimiter, magicLinkCompleteAttemptLimiter } = required;
+  return {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
     visitorTracker: routeDeps.visitorTracker,
@@ -62,20 +88,12 @@ export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional
     passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
     passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
   };
-  // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
-  // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
-  mountRoutes(app, createMembersModule({ admin: membersDeps, public: memberPublicDeps }));
+}
 
-  // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
-  // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,
-  // token-only routes (`newsletter-confirm.ts`/`newsletter-unsubscribe.ts`), genuinely two deps
-  // objects, same rationale as `members` immediately above (see `modules/newsletter.ts`'s header).
-  // `routeDeps` is cast to `NewsletterRouteDeps` here (not widened) — mirrors every admin
-  // newsletter route file's own `routeDeps as NewsletterRouteDeps` cast (`routes/admin/newsletter/
-  // deps.ts`'s file header); `createRouteDeps()`'s actual return type already IS
-  // `NewsletterRouteDeps`, this parameter's own `RouteDeps` annotation is just narrower.
-  const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
-  const newsletterPublicDeps: NewsletterPublicRouteDeps = {
+/** The newsletter module's public (cookie-less, token-only) deps, read from the admin deps view of the root. */
+function newsletterPublicDepsFor(required: { routeDeps: MountInput["routeDeps"]; newsletterAdminDeps: NewsletterRouteDeps }, _optional = {}): NewsletterPublicRouteDeps {
+  const { routeDeps, newsletterAdminDeps } = required;
+  return {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
     visitorTracker: routeDeps.visitorTracker,
@@ -92,5 +110,4 @@ export function mountMembersNewsletter({ app, routeDeps }: MountInput, _optional
     idGen: newsletterAdminDeps.idGen,
     mailSenderIdentity: newsletterAdminDeps.mailSenderIdentity,
   };
-  mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
 }
