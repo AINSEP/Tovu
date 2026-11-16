@@ -26,7 +26,6 @@ import { renderGallery, type GalleryImageRenderer } from "@jini-ai/cms/widgets/h
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { LISTING_BATCH_DEFAULT, listingBatchPath, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
-import { safeAspectRatio } from "#src/platform/html/style-values";
 import {
   decodeFormSubmissionResultFromQuery,
   encodeFormSubmissionResultQuery,
@@ -56,6 +55,7 @@ import { WIDGET_PLACEHOLDER_IR, renderWidgetPlaceholder } from "./render/widgets
 import { renderWidgetSocialLinks, renderWidgetEntrySummary, renderWidgetRecentEntries } from "./render/widgets/social-entries.js";
 import { renderWidgetMenu } from "./render/widgets/menu.js";
 import { renderWidgetContactForm } from "./render/contact-form-widget.js";
+import { mediaPlaceholder } from "./render/media-placeholder.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -1205,21 +1205,6 @@ function themeBadge(ctx: SiteRenderContext): string {
 
 function siteFooter(ctx: SiteRenderContext): string {
   return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml({ text: ctx.siteTitle })} — powered by Tovu</span>${themeBadge(ctx)}</div></footer>`;
-}
-
-/**
- * A labelled aspect-ratio box standing in for an image (no asset pipeline yet).
- *
- * `ratio` goes through {@link safeAspectRatio}'s numeric-shape allowlist rather than `escapeHtml`:
- * `escapeHtml` only stops the value from breaking out of the `style="…"` attribute, not from
- * smuggling a second declaration while staying inside it (`"1;background:url(//evil.example)"`).
- * An unrecognized shape falls back to the same `"16 / 9"` default an absent `ratio` already used.
- * `architecture-p2-plan-2026-09-24.md` §D3.
- */
-function mediaPlaceholder(props: JsonObject): string {
-  const label = escapeHtml({ text: str({ value: props.label }, { fallback: "Image" }) });
-  const ratio = safeAspectRatio({ value: str({ value: props.ratio }, { fallback: "" }) }) ?? "16 / 9";
-  return `<figure class="media-ph" style="aspect-ratio:${ratio}"><span class="media-ph__label">${label}</span></figure>`;
 }
 
 function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): string {
