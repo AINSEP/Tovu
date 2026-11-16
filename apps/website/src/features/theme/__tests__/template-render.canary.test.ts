@@ -8,7 +8,7 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages";
 import type { PublicPostRecord } from "#src/features/post/index";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 import { withoutVisitorToolMarks } from "./visitor-tool-marks.fixture.js";

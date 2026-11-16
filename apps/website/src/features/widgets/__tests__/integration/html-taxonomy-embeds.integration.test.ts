@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import type { Taxonomy, Term } from "#src/features/taxonomy/index";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { checkMarkupFile } from "#src/features/theme/validation/markup";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";

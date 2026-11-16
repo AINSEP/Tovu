@@ -62,7 +62,7 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   const { buildWidgetAreaFieldsJson, buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } = await import('@jini-ai/cms/widgets');
   const { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } = await import('@jini-ai/cms/widgets/html');
   const { registerCoreResolver, createGalleryWidgetResolver } = await import('@jini-ai/cms/widgets/resolvers');
-  const { renderHtmlPageBody } = await import('#src/server/inbound/public-http/http/site/render');
+  const { renderHtmlPageBody } = await import('#src/server/inbound/public-http/http/site/render/page-body');
   const { renderDocNode } = await import('#src/server/inbound/public-http/http/site/render/content-html');
   t.diagnostic(`phase: seed (${Math.round(performance.now() - started)}ms)`);
   const workspaceId = 'mediawidget-ws', now = '2026-10-10T00:00:00.000Z';

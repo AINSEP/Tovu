@@ -5,7 +5,7 @@ import { resolveHtmlPageEmbeds } from '@jini-ai/cms/widgets/html';
 import { InMemoryEntryRepo } from '#src/features/entries/index';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
-import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render';
+import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 

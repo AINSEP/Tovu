@@ -80,19 +80,8 @@ import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/bootstrap";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/contracts";
 import { resolveSiteTitle } from "#src/features/settings/site-title";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
-import {
-  renderSite,
-  renderHtmlPageBody,
-  renderAssignedTermsBlock,
-  decodeFormSubmissionResultFromQuery,
-  injectFormSubmissionResultIntoHtml,
-  decodeFormFlashCookieValue,
-  mergeFormFlashIntoResult,
-  FORM_FLASH_COOKIE_NAME,
-  featuredImageView,
-  type FormSubmissionRedirectResult,
-  type MediaAssetRenderMeta,
-} from "../../http/site/render.js";
+import { renderSite, renderAssignedTermsBlock, decodeFormSubmissionResultFromQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, mergeFormFlashIntoResult, FORM_FLASH_COOKIE_NAME, featuredImageView, type FormSubmissionRedirectResult, type MediaAssetRenderMeta } from "../../http/site/render.js";
+import { renderHtmlPageBody } from "../../http/site/render/page-body.js";
 import {
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,

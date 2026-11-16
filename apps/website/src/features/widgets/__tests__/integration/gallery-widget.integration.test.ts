@@ -6,7 +6,7 @@ import { resolveHtmlPageEmbeds, resolveGalleryWidgetMedia } from '@jini-ai/cms/w
 import { InMemoryEntryRepo } from '#src/features/entries/index';
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFORM_NAME } from '#src/features/media/index';
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
-import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render';
+import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { renderDocNode, renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
 import { widgetsAgentToolCatalog } from '#src/features/widgets/agent-tools';

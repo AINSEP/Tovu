@@ -6,7 +6,8 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 
 import { runHandlebarsRender } from "../handlebars-render.js";
 import { runLiquidRender } from "../liquid-render.js";
-import { buildTemplateRenderData, renderHtmlPageBody, renderSite, type MediaAssetRenderMeta, type SiteRenderContext } from "../render.js";
+import { buildTemplateRenderData, renderSite, type MediaAssetRenderMeta, type SiteRenderContext } from "../render.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
 
 /**
  * @file A post's featured image as theme data (2026-10-05): `post.featuredImage` (and each

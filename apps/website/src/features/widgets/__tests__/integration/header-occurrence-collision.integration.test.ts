@@ -6,7 +6,7 @@ import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo, createPublicPostReader } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 
 /**
  * @file Adversarial verification (peer-dispatched, 2026-09-05) of an externally-reported,

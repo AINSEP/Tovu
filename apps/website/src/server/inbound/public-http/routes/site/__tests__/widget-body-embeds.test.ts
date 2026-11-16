@@ -5,7 +5,8 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderHtmlPageBody, renderSite } from "#src/server/inbound/public-http/http/site/render";
+import { renderSite } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { renderBareEntryDocument } from "#src/server/inbound/public-http/http/site/bare-page";
 import { finishStaticTierDocument, renderViaTemplate, resolveHtmlEmbedsForRender } from "../pages.js";
 

@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { injectFormSubmissionResultIntoHtml, renderHtmlPageBody } from "../render.js";
+import { injectFormSubmissionResultIntoHtml } from "../render.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
 import { renderWidgetRegion, renderWidgetIr } from "../render/content-html.js";
 import type { SiteRenderContext } from "../render.js";
 
