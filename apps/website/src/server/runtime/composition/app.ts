@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeTaxonomyTrashRepos } from "./memory-deps/slices/taxonomy-trash-repos.js";
 import { composeOriginNewsletter } from "./memory-deps/slices/origin-newsletter.js";
 import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settings.js";
 import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
@@ -49,8 +50,8 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
-import { buildTrashRegistry, COMMENT_ENTITY_TYPE, createDirectoryTrashAdapter, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, PLUGIN_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
-import { bindRemoveEntity, bindForgetRemovedEntity, createTrashService, createTrashSweep, InMemoryTrashRepo } from "@jini-ai/cms/trash";
+import { COMMENT_ENTITY_TYPE, createDirectoryTrashAdapter, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, PLUGIN_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
+import { bindRemoveEntity, bindForgetRemovedEntity, createTrashService, createTrashSweep } from "@jini-ai/cms/trash";
 import { attachFormAttachmentPurge } from "./memory-deps/slices/form-attachment-purge.js";
 import { composeMemoryTrashAdapters } from "./memory-deps/slices/trash-adapters.js";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
@@ -151,13 +152,7 @@ import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments"
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
-import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
-import {
-  SqliteEntryTermRepo,
-  SqliteTaxonomyRepo,
-  SqliteTaxonomyRevisionRepo,
-  SqliteTermRepo,
-} from "#src/features/taxonomy/repo.sqlite";
+import { noopStampWatermark } from "#src/features/taxonomy/index";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -274,22 +269,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore } = composeSiteTitleSettings({ settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady });
   const { originRegistry, newsletterListRepoInMemory } = composeOriginNewsletter({ clock });
   const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos({  });
-  // Mirror production permissions for the memory-backed forms, menus and widgets too: without
-  // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
-  // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
-  const trashRegistry = new Map(
-    [...buildTrashRegistry()].filter(([entityType]) =>
-      ["term", "taxonomy", "form_submission", "form", "menu", "widget"].includes(entityType)
-    )
-  );
-  const trashRepo = new InMemoryTrashRepo({});
-  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
-  const taxonomyRepo = new SqliteTaxonomyRepo({ db: taxonomyDb, workspaceId });
-  const termRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
-  const entryTermRepo = new SqliteEntryTermRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
+  const { trashRegistry, termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo, taxonomyRevisionRepo } = composeTaxonomyTrashRepos({ taxonomyDb, workspaceId, outbox, clock, idGen });
   const pluginTrashAdapter = createDirectoryTrashAdapter({
     entityType: PLUGIN_ENTITY_TYPE,
     locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
