@@ -35,15 +35,15 @@ export function createAssistantSettingsModule(deps: AssistantSettingsRouteDeps):
   return {
     name: "assistant-settings",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminAssistantGetSettingsRoute(app, deps);
+      registerAdminAssistantGetSettingsRoute({ app, deps });
       registerAdminVisitorToolsRoutes({ app, deps });
-      registerAdminAssistantPutSettingsRoute(app, deps);
-      registerAdminAssistantGetSiteCredentialRoute(app, deps);
-      registerAdminAssistantPutSiteCredentialRoute(app, deps);
-      registerAdminAssistantDeleteSiteCredentialRoute(app, deps);
-      registerAdminAssistantGetExecutionCredentialRoute(app, deps);
-      registerAdminAssistantPutExecutionCredentialRoute(app, deps);
-      registerAdminAssistantDeleteExecutionCredentialRoute(app, deps);
+      registerAdminAssistantPutSettingsRoute({ app, deps });
+      registerAdminAssistantGetSiteCredentialRoute({ app, deps });
+      registerAdminAssistantPutSiteCredentialRoute({ app, deps });
+      registerAdminAssistantDeleteSiteCredentialRoute({ app, deps });
+      registerAdminAssistantGetExecutionCredentialRoute({ app, deps });
+      registerAdminAssistantPutExecutionCredentialRoute({ app, deps });
+      registerAdminAssistantDeleteExecutionCredentialRoute({ app, deps });
     },
   };
 }

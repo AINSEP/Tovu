@@ -148,7 +148,7 @@ export function runLiquidRender({ workerData }: { workerData: unknown }): Liquid
   // Defensive re-check (belt-and-suspenders): `loadTheme()` already linted
   // this source at discovery time; re-lint unconditionally here in case the
   // file changed on disk since. No worker payload may bypass this boundary.
-  const violations = lintLiquidTemplate(source);
+  const violations = lintLiquidTemplate({ source });
   if (violations.length > 0) {
     return { ok: false, error: `disallowed Liquid usage: ${violations.join("; ")}` };
   }

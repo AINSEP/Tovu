@@ -19,11 +19,11 @@ export function createWorkspaceModule(deps: WorkspaceRouteDeps): ServerModuleHan
   return {
     name: "workspace",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminWorkspaceListRoute(app, deps);
-      registerAdminWorkspaceCreateRoute(app, deps);
-      registerAdminWorkspaceGetRoute(app, deps);
-      registerAdminWorkspaceUpdateRoute(app, deps);
-      registerAdminWorkspaceDeleteRoute(app, deps);
+      registerAdminWorkspaceListRoute({ app, deps });
+      registerAdminWorkspaceCreateRoute({ app, deps });
+      registerAdminWorkspaceGetRoute({ app, deps });
+      registerAdminWorkspaceUpdateRoute({ app, deps });
+      registerAdminWorkspaceDeleteRoute({ app, deps });
     },
   };
 }

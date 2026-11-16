@@ -1272,7 +1272,7 @@ test("reloadTheme: an id absent from deps.themes is a silent no-op -- the early 
   const deps = testDeps(themesDir);
   const before = [...deps.themes];
 
-  reloadTheme(deps, "does-not-exist-in-deps-themes");
+  reloadTheme({ deps, themeId: "does-not-exist-in-deps-themes" });
 
   assertAdminResponse({ actual: deps.themes, expected: before });
 });

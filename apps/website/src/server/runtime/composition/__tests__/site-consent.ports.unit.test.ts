@@ -101,7 +101,7 @@ test('privacy defaults wait for the dependency literal, then bind title, owner, 
     } },
     siteTitlePreservationStore: new InMemorySiteTitlePreservationStore(),
     workspaceRepo: await Promise.resolve({ findById: async () => ({ name: 'Fallback' }) }), siteDisplayName: { read: () => 'Resolved & Site' },
-    pagesHtmlStore: () => ({ ensureHtmlFormat: async (value: string) => { html.push(value); } }),
+    pagesHtmlStore: () => ({ ensureHtmlFormat: async ({ seedHtml: value }: { seedHtml: string }) => { html.push(value); } }),
   } as never;
   resolveDeps(deps);
   await ready;

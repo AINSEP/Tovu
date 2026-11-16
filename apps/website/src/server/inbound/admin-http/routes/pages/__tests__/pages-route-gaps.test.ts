@@ -42,7 +42,7 @@ test("U1: page cards receive only authored export identities and safe host readi
   const { app, deps } = buildApp();
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "embed-page", title: "Embed", kind: "page" } });
   const store = deps.pagesHtmlStore({ workspaceId: WS, postId: "embed-page" });
-  await store.ensureHtmlFormat(embedMarkerSnippetFromConfig({ config }));
+  await store.ensureHtmlFormat({ seedHtml: embedMarkerSnippetFromConfig({ config }) });
   const { source } = harness({ packages: [{ ...owner, displayName: "Example sign-in" }] });
   deps.pluginExports = createPluginExportRuntime({ workspaceId: WS, source, listProviders: async () => [] });
   const capture = await callDirect(app, "get", "/api/admin/v1/workspaces/:workspaceId/pages/:pageId", { params: { workspaceId: WS, pageId: "embed-page" } });
@@ -56,7 +56,7 @@ test("U1: catalog failure degrades page diagnostics to unavailable without faili
   const { app, deps } = buildApp();
   await createPost({ deps: { repo: deps.postRepo, clock: deps.clock }, input: { workspaceId: WS, id: "unavailable-embed", title: "Embed", kind: "page" } });
   const store = deps.pagesHtmlStore({ workspaceId: WS, postId: "unavailable-embed" });
-  await store.ensureHtmlFormat(embedMarkerSnippetFromConfig({ config }));
+  await store.ensureHtmlFormat({ seedHtml: embedMarkerSnippetFromConfig({ config }) });
   const runtime = harness().runtime;
   deps.pluginExports = { ...runtime, catalog: async () => { throw new Error("catalog unavailable"); } };
   const capture = await callDirect(app, "get", "/api/admin/v1/workspaces/:workspaceId/pages/:pageId", { params: { workspaceId: WS, pageId: "unavailable-embed" } });

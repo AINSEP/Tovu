@@ -131,7 +131,7 @@ test("docs pager: a neighbour page's authored cssClass is kept beside the docs-p
   const theme = staticTheme({ quickstart: `<html><body>${pager}</body></html>` }, ["quickstart"]);
   const deps = { ...createRouteDeps(), menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavWithAuthoredInstallClass()] }) };
 
-  const menus = await resolveStaticMenusForRender(deps, theme, "/quickstart");
+  const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/quickstart" });
   const html = renderStaticPage({ theme, pageId: "quickstart", menus }) ?? "";
 
   const labelIndex = html.indexOf(">Install<");
@@ -147,10 +147,8 @@ function contentMarkerDeps(rows: PostRecord[]) {
 
 test("content marker: an html-format entity whose bodyHtml is null resolves exactly like an empty body", async () => {
   const marker = `<main data-embed-config='{"type":"content","id":"html-entity"}'>fallback</main>`;
-  const nullBody = await resolveHtmlFormatContentMarkers(
-    contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: null })]), marker, 0, { remaining: 5 });
-  const emptyBody = await resolveHtmlFormatContentMarkers(
-    contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "" })]), marker, 0, { remaining: 5 });
+  const nullBody = await resolveHtmlFormatContentMarkers({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: null })]), html: marker, depth: 0, budget: { remaining: 5 } });
+  const emptyBody = await resolveHtmlFormatContentMarkers({ deps: contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "" })]), html: marker, depth: 0, budget: { remaining: 5 } });
 
   assert.notEqual(nullBody, marker, "the marker resolved rather than staying as written");
   assert.equal(nullBody, emptyBody);
@@ -161,7 +159,7 @@ test("content marker: a marker naming neither id nor slug stays as written while
   const html = `<main data-embed-config='{"type":"content","id":"html-entity"}'>fallback</main>${keyless}`;
   const deps = contentMarkerDeps([post({ id: "html-entity", slug: "html-entity", bodyFormat: "html", bodyHtml: "<p>Resolved body</p>" })]);
 
-  const result = await resolveHtmlFormatContentMarkers(deps, html, 0, { remaining: 5 });
+  const result = await resolveHtmlFormatContentMarkers({ deps, html, depth: 0, budget: { remaining: 5 } });
 
   assert.match(result, /<p>Resolved body<\/p>/);
   assert.ok(result.endsWith(keyless), `expected the keyless marker untouched, got ${result}`);
@@ -190,7 +188,7 @@ test("marketing page: a post lookup failure other than not-found propagates inst
   const deps = { ...createRouteDeps(), postRepo: new FailingSlugPostRepo([], "pricing", failure) };
   const theme = staticTheme({ pricing: "<html><body><main>pricing</main></body></html>" }, ["pricing"]);
 
-  await assert.rejects(resolveMarketingPageOrOverride(deps, theme, "pricing", undefined, false), (err) => err === failure);
+  await assert.rejects(resolveMarketingPageOrOverride({ deps, theme, slug: "pricing", staticMenus: undefined, siteAssistantEnabled: false }), (err) => err === failure);
 });
 
 test("GET /pricing: a failing explicit-title lookup lets the folded site title replace the page's own title", async (t) => {
@@ -371,7 +369,7 @@ test("GET /<a>/<b>: a redirect phase that throws is handed to Express's error ha
   const failure = new Error("redirect phase down");
   const seen: unknown[] = [];
   const app = express();
-  registerSiteRoutes(app, createRouteDeps());
+  registerSiteRoutes({ app, deps: createRouteDeps() });
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     seen.push(err);
     res.status(500).send("error handler");

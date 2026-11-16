@@ -193,7 +193,7 @@ test("GET /about/page/2: a redirect lookup that throws on a numbered page with n
   const failure = new Error("redirect phase down");
   const seen: unknown[] = [];
   const app = express();
-  registerSiteRoutes(app, { ...createRouteDeps(), themes: [theme({})], postRepo: new InMemoryPostRepo({}, { initialRows: posts(30) }) });
+  registerSiteRoutes({ app, deps: { ...createRouteDeps(), themes: [theme({})], postRepo: new InMemoryPostRepo({}, { initialRows: posts(30) }) } });
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     seen.push(err);
     res.status(500).send("error handler");

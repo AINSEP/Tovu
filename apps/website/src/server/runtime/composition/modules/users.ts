@@ -47,26 +47,26 @@ export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
   return {
     name: "users",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminUserListRoute(app, deps);
-      registerAdminUserCreateRoute(app, deps);
-      registerAdminUserUpdateRoute(app, deps);
-      registerAdminUserDisableRoute(app, deps);
-      registerAdminUserEnableRoute(app, deps);
-      registerAdminUserResetPasswordRoute(app, deps);
-      registerAdminUserDeleteRoute(app, deps);
-      registerAdminUserAssignRoleRoute(app, deps);
-      registerAdminUserAttachPolicyRoute(app, deps);
-      registerAdminRoleListRoute(app, deps);
-      registerAdminRoleCreateRoute(app, deps);
-      registerAdminRoleUpdateRoute(app, deps);
-      registerAdminRoleDeleteRoute(app, deps);
-      registerAdminPolicyListRoute(app, deps);
-      registerAdminPolicyCreateRoute(app, deps);
-      registerAdminPolicyUpdateRoute(app, deps);
-      registerAdminPolicyDeleteRoute(app, deps);
-      registerAdminPolicyWritePermissionRoute(app, deps);
-      registerAdminPolicyPermissionListRoute(app, deps);
-      registerAdminPolicyPermissionRemoveRoute(app, deps);
+      registerAdminUserListRoute({ app, deps });
+      registerAdminUserCreateRoute({ app, deps });
+      registerAdminUserUpdateRoute({ app, deps });
+      registerAdminUserDisableRoute({ app, deps });
+      registerAdminUserEnableRoute({ app, deps });
+      registerAdminUserResetPasswordRoute({ app, deps });
+      registerAdminUserDeleteRoute({ app, deps });
+      registerAdminUserAssignRoleRoute({ app, deps });
+      registerAdminUserAttachPolicyRoute({ app, deps });
+      registerAdminRoleListRoute({ app, deps });
+      registerAdminRoleCreateRoute({ app, deps });
+      registerAdminRoleUpdateRoute({ app, deps });
+      registerAdminRoleDeleteRoute({ app, deps });
+      registerAdminPolicyListRoute({ app, deps });
+      registerAdminPolicyCreateRoute({ app, deps });
+      registerAdminPolicyUpdateRoute({ app, deps });
+      registerAdminPolicyDeleteRoute({ app, deps });
+      registerAdminPolicyWritePermissionRoute({ app, deps });
+      registerAdminPolicyPermissionListRoute({ app, deps });
+      registerAdminPolicyPermissionRemoveRoute({ app, deps });
     },
   };
 }

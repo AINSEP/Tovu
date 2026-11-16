@@ -60,7 +60,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminRoleDeleteRoute(app, deps);
+  registerAdminRoleDeleteRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

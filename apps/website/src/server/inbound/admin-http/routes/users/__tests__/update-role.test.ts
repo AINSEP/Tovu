@@ -60,7 +60,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminRoleUpdateRoute(app, deps);
+  registerAdminRoleUpdateRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

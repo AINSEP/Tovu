@@ -20,7 +20,7 @@ test("permission removal refuses a different workspace without deleting the perm
     res.locals.principal = { id: ownerId };
     next();
   });
-  registerAdminPolicyPermissionRemoveRoute(app, deps);
+  registerAdminPolicyPermissionRemoveRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-workspace/policies/${policy.id}/permissions/${permission.id}`, { method: "DELETE" });
@@ -50,7 +50,7 @@ test("permission removal hides storage failures, retains the row on failure, and
     return remove(input);
   });
   const app = express();
-  registerAdminPolicyPermissionRemoveRoute(app, deps);
+  registerAdminPolicyPermissionRemoveRoute({ app, deps });
   const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/policies/:policyId/permissions/:policyPermissionId");
   const sentBodies: unknown[] = [];
   const invoke = async () => {

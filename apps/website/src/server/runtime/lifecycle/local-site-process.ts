@@ -36,7 +36,7 @@ import { waitForLocalAdminBuild } from "../../../platform/site-dir/local-admin-b
  * taking the 4096-character diagnostic tail so a sliced vendor-token prefix cannot leak its suffix.
  */
 export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: string }, _options = {}) {
-  const redact = (text: string) => redactLocalText({ text: redactSecretShapes({ text }).text });
+  const redact = ({ text }: { text: string }) => redactLocalText({ text: redactSecretShapes({ text }).text });
   const buffer = createLogBuffer({ redact });
   const sink = createRotatingLogFileSink({ filePath: path.join(siteDir, "ops/logs/local-site.log") });
   let stderrText = "";
@@ -44,9 +44,9 @@ export function localSiteProcessLog({ name, siteDir }: { name: string; siteDir: 
   const retain = ({ text }: { text: string }, _optional = {}) => { stderrText = (stderrText + text).slice(-65_536); };
   const decoder = new StringDecoder("utf8");
   const record = ({ message, level = "info", includeStderr = false }: { message: string; level?: "info" | "error"; includeStderr?: boolean }, _optional = {}) => {
-    const tail = includeStderr ? `; stderr tail=${redact(stderrText).slice(-4096)}` : "";
+    const tail = includeStderr ? `; stderr tail=${redact({ text: stderrText }).slice(-4096)}` : "";
     const entry = buffer.append({ level, source: "server", message: `[local-site ${name}] ${message}${tail}` });
-    sink.write(entry);
+    sink.write({ entry });
     // A full/unwritable site disk must still leave evidence in the serving host's log.
     if (!sink.isHealthy()) console.error(entry.message);
   };

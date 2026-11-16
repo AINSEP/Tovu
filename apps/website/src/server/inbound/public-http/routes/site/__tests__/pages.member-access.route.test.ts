@@ -90,7 +90,7 @@ test("GET /:slug -- a signed-in member CAN read a members-only post", async (t) 
   const post = memberGatedPost({ memberAccessJson: JSON.stringify({ visibility: "members" }) });
   const { server, baseUrl } = await startServer({
     postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
-    memberSessionRepo: new InMemoryMemberSessionRepo([activeMemberSession()]),
+    memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession()] }),
   });
   t.after(() => closeServer(server));
 
@@ -161,7 +161,7 @@ for (const tokenKind of ["unknown", "expired"] as const) {
     const { server, baseUrl } = await startServer({
       themes: [theme],
       postRepo: new InMemoryPostRepo({}, { initialRows: [gated, publicPost] }),
-      memberSessionRepo: new InMemoryMemberSessionRepo([session]),
+      memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [session] }),
     });
     t.after(() => closeServer(server));
     const cookie = `tovu_member_session=${tokenKind === "unknown" ? "forged-member-token" : RAW_MEMBER_TOKEN}`;

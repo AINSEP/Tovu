@@ -25,7 +25,7 @@ const PROBE_ID = "render-override-probe";
 
 /** Adds a renderable copy of the active theme under {@link PROBE_ID} (mutated in place, as discovery does). */
 async function addProbeTheme(deps: NewsletterRouteDeps): Promise<void> {
-  const active = resolveActiveTheme(deps, await resolveActiveThemeId(deps));
+  const active = resolveActiveTheme({ deps, activeThemeId: await resolveActiveThemeId(deps) });
   assert.ok(active && active !== "none", "fixture: the composition renders some theme");
   const probe = { ...(active as DiscoveredTheme), manifest: { ...(active as DiscoveredTheme).manifest, id: PROBE_ID } };
   deps.themes.push(probe);

@@ -1017,7 +1017,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // ONE process-lifetime `KeyringPort` instance also used to build `webhookSigner` just below —
   // one site key, purpose-namespaced (`webhooks/ports.ts`'s `KeyringPort.derive()` contract),
   // not two independent keyrings.
-  const memberRepo = new InMemoryMemberRepo([]);
+  const memberRepo = new InMemoryMemberRepo({}, { initialRows: [] });
   const newsletterKeyring = new InMemoryKeyring();
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
   const newsletterHooks = createHookRegistry();
@@ -1430,10 +1430,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     originRegistry,
     redirectsWriteDeps,
     memberRepo,
-    memberTierRepo: new InMemoryMemberTierRepo([]),
-    memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo([]),
-    memberSessionRepo: new InMemoryMemberSessionRepo([]),
-    magicLinkRepo: new InMemoryMagicLinkTokenRepo([]),
+    memberTierRepo: new InMemoryMemberTierRepo({}, { initialRows: [] }),
+    memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo({}, { initialRows: [] }),
+    memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [] }),
+    magicLinkRepo: new InMemoryMagicLinkTokenRepo({}, { initialRows: [] }),
     // SPEC-022 REQ-09/REQ-10 — see deps.ts's identical wiring for the rationale. This hermetic
     // composition resolves `local` by default (no test sets TOVU_RUNTIME_MODE), so the gate stays
     // inert here — existing tests are unaffected (INV-06).
@@ -1714,7 +1714,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSiteContext: async () => {
-      const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
+      const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
       return { name: routeDeps.siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
         theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
         themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
@@ -2064,7 +2064,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
   // inline immediately below — it was never one of this module's 11 registrations.
   mountRoutes(app, createContentModule(routeDeps));
-  registerContentPostGetRoute(app, routeDeps);
+  registerContentPostGetRoute({ app, deps: routeDeps });
 
   // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/
   // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
@@ -2165,9 +2165,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // `system.read`-gated shape as the module-status route just above.
   registerAdminObservabilityStatusRoute(app, routeDeps);
   // The admin browser's own errors and page views, relayed to the same provider-plugin ports.
-  registerAdminBrowserTelemetryRoute(app, routeDeps);
+  registerAdminBrowserTelemetryRoute({ app, deps: routeDeps });
   registerAdminToolGapsRoute(app, routeDeps);
-  registerAdminServerLogsRoute(app, routeDeps);
+  registerAdminServerLogsRoute({ app, deps: routeDeps });
   // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
   // notification settings when it does not.
   registerAdminMailStatusRoute(app, routeDeps);
@@ -2231,7 +2231,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // tokens still need the env var). Generate runs the one site-key writer boot runs
   // (`ensureSiteKeyForSite`), handed in here because the route itself may not import it; the
   // recovery verbs (import, start fresh) get `siteKeyRecovery` the same way.
-  registerAdminSiteKeyRoutes(app, routeDeps, { ensureSiteKeyForSite, ...siteKeyRecovery });
+  registerAdminSiteKeyRoutes({ app, deps: routeDeps, siteKey: { ensureSiteKeyForSite, ...siteKeyRecovery } });
   // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
   // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
   // same permission that gates those two tools themselves — see that route file's own header.
@@ -2601,7 +2601,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.
   registerMemberPageRoutes(app, routeDeps);
   // Public dummy site — registered last (GET /:slug is a catch-all).
-  registerSiteRoutes(app, routeDeps);
+  registerSiteRoutes({ app, deps: routeDeps });
 
   // Last, so it sees a body-parser 413 from any route and answers JSON instead of Express's HTML page.
   app.use(respondToOversizedBody);

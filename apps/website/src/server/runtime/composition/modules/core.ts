@@ -55,9 +55,9 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
   return {
     name: "core",
     registerRoutes: ({ app }, _options = {}) => {
-      registerHealthRoute(app);
-      registerHealthzRoute(app);
-      registerReadyzRoute(app);
+      registerHealthRoute({ app });
+      registerHealthzRoute({ app });
+      registerReadyzRoute({ app });
 
       // Unauthenticated by design and deliberately NOT under `/api/admin`: a source that has not
       // yet proved possession has no credential to present. See `handshake.ts`'s own header for
@@ -75,7 +75,7 @@ export function createCoreModule(deps: RouteDeps, optional: { onAdminSignIn?: Ad
       // Order is load-bearing: `registerAuthRoutes` registers the ungated
       // `POST /api/admin/v1/auth/login` (plus logout/me) route BEFORE the
       // gate below mounts, so login itself is never caught by its own gate.
-      registerAuthRoutes(app, deps, { onAdminSignIn: optional.onAdminSignIn });
+      registerAuthRoutes({ app, deps }, { onAdminSignIn: optional.onAdminSignIn });
 
       // Order is load-bearing here too, and in the other direction: the publishing gate runs
       // BEFORE the admin session gate, because a publishing token is presented in the same

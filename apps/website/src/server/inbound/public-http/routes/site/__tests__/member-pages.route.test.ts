@@ -35,11 +35,11 @@ const memberCookie = `${MEMBER_SESSION_COOKIE}=${memberToken}`;
 /** Exercise the real session validator without a write-service or database fixture. */
 function authenticatedDeps() {
   const deps = createRouteDeps();
-  deps.memberSessionRepo = new InMemoryMemberSessionRepo([{
+  deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [{
     id: "session-1", workspaceId: deps.workspaceId, memberId: "member-1",
     tokenHash: createHash("sha256").update(memberToken).digest("hex"),
     createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z",
-  }]);
+  }] });
   return deps;
 }
 

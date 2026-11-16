@@ -181,16 +181,16 @@ function serializeJsonLd(data: JsonLd): string {
 function serializeElement(element: HeadElement): string {
   switch (element.kind) {
     case "title":
-      return `<title>${escapeHtml(element.text)}</title>`;
+      return `<title>${escapeHtml({ text: element.text })}</title>`;
     case "meta":
-      return `<meta name="${escapeHtml(element.name)}" content="${escapeHtml(element.content)}"/>`;
+      return `<meta name="${escapeHtml({ text: element.name })}" content="${escapeHtml({ text: element.content })}"/>`;
     case "og":
-      return `<meta property="${escapeHtml(element.property)}" content="${escapeHtml(element.content)}"/>`;
+      return `<meta property="${escapeHtml({ text: element.property })}" content="${escapeHtml({ text: element.content })}"/>`;
     case "link": {
-      const hreflang = element.hreflang ? ` hreflang="${escapeHtml(element.hreflang)}"` : "";
-      const type = element.type ? ` type="${escapeHtml(element.type)}"` : "";
-      const title = element.title ? ` title="${escapeHtml(element.title)}"` : "";
-      return `<link rel="${escapeHtml(element.rel)}" href="${escapeHtml(element.href)}"${hreflang}${type}${title}/>`;
+      const hreflang = element.hreflang ? ` hreflang="${escapeHtml({ text: element.hreflang })}"` : "";
+      const type = element.type ? ` type="${escapeHtml({ text: element.type })}"` : "";
+      const title = element.title ? ` title="${escapeHtml({ text: element.title })}"` : "";
+      return `<link rel="${escapeHtml({ text: element.rel })}" href="${escapeHtml({ text: element.href })}"${hreflang}${type}${title}/>`;
     }
     case "jsonld":
       return `<script type="application/ld+json">${serializeJsonLd(element.data)}</script>`;

@@ -35,7 +35,7 @@ async function fixture() {
     fs.mkdirSync(path.join(home, ".tovu", "site-keys"), { recursive: true });
     const keyPath = path.join(home, ".tovu", "site-keys", `${id}.hex`);
     fs.writeFileSync(keyPath, hex);
-    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: id, siteKeyId: id, siteKeyFingerprint: fingerprintSiteKeyHex(hex), storage: { kind: "sqlite" } }));
+    fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: id, siteKeyId: id, siteKeyFingerprint: fingerprintSiteKeyHex({ hex }), storage: { kind: "sqlite" } }));
     workspace.registry({}).merge({ entries: [{ id, path: dir, name: id, createdBy: "key-share-test", lastOpened: null }] });
     const dbPath = resolveSiteDatabasePaths({ dir }, { workspace, placement: "inSite", reserveIdentity: false }).contentDbPath;
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -45,7 +45,7 @@ async function fixture() {
     await kernel.execute(sql`CREATE TABLE principals(id TEXT PRIMARY KEY)`);
     await kernel.execute(sql`INSERT INTO workspaces VALUES(${id},${id},${id},${stamp})`);
     for (const statement of secretsVaultStatements({ dialect: "sqlite" })) await kernel.execute(sql.raw(statement));
-    const keyring = new FixedSiteKeyKeyring(hex);
+    const keyring = new FixedSiteKeyKeyring({ hex });
     const service = new SecretsVaultService({ repo: vaultRepo(kernel), keyring, sealer: new AesGcmSecretSealer({ keyring }), metaParsers,
       authorize: async () => {}, now: () => stamp, newId: () => "unused" });
     return { id, dir, dbPath, keyPath, service, kernel };

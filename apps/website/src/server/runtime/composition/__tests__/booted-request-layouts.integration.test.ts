@@ -125,7 +125,7 @@ test("admin memory and file handlers consume A's binding when env points at B", 
     return app;
   }) as typeof app.get;
   const deps = { ...input, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as RouteDeps;
-  registerAgentPluginMemoryRoutes(app, deps); registerAgentPluginFilesRoute(app, deps); registerSkillFilesRoute(app, deps);
+  registerAgentPluginMemoryRoutes({ app, deps }); registerAgentPluginFilesRoute({ app, deps }); registerSkillFilesRoute({ app, deps });
   for (const [url, handler] of handlers) {
     const res = { locals: { principal: { id: "owner" } }, code: 200, body: undefined as any, status(code: number) { this.code = code; return this; }, json(body: unknown) { this.body = body; return this; } };
     await handler({ params: { workspaceId, pluginId: "bound-plugin", toolId: "skill_bound_skill" }, query: {} }, res);

@@ -50,7 +50,7 @@ function assertBody(html: string, content: string) {
 
 test("a page body with a legacy widget UUID marker renders the existing widget server-side", async () => {
   const { deps, post } = await fixture();
-  const resolved = await resolveHtmlEmbedsForRender(deps, post);
+  const resolved = await resolveHtmlEmbedsForRender({ deps, post });
   assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved }),
     `<section id="widget-regression"><p>before</p>${WIDGET_HTML}<p>after</p></section>`);
 });
@@ -58,14 +58,14 @@ test("a page body with a legacy widget UUID marker renders the existing widget s
 for (const kind of ["page", "post"] as const) {
   test(`${kind}: legacy widgets render through the public fallback render path`, async () => {
     const { deps, post } = await fixture(kind);
-    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender(deps, post);
+    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender({ deps, post });
     const html = await renderSite({ theme: null, route: "post", siteTitle: "Widgets", posts: [post], post, pageHtmlEmbeds });
     assertBody(html, WIDGET_HTML);
   });
 
   test(`${kind}: legacy widgets render through a static theme's content template`, async () => {
     const { deps, post } = await fixture(kind);
-    assertBody(await renderViaTemplate(deps, theme(), post, undefined), WIDGET_HTML);
+    assertBody(await renderViaTemplate({ deps, theme: theme(), post, staticMenus: undefined }), WIDGET_HTML);
   });
 
   for (const tier of ["declarative", "templated", "handlebars"] as const) {
@@ -76,7 +76,7 @@ for (const kind of ["page", "post"] as const) {
       activeTheme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
       activeTheme.liquidTemplates.entry = "{{ post.content | raw }}";
       activeTheme.handlebarsTemplates.entry = "{{{post.content}}}";
-      const pageHtmlEmbeds = await resolveHtmlEmbedsForRender(deps, post);
+      const pageHtmlEmbeds = await resolveHtmlEmbedsForRender({ deps, post });
       assertBody(await renderSite({ theme: activeTheme, route: "post", siteTitle: "Widgets", posts: [post], post, pageHtmlEmbeds }), WIDGET_HTML);
     });
   }
@@ -87,7 +87,7 @@ for (const fullDocument of [false, true]) {
     const { deps, post } = await fixture();
     post.templateChoice = "";
     if (fullDocument) post.bodyHtml = `<!doctype html><html><body>${post.bodyHtml}</body></html>`;
-    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender(deps, post);
+    const pageHtmlEmbeds = await resolveHtmlEmbedsForRender({ deps, post });
     assertBody(renderBareEntryDocument({ post, siteTitle: "Widgets", pageHtmlEmbeds }), WIDGET_HTML);
   });
 }
@@ -128,8 +128,8 @@ for (const marker of [LEGACY_MARKER, CURRENT_MARKER]) {
   test(`a missing widget renders nothing: ${marker}`, async () => {
     const missing = marker.replace(WIDGET_ID, "does-not-exist");
     const { deps, post } = await fixture("page", missing);
-    assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved: await resolveHtmlEmbedsForRender(deps, post) }),
+    assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved: await resolveHtmlEmbedsForRender({ deps, post }) }),
       '<section id="widget-regression"><p>before</p><p>after</p></section>');
-    assertBody(await renderViaTemplate(deps, theme(), post, undefined), "");
+    assertBody(await renderViaTemplate({ deps, theme: theme(), post, staticMenus: undefined }), "");
   });
 }

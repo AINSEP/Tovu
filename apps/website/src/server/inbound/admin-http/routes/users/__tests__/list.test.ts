@@ -71,7 +71,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserListRoute(app, deps);
+  registerAdminUserListRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

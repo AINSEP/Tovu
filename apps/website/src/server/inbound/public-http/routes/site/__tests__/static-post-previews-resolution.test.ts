@@ -214,7 +214,7 @@ test("GET /blog: a members-only post is excluded from an anonymous visitor's pre
   const { server: memberServer, baseUrl: memberBaseUrl } = await startServer({
     themes: [themeWithPostPreviewsMarker()],
     postRepo: new InMemoryPostRepo({}, { initialRows: [gated, publicPost] }),
-    memberSessionRepo: new InMemoryMemberSessionRepo([activeMemberSession()]),
+    memberSessionRepo: new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession()] }),
   });
   t.after(() => closeServer(memberServer));
   const memberRes = await fetch(`${memberBaseUrl}/blog`, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });

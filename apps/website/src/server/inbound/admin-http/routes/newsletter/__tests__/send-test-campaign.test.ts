@@ -99,7 +99,7 @@ function buildApp(depsOverrides: Partial<NewsletterRouteDeps> = {}): {
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminNewsletterSendTestCampaignRoute(app, deps);
+  registerAdminNewsletterSendTestCampaignRoute({ app, deps });
   return { app, deps };
 }
 
@@ -336,7 +336,7 @@ test("send-test-campaign: a failed send whose result carries no errorCode report
 test("send-test-campaign: registered on an app with no JSON body parser, the absent body is a 400 for testAddresses, not a 500", async (t) => {
   const deps = { ...createRouteDeps(), authorize: async () => ({ allowed: true, reason: "matched" }) } as unknown as NewsletterRouteDeps;
   const app = express();
-  registerAdminNewsletterSendTestCampaignRoute(app, deps);
+  registerAdminNewsletterSendTestCampaignRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/send-test`, { method: "POST" });

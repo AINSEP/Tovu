@@ -177,7 +177,7 @@ test("route-param guards: each preview handler reached without its params refuse
   };
   const bare = express();
   bare.use(express.json());
-  registerAuthRoutes(bare, deps);
+  registerAuthRoutes({ app: bare, deps });
   bare.get("/bare-page", finalHandler("/theme-explore/:themeId/:pageId"));
   bare.get("/bare-partial", finalHandler("/theme-explore/:themeId/partial/:partialId"));
   bare.get("/bare-template", requireAdminSession(deps), finalHandler("/theme-explore/:themeId/template/:templateId"));

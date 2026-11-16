@@ -25,11 +25,11 @@ export function createIntegrationsAdminModule(deps: IntegrationsRouteDeps): Serv
   return {
     name: "integrations-admin",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminIntegrationsListRoute(app, deps);
-      registerAdminIntegrationsCreateRoute(app, deps);
-      registerAdminIntegrationsPauseRoute(app, deps);
-      registerAdminIntegrationsDeleteRoute(app, deps);
-      registerAdminIntegrationsDeliveriesRoute(app, deps);
+      registerAdminIntegrationsListRoute({ app, deps });
+      registerAdminIntegrationsCreateRoute({ app, deps });
+      registerAdminIntegrationsPauseRoute({ app, deps });
+      registerAdminIntegrationsDeleteRoute({ app, deps });
+      registerAdminIntegrationsDeliveriesRoute({ app, deps });
     },
   };
 }

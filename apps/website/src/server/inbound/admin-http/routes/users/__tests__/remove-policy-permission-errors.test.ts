@@ -21,7 +21,7 @@ async function harness() {
   await deps.identityReady;
   const ownerId = await deps.ownerPrincipalId;
   const app = express();
-  registerAdminPolicyPermissionRemoveRoute(app, deps);
+  registerAdminPolicyPermissionRemoveRoute({ app, deps });
   const handler = extractRouteHandler(app, "delete", PATH);
   const invoke = async (callerId: string, params: Record<string, string>) => {
     const { res, capture } = createCapturingResponse();
@@ -130,7 +130,7 @@ test("a hand-built request with no workspaceId param is refused 404 before any l
   const { deps, ownerId } = await harness();
   const { policy, row, read } = await targetPolicy(deps, "content.read");
   const app = express();
-  registerAdminPolicyPermissionRemoveRoute(app, deps);
+  registerAdminPolicyPermissionRemoveRoute({ app, deps });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: ownerId };
   await extractRouteHandler(app, "delete", PATH)({ params: { policyId: policy.id, policyPermissionId: row.id } }, res);

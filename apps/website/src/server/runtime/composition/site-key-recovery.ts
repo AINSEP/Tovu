@@ -54,8 +54,8 @@ export interface SiteKeyRecoveryInput {
 /** Counts sealed values (and the storage secret) that open under `input.hex`.
  *  @complexity {@link inventoryVaultCredentials}'s cost plus one small file read. */
 async function checkKey(input: SiteKeyRecoveryInput): Promise<SiteKeyKeyCheck> {
-  const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.hex));
-  const keyring = new FixedSiteKeyKeyring(input.hex);
+  const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: input.hex }));
+  const keyring = new FixedSiteKeyKeyring({ hex: input.hex });
   const counts = await withSiteKernel({ input, use: async kernel => {
     const inventory = await inventoryVaultCredentials({ kernel, sealer, keyring, hasSiteKeySource: () => true, aadFor: recoveryAad });
     return { sealed: inventory.totals.sealed, opens: inventory.totals.opens, metadataOnly: inventory.metadataOnly.length,
@@ -67,7 +67,7 @@ async function checkKey(input: SiteKeyRecoveryInput): Promise<SiteKeyKeyCheck> {
 /** Removes every sealed value that does not open under `input.hex`. The caller takes a restore point
  *  first. @complexity {@link discardVaultCredentialsNotOpening}'s cost. */
 async function discardNotOpening(input: SiteKeyRecoveryInput): Promise<{ discarded: number; kept: number }> {
-  const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.hex));
+  const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: input.hex }));
   return withSiteKernel({ input, use: (kernel) => discardVaultCredentialsNotOpening({ kernel, sealer, aadFor: recoveryAad }), empty: { discarded: 0, kept: 0 } });
 }
 
@@ -80,9 +80,9 @@ export interface SiteKeyResealInput extends SiteKeyRecoveryInput {
  *  under `hex` onto `hex`, so switching to `hex` strands nothing. The caller takes a restore point
  *  first. @complexity {@link resealVaultCredentialsOpeningUnder}'s cost plus one small file rewrite. */
 async function resealFrom(input: SiteKeyResealInput): Promise<{ resealed: number; unreadable: number }> {
-  const keyring = new FixedSiteKeyKeyring(input.hex);
+  const keyring = new FixedSiteKeyKeyring({ hex: input.hex });
   const sealer = new AesGcmSecretSealer(keyring);
-  const previous = new AesGcmSecretSealer(new FixedSiteKeyKeyring(input.previousHex));
+  const previous = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: input.previousHex }));
   const key = await keyring.activeKey();
   const counts = await withSiteKernel({ input, use: (kernel) => resealVaultCredentialsOpeningUnder({ kernel, sealer, key, previous, aadFor: recoveryAad,
       resealRecord: ({ record, previous }) => resealRecord({ kernel, siteDir: input.siteDir, keyring, sealer, record, previous }),

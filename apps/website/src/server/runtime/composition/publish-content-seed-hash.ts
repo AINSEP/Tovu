@@ -103,7 +103,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
         blobStore: unusedBySeedInspect({ label: "media.blobStore" }),
         contentTypeStore: unusedBySeedInspect({ label: "media.contentTypeStore" }),
       },
-      menu: { repo: new SqliteMenuRepo(seedDb), bindingRepo: unusedBySeedInspect({ label: "menu.bindingRepo" }) },
+      menu: { repo: new SqliteMenuRepo({ store: seedDb }), bindingRepo: unusedBySeedInspect({ label: "menu.bindingRepo" }) },
       redirect: { ...input.redirectsWriteDeps, repo: redirectRepo, db: redirectRepo },
       ...buildContentPublishPorts({
         formDefinitionRepo: new SqliteFormDefinitionRepo({ store: seedDb }),
@@ -121,9 +121,9 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
         entryRefsRepo: unusedBySeedInspect({ label: "entryRefsRepo" }),
         widgetBindingRepo: unusedBySeedInspect({ label: "widgetBindingRepo" }),
         // Read by site-setting/active-theme `inspect()`; `themes` only fills a packed-only field.
-        settingsRepo: new SqliteSettingsRepo(seedDb),
+        settingsRepo: new SqliteSettingsRepo({ store: seedDb }),
         principalRepo: unusedBySeedInspect({ label: "principalRepo" }),
-        presentationRepo: new SqlitePresentationSettingsRepo(seedDb),
+        presentationRepo: new SqlitePresentationSettingsRepo({ store: seedDb }),
         themes: [],
       }),
     },

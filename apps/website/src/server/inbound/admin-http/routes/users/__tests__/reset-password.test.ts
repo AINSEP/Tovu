@@ -60,7 +60,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserResetPasswordRoute(app, deps);
+  registerAdminUserResetPasswordRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -365,6 +365,6 @@ test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently 
 // it so an owner can reset its own password); the mapping is defence-in-depth, proven directly.
 test("RESET_USER_PASSWORD error mapping: SelfDeleteError maps to 409 SELF_DELETE", () => {
   const { res, capture } = createCapturingResponse();
-  sendResetPasswordError(res, new SelfDeleteError("you cannot reset your own password here"));
+  sendResetPasswordError({ res, err: new SelfDeleteError("you cannot reset your own password here") });
   assert.deepEqual(capture, { statusCode: 409, jsonBody: { error: "you cannot reset your own password here", code: "SELF_DELETE" } });
 });

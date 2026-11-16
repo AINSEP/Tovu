@@ -44,7 +44,7 @@ function harness(t: { after(fn: () => Promise<void>): void }) {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     userRepo: { list: async () => [] } as unknown as TrashRouteDeps["userRepo"],
   };
-  registerAdminTrashListRoute(app, deps);
+  registerAdminTrashListRoute({ app, deps });
   return {
     kernel, postRepo, trashRepo, deps,
     async trashPost(kind: "page" | "post", id = kind) {

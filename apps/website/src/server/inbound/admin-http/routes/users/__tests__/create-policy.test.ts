@@ -56,7 +56,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminPolicyCreateRoute(app, deps);
+  registerAdminPolicyCreateRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

@@ -20,9 +20,9 @@ export function createApiKeysModule(deps: ApiKeysRouteDeps): ServerModuleHandle 
   return {
     name: "api-keys",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminApiKeyPrincipalCreateRoute(app, deps);
-      registerAdminApiKeyIssueRoute(app, deps);
-      registerAdminApiKeyRevokeRoute(app, deps);
+      registerAdminApiKeyPrincipalCreateRoute({ app, deps });
+      registerAdminApiKeyIssueRoute({ app, deps });
+      registerAdminApiKeyRevokeRoute({ app, deps });
     },
   };
 }

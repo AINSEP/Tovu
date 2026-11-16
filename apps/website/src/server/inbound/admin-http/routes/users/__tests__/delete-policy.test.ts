@@ -60,7 +60,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminPolicyDeleteRoute(app, deps);
+  registerAdminPolicyDeleteRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

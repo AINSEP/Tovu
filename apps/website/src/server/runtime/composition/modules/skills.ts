@@ -10,9 +10,9 @@ export function createSkillsModule(deps: SkillsRouteDeps): ServerModuleHandle {
   return {
     name: "skills",
     registerRoutes: ({ app }, _options = {}) => {
-      registerSkillsListRoute(app, deps);
-      registerSkillFilesRoute(app, deps);
-      registerSkillsManagementRoutes(app, { ...deps, withExtensionApprovalPolicy });
+      registerSkillsListRoute({ app, deps });
+      registerSkillFilesRoute({ app, deps });
+      registerSkillsManagementRoutes({ app, deps: { ...deps, withExtensionApprovalPolicy } });
     },
   };
 }

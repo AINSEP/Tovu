@@ -44,13 +44,13 @@ export function createAgentPluginsModule(deps: RouteDeps): ServerModuleHandle {
   return {
     name: "agent-plugins",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAgentPluginsListRoute(app, deps);
-      registerAgentPluginSetEnabledRoute(app, deps);
-      registerAgentPluginFilesRoute(app, deps);
-      registerAgentPluginInstallRoute(app, deps);
-      registerAgentPluginMemoryRoutes(app, deps);
-      registerAgentPluginAdminSurfaceRoutes(app, deps);
-      registerAdminSurfaceFilesRoute(app, deps);
+      registerAgentPluginsListRoute({ app, deps });
+      registerAgentPluginSetEnabledRoute({ app, deps });
+      registerAgentPluginFilesRoute({ app, deps });
+      registerAgentPluginInstallRoute({ app, deps });
+      registerAgentPluginMemoryRoutes({ app, deps });
+      registerAgentPluginAdminSurfaceRoutes({ app, deps });
+      registerAdminSurfaceFilesRoute({ app, deps });
       registerPluginExportFilesRoute({ app, deps });
       if (deps.apiConnections) {
         registerApiConnectionSignInRoute(app, { workspaceId: deps.workspaceId, host: deps.apiConnections.host });

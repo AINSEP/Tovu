@@ -37,7 +37,7 @@ export async function openSiteContentDb({ dbPath }: { dbPath: string }, options:
       restoreSnapshots: (entries) => {
         closeSqliteConnection(db);
         open = false;
-        restoreSqliteSnapshots(dbPath, entries);
+        restoreSqliteSnapshots({ dbPath, entries });
       },
     });
     if (recovery.recovered > 0) {

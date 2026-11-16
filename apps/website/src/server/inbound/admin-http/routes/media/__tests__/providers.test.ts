@@ -40,8 +40,8 @@ function buildApp(depsOverrides: Partial<MediaProviderRouteDeps> = {}): express.
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaGetProvidersRoute(app, deps);
-  registerAdminMediaPutProvidersRoute(app, deps);
+  registerAdminMediaGetProvidersRoute({ app, deps });
+  registerAdminMediaPutProvidersRoute({ app, deps });
   return app;
 }
 

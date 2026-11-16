@@ -32,7 +32,7 @@ async function fixture(t: test.TestContext, storage: 'memory' | 'sqlite' = 'memo
     input: { workspaceId: deps.workspaceId, name: 'public', params: { format: 'webp' }, owner: 'core' } });
   const app = express();
   // No authorization/member adapters are needed for this unreferenced public asset.
-  registerMediaRenditionRoute(app, deps as unknown as MediaRenditionRouteDeps);
+  registerMediaRenditionRoute({ app, deps: deps as unknown as MediaRenditionRouteDeps });
   const baseUrl = await startTestServer(app, t);
   return { deps, media, url: `${baseUrl}/m/${media.id}/public.v1/cached.webp`, advance: () => { now += 60_000; } };
 }

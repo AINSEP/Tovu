@@ -212,7 +212,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     reconcileGrantsOnBoot: false, readOnlyOwnerPrincipalId: ownerId }, { apiKeyRepo: unavailable({ field: 'apiKeyRepo' }) });
   await identity.identityReady;
   const postRepo = new SqlitePostRepo({ store: kernel }), settingsRepo = new SqliteSettingsRepo(kernel);
-  const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
+  const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });
   const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel }), mediaRepo = new SqliteMediaRepo({ store: kernel });
   const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });
   const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });
@@ -260,14 +260,14 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
       put: unavailable({ field: 'blobStore.put' }), putIfAbsent: unavailable({ field: 'blobStore.putIfAbsent' }), delete: unavailable({ field: 'blobStore.delete' }),
     },
     // The existing factories borrow their connection; construction/get/history reads never write.
-    workspaceRepo: new SqliteWorkspaceRepo(kernel), chatHistory: createChatStoreFactory({ store: chat }),
+    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel }), chatHistory: createChatStoreFactory({ store: chat }),
     formDefinitionRepo: new SqliteFormDefinitionRepo({ store: kernel }), formSubmissionRepo: new SqliteFormSubmissionRepo({ store: kernel }),
     // Status reads only (the repo's plan-once write stays unreachable), over the peer's own outbox rows;
     // the handler scopes them to the peer workspaceId above, and rows carry ids and safe codes, never answers.
     formDeliveryStatus: { forSubmission: formDeliveryRepo.forSubmission.bind(formDeliveryRepo), recentUnfinished: formDeliveryRepo.recentUnfinished.bind(formDeliveryRepo) },
     taxonomyRepo: new SqliteTaxonomyRepo({ db: kernel, workspaceId }), termRepo: new SqliteTermRepo({ db: kernel, workspaceId }),
     entryTermRepo: new SqliteEntryTermRepo({ db: kernel, workspaceId }), taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId }),
-    menuRepo: new SqliteMenuRepo(kernel), navLocationBindingRepo: new SqliteNavLocationBindingRepo(kernel),
+    menuRepo: new SqliteMenuRepo({ store: kernel }), navLocationBindingRepo: new SqliteNavLocationBindingRepo({ store: kernel }),
     entryRepo: new SqliteEntryRepo({ store: kernel }), contentTypeRepo: new SqliteContentTypeRepo({ store: kernel }),
     themesDir, get themes() { assertPeerThemes({ siteDir: source.dir, themesDir }); return themes; },
     // Preview-switcher reads the peer preference through the existing resolver; expose no writer.
@@ -276,7 +276,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     // Use the renderer's resolver over the peer's read-only settings, never the active site's closure.
     resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo, workspaceId }),
     commentRepo: new SqliteCommentRepo({ store: kernel }, {}), commentsReady: Promise.resolve(), commentsSettingsReady: Promise.resolve(),
-    memberRepo: new SqliteMemberRepo(kernel), memberTierRepo: new SqliteMemberTierRepo(kernel), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
+    memberRepo: new SqliteMemberRepo({ store: kernel }), memberTierRepo: new SqliteMemberTierRepo({ store: kernel }), memberSubscriptionRepo: new SqliteMemberSubscriptionRepo({ store: kernel }),
     newsletterReady: Promise.resolve(), newsletterCampaignRepo: new SqliteNewsletterCampaignRepo({ store: kernel }), newsletterListRepo: new SqliteNewsletterListRepo({ store: kernel }),
     newsletterSubscriptionRepo: new SqliteNewsletterSubscriptionRepo({ store: kernel }), newsletterAudienceSnapshotRepo: new SqliteNewsletterAudienceSnapshotRepo({ store: kernel }), newsletterSendRepo: new SqliteNewsletterSendRepo({ store: kernel }),
     redirectRepo: SqliteRedirectRepo({ store: kernel }, {}), originRegistry, seoDeps, seoReady: Promise.resolve(),

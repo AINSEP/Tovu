@@ -24,10 +24,10 @@ export function createAssistantExecutionModule(deps: AssistantExecutionRouteDeps
   return {
     name: "assistant-execution",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminAssistantDetectAgentsRoute(app, deps);
-      registerAdminAssistantTestConnectionRoute(app, deps);
-      registerAdminAssistantListModelsRoute(app, deps);
-      registerAdminAssistantTestAgentRoute(app, deps);
+      registerAdminAssistantDetectAgentsRoute({ app, deps });
+      registerAdminAssistantTestConnectionRoute({ app, deps });
+      registerAdminAssistantListModelsRoute({ app, deps });
+      registerAdminAssistantTestAgentRoute({ app, deps });
     },
   };
 }

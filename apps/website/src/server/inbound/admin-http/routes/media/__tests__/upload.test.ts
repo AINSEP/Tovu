@@ -63,7 +63,7 @@ function buildApp(depsOverrides: Partial<MediaRouteDeps> = {}): express.Express 
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminMediaUploadRoute(app, deps);
+  registerAdminMediaUploadRoute({ app, deps });
   return app;
 }
 
@@ -216,7 +216,7 @@ test("upload: a real PNG mislabeled image/jpeg is stored as what its bytes are (
   const deps = createRouteDeps();
   const mediaDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
   const app = buildApp(mediaDeps);
-  registerAdminMediaUpdateRoute(app, mediaDeps);
+  registerAdminMediaUpdateRoute({ app, deps: mediaDeps });
   const { status, json } = await upload(t, app, {
     filename: "pixel.jpg",
     contentType: "image/jpeg",

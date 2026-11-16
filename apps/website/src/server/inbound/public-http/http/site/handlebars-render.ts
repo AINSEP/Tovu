@@ -142,7 +142,7 @@ function isHandlebarsWorkerInput(value: unknown): value is HandlebarsWorkerInput
  */
 export function runHandlebarsRender(
   { workerData }: { workerData: unknown },
-  { lint = lintHandlebarsTemplate }: { lint?: (source: string) => string[] } = {},
+  { lint = (source: string) => lintHandlebarsTemplate({ source }) }: { lint?: (source: string) => string[] } = {},
 ): HandlebarsWorkerResult {
   if (!isHandlebarsWorkerInput(workerData)) {
     return { ok: false, error: "handlebars-worker received malformed workerData" };

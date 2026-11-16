@@ -105,7 +105,7 @@ function fsyncDirectory({ dir }: { dir: string }, _optional = {}): void {
  */
 export function ensureProjectKey({ keyFile: file }: { keyFile: string }, optional: { mint?: () => string; uid?: () => number } = {}): string {
   if (!fs.existsSync(file)) {
-    atomicCreateSiteKeyFile(file, (optional.mint ?? mintSiteKeyHex)());
+    atomicCreateSiteKeyFile({ filePath: file, hex: (optional.mint ?? mintSiteKeyHex)() });
     fsyncDirectory({ dir: path.dirname(file) });
   }
   checkKeyFile({ file, uid: optional.uid ?? process.getuid });
@@ -240,7 +240,7 @@ export async function openProjectStore(
     closeSqliteConnection(db);
     throw error;
   }
-  const keyring = new FixedSiteKeyKeyring(hex);
+  const keyring = new FixedSiteKeyKeyring({ hex });
   const scope: ProjectVaultScope = { workspaceId: PROJECT_WORKSPACE_ID, repo: new SqlSecretsVaultRepo({ kernel }), keyring, sealer: new AesGcmSecretSealer(keyring) };
   const vault = createApiConnectionVault({ repo: scope.repo, keyring, sealer: scope.sealer,
     clock: optional.clock ?? { nowMs: () => Date.now() }, workspaceId: PROJECT_WORKSPACE_ID });

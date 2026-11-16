@@ -669,7 +669,7 @@ test("menu resolution renders exact links for slugs and legacy ids without HTTP"
   for (const id of [MENU_SLUG, "menu-primary-nav-id"]) {
     const theme = themeWithMenuMarker("about");
     theme.pages.about = theme.pages.about!.replace(MENU_SLUG, id);
-    const menus = await resolveStaticMenusForRender(deps, theme, "/about");
+    const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/about" });
     const html = renderStaticPage({ theme, pageId: "about", menus });
     assert.ok(html);
     assertResolvedPrimaryMenu(html);
@@ -679,13 +679,13 @@ test("menu resolution renders exact links for slugs and legacy ids without HTTP"
 test("reserved menu markers preserve authored fallback and mark the correct group and pager links", async () => {
   const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }), menuRepo: new InMemoryMenuRepo({}, { initialRows: [headerNavMenuWithDocsSubtree()] }) };
   const section = themeWithDocsSectionPages();
-  const sectionMenus = await resolveStaticMenusForRender(deps, section, "/quickstart");
+  const sectionMenus = await resolveStaticMenusForRender({ deps, theme: section, currentPath: "/quickstart" });
   const html = renderStaticPage({ theme: section, pageId: "quickstart", menus: sectionMenus });
   assert.ok(html);
   assert.match(liTagFor(html, "Get started"), /\bis-active\b/);
   assert.doesNotMatch(liTagFor(html, "Build your site"), /\bis-active\b/);
   const pager = themeWithDocsPagerPages();
-  const pagerMenus = await resolveStaticMenusForRender(deps, pager, "/install");
+  const pagerMenus = await resolveStaticMenusForRender({ deps, theme: pager, currentPath: "/install" });
   const pagerHtml = renderStaticPage({ theme: pager, pageId: "install", menus: pagerMenus });
   assert.ok(pagerHtml);
   assert.match(liTagFor(pagerHtml, "Quickstart"), /\bdocs-pager-prev\b/);
@@ -695,7 +695,7 @@ test("reserved menu markers preserve authored fallback and mark the correct grou
 
   const ordinary = themeWithMenuMarker("about");
   ordinary.pages.about = `<html><body><div data-embed-config='{"type":"menu","id":"missing-menu"}'><span>Ordinary fallback</span></div></body></html>`;
-  const outsideMenus = await resolveStaticMenusForRender(deps, pager, "/not-a-doc-page");
+  const outsideMenus = await resolveStaticMenusForRender({ deps, theme: pager, currentPath: "/not-a-doc-page" });
   assert.ok(renderStaticPage({ theme: pager, pageId: "not-a-doc-page", menus: outsideMenus })!.includes("<span>Pager fallback</span>"));
   for (const [theme, pageId, fallback] of [
     [ordinary, "about", "Ordinary"],
@@ -704,7 +704,7 @@ test("reserved menu markers preserve authored fallback and mark the correct grou
     [pager, "not-a-doc-page", "Pager"],
   ] as const) {
     const missingDeps = { ...deps, menuRepo: new InMemoryMenuRepo({}, { initialRows: [] }) };
-    const menus = await resolveStaticMenusForRender(missingDeps, theme, `/${pageId}`);
+    const menus = await resolveStaticMenusForRender({ deps: missingDeps, theme, currentPath: `/${pageId}` });
     assert.ok(renderStaticPage({ theme, pageId, menus })!.includes(`<span>${fallback} fallback</span>`));
   }
 });
@@ -720,7 +720,7 @@ test("static menu assignment and reassignment shadow legacy names, preserve HTML
   const bindingRepo = new InMemoryNavLocationBindingRepo({});
   const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [publishedPost()] }),
     navLocationBindingRepo: bindingRepo, menuRepo: new InMemoryMenuRepo({}, { initialRows: [menuEntry(), first, second] }) };
-  const render = async () => renderStaticPage({ theme, pageId: "about", menus: await resolveStaticMenusForRender(deps, theme, "/about") });
+  const render = async () => renderStaticPage({ theme, pageId: "about", menus: await resolveStaticMenusForRender({ deps, theme, currentPath: "/about" }) });
   await bindingRepo.upsert({ workspaceId: "another-workspace", locationKey: MENU_SLUG, menuId: "assigned", boundAt: "2026-10-25" });
   assertResolvedPrimaryMenu((await render())!);
   await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: MENU_SLUG, menuId: "assigned", boundAt: "2026-10-25" });
@@ -743,6 +743,6 @@ test("Docs header-derived markers follow the assigned header menu", async () => 
     menuRepo: new InMemoryMenuRepo({}, { initialRows: [assigned] }) };
   await bindingRepo.upsert({ workspaceId: WORKSPACE_ID, locationKey: "menu-header-nav", menuId: assigned.id, boundAt: "2026-10-25" });
   const theme = themeWithDocsSectionPages();
-  const menus = await resolveStaticMenusForRender(deps, theme, "/quickstart");
+  const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/quickstart" });
   assert.match(renderStaticPage({ theme, pageId: "quickstart", menus })!, /Quickstart/);
 });

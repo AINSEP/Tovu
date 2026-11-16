@@ -55,18 +55,18 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
       // No ordering hazard of the kind the connectors module documents: the collection route, the
       // `:serverId` routes, and the two new fixed-suffix routes (`/admissions`, `/:serverId/probe`)
       // all differ by HTTP method or by segment count, so no literal path can be swallowed as an id.
-      registerAdminExternalMcpListRoute(app, deps);
-      registerAdminExternalMcpPutRoute(app, deps);
-      registerAdminExternalMcpDeleteRoute(app, deps);
-      registerAdminExternalMcpAdmissionsRoute(app, deps);
-      registerAdminExternalMcpProbeRoute(app, deps, probeLimiter);
+      registerAdminExternalMcpListRoute({ app, deps });
+      registerAdminExternalMcpPutRoute({ app, deps });
+      registerAdminExternalMcpDeleteRoute({ app, deps });
+      registerAdminExternalMcpAdmissionsRoute({ app, deps });
+      registerAdminExternalMcpProbeRoute({ app, deps, limiter: probeLimiter });
       // `GET /tool-approvals` is registered before nothing it could be mistaken for: there is no
       // `GET /:serverId`, and the revoke path has four segments past `mcp-servers`.
-      registerAdminExternalMcpToolApprovalsRoutes(app, deps);
+      registerAdminExternalMcpToolApprovalsRoutes({ app, deps });
 
       if (!oauthDeps) return;
-      registerAdminExternalMcpOAuthConnectRoute(app, oauthDeps, oauthLimiter);
-      registerAdminExternalMcpOAuthDevicePollRoute(app, oauthDeps, oauthLimiter);
+      registerAdminExternalMcpOAuthConnectRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
+      registerAdminExternalMcpOAuthDevicePollRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
       registerAdminExternalMcpOAuthDisconnectRoute(app, oauthDeps);
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.

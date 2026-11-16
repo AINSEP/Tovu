@@ -60,7 +60,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserCreateRoute(app, deps);
+  registerAdminUserCreateRoute({ app, deps });
   return { app, deps, ownerId };
 }
 
@@ -113,10 +113,10 @@ test("CREATE_USER route: direct invoke fallback for nullish body (`parseUserCrea
 
 test("CREATE_USER route: 201 on success, with email provided", async (t) => {
   const { app, deps } = await buildApp();
-  registerAdminUserListRoute(app, deps);
-  registerAdminUserUpdateRoute(app, deps);
-  registerAdminUserEnableRoute(app, deps);
-  registerAdminUserDisableRoute(app, deps);
+  registerAdminUserListRoute({ app, deps });
+  registerAdminUserUpdateRoute({ app, deps });
+  registerAdminUserEnableRoute({ app, deps });
+  registerAdminUserDisableRoute({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${URL_BASE}`, {

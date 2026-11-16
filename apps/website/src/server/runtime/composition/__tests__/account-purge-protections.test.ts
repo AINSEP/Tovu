@@ -45,7 +45,7 @@ async function setup() {
   const routeDeps = { ...identity, workspaceId, clock, idGen, trash, registry: new Map(), db: contentKernel({ store: db }), authorize };
   const permanent = buildPermanentDeleteDeps(routeDeps as unknown as Parameters<typeof buildPermanentDeleteDeps>[0]);
   const app = express();
-  registerAdminTrashPurgeRoute(app, routeDeps);
+  registerAdminTrashPurgeRoute({ app, deps: routeDeps });
   const make = async (name: string, role: "admin" | "owner" | undefined = undefined) => {
     const { principal } = await createUser({ deps: service, input: { workspaceId, callerPrincipalId: ownerId, username: name, password: "correct-horse-battery" } });
     if (role) {

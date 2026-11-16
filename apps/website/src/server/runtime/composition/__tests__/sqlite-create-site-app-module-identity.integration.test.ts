@@ -193,7 +193,7 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   const owner = await deps.ownerPrincipalId;
   const { subscription } = await createSubscription({
     deps: { repo: deps.webhookSubscriptionRepo, clock: deps.clock, idGenerator: deps.idGen,
-      isAllowedTarget: async (url) => url === "https://module-owner.example.test/hook" },
+      isAllowedTarget: async ({ url }) => url === "https://module-owner.example.test/hook" },
     input: { workspaceId: deps.workspaceId, ownerPrincipalId: owner, createdByPrincipalId: owner,
       label: "Module identity hook", targetUrl: "https://module-owner.example.test/hook", topics: ["form.submission.received"] },
   });

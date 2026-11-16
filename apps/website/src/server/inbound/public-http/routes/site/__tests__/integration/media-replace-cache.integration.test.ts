@@ -139,9 +139,9 @@ test("a current version and matching validator never bypass a members-only gate"
   assert.equal(denied.headers.get("cache-control"), "private, no-store");
   assert.deepEqual(await denied.json(), { error: "rendition not found" });
   const token = "media-cache-member";
-  deps.memberSessionRepo = new InMemoryMemberSessionRepo([{ id: "cache-session", workspaceId: deps.workspaceId,
+  deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [{ id: "cache-session", workspaceId: deps.workspaceId,
     memberId: "member", tokenHash: createHash("sha256").update(token).digest("hex"), createdAt: media.createdAt,
-    expiresAt: "2099-01-01T00:00:00.000Z" }]);
+    expiresAt: "2099-01-01T00:00:00.000Z" }] });
   const allowed = await fetch(`${url}?v=${media.source.sha256.slice(0, 12)}`, { headers: { cookie: `tovu_member_session=${token}` } });
   assert.equal(allowed.status, 200);
   assert.equal(allowed.headers.get("cache-control"), "private, no-store");

@@ -60,20 +60,20 @@ export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps 
   return {
     name: "media",
     registerRoutes: ({ app }, _options = {}) => {
-      registerAdminMediaListRoute(app, deps);
+      registerAdminMediaListRoute({ app, deps });
       registerAdminMediaWhereUsedRoute({ app, deps });
-      registerAdminMediaUploadRoute(app, deps);
+      registerAdminMediaUploadRoute({ app, deps });
       registerAdminMediaImportUrlRoute({ app, deps });
       registerAdminMediaReplaceRoute({ app, deps });
-      registerAdminMediaUpdateRoute(app, deps);
-      registerAdminMediaTrashRoute(app, deps);
+      registerAdminMediaUpdateRoute({ app, deps });
+      registerAdminMediaTrashRoute({ app, deps });
       registerAdminMediaDeleteRoute(app, deps);
-      registerAdminMediaOriginalRoute(app, deps);
+      registerAdminMediaOriginalRoute({ app, deps });
       registerAdminMediaTextRoute({ app, deps });
-      registerMediaRenditionRoute(app, deps);
-      registerMediaOriginalVideoRoute(app, deps);
-      registerAdminMediaGetProvidersRoute(app, deps);
-      registerAdminMediaPutProvidersRoute(app, deps);
+      registerMediaRenditionRoute({ app, deps });
+      registerMediaOriginalVideoRoute({ app, deps });
+      registerAdminMediaGetProvidersRoute({ app, deps });
+      registerAdminMediaPutProvidersRoute({ app, deps });
     },
   };
 }

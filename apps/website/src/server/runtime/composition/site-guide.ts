@@ -55,7 +55,7 @@ export function siteGuideFactDeps(
     listWidgetTypes: () => Object.values(WIDGET_TYPE_REGISTRATIONS).map(item => item.typeKey),
     listFormFieldTypes: () => [...FIELD_TYPES],
     listMarkers: () => [...new Set([...Object.keys(EMBED_MARKER_TARGET_KEYS), FEATURED_IMAGE_MARKER_TYPE])],
-    listLayouts: () => [resolveThemeLayout().pagesDir, resolveThemeLayout(2).pagesDir],
+    listLayouts: () => [resolveThemeLayout({}).pagesDir, resolveThemeLayout({}, { apiVersion: 2 }).pagesDir],
     // No membership enable/disable toggle exists; a wired repository does not establish feature state.
     readMembersEnabled: async () => null,
     readAgentPlugins: async () => {

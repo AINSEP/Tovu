@@ -506,7 +506,7 @@ export function defaultDatabaseJournalDbPath({ contentDbPath = defaultContentDbP
  */
 export function defaultChatDbPath({ contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}): string {
   if (process.env.TOVU_CHAT_DB !== undefined) return process.env.TOVU_CHAT_DB;
-  if (isInMemoryDbPath(contentDbPath)) return join(dirname(contentDbPath), "chat.db");
+  if (isInMemoryDbPath({ dbPath: contentDbPath })) return join(dirname(contentDbPath), "chat.db");
   const root = resolveSiteDirForDatabase({ dbPath: contentDbPath });
   const paths = resolveSiteDatabasePaths({ dir: root });
   return paths.contentDbPath === contentDbPath ? paths.chatDbPath : join(dirname(contentDbPath), "chat.db");
@@ -525,7 +525,7 @@ export function defaultChatDbPath({ contentDbPath = defaultContentDbPath() }: { 
  * @complexity O(content roots).
  */
 function resolveShareDirectory(required: { siteDir: string; dbPath: string; contentRoots: readonly string[] }): string {
-  const shareDirectory = resolve(isInMemoryDbPath(required.dbPath) ? required.siteDir : dirname(required.dbPath), "ops", "shares");
+  const shareDirectory = resolve(isInMemoryDbPath({ dbPath: required.dbPath }) ? required.siteDir : dirname(required.dbPath), "ops", "shares");
   const refuse = ({ target }: { target: string }, _optional = {}): void => {
     if (isInsideAny({ target, roots: required.contentRoots })) throw new Error("A site's ops/shares must not be inside a served content folder; give its database its own folder.");
   };
@@ -781,9 +781,9 @@ function compositionApprovalOverrides({ overrides }: { overrides: Partial<Create
 function prepareCompositionStorage({ dbPath, overrides }: {
   dbPath: string; overrides: Partial<CreateSiteRouteDepsOverrides>;
 }, _options = {}) {
-  const anchor = isInMemoryDbPath(dbPath) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir });
+  const anchor = isInMemoryDbPath({ dbPath }) ? ":memory:" : resolveSiteDirForDatabase({ dbPath, siteDir: overrides.siteBinding?.dir });
   const storage = resolveSiteStorage({ siteDir: anchor });
-  if (!isInMemoryDbPath(dbPath) && storage.kind === "sqlite" && !overrides.db) mkdirSync(dirname(dbPath), { recursive: true });
+  if (!isInMemoryDbPath({ dbPath }) && storage.kind === "sqlite" && !overrides.db) mkdirSync(dirname(dbPath), { recursive: true });
   return storage;
 }
 
@@ -983,7 +983,7 @@ function providerPluginBoot({ overrides }: { overrides: Partial<CreateSiteRouteD
 async function composeProviderConfig({ overrides, runtimeMode, onStoreClose, site, binding, references }: {
   overrides: Partial<CreateSiteRouteDepsOverrides>; runtimeMode: RuntimeMode; onStoreClose: (required: { registration: () => void }, optional?: Record<string, never>) => void; site: ProviderConfigSource; binding: { dir: string; name: string }; references: SiteKeyReferences;
 }): Promise<{ siteId: string; projectStore?: ProjectStore; providerConfigSource: ProviderConfigSource; projectId: string | undefined; projectVault?: ProjectVaultScope }> {
-  const siteId = acceptedSiteId({ value: readSiteMetaId(binding.dir), source: "site meta" }) ?? "";
+  const siteId = acceptedSiteId({ value: readSiteMetaId({ siteDir: binding.dir }), source: "site meta" }) ?? "";
   if (!siteId) return { siteId, providerConfigSource: site, projectId: undefined };
   const projectStore = await projectStoreFor({ overrides, runtimeMode });
   if (!projectStore) return { siteId, providerConfigSource: site, projectId: undefined };
@@ -1013,7 +1013,7 @@ function credentialProject<R>({ projectVault, repo }: { projectVault: ProjectVau
 
 /** A site id from `source`, or undefined (warned) when it is not a short token. */
 function acceptedSiteId({ value, source }: { value: string | undefined; source: string }, _optional = {}): string | undefined {
-  if (value === undefined || isSiteIdToken(value)) return value;
+  if (value === undefined || isSiteIdToken({ value })) return value;
   console.warn(`[site-identity] ${source} holds ${JSON.stringify(value.slice(0, 80))}, which is not a valid site id; it is ignored`);
   return undefined;
 }
@@ -1030,7 +1030,7 @@ function acceptedSiteId({ value, source }: { value: string | undefined; source: 
  */
 export function siteIdentityFor({ workspaceId, binding, runtimeMode, projectId }: { workspaceId: string; binding: { name: string; dir: string }; runtimeMode: RuntimeMode; projectId: string | undefined }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): SiteIdentity {
   const environment = telemetryEnvironment({ env, runtimeMode });
-  const siteId = acceptedSiteId({ value: readSiteMetaId(binding.dir), source: `${binding.dir}/.site-meta.json` })
+  const siteId = acceptedSiteId({ value: readSiteMetaId({ siteDir: binding.dir }), source: `${binding.dir}/.site-meta.json` })
     ?? acceptedSiteId({ value: env.TOVU_SITE_ID || undefined, source: "TOVU_SITE_ID" }) ?? workspaceId;
   return { siteId, siteSlug: binding.name, environment, projectId: projectId ?? siteId };
 }
@@ -1249,8 +1249,8 @@ async function composeSiteRouteDeps(
   // function's own doc), so this is a genuine no-op on every ordinary boot. Exposed on the returned
   // deps (like `blobHydrationReady`) so a boot test can await the reset; nothing gates on it.
   const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ beforeReset: () => storeBound.dbOps.captureRestorePoint({ scopeId: "boot-admin-password-reset" }), workspaceId, identity, clock, idGen, overrides });
-  const presentationRepo = new SqlitePresentationSettingsRepo(kernel);
-  const settingsRepo = new SqliteSettingsRepo(kernel);
+  const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });
+  const settingsRepo = new SqliteSettingsRepo({ store: kernel });
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
   // settings boot sequence being ready.
@@ -1310,8 +1310,8 @@ async function composeSiteRouteDeps(
   // whatever menus this content.db already holds. Fire-and-forget, mirroring `settingsReady`'s
   // shape — logged and swallowed rather than aborting boot, matching W-003's "logs and continues
   // on failure" contract (ADR-PIPE-012 Wiring Map).
-  const menuRepo = new SqliteMenuRepo(kernel);
-  const navLocationBindingRepo = new SqliteNavLocationBindingRepo(kernel);
+  const menuRepo = new SqliteMenuRepo({ store: kernel });
+  const navLocationBindingRepo = new SqliteNavLocationBindingRepo({ store: kernel });
   const menuBindingsReady = rebuildNavLocationBindings({
     menuRepo,
     bindingRepo: navLocationBindingRepo,
@@ -1862,7 +1862,7 @@ async function composeSiteRouteDeps(
   // derives at boot (resolution is lazy) and no legitimate unsubscribe token can exist before a key
   // does, so no startup or first-run path depended on the mint. This instance still READS an
   // existing file; with no env var and no file, a local unsubscribe request now fails closed.
-  const memberRepo = new SqliteMemberRepo(kernel);
+  const memberRepo = new SqliteMemberRepo({ store: kernel });
   // Production signing must remain env-only: a source list must not accidentally add a volume
   // fallback for newsletter/webhook signing. Locally it uses the site's usual ordered sources.
   // Every keyring is read-only, so an anonymous unsubscribe request can never mint a site key.
@@ -2255,7 +2255,7 @@ async function composeSiteRouteDeps(
     assistantAgentInventory,
     workspaceId: workspaceId,
     peerSiteReads: createPeerSiteReads({ currentSiteDir: resolvedSiteBinding.dir }, {}),
-    workspaceRepo: new SqliteWorkspaceRepo(kernel),
+    workspaceRepo: new SqliteWorkspaceRepo({ store: kernel }),
     trash,
     // Pre-bound per domain. A delete path receives exactly one of these and therefore cannot reach
     // another domain's entities by passing the wrong string.
@@ -2505,10 +2505,10 @@ async function composeSiteRouteDeps(
     // contract-tested, wired into a real composition root for the first time.
     memberRepo,
     removeMember: bindRemoveEntity({ trash, entityType: "member" }),
-    memberTierRepo: new SqliteMemberTierRepo(kernel),
-    memberSubscriptionRepo: new SqliteMemberSubscriptionRepo(kernel),
-    memberSessionRepo: new SqliteMemberSessionRepo(kernel),
-    magicLinkRepo: new SqliteMagicLinkTokenRepo(kernel),
+    memberTierRepo: new SqliteMemberTierRepo({ store: kernel }),
+    memberSubscriptionRepo: new SqliteMemberSubscriptionRepo({ store: kernel }),
+    memberSessionRepo: new SqliteMemberSessionRepo({ store: kernel }),
+    magicLinkRepo: new SqliteMagicLinkTokenRepo({ store: kernel }),
     // SPEC-022 REQ-09/REQ-10: every send routes through the purpose-scoped seam. No capability
     // had a durable outbox path in Phase 1 (see capability-inventory.ts's "outbox" entry). Forms
     // now has isolated recipient jobs; other capabilities still fail the readiness gate; in `local` mode (the
@@ -2648,7 +2648,7 @@ async function composeSiteRouteDeps(
     // `openContentDb(dbPath)`: that call migrates unconditionally, and this root has already opened
     // (and migrated) the one file both handles would point at.
     // Also the `assistant_tool_used` product event (tool id + outcome only): see `tool-use-events.ts`.
-    toolAttemptAuditSink: withToolUseEvents({ tracker, sink: new SqliteToolAttemptAuditSink(kernel, {
+    toolAttemptAuditSink: withToolUseEvents({ tracker, sink: new SqliteToolAttemptAuditSink({ store: kernel }, {
       onError: error => { reportToolAuditError({ code: "tool_audit", diagnostic: error }); },
     }) }),
     toolGaps: createToolGapReader({ kernel }, {}),
@@ -2827,7 +2827,7 @@ async function composeSiteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSiteContext: async () => {
-      const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
+      const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
       return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
         theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
         themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
@@ -2962,7 +2962,7 @@ async function composeSiteRouteDeps(
         const credentials = composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
           dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } });
         const resolveShareCredential = async ({ id }: { id: string }, _options = {}) => {
-          const resolved = await credentials.resolve({ workspaceId, target: artifactStoreTarget(id) });
+          const resolved = await credentials.resolve({ workspaceId, target: artifactStoreTarget({ id }) });
           return resolved.ok ? resolved : undefined;
         };
         const createShareHostKit = (_required: Record<string, never>, _options = {}) => {
@@ -3017,7 +3017,7 @@ async function composeSiteRouteDeps(
                 resolveCredential: resolveShareCredential },
               selection.provider === undefined ? {} : { savedProvider: selection.provider });
               if (!chosen) return undefined;
-              const target = artifactStoreTarget(chosen.id), resolved = chosen.credential;
+              const target = artifactStoreTarget({ id: chosen.id }), resolved = chosen.credential;
               const store = chosen.provider.createArtifactStore({ credential: toDeployTargetCredential(resolved), config: {}, kit: createShareHostKit({}) });
               return { provider: target, binding: artifactStoreBinding({ store, credential: resolved }), store };
             },
@@ -3131,7 +3131,7 @@ export async function createSiteRouteDepsForWorkspace(
   if (workspaceIdOverride === undefined) return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, storeRole } });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
-  if (!isInMemoryDbPath(dbPath) && resolveSiteStorage({ siteDir: resolveSiteDirForDatabase({ dbPath }) }).kind !== "sqlite") {
+  if (!isInMemoryDbPath({ dbPath }) && resolveSiteStorage({ siteDir: resolveSiteDirForDatabase({ dbPath }) }).kind !== "sqlite") {
     return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole } });
   }
 

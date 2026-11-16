@@ -14,7 +14,7 @@ export function resolvePublishContentPeerHttpClient(
   } = {},
 ): HttpClientPort {
   if (client) return client;
-  const hosts = parsePublishContentDevHosts(env.TOVU_PUBLISH_CONTENT_DEV_HOSTS);
+  const hosts = parsePublishContentDevHosts({ raw: env.TOVU_PUBLISH_CONTENT_DEV_HOSTS });
   if (hosts.length > 0) onDevHosts({ hosts }, {});
   return createClient(createPublishContentPeerEgressPolicy(hosts));
 }

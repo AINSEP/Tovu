@@ -156,7 +156,7 @@ async function withOneInstalledSkill<T>(fn: (routeDeps: ReturnType<typeof create
   try {
     const routeDeps = createIsolatedRouteDeps();
     await routeDeps.identityReady;
-    const skillDir = path.join(routeDeps.skillLayout.forWorkspace(routeDeps.workspaceId).root, "incident-response");
+    const skillDir = path.join(routeDeps.skillLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }).root, "incident-response");
     await mkdir(skillDir, { recursive: true });
     await writeFile(path.join(skillDir, "SKILL.md"), INCIDENT_RESPONSE_SKILL_MD, "utf8");
     return await fn(routeDeps);

@@ -73,7 +73,7 @@ function mountApp(deps: UsersRouteDeps, callerId: string): express.Express {
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminUserDeleteRoute(app, deps);
+  registerAdminUserDeleteRoute({ app, deps });
   return app;
 }
 

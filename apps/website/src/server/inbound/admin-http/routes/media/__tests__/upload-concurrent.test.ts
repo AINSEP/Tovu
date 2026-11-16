@@ -14,7 +14,7 @@ import { registerAdminMediaUploadRoute } from "../upload.js";
 function uploadAction({ deps }: { deps: MediaRouteDeps }, _optional: Record<string, never> = {}) {
   let handler!: (req: Request, res: Response) => Promise<void>;
   const app = { post(_path: string, action: typeof handler) { handler = action; } } as unknown as Express;
-  registerAdminMediaUploadRoute(app, deps);
+  registerAdminMediaUploadRoute({ app, deps });
   return async () => {
     const result = { status: 200, body: {} as Record<string, unknown> };
     const res = {

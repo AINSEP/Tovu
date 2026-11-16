@@ -21,7 +21,7 @@ test("F1: authenticated hosted start binds only its actor's browser; wrong brows
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   app.use("/api/admin", (req, res, next) => {
     if (req.get("x-test-credential-kind") === "api_key") res.locals.authCredentialKind = "api_key";

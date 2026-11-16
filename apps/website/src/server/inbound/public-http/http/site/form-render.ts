@@ -444,9 +444,9 @@ function showFormErrorSummary({ formHtml, slugPattern, message }: { formHtml: st
  *  2026-08-31 generalization beyond moving the function. */
 function showFieldErrors({ formHtml, fieldErrors }: { formHtml: string; fieldErrors: ReadonlyArray<{ field: string; message: string }> }, _optional = {}): string {
   return fieldErrors.reduce((updated, { field, message }) => {
-    const fieldPattern = RegExp.escape(escapeHtml(field));
+    const fieldPattern = RegExp.escape(escapeHtml({ text: field }));
     const fieldErrorRegex = new RegExp(`(<div class="widget-form-field-error" data-field="${fieldPattern}"[^>]*) hidden></div>`, "i");
-    return updated.replace(fieldErrorRegex, (_match, openTag: string) => `${openTag}>${escapeHtml(message)}</div>`);
+    return updated.replace(fieldErrorRegex, (_match, openTag: string) => `${openTag}>${escapeHtml({ text: message })}</div>`);
   }, formHtml);
 }
 
@@ -512,8 +512,8 @@ function setInputValueAttr({ tag, escapedValue }: { tag: string; escapedValue: s
  *  {@link showFormSuccessMessage}. @complexity O(html.length) per call — two regex passes, the
  *  second only executed when the first did not match. */
 function showOneFieldValue({ html, field, value }: { html: string; field: string; value: string }, _optional = {}): string {
-  const fieldPattern = RegExp.escape(escapeHtml(field));
-  const escapedValue = escapeHtml(value);
+  const fieldPattern = RegExp.escape(escapeHtml({ text: field }));
+  const escapedValue = escapeHtml({ text: value });
   const textareaRegex = new RegExp(`(<textarea\\b[^>]*\\bname="${fieldPattern}"[^>]*>)[\\s\\S]*?(<\\/textarea>)`, "i");
   const withTextarea = html.replace(textareaRegex, (_match, openTag: string, closeTag: string) => `${openTag}${escapedValue}${closeTag}`);
   if (withTextarea !== html) return withTextarea;
@@ -546,7 +546,7 @@ function showValidationResult(
     errors: result.fieldErrors.length ? result.fieldErrors : [{ field: "", reason: "invalid" }],
     locale: formDocumentLocale({ html }),
   });
-  return showFormErrorSummary({ formHtml: showFieldValues({ formHtml: showFieldErrors({ formHtml: originalForm, fieldErrors: messages }), values: result.values }), slugPattern, message: authored ? messages.map(({ message }) => escapeHtml(message)).join(" ") : "Please fix the highlighted fields below." });
+  return showFormErrorSummary({ formHtml: showFieldValues({ formHtml: showFieldErrors({ formHtml: originalForm, fieldErrors: messages }), values: result.values }), slugPattern, message: authored ? messages.map(({ message }) => escapeHtml({ text: message })).join(" ") : "Please fix the highlighted fields below." });
 }
 
 /** Rebuilds the one matched `<form>` block for `result`'s outcome (success hides it; every other
@@ -587,7 +587,7 @@ function updateFormForResult(
  */
 export function injectFormSubmissionResultIntoHtml({ html, result }: { html: string; result: FormSubmissionRedirectResult | undefined }, _optional = {}): string {
   if (!result) return html;
-  const slugPattern = RegExp.escape(escapeHtml(result.slug));
+  const slugPattern = RegExp.escape(escapeHtml({ text: result.slug }));
   const formRegex = new RegExp(`<form\\b[^>]*${FORM_SLUG_ATTR}="${slugPattern}"[^>]*>[\\s\\S]*?<\\/form>`, "i");
   const formMatch = formRegex.exec(html);
   if (!formMatch) return html;
@@ -624,7 +624,7 @@ export function injectFormAttemptTokens(
 ): string {
   return html.replace(
     FORM_OPENING_TAG,
-    (openTag, slug: string) => `${openTag}<input type="hidden" name="${FORM_ATTEMPT_FIELD}" value="${escapeHtml(newToken({ slug }, {}))}">`,
+    (openTag, slug: string) => `${openTag}<input type="hidden" name="${FORM_ATTEMPT_FIELD}" value="${escapeHtml({ text: newToken({ slug }, {}) })}">`,
   );
 }
 

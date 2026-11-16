@@ -63,7 +63,7 @@ async function buildApp(
     res.locals.principal = { id: callerId };
     next();
   });
-  registerAdminPolicyWritePermissionRoute(app, deps);
+  registerAdminPolicyWritePermissionRoute({ app, deps });
   return { app, deps, ownerId };
 }
 

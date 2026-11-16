@@ -176,8 +176,8 @@ test("integration: GET /about a static theme's own menu marker resolves through 
 
 test("integration: resolveHtmlEmbedsForRender/resolveMediaAssetMetadataForRender's !post guards, called directly", async () => {
   const deps = testDeps();
-  assert.equal(await resolveHtmlEmbedsForRender(deps, undefined), undefined);
-  assert.equal((await resolveMediaAssetMetadataForRender(deps, undefined)).size, 0);
+  assert.equal(await resolveHtmlEmbedsForRender({ deps, post: undefined }), undefined);
+  assert.equal((await resolveMediaAssetMetadataForRender({ deps, post: undefined })).size, 0);
 });
 
 /** Mirrors `pages.route.test.ts`'s unit-tier `UnresolvableCanonicalPostRepo` — a post repo whose

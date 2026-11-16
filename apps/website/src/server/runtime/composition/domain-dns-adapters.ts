@@ -33,7 +33,7 @@ function readAnswer({ answer }: { answer: unknown }, _optional = {}): { type: nu
   if (valid.type === 1 || valid.type === 28) {
     if (isIP(valid.data) !== (valid.type === 1 ? 4 : 6)) throw dnsUnavailable();
     value = valid.type === 28 ? new URL(`https://[${valid.data}]/`).hostname.slice(1, -1) : valid.data;
-    if (classifyAddress(value) !== "public") throw new ToolInputError({ message: "domain_lookup_dns: public DNS returned a non-public address. Internal addresses cannot be inspected with this tool." });
+    if (classifyAddress({ ip: value }) !== "public") throw new ToolInputError({ message: "domain_lookup_dns: public DNS returned a non-public address. Internal addresses cannot be inspected with this tool." });
   }
   return { type: valid.type, value, ttl: valid.TTL };
 }

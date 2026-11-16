@@ -152,7 +152,7 @@ test("createApp salts comment IP hashes from its site-key keyring when COMMENTS_
   });
   const hashWithSiteKey = async (siteKeyHex: string) => {
     const deps = createRouteDeps();
-    deps.siteAssistantSecretKeyring = new FixedSiteKeyKeyring(siteKeyHex);
+    deps.siteAssistantSecretKeyring = new FixedSiteKeyKeyring({ hex: siteKeyHex });
     const calls: string[] = [];
     rejectAtActiveProvider({ deps, authorIpHashes: calls });
     const app = createApp(deps);

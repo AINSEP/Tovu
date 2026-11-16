@@ -423,7 +423,7 @@ function renderTextStyleMark({ html, attrs }: { html: string; attrs: JsonObject 
   if (fontSize) styleParts.push(`font-size:${fontSize}`);
   const lineHeight = safeCssLength({ value: attrs.lineHeight });
   if (lineHeight) styleParts.push(`line-height:${lineHeight}`);
-  return styleParts.length > 0 ? `<span style="${escapeHtml(styleParts.join(";"))}">${html}</span>` : html;
+  return styleParts.length > 0 ? `<span style="${escapeHtml({ text: styleParts.join(";") })}">${html}</span>` : html;
 }
 
 /**
@@ -436,11 +436,11 @@ function renderTextStyleMark({ html, attrs }: { html: string; attrs: JsonObject 
  */
 function renderHighlightMark({ html, attrs }: { html: string; attrs: JsonObject }, _optional = {}): string {
   const color = safeCssColor({ value: attrs.color });
-  return color ? `<mark style="background-color:${escapeHtml(color)}">${html}</mark>` : `<mark>${html}</mark>`;
+  return color ? `<mark style="background-color:${escapeHtml({ text: color })}">${html}</mark>` : `<mark>${html}</mark>`;
 }
 
 function renderLinkMark({ html, attrs }: { html: string; attrs: JsonObject }, _optional = {}): string {
-  return `<a href="${escapeHtml(safeHref({ value: attrs.href }))}">${html}</a>`;
+  return `<a href="${escapeHtml({ text: safeHref({ value: attrs.href }) })}">${html}</a>`;
 }
 
 /** One renderer per mark `type`, keyed the same way {@link renderMarks} used to switch on the value
@@ -468,7 +468,7 @@ export const MARK_RENDERERS: Record<string, (required: { html: string; attrs: Js
 };
 
 function renderMarks({ text, marks }: { text: string; marks: JsonValue[] | undefined }, _optional = {}): string {
-  let html = escapeHtml(text);
+  let html = escapeHtml({ text });
   for (const mark of marks ?? []) {
     if (!isObject(mark)) continue;
     const renderer = typeof mark.type === "string" ? MARK_RENDERERS[mark.type] : undefined;
@@ -579,7 +579,7 @@ function omitKey({ attributes, key }: { attributes: Record<string, string>; key:
  *  attributes eventually goes through. @complexity O(k) in the number of attributes. */
 function formatHtmlAttributes(attributes: Record<string, string>): string {
   return Object.entries(attributes)
-    .map(([name, value]) => ` ${name}="${escapeHtml(value)}"`)
+    .map(([name, value]) => ` ${name}="${escapeHtml({ text: value })}"`)
     .join("");
 }
 
@@ -600,7 +600,7 @@ const NO_MARKER_ATTRIBUTES: readonly MarkerAttribute[] = [];
  * @complexity O(n) in the value's length.
  */
 function attributeValueHtml({ value, source }: { value: string; source: "asset" | "marker" }, _optional = {}): string {
-  return source === "asset" ? escapeHtml(value) : value.replace(/"/g, "&quot;");
+  return source === "asset" ? escapeHtml({ text: value }) : value.replace(/"/g, "&quot;");
 }
 
 /**
@@ -751,8 +751,8 @@ function renderImageTag(props: {
   const extraAttrs = mergeMediaExtraAttributes({ assetExtras: omitKey({ attributes: allExtra, key: "loading" }), markerAttributes, excludeNames: MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES });
   // The current media contract exposes one public rendition, not a width ladder. A real 1x
   // candidate avoids advertising nonexistent widths/transform routes; theme CSS sizes it fluidly.
-  const srcset = props.responsive === true ? ` srcset="${escapeHtml(src)} 1x"` : "";
-  return `<img src="${escapeHtml(src)}"${srcset} alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${loadingValue}">`;
+  const srcset = props.responsive === true ? ` srcset="${escapeHtml({ text: src })} 1x"` : "";
+  return `<img src="${escapeHtml({ text: src })}"${srcset} alt="${altAttr}"${widthAttr}${heightAttr}${classAttr}${extraAttrs} loading="${loadingValue}">`;
 }
 
 /**
@@ -826,8 +826,8 @@ function renderVideoTag(props: {
   const markerAlt = markerAttributes.find((attr) => attr.name === "alt");
   let fallback: string;
   if (markerAlt) fallback = markerAlt.value ?? "";
-  else fallback = props.alt ? escapeHtml(props.alt) : `Your browser does not support the ${tag} tag.`;
-  return `<${tag} src="${escapeHtml(src)}"${controlsAttr}${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</${tag}>`;
+  else fallback = props.alt ? escapeHtml({ text: props.alt }) : `Your browser does not support the ${tag} tag.`;
+  return `<${tag} src="${escapeHtml({ text: src })}"${controlsAttr}${widthAttr}${heightAttr}${classAttr}${extraAttrs}>${fallback}</${tag}>`;
 }
 
 /**
@@ -855,7 +855,7 @@ function nodeText(node: JsonValue): string {
  * anyway.
  */
 function headingAnchorId(node: JsonValue): string {
-  return toSlug(nodeText(node));
+  return toSlug({ text: nodeText(node) });
 }
 
 /**
@@ -908,7 +908,7 @@ function dedupeHeadingIds({ html }: { html: string }, _optional = {}): string {
  */
 function styleForAlign({ align }: { align: string | null }, _optional = {}): string {
   if (align === null) return "";
-  const safe = safeTextAlign(align);
+  const safe = safeTextAlign({ value: align });
   return safe ? ` style="text-align:${safe}"` : "";
 }
 
@@ -1052,7 +1052,7 @@ function renderDocHeading({ node, content, deps }: DocNodeHandlerRequired, _opti
   // simply had no anchor to link to. Emitted as the FIRST attribute, which `dedupeHeadingIds`
   // relies on. Omitted entirely when the text slugifies to nothing.
   const anchor = headingAnchorId(node);
-  const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
+  const idAttr = anchor === "" ? "" : ` id="${escapeHtml({ text: anchor })}"`;
   return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderChildNodes({ content, deps })}</h${h}>`;
 }
 
@@ -1141,7 +1141,7 @@ function renderDocCodeBlock({ node, content, deps }: DocNodeHandlerRequired, _op
   // here. Omitted entirely (bare `<code>`, exactly the prior behavior) when absent or unsafe.
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const language = safeLanguageClass({ value: attrs.language });
-  const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
+  const classAttr = language ? ` class="language-${escapeHtml({ text: language })}"` : "";
   return `<pre><code${classAttr}>${renderChildNodes({ content, deps })}</code></pre>`;
 }
 
@@ -1281,7 +1281,7 @@ function renderDocImage({ node, deps }: DocNodeHandlerRequired, _optional = {}):
   // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
   const legacySrc = safeImageSrc({ value: attrs.src });
   if (legacySrc !== null) {
-    return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}"${formatHtmlAttributes(legacyImageExtras(attrs))} loading="lazy" />`;
+    return `<img src="${escapeHtml({ text: legacySrc })}" alt="${escapeHtml({ text: alt })}"${formatHtmlAttributes(legacyImageExtras(attrs))} loading="lazy" />`;
   }
   return mediaPlaceholder({ label: alt || "Image" });
 }
@@ -1398,7 +1398,7 @@ function renderDocYoutube({ node }: DocNodeHandlerRequired, _optional = {}): str
   const start = numericStart > 0 && numericStart <= 999999 ? numericStart : 0;
   const startQuery = start > 0 ? `?start=${start}` : "";
   const embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}${startQuery}`;
-  return `<div class="youtube-embed"><iframe src="${escapeHtml(embedSrc)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+  return `<div class="youtube-embed"><iframe src="${escapeHtml({ text: embedSrc })}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
 }
 
 function renderDocMention({ node }: DocNodeHandlerRequired, _optional = {}): string {
@@ -1429,7 +1429,7 @@ function renderDocMention({ node }: DocNodeHandlerRequired, _optional = {}): str
   if (id.length === 0 || id.length > MAX_SLUG_LENGTH || !SLUG_FORMAT_PATTERN.test(id) || label.length === 0) {
     return "";
   }
-  return `<a class="post-mention" href="/${escapeHtml(id)}">@${escapeHtml(label)}</a>`;
+  return `<a class="post-mention" href="/${escapeHtml({ text: id })}">@${escapeHtml({ text: label })}</a>`;
 }
 
 /**
@@ -1492,7 +1492,7 @@ function renderDocWidgetEmbed({ node, deps }: DocNodeHandlerRequired, _optional 
  */
 function mergeWidgetClassAttr({ nodeCssClass, attributesClass }: { nodeCssClass: string | null; attributesClass: string | undefined }, _optional = {}): string {
   const parts = ["widget-embed", nodeCssClass, attributesClass].filter((part): part is string => Boolean(part));
-  return ` class="${escapeHtml(parts.join(" "))}"`;
+  return ` class="${escapeHtml({ text: parts.join(" ") })}"`;
 }
 
 /** {@link renderDocNode}'s own `content` extraction, pulled out so the ternary is counted once here
@@ -1598,8 +1598,8 @@ export function renderDocNode(
 function docNodeEmbedMarker(required: { config: JsonObject; attrs: JsonObject; alt?: string }): string {
   const parsed = resolveEmbedHtmlAttributes({ raw: str({ value: required.attrs.htmlAttributes }) || null });
   const classes = [str({ value: required.attrs.cssClass }), parsed.class].filter(Boolean).join(" ");
-  const classAttr = classes ? ` class="${escapeHtml(classes)}"` : "";
-  const altAttr = required.alt ? ` alt="${escapeHtml(required.alt)}"` : "";
+  const classAttr = classes ? ` class="${escapeHtml({ text: classes })}"` : "";
+  const altAttr = required.alt ? ` alt="${escapeHtml({ text: required.alt })}"` : "";
   // A single-quoted marker reads its JSON raw, so an apostrophe needs the JSON escape, not an entity.
   const json = JSON.stringify(required.config).replace(/'/g, "\\u0027");
   return `<div${classAttr}${altAttr}${formatHtmlAttributes(omitKey({ attributes: parsed, key: "class" }))} data-embed-config='${json}'></div>`;
@@ -1659,12 +1659,12 @@ type Component = (ctx: SiteRenderContext, props: JsonObject) => string;
 function siteHeader(ctx: SiteRenderContext, props: JsonObject): string {
   const compact = props.compact === true;
   const tagline = !compact && typeof props.tagline === "string"
-    ? `<p class="tagline">${escapeHtml(props.tagline)}</p>`
+    ? `<p class="tagline">${escapeHtml({ text: props.tagline })}</p>`
     : "";
   // No admin link: under no-theme this header is the site's primary, public-facing output — every
   // visitor sees it — so advertising the admin panel's URL here would hand it to anyone who looks.
   // An operator who deliberately turned the theme off already knows where their own admin lives.
-  return `<header class="site-header"><div class="wrap"><a class="wordmark" href="/">${escapeHtml(ctx.siteTitle)}</a>${tagline}<nav class="site-nav"><a href="/">Home</a></nav></div></header>`;
+  return `<header class="site-header"><div class="wrap"><a class="wordmark" href="/">${escapeHtml({ text: ctx.siteTitle })}</a>${tagline}<nav class="site-nav"><a href="/">Home</a></nav></div></header>`;
 }
 
 function entryList(ctx: SiteRenderContext, props: JsonObject): string {
@@ -1677,16 +1677,16 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
       const folio = String(after + i + 1).padStart(2, "0");
       const cover = featuredImageView(ctx, post);
       const image = cover ? renderCoverImageTag({ image: cover }, { loading: "lazy" }) : "";
-      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate({ iso: postDisplayDateIso(post), timeZone: ctx.timeZone }))}</p></a></li>`;
+      return `<li class="entry"><a class="entry-link" href="/${escapeHtml({ text: post.slug })}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml({ text: post.title })}</h2><p class="entry-meta">${escapeHtml({ text: shortDate({ iso: postDisplayDateIso(post), timeZone: ctx.timeZone }) })}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No published posts yet.</p></li>`;
   if (ctx.listing === undefined || items === "") {
-    return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
+    return `<section class="entry-list entry-list--${escapeHtml({ text: layout })}"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
   }
   const next = after + shown.length;
   const more = next < ctx.posts.length ? renderListingMore({ key: 1, href: listingBatchPath({ pagePath: ctx.listing.pagePath, key: 1, after: next }) }) : "";
-  return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries" data-jini-listing="1">${wrapListingItems({ key: 1, items })}</ol>${more}</div></section>`;
+  return `<section class="entry-list entry-list--${escapeHtml({ text: layout })}"><div class="wrap"><ol class="entries" data-jini-listing="1">${wrapListingItems({ key: 1, items })}</ol>${more}</div></section>`;
 }
 
 /**
@@ -1707,12 +1707,12 @@ function productEntryList(ctx: SiteRenderContext): string {
   const items = ctx.products
     .map((product, i) => {
       const folio = String(i + 1).padStart(2, "0");
-      const price = escapeHtml(formatProductMoney({ amount: product.price, currency: product.currency }));
+      const price = escapeHtml({ text: formatProductMoney({ amount: product.price, currency: product.currency }) });
       // `|| product.id`: defensive, not the normal path — every real `SiteProduct` source
       // (`storefront.ts`'s `toSiteProduct`, `Jini packages/commerce/src/store/store-plugin.ts`'s `listProducts`) always sets a real
       // `slug`. Falls back rather than crashing `escapeHtml` on a caller/test double built against
       // an older, slug-less `SiteProduct` shape.
-      return `<li class="entry"><a class="entry-link" href="/products/${escapeHtml(product.slug || product.id)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(product.title)}</h2><p class="entry-meta">${price}</p></a></li>`;
+      return `<li class="entry"><a class="entry-link" href="/products/${escapeHtml({ text: product.slug || product.id })}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml({ text: product.title })}</h2><p class="entry-meta">${price}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No products available yet.</p></li>`;
@@ -1729,8 +1729,8 @@ function productEntryList(ctx: SiteRenderContext): string {
  */
 function productEntryContent(ctx: SiteRenderContext): string {
   if (!ctx.product) return "";
-  const price = escapeHtml(formatProductMoney({ amount: ctx.product.price, currency: ctx.product.currency }));
-  return `<div class="wrap"><a class="back" href="/products">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.product.title)}</h1><p class="entry-meta">${price}</p></article></div>`;
+  const price = escapeHtml({ text: formatProductMoney({ amount: ctx.product.price, currency: ctx.product.currency }) });
+  return `<div class="wrap"><a class="back" href="/products">← ${escapeHtml({ text: ctx.siteTitle })}</a><article class="entry"><h1 class="entry-title">${escapeHtml({ text: ctx.product.title })}</h1><p class="entry-meta">${price}</p></article></div>`;
 }
 
 /** REQ-28-shaped default for an embed reference this render never resolved (never attempted, beyond
@@ -1960,8 +1960,8 @@ export function renderAssignedTermsBlock(terms: readonly AssignedTermView[]): st
   }
   const groupsHtml = Array.from(groups.entries())
     .map(([taxonomyName, termNames]) => {
-      const items = termNames.map((name) => `<span class="entry-terms__term">${escapeHtml(name)}</span>`).join(", ");
-      return `<span class="entry-terms__group"><span class="entry-terms__taxonomy">${escapeHtml(taxonomyName)}:</span> ${items}</span>`;
+      const items = termNames.map((name) => `<span class="entry-terms__term">${escapeHtml({ text: name })}</span>`).join(", ");
+      return `<span class="entry-terms__group"><span class="entry-terms__taxonomy">${escapeHtml({ text: taxonomyName })}:</span> ${items}</span>`;
     })
     .join(" ");
   return `<div class="entry-terms">${groupsHtml}</div>`;
@@ -2017,8 +2017,8 @@ function entryContent(ctx: SiteRenderContext): string {
   // `.entry-meta` is a plain text line (no flex gap), so the items need a written separator.
   const date = shortDate({ iso: postDisplayDateIso(ctx.post), timeZone: ctx.timeZone });
   const bylineSeparator = date ? " · " : "";
-  const byline = author ? `${bylineSeparator}<span class="post-author">By ${escapeHtml(author)}</span>` : "";
-  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(date)}${byline}</p><div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div></article></div>`;
+  const byline = author ? `${bylineSeparator}<span class="post-author">By ${escapeHtml({ text: author })}</span>` : "";
+  return `<div class="wrap"><a class="back" href="/">← ${escapeHtml({ text: ctx.siteTitle })}</a><article class="entry"><h1 class="entry-title">${escapeHtml({ text: ctx.post.title })}</h1><p class="entry-meta">${escapeHtml({ text: date })}${byline}</p><div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div></article></div>`;
 }
 
 /**
@@ -2032,11 +2032,11 @@ function entryContent(ctx: SiteRenderContext): string {
  */
 function themeBadge(ctx: SiteRenderContext): string {
   if (ctx.themeName === null) return "";
-  return `<span class="theme-badge">theme: ${escapeHtml(ctx.themeName)}</span>`;
+  return `<span class="theme-badge">theme: ${escapeHtml({ text: ctx.themeName })}</span>`;
 }
 
 function siteFooter(ctx: SiteRenderContext): string {
-  return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml(ctx.siteTitle)} — powered by Tovu</span>${themeBadge(ctx)}</div></footer>`;
+  return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml({ text: ctx.siteTitle })} — powered by Tovu</span>${themeBadge(ctx)}</div></footer>`;
 }
 
 // --- Prop readers (templates are untrusted-ish data — read defensively) ---
@@ -2061,8 +2061,8 @@ function obj({ value }: { value: JsonValue | undefined }, _optional = {}): JsonO
  * `architecture-p2-plan-2026-09-24.md` §D3.
  */
 function mediaPlaceholder(props: JsonObject): string {
-  const label = escapeHtml(str({ value: props.label }, { fallback: "Image" }));
-  const ratio = safeAspectRatio(str({ value: props.ratio }, { fallback: "" })) ?? "16 / 9";
+  const label = escapeHtml({ text: str({ value: props.label }, { fallback: "Image" }) });
+  const ratio = safeAspectRatio({ value: str({ value: props.ratio }, { fallback: "" }) }) ?? "16 / 9";
   return `<figure class="media-ph" style="aspect-ratio:${ratio}"><span class="media-ph__label">${label}</span></figure>`;
 }
 
@@ -2072,7 +2072,7 @@ function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): str
       const o = obj({ value: a });
       if (!o) return "";
       const kind = i === 0 ? "btn btn--primary" : "btn btn--ghost";
-      return `<a class="${kind}" href="${escapeHtml(safeHref({ value: o.href }))}">${escapeHtml(str({ value: o.label }, { fallback: "Learn more" }))}</a>`;
+      return `<a class="${kind}" href="${escapeHtml({ text: safeHref({ value: o.href }) })}">${escapeHtml({ text: str({ value: o.label }, { fallback: "Learn more" }) })}</a>`;
     })
     .join("");
   return links ? `<div class="actions">${links}</div>` : "";
@@ -2080,42 +2080,42 @@ function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): str
 
 /** Landing hero: optional badge/eyebrow, title, subtitle, actions, optional media. */
 function hero(_ctx: SiteRenderContext, props: JsonObject): string {
-  const badge = str({ value: props.badge }) ? `<span class="hero__badge">${escapeHtml(str({ value: props.badge }))}</span>` : "";
-  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
-  const subtitle = str({ value: props.subtitle }) ? `<p class="hero__sub">${escapeHtml(str({ value: props.subtitle }))}</p>` : "";
+  const badge = str({ value: props.badge }) ? `<span class="hero__badge">${escapeHtml({ text: str({ value: props.badge }) })}</span>` : "";
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml({ text: str({ value: props.eyebrow }) })}</p>` : "";
+  const subtitle = str({ value: props.subtitle }) ? `<p class="hero__sub">${escapeHtml({ text: str({ value: props.subtitle }) })}</p>` : "";
   const mediaProps = obj({ value: props.media });
   const media = mediaProps ? `<div class="hero__media">${mediaPlaceholder(mediaProps)}</div>` : "";
-  return `<section class="hero"><div class="wrap hero__inner"><div class="hero__text">${badge}${eyebrow}<h1 class="hero__title">${escapeHtml(str({ value: props.title }))}</h1>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>${media}</div></section>`;
+  return `<section class="hero"><div class="wrap hero__inner"><div class="hero__text">${badge}${eyebrow}<h1 class="hero__title">${escapeHtml({ text: str({ value: props.title }) })}</h1>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>${media}</div></section>`;
 }
 
 /** Thin promo strip above the nav. */
 function announcement(_ctx: SiteRenderContext, props: JsonObject): string {
-  const text = escapeHtml(str({ value: props.text }));
+  const text = escapeHtml({ text: str({ value: props.text }) });
   if (!text) return "";
   const link = obj({ value: props.link });
   const linkHtml = link
-    ? ` <a class="topbar__link" href="${escapeHtml(safeHref({ value: link.href }))}">${escapeHtml(str({ value: link.label }, { fallback: "Learn more" }))} →</a>`
+    ? ` <a class="topbar__link" href="${escapeHtml({ text: safeHref({ value: link.href }) })}">${escapeHtml({ text: str({ value: link.label }, { fallback: "Learn more" }) })} →</a>`
     : "";
   return `<div class="topbar"><div class="wrap"><p class="topbar__text">${text}${linkHtml}</p></div></div>`;
 }
 
 /** Sticky nav bar with CSS-only hover dropdowns + a checkbox-driven mobile drawer (no JS). */
 function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
-  const brand = escapeHtml(str({ value: props.brand }) || ctx.siteTitle);
+  const brand = escapeHtml({ text: str({ value: props.brand }) || ctx.siteTitle });
   const caret = '<svg class="caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
   const items = arr({ value: props.items })
     .map((it) => {
       const o = obj({ value: it });
       if (!o) return "";
-      const label = escapeHtml(str({ value: o.label }));
-      const href = escapeHtml(safeHref({ value: o.href }));
+      const label = escapeHtml({ text: str({ value: o.label }) });
+      const href = escapeHtml({ text: safeHref({ value: o.href }) });
       const children = arr({ value: o.children });
       if (children.length) {
         const sub = children
           .map((c) => {
             const co = obj({ value: c });
             if (!co) return "";
-            return `<li><a href="${escapeHtml(safeHref({ value: co.href }))}">${escapeHtml(str({ value: co.label }))}</a></li>`;
+            return `<li><a href="${escapeHtml({ text: safeHref({ value: co.href }) })}">${escapeHtml({ text: str({ value: co.label }) })}</a></li>`;
           })
           .join("");
         return `<li class="nav-item has-children"><a class="nav-link" href="${href}">${label}${caret}</a><ul class="nav-dropdown">${sub}</ul></li>`;
@@ -2125,27 +2125,27 @@ function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
     .join("");
   const cta = obj({ value: props.cta });
   const ctaHtml = cta
-    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml(safeHref({ value: cta.href }))}">${escapeHtml(str({ value: cta.label }, { fallback: "Get started" }))}</a>`
+    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml({ text: safeHref({ value: cta.href }) })}">${escapeHtml({ text: str({ value: cta.label }, { fallback: "Get started" }) })}</a>`
     : "";
   return `<header class="site-header"><div class="wrap nav"><a class="brand" href="/">${brand}</a><input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu"/><label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label><nav class="nav-menu"><ul class="nav-list">${items}</ul>${ctaHtml}</nav></div></header>`;
 }
 
 /** Full-width final call-to-action band. */
 function ctaBand(_ctx: SiteRenderContext, props: JsonObject): string {
-  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow eyebrow--on-dark">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
-  const subtitle = str({ value: props.subtitle }) ? `<p class="cta__sub">${escapeHtml(str({ value: props.subtitle }))}</p>` : "";
-  return `<section class="cta"><div class="wrap"><div class="cta__inner">${eyebrow}<h2 class="cta__title">${escapeHtml(str({ value: props.title }))}</h2>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div></div></section>`;
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow eyebrow--on-dark">${escapeHtml({ text: str({ value: props.eyebrow }) })}</p>` : "";
+  const subtitle = str({ value: props.subtitle }) ? `<p class="cta__sub">${escapeHtml({ text: str({ value: props.subtitle }) })}</p>` : "";
+  return `<section class="cta"><div class="wrap"><div class="cta__inner">${eyebrow}<h2 class="cta__title">${escapeHtml({ text: str({ value: props.title }) })}</h2>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div></div></section>`;
 }
 
 /** Multi-column footer: brand blurb + socials, link columns, legal row. */
 function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
-  const brand = escapeHtml(str({ value: props.brand }) || ctx.siteTitle);
-  const blurb = str({ value: props.blurb }) ? `<p class="footer__blurb">${escapeHtml(str({ value: props.blurb }))}</p>` : "";
+  const brand = escapeHtml({ text: str({ value: props.brand }) || ctx.siteTitle });
+  const blurb = str({ value: props.blurb }) ? `<p class="footer__blurb">${escapeHtml({ text: str({ value: props.blurb }) })}</p>` : "";
   const socials = arr({ value: props.social })
     .map((s) => {
       const o = obj({ value: s });
       if (!o) return "";
-      return `<a class="footer__social" href="${escapeHtml(safeHref({ value: o.href }))}">${escapeHtml(str({ value: o.label }))}</a>`;
+      return `<a class="footer__social" href="${escapeHtml({ text: safeHref({ value: o.href }) })}">${escapeHtml({ text: str({ value: o.label }) })}</a>`;
     })
     .join("");
   const cols = arr({ value: props.columns })
@@ -2156,32 +2156,32 @@ function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
         .map((l) => {
           const lo = obj({ value: l });
           if (!lo) return "";
-          return `<li><a href="${escapeHtml(safeHref({ value: lo.href }))}">${escapeHtml(str({ value: lo.label }))}</a></li>`;
+          return `<li><a href="${escapeHtml({ text: safeHref({ value: lo.href }) })}">${escapeHtml({ text: str({ value: lo.label }) })}</a></li>`;
         })
         .join("");
-      return `<div class="footer__col"><h4>${escapeHtml(str({ value: o.title }))}</h4><ul>${links}</ul></div>`;
+      return `<div class="footer__col"><h4>${escapeHtml({ text: str({ value: o.title }) })}</h4><ul>${links}</ul></div>`;
     })
     .join("");
-  const legal = escapeHtml(str({ value: props.legal }) || `© ${new Date().getFullYear()} ${str({ value: props.brand }) || ctx.siteTitle}`);
+  const legal = escapeHtml({ text: str({ value: props.legal }) || `© ${new Date().getFullYear()} ${str({ value: props.brand }) || ctx.siteTitle}` });
   return `<footer class="site-footer site-footer--rich"><div class="wrap footer__top"><div class="footer__brandcol"><a class="brand" href="/">${brand}</a>${blurb}<div class="footer__socials">${socials}</div></div><div class="footer__cols">${cols}</div></div><div class="wrap footer__bottom"><span>${legal}</span>${themeBadge(ctx)}</div></footer>`;
 }
 
 function paragraphsHtml({ items }: { items: JsonValue[] }, _optional = {}): string {
-  return items.map((p) => `<p>${escapeHtml(str({ value: p }))}</p>`).join("");
+  return items.map((p) => `<p>${escapeHtml({ text: str({ value: p }) })}</p>`).join("");
 }
 function bulletsHtml({ items }: { items: JsonValue[] }, _optional = {}): string {
-  const lis = items.map((b) => `<li>${escapeHtml(str({ value: b }))}</li>`).join("");
+  const lis = items.map((b) => `<li>${escapeHtml({ text: str({ value: b }) })}</li>`).join("");
   return lis ? `<ul class="ticks">${lis}</ul>` : "";
 }
 
 /** A content section: eyebrow/title/lead/body/bullets, optional side media + actions. */
 function section(_ctx: SiteRenderContext, props: JsonObject): string {
-  const id = str({ value: props.id }) ? ` id="${escapeHtml(str({ value: props.id }))}"` : "";
+  const id = str({ value: props.id }) ? ` id="${escapeHtml({ text: str({ value: props.id }) })}"` : "";
   const mediaObj = obj({ value: props.media });
   const side = str({ value: props.side }, { fallback: "right" }) === "left" ? "section--media-left" : "section--media-right";
-  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
-  const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml(str({ value: props.title }))}</h2>` : "";
-  const lead = str({ value: props.lead }) ? `<p class="section__lead">${escapeHtml(str({ value: props.lead }))}</p>` : "";
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml({ text: str({ value: props.eyebrow }) })}</p>` : "";
+  const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml({ text: str({ value: props.title }) })}</h2>` : "";
+  const lead = str({ value: props.lead }) ? `<p class="section__lead">${escapeHtml({ text: str({ value: props.lead }) })}</p>` : "";
   const text = `<div class="section__text">${eyebrow}${title}${lead}${paragraphsHtml({ items: arr({ value: props.body }) })}${bulletsHtml({ items: arr({ value: props.bullets }) })}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>`;
   const media = mediaObj ? `<div class="section__media">${mediaPlaceholder(mediaObj)}</div>` : "";
   const layout = media ? side : "section--plain";
@@ -2190,14 +2190,14 @@ function section(_ctx: SiteRenderContext, props: JsonObject): string {
 
 /** A 3-up (auto-fill) grid of labelled feature cards. */
 function featureGrid(_ctx: SiteRenderContext, props: JsonObject): string {
-  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
-  const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml(str({ value: props.title }))}</h2>` : "";
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml({ text: str({ value: props.eyebrow }) })}</p>` : "";
+  const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml({ text: str({ value: props.title }) })}</h2>` : "";
   const cards = arr({ value: props.items })
     .map((it) => {
       const o = obj({ value: it });
       if (!o) return "";
-      const tag = str({ value: o.tag }) ? `<span class="feature__tag">${escapeHtml(str({ value: o.tag }))}</span>` : "";
-      return `<article class="feature"><div class="feature__head">${tag}<h3 class="feature__title">${escapeHtml(str({ value: o.title }))}</h3></div><p class="feature__body">${escapeHtml(str({ value: o.body }))}</p></article>`;
+      const tag = str({ value: o.tag }) ? `<span class="feature__tag">${escapeHtml({ text: str({ value: o.tag }) })}</span>` : "";
+      return `<article class="feature"><div class="feature__head">${tag}<h3 class="feature__title">${escapeHtml({ text: str({ value: o.title }) })}</h3></div><p class="feature__body">${escapeHtml({ text: str({ value: o.body }) })}</p></article>`;
     })
     .join("");
   return `<section class="feature-grid"><div class="wrap"><header class="feature-grid__head">${eyebrow}${title}</header><div class="features">${cards}</div></div></section>`;
@@ -2244,7 +2244,7 @@ function renderWidgetSocialLinks(props: JsonObject): string {
     .map((link) => {
       const o = obj({ value: link });
       if (!o) return "";
-      return `<li><a class="widget-social-link" href="${escapeHtml(safeHref({ value: o.url }))}">${escapeHtml(str({ value: o.platform }))}</a></li>`;
+      return `<li><a class="widget-social-link" href="${escapeHtml({ text: safeHref({ value: o.url }) })}">${escapeHtml({ text: str({ value: o.platform }) })}</a></li>`;
     })
     .join("");
   return `<ul class="widget widget-social-links">${items}</ul>`;
@@ -2269,8 +2269,8 @@ function renderWidgetSocialLinks(props: JsonObject): string {
 function renderWidgetEntrySummary(props: JsonObject): string {
   const slug = str({ value: props.slug });
   const title = str({ value: props.title });
-  const href = slug.length > 0 && slug.length <= MAX_SLUG_LENGTH && SLUG_FORMAT_PATTERN.test(slug) ? `/${escapeHtml(slug)}` : "#";
-  return `<li class="widget-entry-summary"><a href="${href}">${escapeHtml(title)}</a></li>`;
+  const href = slug.length > 0 && slug.length <= MAX_SLUG_LENGTH && SLUG_FORMAT_PATTERN.test(slug) ? `/${escapeHtml({ text: slug })}` : "#";
+  return `<li class="widget-entry-summary"><a href="${href}">${escapeHtml({ text: title })}</a></li>`;
 }
 
 const RECENT_ENTRIES_EMPTY_HTML = '<ul class="widget widget-recent-entries"><li class="widget-empty">No entries yet.</li></ul>';
@@ -2334,8 +2334,8 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
 
   const lis = items
     .map((item) => {
-      const title = escapeHtml(item.title);
-      const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref({ value: item.href }))}">${title}</a>`;
+      const title = escapeHtml({ text: item.title });
+      const inner = item.href === null ? title : `<a href="${escapeHtml({ text: safeHref({ value: item.href }) })}">${title}</a>`;
       return `<li class="widget-entry-summary">${inner}</li>`;
     })
     .join("");
@@ -2349,7 +2349,7 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
  *  the same `NavItemAttrs` passthrough (see that file's `menuItemClasses`). */
 function widgetMenuItemClassAttr({ attrs }: { attrs: JsonObject | undefined }, _optional = {}): string {
   const cssClass = attrs?.cssClass;
-  return typeof cssClass === "string" && cssClass ? ` class="${escapeHtml(cssClass)}"` : "";
+  return typeof cssClass === "string" && cssClass ? ` class="${escapeHtml({ text: cssClass })}"` : "";
 }
 
 /** `rel="…"`/`target="_blank"` from a resolved item's `attrs.rel`/`attrs.openInNewTab`. */
@@ -2367,11 +2367,11 @@ function widgetMenuItemLinkAttrs({ attrs }: { attrs: JsonObject | undefined }, _
 function widgetMenuItemDecoratedLabel({ attrs, label }: { attrs: JsonObject | undefined; label: string }, _optional = {}): string {
   const icon = attrs?.icon;
   const iconHtml =
-    typeof icon === "string" && icon ? `<span class="widget-menu-item-icon" data-icon="${escapeHtml(icon)}"></span>` : "";
+    typeof icon === "string" && icon ? `<span class="widget-menu-item-icon" data-icon="${escapeHtml({ text: icon })}"></span>` : "";
   const description = attrs?.description;
   const descriptionHtml =
     typeof description === "string" && description
-      ? `<span class="widget-menu-item-desc">${escapeHtml(description)}</span>`
+      ? `<span class="widget-menu-item-desc">${escapeHtml({ text: description })}</span>`
       : "";
   return `${iconHtml}${label}${descriptionHtml}`;
 }
@@ -2390,10 +2390,10 @@ function renderWidgetMenuItems({ items }: { items: JsonValue[] }, _optional = {}
       const o = obj({ value: item });
       if (!o) return "";
       const attrs = obj({ value: o.attrs });
-      const label = widgetMenuItemDecoratedLabel({ attrs, label: escapeHtml(str({ value: o.label })) });
+      const label = widgetMenuItemDecoratedLabel({ attrs, label: escapeHtml({ text: str({ value: o.label }) }) });
       const available = o.available === true && typeof o.href === "string";
       const link = available
-        ? `<a href="${escapeHtml(safeHref({ value: o.href }))}"${widgetMenuItemLinkAttrs({ attrs })}>${label}</a>`
+        ? `<a href="${escapeHtml({ text: safeHref({ value: o.href }) })}"${widgetMenuItemLinkAttrs({ attrs })}>${label}</a>`
         : `<span class="widget-menu-item--unavailable">${label}</span>`;
       const children = arr({ value: o.children });
       const sub = children.length ? `<ul>${renderWidgetMenuItems({ items: children })}</ul>` : "";
@@ -2409,7 +2409,7 @@ function renderWidgetMenuItems({ items }: { items: JsonValue[] }, _optional = {}
  */
 function renderWidgetMenu(props: JsonObject): string {
   const title = str({ value: props.title });
-  const heading = title ? `<h3 class="widget-menu-title">${escapeHtml(title)}</h3>` : "";
+  const heading = title ? `<h3 class="widget-menu-title">${escapeHtml({ text: title })}</h3>` : "";
   if (props.mode === "html") return `<nav class="widget widget-menu">${heading}${str({ value: props.html })}</nav>`;
   return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems({ items: arr({ value: props.items }) })}</ul></nav>`;
 }
@@ -2479,17 +2479,17 @@ function renderWidgetContactForm(props: JsonObject): string {
     successMessage: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fields: fieldDescriptors }) + rangeReadout;
-  const escapedSlug = escapeHtml(slug);
+  const escapedSlug = escapeHtml({ text: slug });
   const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
   const fields = stampFormFieldMaxLengths({ html: renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fields: fieldDescriptors });
-  const successMessage = escapeHtml(str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
+  const successMessage = escapeHtml({ text: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE });
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
   const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
   const errorSlot = renderFormErrorSlot({ slug: escapedSlug, extraClasses: "widget-contact-form-error", extraAttrs: legacyAttrs });
   return (
     FORM_BASELINE_STYLE +
     successSlot +
-    `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml(slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123))}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
+    `<form class="widget ${FORM_CLASS} widget-contact-form" toolname="form_${escapeHtml({ text: slug.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 123) })}" tooldescription="${escapedSlug}" method="post"${fieldDescriptors.some(field => field && String(field.type) === "file") ? ' enctype="multipart/form-data"' : ""} action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
     errorSlot +
     fields + renderFormSchemaHash(formSchemaOptions({ props })) +
     `<div hidden aria-hidden="true"><input type="text" name="_hp" tabindex="-1" autocomplete="off"></div>` +
@@ -2781,7 +2781,7 @@ function renderPostDetailHeader(
 ): string {
   const { showHeader, titleHtml, dateLabel, dateIso, bylineHtml } = required;
   if (!showHeader) return "";
-  const time = dateLabel ? `<time datetime="${escapeHtml(dateIso)}">${escapeHtml(dateLabel)}</time>` : "";
+  const time = dateLabel ? `<time datetime="${escapeHtml({ text: dateIso })}">${escapeHtml({ text: dateLabel })}</time>` : "";
   // `bylineHtml` is required (L082b): its one caller always passes `str(props.postAuthorByline)`,
   // which is `""` when there is no byline, so the former optional's `?? ""` default never ran.
   const byline = bylineHtml.replace("<span", time ? '<span data-post-author-separator=""' : "<span");
@@ -2815,7 +2815,7 @@ function renderWidgetPostContent(props: JsonObject): string {
   // one `<h1>` either way — never two, never zero.
   const titleNode = extractTitleNode(bodyJson as JsonValue);
   const titleHtml =
-    titleNode !== null ? `<h1${styleForAlign({ align: titleNode.align })}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
+    titleNode !== null ? `<h1${styleForAlign({ align: titleNode.align })}>${titleNode.html}</h1>` : `<h1>${escapeHtml({ text: title })}</h1>`;
   const mediaTransformVersions = readMediaTransformVersions({ value: props.mediaTransformVersions as JsonValue | undefined });
   const mediaAssetMetadata = readMediaAssetMetadata({ value: props.mediaAssetMetadata as JsonValue | undefined });
   const inlineWidgets = readInlineWidgets({ value: props.inlineWidgets as JsonValue | undefined });
@@ -2832,7 +2832,7 @@ function renderWidgetPostContent(props: JsonObject): string {
  *  {@link renderWidgetPlaceholder} output via the lookup's own miss path, same as any other
  *  unrecognized id. */
 const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, optional?: Record<string, never>) => string> = {
-  text: ({ ir }) => `<div class="widget widget-text">${escapeHtml(str({ value: ir.props.body })).replaceAll("\n", "<br/>")}</div>`,
+  text: ({ ir }) => `<div class="widget widget-text">${escapeHtml({ text: str({ value: ir.props.body }) }).replaceAll("\n", "<br/>")}</div>`,
   "social-links": ({ ir }) => renderWidgetSocialLinks(ir.props),
   "recent-entries": ({ ir }) => renderWidgetRecentEntries(ir),
   "entry-summary": ({ ir }) => renderWidgetEntrySummary(ir.props),
@@ -2883,7 +2883,7 @@ export function renderWidgetRegion(
   const { ctx, regionKey } = required;
   const items = ctx.widgetRegions[regionKey] ?? [];
   if (items.length === 0) return "";
-  return `<div class="widget-region widget-region--${escapeHtml(regionKey)}">${items.map((ir) => renderWidgetIr(ir)).join("")}</div>`;
+  return `<div class="widget-region widget-region--${escapeHtml({ text: regionKey })}">${items.map((ir) => renderWidgetIr(ir)).join("")}</div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -3044,7 +3044,7 @@ export function renderBlockSeam(ctx: SiteRenderContext, props: JsonObject): stri
   const id = typeof props.component === "string" ? props.component : "";
   const { component: _component, region: _region, ...rest } = props;
   const component = COMPONENTS[id];
-  if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
+  if (!component) return `<!-- unknown component: ${escapeHtml({ text: id })} -->`;
   return component(ctx, rest);
 }
 
@@ -3055,13 +3055,13 @@ export function renderBlockSeam(ctx: SiteRenderContext, props: JsonObject): stri
 function renderSlot({ name, ctx }: { name: string; ctx: SiteRenderContext }, _optional = {}): string {
   switch (name) {
     case "title":
-      return `<h1 class="slot-title">${escapeHtml(ctx.route === "post" && ctx.post ? ctx.post.title : ctx.siteTitle)}</h1>`;
+      return `<h1 class="slot-title">${escapeHtml({ text: ctx.route === "post" && ctx.post ? ctx.post.title : ctx.siteTitle })}</h1>`;
     case "content":
       return ctx.post ? `<div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div>` : "";
     case "entry-list":
       return entryList(ctx, {});
     default:
-      return `<!-- unknown slot: ${escapeHtml(name)} -->`;
+      return `<!-- unknown slot: ${escapeHtml({ text: name })} -->`;
   }
 }
 
@@ -3072,7 +3072,7 @@ function renderSlot({ name, ctx }: { name: string; ctx: SiteRenderContext }, _op
 function renderComponentBlock(node: JsonObject, ctx: SiteRenderContext): string {
   const id = typeof node.id === "string" ? node.id : "";
   const component = COMPONENTS[id];
-  if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
+  if (!component) return `<!-- unknown component: ${escapeHtml({ text: id })} -->`;
   return component(ctx, isObject(node.props) ? node.props : {});
 }
 
@@ -3343,7 +3343,7 @@ export function pageShell(required: {
   const { theme, extraHead } = required;
   const assets = required.documentAssets ?? { head: '', body: '' };
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
-  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
+  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml({ text: required.title })}</title>`;
   const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
   // The theme contributes exactly these three things to the document Tovu owns. With no theme they
   // are each ABSENT, not empty: `BASE_STYLE` is Tovu's own reset and stays either way, but a
@@ -3377,7 +3377,7 @@ ${assets.body}
   // `withEntryListStyleOnce` only ever matches its OWN `[data-tovu-entry-list]` wrapper attribute,
   // never a theme's own unrelated `.entry-list`-classed markup (`entryList`/`productEntryList`
   // below both use that class for the built-in post/product index).
-  return withEntryListStyleOnce(document);
+  return withEntryListStyleOnce({ html: document });
 }
 
 // ---------------------------------------------------------------------------
@@ -3597,7 +3597,7 @@ async function renderTemplatedTierBody(
       ? await renderLiquidInSandbox({ source, ctx })
       : fallbackSiteBody(ctx, route);
   } catch (err) {
-    return `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackSiteBody(ctx, route)}`;
+    return `<!-- theme render error: ${escapeHtml({ text: (err as Error).message })} -->${fallbackSiteBody(ctx, route)}`;
   }
 }
 
@@ -3611,7 +3611,7 @@ async function renderHandlebarsTierBody({ theme, route, ctx }: { theme: Discover
     const { renderHandlebarsInSandbox } = await import("./handlebars-sandbox.js");
     return source ? await renderHandlebarsInSandbox({ source, ctx }) : fallbackSiteBody(ctx, route);
   } catch (err) {
-    return `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackSiteBody(ctx, route)}`;
+    return `<!-- theme render error: ${escapeHtml({ text: (err as Error).message })} -->${fallbackSiteBody(ctx, route)}`;
   }
 }
 
@@ -3678,5 +3678,5 @@ async function finishManagedDocument({ required, title, body }: { required: Rend
 
 function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
   if (!theme) return { themeFontLink: '', themeStyle: '', themeAttr: '' };
-  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml(theme.manifest.id)}"` };
+  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml({ text: theme.manifest.id })}"` };
 }
