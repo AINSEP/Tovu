@@ -93,7 +93,7 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
-import { instrumentStorageKernel, trackFetch } from "#src/platform/observability/index";
+import { instrumentStorageKernel, trackFetch } from "@jini-ai/diagnostics/observability";
 import { bootProviderPlugins, legacyProviderCredentialCheck, type SiteIdentity } from "./provider-plugins.js";
 import { telemetryEnvironment } from './build-release.js';
 import { setServerLogTraceReader } from '../../../platform/server-logs/index.js';

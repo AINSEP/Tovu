@@ -8,7 +8,7 @@ import { parseDescriptorI18n, type DescriptorI18n } from "#src/features/agent-pl
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, readTrustedPluginFile, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 import { parseSourceControlCredentialForm, type SourceControlCredentialForm } from "./credential-form.js";
 import { createSourceControlProviderKit } from "./provider-kit.js";

@@ -58,7 +58,7 @@ import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#sr
 import { randomUUID } from "node:crypto";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { SITEMAP_INVALIDATED_EVENT, createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps, ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";

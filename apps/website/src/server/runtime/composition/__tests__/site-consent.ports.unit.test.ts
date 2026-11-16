@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { siteConsentPorts } from "../site-consent.js";
 
 /** The consent service's site-bound ports: consent readiness, region trust, receipt-storage health

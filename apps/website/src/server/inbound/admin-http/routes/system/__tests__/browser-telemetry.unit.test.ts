@@ -2,7 +2,7 @@ import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
-import { createNoopObservabilityPort, type ObservabilityPort } from '#src/platform/observability/index';
+import { createNoopObservabilityPort, type ObservabilityPort } from '@jini-ai/diagnostics/observability';
 import { withProductAnalyticsGuards, type ProductAnalyticsPort, type ProductEvent } from '@jini-ai/analytics/product';
 type ErrorReport = Parameters<ObservabilityPort['reportError']>[0];
 import type { RateLimiter } from '#src/contracts/core/rate-limit/rate-limit';

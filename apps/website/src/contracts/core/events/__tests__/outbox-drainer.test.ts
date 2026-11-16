@@ -5,7 +5,7 @@ import test from "node:test";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
 import { InMemoryEventBus, InMemoryOutbox, startOutboxDrainer } from "../index.js";
-import { createNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /**
  * @file `startOutboxDrainer`: the background loop that is the single owner of outbox delivery in a

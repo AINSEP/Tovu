@@ -6,7 +6,7 @@ import { rm } from "node:fs/promises";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";
 import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource } from "@jini-ai/devops/static-export/node";
 import { extractListingMoreHrefs, extractListingPageHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
-import { trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { resolveThemeLayout } from "#src/features/theme/index";
 import { type RouteManifestDeps } from "./route-manifest.js";
 import { withSecurityMeta } from "./static-security-headers.js";

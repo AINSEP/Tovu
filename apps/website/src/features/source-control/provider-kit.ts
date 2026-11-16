@@ -2,7 +2,7 @@ import { createSourceControlProviderKit as createKit } from "@jini-ai/devops/sou
 
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
-import { trackFetch, type ObservabilityPort } from "../../platform/observability/index.js";
+import { trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { SourceControlProviderKit } from "./provider-module.js";
 
 /**

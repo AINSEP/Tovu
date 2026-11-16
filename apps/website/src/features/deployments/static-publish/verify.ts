@@ -1,7 +1,7 @@
 import { assertCredentialToken, CredentialInputError } from '../../../contracts/core/credential-token.js';
 import { credentialText } from '../../../contracts/core/credential-copy.js';
 import type { UUID } from "@jini-ai/core/primitives";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 import type { SecretSealerPort } from "../../webhooks/index.js";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";

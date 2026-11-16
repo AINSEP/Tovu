@@ -9,7 +9,7 @@ import { DeployError, type DeployFile, type DeployPublishInput, type DeployPubli
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
 import { withDeclaredHosts } from "#src/contracts/core/public-page-security-headers";
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import type { DeployHostKit, DeployTargetCredential, DeployTargetRegistry, HostDeployTarget, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";

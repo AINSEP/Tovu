@@ -33,7 +33,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { ServerModuleHandle } from "./types.js";
 import { assistantRunFinalizerFor, createHttpRunDaemonClient, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
  * the shared heuristic; injected guidance never enters the stored user message. */

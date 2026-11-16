@@ -9,7 +9,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
 import { startTestServer } from "../helpers/http-test-server.js";
-import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingInput, type RequestTrackingOutcome } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingInput, type RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
 
 /**
  * @file Proves `createApp()`'s request-tracking middleware actually runs against BOTH `RouteDeps`

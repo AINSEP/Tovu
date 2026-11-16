@@ -11,7 +11,7 @@ import type { PublishContentSeedHashFn } from "#src/features/publish-content/see
 import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/features/site-export/index";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type {
   PeerSiteReads,

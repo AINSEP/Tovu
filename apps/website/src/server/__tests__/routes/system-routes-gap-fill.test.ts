@@ -5,7 +5,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /**
  * @file Branches of four `system/*` admin routes that their own suites never reached:

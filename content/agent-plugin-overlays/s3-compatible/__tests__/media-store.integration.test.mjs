@@ -14,7 +14,7 @@ import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { createDeployHostKit } from "#src/features/deployments/deploy-targets/host-kit";
 import { createMediaBlobStore, loadBundledObjectStoreRegistry, readBundledObjectStoreEnvDeclarations } from "#src/features/object-storage/index";
-import { trackFetch } from "#src/platform/observability/index";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

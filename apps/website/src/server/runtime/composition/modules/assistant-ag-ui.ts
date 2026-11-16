@@ -64,7 +64,7 @@ export type { AgUiEvent, AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
-import type { AgentRunStatus } from "#src/platform/observability/index";
+import type { AgentRunStatus } from "@jini-ai/diagnostics/observability";
 import { redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { ServerModuleHandle } from "./types.js";
 

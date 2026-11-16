@@ -5,7 +5,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import type { ChatRunLedger } from "#src/assistant/index";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import { createInMemoryChatHistory } from "#src/assistant/persistence/store-factory";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createLiveRunTracker, CONCURRENT_RUN_REFUSAL_MESSAGE, failRunBeforeStart } from "../../assistant/agent-session-preset.js";
 import { wouldForcedColdStartLoseConversationContext } from "../../assistant/agent-session-preset.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";

@@ -64,7 +64,7 @@ import { askThenReport, type AssistantSurfaceDeps, type SurfaceExchange } from "
 import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 // Credential saves go through `publish-credentials/store.ts`, the same store the admin's Static Site
 // tab writes, so a row saved from chat is the row a publish resolves.
 import { createPublishCredential, updatePublishCredential, type PublishCredentialWriteDeps } from "./publish-credentials/index.js";

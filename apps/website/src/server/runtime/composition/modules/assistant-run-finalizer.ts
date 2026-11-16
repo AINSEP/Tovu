@@ -54,7 +54,7 @@ import {
 } from "#src/contracts/core/assistant-run-events";
 import { isTerminalRunStatus, type AgentEvent } from "@jini-ai/chat/core";
 
-import { createNoopObservabilityPort, trackFetch, type AgentRunStatus, type ObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, trackFetch, type AgentRunStatus, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 

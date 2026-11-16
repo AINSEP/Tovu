@@ -11,7 +11,7 @@ import express from "express";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, isAssistantDaemonKnownFailed } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";

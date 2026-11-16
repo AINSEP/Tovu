@@ -31,7 +31,7 @@ import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
-import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /** Optional collaborators every daemon call accepts. `observability` records each loopback request
  *  as one outbound span (method, host/port and status — never the run id, path or token); omitted,

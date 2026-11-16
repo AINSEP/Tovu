@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
-import { isNoopObservabilityPort } from "#src/platform/observability/index";
+import { isNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

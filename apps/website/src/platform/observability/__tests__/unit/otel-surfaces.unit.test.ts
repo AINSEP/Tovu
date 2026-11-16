@@ -6,7 +6,7 @@ import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-tr
 import { sql } from "kysely";
 
 import { createOtelObservabilityPort } from "../fixtures/otel-sdk.js";
-import { createNoopObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort } from "../../index.js";
+import { createNoopObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import type { ObservabilityConfigEnabled } from "@jini-ai/diagnostics/observability";
 

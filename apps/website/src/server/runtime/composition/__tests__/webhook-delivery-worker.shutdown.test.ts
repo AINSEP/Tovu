@@ -12,7 +12,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "#src/platform/db/sqlite/webhook-repo.sqlite";
 import { createHttpClient } from "#src/platform/http/client";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryScheduler } from "../webhook-delivery-worker.js";
 
 /**

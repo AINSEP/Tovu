@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { installSitePlugin, previewSitePluginInstall } from "@jini-ai/plugins/host/node";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { isNoopObservabilityPort } from "#src/platform/observability/index";
+import { isNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { openProjectStore, projectIdFor } from "#src/server/runtime/composition/project-store";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createDefaultHttpClient, createHttpClient } from "../client.js";
 import { EgressRefusedError } from "../index.js";
-import { createNoopObservabilityPort, type ObservabilityPort } from "#src/platform/observability/index";
+import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { EgressPolicy, HttpRequest, HttpResponse, HttpTransportAdapter } from "../ports.js";
 
 /**

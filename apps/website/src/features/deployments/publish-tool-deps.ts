@@ -10,7 +10,7 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 import type { DeployTargetRegistry } from "./deploy-targets/types.js";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { PublishCredentialSource, PublishCredentialVerificationCache, PublishHistoryStore, StaticPublishDeps } from "./static-publish/index.js";
 
 

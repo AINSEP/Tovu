@@ -3,7 +3,7 @@ import { processDueDeliveries } from "#src/features/webhooks/delivery";
 import type { WebhookSigner } from "#src/features/webhooks/signing";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { SINGLE_HOP_HTTPS_EGRESS_POLICY } from "#src/platform/http/egress-policies";
-import type { ObservabilityPort } from "#src/platform/observability/index";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { startWebhookDeliveryWorker, type WebhookDeliveryWorker, type WebhookDeliveryWorkerOptional } from "@jini-ai/integrations/webhooks";
 import { webhookEnvelopeStoreFor } from "./modules/integrations.js";
 

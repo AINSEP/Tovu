@@ -15,7 +15,7 @@ import type {
   SourceControlCredentialSummary,
   SourceControlProviderId,
 } from "./types.js";
-import type { ObservabilityPort } from "../../platform/observability/index.js";
+import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /** Source-control validation and inline identity probes remain feature policy. Jini owns
  * sealing, persistence, hints and defaults. Plain read models require neither keys nor opens.
