@@ -111,7 +111,8 @@ test("processOutbox catches Error during publish and marks row failed", async ()
   const pendingAgain = await outbox.claimPending({ batchSize: 10, nowIso: "2026-02-22T12:00:00.000Z" });
   assert.equal(pendingAgain.length, 1);
   assert.equal(pendingAgain[0].id, "evt-fail");
-  assert.equal(pendingAgain[0].lastError, "handler failed to execute");
+  // lastError is the fixed class label, never the message: the Jini worker records describeErrorForLog (infra outbox/worker.ts, bc545d4d); the original goes to the logger.
+  assert.equal(pendingAgain[0].lastError, "Error");
 });
 
 test("processOutbox catches non-Error during publish and marks row failed with fallback message", async () => {
@@ -141,7 +142,8 @@ test("processOutbox catches non-Error during publish and marks row failed with f
 
   const pendingAgain = await outbox.claimPending({ batchSize: 10, nowIso: "2026-02-22T12:00:00.000Z" });
   assert.equal(pendingAgain.length, 1);
-  assert.equal(pendingAgain[0].lastError, "unknown outbox error");
+  // A non-Error throw is recorded as its typeof, not a fabricated message (same contract).
+  assert.equal(pendingAgain[0].lastError, "string");
 });
 
 test("processOutbox returns 0 when outbox has no pending records", async () => {
@@ -474,7 +476,7 @@ test("an overrunning delivery whose handler later rejects is recorded as a norma
 
   assert.deepEqual(failures, [
     ["evt-late", 'delivery of outbox event "late.event" (evt-late) timed out after 20ms', new Date(Date.parse(nowIso) + DEFAULT_OUTBOX_CLAIM_LEASE_MS).toISOString(), "pending"],
-    ["evt-late", "late handler failure", new Date(Date.parse(nowIso) + computeOutboxBackoffMs({ attempts: 1 }, { random: () => 0 })).toISOString(), "pending"],
+    ["evt-late", "Error", new Date(Date.parse(nowIso) + computeOutboxBackoffMs({ attempts: 1 }, { random: () => 0 })).toISOString(), "pending"],
   ]);
 });
 

@@ -137,7 +137,7 @@ test("moving a plugin to Trash retains its disabled activation and leaves the to
   assert.equal(after.status, "denied", "a trashed plugin's retained disabled activation must keep its tool revoked");
 });
 
-test("an activation read that throws DENIES and says why in the server log — it never completes", async (t) => {
+test("an activation read that throws DENIES and says why in the server log (class label only) — it never completes", async (t) => {
   const inner = new InMemoryPluginActivationRepo({ initialRows: [activation(true)] });
   let failReads = false;
   const flaky: PluginActivationRepoPort = {
@@ -157,7 +157,7 @@ test("an activation read that throws DENIES and says why in the server log — i
 
   assert.equal(result.status, "denied");
   const matched = warn.mock.calls.filter(
-    (call) => call.arguments[0] === "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (database is locked)",
+    (call) => call.arguments[0] === "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (Error)",
   );
   assert.equal(matched.length, 1, `expected exactly one matching warn call, got: ${JSON.stringify(warn.mock.calls.map((c) => c.arguments))}`);
 });

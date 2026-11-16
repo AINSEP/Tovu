@@ -79,7 +79,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
 
   assert.equal(await processOutbox({ outbox, bus, clock }, { random: () => 0 }), 1);
   assert.deepEqual(snapshot(), {
-    ...initial, status: "pending", attempts: 1, last_error: "subscriber unavailable", next_attempt_at: "2026-10-07T00:00:15.000Z",
+    ...initial, status: "pending", attempts: 1, last_error: "Error", next_attempt_at: "2026-10-07T00:00:15.000Z",
   });
   nowMs += 14_999;
   assert.equal(await processOutbox({ outbox, bus, clock }), 0);
@@ -87,7 +87,7 @@ test("persisted legacy bytes survive the daemon boundary, failure backoff, and s
   assert.equal(await processOutbox({ outbox, bus, clock }), 1);
   assert.deepEqual(received, [event, event]);
   assert.deepEqual(snapshot(), {
-    ...initial, status: "delivered", attempts: 2, last_error: "subscriber unavailable", next_attempt_at: "2026-10-07T00:30:15.000Z",
+    ...initial, status: "delivered", attempts: 2, last_error: "Error", next_attempt_at: "2026-10-07T00:30:15.000Z",
   });
   assert.equal(await processOutbox({ outbox, bus, clock }), 0);
 });
@@ -111,7 +111,7 @@ test("persisted poison rows get exactly six attempts with the historical retry t
     const stored = db.$client.prepare("SELECT status, attempts, next_attempt_at, last_error, event_json FROM outbox_events WHERE id = ?").get(event.id);
     assert.deepEqual(stored, {
       status: index === 5 ? "failed" : "pending", attempts: index + 1,
-      next_attempt_at: new Date(nowMs + delay).toISOString(), last_error: "permanent subscriber failure", event_json: JSON.stringify(event),
+      next_attempt_at: new Date(nowMs + delay).toISOString(), last_error: "Error", event_json: JSON.stringify(event),
     });
     assert.equal(await processOutbox({ outbox, bus, clock }), 0);
     nowMs += delay;
