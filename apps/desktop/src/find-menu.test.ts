@@ -72,5 +72,5 @@ test("the inlined channel literal matches contracts/find-in-page.ts", () => {
 });
 
 test("the preload subscribes to that channel", () => {
-  assert.match(read("preload", "preload.mts"), /onFindToggle:[^\n]*\n?\s*subscribe[^\n]*FIND_TOGGLE_CHANNEL, listener\)/);
+  assert.match(read("preload", "preload.mts"), /onFindToggle:[^\n]*\n?\s*subscribe[^\n]*channel: FIND_TOGGLE_CHANNEL, listener \}\)/);
 });
