@@ -353,6 +353,7 @@ test("an UNLISTED failure stays redacted — the allowlist is not a blanket unwr
   assert.equal(result.ok, false, JSON.stringify(result));
   if (result.ok) return;
   assert.equal(result.error.code, "INTERNAL_ERROR");
-  assert.equal(result.error.message, "an internal error occurred");
+  // Jini daemon delegated-tools.ts (44ae8070): an unlisted fault now answers with this fixed server-fault guidance.
+  assert.equal(result.error.message, "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem.");
   assert.ok(!JSON.stringify(result).includes("content.db"), "an unlisted error must not disclose an internal path");
 });

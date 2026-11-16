@@ -323,7 +323,8 @@ test("the logger prefixes warnings with the caller's own log tag too", async (t)
   await runtime.start();
 
   assert.ok(
-    warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools — Error: boom\n    at connect fixture"),
+    // The error itself goes to the host sink via the logger's second argument (Jini mcp federation/bootstrap.ts); the console line is the fixed words only, never the message or stack.
+    warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools"),
     `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
   );
 });
