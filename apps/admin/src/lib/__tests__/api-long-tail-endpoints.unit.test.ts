@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
@@ -151,14 +152,14 @@ test("deletePage DELETEs /pages/:id", async () => {
 
 test("listRoles hits GET /roles", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRoles();
+  await rolesApi.listRoles();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createRole POSTs { name } to /roles", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createRole({ name: "Editor" });
+  await rolesApi.createRole({ name: "Editor" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ name: "Editor" });
@@ -166,7 +167,7 @@ test("createRole POSTs { name } to /roles", async () => {
 
 test("deleteRole DELETEs /roles/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteRole({ roleId: "r1" });
+  await rolesApi.deleteRole({ roleId: "r1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/roles/r1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });

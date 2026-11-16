@@ -1,7 +1,7 @@
 import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "./api/roles-api.types";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { roleMenuItems, policyMenuItems } from "./rules";

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
@@ -121,18 +122,18 @@ const singleIdCases: Case[] = [
     () => usersApi.attachPolicy({ principalId: SLASH_ID, policyId: "p1" }),
     `${BASE_WORKSPACE}/users/${ENC}/policies`,
   ],
-  ["updateRole", () => api.updateRole({ roleId: SLASH_ID, name: "x" }), `${BASE_WORKSPACE}/roles/${ENC}`],
-  ["deleteRole", () => api.deleteRole({ roleId: SLASH_ID }), `${BASE_WORKSPACE}/roles/${ENC}`],
-  ["updatePolicy", () => api.updatePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
-  ["deletePolicy", () => api.deletePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
+  ["updateRole", () => rolesApi.updateRole({ roleId: SLASH_ID, name: "x" }), `${BASE_WORKSPACE}/roles/${ENC}`],
+  ["deleteRole", () => rolesApi.deleteRole({ roleId: SLASH_ID }), `${BASE_WORKSPACE}/roles/${ENC}`],
+  ["updatePolicy", () => rolesApi.updatePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
+  ["deletePolicy", () => rolesApi.deletePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
   [
     "writePolicyPermission",
-    () => api.writePolicyPermission({ policyId: SLASH_ID, permission: "read" }),
+    () => rolesApi.writePolicyPermission({ policyId: SLASH_ID, permission: "read" }),
     `${BASE_WORKSPACE}/policies/${ENC}/permissions`,
   ],
   [
     "listPolicyPermissions",
-    () => api.listPolicyPermissions({ policyId: SLASH_ID }),
+    () => rolesApi.listPolicyPermissions({ policyId: SLASH_ID }),
     `${BASE_WORKSPACE}/policies/${ENC}/permissions`,
   ],
 
@@ -245,7 +246,7 @@ test("mediaPreviewRenditionUrl builds the published cover's public.v1 URL with t
 
 test("removePolicyPermission encodes both policyId and policyPermissionId", async () => {
   const { calls } = stubFetchCapturing();
-  await api.removePolicyPermission({ policyId: SLASH_ID, policyPermissionId: SECOND_ID });
+  await rolesApi.removePolicyPermission({ policyId: SLASH_ID, policyPermissionId: SECOND_ID });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/${ENC}/permissions/${ENC2}`);
 });
 

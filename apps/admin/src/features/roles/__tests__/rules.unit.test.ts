@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type AdminPolicy, type AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminRole } from "@/features/roles/api/roles-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { describeApiError, roleMenuItems, policyMenuItems } from "../rules";
 import { t } from "../roles-i18n";

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { rolesApi } from "../../features/roles/api/roles-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { databaseApi } from "../../features/database/api/database-api";
@@ -215,47 +216,47 @@ test("attachPolicy sends the same request whether or not the unused options arg 
 
 test("updateRole sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.updateRole({ roleId: "r1", name: "New name" });
+  await rolesApi.updateRole({ roleId: "r1", name: "New name" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.updateRole({ roleId: "r1", name: "New name" }, {});
+  await rolesApi.updateRole({ roleId: "r1", name: "New name" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(JSON.parse(String(a[0].init?.body))).toEqual({ name: "New name" });
 });
 
 test("createPolicy omits description from the body when the caller doesn't pass one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createPolicy({ name: "policy-1" });
+  await rolesApi.createPolicy({ name: "policy-1" });
   expect(body()).toEqual({ name: "policy-1", description: undefined });
 });
 
 test("createPolicy includes description when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createPolicy({ name: "policy-1" }, { description: "does things" });
+  await rolesApi.createPolicy({ name: "policy-1" }, { description: "does things" });
   expect(body()).toEqual({ name: "policy-1", description: "does things" });
 });
 
 test("updatePolicy sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updatePolicy({ policyId: "pol1" });
+  await rolesApi.updatePolicy({ policyId: "pol1" });
   expect(body()).toEqual({});
 });
 
 test("updatePolicy sends the patch fields when the caller passes options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updatePolicy({ policyId: "pol1" }, { name: "renamed" });
+  await rolesApi.updatePolicy({ policyId: "pol1" }, { name: "renamed" });
   expect(body()).toEqual({ name: "renamed" });
 });
 
 test("writePolicyPermission drops resourceType from the body when none is given", async () => {
   const { body } = stubFetchCapturing();
-  await api.writePolicyPermission({ policyId: "pol1", permission: "read" });
+  await rolesApi.writePolicyPermission({ policyId: "pol1", permission: "read" });
   expect(body()).toEqual({ permission: "read" });
 });
 
 test("writePolicyPermission includes a real resourceType in the body", async () => {
   const { body } = stubFetchCapturing();
-  await api.writePolicyPermission({ policyId: "pol1", permission: "read" }, { resourceType: "post" });
+  await rolesApi.writePolicyPermission({ policyId: "pol1", permission: "read" }, { resourceType: "post" });
   expect(body()).toEqual({ permission: "read", resourceType: "post" });
 });
 

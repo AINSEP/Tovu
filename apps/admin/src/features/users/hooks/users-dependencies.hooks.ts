@@ -1,4 +1,5 @@
-import { api, type AdminPolicy, type AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminRole } from "@/features/roles/api/roles-api.types";
+import { rolesApi } from "@/features/roles/api/roles-api";
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
@@ -19,8 +20,8 @@ export const defaultUsersPort: UsersPort = {
     const res = await authApi.me();
     return { user: { id: res.user.id }, canManageUserTrash: res.canManageUserTrash ?? false, effectivePermissions: res.effectivePermissions ?? [] };
   },
-  listRoles: () => api.listRoles(),
-  listPolicies: () => api.listPolicies(),
+  listRoles: () => rolesApi.listRoles(),
+  listPolicies: () => rolesApi.listPolicies(),
   createUser: (input, options = {}) => usersApi.createUser(input, options),
   updateUser: (target, options = {}) => usersApi.updateUser(target, options),
   disableUser: ({ principalId }, _options = {}) => usersApi.disableUser({ principalId }),

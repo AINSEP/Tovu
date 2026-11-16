@@ -1317,35 +1317,6 @@ export interface AdminWebhookDelivery {
   deadAt: string | null;
 }
 
-export interface AdminRole {
-  id: string;
-  workspaceId: string;
-  name: string;
-  isBuiltin: boolean;
-}
-
-export interface AdminPolicy {
-  id: string;
-  workspaceId: string;
-  name: string;
-  description?: string;
-  isBuiltin: boolean;
-  isFrozen: boolean;
-}
-
-/** One permission row written onto a policy (OQ-10). Mirrors `identity`'s `PolicyPermissionRecord`
- *  — the shape `GET policies/:policyId/permissions` returns. `id` is what
- *  {@link adminApi.removePolicyPermission} deletes by; nothing else in the admin exposed it, which
- *  is why a policy's permission set used to be append-only from this UI. */
-export interface AdminPolicyPermission {
-  id: string;
-  workspaceId: string;
-  policyId: string;
-  permission: string;
-  resourceType?: string | null;
-  constraintJson?: string | null;
-}
-
 /** Mirrors `server/inbound/admin-http/routes/agent-plugins/list.ts`'s response shape — the
  *  `AGENT_PLUGINS_LIST` per-plugin wire shape (2026-09-09). A DIFFERENT family from {@link
  *  AdminPlugin} above: Agent Plugins (agent-plugins.org packages) versus the `.tovu-plugin`
@@ -1802,37 +1773,6 @@ export const api = {
     request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
       { path: `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix({ query: options.offset ? "offset=" + options.offset : "" })}` },
     ),
-  listRoles: () => authenticatedAdminRequest<{ roles: AdminRole[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/roles` }),
-  createRole: ({ name }: { name: string }, _optional: Record<string, never> = {}) =>
-    authenticatedAdminRequest<{ role: AdminRole }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/roles`, body: { name } }),
-  // SPEC-006 0.6.0.
-  updateRole: (
-    { roleId, name }: { roleId: string; name: string },
-    _options: Record<string, never> = {}
-  ) =>
-    authenticatedAdminRequest<{ role: AdminRole }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`, body: { name } }),
-  deleteRole: ({ roleId }: { roleId: string }, _optional: Record<string, never> = {}) =>
-    authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}` }),
-  listPolicies: () => authenticatedAdminRequest<{ policies: AdminPolicy[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies` }),
-  createPolicy: ({ name }: { name: string }, options: { description?: string } = {}) =>
-    authenticatedAdminRequest<{ policy: AdminPolicy }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/policies`, body: { name, description: options.description } }),
-  // SPEC-006 0.6.0.
-  updatePolicy: (
-    { policyId }: { policyId: string },
-    options: { name?: string; description?: string } = {}
-  ) =>
-    authenticatedAdminRequest<{ policy: AdminPolicy }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`, body: options }),
-  deletePolicy: ({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) =>
-    authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}` }),
-  writePolicyPermission: (
-    { policyId, permission }: { policyId: string; permission: string },
-    options: { resourceType?: string } = {}
-  ) =>
-    authenticatedAdminRequest<{ policyPermission: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`, body: { permission, resourceType: options.resourceType || undefined } }),
-  listPolicyPermissions: ({ policyId }: { policyId: string }, _optional: Record<string, never> = {}) =>
-    authenticatedAdminRequest<{ policyPermissions: AdminPolicyPermission[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions` }),
-  removePolicyPermission: ({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }) =>
-    authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}` }),
 
   // "Execution mode" tab (`@jini-ai/ui`'s `ExecutionTab`) — Local CLI detection + BYOK connection
   // test/model discovery. Deliberately separate from the settings.* methods above: these are

@@ -1,4 +1,4 @@
-import type { AdminPolicy, AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminRole } from "@/features/roles/api/roles-api.types";
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 
 /**

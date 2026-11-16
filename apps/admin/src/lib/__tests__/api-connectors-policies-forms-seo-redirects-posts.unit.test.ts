@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isAdminDevServerOrigin } from "../admin-dev-origin";
-import { api } from "../api";
+import { rolesApi } from "../../features/roles/api/roles-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { ApiError } from "../admin-http/request";
@@ -185,20 +185,20 @@ describe("policies", () => {
     const { calls, method } = stubFetchCapturing(() =>
       jsonResponse({ policies: [{ id: "pol1", name: "editors" }] })
     );
-    await expect(api.listPolicies()).resolves.toEqual({ policies: [{ id: "pol1", name: "editors" }] });
+    await expect(rolesApi.listPolicies()).resolves.toEqual({ policies: [{ id: "pol1", name: "editors" }] });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies`);
     expect(method()).toBe("GET");
   });
 
   test("createPolicy POSTs and resolves the created policy", async () => {
     const { method } = stubFetchCapturing(() => jsonResponse({ policy: { id: "pol1", name: "policy-1" } }));
-    await expect(api.createPolicy({ name: "policy-1" })).resolves.toEqual({ policy: { id: "pol1", name: "policy-1" } });
+    await expect(rolesApi.createPolicy({ name: "policy-1" })).resolves.toEqual({ policy: { id: "pol1", name: "policy-1" } });
     expect(method()).toBe("POST");
   });
 
   test("updatePolicy PATCHes and resolves the updated policy", async () => {
     const { method, calls } = stubFetchCapturing(() => jsonResponse({ policy: { id: "pol1", name: "renamed" } }));
-    await expect(api.updatePolicy({ policyId: "pol1" }, { name: "renamed" })).resolves.toEqual({
+    await expect(rolesApi.updatePolicy({ policyId: "pol1" }, { name: "renamed" })).resolves.toEqual({
       policy: { id: "pol1", name: "renamed" },
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1`);
@@ -207,7 +207,7 @@ describe("policies", () => {
 
   test("deletePolicy DELETEs the policy by id", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse(null));
-    await api.deletePolicy({ policyId: "pol1" });
+    await rolesApi.deletePolicy({ policyId: "pol1" });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1`);
     expect(method()).toBe("DELETE");
   });
@@ -216,7 +216,7 @@ describe("policies", () => {
     const { method, calls } = stubFetchCapturing(() =>
       jsonResponse({ policyPermission: { id: "pp1", permission: "read" } })
     );
-    await expect(api.writePolicyPermission({ policyId: "pol1", permission: "read" })).resolves.toEqual({
+    await expect(rolesApi.writePolicyPermission({ policyId: "pol1", permission: "read" })).resolves.toEqual({
       policyPermission: { id: "pp1", permission: "read" },
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions`);
@@ -227,7 +227,7 @@ describe("policies", () => {
     const { calls } = stubFetchCapturing(() =>
       jsonResponse({ policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }] })
     );
-    await expect(api.listPolicyPermissions({ policyId: "pol1" })).resolves.toEqual({
+    await expect(rolesApi.listPolicyPermissions({ policyId: "pol1" })).resolves.toEqual({
       policyPermissions: [{ id: "pp1", policyId: "pol1", permission: "read" }],
     });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions`);
@@ -236,14 +236,14 @@ describe("policies", () => {
 
   test("removePolicyPermission DELETEs the specific permission by both ids", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse(null));
-    await api.removePolicyPermission({ policyId: "pol1", policyPermissionId: "pp1" });
+    await rolesApi.removePolicyPermission({ policyId: "pol1", policyPermissionId: "pp1" });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/pol1/permissions/pp1`);
     expect(method()).toBe("DELETE");
   });
 
   test("a policy-scoped call propagates a thrown ApiError with the server's exact message", async () => {
     stubFetchCapturing(() => jsonResponse({ error: "cannot delete a builtin policy", code: "FORBIDDEN" }, 403));
-    const error = await api.deletePolicy({ policyId: "builtin-1" }).catch((e: unknown) => e);
+    const error = await rolesApi.deletePolicy({ policyId: "builtin-1" }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).message).toBe("cannot delete a builtin policy");
     expect((error as ApiError).status).toBe(403);

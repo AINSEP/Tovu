@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type AdminPolicyPermission } from "@/lib/api";
+import type { AdminPolicyPermission } from "@/features/roles/api/roles-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeRolesPort, defaultRolesPort } from "../hooks/roles-dependencies.hooks";
 import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";

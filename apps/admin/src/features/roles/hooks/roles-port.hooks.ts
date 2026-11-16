@@ -1,4 +1,4 @@
-import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/features/roles/api/roles-api.types";
 
 /**
  * @file What `use-roles.hooks.ts` needs from the outside world, as an interface rather than a
