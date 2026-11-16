@@ -1,7 +1,6 @@
 import type { DocumentAssets } from '@jini-ai/cms/presentation';
 import type { DeclaredScript } from '@jini-ai/cookie-consent';
 import { renderScriptAssets } from '@jini-ai/cookie-consent/render';
-import { renderFormCollection } from "@jini-ai/cms/forms";
 import { type FormCollectionPlan } from "@jini-ai/core/contracts/forms";
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
@@ -16,7 +15,7 @@ import { createSiteChatAssetReadiness, renderLazySiteChatMarkup, type SiteChatSe
 // The leaf, not the site-dir barrel: this file runs inside the 64 MB theme render workers, and the
 // barrel's site-registry/repair/new-site members load the database (`worker-import-graph.test.ts`).
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
-import { renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
+import { renderFormCollection, renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
