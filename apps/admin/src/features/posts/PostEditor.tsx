@@ -1,20 +1,18 @@
 import { VIEW_TABS } from "./editor/view-bar/view-tabs";
+import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
 import { PostPreview } from "./editor/preview/PostPreview";
 import { PostDeleteConfirmDialog } from "./editor/PostDeleteConfirmDialog";
 import { PostEditorBody } from "./editor/PostEditorBody";
 import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
-import { PostEditorToolbarEnd } from "./editor/header/PostEditorToolbarEnd";
 import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorActions } from "./editor/header/PostEditorActions";
 import { PostEditorHeader } from "./editor/header/PostEditorHeader";
-import { type Editor } from "@tiptap/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
 import { useDevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
-import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
+import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
@@ -162,55 +160,19 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         dismissExternalChange={dismissExternalChange}
         t={t}
       />
-      {/* Edit/Preview toolbar (2026-08-11, owner: "Let's have a preview button... a tab that shows
-          either tiptap so they can edit, or how it looks when it's rendered" + "Keeping the template
-          chooser on the right... that's how the others work"). Deliberately the SAME structure as
-          the Pages editor's `.page-editor-toolbar` (`features/pages/PageEditor.tsx`) — tabs left,
-          `.page-editor-toolbar-end` right — reusing its classes directly (`styles/pages.css`) rather
-          than parallel Post-only ones: those classes already have a second consumer beyond Pages
-          (`ThemeExplore.tsx`), so this is a third, not a fork. The template picker moved into
-          `.page-editor-toolbar-end` verbatim from the old `.editor-slug-row` below it — only its
-          MARKUP location changed; where its options/value come from is untouched (a concurrent
-          agent owns that wiring). */}
-      <div className="page-editor-toolbar">
-        <div className="content-editor-toolbar-start">
-          <div className="segmented" role="tablist" aria-label={t("Editor view")} onKeyDown={onViewTabsKeyDown}>
-            {VIEW_TABS.map((entry) => (
-              <button
-                key={entry.key}
-                type="button"
-                role="tab"
-                aria-selected={view === entry.key}
-                className={view === entry.key ? "is-active" : undefined}
-                tabIndex={resolveTabBarTabIndex({ tabs: VIEW_TABS, activeId: view, tab: entry })}
-                onClick={() => setView(entry.key)}
-                {...agentHandle({ handle: entry.handle }, { role: "button", label: entry.agentLabel })}
-              >
-                {t(entry.label)}
-              </button>
-            ))}
-          </div>
-          {view === "preview" ? (
-            <DevicePreviewToggle device={device} setDevice={setDevice} t={t} handlePrefix="post-preview-width" />
-          ) : null}
-        </div>
-        {/* Preview fullscreen, Level 1 (2026-09-15) — no expand toggle lives in this toolbar. It was
-            here until `a380c716` and is now ONE control floating on the preview itself
-            (`.post-preview-fab`, `PostPreview` below), rendered in the same place both collapsed and
-            expanded so the way out is always visible: the expanded surface is a `position: absolute;
-            inset: 0` panel that would cover anything in this toolbar anyway. */}
-        {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
-            own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
-        <PostEditorToolbarEnd
-          view={view}
-          bodyFormat={post.bodyFormat}
-          availableTemplates={availableTemplates}
-          templateChoice={templateChoice}
-          setTemplateChoice={setTemplateChoice}
-          onViewTemplateClick={onViewTemplateClick}
-          t={t}
-        />
-      </div>
+      <PostEditorViewBar
+        view={view}
+        setView={setView}
+        onViewTabsKeyDown={onViewTabsKeyDown}
+        device={device}
+        setDevice={setDevice}
+        bodyFormat={post.bodyFormat}
+        availableTemplates={availableTemplates}
+        templateChoice={templateChoice}
+        setTemplateChoice={setTemplateChoice}
+        onViewTemplateClick={onViewTemplateClick}
+        t={t}
+      />
 
       {/* Directly under the toolbar, not in the header — see `PostEditorActions`' own doc. Placed
           ABOVE the slug-collision warning so the row keeps the position the owner asked for
