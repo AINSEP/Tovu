@@ -25,7 +25,7 @@ Measured at `origin/integ/wave-b-fixed`: 3,168 lines (1,949 code), 302 import de
 | 1917-2021 | assistant secret keyring, `normalizeSiteVaultAtBoot`, external MCP, project store/keys, provider config, custom credentials, provider plugins, observability binding |
 | 2032-2088 | mail resolution + durable outbox; outbound HTTP clients |
 | 2095-2264 | post/media repos, change sets, publish-content repos + apply port (58), themes roster, guarded outbound client, public origin, agent-plugin connections, SEO, consent |
-| 2265-2848 | **the `routeDeps` literal**: 584 lines, about 330 keys, 6 spreads (`...identity`, `...agentPluginConnections`, `...resolvedMailer…`, `...compositionApprovalOverrides`, `...compositionConsentOptions`, one conditional) |
+| 2265-2848 | **the `routeDeps` literal**: 584 lines, about 270 keys, 6 spreads (`...identity`, `...agentPluginConnections`, `...resolvedMailer…`, `...compositionApprovalOverrides`, `...compositionConsentOptions`, one conditional) |
 | 2849-3065 | post-assembly mutation: widget adoption, forms, site search, commerce, plugin host, drain hook, media-credential release, site sharing (`configureSiteSharing`, 68), imports, consent, content analytics |
 | 3068-3168 | trailing helpers, `createSiteRouteDepsForWorkspace` |
 
@@ -89,7 +89,7 @@ server/runtime/composition/
       consent-analytics.ts           3062-3064, 3088-3107                                              ~50
 ```
 
-About 45 files, largest ~210 lines. `deps.ts` is deleted; its 158 test importers and ~30 production importers are repointed to `site-route-deps.ts` (or to `site-deps/default-paths.ts` / `overrides.ts` for the names they actually use).
+About 45 files, largest ~210 lines. `deps.ts` is deleted; its 158 test importers and 30+ production importers are repointed to `site-route-deps.ts` (or to `site-deps/default-paths.ts` / `overrides.ts` for the names they actually use).
 
 ### Module map (signatures)
 
@@ -122,7 +122,7 @@ Dependency direction: `site-route-deps.ts → after-assembly → route-deps → 
 
 ### Rules the executor must keep
 
-- **Statement order is behaviour.** The root calls slices in today's order (table above, top to bottom). Promise chains (`settingsReady → … → siteTitleReady`, `newsletterReady → commentsReady → mediaTransformReady`) stay chained in the same order; they serialize SQLite writes at boot. `onStoreClose` registrations happen in the same sequence (closers run in registration order).
+- **Statement order is behaviour.** The root calls slices in today's order (table above, top to bottom). Promise chains (`settingsReady → … → siteTitleReady`, `newsletterReady → commentsReady → mediaTransformReady`) stay chained in the same order; they serialize SQLite writes at boot. `onStoreClose` registrations happen in the same sequence (close order derives from registration order; step 0 pins the sequence).
 - **`lifecycleTracker` buffer**: 1089-1090 create a buffering stub; 2018-2019 swap it and flush. Keep as `late.lifecycleTracker` initialised with the buffering stub (a `LateRef` created with an initial value), not as an empty ref.
 - The two nested hoisted functions (`warnCompositionChatOrphans`, `registerBootOrigin`, `configureSiteSharing`, `configureSiteImports`) currently take `Record<string, never>` placeholders because they read the closure. When moved they take their real inputs: `(required, options = {})` — that removes four `Record<string, never>` signatures.
 - The 14 `.then(() => ensureXSetting(...))` links (1284-1302) become `const SITE_SETTING_DEFINITIONS = [ensureAdminInterfaceSettingDefinitions, …] as const` reduced into the same chain in the same order. The two ensure-functions with a different argument shape (`(deps, { systemPrincipalId })` vs `({ deps, systemPrincipalId })`) get a 2-line adapter in the list, not a signature change.
@@ -149,7 +149,7 @@ Dependency direction: `site-route-deps.ts → after-assembly → route-deps → 
 
 | risk | de-risk |
 |---|---|
-| spread precedence / key loss in the 330-key literal | step-0 key snapshot + ownership TSV; `satisfies Pick<RouteDeps, …>` on every fragment so a dropped key is a type error in `assemble.ts` |
+| spread precedence / key loss in the ~270-key literal | step-0 key snapshot + ownership TSV; `satisfies Pick<RouteDeps, …>` on every fragment so a dropped key is a type error in `assemble.ts` |
 | boot promise order changes (SQLite write races) | chains stay chained; step-0 test records resolution order of the `*Ready` promises |
 | TDZ-dependent closures | `LateRef` with identical error class; converted before any move (step 2) |
 | tsc misses an undefined identifier after a move (reported on `refactor/size-tovu`) | run eslint `no-undef` on each new file and the route tests, not only tsc |
