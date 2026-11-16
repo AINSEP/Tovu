@@ -1,0 +1,7 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "moves":[
+  {"file":"packages/diagnostics/src/observability/ports.ts","names":["RequestTrackingInput","RequestTrackingOptions","RequestTrackingOutcome","TrackerScope","RequestTracker","DbQueryTrackingInput","DbQueryTrackingOutcome","DbQueryTracker","OutboundCallTrackingInput","OutboundCallTrackingOutcome","OutboundCallTracker","AgentRunTrackingInput","AgentRunTrackingOptions","AgentRunStatus","AgentRunTrackingOutcome","AgentRunTracker","OperationAttributes","OperationTrackingInput","OperationTrackingOutcome","OperationTracker","TraceIds","ErrorReport","CrashUpload","MetricInput","MetricOptions","ObservabilityPort","ObservabilityAdapter"],"to":"@jini-ai/core/contracts/observability"},
+  {"file":"packages/diagnostics/src/observability/noop.ts","names":"*","to":"@jini-ai/core/contracts/observability"},
+  {"file":"packages/analytics/src/product/index.ts","names":["ProductEventProperties","ProductEvent","ProductIdentity","ProductAiGeneration","ProductAnalyticsPort","ProductAnalyticsAdapter"],"to":"@jini-ai/core/contracts/observability"},
+  {"file":"packages/analytics/src/product/browser.ts","names":["BrowserAnalyticsContribution"],"to":"@jini-ai/core/contracts/observability"}],
+ "exclude":["packages/diagnostics/src/observability/noop.ts"]}

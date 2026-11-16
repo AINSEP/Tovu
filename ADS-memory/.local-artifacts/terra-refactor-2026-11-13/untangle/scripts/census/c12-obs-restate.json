@@ -1,0 +1,2 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "moves":[{"file":"packages/provider-plugins/src/observability-opentelemetry/contract.ts","names":["TraceIds","AgentRunStatus","RequestTracker","ObservabilityPort"],"to":"@jini-ai/core/contracts/observability"}],"exclude":[]}

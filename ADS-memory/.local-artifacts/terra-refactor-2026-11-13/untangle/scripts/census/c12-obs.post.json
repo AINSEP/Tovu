@@ -1,0 +1,3 @@
+{"src_dirs":["packages/diagnostics/src","packages/analytics/src"],
+ "deleted_files":["packages/diagnostics/src/observability/noop.ts"],
+ "note_by_name":{"createNoopObservabilityPort":"value moves to core verbatim (C12-OBS §2.2)","isNoopObservabilityPort":"value moves to core verbatim (C12-OBS §2.2)"}}
