@@ -66,6 +66,7 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  */
 
 import { api, type AdminExecutionCredential, type AdminExecutionCredentialPatch } from "./api";
+import { settingsApi } from "../features/settings/api/settings-api";
 import { ApiError } from "./admin-http/request";
 import type { SettingResolvedValue } from "./settings-effective-reads";
 import type { SettingScope } from "@jini-ai/core/settings";
@@ -352,7 +353,7 @@ export function buildLocalCliConfigFromLedger({ byKey }: { byKey: Map<string, un
 export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   let rows: SettingResolvedValue[];
   try {
-    rows = requireData({ response: await api.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), callSite: "getSettingsEffective" });
+    rows = requireData({ response: await settingsApi.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), callSite: "getSettingsEffective" });
   } catch (error) {
     // A namespace with no registered definitions is the expected cold-start
     // state, not an error worth surfacing — fall back to defaults.
@@ -472,7 +473,7 @@ export async function saveExecutionConfig(
   const written: string[] = [];
   try {
     for (const { key, valueJson } of changed) {
-      await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson });
+      await settingsApi.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson });
       written.push(key);
     }
   } catch (error) {
@@ -491,7 +492,7 @@ export async function saveExecutionConfig(
  *  Never rejects. */
 async function restoreLedgerKeys(keys: readonly string[], previousValues: ReadonlyMap<string, unknown>): Promise<void> {
   for (const key of [...keys].reverse()) {
-    await api
+    await settingsApi
       .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson: previousValues.get(key) })
       .catch((error: unknown) => console.error("[execution-settings] Could not restore a setting", describeErrorForLog({ err: error })));
   }

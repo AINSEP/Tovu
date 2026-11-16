@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { settingsApi } from "../../features/settings/api/settings-api";
 import { commentsApi } from "../../features/comments/api/comments-api";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { ApiError } from "../admin-http/request";
@@ -256,7 +257,7 @@ test("writePolicyPermission includes a real resourceType in the body", async () 
 
 test("getSettingsEffective adds principalId to the query only when the caller passes one", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getSettingsEffective({ namespace: "core" }, { principalId: "p1" });
+  await settingsApi.getSettingsEffective({ namespace: "core" }, { principalId: "p1" });
   expect(calls[0].url).toContain("principalId=p1");
 });
 
@@ -264,20 +265,20 @@ test("getSettingsEffective adds principalId to the query only when the caller pa
 // `if (options.principalId)`: every existing call in the verified-clean scope supplied one.
 test("getSettingsEffective omits principalId from the query when the caller passes no options", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getSettingsEffective({ namespace: "core" });
+  await settingsApi.getSettingsEffective({ namespace: "core" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core`);
   expect(calls[0].url).not.toContain("principalId");
 });
 
 test("setSetting sends only the input fields when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.setSetting({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
+  await settingsApi.setSetting({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
   expect(body()).toEqual({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
 });
 
 test("setSetting merges principalId into the body when the caller passes it", async () => {
   const { body } = stubFetchCapturing();
-  await api.setSetting({ namespace: "core", key: "k", scope: "user", valueJson: 1 }, { principalId: "p1" });
+  await settingsApi.setSetting({ namespace: "core", key: "k", scope: "user", valueJson: 1 }, { principalId: "p1" });
   expect(body()).toEqual({ namespace: "core", key: "k", scope: "user", valueJson: 1, principalId: "p1" });
 });
 

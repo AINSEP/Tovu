@@ -1,4 +1,3 @@
-import type { SettingScope } from "@jini-ai/core/settings";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishScope } from "@tovu/publish-content-ui";
 import { adminFailureChannel } from "./admin-failure-channel";
@@ -6,7 +5,6 @@ import { BASE, WORKSPACE_ID } from "./admin-http/config";
 import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, bodyFitsKeepalive, fetchOrThrowUnreachable, request, requestOnce } from "./admin-http/request";
 import type { CredentialTokenHint } from "./credential-copy";
 import { querySuffix } from "./query-suffix";
-import { type SettingResolvedValue, shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { siteUrl } from "./site-url";
 
 /** The peer-scoped prefix every publish-content push call hangs off — the peer is named in the PATH
@@ -32,19 +30,6 @@ export interface AdminUser {
 export type ProviderDomainVerification =
   | { state: "verified" | "pending" | "failed" | "not_found"; domain: string; providerId: string }
   | { state: "no_sender" | "no_provider" | "unsupported" | "unknown"; domain?: string; providerId: string | null; reason?: string };
-
-export interface SettingValueResponse {
-  key: string;
-  scope: SettingScope;
-  value: unknown;
-  revisionSeq: number;
-}
-
-export interface SettingResetResponse {
-  namespace: string;
-  clearedCount: number;
-  revisionSeqs: number[];
-}
 
 /**
  * One media-generation vendor's stored credentials, keyed by ENGINE-CANONICAL provider id (`grok`,
@@ -2767,21 +2752,6 @@ export const api = {
     authenticatedAdminRequest<{ policyPermissions: AdminPolicyPermission[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions` }),
   removePolicyPermission: ({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }) =>
     authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}` }),
-
-  // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
-  getSettingsEffective: ({ namespace }: { namespace: string }, options: { principalId?: string } = {}) => {
-    const params = new URLSearchParams({ namespace });
-    if (options.principalId) params.set("principalId", options.principalId);
-    const path = `/workspaces/${WORKSPACE_ID}/settings/effective?${params.toString()}`;
-    return shareSettingsEffectiveRead({ namespace, path, port: {
-      read: () => authenticatedAdminRequest<{ data: SettingResolvedValue[] }>({ method: "GET", path }),
-    } }, {});
-  },
-  setSetting: (
-    input: { namespace: string; key: string; scope: SettingScope; valueJson: unknown },
-    options: { principalId?: string } = {}
-  ) =>
-    authenticatedAdminRequest<SettingValueResponse>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/settings/value`, body: { ...input, ...options } }),
 
   // "Execution mode" tab (`@jini-ai/ui`'s `ExecutionTab`) — Local CLI detection + BYOK connection
   // test/model discovery. Deliberately separate from the settings.* methods above: these are

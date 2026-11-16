@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
 import { api } from "../../lib/api";
+import { settingsApi } from "../../features/settings/api/settings-api";
 import * as apiModule from "../../lib/admin-http/request";
 import { Login } from "../../features/auth";
 
@@ -73,14 +74,14 @@ it.each([false, true])("settings 401 after a site switch shows login without boo
   switched = true;
   await act(async () => {
     await Promise.all([
-      api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
-      api.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
+      settingsApi.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
+      settingsApi.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
     ]);
   });
   await screen.findByLabelText("Username");
   expect(screen.getByLabelText("Password")).toBeTruthy();
   await act(async () => {
-    await api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined);
+    await settingsApi.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined);
   });
   expect(screen.queryByText("Loading Tovu…")).toBeNull();
   expect(screen.getByLabelText("Username")).toBeTruthy();

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../api";
+import { settingsApi } from "../../features/settings/api/settings-api";
 import { ApiError } from "../admin-http/request";
 import { loadExecutionConfig } from "../execution-settings";
 import { loadInterface, loadLanguage } from "../settings-tabs";
@@ -63,10 +63,10 @@ describe("effective settings reads at the real API seam", () => {
   it("keeps principal-specific effective values separate", async () => {
     const calls = stubSettingsFetch();
     const reads = [
-      api.getSettingsEffective({ namespace: "core.interface" }),
-      api.getSettingsEffective({ namespace: "core.interface" }, { principalId: "alice" }),
-      api.getSettingsEffective({ namespace: "core.interface" }, { principalId: "bob" }),
-      api.getSettingsEffective({ namespace: "core.interface" }, { principalId: "alice" }),
+      settingsApi.getSettingsEffective({ namespace: "core.interface" }),
+      settingsApi.getSettingsEffective({ namespace: "core.interface" }, { principalId: "alice" }),
+      settingsApi.getSettingsEffective({ namespace: "core.interface" }, { principalId: "bob" }),
+      settingsApi.getSettingsEffective({ namespace: "core.interface" }, { principalId: "alice" }),
     ];
     for (const call of calls) call.respond({ subject: call.principalId ?? "workspace" });
     const results = await Promise.all(reads);

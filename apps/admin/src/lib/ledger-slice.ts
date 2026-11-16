@@ -4,13 +4,13 @@ import {
   readString as stringValue, readBoolean as booleanValue, readNumber as numberValue,
   type AdminSettingsPort, type LedgerCandidate,
 } from "@jini-ai/admin/core";
-import { api } from "./api";
+import { settingsApi } from "../features/settings/api/settings-api";
 import { ApiError } from "./admin-http/request";
 import type { SettingScope } from "@jini-ai/core/settings";
 export type { LedgerEntry, LedgerCandidate } from "@jini-ai/admin/core";
 const ledgerPort: Pick<AdminSettingsPort, "getSettingsEffective" | "setSetting"> = {
-  getSettingsEffective: async (input) => (await api.getSettingsEffective(input)).data,
-  setSetting: ({ namespace, key, scope, value }) => api.setSetting({ namespace, key, scope, valueJson: value }),
+  getSettingsEffective: async (input) => (await settingsApi.getSettingsEffective(input)).data,
+  setSetting: ({ namespace, key, scope, value }) => settingsApi.setSetting({ namespace, key, scope, valueJson: value }),
 };
 /** Preserve the API error boundary: only an unregistered namespace reads as empty, never transport failures. */
 export function loadNamespaceValues({ namespace }: { namespace: string }, _options = {}): Promise<Map<string, unknown>> {

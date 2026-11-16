@@ -3,6 +3,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "../../lib/api";
+import { settingsApi } from "../../features/settings/api/settings-api";
 import { ApiError } from "../../lib/admin-http/request";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
@@ -45,7 +46,7 @@ beforeEach(() => {
   // reads `api.getSettingsEffective` — stub it to no rows so it resolves to `DEFAULT_LOCALE` ("en")
   // without a real network call. `useWiredMediaPickerItems` does not call `useAdminLocale()` at all
   // (its `locale` param stays defaulted), so this stub is a no-op for those tests.
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {

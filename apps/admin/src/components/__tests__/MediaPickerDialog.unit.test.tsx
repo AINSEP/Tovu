@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminMedia } from "../../lib/api";
+import { settingsApi } from "../../features/settings/api/settings-api";
 import { ApiError } from "../../lib/admin-http/request";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import type { MediaPickerDialogController, useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
@@ -52,7 +53,7 @@ beforeEach(() => {
   // .test.tsx`'s sibling fix, this file mocks at the `api` method level (matching `api.listMedia`'s
   // own mocking here), not global `fetch` — `getSettingsEffective` is its own `api` method, so no
   // shared-`Response`-body race is possible.
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {

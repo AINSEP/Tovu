@@ -38,9 +38,7 @@ const { setSetting, getSettingsEffective, FakeApiError } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../api", () => ({
-  api: { getSettingsEffective, setSetting },
-}));
+vi.mock("../../features/settings/api/settings-api", () => ({ settingsApi: { getSettingsEffective, setSetting } }));
 vi.mock("../admin-http/request", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../admin-http/request")>()),
   ApiError: FakeApiError,
