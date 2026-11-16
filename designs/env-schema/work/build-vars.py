@@ -196,7 +196,7 @@ for repo, tsv, root in (('tovu', tovu_tsv, tovu_root), ('jini', jini_tsv, jini_r
         for name in sorted(seen):
             rs = seen[name]; prodnames.add(name)
             secret = 'yes' if SECRET.search(name) else 'no'
-            out.append([name, repo, f"{kind.split('-')[0]}s×{len(rs)}", 'script run' if kind == 'script-only' else 'test run', secret, '', 'keep', step, kind, '', '0', '0', ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '', f"{rs[0]['file']}:{rs[0]['line']}", 'outside the product schema; listed in the dev/ci slice' if kind == 'script-only' else 'outside the product schema; test advisory only'])
+            out.append([name, repo, f"{kind.split('-')[0]}s×{len(rs)}", 'script run' if kind == 'script-only' else 'test run', secret, '', 'keep', step, kind, '', '0', '0', ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '', f"{rs[0]['file']}:{rs[0]['line']}", 'outside the product schema; listed in the dev/ci slice' if kind == 'script-only' else 'outside the product schema; test advisory only', 'developer'])
             counts[(repo, 'kind:' + kind)] += 1; counts[(repo, 'keep')] += 1
 with open('../VARS.tsv', 'w') as fh:
     for row in out: fh.write('\t'.join(c.replace('\t', ' ') for c in row) + '\n')
