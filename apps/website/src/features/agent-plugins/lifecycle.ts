@@ -94,13 +94,14 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
 // Preview and write paths reindex the same package; preserve its first diagnostic per process.
 const reportedIdentityWarnings = new Set<string>();
 
-/** Bind once per host; DI permits real-filesystem failure tests without replacing modules.
- * Network installation and MCP provisioning have separate host owners and are not used by this
- * binding. Refuse those unbound capabilities rather than bypassing their guards.
- * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly bundledSourceRoot?: string; readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort; readonly hostOverlaysDir?: string } = {}) {
-  const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
-  const policy: AgentPluginLifecycleOptional = {
+type LifecycleOwner = ReturnType<typeof createAgentPluginLifecycle>;
+type TovuLifecycleOptional = { readonly bundledSourceRoot?: string; readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort; readonly hostOverlaysDir?: string };
+const UNBOUND_LIFECYCLE_MESSAGE = "This lifecycle binding does not provide network installation or MCP provisioning";
+
+/** Product policy for the owner: activation analytics, identity warnings, layout migration and recovery text.
+ * `ownerRef` resolves the owner lazily because the policy is an input to constructing it. */
+function buildLifecyclePolicy({ optional, ownerRef }: { optional: TovuLifecycleOptional; ownerRef: () => LifecycleOwner }): AgentPluginLifecycleOptional {
+  return {
     onActivationChanged: ({ pluginId, actor, enabled }) => optional.productTracker?.().capture({ name: enabled ? "agent_plugin_enabled" : "agent_plugin_disabled", userId: actor }, { properties: { pluginId, pluginKind: "agent", source: "shared" } }),
     ...(optional.identityAdmission ? { identityAdmission: optional.identityAdmission } : {}),
     onEvent: ({ event, message, pluginId }) => {
@@ -115,9 +116,9 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     // Hosting now seeds disabled; retirement still preserves an enabled deploy decision.
     // `owner` is bound below; this runs only at seed time, after it exists.
     migrateBeforeSeed: async ({ layout, workspaceId }) => {
-      const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => owner.assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
+      const migration = await migrateSiteAgentPluginLayouts({ contain: ({ root, entryPath }) => ownerRef().assertContainedOnDisk({ packageRoot: root, entryPath }), layout: hostLayout(layout), workspaceId });
       if (migration.complete) {
-        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: owner };
+        const required = { workspaceRoot: layout.forWorkspace({ workspaceId }).root, activations: ownerRef() };
         await carryCloudflareActivation(required);
       }
       return migration;
@@ -125,60 +126,38 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     formatBundledUninstallRecovery: ({ pluginId }) => `used, disable it instead: call plugins_set_enabled with family 'agent-plugin', pluginId '${pluginId}', ` +
       "enabled false (disabling needs no confirmation), or turn it off from the Agent Plugins admin screen.",
   };
-  const owner = createAgentPluginLifecycle({
-    ...createNodeAgentPluginEffects({}, optional),
-    // Boot chooses the site root before binding this owner; requests keep that same layout.
-    layout: ownerLayout(required.layout),
-    productName: "Tovu", extensionNamespace: "jini", bundledArchiveMagic: "TOVUPKG1\n",
-    seededEnabledPluginIds: BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED,
-    retiredBundledPlugins: RETIRED_BUNDLED_AGENT_PLUGINS,
-    deliveryMode: resolveAgentPluginDeliveryMode(), formatPluginToolPointer,
-    fetch: unbound, outboundGuard: { assertAllowed: unbound },
-    mcpProvisioning: optional.mcpProvisioning ?? { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
-  }, policy);
-  const manifests: SupersessionManifestsPort = optional.supersessionManifests ?? {
-    readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
-    readBundledSource: optional.bundledSourceRoot === undefined ? unbound : createBundledSourceManifestReader({ bundledSourceRoot: optional.bundledSourceRoot }),
-  };
-  /** Apply host disclosure after Jini's trust/activation checks, for pinned and automatic guidance.
-   * Order: maturity notices, each plugin's overlay `GUIDANCE.md` (`host-plugin-guidance.ts`; not in
-   * pointer delivery, whose tool call carries it), the owner's sections, then a requested `host/`
-   * file — the owner is asked without that file, which is Tovu's, not the plugin's.
-   * @throws A manifest read failure; never deliver guidance while hiding its maturity.
-   * @complexity One catalog scan plus one contained manifest read and one overlay read per selected plugin.
-   */
-  async function resolveHostPluginRefs(input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: HostPluginRefOptions = {}): Promise<import("@jini-ai/agent-plugins/lifecycle").ResolveAgentPluginRefsResult> {
-    const request = splitHostPluginRefRequest({ options, defaultDeliveryMode: resolveAgentPluginDeliveryMode() });
-    const result = await owner.resolveAgentPluginRefs(input, request.ownerOptions);
-    if (!result.ok || input.pluginRefIds.length === 0) return result;
-    const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay }, { overlaysDir: optional.hostOverlaysDir });
-    if (!overlays.ok) return overlays;
-    const installed = owner.preferBundledAgentPluginDigests({
-      installed: await owner.listInstalledPlugins({ workspaceRoot: input.workspaceLayout.root }),
-      bundled: await owner.readBundledAgentPluginDigests({ workspaceRoot: input.workspaceLayout.root }),
-    });
-    const selected = new Set(input.pluginRefIds);
-    const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
-      const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
-      // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
-      return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
-    }));
-    const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
-    return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
-  }
-  // Soon plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Product policy, so it wraps the
-  // owner's enable writers here: the admin switch, plugins_set_enabled and connect defaults
-  // (`setAgentPluginEnabled`) and the provider-face mirror (`reconcileAgentPluginActivation`). The raw
-  // `setAgentPluginActivation` stays unwrapped: tests use it as a fixture and a backup import writes a
-  // Soon plugin off itself (`site-backup/import-plugin-state.ts`); boot's lock catches anything else.
-  // Turning OFF is never refused.
-  const soonCatalog: SoonCatalogPort<JiniInstalledAgentPlugin> = {
-    list: ({ workspaceRoot }) => owner.listInstalledPlugins({ workspaceRoot }),
-    readManifest: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
-  };
+}
+
+/** Apply host disclosure after Jini's trust/activation checks, for pinned and automatic guidance.
+ * Order: maturity notices, each plugin's overlay `GUIDANCE.md` (`host-plugin-guidance.ts`; not in
+ * pointer delivery, whose tool call carries it), the owner's sections, then a requested `host/`
+ * file — the owner is asked without that file, which is Tovu's, not the plugin's.
+ * @throws A manifest read failure; never deliver guidance while hiding its maturity.
+ * @complexity One catalog scan plus one contained manifest read and one overlay read per selected plugin.
+ */
+async function resolveHostPluginRefs({ owner, optional }: { owner: LifecycleOwner; optional: TovuLifecycleOptional }, input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: HostPluginRefOptions = {}): Promise<import("@jini-ai/agent-plugins/lifecycle").ResolveAgentPluginRefsResult> {
+  const request = splitHostPluginRefRequest({ options, defaultDeliveryMode: resolveAgentPluginDeliveryMode() });
+  const result = await owner.resolveAgentPluginRefs(input, request.ownerOptions);
+  if (!result.ok || input.pluginRefIds.length === 0) return result;
+  const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay }, { overlaysDir: optional.hostOverlaysDir });
+  if (!overlays.ok) return overlays;
+  const installed = owner.preferBundledAgentPluginDigests({
+    installed: await owner.listInstalledPlugins({ workspaceRoot: input.workspaceLayout.root }),
+    bundled: await owner.readBundledAgentPluginDigests({ workspaceRoot: input.workspaceLayout.root }),
+  });
+  const selected = new Set(input.pluginRefIds);
+  const notices = await Promise.all(installed.filter(plugin => selected.has(plugin.pluginId)).map(async plugin => {
+    const manifest = JSON.parse(await owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }));
+    // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
+    return readHostPluginMaturity({ manifest, pluginId: plugin.pluginId }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
+  }));
+  const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
+  return { ...result, promptPrefix: removeChatRefusedToolPermissions({ text: promptPrefix }) };
+}
+
+/** Soon-lock and supersession policy wrapped around the owner's activation and contribution writers. */
+function buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, optional }: { owner: LifecycleOwner; soonCatalog: SoonCatalogPort<JiniInstalledAgentPlugin>; manifests: SupersessionManifestsPort; required: { layout: AgentPluginLayout }; optional: TovuLifecycleOptional }) {
   return {
-    ...owner,
-    soonCatalog,
     setAgentPluginEnabled: async (input: Parameters<typeof owner.setAgentPluginEnabled>[0], options: Parameters<typeof owner.setAgentPluginEnabled>[1] = {}) => {
       if (input.enabled) await assertAgentPluginReady({ catalog: soonCatalog, workspaceRoot: required.layout.forWorkspace({ workspaceId: input.workspaceId }).root, pluginId: input.pluginId });
       return owner.setAgentPluginEnabled(input, options);
@@ -200,14 +179,26 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
       return owner.loadPluginContributions({ ...input, definition }, { ...options, packageRefusal: ({ plugin }) =>
         supersededPackageRefusal({ supersessions, pluginId: plugin.pluginId }) ?? options.packageRefusal?.({ plugin }) });
     },
+    resolveAgentPluginRefs: ({ pluginRefIds, workspaceLayout }: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, { deliveryMode = resolveAgentPluginDeliveryMode() }: { deliveryMode?: AgentPluginDeliveryMode } = {}) => resolveHostPluginRefs({ owner, optional }, { pluginRefIds, workspaceLayout }, { deliveryMode }),
+    resolveAgentPluginGuidance: (input: Parameters<typeof resolveHostPluginRefs>[1], options: HostPluginRefOptions = {}) => resolveHostPluginRefs({ owner, optional }, input, options),
+  };
+}
+
+/** The owner's install-side writers, with this host's layout and archive reader adapted to the owner's ports. */
+function buildLayoutAdaptedMethods({ owner }: { owner: LifecycleOwner }) {
+  return {
     installAgentPlugin: (input: InstallAgentPluginRequired, options: Parameters<typeof owner.installAgentPlugin>[1] = {}) => owner.installAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }, options),
     updateAgentPlugin: (input: Omit<import("@jini-ai/agent-plugins/lifecycle").UpdateAgentPluginRequired, "layout" | "archiveReader"> & { layout: AgentPluginLayout; archiveReader: AgentPluginArchiveReaderPort }) => owner.updateAgentPlugin({ ...input, layout: ownerLayout(input.layout), archiveReader: ownerReader(input.archiveReader) }),
     uninstallAgentPlugin: (input: UninstallAgentPluginRequired, options: Parameters<typeof owner.uninstallAgentPlugin>[1] = {}) => owner.uninstallAgentPlugin({ ...input, layout: ownerLayout(input.layout) }, options),
     previewAgentPluginUninstall: (input: UninstallAgentPluginRequired) => owner.previewAgentPluginUninstall({ ...input, layout: ownerLayout(input.layout) }),
     seedBundledAgentPlugins: (input: SeedBundledAgentPluginsRequired) => owner.seedBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }),
     retireBundledAgentPlugins: (input: RetireBundledAgentPluginsRequired, options: Parameters<typeof owner.retireBundledAgentPlugins>[1] = {}) => owner.retireBundledAgentPlugins({ ...input, layout: ownerLayout(input.layout) }, options),
-    resolveAgentPluginRefs: ({ pluginRefIds, workspaceLayout }: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, { deliveryMode = resolveAgentPluginDeliveryMode() }: { deliveryMode?: AgentPluginDeliveryMode } = {}) => resolveHostPluginRefs({ pluginRefIds, workspaceLayout }, { deliveryMode }),
-    resolveAgentPluginGuidance: resolveHostPluginRefs,
+  };
+}
+
+/** Read-side and containment helpers re-exposed with object arguments. */
+function buildPassthroughMethods({ owner }: { owner: LifecycleOwner }) {
+  return {
     listInstalledPlugins: ({ workspaceRoot }: { workspaceRoot: string }, _optional: Record<string, never> = {}) => owner.listInstalledPlugins({ workspaceRoot }),
     isInstalledDigestPresent: ({ packagesDir, archiveDigest }: { packagesDir: string; archiveDigest: string }, _optional: Record<string, never> = {}) => owner.isInstalledDigestPresent({ packagesDir, archiveDigest }),
     indexInstalledRoot: ({ packageRoot, archiveDigest }: { packageRoot: string; archiveDigest: string }, _optional: Record<string, never> = {}) => owner.indexInstalledRoot({ packageRoot, archiveDigest }),
@@ -229,6 +220,47 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     findTrustedPluginPackages: ({ onInactive, ...input }: TrustedPluginPackagesQuery) => owner.findTrustedPluginPackages(input, onInactive ? { onInactive: ({ plugin }) => onInactive(plugin) } : {}),
     readTrustedPluginFile: ({ plugin, filename }: { plugin: TrustedPluginPackage; filename: string }, _optional: Record<string, never> = {}) => owner.readTrustedPluginFile({ plugin, filename }),
     importContainedModule: ({ plugin, modulePath }: { plugin: TrustedPluginPackage; modulePath: string }, _optional: Record<string, never> = {}) => owner.importContainedModule({ plugin, modulePath }),
+  };
+}
+
+/** Bind once per host; DI permits real-filesystem failure tests without replacing modules.
+ * Network installation and MCP provisioning have separate host owners and are not used by this
+ * binding. Refuse those unbound capabilities rather than bypassing their guards.
+ * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: TovuLifecycleOptional = {}) {
+  const unbound = async (): Promise<never> => { throw new Error(UNBOUND_LIFECYCLE_MESSAGE); };
+  const policy = buildLifecyclePolicy({ optional, ownerRef: () => owner });
+  const owner = createAgentPluginLifecycle({
+    ...createNodeAgentPluginEffects({}, optional),
+    // Boot chooses the site root before binding this owner; requests keep that same layout.
+    layout: ownerLayout(required.layout),
+    productName: "Tovu", extensionNamespace: "jini", bundledArchiveMagic: "TOVUPKG1\n",
+    seededEnabledPluginIds: BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED,
+    retiredBundledPlugins: RETIRED_BUNDLED_AGENT_PLUGINS,
+    deliveryMode: resolveAgentPluginDeliveryMode(), formatPluginToolPointer,
+    fetch: unbound, outboundGuard: { assertAllowed: unbound },
+    mcpProvisioning: optional.mcpProvisioning ?? { provision: unbound, setEnabled: unbound, remove: unbound, notifyRosterChanged: unbound },
+  }, policy);
+  const manifests: SupersessionManifestsPort = optional.supersessionManifests ?? {
+    readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
+    readBundledSource: optional.bundledSourceRoot === undefined ? unbound : createBundledSourceManifestReader({ bundledSourceRoot: optional.bundledSourceRoot }),
+  };
+  // Soon plugins are locked off (`soon-lock.ts`, owner 2026-11-10). Product policy, so it wraps the
+  // owner's enable writers here: the admin switch, plugins_set_enabled and connect defaults
+  // (`setAgentPluginEnabled`) and the provider-face mirror (`reconcileAgentPluginActivation`). The raw
+  // `setAgentPluginActivation` stays unwrapped: tests use it as a fixture and a backup import writes a
+  // Soon plugin off itself (`site-backup/import-plugin-state.ts`); boot's lock catches anything else.
+  // Turning OFF is never refused.
+  const soonCatalog: SoonCatalogPort<JiniInstalledAgentPlugin> = {
+    list: ({ workspaceRoot }) => owner.listInstalledPlugins({ workspaceRoot }),
+    readManifest: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
+  };
+  return {
+    ...owner,
+    soonCatalog,
+    ...buildPolicyGuardedMethods({ owner, soonCatalog, manifests, required, optional }),
+    ...buildLayoutAdaptedMethods({ owner }),
+    ...buildPassthroughMethods({ owner }),
   };
 }
 
