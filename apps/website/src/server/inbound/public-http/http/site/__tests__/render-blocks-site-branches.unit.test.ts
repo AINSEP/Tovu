@@ -6,13 +6,15 @@ import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import {
-  pageShell,
   renderBlockSeam,
   renderSite,
   renderWidgetIr,
   type RenderSiteRequired,
   type SiteRenderContext,
 } from "../render.js";
+import {
+  pageShell,
+} from "../render/document-shell.js";
 import {
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,

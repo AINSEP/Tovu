@@ -5,7 +5,7 @@ import { COMMERCE_CHECKOUT_SCRIPT } from "@jini-ai/commerce/checkout-browser";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerCommerceRoutes } from "#src/server/inbound/public-http/routes/commerce/purchase";
 import { registerProductRoutes } from "#src/server/inbound/public-http/routes/site/products";
-import { pageShell } from "#src/server/inbound/public-http/http/site/render";
+import { pageShell } from "#src/server/inbound/public-http/http/site/render/document-shell";
 import { resolveRenderThemeId } from "#src/server/inbound/public-http/middleware/render-theme-override";
 import { resolveSiteTitleForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";

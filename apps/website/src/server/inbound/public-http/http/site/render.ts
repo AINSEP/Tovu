@@ -6,8 +6,6 @@ import { type FormCollectionPlan } from "@jini-ai/core/contracts/forms";
 import { formatMoney } from "@jini-ai/commerce/money";
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
-// Every module counts in fresh render workers; omit the rendering re-export wrapper.
-import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { randomUUID } from "node:crypto";
 import { type SiteChatSelection } from "./site-chat-markup.js";
@@ -19,15 +17,7 @@ import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/feature
 import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/render-contract";
 import { renderStaticPage, renderCoverImageTag } from "#src/features/theme/static-render";
 import { projectPostBody, resolveCoverImage } from "#src/features/post/rendering";
-import { themeTokenAliasDeclarations } from "#src/features/theme/token-aliases";
-import {
-  renderEntryList,
-  renderEntryListStructuredData,
-  withEntryListStyleOnce,
-  type EntryListItem,
-  type EntryListFieldValue,
-  type EntryListRenderOptions,
-} from "#src/features/theme/entry-list-render";
+import { renderEntryList, renderEntryListStructuredData, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "#src/features/theme/entry-list-render";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/render-entry";
@@ -65,8 +55,8 @@ import { safeHref, safeImageSrc, extractYoutubeVideoId } from "#src/platform/htm
 import { safeCssColor, safeCssFontFamily, safeCssLength, safeLanguageClass } from "#src/platform/html/style-values";
 import { resolveEmbedHtmlAttributes, omitKey, formatHtmlAttributes, NO_MARKER_ATTRIBUTES } from "./render/doc/html-attributes.js";
 import { renderImageTag, renderVideoTag } from "./render/doc/media-tags.js";
-import { siteAssistantMarkup } from "./render/site-assistant-mount.js";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
+import { pageShell } from "./render/document-shell.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -2534,87 +2524,6 @@ function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
 }
 
 // ---------------------------------------------------------------------------
-// Page shell
-// ---------------------------------------------------------------------------
-
-const BASE_STYLE = `
-  *,*::before,*::after { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-  img { max-width: 100%; height: auto; }
-  a { color: inherit; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-`;
-
-/** Carries the same guessed-name aliases as the static tier's `:root` block — see `token-aliases.ts`. */
-function tokensToCss(tokens: Record<string, string>): string {
-  const decls = [...Object.entries(tokens), ...themeTokenAliasDeclarations({ tokens })]
-    .map(([name, value]) => `${name}: ${value};`)
-    .join(" ");
-  return `:root { ${decls} }\n  body { font-family: var(--font-body, system-ui, sans-serif); }`;
-}
-
-/**
- * `extraHead` is `page-head.ts`'s `serializeHeadElements()` output (SPEC-008
- * ADR-PIPE-008 T048) — already-escaped markup, inserted verbatim. When it
- * contains its own `<title>` (SEO's fold always emits one, per
- * `page-head-contributor.ts`'s priority-100 title element), this shell's own
- * hardcoded `<title>` is suppressed rather than emitting two competing tags.
- */
-export function pageShell(required: {
-  documentAssets?: DocumentAssets;
-  title: string;
-  /** `null` when the operator turned the theme off — see {@link RenderSiteRequired.theme}. */
-  theme: DiscoveredTheme | null;
-  body: string;
-  extraHead?: string;
-  /** ADR-054 — the `site.assistant.public_enabled` ledger value for this request's workspace,
-   *  resolved by the caller (the route handler, which already holds `deps.settingsRepo`; see this
-   *  function's own doc). Defaults to `false` — the same fail-closed default the setting itself
-   *  carries — so any pre-existing or test caller that does not pass this omits the assistant
-   *  rather than silently gaining it. */
-  siteAssistantEnabled?: SiteChatSelection;
-}, _optional: Record<string, never> = {}): string {
-  const { theme, extraHead } = required;
-  const assets = required.documentAssets ?? { head: '', body: '' };
-  const foldHasTitle = extraHead?.includes("<title>") ?? false;
-  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml({ text: required.title })}</title>`;
-  const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
-  // The theme contributes exactly these three things to the document Tovu owns. With no theme they
-  // are each ABSENT, not empty: `BASE_STYLE` is Tovu's own reset and stays either way, but a
-  // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
-  // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
-  // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
-  const { themeFontLink, themeStyle, themeAttr } = shellThemeAssets({ theme });
-  const document = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-${titleTag}
-${extraHead ?? ""}
-${themeFontLink}
-<style>${BASE_STYLE}${themeStyle}</style>
-${siteAssistant.head}
-${assets.head}
-</head>
-<body>
-<div class="site"${themeAttr}>${required.body}</div>
-${siteAssistant.body}
-${assets.body}
-</body>
-</html>`;
-  // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
-  // `renderStaticPage` call already injects for a static theme's own `{"type":"collection"}`
-  // marker (`static-render.ts`'s `renderStaticPage`) — this was the missing half, so a
-  // `recent-entries` cards-layout widget on a templated/handlebars/declarative theme (or no theme)
-  // used to render its `.entry-card` markup with no styling at all. Safe to call unconditionally:
-  // `withEntryListStyleOnce` only ever matches its OWN `[data-tovu-entry-list]` wrapper attribute,
-  // never a theme's own unrelated `.entry-list`-classed markup (`entryList`/`productEntryList`
-  // below both use that class for the built-in post/product index).
-  return withEntryListStyleOnce({ html: document });
-}
-
-// ---------------------------------------------------------------------------
 // Public entry
 // ---------------------------------------------------------------------------
 
@@ -2910,7 +2819,3 @@ async function finishManagedDocument({ required, title, body }: { required: Rend
   return pageShell({ title, theme: required.theme, body: transformed, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled, documentAssets });
 }
 
-function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
-  if (!theme) return { themeFontLink: '', themeStyle: '', themeAttr: '' };
-  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml({ text: theme.manifest.id })}"` };
-}

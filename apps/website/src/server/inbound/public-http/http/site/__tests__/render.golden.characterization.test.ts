@@ -12,7 +12,6 @@ import {
   COMPONENTS,
   DOC_NODE_HANDLERS,
   MARK_RENDERERS,
-  pageShell,
   renderDocBodyAsPageHtml,
   renderDocNode,
   renderSite,
@@ -20,6 +19,9 @@ import {
   type MediaAssetRenderMeta,
   type SiteRenderContext,
 } from "../render.js";
+import {
+  pageShell,
+} from "../render/document-shell.js";
 import {
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,
