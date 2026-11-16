@@ -58,7 +58,7 @@ import { mediaPlaceholder } from "./render/media-placeholder.js";
 import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
 import { plausibleMediaRefId } from "./render/doc/media-ref.js";
-import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler } from "./render/doc/doc-render-contract.js";
+import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler, DocRenderOptions } from "./render/doc/doc-render-contract.js";
 import { renderDocImage, renderDocMedia, renderDocYoutube } from "./render/doc/nodes-media.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
@@ -158,10 +158,10 @@ function depthLimitPlaceholder(): string {
 }
 
 function renderNodes(
-  { nodes, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth }: { nodes: JsonValue[] | undefined; inlineResolved: ReadonlyMap<string, WidgetRenderIR>; mediaTransformVersions: ReadonlyMap<string, number>; mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>; depth: number }, _optional = {}
+  { nodes, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth, renderWidget }: { nodes: JsonValue[] | undefined; inlineResolved: ReadonlyMap<string, WidgetRenderIR>; mediaTransformVersions: ReadonlyMap<string, number>; mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>; depth: number; renderWidget: DocNodeRenderDeps["renderWidget"] }, _optional = {}
 ): string {
   return (nodes ?? [])
-    .map((node) => renderDocNode({ node }, { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth }))
+    .map((node) => renderDocNodeWith({ node, renderWidget }, { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth }))
     .join("");
 }
 
@@ -169,7 +169,7 @@ function renderNodes(
  *  point, replacing the `renderNodes(content, inlineResolved, mediaTransformVersions,
  *  mediaAssetMetadata, depth + 1)` call every case used to spell out individually. */
 function renderChildNodes({ content, deps }: { content: JsonValue[] | undefined; deps: DocNodeRenderDeps }, _optional = {}): string {
-  return renderNodes({ nodes: content, inlineResolved: deps.inlineResolved, mediaTransformVersions: deps.mediaTransformVersions, mediaAssetMetadata: deps.mediaAssetMetadata, depth: deps.depth + 1 });
+  return renderNodes({ nodes: content, inlineResolved: deps.inlineResolved, mediaTransformVersions: deps.mediaTransformVersions, mediaAssetMetadata: deps.mediaAssetMetadata, depth: deps.depth + 1, renderWidget: deps.renderWidget });
 }
 
 function renderDocDocNode({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
@@ -360,7 +360,7 @@ function renderDocWidgetEmbed({ node, deps }: DocNodeHandlerRequired, _optional 
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const placementId = typeof attrs.placementId === "string" ? attrs.placementId : undefined;
   const ir = placementId ? deps.inlineResolved.get(placementId) : undefined;
-  const widgetHtml = renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+  const widgetHtml = deps.renderWidget(ir ?? WIDGET_PLACEHOLDER_IR);
 
   // Each field counts only when it is a NON-EMPTY string (`str` maps any other type to "").
   const nodeCssClass = str({ value: attrs.cssClass }) || null;
@@ -459,34 +459,37 @@ export const DOC_NODE_HANDLERS: Record<string, DocNodeHandler> = {
  * `mediaAssetMetadata` (owner-directed quick-and-dirty sizing fix) is the same optional/defaults-
  * to-empty shape, keyed by `assetId` instead of `transformName` — see
  * `SiteRenderContext.mediaAssetMetadata`'s own doc.
+ *
+ * `renderWidget` is the injected widget renderer (see `DocNodeRenderDeps.renderWidget`); callers use
+ * `renderDocNode`, which is this function with that port bound.
  */
-export function renderDocNode(
-  { node }: { node: JsonValue },
+export function renderDocNodeWith(
+  { node, renderWidget }: { node: JsonValue; renderWidget: DocNodeRenderDeps["renderWidget"] },
   {
     inlineResolved = EMPTY_INLINE_RESOLVED,
     mediaTransformVersions = EMPTY_MEDIA_TRANSFORM_VERSIONS,
     mediaAssetMetadata = EMPTY_MEDIA_ASSET_METADATA,
     depth = 0,
-  }: {
-    inlineResolved?: ReadonlyMap<string, WidgetRenderIR>;
-    mediaTransformVersions?: ReadonlyMap<string, number>;
-    mediaAssetMetadata?: ReadonlyMap<string, MediaAssetRenderMeta>;
-    /** Ancestor count above this node — the doc root is `0`. Every pre-existing caller (this file's
-     *  `entryContent`, `liquid-worker.ts`'s `buildLiquidData`, every direct test call) keeps working
-     *  unchanged via this default; only {@link renderNodes}'s own recursive calls ever pass a non-zero
-     *  value. See {@link MAX_RENDER_DEPTH}'s own doc for why this exists and how the number was
-     *  chosen. */
-    depth?: number;
-  } = {}
+  }: DocRenderOptions = {}
 ): string {
   if (!isObject(node)) return "";
   // Checked before anything else — an over-deep node does no further work at all, which is what
   // actually stops the recursion (a `depthLimitPlaceholder()` return has no `content` to walk).
   if (depth > MAX_RENDER_DEPTH) return depthLimitPlaceholder();
   const content = docNodeContent(node);
-  const deps: DocNodeRenderDeps = { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth };
+  const deps: DocNodeRenderDeps = { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth, renderWidget };
   const handler = resolveDocNodeHandler(node);
   return handler ? handler({ node, content, deps }) : renderChildNodes({ content, deps });
+}
+
+/**
+ * Renders a TipTap/ProseMirror-style doc node to HTML — {@link renderDocNodeWith} (see its doc for
+ * the options) with the widget renderer bound. This is the one place the doc renderer and the
+ * widget renderer meet: a `widgetEmbed` node renders through {@link renderWidgetIr}, and the
+ * `post-content` widget renders its body through this function.
+ */
+export function renderDocNode({ node }: { node: JsonValue }, options: DocRenderOptions = {}): string {
+  return renderDocNodeWith({ node, renderWidget: renderWidgetIr }, options);
 }
 
 /** The `data-embed-config` element that stands for a managed doc node in Page HTML. `alt` is carried
@@ -1082,7 +1085,7 @@ function extractTitleNode(
     // `0`: this is its own independent render entry point (the title node's inline content, read
     // directly off `bodyJson` rather than reached via `renderDocNode`'s own recursive walk), same as
     // every other top-level caller relying on `renderDocNode`'s own `depth = 0` default.
-    html: renderNodes({ nodes: innerContent, inlineResolved: EMPTY_INLINE_RESOLVED, mediaTransformVersions: EMPTY_MEDIA_TRANSFORM_VERSIONS, mediaAssetMetadata: EMPTY_MEDIA_ASSET_METADATA, depth: 0 }),
+    html: renderNodes({ nodes: innerContent, inlineResolved: EMPTY_INLINE_RESOLVED, mediaTransformVersions: EMPTY_MEDIA_TRANSFORM_VERSIONS, mediaAssetMetadata: EMPTY_MEDIA_ASSET_METADATA, depth: 0, renderWidget: renderWidgetIr }),
     align,
   };
 }
