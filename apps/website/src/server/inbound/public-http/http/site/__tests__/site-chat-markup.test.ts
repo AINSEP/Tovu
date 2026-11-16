@@ -35,7 +35,7 @@ for (const selection of [true, 'react', 'vanilla'] as const) {
       }
     }
     const page = '<html><head></head><body>Page</body></html>';
-    assert.equal(injectSiteAssistantIntoStaticPage(page, selection), page);
+    assert.equal(injectSiteAssistantIntoStaticPage({ html: page, enabled: selection }), page);
     const html = await renderSite({ theme: null, route: 'home', siteTitle: 'Page', posts: [], siteAssistantEnabled: selection });
     assert.doesNotMatch(html, /tovu-site-assistant-root|site-assistant[^"']*\.(?:js|css)|modulepreload/i);
   });
@@ -43,7 +43,7 @@ for (const selection of [true, 'react', 'vanilla'] as const) {
 
 for (const variant of ['react', 'vanilla'] as const) test(`server wiring selects the site's ${variant} choice with ready assets`, t => {
   useSiteChatBuild({ test: t, ready: true });
-  const html = injectSiteAssistantIntoStaticPage('<html><head></head><body>Page</body></html>', variant);
+  const html = injectSiteAssistantIntoStaticPage({ html: '<html><head></head><body>Page</body></html>', enabled: variant });
   assert.match(html, new RegExp(`data-widget="${variant}"`));
   assert.match(html, /src="\/site-chat\/site-assistant-loader\.js"/);
   assert.doesNotMatch(html, /<link rel="stylesheet"/);
@@ -53,7 +53,7 @@ for (const variant of ['react', 'vanilla'] as const) test(`server wiring selects
 
 test('legacy boolean callers keep the default React widget', t => {
   useSiteChatBuild({ test: t, ready: true });
-  const html = injectSiteAssistantIntoStaticPage('<html><head></head><body>Page</body></html>', true);
+  const html = injectSiteAssistantIntoStaticPage({ html: '<html><head></head><body>Page</body></html>', enabled: true });
   assert.match(html, /data-widget="react"/);
 });
 

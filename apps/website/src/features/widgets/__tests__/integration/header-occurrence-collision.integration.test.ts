@@ -55,7 +55,7 @@ test('renderHtmlPageBody: two "content" markers referencing the SAME id with DIF
     input: { workspaceId: WORKSPACE_ID, html },
   });
 
-  const output = renderHtmlPageBody(html, resolved);
+  const output = renderHtmlPageBody({ html, resolved });
   const withHeader = output.match(/<section id="with-header">([\s\S]*?)<\/section>/)?.[1];
   const withoutHeader = output.match(/<section id="without-header">([\s\S]*?)<\/section>/)?.[1];
   assert.ok(withHeader);

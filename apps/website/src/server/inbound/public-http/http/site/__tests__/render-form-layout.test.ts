@@ -11,7 +11,7 @@ test("repeated Builder forms across embeds and regions keep every ID and associa
       { id: "email", label: "Email", type: "email", helpText: "Your email", required: true },
     ], ...(collectionPlan ? { collectionPlan } : {}) } };
     const resolved = new Map([["form", new Map([["contact", ir]])]]);
-    const embeds = renderHtmlPageBody('<div data-embed-config=\'{"type":"form","id":"contact"}\'></div>'.repeat(2), resolved);
+    const embeds = renderHtmlPageBody({ html: '<div data-embed-config=\'{"type":"form","id":"contact"}\'></div>'.repeat(2), resolved });
     const ctx = { widgetRegions: { footer: [ir, ir], sidebar: [ir] } } as unknown as SiteRenderContext;
     const html = embeds + renderWidgetRegion({ ctx, regionKey: "footer" }) + renderWidgetRegion({ ctx, regionKey: "sidebar" });
     const forms = [...html.matchAll(/<form\b[^>]*>([\s\S]*?)<\/form>/g)].map(match => match[1]!);

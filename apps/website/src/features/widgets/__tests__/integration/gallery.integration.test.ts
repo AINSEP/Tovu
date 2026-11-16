@@ -25,7 +25,7 @@ test('gallery resolves real media and renders ordered figures, captions, respons
   const images = [{ mediaId: 'one', alt: 'Author alt', caption: '<first>' }, { mediaId: 'two', alt: '' }];
   const html = marker({ images, layout: 'grid', columns: 2 }) + marker({ images: [...images].reverse(), layout: 'carousel' });
   const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), entryRepo: new InMemoryEntryRepo(), mediaRepo, transformRepo }, input: { workspaceId, html } });
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
   assert.equal((rendered.match(/<figure /g) ?? []).length, 4);
   assert.ok(rendered.includes('jini-gallery-grid'));
   assert.ok(rendered.includes('jini-gallery-carousel'));
@@ -63,7 +63,7 @@ test('gallery source URLs retain the image renderer security policy and missing-
   const config: JsonObject = { layout: 'masonry', images: [{ src: 'https://example.com/photo.jpg' }, { src: 'https://example.com/workspaces/ws/media/id/./original', alt: 'Private' }] };
   const html = marker(config);
   const resolved = new Map([['gallery', new Map([['gallery:1', { componentId: 'gallery', props: { config, media: {} } }]])]]);
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
   assert.ok(rendered.includes('src="https://example.com/photo.jpg"'));
   assert.ok(rendered.includes('data-jini-alt-missing="true"'));
   assert.ok(!rendered.includes('src="https://example.com/workspaces/'));

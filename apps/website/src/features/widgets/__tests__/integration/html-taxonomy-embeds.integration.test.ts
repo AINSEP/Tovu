@@ -22,7 +22,7 @@ test("category taxonomy embeds resolve saved names and ids through the shared re
   const html = marker("Categories") + marker("tax-1");
   const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps() }, input: { workspaceId: "ws", html } });
   assert.equal(resolved.get("taxonomy")?.get("Categories")?.componentId, "taxonomy-list");
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
   assert.equal((rendered.match(/<section /g) ?? []).length, 2);
   assert.match(rendered, /data-tovu-taxonomy="tax-1" aria-label="Categories"/);
   assert.match(rendered, /<li data-tovu-term="parent"[^>]*><span data-tovu-term-label>parent<\/span><ul/);
@@ -34,11 +34,11 @@ test("category taxonomy embeds resolve saved names and ids through the shared re
 test("flat tags ignore parent metadata, and orphaned live categories stay visible", async () => {
   const tags = { ...taxonomy, name: "Tags", hierarchical: false };
   const html = marker("Tags");
-  const rendered = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([tags]) }, input: { workspaceId: "ws", html } }));
+  const rendered = renderHtmlPageBody({ html, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([tags]) }, input: { workspaceId: "ws", html } }) });
   assert.equal((rendered.match(/<ul /g) ?? []).length, 1);
   assert.equal((rendered.match(/data-depth="0"/g) ?? []).length, 3);
   const orphanHtml = marker("Categories");
-  const orphan = renderHtmlPageBody(orphanHtml, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], [term("child", { parentId: "missing" })]) }, input: { workspaceId: "ws", html: orphanHtml } }));
+  const orphan = renderHtmlPageBody({ html: orphanHtml, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], [term("child", { parentId: "missing" })]) }, input: { workspaceId: "ws", html: orphanHtml } }) });
   assert.match(orphan, /data-tovu-term="child"/);
 });
 
@@ -50,7 +50,7 @@ test("missing ports, missing/trashed taxonomies and ambiguous names degrade to a
   ]) {
     const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...dependencies }, input: { workspaceId: "ws", html } });
     assert.equal(resolved.get("taxonomy")?.size, 0);
-    assert.match(renderHtmlPageBody(html, resolved), /widget-placeholder/);
+    assert.match(renderHtmlPageBody({ html, resolved }), /widget-placeholder/);
   }
 });
 
@@ -74,7 +74,7 @@ test("purged taxonomies and purged terms never render", async () => {
   const html = marker("Categories");
   const purgedTaxonomy = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([{ ...taxonomy, status: "purged" }]) }, input: { workspaceId: "ws", html } });
   assert.equal(purgedTaxonomy.get("taxonomy")?.size, 0);
-  const rendered = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], [term("kept"), term("gone", { status: "purged" })]) }, input: { workspaceId: "ws", html } }));
+  const rendered = renderHtmlPageBody({ html, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], [term("kept"), term("gone", { status: "purged" })]) }, input: { workspaceId: "ws", html } }) });
   assert.match(rendered, /data-tovu-term="kept"/);
   assert.doesNotMatch(rendered, /gone/);
 });
@@ -92,11 +92,11 @@ test("self, two-term and three-term parent cycles render every term exactly once
   const html = marker("Categories");
   const terms = [term("self", { parentId: "self" }), term("a", { parentId: "b" }), term("b", { parentId: "a" }),
     term("x", { parentId: "z" }), term("y", { parentId: "x" }), term("z", { parentId: "y" })];
-  const rendered = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], terms) }, input: { workspaceId: "ws", html } }));
+  const rendered = renderHtmlPageBody({ html, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], terms) }, input: { workspaceId: "ws", html } }) });
   for (const id of ["self", "a", "b", "x", "y", "z"]) assert.equal((rendered.match(new RegExp(`data-tovu-term="${id}"`, "g")) ?? []).length, 1, id);
   assert.match(rendered, /<li data-tovu-term="self" data-depth="0">/);
   // With no root, the cycle members surface from the first one, nested in parent order.
   assert.match(rendered, /data-tovu-term="a" data-depth="0">.*data-tovu-term="b" data-depth="1"/);
-  const rootless = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], terms.slice(1, 3)) }, input: { workspaceId: "ws", html } }));
+  const rootless = renderHtmlPageBody({ html, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps([taxonomy], terms.slice(1, 3)) }, input: { workspaceId: "ws", html } }) });
   assert.match(rootless, /^<section [^>]*><ul data-tovu-taxonomy-list data-depth="0"><li data-tovu-term="a" data-depth="0">.*data-tovu-term="b" data-depth="1".*<\/section>$/);
 });

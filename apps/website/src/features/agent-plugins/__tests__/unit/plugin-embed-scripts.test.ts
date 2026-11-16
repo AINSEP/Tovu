@@ -31,7 +31,7 @@ function runtimeFor(change: Partial<AgentPluginExport> = {}, options: { consentO
 async function render(runtime: ReturnType<typeof runtimeFor>, mode: "live" | "static" = "live") {
   const port = runtime.forRender({ mode });
   const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo(), pluginExports: port }, input: { workspaceId, html: marker } });
-  return { html: renderHtmlPageBody(marker, resolved), head: port.headHtml({}), hosts: port.declaredHosts({}) };
+  return { html: renderHtmlPageBody({ html: marker, resolved }), head: port.headHtml({}), hosts: port.declaredHosts({}) };
 }
 
 test("a consent-gated export holds its scripts and frame for the consent client", async () => {

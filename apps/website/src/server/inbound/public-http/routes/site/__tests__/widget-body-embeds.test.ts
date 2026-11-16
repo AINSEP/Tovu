@@ -51,7 +51,7 @@ function assertBody(html: string, content: string) {
 test("a page body with a legacy widget UUID marker renders the existing widget server-side", async () => {
   const { deps, post } = await fixture();
   const resolved = await resolveHtmlEmbedsForRender(deps, post);
-  assert.equal(renderHtmlPageBody(post.bodyHtml!, resolved),
+  assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved }),
     `<section id="widget-regression"><p>before</p>${WIDGET_HTML}<p>after</p></section>`);
 });
 
@@ -128,7 +128,7 @@ for (const marker of [LEGACY_MARKER, CURRENT_MARKER]) {
   test(`a missing widget renders nothing: ${marker}`, async () => {
     const missing = marker.replace(WIDGET_ID, "does-not-exist");
     const { deps, post } = await fixture("page", missing);
-    assert.equal(renderHtmlPageBody(post.bodyHtml!, await resolveHtmlEmbedsForRender(deps, post)),
+    assert.equal(renderHtmlPageBody({ html: post.bodyHtml!, resolved: await resolveHtmlEmbedsForRender(deps, post) }),
       '<section id="widget-regression"><p>before</p><p>after</p></section>');
     assertBody(await renderViaTemplate(deps, theme(), post, undefined), "");
   });

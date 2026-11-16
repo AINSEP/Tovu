@@ -53,7 +53,7 @@ test("postpolish: static content headers have exactly date · By author and no o
   const resolved = (updatedAt: string) => new Map([["content" as const, new Map([[author.id, { componentId: "post-content", props: {
     title: "Title", bodyJson: { type: "doc", content: [] }, updatedAt,
   } }]])]]);
-  const render = (post = author, html = shell, date = "2026-10-11T12:00:00Z") => injectPostAuthor({ html: renderHtmlPageBody(html, resolved(date), { postAuthor: post }), post });
+  const render = (post = author, html = shell, date = "2026-10-11T12:00:00Z") => injectPostAuthor({ html: renderHtmlPageBody({ html, resolved: resolved(date) }, { postAuthor: post }), post });
   assert.ok(render().includes('<time datetime="2026-10-11T12:00:00Z">Oct 11, 2026</time><span data-post-author-separator="" class="post-author"> · By Jane &amp; Doe</span>'));
   assert.equal((render().match(/ · /g) ?? []).length, 1);
   assert.ok(!render({ ...author, showAuthor: false }).includes(" · "));

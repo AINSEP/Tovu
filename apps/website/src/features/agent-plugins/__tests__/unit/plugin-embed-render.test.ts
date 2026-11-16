@@ -12,7 +12,7 @@ import { config, definition, harness, owner, workspaceId } from "../fixtures/plu
 async function render(html: string, runtime = harness().runtime) {
   const port = runtime.forRender({ mode: "live" });
   const resolved = await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo(), pluginExports: port }, input: { workspaceId, html } });
-  return { html: renderHtmlPageBody(html, resolved), head: port.headHtml({}) };
+  return { html: renderHtmlPageBody({ html, resolved }), head: port.headHtml({}) };
 }
 function marker(overrides: Record<string, unknown> = {}) {
   return embedMarkerSnippetFromConfig({ config: { ...config, ...overrides } }).replace('></div>', '><p>Authored fallback</p></div>');
@@ -71,7 +71,7 @@ test("T1: legacy widget/media/content HTML is byte-identical with the optional p
   const html = '<div data-embed-config=\'{"type":"widget","id":"missing"}\'></div><div data-embed-config=\'{"type":"media","id":"missing"}\'></div><div data-embed-config=\'{"type":"content","id":"missing"}\'></div>';
   const deps = { host: buildWidgetHostPorts({ postRepo: new InMemoryPostRepo({}) }, {}), entryRepo: new InMemoryEntryRepo() };
   const baseline = await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } });
-  assert.equal((await render(html)).html, renderHtmlPageBody(html, baseline));
+  assert.equal((await render(html)).html, renderHtmlPageBody({ html, resolved: baseline }));
 });
 
 test("T1: host links require the same plugin's ready provider and workspace", async () => {

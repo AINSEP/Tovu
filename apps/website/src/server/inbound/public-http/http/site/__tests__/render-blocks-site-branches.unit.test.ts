@@ -179,21 +179,21 @@ test("pageShell: an extraHead without a <title> keeps the shell's title", () => 
 
 test("injectExtraHeadIntoStaticPage: a theme <title> with no closing tag is left in place", () => {
   const html = "<html><head><title>Theme</head><body></body></html>";
-  assert.equal(injectExtraHeadIntoStaticPage(html, "<title>SEO</title>"), "<html><head><title>Theme<title>SEO</title></head><body></body></html>");
+  assert.equal(injectExtraHeadIntoStaticPage({ html, extraHead: "<title>SEO</title>" }), "<html><head><title>Theme<title>SEO</title></head><body></body></html>");
 });
 
 test("injectSiteAssistantIntoStaticPage: a page without </head> or </body> is returned unchanged", (t) => {
   useSiteChatBuild({ test: t, ready: true });
-  assert.equal(injectSiteAssistantIntoStaticPage("<p>fragment</p>", "react"), "<p>fragment</p>");
+  assert.equal(injectSiteAssistantIntoStaticPage({ html: "<p>fragment</p>", enabled: "react" }), "<p>fragment</p>");
 });
 
 test("injectSiteAssistantIntoStaticPage: without TOVU_SITE_CHAT_DIST, readiness is checked against the product's own site-chat dist", (t) => {
   useSiteChatBuild({ test: t, ready: false });
   const page = "<html><head></head><body></body></html>";
   process.env.TOVU_SITE_CHAT_DIST = resolveAppDistDir({ app: "site-chat" }, { fromDir: new URL("..", import.meta.url).pathname });
-  const withExplicitDist = injectSiteAssistantIntoStaticPage(page, "vanilla");
+  const withExplicitDist = injectSiteAssistantIntoStaticPage({ html: page, enabled: "vanilla" });
   delete process.env.TOVU_SITE_CHAT_DIST;
-  assert.equal(injectSiteAssistantIntoStaticPage(page, "vanilla"), withExplicitDist);
+  assert.equal(injectSiteAssistantIntoStaticPage({ html: page, enabled: "vanilla" }), withExplicitDist);
 });
 
 // --- gallery / media widgets --------------------------------------------------------------------

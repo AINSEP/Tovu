@@ -115,7 +115,7 @@ function isObject(value: unknown): value is JsonObject {
 
 /** `YYYY-MM-DD` — the calendar day of `iso` in the site's `timeZone` (UTC when absent), so a post
  *  published at 11pm in Los Angeles is not shown as the next day. Bug D follow-up. */
-function shortDate(iso: string, timeZone: string | undefined): string {
+function shortDate({ iso, timeZone }: { iso: string; timeZone: string | undefined }, _optional = {}): string {
   return formatIsoDate({ iso }, timeZone === undefined ? {} : { timeZone });
 }
 
@@ -166,7 +166,7 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * otherwise byte-identical, including this `/…` branch's placeholder-origin resolution. If this
  * function's logic changes, that copy must change too — it does not update itself.
  */
-function safeHref(value: JsonValue | undefined): string {
+function safeHref({ value }: { value: JsonValue | undefined }, _optional = {}): string {
   if (typeof value !== "string") return "#";
   const href = value.trim();
   if (href.startsWith("#")) return href;
@@ -259,23 +259,23 @@ function safeHref(value: JsonValue | undefined): string {
  */
 const ADMIN_MEDIA_ORIGINAL_PATH = /\/workspaces\/[^/]+\/media\/[^/]+\/original\b/i;
 
-function safeImageSrc(value: JsonValue | undefined): string | null {
+function safeImageSrc({ value }: { value: JsonValue | undefined }, _optional = {}): string | null {
   if (typeof value !== "string") return null;
   const src = value.trim();
   const absolute = /^https?:\/\/[^\s/$.?#][^\s]*$/i.test(src);
-  if (!absolute && !isPlainRelativeImageSrc(src)) return null;
-  const parsed = parseImageSrc(src);
-  return parsed && isPublicImageUrl(parsed, absolute) ? src : null;
+  if (!absolute && !isPlainRelativeImageSrc({ src })) return null;
+  const parsed = parseImageSrc({ src });
+  return parsed && isPublicImageUrl({ parsed, absolute }) ? src : null;
 }
 
 /** {@link safeImageSrc}'s shape gate for a non-absolute `src`: non-empty, no whitespace or
  *  backslash, no scheme, not protocol-relative. @complexity O(src.length). */
-function isPlainRelativeImageSrc(src: string): boolean {
+function isPlainRelativeImageSrc({ src }: { src: string }, _optional = {}): boolean {
   return src.length > 0 && !/[\s\\]|^[a-z][a-z\d+.-]*:|^\/\//i.test(src);
 }
 
 /** WHATWG-parses `src` against the fixed resolution base; `null` when the parser rejects it. */
-function parseImageSrc(src: string): URL | null {
+function parseImageSrc({ src }: { src: string }, _optional = {}): URL | null {
   try {
     return new URL(src, SAFE_HREF_RESOLUTION_BASE);
   } catch {
@@ -286,7 +286,7 @@ function parseImageSrc(src: string): URL | null {
 /** {@link safeImageSrc}'s checks on the PARSED URL: a relative `src` must stay on the resolution
  *  origin (the parser strips leading control characters, so `"\u0001//evil.example"` resolves
  *  off-site), never the admin original-media route, never credentials. @complexity O(1). */
-function isPublicImageUrl(parsed: URL, absolute: boolean): boolean {
+function isPublicImageUrl({ parsed, absolute }: { parsed: URL; absolute: boolean }, _optional = {}): boolean {
   if (!absolute && parsed.origin !== SAFE_HREF_RESOLUTION_ORIGIN) return false;
   if (ADMIN_MEDIA_ORIGINAL_PATH.test(parsed.pathname)) return false;
   return !parsed.username && !parsed.password;
@@ -310,7 +310,7 @@ function isPublicImageUrl(parsed: URL, absolute: boolean): boolean {
  * own "omit rather than emit a malformed/placeholder attribute" rule.
  */
 const CSS_COLOR_PATTERN = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,20}|(?:rgb|rgba|hsl|hsla|oklch)\([0-9.%,\s/]{1,80}\))$/;
-function safeCssColor(value: JsonValue | undefined): string | null {
+function safeCssColor({ value }: { value: JsonValue | undefined }, _optional = {}): string | null {
   if (typeof value !== "string") return null;
   const color = value.trim();
   return CSS_COLOR_PATTERN.test(color) ? color : null;
@@ -329,7 +329,7 @@ function safeCssColor(value: JsonValue | undefined): string | null {
  * `"`, which must become `&quot;` to stay valid inside the double-quoted HTML attribute.
  */
 const CSS_FONT_FAMILY_PATTERN = /^[a-zA-Z0-9\s,'".-]{1,200}$/;
-function safeCssFontFamily(value: JsonValue | undefined): string | null {
+function safeCssFontFamily({ value }: { value: JsonValue | undefined }, _optional = {}): string | null {
   if (typeof value !== "string") return null;
   const fontFamily = value.trim();
   return fontFamily.length > 0 && CSS_FONT_FAMILY_PATTERN.test(fontFamily) ? fontFamily : null;
@@ -342,7 +342,7 @@ function safeCssFontFamily(value: JsonValue | undefined): string | null {
  * toolbar's own controls are closed `<select>` presets.
  */
 const CSS_LENGTH_PATTERN = /^\d{1,4}(\.\d{1,3})?(px|em|rem|%|pt|vh|vw)?$/;
-function safeCssLength(value: JsonValue | undefined): string | null {
+function safeCssLength({ value }: { value: JsonValue | undefined }, _optional = {}): string | null {
   if (typeof value !== "string") return null;
   const length = value.trim();
   return CSS_LENGTH_PATTERN.test(length) ? length : null;
@@ -362,7 +362,7 @@ function safeCssLength(value: JsonValue | undefined): string | null {
  * can carry a quote, space, or `<`/`>` that would break out of the `class=""` attribute.
  */
 const LANGUAGE_CLASS_PATTERN = /^[a-zA-Z0-9-]{1,32}$/;
-function safeLanguageClass(value: JsonValue | undefined): string | null {
+function safeLanguageClass({ value }: { value: JsonValue | undefined }, _optional = {}): string | null {
   if (typeof value !== "string") return null;
   const language = value.trim();
   return LANGUAGE_CLASS_PATTERN.test(language) ? language : null;
@@ -387,7 +387,7 @@ function safeLanguageClass(value: JsonValue | undefined): string | null {
  */
 const YOUTUBE_ID_PATTERN = /^[\w-]{1,32}$/;
 const YOUTUBE_URL_PATTERN = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]+)/;
-function extractYoutubeVideoId(value: JsonValue | undefined): string | null {
+function extractYoutubeVideoId({ value }: { value: JsonValue | undefined }, _optional = {}): string | null {
   if (typeof value !== "string") return null;
   const match = value.trim().match(YOUTUBE_URL_PATTERN);
   const id = match?.[1];
@@ -408,20 +408,20 @@ function extractYoutubeVideoId(value: JsonValue | undefined): string | null {
  * from `toggleTextStyle()` or some other extension using this same mark) renders no `<span>` at all —
  * an empty `style=""` wrapper would be pure noise.
  */
-function renderTextStyleMark(html: string, attrs: JsonObject): string {
+function renderTextStyleMark({ html, attrs }: { html: string; attrs: JsonObject }, _optional = {}): string {
   const styleParts: string[] = [];
-  const color = safeCssColor(attrs.color);
+  const color = safeCssColor({ value: attrs.color });
   if (color) styleParts.push(`color:${color}`);
-  const backgroundColor = safeCssColor(attrs.backgroundColor);
+  const backgroundColor = safeCssColor({ value: attrs.backgroundColor });
   if (backgroundColor) styleParts.push(`background-color:${backgroundColor}`);
   // Font family/size, line height (2026-08-11) — same shared `textStyle` mark, same
   // `chain().setMark("textStyle", {...})` shape confirmed against each extension's own
   // installed source (`FontFamily`/`FontSize`/`LineHeight`, `@tiptap/extension-text-style`).
-  const fontFamily = safeCssFontFamily(attrs.fontFamily);
+  const fontFamily = safeCssFontFamily({ value: attrs.fontFamily });
   if (fontFamily) styleParts.push(`font-family:${fontFamily}`);
-  const fontSize = safeCssLength(attrs.fontSize);
+  const fontSize = safeCssLength({ value: attrs.fontSize });
   if (fontSize) styleParts.push(`font-size:${fontSize}`);
-  const lineHeight = safeCssLength(attrs.lineHeight);
+  const lineHeight = safeCssLength({ value: attrs.lineHeight });
   if (lineHeight) styleParts.push(`line-height:${lineHeight}`);
   return styleParts.length > 0 ? `<span style="${escapeHtml(styleParts.join(";"))}">${html}</span>` : html;
 }
@@ -434,13 +434,13 @@ function renderTextStyleMark(html: string, attrs: JsonObject): string {
  * as long as it passes {@link safeCssColor}'s allowlist — an unsafe/malformed value degrades to the
  * bare `<mark>` rather than a malformed or unsafe style attribute.
  */
-function renderHighlightMark(html: string, attrs: JsonObject): string {
-  const color = safeCssColor(attrs.color);
+function renderHighlightMark({ html, attrs }: { html: string; attrs: JsonObject }, _optional = {}): string {
+  const color = safeCssColor({ value: attrs.color });
   return color ? `<mark style="background-color:${escapeHtml(color)}">${html}</mark>` : `<mark>${html}</mark>`;
 }
 
-function renderLinkMark(html: string, attrs: JsonObject): string {
-  return `<a href="${escapeHtml(safeHref(attrs.href))}">${html}</a>`;
+function renderLinkMark({ html, attrs }: { html: string; attrs: JsonObject }, _optional = {}): string {
+  return `<a href="${escapeHtml(safeHref({ value: attrs.href }))}">${html}</a>`;
 }
 
 /** One renderer per mark `type`, keyed the same way {@link renderMarks} used to switch on the value
@@ -454,25 +454,25 @@ function renderLinkMark(html: string, attrs: JsonObject): string {
  * stale again — no other behavior change; this map is still read only by {@link renderMarks} inside
  * this module.
  */
-export const MARK_RENDERERS: Record<string, (html: string, attrs: JsonObject) => string> = {
-  bold: (html) => `<strong>${html}</strong>`,
-  italic: (html) => `<em>${html}</em>`,
-  code: (html) => `<code>${html}</code>`,
-  underline: (html) => `<u>${html}</u>`,
-  strike: (html) => `<s>${html}</s>`,
-  subscript: (html) => `<sub>${html}</sub>`,
-  superscript: (html) => `<sup>${html}</sup>`,
+export const MARK_RENDERERS: Record<string, (required: { html: string; attrs: JsonObject }, optional?: Record<string, never>) => string> = {
+  bold: ({ html }) => `<strong>${html}</strong>`,
+  italic: ({ html }) => `<em>${html}</em>`,
+  code: ({ html }) => `<code>${html}</code>`,
+  underline: ({ html }) => `<u>${html}</u>`,
+  strike: ({ html }) => `<s>${html}</s>`,
+  subscript: ({ html }) => `<sub>${html}</sub>`,
+  superscript: ({ html }) => `<sup>${html}</sup>`,
   textStyle: renderTextStyleMark,
   highlight: renderHighlightMark,
   link: renderLinkMark,
 };
 
-function renderMarks(text: string, marks: JsonValue[] | undefined): string {
+function renderMarks({ text, marks }: { text: string; marks: JsonValue[] | undefined }, _optional = {}): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
     if (!isObject(mark)) continue;
     const renderer = typeof mark.type === "string" ? MARK_RENDERERS[mark.type] : undefined;
-    if (renderer) html = renderer(html, isObject(mark.attrs) ? mark.attrs : {});
+    if (renderer) html = renderer({ html, attrs: isObject(mark.attrs) ? mark.attrs : {} });
   }
   return html;
 }
@@ -510,13 +510,13 @@ const EMPTY_ASSIGNED_TERMS: readonly AssignedTermView[] = [];
 const MAX_MEDIA_REF_ID_LENGTH = 200;
 const PLAUSIBLE_MEDIA_REF_ID_PATTERN = /^[^\s/]+$/;
 
-function isPlausibleMediaRefId(value: string): boolean {
+function isPlausibleMediaRefId({ value }: { value: string }, _optional = {}): boolean {
   return value.length > 0 && value.length <= MAX_MEDIA_REF_ID_LENGTH && PLAUSIBLE_MEDIA_REF_ID_PATTERN.test(value);
 }
 
 /** `value` when it is a string passing {@link isPlausibleMediaRefId}; `undefined` otherwise. */
-function plausibleMediaRefId(value: JsonValue | undefined): string | undefined {
-  return typeof value === "string" && isPlausibleMediaRefId(value) ? value : undefined;
+function plausibleMediaRefId({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
+  return typeof value === "string" && isPlausibleMediaRefId({ value }) ? value : undefined;
 }
 
 /**
@@ -561,7 +561,7 @@ function plausibleMediaRefId(value: JsonValue | undefined): string | undefined {
  *   extra attributes.
  * @complexity O(n) in `raw`'s length (one parse pass), O(k) space for k accepted attributes.
  */
-function resolveEmbedHtmlAttributes(raw: string | null): Record<string, string> {
+function resolveEmbedHtmlAttributes({ raw }: { raw: string | null }, _optional = {}): Record<string, string> {
   if (!raw) return {};
   return parseEmbedHtmlAttributes({ text: raw }).attributes;
 }
@@ -569,7 +569,7 @@ function resolveEmbedHtmlAttributes(raw: string | null): Record<string, string> 
 /** A shallow copy of `attributes` with `key` removed — used when a call site already emits its own
  *  value for one allowlisted name (e.g. `renderImageTag`'s hardcoded `loading` default) and needs
  *  the rest formatted without emitting that name twice. @complexity O(k). */
-function omitKey(attributes: Record<string, string>, key: string): Record<string, string> {
+function omitKey({ attributes, key }: { attributes: Record<string, string>; key: string }, _optional = {}): Record<string, string> {
   const { [key]: _omitted, ...rest } = attributes;
   return rest;
 }
@@ -599,7 +599,7 @@ const NO_MARKER_ATTRIBUTES: readonly MarkerAttribute[] = [];
  *
  * @complexity O(n) in the value's length.
  */
-function attributeValueHtml(value: string, source: "asset" | "marker"): string {
+function attributeValueHtml({ value, source }: { value: string; source: "asset" | "marker" }, _optional = {}): string {
   return source === "asset" ? escapeHtml(value) : value.replace(/"/g, "&quot;");
 }
 
@@ -612,11 +612,11 @@ function attributeValueHtml(value: string, source: "asset" | "marker"): string {
  *
  * @complexity O(1) beyond the linear `find` over `markerAttributes`.
  */
-function mergeMediaClassAttr(assetClass: string | null, markerAttributes: readonly MarkerAttribute[]): string {
+function mergeMediaClassAttr({ assetClass, markerAttributes }: { assetClass: string | null; markerAttributes: readonly MarkerAttribute[] }, _optional = {}): string {
   const markerClass = markerAttributes.find((attr) => attr.name === "class")?.value;
   const parts = [
-    assetClass ? attributeValueHtml(assetClass, "asset") : null,
-    markerClass ? attributeValueHtml(markerClass, "marker") : null,
+    assetClass ? attributeValueHtml({ value: assetClass, source: "asset" }) : null,
+    markerClass ? attributeValueHtml({ value: markerClass, source: "marker" }) : null,
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? ` class="${parts.join(" ")}"` : "";
 }
@@ -637,9 +637,9 @@ function mergeMediaClassAttr(assetClass: string | null, markerAttributes: readon
  *   value-untouched — `undefined` when `htmlAttributes` carried no `class` token.
  * @complexity O(1).
  */
-function foldHtmlAttributesClass(classAttr: string, extraClass: string | undefined): string {
+function foldHtmlAttributesClass({ classAttr, extraClass }: { classAttr: string; extraClass: string | undefined }, _optional = {}): string {
   if (!extraClass) return classAttr;
-  const escaped = attributeValueHtml(extraClass, "asset");
+  const escaped = attributeValueHtml({ value: extraClass, source: "asset" });
   return classAttr === "" ? ` class="${escaped}"` : `${classAttr.slice(0, -1)} ${escaped}"`;
 }
 
@@ -650,9 +650,9 @@ function foldHtmlAttributesClass(classAttr: string, extraClass: string | undefin
  *
  * @complexity O(1) beyond the linear `find` over `markerAttributes`.
  */
-function mediaAltAttrValue(assetAlt: string, markerAttributes: readonly MarkerAttribute[]): string {
+function mediaAltAttrValue({ assetAlt, markerAttributes }: { assetAlt: string; markerAttributes: readonly MarkerAttribute[] }, _optional = {}): string {
   const markerAlt = markerAttributes.find((attr) => attr.name === "alt");
-  return markerAlt ? attributeValueHtml(markerAlt.value ?? "", "marker") : attributeValueHtml(assetAlt, "asset");
+  return markerAlt ? attributeValueHtml({ value: markerAlt.value ?? "", source: "marker" }) : attributeValueHtml({ value: assetAlt, source: "asset" });
 }
 
 /**
@@ -663,10 +663,10 @@ function mediaAltAttrValue(assetAlt: string, markerAttributes: readonly MarkerAt
  *
  * @complexity O(1) beyond the linear `find` over `markerAttributes`.
  */
-function mediaDimensionAttr(name: "width" | "height", assetValue: number | null, markerAttributes: readonly MarkerAttribute[]): string {
+function mediaDimensionAttr({ name, assetValue, markerAttributes }: { name: "width" | "height"; assetValue: number | null; markerAttributes: readonly MarkerAttribute[] }, _optional = {}): string {
   const markerAttr = markerAttributes.find((attr) => attr.name === name);
   if (markerAttr) {
-    return markerAttr.value === null ? "" : ` ${name}="${attributeValueHtml(markerAttr.value, "marker")}"`;
+    return markerAttr.value === null ? "" : ` ${name}="${attributeValueHtml({ value: markerAttr.value, source: "marker" })}"`;
   }
   return assetValue != null ? ` ${name}="${assetValue}"` : "";
 }
@@ -693,18 +693,16 @@ function mediaDimensionAttr(name: "width" | "height", assetValue: number | null,
  * @complexity O(n + m) in the asset-extra count n and the marker-attribute count m.
  */
 function mergeMediaExtraAttributes(
-  assetExtras: Record<string, string>,
-  markerAttributes: readonly MarkerAttribute[],
-  excludeNames: ReadonlySet<string>
+  { assetExtras, markerAttributes, excludeNames }: { assetExtras: Record<string, string>; markerAttributes: readonly MarkerAttribute[]; excludeNames: ReadonlySet<string> }, _optional = {}
 ): string {
   const merged = new Map<string, string>();
   for (const [name, value] of Object.entries(assetExtras)) {
     if (excludeNames.has(name)) continue;
-    merged.set(name, ` ${name}="${attributeValueHtml(value, "asset")}"`);
+    merged.set(name, ` ${name}="${attributeValueHtml({ value, source: "asset" })}"`);
   }
   for (const attr of markerAttributes) {
     if (excludeNames.has(attr.name) || attr.name === "src" || attr.name === "srcset") continue;
-    merged.set(attr.name, attr.value === null ? ` ${attr.name}` : ` ${attr.name}="${attributeValueHtml(attr.value, "marker")}"`);
+    merged.set(attr.name, attr.value === null ? ` ${attr.name}` : ` ${attr.name}="${attributeValueHtml({ value: attr.value, source: "marker" })}"`);
   }
   return [...merged.values()].join("");
 }
@@ -732,25 +730,25 @@ function renderImageTag(props: {
 }): string {
   const src = mediaPublicPath({ key: props.urlKey, sha256: props.sha256, variant: { kind: "transform", name: props.transformName, version: props.version, ext: "jpg" } });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
-  const altAttr = mediaAltAttrValue(props.alt, markerAttributes);
-  const widthAttr = mediaDimensionAttr("width", props.width, markerAttributes);
-  const heightAttr = mediaDimensionAttr("height", props.height, markerAttributes);
+  const altAttr = mediaAltAttrValue({ assetAlt: props.alt, markerAttributes });
+  const widthAttr = mediaDimensionAttr({ name: "width", assetValue: props.width, markerAttributes });
+  const heightAttr = mediaDimensionAttr({ name: "height", assetValue: props.height, markerAttributes });
   // `loading` is on the allowlist (an operator may legitimately want `loading="eager"`) but this
   // tag already hardcodes a `loading="lazy"` default below — the asset's own value, when present,
   // wins over the default, and a marker's own `loading` attribute (D3: author wins over asset) wins
   // over both, never a silently dropped or duplicated second `loading` attribute.
-  const allExtra = resolveEmbedHtmlAttributes(props.htmlAttributes);
+  const allExtra = resolveEmbedHtmlAttributes({ raw: props.htmlAttributes });
   // `class` is now an allowlisted name (S1, 2026-09-23 widget-attrs plan), same as `style`/`id` — it
   // is folded into the class attribute here rather than left to `mergeMediaExtraAttributes`'s
   // generic tail (which already excludes it via `MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES`, same reason
   // `mergeMediaClassAttr`'s own doc gives for the marker's `class`: an addition, never a second
   // `class="..."` attribute).
-  const classAttr = foldHtmlAttributesClass(mergeMediaClassAttr(props.cssClass, markerAttributes), allExtra.class);
+  const classAttr = foldHtmlAttributesClass({ classAttr: mergeMediaClassAttr({ assetClass: props.cssClass, markerAttributes }), extraClass: allExtra.class });
   const markerLoading = markerAttributes.find((attr) => attr.name === "loading");
   const loadingValue = markerLoading
-    ? attributeValueHtml(markerLoading.value ?? "lazy", "marker")
-    : attributeValueHtml(allExtra.loading ?? "lazy", "asset");
-  const extraAttrs = mergeMediaExtraAttributes(omitKey(allExtra, "loading"), markerAttributes, MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES);
+    ? attributeValueHtml({ value: markerLoading.value ?? "lazy", source: "marker" })
+    : attributeValueHtml({ value: allExtra.loading ?? "lazy", source: "asset" });
+  const extraAttrs = mergeMediaExtraAttributes({ assetExtras: omitKey({ attributes: allExtra, key: "loading" }), markerAttributes, excludeNames: MEDIA_IMAGE_FIXED_ATTRIBUTE_NAMES });
   // The current media contract exposes one public rendition, not a width ladder. A real 1x
   // candidate avoids advertising nonexistent widths/transform routes; theme CSS sizes it fluidly.
   const srcset = props.responsive === true ? ` srcset="${escapeHtml(src)} 1x"` : "";
@@ -805,13 +803,13 @@ function renderVideoTag(props: {
   const src = mediaPublicPath({ key: props.urlKey, sha256: props.sha256, variant: { kind: "original", contentType: props.contentType } });
   const markerAttributes = props.markerAttributes ?? NO_MARKER_ATTRIBUTES;
   const controlsAttr = (props.controls ?? true) ? " controls" : "";
-  const widthAttr = tag === "video" ? mediaDimensionAttr("width", props.width, markerAttributes) : "";
-  const heightAttr = tag === "video" ? mediaDimensionAttr("height", props.height, markerAttributes) : "";
-  const allExtra = resolveEmbedHtmlAttributes(props.htmlAttributes);
+  const widthAttr = tag === "video" ? mediaDimensionAttr({ name: "width", assetValue: props.width, markerAttributes }) : "";
+  const heightAttr = tag === "video" ? mediaDimensionAttr({ name: "height", assetValue: props.height, markerAttributes }) : "";
+  const allExtra = resolveEmbedHtmlAttributes({ raw: props.htmlAttributes });
   // `class` is now an allowlisted name (S1, 2026-09-23 widget-attrs plan) — folded in here, same as
   // `renderImageTag`'s own identical fold, rather than left to `mergeMediaExtraAttributes`'s generic
   // tail (already excluded via `MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES`).
-  const classAttr = foldHtmlAttributesClass(mergeMediaClassAttr(props.cssClass, markerAttributes), allExtra.class);
+  const classAttr = foldHtmlAttributesClass({ classAttr: mergeMediaClassAttr({ assetClass: props.cssClass, markerAttributes }), extraClass: allExtra.class });
   // No hardcoded default here to collide with (unlike `renderImageTag`'s `loading`) — every
   // allowlisted asset attribute is emitted as-is, including boolean ones (`muted`, `loop`,
   // `autoplay`, `playsinline`), which the parser records as an empty-string value; HTML treats ANY
@@ -819,7 +817,7 @@ function renderVideoTag(props: {
   // equivalent. A marker's own boolean attribute keeps ITS OWN shape instead (a bare `autoplay`
   // renders as bare `autoplay`, never `autoplay=""`) — {@link mergeMediaExtraAttributes} preserves
   // that distinction rather than normalizing every boolean attribute to the asset path's convention.
-  const extraAttrs = mergeMediaExtraAttributes(allExtra, markerAttributes, MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES);
+  const extraAttrs = mergeMediaExtraAttributes({ assetExtras: allExtra, markerAttributes, excludeNames: MEDIA_VIDEO_FIXED_ATTRIBUTE_NAMES });
   // `alt` has no `<video>` attribute equivalent (see this function's own header doc) — a marker's
   // `alt` attribute (D3) replaces the fallback TEXT NODE instead, used verbatim as source text (never
   // re-escaped: this text node sits inside a page whose own body HTML is already unsanitized by
@@ -878,7 +876,7 @@ function headingAnchorId(node: JsonValue): string {
  * @complexity O(L + P) time for L HTML characters and P candidate-id checks; O(H) auxiliary space
  * for H headings. Per-base counters keep repeated headings from restarting the suffix search.
  */
-function dedupeHeadingIds(html: string): string {
+function dedupeHeadingIds({ html }: { html: string }, _optional = {}): string {
   const seen = new Map<string, number>();
   const used = new Set<string>();
   return html.replace(/<h([1-6]) id="([^"]*)"(?=[\s>])/g, (_m, level: string, id: string) => {
@@ -908,7 +906,7 @@ function dedupeHeadingIds(html: string): string {
  *
  * @complexity O(1).
  */
-function styleForAlign(align: string | null): string {
+function styleForAlign({ align }: { align: string | null }, _optional = {}): string {
   if (align === null) return "";
   const safe = safeTextAlign(align);
   return safe ? ` style="text-align:${safe}"` : "";
@@ -919,7 +917,7 @@ function styleForAlign(align: string | null): string {
  *  an already-extracted node instead, since it needs the node's inline content too. */
 function alignStyleAttr(node: JsonObject): string {
   const align = isObject(node.attrs) && typeof node.attrs.textAlign === "string" ? node.attrs.textAlign : null;
-  return styleForAlign(align);
+  return styleForAlign({ align });
 }
 
 /**
@@ -933,7 +931,7 @@ function alignStyleAttr(node: JsonObject): string {
  */
 function tableCellAlignAttr(node: JsonObject): string {
   const align = isObject(node.attrs) && typeof node.attrs.align === "string" ? node.attrs.align : null;
-  return align === "left" || align === "center" || align === "right" ? styleForAlign(align) : "";
+  return align === "left" || align === "center" || align === "right" ? styleForAlign({ align }) : "";
 }
 
 /**
@@ -948,14 +946,14 @@ function tableCellAlignAttr(node: JsonObject): string {
  */
 /** Shared bounds check {@link tableSpanAttrs} applies independently to `colspan`/`rowspan` — pulled
  *  out so the compound condition is written (and complexity-counted) once instead of twice. */
-function parseSpanAttr(value: JsonValue | undefined): number {
+function parseSpanAttr({ value }: { value: JsonValue | undefined }, _optional = {}): number {
   if (typeof value !== "number" || !Number.isInteger(value)) return 1;
   return value >= 1 && value <= 1000 ? value : 1;
 }
 
 function tableSpanAttrs(attrs: JsonObject): string {
-  const colspan = parseSpanAttr(attrs.colspan);
-  const rowspan = parseSpanAttr(attrs.rowspan);
+  const colspan = parseSpanAttr({ value: attrs.colspan });
+  const rowspan = parseSpanAttr({ value: attrs.rowspan });
   const columnAttribute = colspan !== 1 ? ` colspan="${colspan}"` : "";
   const rowAttribute = rowspan !== 1 ? ` rowspan="${rowspan}"` : "";
   return columnAttribute + rowAttribute;
@@ -1006,14 +1004,10 @@ function depthLimitPlaceholder(): string {
 }
 
 function renderNodes(
-  nodes: JsonValue[] | undefined,
-  inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
-  mediaTransformVersions: ReadonlyMap<string, number>,
-  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>,
-  depth: number
+  { nodes, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth }: { nodes: JsonValue[] | undefined; inlineResolved: ReadonlyMap<string, WidgetRenderIR>; mediaTransformVersions: ReadonlyMap<string, number>; mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>; depth: number }, _optional = {}
 ): string {
   return (nodes ?? [])
-    .map((node) => renderDocNode(node, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth))
+    .map((node) => renderDocNode({ node }, { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth }))
     .join("");
 }
 
@@ -1031,26 +1025,27 @@ interface DocNodeRenderDeps {
 /** Renders `content` one level deeper than the current node — every handler's own recursion entry
  *  point, replacing the `renderNodes(content, inlineResolved, mediaTransformVersions,
  *  mediaAssetMetadata, depth + 1)` call every case used to spell out individually. */
-function renderChildNodes(content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return renderNodes(content, deps.inlineResolved, deps.mediaTransformVersions, deps.mediaAssetMetadata, deps.depth + 1);
+function renderChildNodes({ content, deps }: { content: JsonValue[] | undefined; deps: DocNodeRenderDeps }, _optional = {}): string {
+  return renderNodes({ nodes: content, inlineResolved: deps.inlineResolved, mediaTransformVersions: deps.mediaTransformVersions, mediaAssetMetadata: deps.mediaAssetMetadata, depth: deps.depth + 1 });
 }
 
 /** One handler per doc-node `type`, dispatched by {@link renderDocNode} through
  *  {@link DOC_NODE_HANDLERS} — see that table's own doc for why this file moved off a single large
  *  `switch`. */
-type DocNodeHandler = (node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps) => string;
+type DocNodeHandlerRequired = { node: JsonObject; content: JsonValue[] | undefined; deps: DocNodeRenderDeps };
+type DocNodeHandler = (required: DocNodeHandlerRequired, optional?: Record<string, never>) => string;
 
-function renderDocDocNode(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocDocNode({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   // Dedupe at the doc boundary — see `dedupeHeadingIds` for why this is a pass over the finished
   // string rather than state threaded through the recursion.
-  return dedupeHeadingIds(renderChildNodes(content, deps));
+  return dedupeHeadingIds({ html: renderChildNodes({ content, deps }) });
 }
 
-function renderDocParagraph(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<p${alignStyleAttr(node)}>${renderChildNodes(content, deps)}</p>`;
+function renderDocParagraph({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<p${alignStyleAttr(node)}>${renderChildNodes({ content, deps })}</p>`;
 }
 
-function renderDocHeading(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocHeading({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
   const h = Math.min(Math.max(level, 1), 6);
   // Additive: an `id` changes nothing visually, and every heading rendered before this existed
@@ -1058,7 +1053,7 @@ function renderDocHeading(node: JsonObject, content: JsonValue[] | undefined, de
   // relies on. Omitted entirely when the text slugifies to nothing.
   const anchor = headingAnchorId(node);
   const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
-  return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderChildNodes(content, deps)}</h${h}>`;
+  return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderChildNodes({ content, deps })}</h${h}>`;
 }
 
 /**
@@ -1076,18 +1071,18 @@ function renderDocTitle(): string {
   return "";
 }
 
-function renderDocText(node: JsonObject): string {
-  return renderMarks(typeof node.text === "string" ? node.text : "", Array.isArray(node.marks) ? node.marks : undefined);
+function renderDocText({ node }: DocNodeHandlerRequired, _optional = {}): string {
+  return renderMarks({ text: typeof node.text === "string" ? node.text : "", marks: Array.isArray(node.marks) ? node.marks : undefined });
 }
 
-function renderDocBulletList(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<ul>${renderChildNodes(content, deps)}</ul>`;
+function renderDocBulletList({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<ul>${renderChildNodes({ content, deps })}</ul>`;
 }
-function renderDocOrderedList(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<ol>${renderChildNodes(content, deps)}</ol>`;
+function renderDocOrderedList({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<ol>${renderChildNodes({ content, deps })}</ol>`;
 }
-function renderDocListItem(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<li>${renderChildNodes(content, deps)}</li>`;
+function renderDocListItem({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<li>${renderChildNodes({ content, deps })}</li>`;
 }
 
 // Task list (`@tiptap/extension-list`'s `./task-list`/`./task-item` subpaths, 2026-08-11) — DOM
@@ -1101,13 +1096,13 @@ function renderDocListItem(_node: JsonObject, content: JsonValue[] | undefined, 
 // do nothing, which is worse than a checkbox that's honestly inert. The editor's default
 // `nested: false` (confirmed against the installed dist) means `content` here is a single
 // paragraph, not a nested list — sub-tasks are out of scope until that option is turned on.
-function renderDocTaskList(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<ul data-type="taskList">${renderChildNodes(content, deps)}</ul>`;
+function renderDocTaskList({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<ul data-type="taskList">${renderChildNodes({ content, deps })}</ul>`;
 }
-function renderDocTaskItem(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocTaskItem({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const checked = attrs.checked === true;
-  return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderChildNodes(content, deps)}</div></li>`;
+  return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderChildNodes({ content, deps })}</div></li>`;
 }
 
 // Table (`@tiptap/extension-table`, 2026-08-11) — four node types confirmed against the
@@ -1119,35 +1114,35 @@ function renderDocTaskItem(node: JsonObject, content: JsonValue[] | undefined, d
 // oversight: widening this to resizable columns would need `colwidth` threaded through both the
 // editor config and this renderer's own `<colgroup>` emission, and nothing in this task asked
 // for resizable tables specifically.
-function renderDocTable(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<table>${renderChildNodes(content, deps)}</table>`;
+function renderDocTable({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<table>${renderChildNodes({ content, deps })}</table>`;
 }
-function renderDocTableRow(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<tr>${renderChildNodes(content, deps)}</tr>`;
+function renderDocTableRow({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<tr>${renderChildNodes({ content, deps })}</tr>`;
 }
-function renderDocTableCell(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocTableCell({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes(content, deps)}</td>`;
+  return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes({ content, deps })}</td>`;
 }
-function renderDocTableHeader(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocTableHeader({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes(content, deps)}</th>`;
+  return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes({ content, deps })}</th>`;
 }
 
-function renderDocBlockquote(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
-  return `<blockquote>${renderChildNodes(content, deps)}</blockquote>`;
+function renderDocBlockquote({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
+  return `<blockquote>${renderChildNodes({ content, deps })}</blockquote>`;
 }
 
-function renderDocCodeBlock(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocCodeBlock({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   // `attrs.language` (`@tiptap/extension-code-block-lowlight`, 2026-08-11) — see
   // `safeLanguageClass`'s own doc for why this stays a class token with no server-side
   // highlighting: the editor gets real in-browser highlighting (lowlight), this renderer stays
   // dependency-free, and a theme can opt into a client-side highlighter later without any change
   // here. Omitted entirely (bare `<code>`, exactly the prior behavior) when absent or unsafe.
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  const language = safeLanguageClass(attrs.language);
+  const language = safeLanguageClass({ value: attrs.language });
   const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
-  return `<pre><code${classAttr}>${renderChildNodes(content, deps)}</code></pre>`;
+  return `<pre><code${classAttr}>${renderChildNodes({ content, deps })}</code></pre>`;
 }
 
 function renderDocHorizontalRule(): string {
@@ -1172,7 +1167,7 @@ function renderDocHardBreak(): string {
 function resolveRefImageIds(attrs: JsonObject): { assetId: string; transformName: string } | null {
   const assetId = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
   const transformName = typeof attrs.transformName === "string" ? attrs.transformName : undefined;
-  if (!assetId || !transformName || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) return null;
+  if (!assetId || !transformName || !isPlausibleMediaRefId({ value: assetId }) || !isPlausibleMediaRefId({ value: transformName })) return null;
   return { assetId, transformName };
 }
 
@@ -1180,7 +1175,7 @@ function resolveRefImageIds(attrs: JsonObject): { assetId: string; transformName
  *  "not set" contract — same reasoning as {@link resolveRefImageIds}: pulled out only to keep
  *  {@link tryRenderRefImage}'s own branch count (three `??` fallbacks plus three `?.` reads all
  *  count as separate branches under this repo's complexity gate) from being counted against it. */
-function resolveMediaAssetOverrides(meta: MediaAssetRenderMeta | undefined): Pick<
+function resolveMediaAssetOverrides({ meta }: { meta: MediaAssetRenderMeta | undefined }, _optional = {}): Pick<
   Parameters<typeof renderImageTag>[0],
   "width" | "height" | "cssClass" | "htmlAttributes"
 > {
@@ -1207,7 +1202,7 @@ function resolveMediaAssetOverrides(meta: MediaAssetRenderMeta | undefined): Pic
  *
  * @complexity O(1).
  */
-function mediaNodeStyleOverride(nodeValue: string | null, assetValue: string | null): string | null {
+function mediaNodeStyleOverride({ nodeValue, assetValue }: { nodeValue: string | null; assetValue: string | null }, _optional = {}): string | null {
   return nodeValue ? nodeValue : assetValue;
 }
 
@@ -1226,22 +1221,19 @@ function mediaNodeStyleOverride(nodeValue: string | null, assetValue: string | n
  * it, so `image` renders byte-identical to before this parameter existed.
  */
 function tryRenderRefImage(
-  attrs: JsonObject,
-  alt: string,
-  deps: DocNodeRenderDeps,
-  nodeStyleOverride?: { cssClass: string | null; htmlAttributes: string | null }
+  { attrs, alt, deps }: { attrs: JsonObject; alt: string; deps: DocNodeRenderDeps }, { nodeStyleOverride }: { nodeStyleOverride?: { cssClass: string | null; htmlAttributes: string | null } } = {}
 ): string | null {
   const ids = resolveRefImageIds(attrs);
   if (!ids) return null;
   const version = deps.mediaTransformVersions.get(ids.transformName);
   if (version === undefined) return null;
   const meta = deps.mediaAssetMetadata.get(ids.assetId);
-  const assetOverrides = resolveMediaAssetOverrides(meta);
+  const assetOverrides = resolveMediaAssetOverrides({ meta });
   const overrides = nodeStyleOverride
     ? {
         ...assetOverrides,
-        cssClass: mediaNodeStyleOverride(nodeStyleOverride.cssClass, assetOverrides.cssClass),
-        htmlAttributes: mediaNodeStyleOverride(nodeStyleOverride.htmlAttributes, assetOverrides.htmlAttributes),
+        cssClass: mediaNodeStyleOverride({ nodeValue: nodeStyleOverride.cssClass, assetValue: assetOverrides.cssClass }),
+        htmlAttributes: mediaNodeStyleOverride({ nodeValue: nodeStyleOverride.htmlAttributes, assetValue: assetOverrides.htmlAttributes }),
       }
     : assetOverrides;
   const urlKey = mediaUrlKey({ id: ids.assetId, slug: meta?.slug ?? null });
@@ -1273,10 +1265,10 @@ function tryRenderRefImage(
  * instruction: width/height are BOTH optional; leaving either (or both) unset renders at
  * native size, never a computed/defaulted value.
  */
-function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocImage({ node, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const alt = typeof attrs.alt === "string" ? attrs.alt : "";
-  const refImage = tryRenderRefImage(attrs, alt, deps);
+  const refImage = tryRenderRefImage({ attrs, alt, deps });
   if (refImage) return refImage;
   // A managed ref must not publish its editor preview when its transform cannot resolve.
   if (attrs.assetId) return mediaPlaceholder({ label: alt || "Image" });
@@ -1287,7 +1279,7 @@ function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, dep
   // not refuse link hrefs but validates their scheme. {@link safeImageSrc} is that same
   // discipline for an image URL: an allowlist, not a ban. Anything it rejects still degrades to
   // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
-  const legacySrc = safeImageSrc(attrs.src);
+  const legacySrc = safeImageSrc({ value: attrs.src });
   if (legacySrc !== null) {
     return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}"${formatHtmlAttributes(legacyImageExtras(attrs))} loading="lazy" />`;
   }
@@ -1345,16 +1337,16 @@ function legacyImageExtras(attrs: JsonObject): Record<string, string> {
  * disallowed, so a node-authored value gets the exact same security boundary an asset-authored value
  * already had, with no new parser and no second copy of the allowlist.
  */
-function renderDocMedia(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocMedia({ node, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
   const alt = typeof attrs.alt === "string" ? attrs.alt : "";
-  const assetId = plausibleMediaRefId(attrs.assetId);
+  const assetId = plausibleMediaRefId({ value: attrs.assetId });
   if (!assetId) return mediaPlaceholder({ label: alt || "Media" });
 
   const nodeStyle = mediaNodeStyle(attrs);
   const meta = deps.mediaAssetMetadata.get(assetId);
   const player = meta ? renderDocMediaPlayer({ assetId, alt, meta, nodeStyle }) : null;
-  return player ?? tryRenderRefImage(attrs, alt, deps, nodeStyle) ?? mediaPlaceholder({ label: alt || "Media" });
+  return player ?? tryRenderRefImage({ attrs, alt, deps }, { nodeStyleOverride: nodeStyle }) ?? mediaPlaceholder({ label: alt || "Media" });
 }
 
 /** A `media` node's own `cssClass`/`htmlAttributes` (any string, empty included; `null` otherwise),
@@ -1382,15 +1374,15 @@ function renderDocMediaPlayer(
     urlKey: mediaUrlKey({ id: assetId, slug: meta.slug }),
     sha256: meta.sha256,
     alt,
-    cssClass: mediaNodeStyleOverride(nodeStyle.cssClass, meta.cssClass),
-    htmlAttributes: mediaNodeStyleOverride(nodeStyle.htmlAttributes, meta.htmlAttributes),
+    cssClass: mediaNodeStyleOverride({ nodeValue: nodeStyle.cssClass, assetValue: meta.cssClass }),
+    htmlAttributes: mediaNodeStyleOverride({ nodeValue: nodeStyle.htmlAttributes, assetValue: meta.htmlAttributes }),
   };
   if (meta.contentType?.startsWith("video/")) return renderVideoTag({ contentType: meta.contentType, ...style, width: meta.width, height: meta.height });
   if (meta.contentType?.startsWith("audio/")) return renderVideoTag({ kind: "audio", contentType: meta.contentType, ...style, width: null, height: null });
   return null;
 }
 
-function renderDocYoutube(node: JsonObject): string {
+function renderDocYoutube({ node }: DocNodeHandlerRequired, _optional = {}): string {
   // See `extractYoutubeVideoId`'s own doc for why `attrs.src` is re-derived rather than
   // trusted. `start` (seconds into the video) is the only other attr this renders — `width`/
   // `height` are deliberately ignored: `.post-detail-body .youtube-embed` (styles.css) makes
@@ -1400,7 +1392,7 @@ function renderDocYoutube(node: JsonObject): string {
   // used unconditionally rather than reading `nocookie` off attrs — a deliberate simplification,
   // not something the toolbar's own plain "paste a URL" control offers a way to opt out of.
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  const videoId = extractYoutubeVideoId(attrs.src);
+  const videoId = extractYoutubeVideoId({ value: attrs.src });
   if (!videoId) return mediaPlaceholder({ label: "Video unavailable", ratio: "16 / 9" });
   const numericStart = typeof attrs.start === "number" && Number.isInteger(attrs.start) ? attrs.start : 0;
   const start = numericStart > 0 && numericStart <= 999999 ? numericStart : 0;
@@ -1409,7 +1401,7 @@ function renderDocYoutube(node: JsonObject): string {
   return `<div class="youtube-embed"><iframe src="${escapeHtml(embedSrc)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
 }
 
-function renderDocMention(node: JsonObject): string {
+function renderDocMention({ node }: DocNodeHandlerRequired, _optional = {}): string {
   // Mention (`@tiptap/extension-mention`, toolbar-polish pass 2026-08-11) — the toolbar's
   // "Mention a post" picker (`PostEditor.tsx`) inserts `{ id: <mentioned post's slug>, label:
   // <its title> }` (see `rules.ts`'s own comment, which already documents this case's contract
@@ -1463,7 +1455,7 @@ function renderDocMention(node: JsonObject): string {
  * @complexity O(n) in `attrs.htmlAttributes`'s length (one allowlist parse), O(k) in its resulting
  * attribute count for the class fold and formatting.
  */
-function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+function renderDocWidgetEmbed({ node, deps }: DocNodeHandlerRequired, _optional = {}): string {
   // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
   // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this
   // content ever reaches a theme — the theme (declarative tier here, Liquid tier via
@@ -1475,13 +1467,13 @@ function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefine
   const widgetHtml = renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
 
   // Each field counts only when it is a NON-EMPTY string (`str` maps any other type to "").
-  const nodeCssClass = str(attrs.cssClass) || null;
-  const nodeHtmlAttributes = str(attrs.htmlAttributes) || null;
+  const nodeCssClass = str({ value: attrs.cssClass }) || null;
+  const nodeHtmlAttributes = str({ value: attrs.htmlAttributes }) || null;
   if (!nodeCssClass && !nodeHtmlAttributes) return widgetHtml;
 
-  const parsedAttributes = resolveEmbedHtmlAttributes(nodeHtmlAttributes);
-  const classAttr = mergeWidgetClassAttr(nodeCssClass, parsedAttributes.class);
-  const restAttributes = formatHtmlAttributes(omitKey(parsedAttributes, "class"));
+  const parsedAttributes = resolveEmbedHtmlAttributes({ raw: nodeHtmlAttributes });
+  const classAttr = mergeWidgetClassAttr({ nodeCssClass, attributesClass: parsedAttributes.class });
+  const restAttributes = formatHtmlAttributes(omitKey({ attributes: parsedAttributes, key: "class" }));
   return `<div${classAttr}${restAttributes}>${widgetHtml}</div>`;
 }
 
@@ -1498,7 +1490,7 @@ function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefine
  *   value-untouched — `undefined` when `htmlAttributes` carried no `class` token.
  * @complexity O(1).
  */
-function mergeWidgetClassAttr(nodeCssClass: string | null, attributesClass: string | undefined): string {
+function mergeWidgetClassAttr({ nodeCssClass, attributesClass }: { nodeCssClass: string | null; attributesClass: string | undefined }, _optional = {}): string {
   const parts = ["widget-embed", nodeCssClass, attributesClass].filter((part): part is string => Boolean(part));
   return ` class="${escapeHtml(parts.join(" "))}"`;
 }
@@ -1573,16 +1565,23 @@ export const DOC_NODE_HANDLERS: Record<string, DocNodeHandler> = {
  * `SiteRenderContext.mediaAssetMetadata`'s own doc.
  */
 export function renderDocNode(
-  node: JsonValue,
-  inlineResolved: ReadonlyMap<string, WidgetRenderIR> = EMPTY_INLINE_RESOLVED,
-  mediaTransformVersions: ReadonlyMap<string, number> = EMPTY_MEDIA_TRANSFORM_VERSIONS,
-  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = EMPTY_MEDIA_ASSET_METADATA,
-  /** Ancestor count above this node — the doc root is `0`. Every pre-existing caller (this file's
-   *  `entryContent`, `liquid-worker.ts`'s `buildLiquidData`, every direct test call) keeps working
-   *  unchanged via this default; only {@link renderNodes}'s own recursive calls ever pass a non-zero
-   *  value. See {@link MAX_RENDER_DEPTH}'s own doc for why this exists and how the number was
-   *  chosen. */
-  depth = 0
+  { node }: { node: JsonValue },
+  {
+    inlineResolved = EMPTY_INLINE_RESOLVED,
+    mediaTransformVersions = EMPTY_MEDIA_TRANSFORM_VERSIONS,
+    mediaAssetMetadata = EMPTY_MEDIA_ASSET_METADATA,
+    depth = 0,
+  }: {
+    inlineResolved?: ReadonlyMap<string, WidgetRenderIR>;
+    mediaTransformVersions?: ReadonlyMap<string, number>;
+    mediaAssetMetadata?: ReadonlyMap<string, MediaAssetRenderMeta>;
+    /** Ancestor count above this node — the doc root is `0`. Every pre-existing caller (this file's
+     *  `entryContent`, `liquid-worker.ts`'s `buildLiquidData`, every direct test call) keeps working
+     *  unchanged via this default; only {@link renderNodes}'s own recursive calls ever pass a non-zero
+     *  value. See {@link MAX_RENDER_DEPTH}'s own doc for why this exists and how the number was
+     *  chosen. */
+    depth?: number;
+  } = {}
 ): string {
   if (!isObject(node)) return "";
   // Checked before anything else — an over-deep node does no further work at all, which is what
@@ -1591,32 +1590,32 @@ export function renderDocNode(
   const content = docNodeContent(node);
   const deps: DocNodeRenderDeps = { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth };
   const handler = resolveDocNodeHandler(node);
-  return handler ? handler(node, content, deps) : renderChildNodes(content, deps);
+  return handler ? handler({ node, content, deps }) : renderChildNodes({ content, deps });
 }
 
 /** The `data-embed-config` element that stands for a managed doc node in Page HTML. `alt` is carried
  *  as a marker attribute because the media resolver reads it there. @complexity O(n) in the node's attrs. */
 function docNodeEmbedMarker(required: { config: JsonObject; attrs: JsonObject; alt?: string }): string {
-  const parsed = resolveEmbedHtmlAttributes(str(required.attrs.htmlAttributes) || null);
-  const classes = [str(required.attrs.cssClass), parsed.class].filter(Boolean).join(" ");
+  const parsed = resolveEmbedHtmlAttributes({ raw: str({ value: required.attrs.htmlAttributes }) || null });
+  const classes = [str({ value: required.attrs.cssClass }), parsed.class].filter(Boolean).join(" ");
   const classAttr = classes ? ` class="${escapeHtml(classes)}"` : "";
   const altAttr = required.alt ? ` alt="${escapeHtml(required.alt)}"` : "";
   // A single-quoted marker reads its JSON raw, so an apostrophe needs the JSON escape, not an entity.
   const json = JSON.stringify(required.config).replace(/'/g, "\\u0027");
-  return `<div${classAttr}${altAttr}${formatHtmlAttributes(omitKey(parsed, "class"))} data-embed-config='${json}'></div>`;
+  return `<div${classAttr}${altAttr}${formatHtmlAttributes(omitKey({ attributes: parsed, key: "class" }))} data-embed-config='${json}'></div>`;
 }
 
 /** A widget or managed-media node's Page HTML marker; `undefined` for every other node, which the
  *  ordinary renderer handles. A malformed reference stays with that renderer's placeholder. @complexity O(1). */
 function managedDocNodeMarker(node: JsonObject): string | undefined {
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  if (node.type === "widgetEmbed" && str(attrs.widgetEntryId)) {
-    const config: JsonObject = { type: "widget", id: str(attrs.widgetEntryId) };
+  if (node.type === "widgetEmbed" && str({ value: attrs.widgetEntryId })) {
+    const config: JsonObject = { type: "widget", id: str({ value: attrs.widgetEntryId }) };
     if (attrs.content !== undefined) config.content = attrs.content;
     return docNodeEmbedMarker({ config, attrs });
   }
-  const assetId = node.type === "media" || node.type === "image" ? plausibleMediaRefId(attrs.assetId) : undefined;
-  return assetId ? docNodeEmbedMarker({ config: { type: "media", id: assetId }, attrs, alt: str(attrs.alt) }) : undefined;
+  const assetId = node.type === "media" || node.type === "image" ? plausibleMediaRefId({ value: attrs.assetId }) : undefined;
+  return assetId ? docNodeEmbedMarker({ config: { type: "media", id: assetId }, attrs, alt: str({ value: attrs.alt }) }) : undefined;
 }
 
 /** Copies `node` with each managed node replaced by a text token, recording its marker by index.
@@ -1637,10 +1636,10 @@ function swapManagedDocNodes(required: { node: JsonValue; token: string; markers
  * with the owner's text. A media node's transform has no marker form, so it takes the default image.
  * @complexity O(n) in doc nodes plus one pass over the rendered HTML.
  */
-export function renderDocBodyAsPageHtml(bodyJson: unknown): string {
+export function renderDocBodyAsPageHtml({ bodyJson }: { bodyJson: unknown }, _optional = {}): string {
   const token = `DOCMARKER${randomUUID().replace(/-/g, "")}N`;
   const markers: string[] = [];
-  const html = renderDocNode(swapManagedDocNodes({ node: bodyJson as JsonValue, token, markers, depth: 0 }));
+  const html = renderDocNode({ node: swapManagedDocNodes({ node: bodyJson as JsonValue, token, markers, depth: 0 }) });
   return html.replace(new RegExp(`${token}(\\d+)X`, "g"), (_match, index: string) => markers[Number(index)] ?? "");
 }
 
@@ -1678,7 +1677,7 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
       const folio = String(after + i + 1).padStart(2, "0");
       const cover = featuredImageView(ctx, post);
       const image = cover ? renderCoverImageTag({ image: cover }, { loading: "lazy" }) : "";
-      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate(postDisplayDateIso(post), ctx.timeZone))}</p></a></li>`;
+      return `<li class="entry"><a class="entry-link" href="/${escapeHtml(post.slug)}">${image}<span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(post.title)}</h2><p class="entry-meta">${escapeHtml(shortDate({ iso: postDisplayDateIso(post), timeZone: ctx.timeZone }))}</p></a></li>`;
     })
     .join("");
   const body = items || `<li class="entry entry--empty"><p>No published posts yet.</p></li>`;
@@ -1786,9 +1785,7 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * `post.bodyHtml`).
  */
 export function renderHtmlPageBody(
-  html: string,
-  resolved: ResolveHtmlPageEmbedsResult | undefined,
-  options: { postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">; postPresentation?: PostRecord } = {},
+  { html, resolved }: { html: string; resolved: ResolveHtmlPageEmbedsResult | undefined }, options: { postAuthor?: Pick<PostRecord, "id" | "slug" | "author" | "showAuthor">; postPresentation?: PostRecord } = {},
 ): string {
   const postAuthor = options.postAuthor;
   const byline = postAuthor ? postAuthorForContentHeader({ html, post: postAuthor }) : "";
@@ -1796,7 +1793,7 @@ export function renderHtmlPageBody(
     resolvePageBodyEmbed({ ref, occurrence, resolved, byline }, options) });
 }
 
-type PageBodyRenderOptions = Parameters<typeof renderHtmlPageBody>[2];
+type PageBodyRenderOptions = Parameters<typeof renderHtmlPageBody>[1];
 
 /** {@link renderHtmlPageBody}'s per-marker resolution (see that function's doc for the full
  *  contract): `undefined` leaves the marker as authored, `""` drops it, anything else replaces it.
@@ -1819,14 +1816,14 @@ function resolvePageBodyEmbed(
   // degrading to the REQ-28 placeholder, which is the right answer only when an id/slug WAS
   // named but failed to resolve.
   if (isPostEntityRef(ref) && ref.id === null && ref.slug === null) return undefined;
-  const resolvedIr = lookupPageEmbedIr(ref, resolved);
+  const resolvedIr = lookupPageEmbedIr({ ref, resolved });
   if (ref.type === "plugin") return pluginExportRender({ ir: resolvedIr });
   // Deleted/missing widget ids must not leave raw markers or placeholder markup on the public site.
   if (ref.type === "widget" && resolvedIr === undefined) return "";
   const formIr = withHtmlFormMode(resolvedIr ?? HTML_EMBED_PLACEHOLDER_IR, ref);
   const authorIr = withCurrentPostByline(formIr, { ref, postAuthor, byline });
   const presented = withPresentedPostBody(authorIr, { ref, post: postPresentation });
-  return renderWidgetIr(withOccurrenceMediaAttributes(withOccurrenceHeader(presented, ref), ref, occurrence));
+  return renderWidgetIr(withOccurrenceMediaAttributes({ ir: withOccurrenceHeader(presented, ref), ref, occurrence }));
 }
 
 /** Keep canonical stamps with validated plugin HTML; missing IR retains the authored fallback. */
@@ -1846,7 +1843,7 @@ function refNamesEntity(ref: PageHtmlEmbedRef, entity: { id: string; slug: strin
 
 /** The resolved IR for `ref`, keyed the way the resolvers key it: placement key, then id, then slug
  *  (see {@link renderHtmlPageBody}'s "Lookup key" note). */
-function lookupPageEmbedIr(ref: PageHtmlEmbedRef, resolved: ResolveHtmlPageEmbedsResult | undefined): WidgetRenderIR | undefined {
+function lookupPageEmbedIr({ ref, resolved }: { ref: PageHtmlEmbedRef; resolved: ResolveHtmlPageEmbedsResult | undefined }, _optional = {}): WidgetRenderIR | undefined {
   const lookupKey = ref.placementKey ?? ref.id ?? ref.slug;
   return lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined;
 }
@@ -1872,10 +1869,10 @@ function withCurrentPostByline(
  *  names that same post; every other marker is returned unchanged. @complexity O(body size). */
 function withPresentedPostBody(ir: WidgetRenderIR, { ref, post }: { ref: PageHtmlEmbedRef; post: PostRecord | undefined }): WidgetRenderIR {
   if (!post || !isPostEntityRef(ref) || ir.componentId !== "post-content" || !refNamesEntity(ref, post)) return ir;
-  const metadata = readMediaAssetMetadata(ir.props.mediaAssetMetadata);
+  const metadata = readMediaAssetMetadata({ value: ir.props.mediaAssetMetadata });
   return { ...ir, props: { ...ir.props, bodyJson: projectPostBody({ post: { ...post, bodyJson: ir.props.bodyJson } }, {
     mediaLookup: ({ ref: mediaRef }) => metadata.get(mediaRef) ?? null,
-    hasPublicTransform: readMediaTransformVersions(ir.props.mediaTransformVersions).has("public"),
+    hasPublicTransform: readMediaTransformVersions({ value: ir.props.mediaTransformVersions }).has("public"),
   }) as JsonValue } };
 }
 
@@ -1900,7 +1897,7 @@ function withPresentedPostBody(ir: WidgetRenderIR, { ref, post }: { ref: PageHtm
  *
  * @complexity O(k) in the occurrence's own attribute count (one array copy).
  */
-function withOccurrenceMediaAttributes(ir: WidgetRenderIR, ref: PageHtmlEmbedRef, occurrence: EmbedOccurrence): WidgetRenderIR {
+function withOccurrenceMediaAttributes({ ir, ref, occurrence }: { ir: WidgetRenderIR; ref: PageHtmlEmbedRef; occurrence: EmbedOccurrence }, _optional = {}): WidgetRenderIR {
   if (ref.type !== "media" || ir.componentId !== "media-image") return ir;
   return {
     ...ir,
@@ -2006,9 +2003,9 @@ function renderPostBody(required: { ctx: SiteRenderContext; post: PostRecord }, 
   // tovu.dev's carousel scripts and icons (owner report, 2026-10-12).
   const body =
     post.bodyFormat === "html"
-      ? renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds)
-      : renderDocNode(projectPostBody({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null,
-          hasPublicTransform: ctx.mediaTransformVersions.has("public") }) as JsonValue, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
+      ? renderHtmlPageBody({ html: post.bodyHtml ?? "", resolved: ctx.pageHtmlEmbeds })
+      : renderDocNode({ node: projectPostBody({ post }, { mediaLookup: ({ ref }) => ctx.mediaAssetMetadata.get(ref) ?? null,
+          hasPublicTransform: ctx.mediaTransformVersions.has("public") }) as JsonValue }, { inlineResolved: ctx.widgetInlineResolved, mediaTransformVersions: ctx.mediaTransformVersions, mediaAssetMetadata: ctx.mediaAssetMetadata });
   return body + renderAssignedTermsBlock(ctx.assignedTerms);
 }
 
@@ -2018,7 +2015,7 @@ function entryContent(ctx: SiteRenderContext): string {
   // The byline is the date line's next item, a `span` inside `.entry-meta` (2026-10-11): as its own
   // `<p>` after that line it took the theme's body-text size instead of the date's small muted type.
   // `.entry-meta` is a plain text line (no flex gap), so the items need a written separator.
-  const date = shortDate(postDisplayDateIso(ctx.post), ctx.timeZone);
+  const date = shortDate({ iso: postDisplayDateIso(ctx.post), timeZone: ctx.timeZone });
   const bylineSeparator = date ? " · " : "";
   const byline = author ? `${bylineSeparator}<span class="post-author">By ${escapeHtml(author)}</span>` : "";
   return `<div class="wrap"><a class="back" href="/">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.post.title)}</h1><p class="entry-meta">${escapeHtml(date)}${byline}</p><div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div></article></div>`;
@@ -2044,13 +2041,13 @@ function siteFooter(ctx: SiteRenderContext): string {
 
 // --- Prop readers (templates are untrusted-ish data — read defensively) ---
 
-function str(value: JsonValue | undefined, fallback = ""): string {
+function str({ value }: { value: JsonValue | undefined }, { fallback = "" }: { fallback?: string } = {}): string {
   return typeof value === "string" ? value : fallback;
 }
-function arr(value: JsonValue | undefined): JsonValue[] {
+function arr({ value }: { value: JsonValue | undefined }, _optional = {}): JsonValue[] {
   return Array.isArray(value) ? value : [];
 }
-function obj(value: JsonValue | undefined): JsonObject | undefined {
+function obj({ value }: { value: JsonValue | undefined }, _optional = {}): JsonObject | undefined {
   return isObject(value) ? value : undefined;
 }
 
@@ -2064,18 +2061,18 @@ function obj(value: JsonValue | undefined): JsonObject | undefined {
  * `architecture-p2-plan-2026-09-24.md` §D3.
  */
 function mediaPlaceholder(props: JsonObject): string {
-  const label = escapeHtml(str(props.label, "Image"));
-  const ratio = safeAspectRatio(str(props.ratio, "")) ?? "16 / 9";
+  const label = escapeHtml(str({ value: props.label }, { fallback: "Image" }));
+  const ratio = safeAspectRatio(str({ value: props.ratio }, { fallback: "" })) ?? "16 / 9";
   return `<figure class="media-ph" style="aspect-ratio:${ratio}"><span class="media-ph__label">${label}</span></figure>`;
 }
 
-function actionsHtml(actions: JsonValue[]): string {
+function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): string {
   const links = actions
     .map((a, i) => {
-      const o = obj(a);
+      const o = obj({ value: a });
       if (!o) return "";
       const kind = i === 0 ? "btn btn--primary" : "btn btn--ghost";
-      return `<a class="${kind}" href="${escapeHtml(safeHref(o.href))}">${escapeHtml(str(o.label, "Learn more"))}</a>`;
+      return `<a class="${kind}" href="${escapeHtml(safeHref({ value: o.href }))}">${escapeHtml(str({ value: o.label }, { fallback: "Learn more" }))}</a>`;
     })
     .join("");
   return links ? `<div class="actions">${links}</div>` : "";
@@ -2083,42 +2080,42 @@ function actionsHtml(actions: JsonValue[]): string {
 
 /** Landing hero: optional badge/eyebrow, title, subtitle, actions, optional media. */
 function hero(_ctx: SiteRenderContext, props: JsonObject): string {
-  const badge = str(props.badge) ? `<span class="hero__badge">${escapeHtml(str(props.badge))}</span>` : "";
-  const eyebrow = str(props.eyebrow) ? `<p class="eyebrow">${escapeHtml(str(props.eyebrow))}</p>` : "";
-  const subtitle = str(props.subtitle) ? `<p class="hero__sub">${escapeHtml(str(props.subtitle))}</p>` : "";
-  const mediaProps = obj(props.media);
+  const badge = str({ value: props.badge }) ? `<span class="hero__badge">${escapeHtml(str({ value: props.badge }))}</span>` : "";
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
+  const subtitle = str({ value: props.subtitle }) ? `<p class="hero__sub">${escapeHtml(str({ value: props.subtitle }))}</p>` : "";
+  const mediaProps = obj({ value: props.media });
   const media = mediaProps ? `<div class="hero__media">${mediaPlaceholder(mediaProps)}</div>` : "";
-  return `<section class="hero"><div class="wrap hero__inner"><div class="hero__text">${badge}${eyebrow}<h1 class="hero__title">${escapeHtml(str(props.title))}</h1>${subtitle}${actionsHtml(arr(props.actions))}</div>${media}</div></section>`;
+  return `<section class="hero"><div class="wrap hero__inner"><div class="hero__text">${badge}${eyebrow}<h1 class="hero__title">${escapeHtml(str({ value: props.title }))}</h1>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>${media}</div></section>`;
 }
 
 /** Thin promo strip above the nav. */
 function announcement(_ctx: SiteRenderContext, props: JsonObject): string {
-  const text = escapeHtml(str(props.text));
+  const text = escapeHtml(str({ value: props.text }));
   if (!text) return "";
-  const link = obj(props.link);
+  const link = obj({ value: props.link });
   const linkHtml = link
-    ? ` <a class="topbar__link" href="${escapeHtml(safeHref(link.href))}">${escapeHtml(str(link.label, "Learn more"))} →</a>`
+    ? ` <a class="topbar__link" href="${escapeHtml(safeHref({ value: link.href }))}">${escapeHtml(str({ value: link.label }, { fallback: "Learn more" }))} →</a>`
     : "";
   return `<div class="topbar"><div class="wrap"><p class="topbar__text">${text}${linkHtml}</p></div></div>`;
 }
 
 /** Sticky nav bar with CSS-only hover dropdowns + a checkbox-driven mobile drawer (no JS). */
 function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
-  const brand = escapeHtml(str(props.brand) || ctx.siteTitle);
+  const brand = escapeHtml(str({ value: props.brand }) || ctx.siteTitle);
   const caret = '<svg class="caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
-  const items = arr(props.items)
+  const items = arr({ value: props.items })
     .map((it) => {
-      const o = obj(it);
+      const o = obj({ value: it });
       if (!o) return "";
-      const label = escapeHtml(str(o.label));
-      const href = escapeHtml(safeHref(o.href));
-      const children = arr(o.children);
+      const label = escapeHtml(str({ value: o.label }));
+      const href = escapeHtml(safeHref({ value: o.href }));
+      const children = arr({ value: o.children });
       if (children.length) {
         const sub = children
           .map((c) => {
-            const co = obj(c);
+            const co = obj({ value: c });
             if (!co) return "";
-            return `<li><a href="${escapeHtml(safeHref(co.href))}">${escapeHtml(str(co.label))}</a></li>`;
+            return `<li><a href="${escapeHtml(safeHref({ value: co.href }))}">${escapeHtml(str({ value: co.label }))}</a></li>`;
           })
           .join("");
         return `<li class="nav-item has-children"><a class="nav-link" href="${href}">${label}${caret}</a><ul class="nav-dropdown">${sub}</ul></li>`;
@@ -2126,66 +2123,66 @@ function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
       return `<li class="nav-item"><a class="nav-link" href="${href}">${label}</a></li>`;
     })
     .join("");
-  const cta = obj(props.cta);
+  const cta = obj({ value: props.cta });
   const ctaHtml = cta
-    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml(safeHref(cta.href))}">${escapeHtml(str(cta.label, "Get started"))}</a>`
+    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml(safeHref({ value: cta.href }))}">${escapeHtml(str({ value: cta.label }, { fallback: "Get started" }))}</a>`
     : "";
   return `<header class="site-header"><div class="wrap nav"><a class="brand" href="/">${brand}</a><input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu"/><label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label><nav class="nav-menu"><ul class="nav-list">${items}</ul>${ctaHtml}</nav></div></header>`;
 }
 
 /** Full-width final call-to-action band. */
 function ctaBand(_ctx: SiteRenderContext, props: JsonObject): string {
-  const eyebrow = str(props.eyebrow) ? `<p class="eyebrow eyebrow--on-dark">${escapeHtml(str(props.eyebrow))}</p>` : "";
-  const subtitle = str(props.subtitle) ? `<p class="cta__sub">${escapeHtml(str(props.subtitle))}</p>` : "";
-  return `<section class="cta"><div class="wrap"><div class="cta__inner">${eyebrow}<h2 class="cta__title">${escapeHtml(str(props.title))}</h2>${subtitle}${actionsHtml(arr(props.actions))}</div></div></section>`;
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow eyebrow--on-dark">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
+  const subtitle = str({ value: props.subtitle }) ? `<p class="cta__sub">${escapeHtml(str({ value: props.subtitle }))}</p>` : "";
+  return `<section class="cta"><div class="wrap"><div class="cta__inner">${eyebrow}<h2 class="cta__title">${escapeHtml(str({ value: props.title }))}</h2>${subtitle}${actionsHtml({ actions: arr({ value: props.actions }) })}</div></div></section>`;
 }
 
 /** Multi-column footer: brand blurb + socials, link columns, legal row. */
 function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
-  const brand = escapeHtml(str(props.brand) || ctx.siteTitle);
-  const blurb = str(props.blurb) ? `<p class="footer__blurb">${escapeHtml(str(props.blurb))}</p>` : "";
-  const socials = arr(props.social)
+  const brand = escapeHtml(str({ value: props.brand }) || ctx.siteTitle);
+  const blurb = str({ value: props.blurb }) ? `<p class="footer__blurb">${escapeHtml(str({ value: props.blurb }))}</p>` : "";
+  const socials = arr({ value: props.social })
     .map((s) => {
-      const o = obj(s);
+      const o = obj({ value: s });
       if (!o) return "";
-      return `<a class="footer__social" href="${escapeHtml(safeHref(o.href))}">${escapeHtml(str(o.label))}</a>`;
+      return `<a class="footer__social" href="${escapeHtml(safeHref({ value: o.href }))}">${escapeHtml(str({ value: o.label }))}</a>`;
     })
     .join("");
-  const cols = arr(props.columns)
+  const cols = arr({ value: props.columns })
     .map((c) => {
-      const o = obj(c);
+      const o = obj({ value: c });
       if (!o) return "";
-      const links = arr(o.links)
+      const links = arr({ value: o.links })
         .map((l) => {
-          const lo = obj(l);
+          const lo = obj({ value: l });
           if (!lo) return "";
-          return `<li><a href="${escapeHtml(safeHref(lo.href))}">${escapeHtml(str(lo.label))}</a></li>`;
+          return `<li><a href="${escapeHtml(safeHref({ value: lo.href }))}">${escapeHtml(str({ value: lo.label }))}</a></li>`;
         })
         .join("");
-      return `<div class="footer__col"><h4>${escapeHtml(str(o.title))}</h4><ul>${links}</ul></div>`;
+      return `<div class="footer__col"><h4>${escapeHtml(str({ value: o.title }))}</h4><ul>${links}</ul></div>`;
     })
     .join("");
-  const legal = escapeHtml(str(props.legal) || `© ${new Date().getFullYear()} ${str(props.brand) || ctx.siteTitle}`);
+  const legal = escapeHtml(str({ value: props.legal }) || `© ${new Date().getFullYear()} ${str({ value: props.brand }) || ctx.siteTitle}`);
   return `<footer class="site-footer site-footer--rich"><div class="wrap footer__top"><div class="footer__brandcol"><a class="brand" href="/">${brand}</a>${blurb}<div class="footer__socials">${socials}</div></div><div class="footer__cols">${cols}</div></div><div class="wrap footer__bottom"><span>${legal}</span>${themeBadge(ctx)}</div></footer>`;
 }
 
-function paragraphsHtml(items: JsonValue[]): string {
-  return items.map((p) => `<p>${escapeHtml(str(p))}</p>`).join("");
+function paragraphsHtml({ items }: { items: JsonValue[] }, _optional = {}): string {
+  return items.map((p) => `<p>${escapeHtml(str({ value: p }))}</p>`).join("");
 }
-function bulletsHtml(items: JsonValue[]): string {
-  const lis = items.map((b) => `<li>${escapeHtml(str(b))}</li>`).join("");
+function bulletsHtml({ items }: { items: JsonValue[] }, _optional = {}): string {
+  const lis = items.map((b) => `<li>${escapeHtml(str({ value: b }))}</li>`).join("");
   return lis ? `<ul class="ticks">${lis}</ul>` : "";
 }
 
 /** A content section: eyebrow/title/lead/body/bullets, optional side media + actions. */
 function section(_ctx: SiteRenderContext, props: JsonObject): string {
-  const id = str(props.id) ? ` id="${escapeHtml(str(props.id))}"` : "";
-  const mediaObj = obj(props.media);
-  const side = str(props.side, "right") === "left" ? "section--media-left" : "section--media-right";
-  const eyebrow = str(props.eyebrow) ? `<p class="eyebrow">${escapeHtml(str(props.eyebrow))}</p>` : "";
-  const title = str(props.title) ? `<h2 class="section__title">${escapeHtml(str(props.title))}</h2>` : "";
-  const lead = str(props.lead) ? `<p class="section__lead">${escapeHtml(str(props.lead))}</p>` : "";
-  const text = `<div class="section__text">${eyebrow}${title}${lead}${paragraphsHtml(arr(props.body))}${bulletsHtml(arr(props.bullets))}${actionsHtml(arr(props.actions))}</div>`;
+  const id = str({ value: props.id }) ? ` id="${escapeHtml(str({ value: props.id }))}"` : "";
+  const mediaObj = obj({ value: props.media });
+  const side = str({ value: props.side }, { fallback: "right" }) === "left" ? "section--media-left" : "section--media-right";
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
+  const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml(str({ value: props.title }))}</h2>` : "";
+  const lead = str({ value: props.lead }) ? `<p class="section__lead">${escapeHtml(str({ value: props.lead }))}</p>` : "";
+  const text = `<div class="section__text">${eyebrow}${title}${lead}${paragraphsHtml({ items: arr({ value: props.body }) })}${bulletsHtml({ items: arr({ value: props.bullets }) })}${actionsHtml({ actions: arr({ value: props.actions }) })}</div>`;
   const media = mediaObj ? `<div class="section__media">${mediaPlaceholder(mediaObj)}</div>` : "";
   const layout = media ? side : "section--plain";
   return `<section class="section ${layout}"${id}><div class="wrap section__inner">${text}${media}</div></section>`;
@@ -2193,14 +2190,14 @@ function section(_ctx: SiteRenderContext, props: JsonObject): string {
 
 /** A 3-up (auto-fill) grid of labelled feature cards. */
 function featureGrid(_ctx: SiteRenderContext, props: JsonObject): string {
-  const eyebrow = str(props.eyebrow) ? `<p class="eyebrow">${escapeHtml(str(props.eyebrow))}</p>` : "";
-  const title = str(props.title) ? `<h2 class="section__title">${escapeHtml(str(props.title))}</h2>` : "";
-  const cards = arr(props.items)
+  const eyebrow = str({ value: props.eyebrow }) ? `<p class="eyebrow">${escapeHtml(str({ value: props.eyebrow }))}</p>` : "";
+  const title = str({ value: props.title }) ? `<h2 class="section__title">${escapeHtml(str({ value: props.title }))}</h2>` : "";
+  const cards = arr({ value: props.items })
     .map((it) => {
-      const o = obj(it);
+      const o = obj({ value: it });
       if (!o) return "";
-      const tag = str(o.tag) ? `<span class="feature__tag">${escapeHtml(str(o.tag))}</span>` : "";
-      return `<article class="feature"><div class="feature__head">${tag}<h3 class="feature__title">${escapeHtml(str(o.title))}</h3></div><p class="feature__body">${escapeHtml(str(o.body))}</p></article>`;
+      const tag = str({ value: o.tag }) ? `<span class="feature__tag">${escapeHtml(str({ value: o.tag }))}</span>` : "";
+      return `<article class="feature"><div class="feature__head">${tag}<h3 class="feature__title">${escapeHtml(str({ value: o.title }))}</h3></div><p class="feature__body">${escapeHtml(str({ value: o.body }))}</p></article>`;
     })
     .join("");
   return `<section class="feature-grid"><div class="wrap"><header class="feature-grid__head">${eyebrow}${title}</header><div class="features">${cards}</div></div></section>`;
@@ -2243,11 +2240,11 @@ export const COMPONENTS: Record<string, Component> = {
 const WIDGET_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeholder", props: {} };
 
 function renderWidgetSocialLinks(props: JsonObject): string {
-  const items = arr(props.links)
+  const items = arr({ value: props.links })
     .map((link) => {
-      const o = obj(link);
+      const o = obj({ value: link });
       if (!o) return "";
-      return `<li><a class="widget-social-link" href="${escapeHtml(safeHref(o.url))}">${escapeHtml(str(o.platform))}</a></li>`;
+      return `<li><a class="widget-social-link" href="${escapeHtml(safeHref({ value: o.url }))}">${escapeHtml(str({ value: o.platform }))}</a></li>`;
     })
     .join("");
   return `<ul class="widget widget-social-links">${items}</ul>`;
@@ -2270,8 +2267,8 @@ function renderWidgetSocialLinks(props: JsonObject): string {
  * convention every other renderer in this file follows.
  */
 function renderWidgetEntrySummary(props: JsonObject): string {
-  const slug = str(props.slug);
-  const title = str(props.title);
+  const slug = str({ value: props.slug });
+  const title = str({ value: props.title });
   const href = slug.length > 0 && slug.length <= MAX_SLUG_LENGTH && SLUG_FORMAT_PATTERN.test(slug) ? `/${escapeHtml(slug)}` : "#";
   return `<li class="widget-entry-summary"><a href="${href}">${escapeHtml(title)}</a></li>`;
 }
@@ -2285,13 +2282,13 @@ const RECENT_ENTRIES_EMPTY_HTML = '<ul class="widget widget-recent-entries"><li 
  *  contract. @complexity O(f) over the item's field count. */
 function toEntryListItem(props: JsonObject): EntryListItem {
   return {
-    title: str(props.title),
+    title: str({ value: props.title }),
     href: typeof props.href === "string" ? props.href : null,
-    dateIso: str(props.dateIso),
-    dateLabel: str(props.dateLabel),
-    fields: arr(props.fields).map((raw): EntryListFieldValue => {
-      const f = obj(raw) ?? {};
-      return { name: str(f.name), label: str(f.label), kind: str(f.kind), value: f.value ?? null };
+    dateIso: str({ value: props.dateIso }),
+    dateLabel: str({ value: props.dateLabel }),
+    fields: arr({ value: props.fields }).map((raw): EntryListFieldValue => {
+      const f = obj({ value: raw }) ?? {};
+      return { name: str({ value: f.name }), label: str({ value: f.label }), kind: str({ value: f.kind }), value: f.value ?? null };
     }),
   };
 }
@@ -2328,7 +2325,7 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   const structuredData: Pick<EntryListRenderOptions, "structuredData"> = ir.props.structuredData === COLLECTION_LIST_FAQ_PAGE ? { structuredData: COLLECTION_LIST_FAQ_PAGE } : {};
   if (layout !== "list" && isCollectionListLayout(layout)) {
     const columns = typeof ir.props.columns === "number" ? ir.props.columns : 3;
-    const typeKey = str(ir.props.typeKey, "recent-entries");
+    const typeKey = str({ value: ir.props.typeKey }, { fallback: "recent-entries" });
     // `renderEntryList` returns `undefined` exactly when `items` is empty — that IS this widget's
     // empty state, so no separate length check runs ahead of it on this branch.
     return renderEntryList(items, { columns, layout, typeKey, ...structuredData }) ?? RECENT_ENTRIES_EMPTY_HTML;
@@ -2338,7 +2335,7 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   const lis = items
     .map((item) => {
       const title = escapeHtml(item.title);
-      const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref(item.href))}">${title}</a>`;
+      const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref({ value: item.href }))}">${title}</a>`;
       return `<li class="widget-entry-summary">${inner}</li>`;
     })
     .join("");
@@ -2350,13 +2347,13 @@ function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
 /** The `class="…"` attribute from a resolved item's `attrs.cssClass`, or `""` when absent — same
  *  escaped, no-allowlist posture `static-render.ts`'s tree-variant renderer already established for
  *  the same `NavItemAttrs` passthrough (see that file's `menuItemClasses`). */
-function widgetMenuItemClassAttr(attrs: JsonObject | undefined): string {
+function widgetMenuItemClassAttr({ attrs }: { attrs: JsonObject | undefined }, _optional = {}): string {
   const cssClass = attrs?.cssClass;
   return typeof cssClass === "string" && cssClass ? ` class="${escapeHtml(cssClass)}"` : "";
 }
 
 /** `rel="…"`/`target="_blank"` from a resolved item's `attrs.rel`/`attrs.openInNewTab`. */
-function widgetMenuItemLinkAttrs(attrs: JsonObject | undefined): string {
+function widgetMenuItemLinkAttrs({ attrs }: { attrs: JsonObject | undefined }, _optional = {}): string {
   const rel = attrs?.rel;
   const openInNewTab = attrs?.openInNewTab === true;
   const relAttr = menuLinkRelAttr({ rel: typeof rel === "string" ? rel : undefined, openInNewTab });
@@ -2367,7 +2364,7 @@ function widgetMenuItemLinkAttrs(attrs: JsonObject | undefined): string {
 /** `icon`/`description` as child spans around the label — mirrors `static-render.ts`'s
  *  `menuItemBody` so a theme author moving between static and widget-IR themes gets the same
  *  markup shape for the same authored attrs. */
-function widgetMenuItemDecoratedLabel(attrs: JsonObject | undefined, label: string): string {
+function widgetMenuItemDecoratedLabel({ attrs, label }: { attrs: JsonObject | undefined; label: string }, _optional = {}): string {
   const icon = attrs?.icon;
   const iconHtml =
     typeof icon === "string" && icon ? `<span class="widget-menu-item-icon" data-icon="${escapeHtml(icon)}"></span>` : "";
@@ -2387,20 +2384,20 @@ function widgetMenuItemDecoratedLabel(attrs: JsonObject | undefined, label: stri
  * (the resolver already attaches `NavItemAttrs` to every `ResolvedNavItem`) but were read nowhere —
  * this was the one render path of the two that honored NONE of them, while the static-tier tree
  * renderer already honored `cssClass`/`icon`/`description`. Now both paths honor all five. */
-function renderWidgetMenuItems(items: JsonValue[]): string {
+function renderWidgetMenuItems({ items }: { items: JsonValue[] }, _optional = {}): string {
   return items
     .map((item) => {
-      const o = obj(item);
+      const o = obj({ value: item });
       if (!o) return "";
-      const attrs = obj(o.attrs);
-      const label = widgetMenuItemDecoratedLabel(attrs, escapeHtml(str(o.label)));
+      const attrs = obj({ value: o.attrs });
+      const label = widgetMenuItemDecoratedLabel({ attrs, label: escapeHtml(str({ value: o.label })) });
       const available = o.available === true && typeof o.href === "string";
       const link = available
-        ? `<a href="${escapeHtml(safeHref(o.href))}"${widgetMenuItemLinkAttrs(attrs)}>${label}</a>`
+        ? `<a href="${escapeHtml(safeHref({ value: o.href }))}"${widgetMenuItemLinkAttrs({ attrs })}>${label}</a>`
         : `<span class="widget-menu-item--unavailable">${label}</span>`;
-      const children = arr(o.children);
-      const sub = children.length ? `<ul>${renderWidgetMenuItems(children)}</ul>` : "";
-      return `<li${widgetMenuItemClassAttr(attrs)}>${link}${sub}</li>`;
+      const children = arr({ value: o.children });
+      const sub = children.length ? `<ul>${renderWidgetMenuItems({ items: children })}</ul>` : "";
+      return `<li${widgetMenuItemClassAttr({ attrs })}>${link}${sub}</li>`;
     })
     .join("");
 }
@@ -2411,10 +2408,10 @@ function renderWidgetMenuItems(items: JsonValue[]): string {
  * @complexity O(h) for HTML length, or O(n + text length) for the resolved item tree.
  */
 function renderWidgetMenu(props: JsonObject): string {
-  const title = str(props.title);
+  const title = str({ value: props.title });
   const heading = title ? `<h3 class="widget-menu-title">${escapeHtml(title)}</h3>` : "";
-  if (props.mode === "html") return `<nav class="widget widget-menu">${heading}${str(props.html)}</nav>`;
-  return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems(arr(props.items))}</ul></nav>`;
+  if (props.mode === "html") return `<nav class="widget widget-menu">${heading}${str({ value: props.html })}</nav>`;
+  return `<nav class="widget widget-menu">${heading}<ul>${renderWidgetMenuItems({ items: arr({ value: props.items }) })}</ul></nav>`;
 }
 
 /** Field rendering, attribute allowlisting and help/error association belong to Jini's registry
@@ -2456,7 +2453,7 @@ function collectionHtmlOptions({ props }: { props: JsonObject }): { html?: strin
  * @complexity O(fields + HTML bytes) time/space, no I/O.
  * @overallScore 95 — Low: the legacy built-in Builder shell remains separate for compatibility. */
 function renderWidgetContactForm(props: JsonObject): string {
-  const slug = str(props.slug);
+  const slug = str({ value: props.slug });
   if (!slug) return renderWidgetPlaceholder();
   // Allocate at the occurrence boundary: the same resolved IR can appear in several embeds or
   // regions, even repeatedly in one region. No answer data or process-wide counter is retained.
@@ -2464,8 +2461,8 @@ function renderWidgetContactForm(props: JsonObject): string {
   // HTML mode is Builder's look plus author refinements, not "unstyled": the same baseline and
   // `tovu-form` hook let the active theme's form rules apply, and author CSS still wins over both.
   // The slider value readout ships only with forms that have a range field.
-  const rangeReadout = arr(props.fields).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
-  const fieldDescriptors = arr(props.fields) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
+  const rangeReadout = arr({ value: props.fields }).some(field => typeof field === "object" && field !== null && !Array.isArray(field) && field.type === "range") ? FORM_RANGE_READOUT_SCRIPT : "";
+  const fieldDescriptors = arr({ value: props.fields }) as unknown as import("@jini-ai/cms/forms").FieldDescriptor[];
   if (props.collectionPlan) return FORM_BASELINE_STYLE + renderFormCollection({
     slug, fields: fieldDescriptors, plan: props.collectionPlan as unknown as FormCollectionPlan,
     hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" },
@@ -2479,13 +2476,13 @@ function renderWidgetContactForm(props: JsonObject): string {
     ...(typeof props.html === "string" ? { html: props.html } : {}),
     ...formSchemaOptions({ props }),
     idPrefix,
-    successMessage: str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
+    successMessage: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
   }), fields: fieldDescriptors }) + rangeReadout;
   const escapedSlug = escapeHtml(slug);
   const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
   const fields = stampFormFieldMaxLengths({ html: renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fields: fieldDescriptors });
-  const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
+  const successMessage = escapeHtml(str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
   const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
   const errorSlot = renderFormErrorSlot({ slug: escapedSlug, extraClasses: "widget-contact-form-error", extraAttrs: legacyAttrs });
@@ -2538,7 +2535,7 @@ function renderWidgetPlaceholder(): string {
  *  every other field here; this codebase's own IR is the only producer, so this should never actually
  *  reject anything, but a malformed/foreign IR must still degrade safely rather than throw.
  *  @complexity O(n) in the array's length. */
-function normalizeMarkerAttributesProp(value: JsonValue | undefined): readonly MarkerAttribute[] {
+function normalizeMarkerAttributesProp({ value }: { value: JsonValue | undefined }, _optional = {}): readonly MarkerAttribute[] {
   if (!Array.isArray(value)) return NO_MARKER_ATTRIBUTES;
   const attrs: MarkerAttribute[] = [];
   for (const entry of value) {
@@ -2561,7 +2558,7 @@ function normalizeMediaDimensions(props: JsonObject): {
     height: typeof props.height === "number" ? props.height : null,
     cssClass: typeof props.cssClass === "string" ? props.cssClass : null,
     htmlAttributes: typeof props.htmlAttributes === "string" ? props.htmlAttributes : null,
-    markerAttributes: normalizeMarkerAttributesProp(props.markerAttributes),
+    markerAttributes: normalizeMarkerAttributesProp({ value: props.markerAttributes }),
     // `EmbedOccurrence.controls`'s own default (`html-embeds.ts`) is `true`; the ONLY way this ends up
     // `false` is `withOccurrenceMediaAttributes` writing the literal JSON boolean `false` here.
     controls: props.controls !== false,
@@ -2569,12 +2566,12 @@ function normalizeMediaDimensions(props: JsonObject): {
 }
 
 function renderWidgetMediaImage(props: JsonObject): string {
-  const assetId = plausibleMediaRefId(props.assetId);
+  const assetId = plausibleMediaRefId({ value: props.assetId });
   if (!assetId) {
     return renderWidgetPlaceholder();
   }
   const { width, height, cssClass, htmlAttributes, markerAttributes, controls } = normalizeMediaDimensions(props);
-  const alt = str(props.alt);
+  const alt = str({ value: props.alt });
   // Readable-slugs S3: `resolver-service.ts`'s `resolveOneMediaEmbed` (both its video and image IR
   // branches) stashes the resolved record's `slug` onto the IR alongside `assetId` — same
   // `mediaUrlKey` fallback-to-id rule every other emitter here uses.
@@ -2588,7 +2585,7 @@ function renderWidgetMediaImage(props: JsonObject): string {
     return renderVideoTag({ contentType: props.contentType, sha256, urlKey, alt, width, height, cssClass, htmlAttributes, markerAttributes, controls });
   }
 
-  const transformName = plausibleMediaRefId(props.transformName);
+  const transformName = plausibleMediaRefId({ value: props.transformName });
   const version = props.version;
   if (!transformName || typeof version !== "number") {
     return renderWidgetPlaceholder();
@@ -2606,7 +2603,7 @@ const renderGalleryImage: GalleryImageRenderer = ({ image, media }, _optional = 
   // image reaching here with neither `slug` nor `mediaId` always carries its `src` (L082b: the old
   // `src ?? ""` fallback could not run).
   if (slug === undefined && image.mediaId === undefined && image.src !== undefined) {
-    return renderDocNode({ type: "image", attrs: { src: image.src, alt: image.alt } });
+    return renderDocNode({ node: { type: "image", attrs: { src: image.src, alt: image.alt } } });
   }
   // No `!media` guard here: `renderGallery`'s `renderFigure` (Jini `gallery-render.ts`), this
   // adapter's only caller, already returns `""` for a managed image without a media record before
@@ -2667,7 +2664,7 @@ function extractTitleNode(
     // `0`: this is its own independent render entry point (the title node's inline content, read
     // directly off `bodyJson` rather than reached via `renderDocNode`'s own recursive walk), same as
     // every other top-level caller relying on `renderDocNode`'s own `depth = 0` default.
-    html: renderNodes(innerContent, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA, 0),
+    html: renderNodes({ nodes: innerContent, inlineResolved: EMPTY_INLINE_RESOLVED, mediaTransformVersions: EMPTY_MEDIA_TRANSFORM_VERSIONS, mediaAssetMetadata: EMPTY_MEDIA_ASSET_METADATA, depth: 0 }),
     align,
   };
 }
@@ -2681,7 +2678,7 @@ function extractTitleNode(
  * follows: a malformed or absent value degrades to {@link EMPTY_MEDIA_TRANSFORM_VERSIONS}, which
  * `renderDocNode`'s `image` case already treats as "nothing resolvable, placeholder".
  */
-function readMediaTransformVersions(value: JsonValue | undefined): ReadonlyMap<string, number> {
+function readMediaTransformVersions({ value }: { value: JsonValue | undefined }, _optional = {}): ReadonlyMap<string, number> {
   if (!isObject(value)) return EMPTY_MEDIA_TRANSFORM_VERSIONS;
   const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === "number");
   return new Map(entries);
@@ -2715,7 +2712,7 @@ function parseMediaAssetMeta(raw: JsonValue): MediaAssetRenderMeta | null {
  *  rather than a real `Map`. A malformed per-asset entry (not an object) is skipped, not thrown;
  *  missing `width`/`height`/`cssClass`/`htmlAttributes` fields degrade to `null` ("not set"), matching
  *  {@link MediaAssetRenderMeta}'s own "`null` means not set, not zero" contract. */
-function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<string, MediaAssetRenderMeta> {
+function readMediaAssetMetadata({ value }: { value: JsonValue | undefined }, _optional = {}): ReadonlyMap<string, MediaAssetRenderMeta> {
   if (!isObject(value)) return EMPTY_MEDIA_ASSET_METADATA;
   const entries: [string, MediaAssetRenderMeta][] = [];
   for (const [assetId, raw] of Object.entries(value)) {
@@ -2729,7 +2726,7 @@ function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<strin
  *  the plain JSON `resolver-service.ts`'s `resolvePostContentWidgetContext` stashes into
  *  `props.inlineWidgets` (2026-09-22 — before it, every inline widget in a template-rendered post was
  *  the placeholder). A malformed entry is skipped, so its node degrades to the placeholder. */
-function readInlineWidgets(value: JsonValue | undefined): ReadonlyMap<string, WidgetRenderIR> {
+function readInlineWidgets({ value }: { value: JsonValue | undefined }, _optional = {}): ReadonlyMap<string, WidgetRenderIR> {
   if (!isObject(value)) return EMPTY_INLINE_RESOLVED;
   const entries = Object.entries(value).filter(
     (entry): entry is [string, JsonObject] => isObject(entry[1]) && typeof entry[1].componentId === "string" && isObject(entry[1].props)
@@ -2818,13 +2815,13 @@ function renderWidgetPostContent(props: JsonObject): string {
   // one `<h1>` either way — never two, never zero.
   const titleNode = extractTitleNode(bodyJson as JsonValue);
   const titleHtml =
-    titleNode !== null ? `<h1${styleForAlign(titleNode.align)}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
-  const mediaTransformVersions = readMediaTransformVersions(props.mediaTransformVersions as JsonValue | undefined);
-  const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
-  const inlineWidgets = readInlineWidgets(props.inlineWidgets as JsonValue | undefined);
+    titleNode !== null ? `<h1${styleForAlign({ align: titleNode.align })}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
+  const mediaTransformVersions = readMediaTransformVersions({ value: props.mediaTransformVersions as JsonValue | undefined });
+  const mediaAssetMetadata = readMediaAssetMetadata({ value: props.mediaAssetMetadata as JsonValue | undefined });
+  const inlineWidgets = readInlineWidgets({ value: props.inlineWidgets as JsonValue | undefined });
   return (
-    renderPostDetailHeader({ showHeader, titleHtml, dateLabel, dateIso, bylineHtml: str(props.postAuthorByline) }) +
-    `<div class="post-detail-body">${renderDocNode(bodyJson, inlineWidgets, mediaTransformVersions, mediaAssetMetadata)}</div>`
+    renderPostDetailHeader({ showHeader, titleHtml, dateLabel, dateIso, bylineHtml: str({ value: props.postAuthorByline }) }) +
+    `<div class="post-detail-body">${renderDocNode({ node: bodyJson }, { inlineResolved: inlineWidgets, mediaTransformVersions, mediaAssetMetadata })}</div>`
   );
 }
 
@@ -2834,23 +2831,23 @@ function renderWidgetPostContent(props: JsonObject): string {
  *  control flow). `"widget-placeholder"` deliberately has no entry: it already gets the exact same
  *  {@link renderWidgetPlaceholder} output via the lookup's own miss path, same as any other
  *  unrecognized id. */
-const WIDGET_IR_RENDERERS: Record<string, (ir: WidgetRenderIR) => string> = {
-  text: (ir) => `<div class="widget widget-text">${escapeHtml(str(ir.props.body)).replaceAll("\n", "<br/>")}</div>`,
-  "social-links": (ir) => renderWidgetSocialLinks(ir.props),
-  "recent-entries": (ir) => renderWidgetRecentEntries(ir),
-  "entry-summary": (ir) => renderWidgetEntrySummary(ir.props),
-  menu: (ir) => renderWidgetMenu(ir.props),
-  "taxonomy-list": (ir) => renderHtmlTaxonomy({
-    id: str(ir.props.id), name: str(ir.props.name), hierarchical: ir.props.hierarchical === true,
+const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, optional?: Record<string, never>) => string> = {
+  text: ({ ir }) => `<div class="widget widget-text">${escapeHtml(str({ value: ir.props.body })).replaceAll("\n", "<br/>")}</div>`,
+  "social-links": ({ ir }) => renderWidgetSocialLinks(ir.props),
+  "recent-entries": ({ ir }) => renderWidgetRecentEntries(ir),
+  "entry-summary": ({ ir }) => renderWidgetEntrySummary(ir.props),
+  menu: ({ ir }) => renderWidgetMenu(ir.props),
+  "taxonomy-list": ({ ir }) => renderHtmlTaxonomy({
+    id: str({ value: ir.props.id }), name: str({ value: ir.props.name }), hierarchical: ir.props.hierarchical === true,
     terms: (Array.isArray(ir.props.terms) ? ir.props.terms : []).filter(isObject).map((term) => ({
-      id: str(term.id), name: str(term.name), parentId: typeof term.parentId === "string" ? term.parentId : null,
+      id: str({ value: term.id }), name: str({ value: term.name }), parentId: typeof term.parentId === "string" ? term.parentId : null,
     })),
   }),
-  "contact-form": (ir) => renderWidgetContactForm(ir.props),
-  "media-image": (ir) => renderWidgetMediaImage(ir.props),
-  "gallery": (ir) => renderMediaWidget({ ir }),
-  "media": (ir) => renderMediaWidget({ ir }),
-  "post-content": (ir) => renderWidgetPostContent(ir.props),
+  "contact-form": ({ ir }) => renderWidgetContactForm(ir.props),
+  "media-image": ({ ir }) => renderWidgetMediaImage(ir.props),
+  "gallery": ({ ir }) => renderMediaWidget({ ir }),
+  "media": ({ ir }) => renderMediaWidget({ ir }),
+  "post-content": ({ ir }) => renderWidgetPostContent(ir.props),
 };
 
 /**
@@ -2866,7 +2863,7 @@ const WIDGET_IR_RENDERERS: Record<string, (ir: WidgetRenderIR) => string> = {
  */
 export function renderWidgetIr(ir: WidgetRenderIR): string {
   const renderer = WIDGET_IR_RENDERERS[ir.componentId];
-  return renderer ? renderer(ir) : renderWidgetPlaceholder();
+  return renderer ? renderer({ ir }) : renderWidgetPlaceholder();
 }
 
 /**
@@ -2958,13 +2955,13 @@ export function buildTemplateRenderData(ctx: SiteRenderContext): Record<string, 
     // 2026-10-05), else `updatedAt`.
     // `featuredImage` (2026-10-05) is `{ url, alt, width, height }` or `null` — a theme renders it
     // with `{% if post.featuredImage %}<img src="{{ post.featuredImage.url }}" …>{% endif %}`.
-    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate(postDisplayDateIso(p), ctx.timeZone), featuredImage: featuredImageView(ctx, p), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
+    posts: ctx.posts.map((p) => ({ title: p.title, slug: p.slug, date: postDisplayDateIso(p), dateShort: shortDate({ iso: postDisplayDateIso(p), timeZone: ctx.timeZone }), featuredImage: featuredImageView(ctx, p), author: postAuthorForDisplay({ post: p }), showAuthor: p.showAuthor ?? false })),
     post: ctx.post
       ? {
           title: ctx.post.title,
           slug: ctx.post.slug,
           date: postDisplayDateIso(ctx.post),
-          dateShort: shortDate(postDisplayDateIso(ctx.post), ctx.timeZone),
+          dateShort: shortDate({ iso: postDisplayDateIso(ctx.post), timeZone: ctx.timeZone }),
           content: renderPostBody({ ctx, post: ctx.post }),
           featuredImage: featuredImageView(ctx, ctx.post),
           author: postAuthorForDisplay({ post: ctx.post }),
@@ -3055,7 +3052,7 @@ export function renderBlockSeam(ctx: SiteRenderContext, props: JsonObject): stri
 // Slots — raw context injection points a template can drop in directly.
 // ---------------------------------------------------------------------------
 
-function renderSlot(name: string, ctx: SiteRenderContext): string {
+function renderSlot({ name, ctx }: { name: string; ctx: SiteRenderContext }, _optional = {}): string {
   switch (name) {
     case "title":
       return `<h1 class="slot-title">${escapeHtml(ctx.route === "post" && ctx.post ? ctx.post.title : ctx.siteTitle)}</h1>`;
@@ -3080,7 +3077,7 @@ function renderComponentBlock(node: JsonObject, ctx: SiteRenderContext): string 
 }
 
 function renderSlotBlock(node: JsonObject, ctx: SiteRenderContext): string {
-  return renderSlot(typeof node.name === "string" ? node.name : "", ctx);
+  return renderSlot({ name: typeof node.name === "string" ? node.name : "", ctx });
 }
 
 /** SPEC-043/ADR-047 W-004: `{"type":"region","key":"footer"}` — a theme-authored reference to a
@@ -3114,7 +3111,7 @@ function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
   const handler = typeof node.type === "string" ? BLOCK_TYPE_HANDLERS[node.type] : undefined;
   if (handler) return handler(node, ctx);
   // Anything else is content-doc vocabulary.
-  return renderDocNode(node, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
+  return renderDocNode({ node }, { inlineResolved: ctx.widgetInlineResolved, mediaTransformVersions: ctx.mediaTransformVersions, mediaAssetMetadata: ctx.mediaAssetMetadata });
 }
 
 // ---------------------------------------------------------------------------
@@ -3214,16 +3211,14 @@ function siteAssistantMarkup(enabled: SiteChatSelection): { head: string; body: 
  * @example injectExtraHeadIntoStaticPage(html, extraHead, { preserveThemeTitle: true })
  */
 export function injectExtraHeadIntoStaticPage(
-  html: string,
-  extraHead: string | undefined,
-  options: { preserveThemeTitle?: boolean } = {},
+  { html, extraHead }: { html: string; extraHead: string | undefined }, options: { preserveThemeTitle?: boolean } = {},
 ): string {
   if (!extraHead) return html;
-  const withoutOwnTitle = extraHead.includes("<title>") ? removeThemeOwnTitleElement(html) : html;
+  const withoutOwnTitle = extraHead.includes("<title>") ? removeThemeOwnTitleElement({ html }) : html;
   if (options.preserveThemeTitle && withoutOwnTitle !== html) {
-    return insertBeforeUncommentedTag(html, /<\/head>/gi, removeThemeOwnTitleElement(extraHead));
+    return insertBeforeUncommentedTag({ html, tag: /<\/head>/gi, markup: removeThemeOwnTitleElement({ html: extraHead }) });
   }
-  return insertBeforeUncommentedTag(withoutOwnTitle, /<\/head>/gi, extraHead);
+  return insertBeforeUncommentedTag({ html: withoutOwnTitle, tag: /<\/head>/gi, markup: extraHead });
 }
 
 /**
@@ -3241,11 +3236,11 @@ export function injectExtraHeadIntoStaticPage(
  * `enabled` is `false`, matching {@link siteAssistantMarkup}'s own "disabled emits nothing, not an
  * inert tag" contract.
  */
-export function injectSiteAssistantIntoStaticPage(html: string, enabled: SiteChatSelection): string {
+export function injectSiteAssistantIntoStaticPage({ html, enabled }: { html: string; enabled: SiteChatSelection }, _optional = {}): string {
   const { head, body } = siteAssistantMarkup(enabled);
   if (!head && !body) return html;
-  const withHead = insertBeforeUncommentedTag(html, /<\/head>/gi, head);
-  return insertBeforeUncommentedTag(withHead, /<\/body>/gi, body);
+  const withHead = insertBeforeUncommentedTag({ html, tag: /<\/head>/gi, markup: head });
+  return insertBeforeUncommentedTag({ html: withHead, tag: /<\/body>/gi, markup: body });
 }
 
 /**
@@ -3260,9 +3255,9 @@ export function injectSiteAssistantIntoStaticPage(html: string, enabled: SiteCha
  * @complexity O(n·k) over `html`'s length and the number of `tag` occurrences — k is 1 or 2 for any
  * real template.
  */
-export function insertBeforeUncommentedTag(html: string, tag: RegExp, markup: string): string {
+export function insertBeforeUncommentedTag({ html, tag, markup }: { html: string; tag: RegExp; markup: string }, _optional = {}): string {
   for (let match = tag.exec(html); match !== null; match = tag.exec(html)) {
-    if (isInsideHtmlComment(html, match.index)) continue;
+    if (isInsideHtmlComment({ html, index: match.index })) continue;
     return html.slice(0, match.index) + markup + html.slice(match.index);
   }
   return html;
@@ -3276,7 +3271,7 @@ export function insertBeforeUncommentedTag(html: string, tag: RegExp, markup: st
  *
  * @complexity O(n) over `html`'s length.
  */
-function isInsideHtmlComment(html: string, index: number): boolean {
+function isInsideHtmlComment({ html, index }: { html: string; index: number }, _optional = {}): boolean {
   const CLOSE = "-->";
   let cursor = 0;
   for (;;) {
@@ -3311,10 +3306,10 @@ function isInsideHtmlComment(html: string, index: number): boolean {
  * @complexity O(n·k) worst case over `html`'s length and the number of `<title>` occurrences — k is
  * 1 or 2 for any real template.
  */
-function removeThemeOwnTitleElement(html: string): string {
+function removeThemeOwnTitleElement({ html }: { html: string }, _optional = {}): string {
   const openTag = /<title>/gi;
   for (let open = openTag.exec(html); open !== null; open = openTag.exec(html)) {
-    if (isInsideHtmlComment(html, open.index)) continue;
+    if (isInsideHtmlComment({ html, index: open.index })) continue;
     const closeTag = /<\/title>/gi;
     closeTag.lastIndex = open.index + open[0].length;
     const close = closeTag.exec(html);
@@ -3577,18 +3572,13 @@ function fallbackSiteBody(ctx: SiteRenderContext, route: SiteRenderContext["rout
  * `site.assistant.public_enabled` on, since `pageShell`'s own injection never ran for this branch).
  */
 async function renderStaticTierHomePage(
-  theme: DiscoveredTheme,
-  route: SiteRenderContext["route"],
-  staticMenus: RenderSiteRequired["staticMenus"],
-  extraHead: string | undefined,
-  siteAssistantEnabled: SiteChatSelection,
-  renderAssets: RenderSiteRequired['renderAssets']
+  { theme, route, staticMenus, extraHead, siteAssistantEnabled, renderAssets }: { theme: DiscoveredTheme; route: SiteRenderContext["route"]; staticMenus: RenderSiteRequired["staticMenus"]; extraHead: string | undefined; siteAssistantEnabled: SiteChatSelection; renderAssets: RenderSiteRequired['renderAssets'] }, _optional = {}
 ): Promise<string | undefined> {
   if (theme.manifest.tier !== "static" || route !== "home") return undefined;
   const staticHtml = renderStaticPage({ theme, pageId: "index", menus: staticMenus });
   if (!staticHtml) return undefined;
   const assets = await renderAssets?.({ scripts: [], static: true });
-  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, (extraHead ?? '') + (assets?.head ?? '')), siteAssistantEnabled);
+  return injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: staticHtml, extraHead: (extraHead ?? '') + (assets?.head ?? '') }), enabled: siteAssistantEnabled });
 }
 
 /** Templated (LiquidJS) tier body — resolves the route to a `.liquid` template, renders it inside its
@@ -3596,10 +3586,7 @@ async function renderStaticTierHomePage(
  *  error, a disallowed tag/filter the worker's defensive re-lint caught, or a sandbox timeout/OOM.
  *  Never a 500 (SPEC-004 REQ-10 spirit). */
 async function renderTemplatedTierBody(
-  theme: DiscoveredTheme,
-  route: SiteRenderContext["route"],
-  liquidTemplateIdOverride: string | undefined,
-  ctx: SiteRenderContext
+  { theme, route, liquidTemplateIdOverride, ctx }: { theme: DiscoveredTheme; route: SiteRenderContext["route"]; liquidTemplateIdOverride: string | undefined; ctx: SiteRenderContext }, _optional = {}
 ): Promise<string> {
   const liquidId = liquidTemplateIdOverride ?? resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
   const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
@@ -3617,7 +3604,7 @@ async function renderTemplatedTierBody(
 /** Handlebars tier body — same contract as {@link renderTemplatedTierBody}, engine swapped: resolve
  *  the route to a `.hbs` template, render it inside its own `worker_threads` sandbox, and degrade to
  *  {@link fallbackSiteBody} on ANY failure. Never a 500. */
-async function renderHandlebarsTierBody(theme: DiscoveredTheme, route: SiteRenderContext["route"], ctx: SiteRenderContext): Promise<string> {
+async function renderHandlebarsTierBody({ theme, route, ctx }: { theme: DiscoveredTheme; route: SiteRenderContext["route"]; ctx: SiteRenderContext }, _optional = {}): Promise<string> {
   const hbsId = resolveHandlebarsTemplateId({ route, handlebarsTemplates: theme.handlebarsTemplates });
   const source = hbsId ? theme.handlebarsTemplates[hbsId] : undefined;
   try {
@@ -3630,7 +3617,7 @@ async function renderHandlebarsTierBody(theme: DiscoveredTheme, route: SiteRende
 
 /** Declarative (JSON block-tree) tier body — the default tier, synchronous unlike its two siblings
  *  above since `renderBlock`'s own walk never crosses a `worker_threads` boundary. */
-function renderDeclarativeTierBody(theme: DiscoveredTheme, route: SiteRenderContext["route"], ctx: SiteRenderContext): string {
+function renderDeclarativeTierBody({ theme, route, ctx }: { theme: DiscoveredTheme; route: SiteRenderContext["route"]; ctx: SiteRenderContext }, _optional = {}): string {
   const templateId = resolveTemplateId({ route, templates: theme.templates });
   const tree = templateId ? theme.templates[templateId] : undefined;
   return tree ? renderBlock(tree, ctx) : fallbackSiteBody(ctx, route);
@@ -3638,7 +3625,7 @@ function renderDeclarativeTierBody(theme: DiscoveredTheme, route: SiteRenderCont
 
 /** The `<title>` `pageShell` renders — the viewed post's own title on the `post` route, the site
  *  title everywhere else (including a `post` route whose post somehow isn't set). */
-function resolvePageTitle(route: SiteRenderContext["route"], post: PostRecord | undefined, siteTitle: string): string {
+function resolvePageTitle({ route, post, siteTitle }: { route: SiteRenderContext["route"]; post: PostRecord | undefined; siteTitle: string }, _optional = {}): string {
   return route === "post" && post ? `${post.title} — ${siteTitle}` : siteTitle;
 }
 
@@ -3660,31 +3647,24 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   // template already takes — so this is not a new render path, it is an existing one reached one
   // step earlier. Every tier branch below would otherwise dereference `theme`.
   if (theme === null) {
-    const title = resolvePageTitle(route, required.post, required.siteTitle);
+    const title = resolvePageTitle({ route, post: required.post, siteTitle: required.siteTitle });
     const body = fallbackSiteBody(ctx, route);
     return finishManagedDocument({ required, title, body });
   }
 
-  const staticHomePage = await renderStaticTierHomePage(
-    theme,
-    route,
-    required.staticMenus,
-    required.extraHead,
-    required.siteAssistantEnabled ?? false,
-    required.renderAssets
-  );
+  const staticHomePage = await renderStaticTierHomePage({ theme, route, staticMenus: required.staticMenus, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled ?? false, renderAssets: required.renderAssets });
   if (staticHomePage !== undefined) return staticHomePage;
 
   let body: string;
   if (theme.manifest.tier === "templated") {
-    body = await renderTemplatedTierBody(theme, route, required.liquidTemplateIdOverride, ctx);
+    body = await renderTemplatedTierBody({ theme, route, liquidTemplateIdOverride: required.liquidTemplateIdOverride, ctx });
   } else if (theme.manifest.tier === "handlebars") {
-    body = await renderHandlebarsTierBody(theme, route, ctx);
+    body = await renderHandlebarsTierBody({ theme, route, ctx });
   } else {
-    body = renderDeclarativeTierBody(theme, route, ctx);
+    body = renderDeclarativeTierBody({ theme, route, ctx });
   }
 
-  const title = resolvePageTitle(route, required.post, required.siteTitle);
+  const title = resolvePageTitle({ route, post: required.post, siteTitle: required.siteTitle });
   return finishManagedDocument({ required, title, body });
 }
 

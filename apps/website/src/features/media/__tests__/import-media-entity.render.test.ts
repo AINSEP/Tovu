@@ -98,7 +98,7 @@ test("importMediaEntity + renderDocNode: an image node authored against the SOUR
     content: [{ type: "image", attrs: { assetId: "source-system-asset-42", transformName: "public", alt: "The whole team" } }],
   };
 
-  const html = renderDocNode(postBodyDoc, undefined, mediaTransformVersions, mediaAssetMetadata);
+  const html = renderDocNode({ node: postBodyDoc }, { mediaTransformVersions, mediaAssetMetadata });
 
   assert.match(
     html,
@@ -118,6 +118,6 @@ test("importMediaEntity + renderDocNode: the SAME doc node against an unresolved
     content: [{ type: "image", attrs: { assetId: "source-system-asset-42", transformName: "public", alt: "The whole team" } }],
   };
 
-  const html = renderDocNode(postBodyDoc);
+  const html = renderDocNode({ node: postBodyDoc });
   assert.match(html, /media-ph/);
 });

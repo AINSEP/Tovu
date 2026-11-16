@@ -102,7 +102,7 @@ test("hardBreak: minimal required-only node ({type}) inside a paragraph's inline
     ],
   };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), "<p>line one<br/>line two</p>");
+  assert.equal(renderDocNode({ node: doc }), "<p>line one<br/>line two</p>");
 });
 
 test("taskList/taskItem: minimal required-only nodes ({type, content}, attrs omitted) render an unchecked, disabled checkbox — not the default children-only fallback", () => {
@@ -117,7 +117,7 @@ test("taskList/taskItem: minimal required-only nodes ({type, content}, attrs omi
   };
   assertValidDoc(doc);
   assert.equal(
-    renderDocNode(doc),
+    renderDocNode({ node: doc }),
     '<ul data-type="taskList"><li data-type="taskItem"><label><input type="checkbox" disabled/><span></span></label><div><p>Buy milk</p></div></li></ul>'
   );
 });
@@ -134,7 +134,7 @@ test("taskItem attrs.checked: true renders the checked attribute (documented opt
   };
   assertValidDoc(doc);
   assert.equal(
-    renderDocNode(doc),
+    renderDocNode({ node: doc }),
     '<ul data-type="taskList"><li data-type="taskItem"><label><input type="checkbox" checked disabled/><span></span></label><div><p>Done</p></div></li></ul>'
   );
 });
@@ -158,7 +158,7 @@ test("table family: minimal required-only table>tableRow>tableCell/tableHeader (
     ],
   };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), "<table><tr><th><p>Name</p></th><td><p>Ada</p></td></tr></table>");
+  assert.equal(renderDocNode({ node: doc }), "<table><tr><th><p>Name</p></th><td><p>Ada</p></td></tr></table>");
 });
 
 test("tableCell documented attrs (colspan/rowspan/align) are the ones the renderer actually reads", () => {
@@ -183,7 +183,7 @@ test("tableCell documented attrs (colspan/rowspan/align) are the ones the render
     ],
   };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), '<table><tr><td colspan="2" rowspan="2" style="text-align:center"><p>Merged</p></td></tr></table>');
+  assert.equal(renderDocNode({ node: doc }), '<table><tr><td colspan="2" rowspan="2" style="text-align:center"><p>Merged</p></td></tr></table>');
 });
 
 test('tableCell attrs.align "justify" is NOT in the schema\'s enum, and a value outside {left,center,right} the renderer ignores rather than emits', () => {
@@ -206,7 +206,7 @@ test('tableCell attrs.align "justify" is NOT in the schema\'s enum, and a value 
     ],
   };
   assert.equal(validateDoc(doc), false, "this fixture deliberately violates the advertised schema");
-  assert.equal(renderDocNode(doc), "<table><tr><td><p>J</p></td></tr></table>");
+  assert.equal(renderDocNode({ node: doc }), "<table><tr><td><p>J</p></td></tr></table>");
 });
 
 test("media, schema-required assetId+transformName only, resolved asset is a VIDEO: renders a real <video>, not a broken <img>", () => {
@@ -215,7 +215,7 @@ test("media, schema-required assetId+transformName only, resolved asset is a VID
     ["asset-clip", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: null }],
   ]);
   assertValidDoc(doc);
-  const html = renderDocNode(doc, undefined, undefined, mediaAssetMetadata);
+  const html = renderDocNode({ node: doc }, { mediaAssetMetadata });
   assert.equal(html, '<video src="/m/asset-clip/original.mp4" controls>Your browser does not support the video tag.</video>');
 });
 
@@ -225,14 +225,14 @@ test("media, schema-required assetId+transformName only, resolved asset is an IM
     ["asset-photo", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "image/png", slug: null }],
   ]);
   assertValidDoc(doc);
-  const html = renderDocNode(doc, undefined, new Map([["public", 7]]), mediaAssetMetadata);
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 7]]), mediaAssetMetadata });
   assert.equal(html, '<img src="/m/asset-photo/public.v7/image.jpg" alt="" loading="lazy">');
 });
 
 test('media with a transformName OTHER than the schema\'s documented "public" const degrades to the placeholder for a non-video asset, proving the const lock is load-bearing, not decorative', () => {
   const doc = { type: "doc", content: [{ type: "media", attrs: { assetId: "asset-photo", transformName: "thumbnail" } }] };
   assert.equal(validateDoc(doc), false, "this fixture deliberately violates the advertised schema");
-  const html = renderDocNode(doc, undefined, new Map([["public", 7]]));
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 7]]) });
   assert.equal(html, '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">Media</span></figure>');
 });
 
@@ -270,7 +270,7 @@ test("media, schema-optional cssClass+htmlAttributes: a per-post node style roun
     ["asset-styled", { width: null, height: null, cssClass: "asset-default", htmlAttributes: null, contentType: "image/png", slug: null }],
   ]);
   assertValidDoc(doc);
-  const html = renderDocNode(doc, undefined, new Map([["public", 1]]), mediaAssetMetadata);
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 1]]), mediaAssetMetadata });
   assert.equal(html, '<img src="/m/asset-styled/public.v1/image.jpg" alt="" class="post-specific" data-kui="hero" loading="lazy">');
 });
 
@@ -278,7 +278,7 @@ test("youtube: minimal required-only node (attrs.src only, start omitted) render
   const doc = { type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/abcDEF12345" } }] };
   assertValidDoc(doc);
   assert.equal(
-    renderDocNode(doc),
+    renderDocNode({ node: doc }),
     '<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/abcDEF12345" title="YouTube video" ' +
       'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>'
   );
@@ -287,7 +287,7 @@ test("youtube: minimal required-only node (attrs.src only, start omitted) render
 test("mention: minimal required-only node (attrs.id+label) renders a real link, not a dropped node", () => {
   const doc = { type: "doc", content: [{ type: "paragraph", content: [{ type: "mention", attrs: { id: "pricing", label: "Pricing" } }] }] };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), '<p><a class="post-mention" href="/pricing">@Pricing</a></p>');
+  assert.equal(renderDocNode({ node: doc }), '<p><a class="post-mention" href="/pricing">@Pricing</a></p>');
 });
 
 // ---------------------------------------------------------------------------
@@ -303,31 +303,31 @@ function textNodeWithMark(mark: JsonObject): JsonObject {
 }
 
 test("mark strike: boolean-style ({type} only, no attrs) renders <s>", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "strike" })), "<p><s>x</s></p>");
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "strike" }) }), "<p><s>x</s></p>");
 });
 
 test("mark underline: boolean-style ({type} only, no attrs) renders <u>", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "underline" })), "<p><u>x</u></p>");
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "underline" }) }), "<p><u>x</u></p>");
 });
 
 test("mark subscript: boolean-style ({type} only, no attrs) renders <sub>", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "subscript" })), "<p><sub>x</sub></p>");
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "subscript" }) }), "<p><sub>x</sub></p>");
 });
 
 test("mark superscript: boolean-style ({type} only, no attrs) renders <sup>", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "superscript" })), "<p><sup>x</sup></p>");
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "superscript" }) }), "<p><sup>x</sup></p>");
 });
 
 test("mark textStyle: documented attrs.color alone renders a real <span style>, not a dropped mark", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "textStyle", attrs: { color: "#ff0000" } })), '<p><span style="color:#ff0000">x</span></p>');
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "textStyle", attrs: { color: "#ff0000" } }) }), '<p><span style="color:#ff0000">x</span></p>');
 });
 
 test("mark highlight: no attrs (documented as optional) renders a bare <mark>", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "highlight" })), "<p><mark>x</mark></p>");
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "highlight" }) }), "<p><mark>x</mark></p>");
 });
 
 test("mark highlight: documented attrs.color renders <mark style=\"background-color:...\">, proving 'color' means the highlight's OWN background here, not text color", () => {
-  assert.equal(renderDocNode(textNodeWithMark({ type: "highlight", attrs: { color: "#ffff00" } })), '<p><mark style="background-color:#ffff00">x</mark></p>');
+  assert.equal(renderDocNode({ node: textNodeWithMark({ type: "highlight", attrs: { color: "#ffff00" } }) }), '<p><mark style="background-color:#ffff00">x</mark></p>');
 });
 
 // ---------------------------------------------------------------------------
@@ -340,25 +340,25 @@ test("mark highlight: documented attrs.color renders <mark style=\"background-co
 test("paragraph attrs.textAlign: documented value renders a real style attr", () => {
   const doc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hi" }] }] };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), '<p style="text-align:center">Hi</p>');
+  assert.equal(renderDocNode({ node: doc }), '<p style="text-align:center">Hi</p>');
 });
 
 test('paragraph attrs.textAlign: "left" (the schema\'s own documented default) is a no-op, not an explicit style — proves the "omit rather than send" guidance is accurate, not just a suggestion', () => {
   const doc = { type: "doc", content: [{ type: "paragraph", attrs: { textAlign: "left" }, content: [{ type: "text", text: "Left" }] }] };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), "<p>Left</p>");
+  assert.equal(renderDocNode({ node: doc }), "<p>Left</p>");
 });
 
 test("heading attrs.textAlign alongside attrs.level: both documented attrs render together", () => {
   const doc = { type: "doc", content: [{ type: "heading", attrs: { level: 2, textAlign: "right" }, content: [{ type: "text", text: "T" }] }] };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), '<h2 id="t" style="text-align:right">T</h2>');
+  assert.equal(renderDocNode({ node: doc }), '<h2 id="t" style="text-align:right">T</h2>');
 });
 
 test("codeBlock attrs.language: documented value renders a real language-* class, not a bare <code>", () => {
   const doc = { type: "doc", content: [{ type: "codeBlock", attrs: { language: "python" }, content: [{ type: "text", text: "x = 1" }] }] };
   assertValidDoc(doc);
-  assert.equal(renderDocNode(doc), '<pre><code class="language-python">x = 1</code></pre>');
+  assert.equal(renderDocNode({ node: doc }), '<pre><code class="language-python">x = 1</code></pre>');
 });
 
 // ---------------------------------------------------------------------------

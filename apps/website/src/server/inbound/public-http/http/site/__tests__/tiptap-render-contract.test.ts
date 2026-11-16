@@ -913,7 +913,7 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
 
 for (const row of CONTRACT_TABLE) {
   test(`renderDocNode contract: ${row.label}`, () => {
-    const html = renderDocNode(row.doc, row.inlineResolved, row.mediaTransformVersions, row.mediaAssetMetadata);
+    const html = renderDocNode({ node: row.doc }, { inlineResolved: row.inlineResolved, mediaTransformVersions: row.mediaTransformVersions, mediaAssetMetadata: row.mediaAssetMetadata });
     assert.equal(html, row.html);
   });
 }

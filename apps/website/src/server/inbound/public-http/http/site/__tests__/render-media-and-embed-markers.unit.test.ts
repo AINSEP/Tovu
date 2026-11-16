@@ -13,16 +13,16 @@ import { renderDocNode, renderHtmlPageBody, renderWidgetIr, type MediaAssetRende
  * expected string is the renderer's exact output, so a refactor that changes one byte fails here.
  */
 
-const IMG = (attrs: JsonObject): string => renderDocNode({ type: "image", attrs });
+const IMG = (attrs: JsonObject): string => renderDocNode({ node: { type: "image", attrs } });
 const VERSIONS = new Map([["public", 3]]);
 const meta = (fields: Partial<MediaAssetRenderMeta>): MediaAssetRenderMeta =>
   ({ width: null, height: null, cssClass: null, htmlAttributes: null, contentType: null, slug: null, ...fields });
 const MEDIA = (attrs: JsonObject | undefined, metadata: ReadonlyMap<string, MediaAssetRenderMeta> = new Map()): string =>
-  renderDocNode(attrs === undefined ? { type: "media" } : { type: "media", attrs }, undefined, VERSIONS, metadata);
+  renderDocNode({ node: attrs === undefined ? { type: "media" } : { type: "media", attrs } }, { mediaTransformVersions: VERSIONS, mediaAssetMetadata: metadata });
 const WIDGET_IR: WidgetRenderIR = { componentId: "text", props: { body: "Widget" } };
 const labelled = (body: string): WidgetRenderIR => ({ componentId: "text", props: { body } });
 const EMBED = (attrs?: JsonObject): string =>
-  renderDocNode({ type: "widgetEmbed", ...(attrs ? { attrs } : {}) }, new Map([["p1", WIDGET_IR]]));
+  renderDocNode({ node: { type: "widgetEmbed", ...(attrs ? { attrs } : {}) } }, { inlineResolved: new Map([["p1", WIDGET_IR]]) });
 const marker = (config: JsonObject): string => `<div data-embed-config='${JSON.stringify(config)}'></div>`;
 const byType = (entries: Array<[string, string, WidgetRenderIR]>): ResolveHtmlPageEmbedsResult => {
   const result = new Map<string, Map<string, WidgetRenderIR>>();
@@ -42,7 +42,7 @@ const MEDIA_IR = (props: JsonObject): string => renderWidgetIr({ componentId: "m
 test("managed document media, markers and nested post content emit the current content version", () => {
   const sha256 = "0123456789abcdef".repeat(4);
   const metadata = new Map([["a1", meta({ slug: "cover", sha256 })]]);
-  const image = renderDocNode({ type: "image", attrs: { assetId: "a1", transformName: "public" } }, undefined, VERSIONS, metadata);
+  const image = renderDocNode({ node: { type: "image", attrs: { assetId: "a1", transformName: "public" } } }, { mediaTransformVersions: VERSIONS, mediaAssetMetadata: metadata });
   assert.match(image, /src="\/m\/cover\/public\.v3\/image\.jpg\?v=0123456789ab"/);
   for (const contentType of ["video/mp4", "audio/mpeg"]) {
     const player = MEDIA({ assetId: "a1" }, new Map([["a1", meta({ slug: "cover", sha256, contentType })]]));
@@ -98,7 +98,7 @@ test("image src: a plain https URL is kept", () => {
   assert.equal(IMG({ src: "https://cdn.example/a.png?x=1&y=2", alt: "Q" }), "<img src=\"https://cdn.example/a.png?x=1&amp;y=2\" alt=\"Q\" loading=\"lazy\" />");
 });
 test("image node: no attrs renders the default placeholder label", () => {
-  assert.equal(renderDocNode({ type: "image" }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Image</span></figure>");
+  assert.equal(renderDocNode({ node: { type: "image" } }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Image</span></figure>");
 });
 test("image node: an unresolvable managed asset never falls back to its src", () => {
   assert.equal(IMG({ assetId: "asset-1", transformName: "public", src: "/img/a.png", alt: "Managed" }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Managed</span></figure>");
@@ -107,7 +107,7 @@ test("image node: string and number title/width/height are emitted, other types 
   assert.equal(IMG({ src: "/a.png", title: "T", width: 640, height: true }), "<img src=\"/a.png\" alt=\"\" title=\"T\" width=\"640\" loading=\"lazy\" />");
 });
 test("image node: a resolvable managed asset renders the ref image", () => {
-  assert.equal(renderDocNode({ type: "image", attrs: { assetId: "asset-1", transformName: "public" } }, undefined, VERSIONS), "<img src=\"/m/asset-1/public.v3/image.jpg\" alt=\"\" loading=\"lazy\">");
+  assert.equal(renderDocNode({ node: { type: "image", attrs: { assetId: "asset-1", transformName: "public" } } }, { mediaTransformVersions: VERSIONS }), "<img src=\"/m/asset-1/public.v3/image.jpg\" alt=\"\" loading=\"lazy\">");
 });
 test("media node: no attrs renders the media placeholder", () => {
   assert.equal(MEDIA(undefined), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Media</span></figure>");
@@ -161,73 +161,73 @@ test("widgetEmbed: cssClass then the htmlAttributes class, with other attributes
   assert.equal(EMBED({ placementId: "p1", cssClass: "hero", htmlAttributes: 'id="w" class="x"' }), "<div class=\"widget-embed hero x\" id=\"w\"><div class=\"widget widget-text\">Widget</div></div>");
 });
 test("page body: an unowned marker type is left exactly as authored", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "menu", name: "main" }), undefined), "<div data-embed-config='{\"type\":\"menu\",\"name\":\"main\"}'></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "menu", name: "main" }), resolved: undefined }), "<div data-embed-config='{\"type\":\"menu\",\"name\":\"main\"}'></div>");
 });
 test("page body: a content marker naming no entity is left as authored", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", header: false }), undefined), "<div data-embed-config='{\"type\":\"content\",\"header\":false}'></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", header: false }), resolved: undefined }), "<div data-embed-config='{\"type\":\"content\",\"header\":false}'></div>");
 });
 test("page body: a post marker naming no entity is left as authored", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "post" }), undefined), "<div data-embed-config='{\"type\":\"post\"}'></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "post" }), resolved: undefined }), "<div data-embed-config='{\"type\":\"post\"}'></div>");
 });
 test("page body: a content marker with an unresolved id renders the placeholder", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "nope" }), undefined), "<div><div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "nope" }), resolved: undefined }), "<div><div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div></div>");
 });
 test("page body: an unresolved widget renders nothing", () => {
-  assert.equal(renderHtmlPageBody(`<p>a</p>${marker({ type: "widget", id: "w9" })}<p>b</p>`, byType([])), "<p>a</p><p>b</p>");
+  assert.equal(renderHtmlPageBody({ html: `<p>a</p>${marker({ type: "widget", id: "w9" })}<p>b</p>`, resolved: byType([]) }), "<p>a</p><p>b</p>");
 });
 test("page body: a widget resolves by id", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "widget", id: "w1" }), byType([["widget", "w1", WIDGET_IR]])), "<div class=\"widget widget-text\">Widget</div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "widget", id: "w1" }), resolved: byType([["widget", "w1", WIDGET_IR]]) }), "<div class=\"widget widget-text\">Widget</div>");
 });
 test("page body: a widget resolves by slug when it has no id", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "widget", slug: "hello" }), byType([["widget", "hello", WIDGET_IR]])), "<div class=\"widget widget-text\">Widget</div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "widget", slug: "hello" }), resolved: byType([["widget", "hello", WIDGET_IR]]) }), "<div class=\"widget widget-text\">Widget</div>");
 });
 test("page body: a widget with inline content resolves by its placement key", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "widget", slug: "hello", content: { html: "x" } }), byType([["widget", "placement:0", labelled("Zero")], ["widget", "placement:1", labelled("One")], ["widget", "hello", labelled("Slug")]])), "<div class=\"widget widget-text\">One</div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "widget", slug: "hello", content: { html: "x" } }), resolved: byType([["widget", "placement:0", labelled("Zero")], ["widget", "placement:1", labelled("One")], ["widget", "hello", labelled("Slug")]]) }), "<div class=\"widget widget-text\">One</div>");
 });
 test("page body: a media marker with nothing resolved renders the placeholder", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "media", id: "m1" }), undefined), "<div><div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "media", id: "m1" }), resolved: undefined }), "<div><div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div></div>");
 });
 test("page body: a contact form marker in html mode renders the html-mode form", () => {
-  assert.ok(renderHtmlPageBody(marker({ type: "widget", id: "f1", mode: "html" }), byType([["widget", "f1", { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }] } }]])).includes("data-tovu-form=\"contact\""));
+  assert.ok(renderHtmlPageBody({ html: marker({ type: "widget", id: "f1", mode: "html" }), resolved: byType([["widget", "f1", { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }] } }]]) }).includes("data-tovu-form=\"contact\""));
 });
 test("page body: a contact form marker without html mode keeps the builder form", () => {
-  assert.ok(renderHtmlPageBody(marker({ type: "widget", id: "f1" }), byType([["widget", "f1", { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }] } }]])).includes("class=\"widget tovu-form widget-contact-form\""));
+  assert.ok(renderHtmlPageBody({ html: marker({ type: "widget", id: "f1" }), resolved: byType([["widget", "f1", { componentId: "contact-form", props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }] } }]]) }).includes("class=\"widget tovu-form widget-contact-form\""));
 });
 test("page body: html mode on a non-form widget changes nothing", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "widget", id: "w1", mode: "html" }), byType([["widget", "w1", WIDGET_IR]])), "<div class=\"widget widget-text\">Widget</div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "widget", id: "w1", mode: "html" }), resolved: byType([["widget", "w1", WIDGET_IR]]) }), "<div class=\"widget widget-text\">Widget</div>");
 });
 test("page body: the current post's content marker (by id) carries its byline", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-1" }), byType([["content", "p-1", postContent(PARA("Body"))]]), { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1><div class=\"post-meta\"><span class=\"post-author\" data-embed-config='{\"type\":\"post-author\"}'></span></div></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-1" }), resolved: byType([["content", "p-1", postContent(PARA("Body"))]]) }, { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1><div class=\"post-meta\"><span class=\"post-author\" data-embed-config='{\"type\":\"post-author\"}'></span></div></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
 });
 test("page body: the current post's content marker (by slug) carries its byline", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", slug: "first" }), byType([["content", "first", postContent(PARA("Body"))]]), { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1><div class=\"post-meta\"><span class=\"post-author\" data-embed-config='{\"type\":\"post-author\"}'></span></div></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", slug: "first" }), resolved: byType([["content", "first", postContent(PARA("Body"))]]) }, { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1><div class=\"post-meta\"><span class=\"post-author\" data-embed-config='{\"type\":\"post-author\"}'></span></div></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
 });
 test("page body: another post's content marker gets no byline", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-2" }), byType([["content", "p-2", postContent(PARA("Body"))]]), { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-2" }), resolved: byType([["content", "p-2", postContent(PARA("Body"))]]) }, { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
 });
 test("page body: a post marker for the current post gets no byline", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "post", id: "p-1" }), byType([["post", "p-1", postContent(PARA("Body"))]]), { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "post", id: "p-1" }), resolved: byType([["post", "p-1", postContent(PARA("Body"))]]) }, { postAuthor: author }), "<div><div class=\"post-detail-header\"><h1>T</h1></div><div class=\"post-detail-body\"><p>Body</p></div></div>");
 });
 test("page body: a content marker resolving to a non post-content IR gets no byline", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-1" }), byType([["content", "p-1", WIDGET_IR]]), { postAuthor: author }), "<div><div class=\"widget widget-text\">Widget</div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-1" }), resolved: byType([["content", "p-1", WIDGET_IR]]) }, { postAuthor: author }), "<div><div class=\"widget widget-text\">Widget</div></div>");
 });
 test("page body: the presented post (by id) has its body projected", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-1", header: false }), byType([["content", "p-1", coverIr]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-body\"><p>After</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-1", header: false }), resolved: byType([["content", "p-1", coverIr]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-body\"><p>After</p></div></div>");
 });
 test("page body: a post marker for the presented post (by slug) has its body projected", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "post", slug: "first", header: false }), byType([["post", "first", coverIr]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-header\"><h1>T</h1></div><div class=\"post-detail-body\"><p>After</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "post", slug: "first", header: false }), resolved: byType([["post", "first", coverIr]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-header\"><h1>T</h1></div><div class=\"post-detail-body\"><p>After</p></div></div>");
 });
 test("page body: a marker for a different post is not projected", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-2", header: false }), byType([["content", "p-2", coverIr]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-body\"><img src=\"/m/a1/public.v3/image.jpg\" alt=\"Cover\" width=\"10\" height=\"20\" loading=\"lazy\"><p>After</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-2", header: false }), resolved: byType([["content", "p-2", coverIr]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-body\"><img src=\"/m/a1/public.v3/image.jpg\" alt=\"Cover\" width=\"10\" height=\"20\" loading=\"lazy\"><p>After</p></div></div>");
 });
 test("page body: a different slug is not projected", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", slug: "other", header: false }), byType([["content", "other", coverIr]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-body\"><img src=\"/m/a1/public.v3/image.jpg\" alt=\"Cover\" width=\"10\" height=\"20\" loading=\"lazy\"><p>After</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", slug: "other", header: false }), resolved: byType([["content", "other", coverIr]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"post-detail-body\"><img src=\"/m/a1/public.v3/image.jpg\" alt=\"Cover\" width=\"10\" height=\"20\" loading=\"lazy\"><p>After</p></div></div>");
 });
 test("page body: a presented post's widget marker is not projected", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "widget", id: "p-1" }), byType([["widget", "p-1", WIDGET_IR]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div class=\"widget widget-text\">Widget</div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "widget", id: "p-1" }), resolved: byType([["widget", "p-1", WIDGET_IR]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div class=\"widget widget-text\">Widget</div>");
 });
 test("page body: a presented post's non post-content IR is not projected", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-1" }), byType([["content", "p-1", WIDGET_IR]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"widget widget-text\">Widget</div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-1" }), resolved: byType([["content", "p-1", WIDGET_IR]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first" }) }), "<div><div class=\"widget widget-text\">Widget</div></div>");
 });
 test("media-image IR: a missing assetId renders the widget placeholder", () => {
   assert.equal(MEDIA_IR({}), "<div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div>");
@@ -260,8 +260,8 @@ test("media node: an unresolvable image without alt uses the default placeholder
   assert.equal(MEDIA({ assetId: "i1", transformName: "missing" }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Media</span></figure>");
 });
 test("page body: a media marker naming no id or slug renders the placeholder", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "media" }), byType([["media", "m1", WIDGET_IR]])), "<div><div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "media" }), resolved: byType([["media", "m1", WIDGET_IR]]) }), "<div><div class=\"widget widget-placeholder\" aria-hidden=\"true\"></div></div>");
 });
 test("page body: a presented post whose cover asset has no metadata keeps that image in its body", () => {
-  assert.equal(renderHtmlPageBody(marker({ type: "content", id: "p-1", header: false }), byType([["content", "p-1", { componentId: "post-content", props: { title: "T", updatedAt: "", mediaTransformVersions: { public: 3 }, bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "a1", transformName: "public", alt: "Cover" } }, { type: "paragraph", content: [{ type: "text", text: "After" }] }] } } }]]), { postPresentation: buildPostRecord({ id: "p-1", slug: "first", featuredMediaId: "a1" }) }), "<div><div class=\"post-detail-body\"><img src=\"/m/a1/public.v3/image.jpg\" alt=\"Cover\" loading=\"lazy\"><p>After</p></div></div>");
+  assert.equal(renderHtmlPageBody({ html: marker({ type: "content", id: "p-1", header: false }), resolved: byType([["content", "p-1", { componentId: "post-content", props: { title: "T", updatedAt: "", mediaTransformVersions: { public: 3 }, bodyJson: { type: "doc", content: [{ type: "image", attrs: { assetId: "a1", transformName: "public", alt: "Cover" } }, { type: "paragraph", content: [{ type: "text", text: "After" }] }] } } }]]) }, { postPresentation: buildPostRecord({ id: "p-1", slug: "first", featuredMediaId: "a1" }) }), "<div><div class=\"post-detail-body\"><img src=\"/m/a1/public.v3/image.jpg\" alt=\"Cover\" loading=\"lazy\"><p>After</p></div></div>");
 });

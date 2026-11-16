@@ -52,7 +52,7 @@ function wideDoc(count: number) {
 function timeRender(doc: unknown): { ms: number; ok: boolean; error?: string; htmlLength?: number; html?: string } {
   const start = performance.now();
   try {
-    const html = renderDocNode(doc as never);
+    const html = renderDocNode({ node: doc as never });
     const ms = performance.now() - start;
     return { ms, ok: true, htmlLength: html.length, html };
   } catch (err) {
