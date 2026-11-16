@@ -293,7 +293,13 @@ export function missingIndexNotice(relIndexPath: string): string {
   );
 }
 
-function main(): void {
+export interface MainPorts {
+  repoRoot?: string;
+  indexPath?: string;
+  exit?: (code: number) => void;
+}
+
+export function main({ repoRoot = REPO_ROOT, indexPath = ADR_INDEX_PATH, exit = process.exit }: MainPorts = {}): void {
   // Mirrors `skills/adr-governance/SKILL.md`'s own stated rule ("If the file does not exist or the
   // table is empty, no governance ADRs apply — skip"). Load-bearing here, not just symmetric: this
   // file lives under `ADS-memory/governance/`, which `.gitignore` marks local-only (only
@@ -308,13 +314,13 @@ function main(): void {
   // it would break the moment anyone DID wire this in. What changed is the message: `console.warn`
   // (not `console.log`) and wording that says SKIPPED, not "ok", because a bare "ok" here reads as
   // "checked, passed" when the honest status is "could not check anything on this machine."
-  if (!fs.existsSync(ADR_INDEX_PATH)) {
-    console.warn(missingIndexNotice(path.relative(REPO_ROOT, ADR_INDEX_PATH)));
+  if (!fs.existsSync(indexPath)) {
+    console.warn(missingIndexNotice(path.relative(repoRoot, indexPath)));
     return;
   }
-  const markdown = fs.readFileSync(ADR_INDEX_PATH, "utf8");
+  const markdown = fs.readFileSync(indexPath, "utf8");
   const rows = parseAdrIndexTable(markdown);
-  const files = collectRepoFiles(REPO_ROOT);
+  const files = collectRepoFiles(repoRoot);
   const violations = findEmptyGlobs(rows, files);
   const acceptedCount = rows.filter((r) => r.status === "ACCEPTED").length;
 
@@ -333,7 +339,7 @@ function main(): void {
       "the glob in ADS-memory/governance/adrs/ADR-INDEX.md to the construct's real current location. If the " +
       "governed construct no longer exists anywhere, escalate to the ADR owner rather than deleting the row."
   );
-  process.exit(1);
+  exit(1);
 }
 
 /**

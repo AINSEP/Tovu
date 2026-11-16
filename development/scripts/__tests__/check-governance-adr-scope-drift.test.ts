@@ -399,3 +399,67 @@ test("live: every ACCEPTED row in the real ADR-INDEX.md matches at least one rea
   // Sanity: this asserts against something real, not an accidentally-empty table.
   assert.ok(rows.some((r) => r.status === "ACCEPTED"), "expected at least one ACCEPTED row to exist");
 });
+
+// ---- in-process main() (the subprocess tests above run the CLI but cannot credit coverage) ----
+import { main as adrMain } from "../check-governance-adr-scope-drift.ts";
+
+function runAdrMain(files: Record<string, string>, indexRel: string | undefined) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "adr-main-"));
+  const out: string[] = []; const warn: string[] = []; const err: string[] = []; const exits: number[] = [];
+  const spies = { log: console.log, warn: console.warn, error: console.error };
+  try {
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), text);
+    }
+    console.log = (...a: unknown[]) => { out.push(a.join(" ")); };
+    console.warn = (...a: unknown[]) => { warn.push(a.join(" ")); };
+    console.error = (...a: unknown[]) => { err.push(a.join(" ")); };
+    adrMain({ repoRoot: root, indexPath: path.join(root, indexRel ?? "missing/ADR-INDEX.md"), exit: c => { exits.push(c); } });
+  } finally {
+    Object.assign(console, spies);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  return { out, warn, err, exits };
+}
+
+const ADR_HEADER = "| ID | Title | Enforcement | Scope Globs | Status | File |\n|---|---|---|---|---|---|\n";
+
+test("main(): a missing index warns SKIPPED with the repo-relative path and does not exit", () => {
+  const res = runAdrMain({ "a.txt": "x" }, undefined);
+  assert.equal(res.warn.length, 1);
+  assert.match(res.warn[0], /SKIPPED \(nothing verified\): no missing[\\/]ADR-INDEX\.md on this checkout/);
+  assert.deepEqual([res.out, res.err, res.exits], [[], [], []]);
+});
+
+test("main(): every ACCEPTED glob matching a file reports ok with the ACCEPTED count", () => {
+  const index = ADR_HEADER +
+    "| ADR-1 | t | MANDATORY | `src/**` | ACCEPTED | adr-1.md |\n" +
+    "| ADR-2 | t | DEFAULT | `gone/**` | PROPOSED | adr-2.md |\n";
+  const res = runAdrMain({ "idx/ADR-INDEX.md": index, "src/a.ts": "x" }, "idx/ADR-INDEX.md");
+  assert.deepEqual(res.out, ["check:governance-adr-scope-drift — ok — every ACCEPTED governance ADR's scope glob matches at least one file (1 ACCEPTED row(s) checked)."]);
+  assert.deepEqual([res.err, res.exits], [[], []]);
+});
+
+test("main(): an ACCEPTED glob matching nothing lists it, explains the fix and exits 1", () => {
+  const index = ADR_HEADER + "| ADR-9 | t | MANDATORY | `gone/**` | ACCEPTED | adr-9.md |\n";
+  const res = runAdrMain({ "idx/ADR-INDEX.md": index, "src/a.ts": "x" }, "idx/ADR-INDEX.md");
+  assert.deepEqual(res.exits, [1]);
+  assert.equal(res.err[0], "check:governance-adr-scope-drift — 1 ACCEPTED governance ADR scope glob(s) match ZERO files:");
+  assert.equal(res.err[1], "  - ADR-9: 'gone/**'");
+  assert.match(res.err[2], /silently unenforceable/);
+  assert.deepEqual(res.out, []);
+});
+
+test("main(): default ports resolve the real repo root without throwing", () => {
+  const real = path.resolve(import.meta.dirname, "..", "..", "ADS-memory", "governance", "adrs", "ADR-INDEX.md");
+  const spies = { log: console.log, warn: console.warn, error: console.error };
+  const lines: string[] = [];
+  const priorExit = process.exitCode;
+  Object.assign(console, { log: (...a: unknown[]) => lines.push(a.join(" ")), warn: (...a: unknown[]) => lines.push(a.join(" ")), error: (...a: unknown[]) => lines.push(a.join(" ")) });
+  try {
+    if (fs.existsSync(real)) return; // index present: the real gate would exit(1) on drift; fixture tests above cover that path
+    adrMain();
+  } finally { Object.assign(console, spies); process.exitCode = priorExit; }
+  assert.match(lines[0], /SKIPPED \(nothing verified\)/);
+});
