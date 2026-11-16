@@ -231,7 +231,7 @@ function evaluateAreas({ config, coverage, ctx }: { config: CoverageConfig; cove
     // them optional because CoverageArea also describes narrower future config shapes.
     const onDisk = area.dirs!.flatMap((dir) => filesOnDisk({ dir, exts: area.extensions!, excludeDirs: area.excludeDirs ?? [], desktopRoot: ctx.root }));
     const result = evaluateArea({ area, onDisk, records: coverage });
-    ctx.out(`${formatArea(result, area)}\n`);
+    ctx.out(`${formatArea({ result, area })}\n`);
     if (result.failures.length > 0) failed = true;
     files.push(...onDisk);
   }
@@ -270,7 +270,7 @@ function evaluateInventory({ config }: { config: CoverageConfig }, ctx: Coverage
  *  numbers cannot be repaired here and the area floors still judge them. This says WHY a file reads
  *  low, so the next one costs a grep instead of a cloud investigation.
  *  @complexity O(n) in lcov records plus the source lines read. */
-function warnForeignImages(lcovPaths: readonly string[], ctx: CoverageGateContext): void {
+function warnForeignImages({ lcovPaths, ctx }: { lcovPaths: readonly string[]; ctx: CoverageGateContext }, _options = {}): void {
   const lcovPath = lcovPaths[TEST_PASSES.findIndex((pass) => pass.id === LINE_ACCURATE_PASS_ID)];
   if (lcovPath === undefined || !existsSync(lcovPath)) return;
   for (const record of readFileSync(lcovPath, "utf8").split(/^end_of_record$/m)) {
@@ -326,7 +326,7 @@ function runCoverageGate(ctx: CoverageGateContext): number {
     const suitePassed = produceCoverage({ config, lcovPaths, ctx });
     const coverage = mergeCoverage({ lcovPaths, desktopRoot: ctx.root });
     const areas = evaluateAreas({ config, coverage, ctx });
-    warnForeignImages(lcovPaths, ctx);
+    warnForeignImages({ lcovPaths, ctx });
     const perFileFailed = evaluatePerFile({ config, coverage, files: areas.files }, ctx);
     const inventoryFailed = evaluateInventory({ config }, ctx);
     printExcluded(config, ctx);
@@ -350,7 +350,7 @@ function runCoverageGate(ctx: CoverageGateContext): number {
  * assert the exit code that comes back, without the entry recursively running this whole suite.
  * @complexity O(n) in argv.
  */
-function rootFromArgv(argv: readonly string[]): string {
+function rootFromArgv({ argv }: { argv: readonly string[] }, _options = {}): string {
   const at = argv.indexOf("--root");
   const value = at === -1 ? undefined : argv[at + 1];
   return value ? path.resolve(value) : DESKTOP_ROOT;
@@ -359,7 +359,7 @@ function rootFromArgv(argv: readonly string[]): string {
 /** Run only when this file IS the process, never when a test imports it. */
 if (process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   process.exitCode = runCoverageGate({
-    root: rootFromArgv(process.argv.slice(2)),
+    root: rootFromArgv({ argv: process.argv.slice(2) }),
     spawn: spawnSync,
     out: process.stdout.write.bind(process.stdout),
     err: process.stderr.write.bind(process.stderr),

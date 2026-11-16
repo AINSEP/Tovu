@@ -39,7 +39,7 @@ test("desktop declares the DOM dependency its real renderer hook tests need", ()
 
 test("package.json's test script runs the same globs under the same runners as TEST_PASSES", () => {
   const manifest = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
-  assert.deepEqual(runnerSplitDrift(TEST_PASSES, parseNodeTestScript({ script: manifest.scripts.test })), []);
+  assert.deepEqual(runnerSplitDrift({ passes: TEST_PASSES, scriptPasses: parseNodeTestScript({ script: manifest.scripts.test }) }), []);
 });
 
 test("every suite and coverage pass using module mocks enables Node's module-mock flag", () => {

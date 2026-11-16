@@ -112,7 +112,7 @@ function snapshot({ absPath }: { absPath: string }, _options = {}): Snapshot {
   return { exists: true, fileCount, newestMtimeMs };
 }
 
-function snapshotsDiffer(a: Snapshot, b: Snapshot): boolean {
+function snapshotsDiffer({ a, b }: { a: Snapshot; b: Snapshot }, _options = {}): boolean {
   return a.exists !== b.exists || a.fileCount !== b.fileCount || a.newestMtimeMs !== b.newestMtimeMs;
 }
 
@@ -125,7 +125,7 @@ function movingPaths({ exec, repoRoot }: { exec: ExecPort; repoRoot: string }, _
   const before = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot({ absPath: path.join(repoRoot, rel) }));
   exec("sleep", [String(SNAPSHOT_WINDOW_SECONDS)]);
   const after = VERIFIED_RELATIVE_PATHS.map((rel) => snapshot({ absPath: path.join(repoRoot, rel) }));
-  return VERIFIED_RELATIVE_PATHS.filter((_, i) => snapshotsDiffer(before[i]!, after[i]!));
+  return VERIFIED_RELATIVE_PATHS.filter((_, i) => snapshotsDiffer({ a: before[i]!, b: after[i]! }));
   // !: `before`/`after` are both mapped from VERIFIED_RELATIVE_PATHS with .map, so they share its
   // length and `i` (from the same filter over VERIFIED_RELATIVE_PATHS) is always in bounds of both.
 }

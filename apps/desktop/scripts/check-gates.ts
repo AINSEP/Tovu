@@ -156,7 +156,7 @@ function main(): void {
     if (isRunnable(gate)) outcomes.set(gate.id, runGate(gate));
   }
 
-  process.stdout.write(`${formatSummary(gates, outcomes)}\n`);
+  process.stdout.write(`${formatSummary({ gates, outcomes })}\n`);
 
   const anyGateFailed = [...outcomes.values()].some((exitCode) => isFailure({ exitCode }));
   const missingOutcome = gates.some((gate) => isRunnable(gate) && !outcomes.has(gate.id));

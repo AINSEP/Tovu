@@ -410,7 +410,7 @@ export async function smokePackagedChatCli(deps: ChatGateDeps): Promise<0 | 1> {
  * @param input.events the `process`-shaped emitter the signals arrive on.
  */
 export async function withInterruptSignal<T>(
-  { events, run }: { events: { on(event: NodeJS.Signals, listener: () => void): unknown; off(event: NodeJS.Signals, listener: () => void): unknown }; run: (signal: AbortSignal) => Promise<T> },
+  { events, run }: { events: { on(event: NodeJS.Signals, listener: () => void): unknown; off(event: NodeJS.Signals, listener: () => void): unknown }; run: ({ signal }: { signal: AbortSignal }) => Promise<T> },
   _optional = {},
 ): Promise<T> {
   const controller = new AbortController();
@@ -418,7 +418,7 @@ export async function withInterruptSignal<T>(
   events.on("SIGINT", interrupt);
   events.on("SIGTERM", interrupt);
   try {
-    return await run(controller.signal);
+    return await run({ signal: controller.signal });
   } finally {
     events.off("SIGINT", interrupt);
     events.off("SIGTERM", interrupt);
