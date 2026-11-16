@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { clearBlankSiteKeyEnv, planStart, probePortFree, resolveStartHost, startQuietEnvDefaults } from "../start.mjs";
 
@@ -210,6 +211,7 @@ test("main supplies the imported server with loopback binding and the final env 
       copyFileSync(new URL(`../${name}`, import.meta.url), path.join(fixture, "development", "scripts", name));
     }
     writeFileSync(path.join(fixture, "package.json"), '{"type":"module"}');
+    symlinkSync(fileURLToPath(new URL("../../../node_modules", import.meta.url)), path.join(fixture, "node_modules"), "dir");
     writeFileSync(path.join(fixture, ".env"), "TOVU_SITE_KEY=fixture-site-key\nTOVU_PUBLIC_URL=http://localhost:3000\n");
     // Any port probe fails this regression. The stub reads the exact env main supplied; no
     // repository .env or existing compiled server is touched.
