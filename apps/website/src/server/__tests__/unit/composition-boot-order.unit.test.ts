@@ -95,7 +95,7 @@ test("index.ts main(): a refusing schema guard stops a disk boot before site-key
     runProductionReadinessGateOrExit: async () => {},
     warnIfNoSiteKeyAtBoot: () => {},
     defaultContentDbPath: () => "/isolated/content.db",
-    guardContentDbSchemaOrExit: async (dbPath: string) => {
+    guardContentDbSchemaOrExit: async ({ dbPath }: { dbPath: string }) => {
       calls.push("schema");
       assert.equal(dbPath, "/isolated/content.db");
       throw refusal;
@@ -121,7 +121,10 @@ test("createSiteRouteDeps: storage choice, then hydration, then the store open (
   const storage = indexOfAnchor(prelude, "const storage = prepareCompositionStorage({ dbPath, overrides })");
   const hydrate = indexOfAnchor(prelude, "hydrateContentDbIfNeeded({ dbPath, storage }, { overrides })");
   const open = indexOfAnchor(prelude, "await openSiteStore(");
-  const sweep = indexOfAnchor(prelude, "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })");
+  // why: 3bcc250d7 (complexity workarounds) moved the owner sweeps into startOwnerSweeps(), which the
+  // prelude calls on the opened store; the chat sweep line now lives in that helper.
+  const sweep = indexOfAnchor(prelude, "startOwnerSweeps({ role, opened }, { overrides })");
+  indexOfAnchor(functionBody(deps, "function startOwnerSweeps("), "startOwnerChatExpirySweep({ role, chat: opened.chat }, { timing: overrides.chatExpirySweep })");
   assert.ok(storage < hydrate, "the storage choice decides whether a SQLite seed is hydrated");
   assert.ok(hydrate < open, "a hydrated seed must be in place before the database is opened");
   assert.ok(open < sweep, "the sweep runs on the chat kernel the store opened");
