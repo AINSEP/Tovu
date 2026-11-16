@@ -35,6 +35,7 @@ import { PostSettingsDialog } from "./PostSettingsDialog";
 import { PostUrlDialog } from "./PostUrlDialog";
 import { probeBubbleMenu } from "./editor/bubble-menu/bubble-menu-state";
 import { ToolbarCharacterCount } from "./editor/toolbar/ToolbarCharacterCount";
+import { ToolbarOverflowMenu } from "./editor/toolbar/ToolbarOverflowMenu";
 import { probeToolbar } from "./editor/toolbar/toolbar-state";
 import { usePostUrlDialog, type PostUrlDialogController } from "./hooks/use-post-url-dialog.hooks";
 import {
@@ -418,21 +419,7 @@ function Toolbar({
               <option key={p.id} value={p.slug}>{p.title}</option>
             ))}
         </select>
-      </div>
-      {/* Phone overflow (owner, 2026-10-15: the wrapped toolbar was "so messed up, janky"). At phone
-          width only the `data-tb="primary"` controls show, in one row; this toggles the rest in
-          below them. Hidden by CSS on wider panes, where every control already shows. Which ranked
-          controls (`overflow.slot`) are primary is measured so this button never wraps (2026-10-15). */}
-      <button
-        className="tb-btn tb-more"
-        title={t("More formatting")}
-        aria-label={t("More formatting")}
-        aria-expanded={overflow.open}
-        onClick={overflow.toggle}
-      >
-        <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
-          <circle cx="4" cy="9" r="1.4" /><circle cx="9" cy="9" r="1.4" /><circle cx="14" cy="9" r="1.4" />
-        </svg>
+      <ToolbarOverflowMenu overflow={overflow} t={t} />
       </button>
       <ToolbarCharacterCount state={s} t={t} />
     </div>
