@@ -83,8 +83,8 @@ test("origin-repo.ts imports the createVerifiedOrigin VALUE through Jini's canon
     );
     assert.equal(
       specifier!,
-      "@jini-ai/http-kit/verified-origin",
-      `createVerifiedOrigin must be imported through Jini's canonical verified-origin entry, got "${specifier}"`
+      "@jini-ai/core/contracts/server/verified-origin",
+      `createVerifiedOrigin must be imported through Jini's canonical verified-origin entry (@jini-ai/core/contracts/server/verified-origin), got "${specifier}"`
     );
   }
 });
