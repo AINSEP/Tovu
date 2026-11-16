@@ -5,7 +5,7 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import type { MediaRecord } from "#src/features/media/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { resolveMediaAssetMetadataForRender } from "../pages.js";
+import { resolveMediaAssetMetadataForRender } from "../pages/render-context/media-metadata.js";
 import { resolveHtmlEmbedsForRender } from "../pages/render-context/widgets.js";
 
 /**
