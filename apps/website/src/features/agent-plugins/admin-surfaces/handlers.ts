@@ -1,7 +1,7 @@
 import { createAdminSurfaceHandlerHost, defineAdminSurfaceHandlerContribution, type AdminSurfaceCapabilitiesPort, type AdminSurfaceHostKind, type LoadedAdminSurfaceHandlers } from "@jini-ai/agent-plugins/admin-surfaces";
 import type { IssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 
-import type { IssuedSignInCollector } from "./issued-sign-ins.js";
+import type { IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
 import { ADMIN_SURFACES_FILENAME, type AdminSurfaceHost } from "./surfaces.js";
 
 /**

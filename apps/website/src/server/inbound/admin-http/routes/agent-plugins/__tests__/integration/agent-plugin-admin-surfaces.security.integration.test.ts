@@ -11,7 +11,8 @@ import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/adm
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { AdminSurfaceHost, AdminSurfaceRequestContext, AdminSurfaceSource } from "#src/features/agent-plugins/admin-surfaces/surfaces";
 import { registerAdminSurfaceFilesRoute } from "#src/server/inbound/public-http/routes/agent-plugin-surfaces/files";
-import { createIssuedSignInCollector, type IssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
+import type { IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
+import { createIssuedSignInCollector } from "#src/features/agent-plugins/admin-surfaces/issued-sign-ins";
 import { registerAgentPluginAdminSurfaceRoutes } from "../../admin-surfaces.js";
 
 /**
