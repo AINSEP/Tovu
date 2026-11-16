@@ -3,7 +3,7 @@ import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { type AdminRecoveryStatus, type AdminRestorePoint } from "@/lib/api";
+import type { AdminRecoveryStatus, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

@@ -11,10 +11,11 @@ import { pagesApi } from "../../features/pages/api/pages-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { providersApi } from "../../features/providers/api/providers-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
+import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import { trashApi } from "../../features/trash/api/trash-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
-export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, providersApi, publishContentApi, settingsApi, trashApi, widgetsApi, workspaceApi };
+export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, providersApi, publishContentApi, recoveryApi, settingsApi, trashApi, widgetsApi, workspaceApi };

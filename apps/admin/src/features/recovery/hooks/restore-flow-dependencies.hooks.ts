@@ -1,10 +1,6 @@
-import {
-  api,
-  type AdminDisclosureResult,
-  type GatedConfirmResult,
-  type GatedPlanResult,
-  type RestoreExecuteResult,
-} from "@/lib/api";
+import { type GatedConfirmResult, type GatedPlanResult } from "@/lib/api";
+import type { AdminDisclosureResult, RestoreExecuteResult } from "@/features/recovery/api/recovery-api.types";
+import { recoveryApi } from "@/features/recovery/api/recovery-api";
 import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
 /**
@@ -14,10 +10,10 @@ import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultRestoreFlowPort: RestoreFlowPort = {
-  computeRecoveryDisclosure: ({ restorePointId }, _options = {}) => api.computeRecoveryDisclosure({ restorePointId }),
-  planRestore: ({ restorePointId }, _options = {}) => api.planRestore({ restorePointId }),
-  confirmRestore: (input, _options = {}) => api.confirmRestore(input),
-  executeRestore: (input, _options = {}) => api.executeRestore(input),
+  computeRecoveryDisclosure: ({ restorePointId }, _options = {}) => recoveryApi.computeRecoveryDisclosure({ restorePointId }),
+  planRestore: ({ restorePointId }, _options = {}) => recoveryApi.planRestore({ restorePointId }),
+  confirmRestore: (input, _options = {}) => recoveryApi.confirmRestore(input),
+  executeRestore: (input, _options = {}) => recoveryApi.executeRestore(input),
 };
 
 /** Seed state for {@link createFakeRestoreFlowPort}. */

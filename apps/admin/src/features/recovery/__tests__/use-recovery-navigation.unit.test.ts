@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { AdminRestorePoint } from "@/lib/api";
+import type { AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
 import { useRecoveryNavigation } from "../hooks/use-recovery-navigation.hooks";
 
 /** Owner's 2026-09-10 consolidation (development/todos.md): the inline tab shell remains

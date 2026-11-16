@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
 import { databaseApi } from "../../features/database/api/database-api";
@@ -412,14 +413,14 @@ test("executeMigrateForward POSTs { confirmationToken } to /database/migrate-for
 
 test("listRecoveryRestorePoints hits GET /recovery/restore-points", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listRecoveryRestorePoints();
+  await recoveryApi.listRecoveryRestorePoints();
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore-points`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("computeRecoveryDisclosure POSTs { restorePointId } to /recovery/disclosure", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.computeRecoveryDisclosure({ restorePointId: "rp1" });
+  await recoveryApi.computeRecoveryDisclosure({ restorePointId: "rp1" });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/disclosure`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ restorePointId: "rp1" });
@@ -437,7 +438,7 @@ test("resolveRecoveryDeepLink POSTs { envelope } to /recovery/deep-link", async 
     intent: "restore",
     issuedAt: "2026-09-05T00:00:00.000Z",
   };
-  await api.resolveRecoveryDeepLink(envelope);
+  await recoveryApi.resolveRecoveryDeepLink(envelope);
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/deep-link`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ envelope });
@@ -445,14 +446,14 @@ test("resolveRecoveryDeepLink POSTs { envelope } to /recovery/deep-link", async 
 
 test("getRecoveryStatus hits GET /recovery/status", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getRecoveryStatus();
+  await recoveryApi.getRecoveryStatus();
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/status`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planRestore POSTs { restorePointId } to /recovery/restore/plan", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.planRestore({ restorePointId: "rp1" });
+  await recoveryApi.planRestore({ restorePointId: "rp1" });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore/plan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ restorePointId: "rp1" });
@@ -460,7 +461,7 @@ test("planRestore POSTs { restorePointId } to /recovery/restore/plan", async () 
 
 test("confirmRestore POSTs { planId, planHash, disclosureAcknowledged } to /recovery/restore/confirm", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.confirmRestore({ planId: "plan1", planHash: "hash1", disclosureAcknowledged: true });
+  await recoveryApi.confirmRestore({ planId: "plan1", planHash: "hash1", disclosureAcknowledged: true });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore/confirm`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ planId: "plan1", planHash: "hash1", disclosureAcknowledged: true });
@@ -468,7 +469,7 @@ test("confirmRestore POSTs { planId, planHash, disclosureAcknowledged } to /reco
 
 test("executeRestore POSTs { confirmationToken, restorePointId } to /recovery/restore/execute", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.executeRestore({ confirmationToken: "tok1", restorePointId: "rp1" });
+  await recoveryApi.executeRestore({ confirmationToken: "tok1", restorePointId: "rp1" });
   expect(calls[0].url).toBe(`/api/admin/v1/recovery/restore/execute`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ confirmationToken: "tok1", restorePointId: "rp1" });

@@ -1,5 +1,4 @@
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
-import type { RestorePointCostClass } from "../features/database/api/database-api.types";
 import type { AdminPluginFiles } from "../features/plugins/api/plugins-api.types";
 import { adminFailureChannel } from "./admin-failure-channel";
 import { BASE, WORKSPACE_ID } from "./admin-http/config";
@@ -1521,63 +1520,6 @@ export interface AdminTaxonomyWithTerms {
   terms: AdminTerm[];
 }
 
-/** One persisted `restore_points` row (Database's and Recovery's shared list source). */
-export interface AdminRestorePoint {
-  id: string;
-  trigger: string;
-  costClass: string;
-  kind: string;
-  watermarkAtCapture: number | null;
-  createdAt: string;
-}
-
-/** Recovery (ADR-045) — mirrors `@jini-ai/db/recovery/disclosure`'s `DisclosureResult`. */
-export type CategoryCount = number | "unknown";
-
-export interface AdminDisclosureResult {
-  partial: true;
-  watermarkBaselineAvailable: boolean;
-  counts: Record<string, CategoryCount>;
-}
-
-export type DegradedBannerKind =
-  | "migration-interrupted"
-  | "pending-migration"
-  | "operation-in-flight"
-  | "cost-unavailable"
-  | "watermark-baseline-unavailable";
-
-export type DegradedBannerActionKind = "deep-link-to-database-migration" | "unblock-interrupted-migration" | "none";
-
-export interface AdminDegradedBanner {
-  kind: DegradedBannerKind;
-  accessibleText: string;
-  actionKind: DegradedBannerActionKind;
-}
-
-export interface AdminRecoveryStatus {
-  costClass: RestorePointCostClass;
-  banner: AdminDegradedBanner | null;
-}
-
-/** Carries display continuity only, never authority — `resolveDeepLinkContext` always
- * re-verifies `restorePointId` server-side (ADR-041 §7/ADR-045 §5, INV-04). */
-export interface DatabaseContextEnvelope {
-  v: number;
-  correlationId: string;
-  siteId: string;
-  ledgerEventId: string | null;
-  restorePointId: string | null;
-  drift: string;
-  intent: string;
-  issuedAt: string;
-}
-
-export interface AdminRecoveryDeepLinkResult {
-  found: boolean;
-  restorePoint: { restorePointId: string; capturedAt: string } | null;
-}
-
 /**
  * Session 5-6 backend gap closure — the 3 gated-mutation ceremonies (`core/gated-mutations`'s
  * gateway, wired into the real composition for the first time): taxonomy merge-term, database
@@ -1600,16 +1542,6 @@ export interface MergeTermPlanDetails {
   intoTermId: string;
   overlapLossDisclosed: boolean;
   overlappingContentCount: number;
-}
-
-export interface RestoreExecuteResult {
-  restoreRunId: string;
-  state: string;
-  databaseTimelineDeepLink?: { v: 1; siteId: string; intent: "view" };
-  /** 2026-07-16: `true` when content.db was physically swapped and the server process needs an
-   * operator-triggered restart to pick it up — the running process keeps serving pre-restore data
-   * from its already-open file handle until then. */
-  restartRequired?: boolean;
 }
 
 /** Mirrors `server/inbound/admin-http/routes/agent-plugins/list.ts`'s response shape — the
@@ -2508,46 +2440,6 @@ export const api = {
     request<{ mergedCount: number }>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/execute` }, { init: {
       method: "POST",
       body: JSON.stringify({ intoTermId, confirmationToken }),
-    } }),
-
-  // Recovery (ADR-045) — restore-points list (shared with Database), disclosure, deep-link, status,
-  // and the restore ceremony itself (SPEC-019 C-301/C-302/C-303).
-  listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>({ path: "/recovery/restore-points" }),
-  computeRecoveryDisclosure: ({ restorePointId }: { restorePointId: string }, _optional: Record<string, never> = {}) =>
-    request<AdminDisclosureResult>({ path: "/recovery/disclosure" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ restorePointId }),
-    } }),
-  resolveRecoveryDeepLink: (envelope: DatabaseContextEnvelope) =>
-    request<AdminRecoveryDeepLinkResult>({ path: "/recovery/deep-link" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ envelope }),
-    } }),
-  getRecoveryStatus: () => request<AdminRecoveryStatus>({ path: "/recovery/status" }),
-  planRestore: ({ restorePointId }: { restorePointId: string }, _optional: Record<string, never> = {}) =>
-    request<GatedPlanResult>({ path: "/recovery/restore/plan" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ restorePointId }),
-    } }),
-  confirmRestore: (
-    {
-      planId,
-      planHash,
-      disclosureAcknowledged,
-    }: { planId: string; planHash: string; disclosureAcknowledged: boolean },
-    _options: Record<string, never> = {}
-  ) =>
-    request<GatedConfirmResult>({ path: "/recovery/restore/confirm" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ planId, planHash, disclosureAcknowledged }),
-    } }),
-  executeRestore: (
-    { confirmationToken, restorePointId }: { confirmationToken: string; restorePointId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<RestoreExecuteResult>({ path: "/recovery/restore/execute" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ confirmationToken, restorePointId }),
     } }),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent

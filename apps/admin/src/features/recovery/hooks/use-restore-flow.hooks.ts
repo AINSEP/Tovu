@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { type AdminDisclosureResult, type AdminRestorePoint } from "@/lib/api";
+import type { AdminDisclosureResult, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
