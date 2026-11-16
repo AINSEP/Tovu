@@ -2,13 +2,13 @@ import { sql } from "kysely";
 import type { Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
-import type { OriginSettingRepoPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginSettingRepoPort } from "@jini-ai/core/contracts/server/verified-origin";
 import {
   createVerifiedOrigin,
   type OriginScheme,
   type OriginSource,
   type VerifiedOrigin,
-} from "@jini-ai/http-kit/verified-origin";
+} from "@jini-ai/core/contracts/server/verified-origin";
 import type { ContentKernel } from "../content-kernel.js";
 import type { OriginSettingsTable } from "../content-database.generated.js";
 

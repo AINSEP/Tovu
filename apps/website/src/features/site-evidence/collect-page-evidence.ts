@@ -9,7 +9,7 @@ import {
 } from "@jini-ai/diagnostics/web-evidence";
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** Required Tovu origin and browser ports, plus the requested site-relative paths. */

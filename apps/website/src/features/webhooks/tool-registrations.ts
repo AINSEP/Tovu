@@ -33,7 +33,7 @@ import {
   createSurfaceExchangeStore,
   type AssistantSurfaceDeps,
 } from "@jini-ai/daemon/surface-exchanges";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
 import {

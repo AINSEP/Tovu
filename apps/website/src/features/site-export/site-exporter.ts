@@ -1,6 +1,6 @@
 import type { SiteCookieConsentDeps } from '../../contracts/headless/site-cookie-consent.js';
 import type { RequestListener } from "node:http";
-import { resolveConfiguredOrigin } from "@jini-ai/http-kit/verified-origin";
+import { resolveConfiguredOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import path from "node:path";
 import { rm } from "node:fs/promises";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";

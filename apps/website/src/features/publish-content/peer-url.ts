@@ -1,4 +1,4 @@
-import { hasForbiddenRawUrlCharacter } from "@jini-ai/http-kit/verified-origin";
+import { hasForbiddenRawUrlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 
 /**
  * @file Task 10 of the publish-content (Publish Content) feature —

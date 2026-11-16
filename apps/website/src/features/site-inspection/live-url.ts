@@ -1,6 +1,9 @@
 import { ToolInputError } from "@jini-ai/core";
 import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { selectConnectedDestination, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { readPageBodyOptions, shapePageBody, DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, type PageBodyOptions } from "./page-body.js";

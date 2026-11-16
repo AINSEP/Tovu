@@ -6,7 +6,11 @@ import { RedirectPhaseHandlerResolver } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { resetRoutingRegistrationsForTests, runPostContentPhase, runPreContentPhase } from "#src/platform/routing/adapter";
 import { type RouteResolveContext } from '@jini-ai/cms/routing';
 

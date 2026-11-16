@@ -9,7 +9,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {
   createCapturingResponse,

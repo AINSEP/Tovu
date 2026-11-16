@@ -10,7 +10,10 @@
  * from healthy ingestion (`receiving`), because a webhook nobody has called looks the same as a
  * broken one until the first event arrives.
  */
-import type { OriginRegistryPort, VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type {
+  OriginRegistryPort,
+  VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import type { CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { listCustomCredentials } from "../custom-credentials/store.js";
 import { mailWebhookSecretLabels } from "../mail/feedback-sources.js";

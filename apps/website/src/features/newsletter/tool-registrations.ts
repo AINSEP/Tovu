@@ -20,7 +20,7 @@ import {
   type OutboxPort,
 } from "@jini-ai/core/contracts/events";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { ForbiddenError } from "@jini-ai/cms/core";

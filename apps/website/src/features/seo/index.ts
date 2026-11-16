@@ -7,7 +7,7 @@ import type {
   SeoFeaturedImagePort, SeoPostListPort, SeoPostWritePort, SeoSitemapDeps,
   SitemapInvalidationDeps,
 } from "@jini-ai/cms/seo";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import {
   createPublicPostReader, extractPlainTextFromHtml, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
   type FeaturedImageDeps, type PostRecord, type PostRepoPort,

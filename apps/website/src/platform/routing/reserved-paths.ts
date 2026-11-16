@@ -26,7 +26,7 @@ import {
   checkSiteRelativeTarget as sharedCheckSiteRelativeTarget,
   type SitePathCheck as SharedSitePathCheck,
   type SiteRelativeTargetCheck as SharedSiteRelativeTargetCheck,
-} from "@jini-ai/http-kit/verified-origin";
+} from "@jini-ai/core/contracts/server/verified-origin";
 
 /** A path that lands on the admin application instead of the public site. */
 export type ReservedSurface = "admin" | "api";

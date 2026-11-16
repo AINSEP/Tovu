@@ -1,6 +1,9 @@
 /** @file SQL adapter for Jini's `MailCapturePort` (migration 0023): test/capture mode's message sink. */
 import { isLoopbackHostname } from "@jini-ai/platform/net";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { mailActivityUse } from "./activity.repo.js";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";

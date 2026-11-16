@@ -11,7 +11,10 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { registerLlmsTxtRoute } from "../llms.js";
 
 /**

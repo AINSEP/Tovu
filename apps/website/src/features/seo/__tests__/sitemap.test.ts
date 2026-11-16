@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
-import { OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import { OriginRegistry } from "@jini-ai/core/contracts/server/verified-origin";
 import { resolveConfiguredOrigin } from "../../origin/index.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { registerConfiguredOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";

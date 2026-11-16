@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ToolInputError } from "@jini-ai/core";
-import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
+import { OriginNotVerifiedError } from "@jini-ai/core/contracts/server/verified-origin";
 import type { HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps, type LiveOriginSourceDeps } from "../live-url.js";
 import { buildSiteInspectionRegistrations } from "../tool-registrations.js";

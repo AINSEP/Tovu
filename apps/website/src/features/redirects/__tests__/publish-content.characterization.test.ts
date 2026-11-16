@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import type { PackedEntity, PublishContentDeps } from "#src/features/publish-content/type-registry";
 

@@ -1,7 +1,11 @@
 /** Separate visitor façade; no admin daemon, registry or proxy enters this composition. */
 import { createFrontendControl, createFrontendGuestScope } from '@jini-ai/daemon/http';
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
-import { isSameOrigin, normalizeOriginCandidate, type VerifiedOrigin } from '@jini-ai/http-kit/verified-origin';
+import {
+  isSameOrigin,
+  normalizeOriginCandidate,
+  type VerifiedOrigin,
+} from '@jini-ai/core/contracts/server/verified-origin';
 import type { Express, Request } from 'express';
 import type { Clock } from '@jini-ai/core/primitives';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';

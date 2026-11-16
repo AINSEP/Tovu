@@ -92,7 +92,7 @@ import type {
 // this host's wider public media surface.
 import type { HydrateBlobStoreFromSeedResult } from "../../features/media/index.js";
 import type { RemoveMediaFn } from "../../features/media/contracts.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort, RemoveFormSubmissionFn } from "@jini-ai/cms/forms";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "@jini-ai/cms/comments";

@@ -87,7 +87,7 @@ import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapa
 import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader } from "@jini-ai/http-kit";
-import type { AdapterContext } from "@jini-ai/http-kit";
+import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
@@ -1431,7 +1431,7 @@ app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res,
 // closed. Run credentials must match body.runId before any delegated handler or tool can execute;
 // proxy credentials retain their existing authority.
 app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));
-const adapter: AdapterContext = { resolvedPortRef: { current: port }, env: env,
+const adapter: RouteHostContext = { resolvedPortRef: { current: port }, env: env,
   // These are the environment names the previously imported http-kit origin guard read.
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
   allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };

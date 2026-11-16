@@ -12,7 +12,10 @@ import { createSeoPostPort } from "#src/features/seo/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { loadTheme } from "#src/features/theme/index";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveMarketingPageOrOverride } from "../pages.js";
 import { registerResolvePhase } from "#src/platform/routing/adapter";

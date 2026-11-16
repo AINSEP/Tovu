@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { normalizeOriginCandidate } from '@jini-ai/http-kit/verified-origin';
+import { normalizeOriginCandidate } from '@jini-ai/core/contracts/server/verified-origin';
 import { resolveProtocol } from '#src/server/inbound/public-http/routes/oauth/public-origin';
 
 /** Shared site visitor policy for confirmations and frontend control.

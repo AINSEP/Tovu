@@ -34,7 +34,7 @@ import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { AssetRenditionRepoPort, MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { getSeoAgentToolCatalog } from "./agent-tools.js";
 import {
   SeoFieldValidationError,

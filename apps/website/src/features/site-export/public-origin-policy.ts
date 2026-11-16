@@ -1,4 +1,7 @@
-import { resolveConfiguredOrigin, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  resolveConfiguredOrigin,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 
 /** Same loopback spellings URL normalizes from IPv4/IPv6 literals, including mapped IPv4. */
 function isRenderHost({ hostname }: { hostname: string }, _options = {}): boolean {

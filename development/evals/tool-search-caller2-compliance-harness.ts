@@ -75,7 +75,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import express from "express";
-import type { AdapterContext } from "@jini-ai/http-kit";
+import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
@@ -261,8 +261,8 @@ async function main(): Promise<void> {
       });
   };
 
-  registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: { resolvedPortRef: { current: PORT } } as AdapterContext });
-  registerToolCatalogRoutes({ app, deps: { catalog }, adapter: { resolvedPortRef: { current: PORT } } as AdapterContext });
+  registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: { resolvedPortRef: { current: PORT } } as RouteHostContext });
+  registerToolCatalogRoutes({ app, deps: { catalog }, adapter: { resolvedPortRef: { current: PORT } } as RouteHostContext });
 
   const server = app.listen(PORT, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {

@@ -15,7 +15,10 @@ import { readVisitorToolsSnapshot } from "#src/features/settings/visitor-tools-w
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { randomBytes } from "node:crypto";
-import { isSameOrigin, normalizeOriginCandidate } from "@jini-ai/http-kit/verified-origin";
+import {
+  isSameOrigin,
+  normalizeOriginCandidate,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerSiteAssistantConfirm } from "#src/server/inbound/public-http/routes/site-assistant-confirm";
 import type { ErrorRequestHandler, Express, Request, Response } from "express";

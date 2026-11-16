@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { InMemoryOriginSettingRepo, OriginNotVerifiedError, OriginRegistry, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import {
+  InMemoryOriginSettingRepo,
+  OriginNotVerifiedError,
+  OriginRegistry,
+  type VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { applyCanonicalSiteHostRedirect } from "../canonical-site-host.js";
 

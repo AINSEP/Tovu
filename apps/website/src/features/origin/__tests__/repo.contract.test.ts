@@ -8,9 +8,8 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { registerConfiguredOriginOn, seedDevCapabilityOriginOn, SqlOriginSettingRepo } from "#src/platform/db/repos/origin-repo";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
-import { InMemoryOriginSettingRepo } from "@jini-ai/http-kit/verified-origin";
-import { createVerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
-import type { OriginSettingRepoPort } from "@jini-ai/http-kit/verified-origin";
+import { InMemoryOriginSettingRepo, createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
+import type { OriginSettingRepoPort } from "@jini-ai/core/contracts/server/verified-origin";
 
 /**
  * @file ADR-046 Phase 1 — shared `OriginSettingRepoPort` read-contract suite, run against BOTH

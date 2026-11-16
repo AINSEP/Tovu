@@ -6,7 +6,10 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/
 import { InMemoryPostRepo, createPost, updatePost, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
-import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "../index.js";

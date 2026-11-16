@@ -34,7 +34,12 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { buildThemesRegistrations, type ThemeToolDeps } from "#src/features/theme/tool-registrations";
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  InMemoryOriginSettingRepo,
+  OriginRegistry,
+  type OriginRegistryPort,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";

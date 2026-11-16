@@ -14,7 +14,7 @@ import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 import type { MailerPort, MailSenderIdentityPort } from "#src/platform/mail/index";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import { buildConfirmationDeps } from "#src/features/newsletter/deps-builders";
 import type {

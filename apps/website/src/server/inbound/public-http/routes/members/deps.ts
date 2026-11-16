@@ -26,7 +26,7 @@ import type {
   MembersWriteServiceDeps,
 } from "#src/features/members/index";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MailSenderIdentityPort } from "#src/platform/mail/index";
 import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";

@@ -278,7 +278,10 @@ import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { createVerifiedOrigin, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
+import {
+  createVerifiedOrigin,
+  OriginRegistry,
+} from "@jini-ai/core/contracts/server/verified-origin";
 import { planOriginBoot } from "#src/features/origin/index";
 import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";

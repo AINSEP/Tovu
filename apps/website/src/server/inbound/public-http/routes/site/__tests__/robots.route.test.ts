@@ -12,7 +12,11 @@ import { bootAuthenticated, startTestServer } from "#src/server/__tests__/helper
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerSeoRobotsRoute } from "../robots.js";
 import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import {
+  OriginNotVerifiedError,
+  type OriginRegistryPort,
+  type VerifiedOrigin,
+} from "@jini-ai/core/contracts/server/verified-origin";
 
 /**
  * @file Coverage-gap fill for `registerSeoRobotsRoute` (`routes/site/robots.ts`). The happy path

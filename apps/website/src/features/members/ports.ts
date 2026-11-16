@@ -25,7 +25,7 @@ import type { ListPage } from "@jini-ai/core/list-page";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MailStatus } from "@jini-ai/platform/mail";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import type { PasswordHasherPort, PrincipalRepoPort } from "@jini-ai/user-management";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type {

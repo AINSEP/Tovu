@@ -9,7 +9,7 @@ import { createSystemClock, createRandomUuidGenerator, nowIso } from '@jini-ai/c
 import { getEffective } from '@jini-ai/core/settings';
 import { constrainPrincipalToReadOnlyTools } from '@jini-ai/daemon/read-only-tools';
 import { SqliteDbOpsAdapter } from '@jini-ai/db/sqlite';
-import { OriginRegistry } from '@jini-ai/http-kit/verified-origin';
+import { OriginRegistry } from '@jini-ai/core/contracts/server/verified-origin';
 import { SharpImageTransformer } from '@jini-ai/cms/media/node';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
 import type { PeerSiteReads } from '#src/assistant/tool-registrations';

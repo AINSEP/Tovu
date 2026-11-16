@@ -11,7 +11,7 @@ import ts from "typescript";
 
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
 import { registerRunRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
-import { type AdapterContext } from "@jini-ai/http-kit";
+import { type RouteHostContext } from "@jini-ai/core/contracts/server";
 
 import {
   createOwnedRunListHandler,
@@ -73,7 +73,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
   app.use(express.json());
   app.use("/api/runs/:runId", requireRunOwnership({ registry: registry, lifecycle: lifecycle }, {}));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }, {}));
-  const adapter: AdapterContext = { resolvedPortRef: { current: 0 }, env: {},
+  const adapter: RouteHostContext = { resolvedPortRef: { current: 0 }, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
     allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };

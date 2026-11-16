@@ -1,6 +1,12 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from "express";
-import { defineJsonRoute, mountJsonRoute, ok, type HttpMethod, type JsonRouteAuthorize, type RouteInputContext } from "@jini-ai/http-kit";
+import { defineJsonRoute, mountJsonRoute } from "@jini-ai/http-kit";
+import {
+  ok,
+  type HttpMethod,
+  type JsonRouteAuthorize,
+  type RouteInputContext,
+} from "@jini-ai/core/contracts/server";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { touchesAssistantSubagents } from "./assistant-subagents-access.js";
 import { ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "#src/contracts/headless/index";

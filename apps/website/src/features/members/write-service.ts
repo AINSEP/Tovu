@@ -20,7 +20,7 @@ import type { PasswordHasherPort } from "@jini-ai/user-management";
 import { renderMemberAuthMail } from "./auth-mail.js";
 
 import { isMailDeliveryAvailable, mailSenderIdentityFor, type MailerSendOptions, type OutboundEmail } from "../../platform/mail/index.js";
-import { OriginNotVerifiedError } from "@jini-ai/http-kit/verified-origin";
+import { OriginNotVerifiedError } from "@jini-ai/core/contracts/server/verified-origin";
 import {
   MemberAuthError,
   MemberSignInUnavailableError,

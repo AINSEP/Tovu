@@ -10,7 +10,7 @@ import type { NextFunction, Request, Response } from "express";
 import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import type { MediaRecord } from "#src/features/media/index";
-import type { VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import type { VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import {

@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
-import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
+import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, validateOidcIdToken,
   type AuthorizationCallbackParams, type OAuthClient, type OAuthHttpPorts, type OAuthProviderDescriptor,
   type OAuthRandomBytes, type OidcIdTokenClaims } from "@jini-ai/oauth";
