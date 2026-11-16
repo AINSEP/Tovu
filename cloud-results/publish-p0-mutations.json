@@ -781,19 +781,22 @@
   "replace": "return { planHash: planHashOf({ details: {} }), details: report };",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
-   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts"
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
   ]
  },
  {
   "id": "D10b",
   "what": "restore point no longer attributed to the actor",
   "file": "apps/website/src/features/publish-content/gated-hooks.ts",
-  "find": "        createdBy: input.actorId,\n",
-  "replace": "        createdBy: \"someone\",\n",
+  "find": "    createdBy: input.actorId,\n",
+  "replace": "    createdBy: \"someone\",\n",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
    "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
-   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts"
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
   ]
  },
  {
@@ -1462,6 +1465,48 @@
    "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
    "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
    "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D10c",
+  "what": "execute re-derives the report instead of applying the confirmed one",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "  const report = confirmedReport;",
+  "replace": "  const report = await planStagedImport({ input });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
+  ]
+ },
+ {
+  "id": "D10d",
+  "what": "no restore point is taken before the run writes",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "  const restorePointId = await captureImportRestorePoint({ input });",
+  "replace": "  const restorePointId = \"none\";",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
+  ]
+ },
+ {
+  "id": "D10e",
+  "what": "baseline looked up under the acting admin instead of the bundle source",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "peerPrincipalId: staged.sourcePrincipalId,",
+  "replace": "peerPrincipalId: input.actorId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-zero-setup-end-to-end.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-content-types-round-trip.test.ts",
+   "apps/website/src/features/publish-content/__tests__/planner.test.ts"
   ]
  }
 ]

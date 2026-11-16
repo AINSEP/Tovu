@@ -1164,13 +1164,6 @@
       "value": 720
     },
     {
-      "file": "apps/website/src/features/publish-content/gated-hooks.ts",
-      "function": "buildPublishContentImportHooks#1",
-      "line": 211,
-      "rule": "max-lines-per-function",
-      "value": 104
-    },
-    {
       "file": "apps/website/src/features/publish-content/peer-transport.ts",
       "function": "<file>",
       "line": 901,
