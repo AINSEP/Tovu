@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Editor } from "@tiptap/react";
 
-import { BUBBLE_MENU_DEFAULTS, probeBubbleMenu, probeToolbar, TOOLBAR_DEFAULTS } from "../PostEditor";
+import { BUBBLE_MENU_DEFAULTS, probeBubbleMenu } from "../editor/bubble-menu/bubble-menu-state";
+import { probeToolbar, TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
 
 /**
  * @file Characterization tests for `Toolbar`/`BubbleFormattingMenu`'s `useEditorState` selectors,

@@ -8,7 +8,7 @@ import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hook
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { TOOLBAR_PRIMARY_RANKS } from "../hooks/use-post-editor-ui.hooks";
 import { FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "../rules";
-import { TOOLBAR_DEFAULTS } from "../PostEditor";
+import { TOOLBAR_DEFAULTS } from "../editor/toolbar/toolbar-state";
 
 /**
  * @file Characterization pins for the `PostEditor` screen, written BEFORE `PostEditor.tsx` is split
