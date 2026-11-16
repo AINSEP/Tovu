@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExecutionCredential, AdminExternalMcpServer, SiteAssistantCredential } from "@/lib/api";
+import type { AdminExternalMcpServer } from "@/lib/api";
+import type { AdminExecutionCredential, SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
 /**
@@ -42,8 +43,12 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: { ...actual.api, getAssistantSiteCredential, setAssistantSiteCredential, deleteAssistantSiteCredential, getAdminExecutionCredential, setAdminExecutionCredential, deleteAdminExecutionCredential, listExternalMcpServers, deleteExternalMcpServer },
+    api: { ...actual.api, listExternalMcpServers, deleteExternalMcpServer },
   };
+});
+vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../ai-assistant/api/ai-assistant-api")>();
+  return { ...actual, aiAssistantApi: { ...actual.aiAssistantApi, getAssistantSiteCredential, setAssistantSiteCredential, deleteAssistantSiteCredential, getAdminExecutionCredential, setAdminExecutionCredential, deleteAdminExecutionCredential } };
 });
 vi.mock("../../../media/api/media-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../media/api/media-api")>();

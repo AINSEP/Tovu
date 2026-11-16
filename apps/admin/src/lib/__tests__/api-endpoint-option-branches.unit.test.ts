@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { usersApi } from "../../features/users/api/users-api";
@@ -296,18 +297,18 @@ test("setSetting merges principalId into the body when the caller passes it", as
 
 test("restartAssistantDaemon preserves the API-unreachable translation for a network TypeError", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
-  await expect(api.restartAssistantDaemon()).rejects.toThrow(ApiError);
+  await expect(aiAssistantApi.restartAssistantDaemon()).rejects.toThrow(ApiError);
 });
 
 test("restartAssistantDaemon rethrows a non-ApiError failure untouched", async () => {
   const failure = new RangeError("unexpected fetch failure");
   vi.stubGlobal("fetch", vi.fn(async () => { throw failure; }));
-  await expect(api.restartAssistantDaemon()).rejects.toBe(failure);
+  await expect(aiAssistantApi.restartAssistantDaemon()).rejects.toBe(failure);
 });
 
 test("restartAssistantDaemon rethrows an ApiError whose body has no string reason", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "boom" }), { status: 500, headers: { "Content-Type": "application/json" } })));
-  const error = await api.restartAssistantDaemon().catch((e: unknown) => e);
+  const error = await aiAssistantApi.restartAssistantDaemon().catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).message).toBe("boom");
 });
@@ -323,7 +324,7 @@ test("restartAssistantDaemon resolves { ok: false, reason } for a 409 refusal, i
         })
     )
   );
-  await expect(api.restartAssistantDaemon()).resolves.toEqual({ ok: false, reason: "shutting down" });
+  await expect(aiAssistantApi.restartAssistantDaemon()).resolves.toEqual({ ok: false, reason: "shutting down" });
 });
 
 // --- SEO -----------------------------------------------------------------

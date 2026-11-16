@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "../admin-http/request";
 
 /**
@@ -32,7 +32,7 @@ test("a non-JSON response (the dev-proxy-gap fixture) rejects with a clean, oper
       )
   );
 
-  const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
+  const error = await aiAssistantApi.getAssistantDaemonReadyz().catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(Error);
   expect((error as Error).message).toBe("Could not check the assistant's status (unexpected response, HTTP 404).");
@@ -42,7 +42,7 @@ test("a non-JSON response (the dev-proxy-gap fixture) rejects with a clean, oper
 test("a real 200 JSON response resolves with the parsed body", async () => {
   stubFetch(async () => new Response(JSON.stringify({ ready: true }), { status: 200, headers: { "Content-Type": "application/json" } }));
 
-  await expect(api.getAssistantDaemonReadyz()).resolves.toEqual({ ready: true });
+  await expect(aiAssistantApi.getAssistantDaemonReadyz()).resolves.toEqual({ ready: true });
 });
 
 test("a real 503 JSON response (a latched failure) still resolves — 503 is an ordinary, meaningful body here, not an error to throw on", async () => {
@@ -54,13 +54,13 @@ test("a real 503 JSON response (a latched failure) still resolves — 503 is an 
       })
   );
 
-  await expect(api.getAssistantDaemonReadyz()).resolves.toEqual({ ready: false, assistantDaemonKnownFailed: true });
+  await expect(aiAssistantApi.getAssistantDaemonReadyz()).resolves.toEqual({ ready: false, assistantDaemonKnownFailed: true });
 });
 
 test("a JSON content-type with an unparsable body also rejects cleanly, not with a raw parse error", async () => {
   stubFetch(async () => new Response("{not valid json", { status: 200, headers: { "Content-Type": "application/json" } }));
 
-  const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
+  const error = await aiAssistantApi.getAssistantDaemonReadyz().catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(Error);
   expect((error as Error).message).toBe("Could not check the assistant's status (malformed response, HTTP 200).");
@@ -69,7 +69,7 @@ test("a JSON content-type with an unparsable body also rejects cleanly, not with
 test("a response with no Content-Type header at all rejects the same clean way as a wrong one — the `?? \"\"` fallback side", async () => {
   stubFetch(async () => new Response(undefined, { status: 404 }));
 
-  const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
+  const error = await aiAssistantApi.getAssistantDaemonReadyz().catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(Error);
   expect((error as Error).message).toBe("Could not check the assistant's status (unexpected response, HTTP 404).");
@@ -85,7 +85,7 @@ test("the request is bounded by an abort signal, not left to queue forever", asy
   );
   vi.stubGlobal("fetch", fetchMock);
 
-  await api.getAssistantDaemonReadyz();
+  await aiAssistantApi.getAssistantDaemonReadyz();
 
   const [url, init] = fetchMock.mock.calls[0]!;
   expect(url).toBe("/readyz");
@@ -98,7 +98,7 @@ test("a request that times out rejects with the shared REQUEST_TIMEOUT ApiError,
     throw new DOMException("signal timed out", "TimeoutError");
   });
 
-  const error = await api.getAssistantDaemonReadyz().catch((e: unknown) => e);
+  const error = await aiAssistantApi.getAssistantDaemonReadyz().catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe(REQUEST_TIMEOUT_CODE);
@@ -117,7 +117,7 @@ test("the configured deadline aborts a pending fetch and translates its signal r
     signal?.addEventListener("abort", () => reject(signal!.reason), { once: true });
   })));
   let settled = false;
-  const pending = api.getAssistantDaemonReadyz().catch((error: unknown) => { settled = true; return error; });
+  const pending = aiAssistantApi.getAssistantDaemonReadyz().catch((error: unknown) => { settled = true; return error; });
   expect(timeout).toHaveBeenCalledWith(60_000);
   expect(signal).toBeInstanceOf(AbortSignal);
   await vi.advanceTimersByTimeAsync(59_999);

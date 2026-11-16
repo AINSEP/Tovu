@@ -65,8 +65,12 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: { ...actual.api, getAssistantSiteCredential, getAdminExecutionCredential, listExternalMcpServers },
+    api: { ...actual.api, listExternalMcpServers },
   };
+});
+vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../ai-assistant/api/ai-assistant-api")>();
+  return { ...actual, aiAssistantApi: { ...actual.aiAssistantApi, getAssistantSiteCredential, getAdminExecutionCredential } };
 });
 vi.mock("../../../media/api/media-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../media/api/media-api")>();

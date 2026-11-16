@@ -2,6 +2,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
+import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { ApiError, API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
@@ -73,7 +74,7 @@ const PERMISSIONS_KEY = ["auth", "me"] as const;
 export const defaultExternalMcpAdmissionsPort: ExternalMcpAdmissionsPort = {
   getAdmissions: () => api.getExternalMcpAdmissions(),
   me: () => authApi.me(),
-  restartAssistantDaemon: () => api.restartAssistantDaemon(),
+  restartAssistantDaemon: () => aiAssistantApi.restartAssistantDaemon(),
 };
 
 /** Splits the admissions read into "answered" and "could not be asked". Extracted so

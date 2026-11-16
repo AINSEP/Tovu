@@ -65,7 +65,8 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    `createExecutionPort` below.
  */
 
-import { api, type AdminExecutionCredential, type AdminExecutionCredentialPatch } from "./api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
+import { aiAssistantApi } from "../features/ai-assistant/api/ai-assistant-api";
 import { settingsApi } from "../features/settings/api/settings-api";
 import { ApiError } from "./admin-http/request";
 import type { SettingResolvedValue } from "./settings-effective-reads";
@@ -192,7 +193,7 @@ function requireData<T>({ response, callSite }: { response: { data?: T | null } 
  * @overallScore 100
  */
 export async function loadAdminExecutionCredential(): Promise<AdminExecutionCredential> {
-  return requireData({ response: await api.getAdminExecutionCredential(), callSite: "getAdminExecutionCredential" });
+  return requireData({ response: await aiAssistantApi.getAdminExecutionCredential(), callSite: "getAdminExecutionCredential" });
 }
 
 /**
@@ -210,7 +211,7 @@ export async function loadAdminExecutionCredential(): Promise<AdminExecutionCred
 export async function saveAdminExecutionCredential(
   patch: AdminExecutionCredentialPatch,
 ): Promise<AdminExecutionCredential> {
-  return requireData({ response: await api.setAdminExecutionCredential(patch), callSite: "setAdminExecutionCredential" });
+  return requireData({ response: await aiAssistantApi.setAdminExecutionCredential(patch), callSite: "setAdminExecutionCredential" });
 }
 
 /** A key exists — either just typed in this form, or already stored on the server. Both make the
@@ -533,10 +534,10 @@ export function reconcileExecutionConfigRefresh(current: ExecutionConfig, loaded
 
 /** Routes and authenticated HTTP remain host-owned; one adapter shares detection across mounts. */
 const executionHttpAdapter = createExecutionHttpAdapter({ transport: {
-  detectExecutionAgents: (input, options) => api.detectExecutionAgents(input, options),
-  testExecutionConnection: (input) => api.testExecutionConnection(input),
-  testExecutionAgent: (input) => api.testExecutionAgent(input),
-  listExecutionModels: (input) => api.listExecutionModels(input),
+  detectExecutionAgents: (input, options) => aiAssistantApi.detectExecutionAgents(input, options),
+  testExecutionConnection: (input) => aiAssistantApi.testExecutionConnection(input),
+  testExecutionAgent: (input) => aiAssistantApi.testExecutionAgent(input),
+  listExecutionModels: (input) => aiAssistantApi.listExecutionModels(input),
 } }, {});
 export type { CreateExecutionPortOptions } from "@jini-ai/ui";
 /** Existing screens retain their flags; the package boundary receives two objects. */

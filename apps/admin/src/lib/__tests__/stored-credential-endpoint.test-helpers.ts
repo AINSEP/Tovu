@@ -3,7 +3,7 @@ import { vi } from "vitest";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { type ByokConfig, type ExecutionPort } from "@jini-ai/ui";
 
-import { type AdminExecutionCredential } from "../api";
+import type { AdminExecutionCredential } from "../../features/ai-assistant/api/ai-assistant-api.types";
 import { ApiError } from "../admin-http/request";
 
 /**

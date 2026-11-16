@@ -1,4 +1,5 @@
-import type { AdminExecutionCredential, AdminExecutionCredentialPatch, AdminExternalMcpServer, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
+import type { AdminExternalMcpServer } from "@/lib/api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
 /**

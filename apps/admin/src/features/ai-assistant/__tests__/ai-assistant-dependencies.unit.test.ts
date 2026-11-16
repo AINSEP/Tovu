@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { PublicAssistantSettings } from "@/lib/api";
+import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
 
 /**
  * @file Coverage for `ai-assistant-dependencies.hooks.ts` (2/6 funcs) —
@@ -13,9 +13,9 @@ const { getAssistantSettings, setAssistantSettings } = vi.hoisted(() => ({
   setAssistantSettings: vi.fn(),
 }));
 
-vi.mock("../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, getAssistantSettings, setAssistantSettings } };
+vi.mock("../api/ai-assistant-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/ai-assistant-api")>();
+  return { ...actual, aiAssistantApi: { ...actual.aiAssistantApi, getAssistantSettings, setAssistantSettings } };
 });
 
 const { createFakeAiAssistantPort, defaultAiAssistantPort } = await import("../hooks/ai-assistant-dependencies.hooks");

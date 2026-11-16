@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { createFakeExecutionPort, type ExecutionPort, type ByokConfig } from "@jini-ai/ui";
 
-import { api, type SiteAssistantCredential, type SiteAssistantCredentialPatch } from "@/lib/api";
+import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { storedKeyIsForOtherEndpoint } from "@/lib/stored-credential-endpoint";
 import {
@@ -60,7 +61,7 @@ const NOT_STORED = { data: credential() };
 beforeEach(() => {
   // Neutral baseline: hydration resolves quickly to "nothing stored" unless a test overrides it,
   // so the stored-key-triggered discovery effect never fires by accident in unrelated tests.
-  vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue(NOT_STORED);
+  vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue(NOT_STORED);
 });
 
 afterEach(() => {
@@ -86,7 +87,7 @@ describe("useVisitorCredentialForm — initial config", () => {
   });
 
   it("starts with the saved provider even when its key has not been stored", async () => {
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({
       data: credential({ provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: "saved-model" }),
     });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
@@ -104,7 +105,7 @@ describe("useVisitorCredentialForm — hydration", () => {
   it("keeps the current saved settings when a cancelled hydration succeeds late", async () => {
     let resolveOld!: (value: typeof NOT_STORED) => void;
     const current = credential({ provider: "anthropic", model: "current-model" });
-    vi.spyOn(api, "getAssistantSiteCredential")
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential")
       .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
       .mockResolvedValue({ data: current });
     // StrictMode cleans up the first effect while keeping the live form observable.
@@ -121,7 +122,7 @@ describe("useVisitorCredentialForm — hydration", () => {
 
   it("keeps saved settings ready when a cancelled hydration fails late", async () => {
     let rejectOld!: (reason: Error) => void;
-    vi.spyOn(api, "getAssistantSiteCredential")
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential")
       .mockReturnValueOnce(new Promise((_resolve, reject) => { rejectOld = reject; }))
       .mockResolvedValue(NOT_STORED);
     const { result } = renderHook(() => useWiredVisitorCredentialForm(), { reactStrictMode: true });
@@ -134,9 +135,9 @@ describe("useVisitorCredentialForm — hydration", () => {
   });
 
   it("stays loading until the saved settings read settles, then exposes the actual read error", async () => {
-    const write = vi.spyOn(api, "setAssistantSiteCredential");
+    const write = vi.spyOn(aiAssistantApi, "setAssistantSiteCredential");
     let rejectRead!: (reason: Error) => void;
-    vi.spyOn(api, "getAssistantSiteCredential").mockReturnValue(new Promise((_resolve, reject) => { rejectRead = reject; }));
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockReturnValue(new Promise((_resolve, reject) => { rejectRead = reject; }));
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     expect(result.current.loadState).toEqual({ status: "loading" });
     await act(async () => { rejectRead(new Error("Credential store unavailable")); });
@@ -146,7 +147,7 @@ describe("useVisitorCredentialForm — hydration", () => {
   });
 
   it("on success: sets stored and merges baseUrl/model into config, without marking dirty", async () => {
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••abcd", baseUrl: "https://custom.example.com", model: "gpt-4o" }),
     });
 
@@ -164,12 +165,12 @@ describe("useVisitorCredentialForm — hydration", () => {
   });
 
   it("hydrates the stored provider, so a model-only settings save keeps an Anthropic credential Anthropic", async () => {
-    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["claude-sonnet-5"] });
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["claude-sonnet-5"] });
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••ant1", provider: "anthropic", baseUrl: "https://api.anthropic.com", model: "claude-opus-5" }),
     });
     const setAssistantSiteCredential = vi
-      .spyOn(api, "setAssistantSiteCredential")
+      .spyOn(aiAssistantApi, "setAssistantSiteCredential")
       .mockResolvedValue({ data: credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com", model: "claude-sonnet-5" }) });
 
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
@@ -194,8 +195,8 @@ describe("useVisitorCredentialForm — hydration", () => {
   });
 
   it("hydrates a stored endpoint no preset owns as a custom endpoint under the stored protocol", async () => {
-    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: [] });
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: [] });
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••oai1", provider: "openai", baseUrl: "https://llm.internal.example/v1", model: "local-7b" }),
     });
 
@@ -215,7 +216,7 @@ describe("useVisitorCredentialForm — hydration", () => {
   });
 
   it("on failure: stays silent — stored is null, no error surfaces anywhere", async () => {
-    vi.spyOn(api, "getAssistantSiteCredential").mockRejectedValue(new Error("network down"));
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockRejectedValue(new Error("network down"));
 
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -231,12 +232,12 @@ describe("useVisitorCredentialForm — hydration", () => {
 
 describe("useVisitorCredentialForm — stored-key discovery (on load, empty field)", () => {
   it("ignores stored-key models that arrive after switching providers", async () => {
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({
       // Keep hydration on the default endpoint so the typed-key effect does not reset discovery.
       data: credential({ isSet: true, provider: "anthropic", baseUrl: "https://api.anthropic.com" }),
     });
     let resolveModels!: (value: { ok: boolean; models: string[] }) => void;
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise((resolve) => { resolveModels = resolve; }));
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockReturnValue(new Promise((resolve) => { resolveModels = resolve; }));
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => { await Promise.resolve(); });
     expect(listExecutionModels).toHaveBeenCalledTimes(1);
@@ -255,8 +256,8 @@ describe("useVisitorCredentialForm — stored-key discovery (on load, empty fiel
   });
 
   it("fires one discovery pass when hydration reports a stored key and the field is empty", async () => {
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true }) });
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["model-a", "model-b"] });
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true }) });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["model-a", "model-b"] });
 
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -272,7 +273,7 @@ describe("useVisitorCredentialForm — stored-key discovery (on load, empty fiel
   });
 
   it("does not fire when hydration reports no stored key", async () => {
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels");
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels");
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -287,7 +288,7 @@ describe("useVisitorCredentialForm — stored-key discovery (on load, empty fiel
 describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
   it("does not fire before the debounce window elapses, then fires once after it", async () => {
     vi.useFakeTimers();
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -308,7 +309,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
 
   it("SECURITY GATE: never fires for a key typed against a non-preset (operator-typed) endpoint", async () => {
     vi.useFakeTimers();
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -327,7 +328,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
 
   it("clearing the key resets discovery to idle immediately, without waiting for the debounce", async () => {
     vi.useFakeTimers();
-    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -345,7 +346,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
 
 describe("useVisitorCredentialForm — runKeyTest", () => {
   it("runs immediately (no debounce) and seeds the model field from the result", async () => {
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["gpt-a"] });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["gpt-a"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -361,7 +362,7 @@ describe("useVisitorCredentialForm — runKeyTest", () => {
   });
 
   it("on rejection, reports an error discovery state", async () => {
-    vi.spyOn(api, "listExecutionModels").mockRejectedValue(new Error("bad key"));
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockRejectedValue(new Error("bad key"));
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -379,7 +380,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   it("reports a connection failure when the probe returns no result", async () => {
     // Exercise the runtime boundary's absent-result fallback despite the transport's declared type.
     // @ts-expect-error -- a malformed probe response can have no result at runtime.
-    vi.spyOn(api, "testExecutionConnection").mockResolvedValue(undefined);
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockResolvedValue(undefined);
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => { await Promise.resolve(); });
 
@@ -389,8 +390,8 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   });
 
   it("on success, reports ok and quietly refreshes discovery when a key is present", async () => {
-    vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["refreshed-model"] });
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["refreshed-model"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -407,8 +408,8 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   });
 
   it("on success with NO key in the field, does not attempt a discovery refresh at all", async () => {
-    vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels");
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels");
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -431,8 +432,8 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
     // its own leftover 'loading' state, not runTestConnection's refresh, is what the assertions
     // would actually be observing.
     vi.useFakeTimers();
-    vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels");
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels");
     listExecutionModels.mockResolvedValueOnce({ ok: true, models: ["existing-model"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -456,7 +457,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   });
 
   it("on a not-ok result, reports the server's message as a connection error", async () => {
-    vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: false, message: "Invalid key" });
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockResolvedValue({ ok: false, message: "Invalid key" });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -470,7 +471,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   });
 
   it("on a rejected probe, reports a connection error from the thrown message", async () => {
-    vi.spyOn(api, "testExecutionConnection").mockRejectedValue(new Error("timed out"));
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockRejectedValue(new Error("timed out"));
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -486,7 +487,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
 
 describe("useVisitorCredentialForm — saveKey", () => {
   it("is a no-op with no fetch call when the field is empty", async () => {
-    const setAssistantSiteCredential = vi.spyOn(api, "setAssistantSiteCredential");
+    const setAssistantSiteCredential = vi.spyOn(aiAssistantApi, "setAssistantSiteCredential");
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -501,7 +502,7 @@ describe("useVisitorCredentialForm — saveKey", () => {
   });
 
   it("on success: updates stored and clears the typed key from the field, leaving dirty alone", async () => {
-    vi.spyOn(api, "setAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "setAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••wxyz", updatedAt: "2026-08-06T00:00:00.000Z" }),
     });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
@@ -525,7 +526,7 @@ describe("useVisitorCredentialForm — saveKey", () => {
   });
 
   it("on failure: reports a describable save error and leaves the typed key in place", async () => {
-    vi.spyOn(api, "setAssistantSiteCredential").mockRejectedValue(new ApiError({ message: "boom", status: 500 }));
+    vi.spyOn(aiAssistantApi, "setAssistantSiteCredential").mockRejectedValue(new ApiError({ message: "boom", status: 500 }));
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -541,10 +542,10 @@ describe("useVisitorCredentialForm — saveKey", () => {
   });
 
   it("saveSettings omits apiKey when the field is empty but a credential is already stored — the 'leave the stored key alone' case", async () => {
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
-    vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise(() => {})); // keep discovery quiet
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockReturnValue(new Promise(() => {})); // keep discovery quiet
     const setAssistantSiteCredential = vi
-      .spyOn(api, "setAssistantSiteCredential")
+      .spyOn(aiAssistantApi, "setAssistantSiteCredential")
       .mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -568,10 +569,10 @@ describe("useVisitorCredentialForm — saveKey", () => {
     // refuses to call the server at all, and Save settings has no `apiKey` in its patch to begin
     // with. Asserted as an absent PROPERTY, not a falsy value: `apiKey: ""` would satisfy a
     // truthiness check while being exactly the write that must never happen.
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
-    vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockReturnValue(new Promise(() => {}));
     const setAssistantSiteCredential = vi
-      .spyOn(api, "setAssistantSiteCredential")
+      .spyOn(aiAssistantApi, "setAssistantSiteCredential")
       .mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -599,8 +600,8 @@ describe("useVisitorCredentialForm — saveKey", () => {
 describe("useVisitorCredentialForm — selectPreset", () => {
   it("resets discovery and connectionTest to idle when switching providers", async () => {
     vi.useFakeTimers();
-    vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
-    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
+    vi.spyOn(aiAssistantApi, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-typed" }));
@@ -655,11 +656,11 @@ describe("useVisitorCredentialForm — switching provider while a key is stored 
         );
       }
     };
-    const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockImplementation(async (input) => {
+    const listExecutionModels = vi.spyOn(aiAssistantApi, "listExecutionModels").mockImplementation(async (input) => {
       rejectUnpinned(input);
       return { ok: true, models: ["model-a"] };
     });
-    const testExecutionConnection = vi.spyOn(api, "testExecutionConnection").mockImplementation(async (input) => {
+    const testExecutionConnection = vi.spyOn(aiAssistantApi, "testExecutionConnection").mockImplementation(async (input) => {
       rejectUnpinned(input);
       return { ok: true, message: "Connected" };
     });
@@ -668,7 +669,7 @@ describe("useVisitorCredentialForm — switching provider while a key is stored 
 
   async function mountWithStoredKey(clientBaseUrl: string | null, serverBaseUrl: string | null = clientBaseUrl) {
     vi.useFakeTimers();
-    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({
+    vi.spyOn(aiAssistantApi, "getAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••mw4w", provider: "google", baseUrl: clientBaseUrl }),
     });
     const spies = emulateServerPin(serverBaseUrl);
@@ -909,7 +910,7 @@ describe("VisitorCredentialFormPort injection", () => {
 describe("useVisitorCredentialForm — the two buttons write disjoint patches", () => {
   it("saveKey sends apiKey and NOTHING else — no provider, baseUrl or model", async () => {
     const setAssistantSiteCredential = vi
-      .spyOn(api, "setAssistantSiteCredential")
+      .spyOn(aiAssistantApi, "setAssistantSiteCredential")
       .mockResolvedValue({ data: credential({ isSet: true, masked: "••••wxyz" }) });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -933,7 +934,7 @@ describe("useVisitorCredentialForm — the two buttons write disjoint patches", 
     // the write the server rejects with a 400 and exactly the write this button must never make. A
     // typed key is the adversarial case — the old single control would have shipped it.
     const setAssistantSiteCredential = vi
-      .spyOn(api, "setAssistantSiteCredential")
+      .spyOn(aiAssistantApi, "setAssistantSiteCredential")
       .mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -954,7 +955,7 @@ describe("useVisitorCredentialForm — the two buttons write disjoint patches", 
   });
 
   it("a settings save clears dirty; a key save leaves the key's own state alone", async () => {
-    vi.spyOn(api, "setAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
+    vi.spyOn(aiAssistantApi, "setAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
@@ -1012,7 +1013,7 @@ describe("useVisitorCredentialForm — Save key and Save settings pressed back t
   }
 
   it("the second write starts only after the first settles, so the stored row keeps BOTH the new key and the new model", async () => {
-    vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["new-model"] });
+    vi.spyOn(aiAssistantApi, "listExecutionModels").mockResolvedValue({ ok: true, models: ["new-model"] });
     const server = readMergeUpsertServer({
       provider: "google",
       baseUrl: "https://generativelanguage.googleapis.com",

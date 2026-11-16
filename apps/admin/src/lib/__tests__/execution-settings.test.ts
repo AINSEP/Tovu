@@ -60,9 +60,7 @@ const {
   };
 });
 
-vi.mock("../api", () => ({
-  api: { detectExecutionAgents, testExecutionConnection, testExecutionAgent, listExecutionModels, getAdminExecutionCredential, setAdminExecutionCredential },
-}));
+vi.mock("../../features/ai-assistant/api/ai-assistant-api", () => ({ aiAssistantApi: { detectExecutionAgents, testExecutionConnection, testExecutionAgent, listExecutionModels, getAdminExecutionCredential, setAdminExecutionCredential } }));
 vi.mock("../../features/settings/api/settings-api", () => ({ settingsApi: { getSettingsEffective, setSetting } }));
 // The next-send test loads the real dock hooks, whose skills source reads the workspace id: the
 // real `admin-http/config` supplies it, so only the error class is replaced here.

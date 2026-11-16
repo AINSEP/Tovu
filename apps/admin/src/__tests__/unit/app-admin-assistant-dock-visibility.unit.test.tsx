@@ -9,7 +9,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../../App";
 import { appShellApiBody } from "../app-shell-api.fixture";
-import { api } from "../../lib/api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 // Load the real lazy route before timing the preview-containment interaction.
 import "../../features/posts";
 
@@ -79,7 +79,7 @@ it.each([
   ["field absent", { data: { publicEnabled: false } }],
 ])("mounts the assistant dock and chat FAB by default (%s)", async (_label, settingsBody) => {
   vi.stubGlobal("fetch", stubFetch(settingsBody));
-  const settingsRead = vi.spyOn(api, "getAssistantSettings");
+  const settingsRead = vi.spyOn(aiAssistantApi, "getAssistantSettings");
   const { container } = render(<App />);
 
   await waitFor(() => expect(container.querySelector("main")).not.toBeNull());

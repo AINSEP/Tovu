@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ByokConfig } from "@jini-ai/ui";
-import { type SiteAssistantCredential } from "@/lib/api";
+import type { SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import {

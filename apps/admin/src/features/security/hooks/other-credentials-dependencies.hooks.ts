@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 import { mediaApi } from "@/features/media/api/media-api";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
@@ -9,13 +10,13 @@ import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
  *  Providers tab, or Settings' External MCP tab — see `other-credentials-port.hooks.ts`'s
  *  own header for why this page adds no new HTTP surface. */
 export const defaultOtherCredentialsPort: OtherCredentialsPort = {
-  getSiteAssistantCredential: () => api.getAssistantSiteCredential(),
-  setSiteAssistantCredential: (patch, _optional = {}) => api.setAssistantSiteCredential(patch),
-  deleteSiteAssistantCredential: () => api.deleteAssistantSiteCredential(),
+  getSiteAssistantCredential: () => aiAssistantApi.getAssistantSiteCredential(),
+  setSiteAssistantCredential: (patch, _optional = {}) => aiAssistantApi.setAssistantSiteCredential(patch),
+  deleteSiteAssistantCredential: () => aiAssistantApi.deleteAssistantSiteCredential(),
 
-  getAdminByokCredential: () => api.getAdminExecutionCredential(),
-  setAdminByokCredential: (patch, _optional = {}) => api.setAdminExecutionCredential(patch),
-  deleteAdminByokCredential: () => api.deleteAdminExecutionCredential(),
+  getAdminByokCredential: () => aiAssistantApi.getAdminExecutionCredential(),
+  setAdminByokCredential: (patch, _optional = {}) => aiAssistantApi.setAdminExecutionCredential(patch),
+  deleteAdminByokCredential: () => aiAssistantApi.deleteAdminExecutionCredential(),
 
   getMediaProviders: () => mediaApi.getMediaProviders(),
   saveMediaProviders: (providers, _optional = {}) => mediaApi.saveMediaProviders(providers),

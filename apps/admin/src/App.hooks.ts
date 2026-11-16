@@ -25,6 +25,7 @@ import {
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
 import { api } from "./lib/api";
+import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
 import type { AdminUser } from "./features/auth/api/auth-api.types";
 import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
@@ -281,7 +282,7 @@ export function useAdminAssistantAvailability({ user }: { user: AdminUser | null
   useEffect(() => {
     if (!user) return undefined;
     let cancelled = false;
-    api
+    aiAssistantApi
       .getAssistantSettings()
       .then((response) => {
         if (!cancelled) setEnabled(response.adminAssistantEnabled ?? true);

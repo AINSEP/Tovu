@@ -1,7 +1,7 @@
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { groupPresets, isProviderConfigured, type ApiProtocol, type ByokConfig, type ProviderPreset } from "@jini-ai/ui/core";
 
-import { type SiteAssistantCredential } from "../../lib/api";
+import type { SiteAssistantCredential } from "./api/ai-assistant-api.types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { storedCredentialHint } from "../../lib/credential-copy";
 

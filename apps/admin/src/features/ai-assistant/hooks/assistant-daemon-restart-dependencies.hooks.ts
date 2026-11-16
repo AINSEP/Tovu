@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { AssistantDaemonRestartPort } from "./assistant-daemon-restart-port.hooks";
 
 /**
@@ -9,8 +9,8 @@ import type { AssistantDaemonRestartPort } from "./assistant-daemon-restart-port
 /** The live implementation, as a module-level singleton — matches `ai-assistant-dependencies
  *  .hooks.ts`'s `defaultAiAssistantPort`. */
 export const defaultAssistantDaemonRestartPort: AssistantDaemonRestartPort = {
-  restart: () => api.restartAssistantDaemon(),
-  getReadyz: () => api.getAssistantDaemonReadyz(),
+  restart: () => aiAssistantApi.restartAssistantDaemon(),
+  getReadyz: () => aiAssistantApi.getAssistantDaemonReadyz(),
 };
 
 /** Seed state for {@link createFakeAssistantDaemonRestartPort}. */

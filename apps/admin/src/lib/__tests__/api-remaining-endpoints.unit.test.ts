@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
@@ -127,8 +128,8 @@ describe("endpoints", () => {
 
   it("detects execution agents, forcing a re-probe only when asked", async () => {
     const calls = stubFetch();
-    await api.detectExecutionAgents();
-    await api.detectExecutionAgents({}, { force: true });
+    await aiAssistantApi.detectExecutionAgents();
+    await aiAssistantApi.detectExecutionAgents({}, { force: true });
     expect(calls.map((call) => call.body)).toEqual([{}, { force: true }]);
     expect(calls[0]!.url).toBe(`${W}/assistant/execution/detect-agents`);
   });
