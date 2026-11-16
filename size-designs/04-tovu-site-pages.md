@@ -1,3 +1,5 @@
+> **Revision 2:** read `## Revision 2` at the end first; it overrides the sections above where they differ.
+
 # 04 — Tovu `apps/website/src/server/inbound/public-http/routes/site/pages.ts`
 
 Measured at `origin/integ/wave-b-fixed`: 2,994 lines (1,376 code), 58 imports. Path in the brief lacked `inbound/`.
@@ -138,3 +140,89 @@ One commit per file. Gate per commit: `tsc`, response matrix, the 29 importing t
 ## 7. Estimate
 
 ≈27 commits. Sonnet executor **≈480k tokens** (matrix test 80k; 24 files × 13k; importer repoints 50k; registrar + debt 40k). Risk: **medium-high** (HTTP behaviour, shared module state, cache policy).
+
+
+## Revision 2 (2026-11-16, after the Codex judgment)
+
+Re-verified at Tovu `integ/wave-b-r2` (65302ee5): `pages.ts` 2,994 lines, 138 functions; **two functions are over 50 code lines**: `finishStaticTierDocument` (807, 58) and `registerSiteRoutes` (2859, 88) (`work/function-sizes.cjs`). 38 files import it; 58 files name its path as text. Judge: "needs rework" (5 majors, 1 minor). **6 accepted, 0 rebutted.** Run after design 03.
+
+### R1. Target tree changes (these override the §2 tree)
+
+1. **Nothing moves to `features/`.** `features/navigation/static-menus.ts`, `docs-menus.ts`, `features/entries/collection-lists-render.ts` and `features/media/render-metadata.ts` are **not** created. Verified reasons: collection rendering calls `formatPostPreviewDate` (926 → 2245) and `siteTimeZoneDep` (1017 → 1158), both server render-context code; `resolveFeaturedImageForRender` (1772) calls the server renderer's `featuredImageView` (1781); the dependency types are `RouteDeps`-derived (1152-1155, 1187-1226). Final placement, stated now: `pages/render-context/collection-lists.ts` (891-1072) and `pages/render-context/media-metadata.ts` (1618-1782). A later move into a feature or Jini needs narrow ports for date formatting, time zone and featured-image view first; that is a separate design.
+2. **Menus are one responsibility, one file:** `pages/render-context/static-menus.ts` = 454-467 + 515-755 (≈300 lines). `resolveOneStaticMenu` (674) calls the docs resolvers (702, 704); they call `findStaticMenu` (714 → 661) and `resolveMenuContent` (581 → 629). Splitting them made a mutual import.
+3. **Listing state gets a lower owner.** New `pages/listing/` folder:
+
+   | file | owns | imports |
+   |---|---|---|
+   | `listing-state.ts` | the three WeakMaps (`listingBatchRequests` 2591, `listingJsonPages` 2594, `listingPageRequests` 2598), their record types, and the only functions that read or write them, including `storeListingJsonPage` (2376) | types only |
+   | `request-policy.ts` (existing target) | `isStaticExportRequest` (253), `redirectLookupPath` (2603) | `listing-state` |
+   | `listing-batch.ts` | `withListingBatch` (2631): **request enrichment** — SEO, plugin-export session, consent assets, comments, the late-bound script buffer. Tovu host code, not a generic listing protocol | `listing-state`, `request-policy` |
+   | `handlers/listing.ts` | the listing route handlers + `registerListingRewrites` | all three above |
+
+   `render-context/post-previews.ts` calls `storeListingJsonPage` (2301) from `listing-state`, so `render-context/* → handlers/*` never happens. Each WeakMap has one declaring module and is never exported as a value: the accessors are.
+4. **`finishStaticTierDocument` — the real contract.** It is `(deps: TemplateRenderDeps, input: { theme, pageId, html, currentPath, staticMenus, postPreviewsAccess?, featuredImage?, postAuthor? }): Promise<string>` (807-821), async, with this effect order (824-875): expand partials → resolve embeds → assign listing keys → discover menus → resolve previews and collections → render the static page → obtain document assets. Split along that sequence, in `pages/static-tier.ts`:
+   - `prepareStaticTierHtml(required)` — partials, embeds, listing keys;
+   - `resolveStaticTierData(required)` — menus, previews, collections;
+   - `finishStaticTierDocument` — prepare → resolve → render → assets (≤30 lines).
+   The split keeps the positional `(deps, input)` shape. Practice 2 wants `({ deps, input }, optional = {})`: that is done as **one separate commit after the split**, with every caller in the same commit (step 8). §2's `(required, options = {}): string` sketch was wrong and is deleted.
+5. **`registerSiteRoutes` (88 code lines).** There is no "dep narrowing" at its top: it starts by installing the two rewrite routes (2863 `/_more/…`, 2874 `/page/N`), then `/` (2883), nested paths (2897), `/:slug` (2909). Target: `registerListingRewrites`, `registerHomeRoute`, `registerNestedPathRoute`, `registerSlugRoute` — one `app.get` each — called in that order from a ≤15-line root. Request enrichment (`withListingBatch`) stays **inside each request callback**, so it still runs after the rewrite recorded its state.
+6. **Count:** after R1 the tree is `pages.ts` + 6 top-level slices + 9 `render-context/` (deps, site-title, widgets, content-markers, taxonomy, member-access, post-previews, static-menus, collection-lists, media-metadata → 10) + 3 `listing/` + 7 `handlers/` = **27 files** (26 new). Step 0b's symbol sheet is the source of truth; the script fails on a symbol assigned twice or not at all.
+
+### R2. Migration graph (overrides §3)
+
+Every commit: `npm run typecheck`, `npm run typecheck:tests`, `npm run check:boundaries`, `npm run check:architecture`, the response matrix.
+
+| # | commit | needs |
+|---|---|---|
+| 0a | response matrix + effect-order test (R3) | design 03 merged |
+| 0b | symbol sheet, importer sheet (38 importers; 58 text mentions) | — |
+| 1 | `listing-state.ts` (maps + accessors + `storeListingJsonPage`), callers in the same commit | 0 |
+| 2 | `request-policy.ts`, then `listing-batch.ts` | 1 |
+| 3 | leaf render-context files (deps types, site-title, taxonomy, member-access, widgets, content-markers), one per commit | 0 |
+| 4 | `static-menus.ts` (one commit), `collection-lists.ts`, `media-metadata.ts`, `post-previews.ts` | 1, 3 |
+| 5 | in-place split of `finishStaticTierDocument`, then move to `static-tier.ts`; `template-render.ts`, `response.ts`, `extra-head.ts`, `redirect-phase.ts` | 4 |
+| 6 | handlers, one per commit, listing last | 2, 5 |
+| 7 | in-place split of `registerSiteRoutes`; delete the re-export at 387 and repoint its importers | 6 |
+| 8 | `finishStaticTierDocument` signature to `({ deps, input }, optional = {})` with all callers | 7 |
+
+### R3. Tests (overrides §4 where they differ)
+
+- **Security header is observed:** the matrix row "plugin-export hosts present" asserts the report-only policy header that `addPluginExportHostsToResponse` (2512, applied at 2523) writes, with three distinguishable hosts (one script, one frame, one connect). Deleting line 2523 must turn this row red — the executor proves it once by mutation and reverts.
+- **Listing responses** assert `Content-Type` and the JSON page shape.
+- **Body hashes:** `finalizePublicPageHtml` (2518) generates form attempt ids with `randomUUID()` (2529, 2531). The matrix replaces only those ids before hashing and asserts separately that each form carries one, and that two requests get different ones.
+- **Effect order:** fake `TemplateRenderDeps` records calls; the test asserts partials → embeds → menus → previews → collections → render → assets, and that assets are requested exactly once.
+- **Rewrites before enrichment:** a `/page/2` request reaches the home handler with the listing page recorded and `redirectLookupPath` returning the original path.
+
+### R4. Owner practices check
+
+| # | status |
+|---|---|
+| 1 DI | handlers receive `deps`; module state reachable only through `listing-state` accessors |
+| 2 args | conflict today: `finishStaticTierDocument(deps, input)`, `siteTimeZoneDep(deps)`, `isStaticExportRequest(req)`, `withListingBatch(deps, req)` are positional. Step 8 fixes the exported one; the other three are private helpers moved verbatim and listed for the size-50 follow-up |
+| 3 size | the two oversized functions are split (R1.4, R1.5); largest file `static-menus.ts` ≈300 |
+| 4 slicing | by responsibility; menus and listing state no longer cut across files |
+| 5 no re-exports | line 387 deleted |
+| 6 comments | the request-policy rationale blocks (244-369) move with their constants |
+| 7 boundaries | no feature→feature or feature→server import created; nothing claimed for Jini |
+| 8 tests | matrix + effect order before any move; fakes of `TemplateRenderDeps` |
+| 9 errors | no text changed |
+| 10 | no silent change; step 8 is an explicit signature change with all callers |
+| 11 | no new abstraction; `listing-state` is a move of existing state, not a new layer |
+| 12 memory/IO | public page hot path: no added work. The three WeakMaps stay request-keyed (collected with the request); `storeListingJsonPage` cost unchanged |
+
+### R5. Estimate
+
+≈31 commits, Sonnet **≈540k tokens** (was 480k). Risk: **medium-high**.
+
+## Judge response
+
+| # | sev | verdict | what changed / evidence |
+|---|---|---|---|
+| 1 | major | accepted | `resolveOneStaticMenu` 674 → docs resolvers 702/704; `resolveDocsSectionItem` 577 → `resolveMenuContent` (581); `resolveDocsSectionMenu` 717 → `findStaticMenu` (714). R1.2: one file |
+| 2 | major | accepted | `storeListingJsonPage(` at 2301; `redirectLookupPath` (2603) reads `listingPageRequests` (2604); `withListingBatch` (2631) calls `isStaticExportRequest` (2634/2643). R1.3: `listing-state` below both; enrichment separated and kept as host code |
+| 3 | major | accepted | Signature at 807-821 is `(deps, input): Promise<string>`. R1.4 states the real contract, the split along the real sequence, and an effect-order test |
+| 4 | major | accepted | Calls at 926, 1017, 1781 confirmed. R1.1: feature moves withdrawn, final placement stated |
+| 5 | major | accepted | `addPluginExportHostsToResponse(` applied at 2523; `randomUUID(` at 2529/2531. R3 |
+| 6 | minor | accepted | Rewrites at 2863/2874 open the registrar; enrichment is per request. R1.5, count in R1.6 |
+
+Accepted 6 · rebutted 0 · blockers left 0.
