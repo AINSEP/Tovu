@@ -11,32 +11,31 @@ import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { createPublicPostReader, getPublishedPostBySlug, listPublishedPosts, listPublishedPostPreviews, PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
+import { createPublicPostReader, getPublishedPostBySlug, listPublishedPosts, PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
 import { createMemberAccessResolver } from "#src/features/members/access-resolver";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
-import { renderStaticPage, injectCurrentEntityContentId, injectPageTitle, resolveTemplate, resolveTemplateBranchChoice, postPreviewsBatchSize, isPagedPostPreviewsMarker, isBarePageChoice, collectionMarkerKey, splitCollectionMarkerInner, type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage, type StaticFeaturedImage } from "#src/features/theme/static-render";
+import { renderStaticPage, injectCurrentEntityContentId, injectPageTitle, resolveTemplate, resolveTemplateBranchChoice, isBarePageChoice, collectionMarkerKey, splitCollectionMarkerInner, type StaticFeaturedImage } from "#src/features/theme/static-render";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { tokenStylesheetSentinel } from "#src/features/theme/static-asset-contract";
 import { isStandaloneThemePage, type DiscoveredTheme } from "#src/features/theme/theme";
 import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "#src/features/theme/entry-list-render";
 import { expandPartials } from "../../../../../contracts/core/expand-partials.js";
-import { markersOfType, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { assignListingKeys, extractListingCardTemplate, injectListingScript, listingBatchPath, listingKeyOfAttributes, parseListingBatchPath, parseListingPagePath, readListingBatch, readListingPage, renderListingPageNav, renderListingMore, type ListingSource } from "@jini-ai/cms/listing";
-import { comparePostsByDisplayDate, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
+import { markersOfType, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
+import { assignListingKeys, injectListingScript, listingBatchPath, listingKeyOfAttributes, parseListingBatchPath, parseListingPagePath, readListingBatch, renderListingMore } from "@jini-ai/cms/listing";
+import { comparePostsByDisplayDate } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
 import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-read";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
+import { resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
 import { renderSite } from "../../http/site/render-site.js";
 import { decodeFormSubmissionResultFromQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, mergeFormFlashIntoResult, FORM_FLASH_COOKIE_NAME, type FormSubmissionRedirectResult } from "../../http/site/form-render.js";
-import { featuredImageView } from "../../http/site/render/template-render-data.js";
 import { renderAssignedTermsBlock } from "../../http/site/render/post-body.js";
 import { renderHtmlPageBody } from "../../http/site/render/page-body.js";
 import {
@@ -54,7 +53,7 @@ import { asyncRoute } from "../../../shared/async-route.js";
 import type { TemplateRenderDeps, SiteRequestDeps, PostPreviewsAccess } from "./pages/render-context/deps.js";
 import { resolveAssignedTermsForRender, placeAfterCurrentContent } from "./pages/render-context/taxonomy.js";
 import { resolveSiteTitleForRender, siteTimeZoneDep, htmlEmbedHostDeps, resolveSiteTimeZoneForRender } from "./pages/render-context/site-title.js";
-import { type KeyedPostPreviewBatch, storeListingJsonPage, listingBatchBody, recordListingBatchRequest, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError, assertListingPageServed } from "./pages/listing/listing-state.js";
+import { listingBatchBody, recordListingBatchRequest, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError, assertListingPageServed } from "./pages/listing/listing-state.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE, resolveRequestedSlug, redirectLookupPath } from "./pages/request-policy.js";
 import { withListingBatch } from "./pages/listing/listing-batch.js";
 import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePosts } from "./pages/render-context/member-access.js";
@@ -62,6 +61,7 @@ import { resolveSiteAssistantWidgetForRequest, resolveWidgetsForRender, resolveH
 import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "./pages/render-context/content-markers.js";
 import { resolveStaticMenusForRender, type StaticMenuMap } from "./pages/render-context/static-menus.js";
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender, resolveFeaturedImageForRender } from "./pages/render-context/media-metadata.js";
+import { formatPostPreviewDate, resolvePostPreviewsForRender } from "./pages/render-context/post-previews.js";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
@@ -1074,138 +1074,6 @@ async function handlePostNotFoundInSlugCatch(input: {
     reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
     res.status(500).type("html").send("<h1>Site error</h1>");
   }
-}
-
-/** Pure display formatting for a post-previews card's date — the one place this file turns
- *  the post's display date ({@link postDisplayDateIso}: `publishAt` when set, else `updatedAt`) into
- *  the short label a card shows (e.g. "Sep 3, 2026"). `PostRecord` has no `publishedAt` (see
- *  `static-render.ts`'s `StaticPostPreview.dateIso` doc for why). A malformed timestamp —
- *  should not occur for a real stored row — degrades to the raw ISO string rather than
- *  "Invalid Date", a legible if ugly output over a broken one. Bug D: the day is the site's
- *  (`timeZone`, from `core.site.timezone`), not the server's UTC. */
-function formatPostPreviewDate({ iso, timeZone }: { iso: string; timeZone: string }, _optional = {}): string {
-  return formatDateLabel({ iso }, { timeZone });
-}
-
-/**
- * Post-previews marker resolution (2026-09-03) — resolves the bounded, ADR-030 §4
- * visibility-filtered {@link StaticPostPreview}s a `{"type":"post-previews"}` marker in `pageHtml`
- * needs, or `undefined` when `pageHtml` carries no such marker at all (the "pay for the query only
- * when present" gate — REQ 2 of the post-previews marker's own spec). A `data-jini-see-more` marker
- * also gets its next batch URL (`<pagePath>/_more/<key>/<after>`) while more posts remain.
- *
- * Applies the SAME member-access rule (`decidePostMemberAccess`, as `isVisible` of
- * `readListingBatch`, so hidden rows are skipped before a batch is filled) the
- * `filterVisiblePosts` gate on the home/related-posts listing already applies to
- * `posts` — see that function's own doc for why gating only SOME listings is protection that looks
- * real and isn't (ADR-030 §4); this listing gets no exception. `kind: "post"` and
- * `status: "published"` are already enforced by the bounded repo query itself
- * (`listPublishedPostPreviews` -> `PostRepoPort.listPublishedPreviews`), so a Page — including
- * whichever one claims the reserved `/` root slug — can never appear in this listing by
- * construction; not re-checked here.
- *
- * @complexity At most 4 bounded `listPublishedPreviews` reads per batch (one batch for the plain
- * markers at their widest limit, one per see-more marker), each `size + 1` rows. Cover
- * selection scans those visible bodies and resolves distinct media refs with one MIME batch;
- * it never adds an unbounded post query or resolves hidden posts' cover metadata.
- */
-async function resolvePostPreviewsForRender({ deps, memberAccessResolver, memberContext, pageHtml, pagePath }: { deps: Pick<RouteDeps, "workspaceId" | "postRepo" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch" | "listingPage">; memberAccessResolver: MemberAccessResolver; memberContext: MemberContext; pageHtml: string; pagePath: string }, _optional = {}): Promise<{ previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>; page?: StaticPostPreviewsPage } | undefined> {
-  const markers = markersOfType({ html: pageHtml, type: POST_PREVIEWS_MARKER_TYPE });
-  if (markers.length === 0) return undefined;
-
-  const source: ListingSource<PostRecord> = async ({ offset, limit }) =>
-    (await listPublishedPostPreviews({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, limit, offset } })).posts;
-  const isVisible = (post: PostRecord): boolean => decidePostMemberAccess({ resolver: memberAccessResolver, post, context: memberContext }).allowed;
-
-  // Plain markers share one batch at the widest limit (each slices its own); a see-more marker
-  // (`data-jini-listing`) reads its own batch, from `after` when this request asks for that key. A
-  // listing with a `<template data-jini-card>` loads its next batches as JSON (`.json` batch URLs).
-  const plainLimit = widestPlainPostPreviewsLimit(markers);
-  const plain = plainLimit > 0 ? (await readListingBatch({ source, after: 0, size: plainLimit }, { isVisible })).items : [];
-  const keyed = await readKeyedPostPreviewBatches({ deps, markers, source, isVisible, pagePath });
-  const paged = await readPagedPostPreviews({ deps, markers, source, isVisible, pagePath });
-
-  const listed = [...plain, ...[...keyed.values()].flatMap((batch) => batch.posts), ...(paged?.posts ?? [])];
-  const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
-    resolveMediaAssetMetadataForRender({ deps, post: undefined }, { listed }),
-    resolveMediaTransformVersionsForRender(deps),
-  ]);
-  // Bug D: card dates are the site's calendar day. `deps` is the full route deps at runtime; its
-  // narrowed type simply does not name the optional `siteTimeZone`.
-  const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
-  const toPreview = (post: PostRecord): StaticPostPreview => {
-    const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate({ iso: dateIso, timeZone }), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
-  };
-  const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
-  for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });
-  await storeListingJsonPage({ deps, keyed, toPreview });
-  const page = paged && { items: paged.posts.map(toPreview), nav: paged.nav };
-  return { previews: plain.map(toPreview), batches, ...(page ? { page } : {}) };
-}
-
-/**
- * Bug C (2026-10-22) — the requested page (`deps.listingPage`, else 1) of a page's `paged`
- * post-previews listing, sized by the first paged marker, with its rendered prev/next nav; every
- * paged marker on the page shows this one page. `undefined` when the page carries no paged marker.
- * A page past the last throws {@link ListingBatchNotFoundError}, answered as the ordinary 404.
- * @complexity One visible-count scan of the published posts (`readListingPage`).
- */
-async function readPagedPostPreviews({ deps, markers, source, isVisible, pagePath }: {
-  deps: Pick<TemplateRenderDeps, "listingPage">;
-  markers: readonly EmbedMarker[];
-  source: ListingSource<PostRecord>;
-  isVisible: (post: PostRecord) => boolean;
-  pagePath: string;
-}): Promise<{ posts: readonly PostRecord[]; nav: string } | undefined> {
-  const marker = markers.find(isPagedPostPreviewsMarker);
-  if (marker === undefined) return undefined;
-  const page = await readListingPage({ source, page: deps.listingPage ?? 1, pageSize: postPreviewsBatchSize(marker) }, { isVisible, pagePath });
-  if (page === undefined) throw new ListingBatchNotFoundError();
-  return { posts: page.items, nav: renderListingPageNav({ page }) };
-}
-
-/** The widest batch size among plain (non-see-more, non-paged) post-previews markers; `0` when every
- *  marker is a see-more or paged listing. @complexity O(m) over markers. */
-function widestPlainPostPreviewsLimit(markers: readonly EmbedMarker[]): number {
-  return markers.reduce((widest, marker) => (isPlainPostPreviewsMarker(marker) ? Math.max(widest, postPreviewsBatchSize(marker)) : widest), 0);
-}
-
-/** Neither a see-more listing nor a paged one: renders a slice of the shared plain batch. @complexity O(attrs). */
-function isPlainPostPreviewsMarker(marker: EmbedMarker): boolean {
-  return listingKeyOfAttributes({ attrs: marker.attrs }) === undefined && !isPagedPostPreviewsMarker(marker);
-}
-
-/** Reads each distinct see-more listing's batch (first marker per key wins), in marker order.
- *  @complexity One bounded batch read per distinct listing key. */
-async function readKeyedPostPreviewBatches({ deps, markers, source, isVisible, pagePath }: {
-  deps: Pick<TemplateRenderDeps, "listingBatch">;
-  markers: readonly EmbedMarker[];
-  source: ListingSource<PostRecord>;
-  isVisible: (post: PostRecord) => boolean;
-  pagePath: string;
-}): Promise<Map<number, KeyedPostPreviewBatch>> {
-  const keyed = new Map<number, KeyedPostPreviewBatch>();
-  for (const marker of markers) {
-    const key = listingKeyOfAttributes({ attrs: marker.attrs });
-    if (key === undefined || keyed.has(key)) continue;
-    const after = deps.listingBatch?.key === key ? deps.listingBatch.after : 0;
-    const batch = await readListingBatch({ source, after, size: postPreviewsBatchSize(marker) }, { isVisible });
-    keyed.set(key, toKeyedPostPreviewBatch({ batch, marker, key, pagePath }));
-  }
-  return keyed;
-}
-
-/** A read batch plus its next-batch URL (`.json` when the listing carries a card template). */
-function toKeyedPostPreviewBatch({ batch, marker, key, pagePath }: {
-  batch: { items: readonly PostRecord[]; hasMore: boolean; next: number };
-  marker: EmbedMarker;
-  key: number;
-  pagePath: string;
-}): KeyedPostPreviewBatch {
-  if (!batch.hasMore) return { posts: batch.items, next: null };
-  const format = extractListingCardTemplate({ html: marker.inner }) === undefined ? {} : { format: "json" as const };
-  return { posts: batch.items, next: batch.next, nextHref: listingBatchPath({ pagePath, key, after: batch.next, ...format }) };
 }
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
