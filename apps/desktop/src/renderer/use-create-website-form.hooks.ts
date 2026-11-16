@@ -8,7 +8,7 @@ import { SITE_NAME_ERROR, siteNameError } from '../contracts/site-name.js';
 import { humanSiteError } from './site-shell-policy.js';
 import type { CreateSiteInput, DatabaseProviderKind } from '../contracts/project.js';
 
-function refValue(ref: RefObject<HTMLInputElement | null>): string {
+function refValue({ ref }: { ref: RefObject<HTMLInputElement | null> }, _options = {}): string {
   return ref.current?.value ?? '';
 }
 
@@ -153,8 +153,8 @@ export function useCreateWebsiteForm(
       customProviderLabel: customProvider,
       supabaseUrl,
       customConnection,
-      supabaseKey: refValue(supabaseKeyRef),
-      customCredential: refValue(customCredentialRef),
+      supabaseKey: refValue({ ref: supabaseKeyRef }),
+      customCredential: refValue({ ref: customCredentialRef }),
     });
     // Cleared immediately, before the async call, so the DOM never holds the
     // secret longer than it takes to read it — even if the submit fails.

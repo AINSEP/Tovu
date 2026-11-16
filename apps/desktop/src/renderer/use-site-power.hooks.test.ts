@@ -39,24 +39,24 @@ test('toggle intent preserves no-op, synchronous lock and external-stop confirma
 // ---------------------------------------------------------------------------------------------
 
 test('a running site is offered Stop', () => {
-  assert.deepEqual(powerControl('running'), { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true });
+  assert.deepEqual(powerControl({ status: 'running' }), { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true });
 });
 
 test('a stopped site is offered Start', () => {
-  assert.deepEqual(powerControl('stopped'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.deepEqual(powerControl({ status: 'stopped' }), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
 test('a FAILED site is offered Start, not a disabled button — a failed boot is the one you retry', () => {
-  assert.deepEqual(powerControl('failed'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.deepEqual(powerControl({ status: 'failed' }), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
 test('a SLEEPING site uses Start directly without changing its lifecycle record', () => {
-  assert.deepEqual(powerControl('sleeping'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
-  assert.equal(powerControl('sleeping', { external: true }), null);
+  assert.deepEqual(powerControl({ status: 'sleeping' }), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
+  assert.equal(powerControl({ status: 'sleeping' }, { external: true }), null);
 });
 
 test('mid-start the button says Starting… and does nothing when pressed', () => {
-  const control = powerControl('starting');
+  const control = powerControl({ status: 'starting' });
   assert.equal(control?.label, 'Starting…');
   assert.equal(control?.tooltip, 'Starting…');
   assert.equal(control?.action, null, 'a press mid-transition must not queue a second one');
@@ -65,7 +65,7 @@ test('mid-start the button says Starting… and does nothing when pressed', () =
 });
 
 test('mid-stop the button says Stopping… and does nothing when pressed', () => {
-  const control = powerControl('stopping');
+  const control = powerControl({ status: 'stopping' });
   assert.equal(control?.label, 'Stopping…');
   assert.equal(control?.tooltip, 'Stopping…');
   assert.equal(control?.action, null);
@@ -76,15 +76,15 @@ test('mid-stop the button says Stopping… and does nothing when pressed', () =>
 test('provisioning and blocked get NO button rather than an inert one', () => {
   // A control that is permanently dead teaches an operator that this card's buttons sometimes do
   // nothing, which then applies to the ones that work.
-  assert.equal(powerControl('provisioning'), null);
-  assert.equal(powerControl('blocked'), null);
+  assert.equal(powerControl({ status: 'provisioning' }), null);
+  assert.equal(powerControl({ status: 'blocked' }), null);
 });
 
 test('no status produces a label that contradicts its action', () => {
   // The whole contract in one sweep: an actionable control never reads as busy, and a busy one
   // never offers an action.
   for (const status of ['provisioning', 'starting', 'running', 'stopping', 'stopped', 'sleeping', 'failed', 'blocked'] as const) {
-    const control = powerControl(status);
+    const control = powerControl({ status });
     if (control === null) continue;
     assert.equal(control.busy, control.action === null, `${status}: busy and action disagree`);
     assert.notEqual(control.label, '', `${status}: a button with no label`);

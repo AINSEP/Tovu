@@ -17,8 +17,8 @@ export interface SiteLocate {
   /** The card whose picker is open, or `null`. */
   locatingId: string | null;
   /** Why this card's last Locate failed, or `null`. Main's own sentence, verbatim. */
-  errorOf: (id: string) => string | null;
-  locate: (id: string) => Promise<void>;
+  errorOf: (required: { id: string }, options?: {}) => string | null;
+  locate: (required: { id: string }, options?: {}) => Promise<void>;
 }
 
 /** A settled Locate: the record at its new folder, main's refusal, or neither (the operator cancelled). */
@@ -53,10 +53,10 @@ export function useSiteLocate(
   const [locatingId, setLocatingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({});
 
-  const errorOf = useCallback((id: string) => errors[id] ?? null, [errors]);
+  const errorOf = useCallback(({ id }: { id: string }, _options = {}) => errors[id] ?? null, [errors]);
 
   const locate = useCallback(
-    async (id: string) => {
+    async ({ id }: { id: string }, _options = {}) => {
       setLocatingId(id);
       const bridge = runnerInventoryBridge();
       const result = await performSiteFolderAction({ id, bridge });

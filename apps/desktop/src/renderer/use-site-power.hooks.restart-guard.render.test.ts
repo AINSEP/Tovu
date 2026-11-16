@@ -35,7 +35,7 @@ test('rapid Restart and Stop presses share one synchronous guard, and a failed R
   stops[0]!.reject(new Error('stop failed'));
   await restarting;
   await settle();
-  assert.equal(hook.current().errorOf(RUNNING.id), 'stop failed');
+  assert.equal(hook.current().errorOf({ id: RUNNING.id }), 'stop failed');
   assert.equal(hook.current().statusOf(RUNNING), 'running', 'the pending mark is gone');
   assert.equal(hook.current().restartControlOf(RUNNING).label, 'Restart');
   void hook.current().toggle(RUNNING);

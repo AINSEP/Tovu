@@ -91,7 +91,7 @@ function fakeHooks() {
     usePower: () => {
       const power: SitePower = {
         statusOf: (project) => state.statuses[project.id] ?? project.status,
-        errorOf: (id) => state.errors[id] ?? null,
+        errorOf: ({ id }) => state.errors[id] ?? null,
         toggle: async (project) => { calls.push(`toggle ${project.id}`); },
         restart: async (project) => { calls.push(`restart ${project.id}`); },
         restartControlOf: (project) => state.restart ?? { label: 'Restart', ariaLabel: `Restart ${project.displayName}`, disabled: false, busy: false, tooltip: 'Restart site' },
@@ -108,8 +108,8 @@ function fakeHooks() {
     },
     useLocate: (): SiteLocate => ({
       locatingId: state.locatingId,
-      errorOf: (id) => state.locateErrors[id] ?? null,
-      locate: async (id) => { calls.push(`locate ${id}`); },
+      errorOf: ({ id }) => state.locateErrors[id] ?? null,
+      locate: async ({ id }) => { calls.push(`locate ${id}`); },
     }),
     usePreview: ({ id }: { id: string }) => state.previews[id] ?? null,
   };
@@ -623,7 +623,7 @@ function dated(...numbers: number[]) {
 }
 
 function renderList(t: TestContext, projects: SiteRecord[], storage: SiteListStorage) {
-  const grid = renderGrid(t, projects, fakeHooks(), { useListPrefs: () => useSiteListPrefs(storage) });
+  const grid = renderGrid(t, projects, fakeHooks(), { useListPrefs: () => useSiteListPrefs({}, { storage }) });
   const names = () => grid.cards().map((card) => card.querySelector('h3')!.textContent);
   const chip = (label: RegExp) => [...grid.host.querySelectorAll<HTMLButtonElement>('.jini-site-list-toolbar__view')].find((view) => label.test(view.textContent ?? ''));
   const chooseMenuItem = (name: string, item: string) => {

@@ -214,11 +214,11 @@ export function cardOpenProps({ openable, onOpen }: { openable: boolean; onOpen:
  * menu floating over whatever the action changed.
  *
  * @param required.setOpen the menu's open-state setter (`useDismissibleDropdown`'s).
- * @returns `choose(act)`, which builds one entry's handler. Building it runs nothing.
+ * @returns `choose({ act })`, which builds one entry's handler. Building it runs nothing.
  * @complexity O(1) time, O(1) space.
  */
-export function closeMenuThen({ setOpen }: { setOpen: (open: boolean) => void }, _options = {}): (act: () => void) => () => void {
-  return (act) => () => {
+export function closeMenuThen({ setOpen }: { setOpen: (open: boolean) => void }, _options = {}): (required: { act: () => void }) => () => void {
+  return ({ act }) => () => {
     setOpen(false);
     act();
   };
@@ -243,7 +243,7 @@ export function duplicateDisplayNames({ projects }: { projects: readonly Pick<Si
  * drain does. A failure is a warning, as it was on the card before the shared frame.
  * @returns The tone for this status. @complexity O(1) time and space.
  */
-export function siteCardTone(status: SiteRecord['status'], _options = {}): SiteCardTone {
+export function siteCardTone({ status }: { status: SiteRecord['status'] }, _options = {}): SiteCardTone {
   if (status === 'running') return 'running';
   if (status === 'starting' || status === 'stopping') return 'busy';
   return status === 'failed' ? 'warning' : 'neutral';

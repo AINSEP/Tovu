@@ -179,7 +179,10 @@ export function readHistory({ guest }: { guest: WorkspaceGuest | null }, _option
  *
  * @returns the teardown that detaches both listeners.
  */
-export function trackGuestNavigation(guest: WorkspaceGuest, dispatch: Dispatch<SiteWorkspaceAction>): () => void {
+export function trackGuestNavigation(
+  { guest, dispatch }: { guest: WorkspaceGuest; dispatch: Dispatch<SiteWorkspaceAction> },
+  _options = {},
+): () => void {
   const onNavigate = (event: WebviewDidNavigateEvent) => {
     dispatch({ type: 'navigated', url: event.url, history: readHistory({ guest }) });
   };
@@ -363,7 +366,7 @@ export function useSiteWorkspace({ project, hidden }: { project: SiteRecord; hid
   // A new guest node (a remount, or the guest appearing at all) has its own, empty history.
   useEffect(() => {
     dispatch({ type: 'guest-changed', history: readHistory({ guest }) });
-    return guest === null ? undefined : trackGuestNavigation(guest, dispatch);
+    return guest === null ? undefined : trackGuestNavigation({ guest, dispatch });
   }, [guest]);
 
   useEffect(() => subscribeSiteHistory({ bridge: getBridge(), hidden, guest }), [hidden, guest, getBridge]);

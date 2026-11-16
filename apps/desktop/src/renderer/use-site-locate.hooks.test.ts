@@ -75,17 +75,17 @@ test('the locate hook shows pending/error state and delivers the found record wi
   });
   act(() => root.render(createElement(Probe)));
   let pending!: Promise<void>;
-  act(() => { pending = latest.locate('/sites/missing'); });
+  act(() => { pending = latest.locate({ id: '/sites/missing' }); });
   assert.equal(latest.locatingId, '/sites/missing');
   await act(async () => { reject(new Error('Folder is incomplete')); await pending; });
-  assert.equal(latest.errorOf('/sites/missing'), 'Folder is incomplete');
+  assert.equal(latest.errorOf({ id: '/sites/missing' }), 'Folder is incomplete');
   assert.equal(latest.locatingId, null);
   assert.deepEqual(delivered, []);
-  act(() => { pending = latest.locate('/sites/missing'); });
+  act(() => { pending = latest.locate({ id: '/sites/missing' }); });
   await act(async () => { settle(FOUND); await pending; });
   assert.deepEqual(asked, ['/sites/missing', '/sites/missing']);
   assert.deepEqual(delivered, [[FOUND, '/sites/missing']]);
-  assert.equal(latest.errorOf('/sites/missing'), null);
+  assert.equal(latest.errorOf({ id: '/sites/missing' }), null);
   assert.equal(latest.locatingId, null);
 
 });
