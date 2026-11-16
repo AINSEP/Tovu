@@ -29,7 +29,7 @@ function parseCreateEntryBody({ rawBody }: { rawBody: unknown }, _optional = {})
  * @file design-spec.md §1.5/§1.9 — `POST /api/admin/v1/entries` (creates a Collection entry,
  * REQ-13/14/19). Gated by `admin.collections.manage`.
  */
-export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminEntryCreateRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

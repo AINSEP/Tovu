@@ -73,7 +73,7 @@ async function rejectUnlessAuthorized(
   } }));
 }
 
-export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFsFilesCustomRootDeps): void {
+export function registerAdminFsFilesCustomRootRoutes({ app, deps }: { app: Express; deps: AdminFsFilesCustomRootDeps }, _optional: Record<string, never> = {}): void {
   app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res, deps, FS_FILES_READ_PERMISSION)) return;
     const status = getCustomFsRootStatus({ workspaceId: deps.workspaceId, optional: (deps.storeOptional ?? { siteDir: deps.siteBinding.dir }) });

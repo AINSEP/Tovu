@@ -235,10 +235,10 @@ for (const [label, registrar] of [
     type GuardHandler = (req: { params: Record<string, never>; body: unknown }, res: unknown) => unknown;
     let handler: GuardHandler | undefined;
     const authorizations: unknown[] = [];
-    registrar({ post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, {
+    registrar({ app: { post: (_path: string, registered: GuardHandler) => { handler = registered; } } as unknown as Express, deps: {
       ...deps,
       authorize: async (params) => { authorizations.push(params); return { allowed: true, reason: "allowed" }; },
-    });
+    } });
     let status = 200;
     let body: unknown;
     const response = {

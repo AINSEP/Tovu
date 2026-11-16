@@ -18,7 +18,7 @@ import { entryWriteErrorStatus } from "./write-error-status.js";
  * import("../../../../../features/entries/lifecycle-dispatch").EntryLifecycleOp} before lookup —
  * mirrors `inbound/admin-http/routes/content-types/lifecycle.ts`'s identical shape.
  */
-export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminEntryLifecycleRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/entries/:id/lifecycle", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

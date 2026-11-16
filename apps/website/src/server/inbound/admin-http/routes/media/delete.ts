@@ -14,7 +14,7 @@ import { readRouteParam, rejectForeignWorkspace } from "#src/server/inbound/shar
  * narrower permission than the ordinary trash's `media.delete`, since this is an irreversible purge
  * (mirrors `admin.menus.delete` vs `admin.menus.delete.force`'s split).
  */
-export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps & MediaWhereUsedDeps): void => {
+export const registerAdminMediaDeleteRoute = ({ app, deps }: { app: Express; deps: MediaRouteDeps & MediaWhereUsedDeps }, _optional: Record<string, never> = {}): void => {
   app.delete("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

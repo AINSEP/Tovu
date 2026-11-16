@@ -22,7 +22,7 @@ function appFixture() {
   const { deps, deny } = libraryFixture(); const app = express();
   app.use(express.json({ limit: '16mb' }));
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register(app, deps);
+  for (const register of [registerAdminMediaUploadRoute, registerAdminMediaListRoute, registerAdminMediaUpdateRoute, registerAdminMediaOriginalRoute, registerAdminMediaTrashRoute]) register({ app, deps });
   registerAdminMediaTextRoute({ app, deps });
   // Private documents must short-circuit before unrelated post/member lookups.
   registerMediaRenditionRoute({ app, deps: deps as MediaRenditionRouteDeps });
