@@ -1,5 +1,4 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
-import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
@@ -18,7 +17,6 @@ import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { createFormMediaCleanup } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
@@ -70,8 +68,8 @@ import {
   createTrashSweep,
   InMemoryTrashRepo,
   type TrashAdapter,
-  withFollowUps,
 } from "@jini-ai/cms/trash";
+import { attachFormAttachmentPurge } from "./memory-deps/slices/form-attachment-purge.js";
 import { composeMemoryTrashAdapters } from "./memory-deps/slices/trash-adapters.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
@@ -140,7 +138,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
-import { DEFAULT_GC_GRACE_MS, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryImageTransformer, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryImageTransformer, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { createInMemoryIdentityRouteDeps, resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import {
@@ -231,7 +229,6 @@ import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
 import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import { createFormFileStorage } from "../../../features/forms/form-file-storage.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import type { RouteDeps } from "../../routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
@@ -491,34 +488,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     term: { entry: termTrashEntry, db: sqliteTrashDb, followUps: taxonomyFollowUps },
     taxonomy: { entry: taxonomyTrashEntry, db: sqliteTrashDb, followUps: taxonomyFollowUps },
   });
-  for (const entityType of ["form", "form_submission"] as const) {
-    const adapter = trashAdapters.get(entityType);
-    if (!adapter) throw new Error(`memory trash has no ${entityType} adapter`);
-    trashAdapters.set(entityType, withFollowUps({ adapter }, createFormAttachmentPurgeHooks({
-      readSubmissions: async ({ workspaceId, entityId, after, limit }) => {
-        const rows = entityType === "form" ? await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: entityId })
-          : [await formSubmissionRepo.findAnyById({ workspaceId, id: entityId })];
-        // Match the SQL host's keyset pages, including the terminal empty page for one submission.
-        return rows.filter(row => row !== null)
-          .filter(row => after === undefined || row.id > after)
-          .sort((left, right) => {
-            if (left.id < right.id) return -1;
-            return left.id > right.id ? 1 : 0;
-          })
-          .slice(0, limit).map(row => ({ id: row.id, dataJson: JSON.stringify(row.data) }));
-      },
-      remove: async ({ workspaceId, mediaId }) => {
-        const asset = await mediaRepo.findById({ workspaceId, id: mediaId });
-        if (!asset) return;
-        const files = createFormFileStorage({ media: {
-          mediaRepo, clock, idGen, entryRefsRepo, postRepo, blobRepo: routeDeps.assetBlobRepo,
-          renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
-          ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),
-        }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
-        await files.discard({ workspaceId, reference: { mediaId } });
-      },
-    })));
-  }
+  attachFormAttachmentPurge({ adapters: trashAdapters, formSubmissionRepo, mediaRepo, postRepo, clock, idGen, outbox, entryRefsRepo: () => entryRefsRepo, routeDeps: () => routeDeps });
   const trash = createTrashService({
     repo: trashRepo,
     adapters: trashAdapters,
