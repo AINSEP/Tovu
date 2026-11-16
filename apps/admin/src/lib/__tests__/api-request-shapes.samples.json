@@ -1,0 +1,2876 @@
+{
+ "login": {
+  "min": [
+   {
+    "username": "<username>",
+    "password": "<password>"
+   }
+  ],
+  "full": [
+   {
+    "username": "<username>",
+    "password": "<password>"
+   },
+   {}
+  ]
+ },
+ "completeMfa": {
+  "min": [
+   {
+    "pendingToken": "<pendingToken>",
+    "code": "<code>"
+   }
+  ],
+  "full": [
+   {
+    "pendingToken": "<pendingToken>",
+    "code": "<code>"
+   }
+  ]
+ },
+ "logout": {
+  "min": [],
+  "full": []
+ },
+ "redeemBootSession": {
+  "min": [
+   {
+    "token": "<token>"
+   }
+  ],
+  "full": [
+   {
+    "token": "<token>"
+   },
+   {}
+  ]
+ },
+ "signInLocalOwner": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {},
+   {}
+  ]
+ },
+ "me": {
+  "min": [],
+  "full": []
+ },
+ "getPasswordStatus": {
+  "min": [],
+  "full": []
+ },
+ "listPosts": {
+  "min": [],
+  "full": []
+ },
+ "createPost": {
+  "min": [
+   {
+    "title": "<title>"
+   }
+  ],
+  "full": [
+   {
+    "title": "<title>",
+    "slug": "<slug>",
+    "bodyJson": {
+     "<bodyJsonKey>": "<bodyJsonValue:unknown>"
+    },
+    "status": "draft",
+    "templateChoice": "<templateChoice>",
+    "overridesThemePage": false,
+    "publishAt": "<publishAt>",
+    "featuredMediaId": "<featuredMediaId>",
+    "author": "<author>",
+    "showAuthor": false,
+    "hideCoverImageInBody": false
+   },
+   {}
+  ]
+ },
+ "getPost": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "templatePreviewUrl": {
+  "min": [
+   {
+    "id": "<id>",
+    "templateChoice": "<templateChoice>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "templateChoice": "<templateChoice>"
+   },
+   {}
+  ]
+ },
+ "updatePost": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {
+    "options": {
+     "title": "<title>",
+     "slug": "<slug>",
+     "bodyJson": {
+      "<bodyJsonKey>": "<bodyJsonValue:unknown>"
+     },
+     "status": "draft",
+     "templateChoice": "<templateChoice>",
+     "overridesThemePage": false,
+     "publishAt": "<publishAt>",
+     "featuredMediaId": "<featuredMediaId>",
+     "author": "<author>",
+     "showAuthor": false,
+     "expectedVersion": 7,
+     "hideCoverImageInBody": false,
+     "slugFromTitle": false
+    },
+    "entry": "page"
+   }
+  ]
+ },
+ "deletePost": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "putAutosave": {
+  "min": [
+   {
+    "id": "<id>",
+    "draft": {
+     "bodyFormat": "doc",
+     "bodyJson": {},
+     "title": "<title>",
+     "slug": "<slug>",
+     "baseVersion": 7
+    }
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "draft": {
+     "bodyFormat": "doc",
+     "bodyJson": {
+      "<bodyJsonKey>": "<bodyJsonValue:unknown>"
+     },
+     "title": "<title>",
+     "slug": "<slug>",
+     "baseVersion": 7
+    }
+   },
+   {
+    "keepalive": false
+   }
+  ]
+ },
+ "getAutosave": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "discardAutosave": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "listPages": {
+  "min": [],
+  "full": []
+ },
+ "createPage": {
+  "min": [
+   {
+    "title": "<title>"
+   }
+  ],
+  "full": [
+   {
+    "title": "<title>"
+   },
+   {}
+  ]
+ },
+ "getPage": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "updatePageHtml": {
+  "min": [
+   {
+    "id": "<id>",
+    "html": "<html>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "html": "<html>"
+   },
+   {}
+  ]
+ },
+ "deletePage": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "getPresentation": {
+  "min": [],
+  "full": [
+   {
+    "kind": "page"
+   },
+   {}
+  ]
+ },
+ "getThemeDetail": {
+  "min": [
+   {
+    "themeId": "<themeId>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>"
+   },
+   {}
+  ]
+ },
+ "resetThemeFile": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   },
+   {}
+  ]
+ },
+ "saveThemeOriginal": {
+  "min": [
+   {
+    "themeId": "<themeId>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>"
+   },
+   {}
+  ]
+ },
+ "getThemeFile": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   },
+   {}
+  ]
+ },
+ "putThemeFile": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>",
+    "content": "<content>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>",
+    "content": "<content>"
+   },
+   {}
+  ]
+ },
+ "copyThemeFile": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   },
+   {}
+  ]
+ },
+ "renameThemeFile": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>",
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>",
+    "name": "<name>"
+   },
+   {}
+  ]
+ },
+ "deleteThemeFile": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "path": "<path>"
+   },
+   {}
+  ]
+ },
+ "setThemePagePublished": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "page": "<page>",
+    "published": true
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "page": "<page>",
+    "published": true
+   },
+   {}
+  ]
+ },
+ "rescanThemes": {
+  "min": [],
+  "full": []
+ },
+ "duplicateTheme": {
+  "min": [
+   {
+    "themeId": "<themeId>",
+    "newName": "<newName>"
+   }
+  ],
+  "full": [
+   {
+    "themeId": "<themeId>",
+    "newName": "<newName>"
+   },
+   {
+    "newId": "<newId>"
+   }
+  ]
+ },
+ "setActiveTheme": {
+  "min": [
+   {
+    "activeThemeId": "<activeThemeId>"
+   }
+  ],
+  "full": [
+   {
+    "activeThemeId": "<activeThemeId>"
+   },
+   {}
+  ]
+ },
+ "listMembers": {
+  "min": [],
+  "full": []
+ },
+ "getMember": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "disableMember": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "requestMemberMagicLink": {
+  "min": [
+   {
+    "email": "<email>"
+   }
+  ],
+  "full": [
+   {
+    "email": "<email>"
+   },
+   {
+    "redirectPath": "<redirectPath>"
+   }
+  ]
+ },
+ "listRecentAnalyticsHits": {
+  "min": [],
+  "full": [
+   {
+    "limit": 7
+   }
+  ]
+ },
+ "listMenus": {
+  "min": [],
+  "full": []
+ },
+ "getMenu": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "createMenu": {
+  "min": [
+   {
+    "title": "<title>",
+    "slug": "<slug>"
+   }
+  ],
+  "full": [
+   {
+    "title": "<title>",
+    "slug": "<slug>"
+   },
+   {
+    "items": [
+     {
+      "id": "<id>",
+      "label": "<label>",
+      "target": {
+       "kind": "entryRef",
+       "entryId": "<entryId>",
+       "termId": "<termId>",
+       "taxonomy": "<taxonomy>",
+       "href": "<href>",
+       "route": "<route>"
+      },
+      "attrs": {
+       "openInNewTab": false,
+       "rel": "<rel>",
+       "cssClass": "<cssClass>",
+       "description": "<description>",
+       "icon": "<icon>"
+      },
+      "children": [
+       {
+        "id": "<id>",
+        "label": "<label>",
+        "target": {
+         "kind": "entryRef",
+         "entryId": "<entryId>",
+         "termId": "<termId>",
+         "taxonomy": "<taxonomy>",
+         "href": "<href>",
+         "route": "<route>"
+        },
+        "attrs": {
+         "openInNewTab": false,
+         "rel": "<rel>",
+         "cssClass": "<cssClass>",
+         "description": "<description>",
+         "icon": "<icon>"
+        },
+        "children": [
+         {
+          "id": "<id>",
+          "label": "<label>",
+          "target": "<target>",
+          "attrs": "<attrs>",
+          "children": "<children>"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "mode": "items",
+    "html": "<html>"
+   }
+  ]
+ },
+ "updateMenuTree": {
+  "min": [
+   {
+    "id": "<id>",
+    "expectedVersion": 7,
+    "items": [
+     {
+      "id": "<id>",
+      "target": {
+       "kind": "entryRef"
+      }
+     }
+    ]
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "expectedVersion": 7,
+    "items": [
+     {
+      "id": "<id>",
+      "label": "<label>",
+      "target": {
+       "kind": "entryRef",
+       "entryId": "<entryId>",
+       "termId": "<termId>",
+       "taxonomy": "<taxonomy>",
+       "href": "<href>",
+       "route": "<route>"
+      },
+      "attrs": {
+       "openInNewTab": false,
+       "rel": "<rel>",
+       "cssClass": "<cssClass>",
+       "description": "<description>",
+       "icon": "<icon>"
+      },
+      "children": [
+       {
+        "id": "<id>",
+        "label": "<label>",
+        "target": {
+         "kind": "entryRef",
+         "entryId": "<entryId>",
+         "termId": "<termId>",
+         "taxonomy": "<taxonomy>",
+         "href": "<href>",
+         "route": "<route>"
+        },
+        "attrs": {
+         "openInNewTab": false,
+         "rel": "<rel>",
+         "cssClass": "<cssClass>",
+         "description": "<description>",
+         "icon": "<icon>"
+        },
+        "children": [
+         {
+          "id": "<id>",
+          "label": "<label>",
+          "target": "<target>",
+          "attrs": "<attrs>",
+          "children": "<children>"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "title": "<title>",
+    "slug": "<slug>",
+    "mode": "items",
+    "html": "<html>"
+   }
+  ]
+ },
+ "listIntegrationSubscriptions": {
+  "min": [],
+  "full": []
+ },
+ "createIntegrationSubscription": {
+  "min": [
+   {
+    "label": "<label>",
+    "targetUrl": "<targetUrl>",
+    "topics": [
+     "<topics>"
+    ]
+   }
+  ],
+  "full": [
+   {
+    "label": "<label>",
+    "targetUrl": "<targetUrl>",
+    "topics": [
+     "<topics>"
+    ]
+   }
+  ]
+ },
+ "pauseIntegrationSubscription": {
+  "min": [
+   {
+    "id": "<id>",
+    "paused": true
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "paused": true
+   },
+   {}
+  ]
+ },
+ "deleteIntegrationSubscription": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "listIntegrationDeliveries": {
+  "min": [
+   {
+    "subscriptionId": "<subscriptionId>"
+   }
+  ],
+  "full": [
+   {
+    "subscriptionId": "<subscriptionId>"
+   },
+   {}
+  ]
+ },
+ "listMedia": {
+  "min": [],
+  "full": []
+ },
+ "getMediaProviders": {
+  "min": [],
+  "full": []
+ },
+ "saveMediaProviders": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {
+    "<providersKey>": {
+     "apiKeyHint": {
+      "length": 7,
+      "last4": "<last4>"
+     },
+     "apiKey": "<apiKey>",
+     "baseUrl": "<baseUrl>",
+     "model": "<model>",
+     "apiKeyConfigured": false,
+     "apiKeyTail": "<apiKeyTail>",
+     "source": "<source>"
+    }
+   }
+  ]
+ },
+ "listExternalMcpServers": {
+  "min": [],
+  "full": []
+ },
+ "saveExternalMcpServer": {
+  "min": [
+   {
+    "serverId": "<serverId>",
+    "body": {
+     "transport": "<transport>",
+     "enabled": true,
+     "command": "<command>",
+     "args": "<args>",
+     "allowedToolNames": "<allowedToolNames>",
+     "writeAllowedToolNames": "<writeAllowedToolNames>"
+    }
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>",
+    "body": {
+     "label": "<label>",
+     "transport": "<transport>",
+     "enabled": true,
+     "command": "<command>",
+     "url": "<url>",
+     "args": "<args>",
+     "allowedToolNames": "<allowedToolNames>",
+     "writeAllowedToolNames": "<writeAllowedToolNames>",
+     "env": "<env>",
+     "authMode": "<authMode>",
+     "accessToken": "<accessToken>",
+     "accessTokenEnvName": "<accessTokenEnvName>",
+     "oauth": {
+      "providerId": "<providerId>",
+      "grant": "<grant>",
+      "clientId": "<clientId>",
+      "clientSecret": "<clientSecret>",
+      "scopes": "<scopes>",
+      "tokenEnvName": "<tokenEnvName>",
+      "authorizationEndpoint": "<authorizationEndpoint>",
+      "tokenEndpoint": "<tokenEndpoint>",
+      "deviceAuthorizationEndpoint": "<deviceAuthorizationEndpoint>"
+     }
+    }
+   },
+   {}
+  ]
+ },
+ "deleteExternalMcpServer": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {}
+  ]
+ },
+ "probeExternalMcpServer": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {}
+  ]
+ },
+ "connectExternalMcpOAuth": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {
+    "destination": "shared"
+   }
+  ]
+ },
+ "useLocalMcpConnection": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {}
+  ]
+ },
+ "stopSharedMcpConnection": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {}
+  ]
+ },
+ "listSharedMcpConnections": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {}
+  ]
+ },
+ "useSharedMcpConnection": {
+  "min": [
+   {
+    "serverId": "<serverId>",
+    "credentialId": "<credentialId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>",
+    "credentialId": "<credentialId>"
+   }
+  ]
+ },
+ "pollExternalMcpOAuthDevice": {
+  "min": [
+   {
+    "serverId": "<serverId>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>"
+   },
+   {}
+  ]
+ },
+ "getExternalMcpAdmissions": {
+  "min": [],
+  "full": []
+ },
+ "listExternalMcpToolApprovals": {
+  "min": [],
+  "full": []
+ },
+ "revokeExternalMcpToolApproval": {
+  "min": [
+   {
+    "serverId": "<serverId>",
+    "toolName": "<toolName>"
+   }
+  ],
+  "full": [
+   {
+    "serverId": "<serverId>",
+    "toolName": "<toolName>"
+   },
+   {}
+  ]
+ },
+ "mediaOriginalUrl": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "mediaPreviewRenditionUrl": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "mediaContentType": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "importMediaFromUrl": {
+  "min": [
+   {
+    "url": "<url>"
+   }
+  ],
+  "full": [
+   {
+    "url": "<url>"
+   },
+   {
+    "filename": "<filename>",
+    "alt": "<alt>",
+    "caption": "<caption>",
+    "credit": "<credit>"
+   }
+  ]
+ },
+ "uploadMedia": {
+  "min": [
+   {
+    "filename": "<filename>",
+    "contentType": "<contentType>",
+    "dataBase64": "<dataBase64>"
+   }
+  ],
+  "full": [
+   {
+    "filename": "<filename>",
+    "contentType": "<contentType>",
+    "dataBase64": "<dataBase64>"
+   },
+   {
+    "alt": "<alt>",
+    "caption": "<caption>",
+    "credit": "<credit>"
+   }
+  ]
+ },
+ "updateMedia": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {
+    "title": "<title>",
+    "slug": "<slug>",
+    "alt": "<alt>",
+    "caption": "<caption>",
+    "credit": "<credit>",
+    "width": 7,
+    "height": 7,
+    "cssClass": "<cssClass>",
+    "htmlAttributes": "<htmlAttributes>"
+   }
+  ]
+ },
+ "trashMedia": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "deleteMedia": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "listDocuments": {
+  "min": [],
+  "full": []
+ },
+ "uploadDocument": {
+  "min": [
+   {
+    "filename": "<filename>",
+    "dataBase64": "<dataBase64>"
+   }
+  ],
+  "full": [
+   {
+    "filename": "<filename>",
+    "dataBase64": "<dataBase64>"
+   }
+  ]
+ },
+ "readDocumentText": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {
+    "offset": 7
+   }
+  ]
+ },
+ "listUsers": {
+  "min": [],
+  "full": []
+ },
+ "createUser": {
+  "min": [
+   {
+    "username": "<username>",
+    "password": "<password>"
+   }
+  ],
+  "full": [
+   {
+    "username": "<username>",
+    "password": "<password>"
+   },
+   {
+    "email": "<email>"
+   }
+  ]
+ },
+ "updateUser": {
+  "min": [
+   {
+    "principalId": "<principalId>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>"
+   },
+   {
+    "email": "<email>",
+    "username": "<username>"
+   }
+  ]
+ },
+ "disableUser": {
+  "min": [
+   {
+    "principalId": "<principalId>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>"
+   },
+   {}
+  ]
+ },
+ "enableUser": {
+  "min": [
+   {
+    "principalId": "<principalId>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>"
+   },
+   {}
+  ]
+ },
+ "deleteUser": {
+  "min": [
+   {
+    "principalId": "<principalId>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>"
+   },
+   {}
+  ]
+ },
+ "resetUserPassword": {
+  "min": [
+   {
+    "principalId": "<principalId>",
+    "password": "<password>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>",
+    "password": "<password>"
+   },
+   {}
+  ]
+ },
+ "assignRole": {
+  "min": [
+   {
+    "principalId": "<principalId>",
+    "roleId": "<roleId>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>",
+    "roleId": "<roleId>"
+   },
+   {}
+  ]
+ },
+ "attachPolicy": {
+  "min": [
+   {
+    "principalId": "<principalId>",
+    "policyId": "<policyId>"
+   }
+  ],
+  "full": [
+   {
+    "principalId": "<principalId>",
+    "policyId": "<policyId>"
+   },
+   {}
+  ]
+ },
+ "listRoles": {
+  "min": [],
+  "full": []
+ },
+ "createRole": {
+  "min": [
+   {
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "name": "<name>"
+   },
+   {}
+  ]
+ },
+ "updateRole": {
+  "min": [
+   {
+    "roleId": "<roleId>",
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "roleId": "<roleId>",
+    "name": "<name>"
+   },
+   {}
+  ]
+ },
+ "deleteRole": {
+  "min": [
+   {
+    "roleId": "<roleId>"
+   }
+  ],
+  "full": [
+   {
+    "roleId": "<roleId>"
+   },
+   {}
+  ]
+ },
+ "listPolicies": {
+  "min": [],
+  "full": []
+ },
+ "createPolicy": {
+  "min": [
+   {
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "name": "<name>"
+   },
+   {
+    "description": "<description>"
+   }
+  ]
+ },
+ "updatePolicy": {
+  "min": [
+   {
+    "policyId": "<policyId>"
+   }
+  ],
+  "full": [
+   {
+    "policyId": "<policyId>"
+   },
+   {
+    "name": "<name>",
+    "description": "<description>"
+   }
+  ]
+ },
+ "deletePolicy": {
+  "min": [
+   {
+    "policyId": "<policyId>"
+   }
+  ],
+  "full": [
+   {
+    "policyId": "<policyId>"
+   },
+   {}
+  ]
+ },
+ "writePolicyPermission": {
+  "min": [
+   {
+    "policyId": "<policyId>",
+    "permission": "<permission>"
+   }
+  ],
+  "full": [
+   {
+    "policyId": "<policyId>",
+    "permission": "<permission>"
+   },
+   {
+    "resourceType": "<resourceType>"
+   }
+  ]
+ },
+ "listPolicyPermissions": {
+  "min": [
+   {
+    "policyId": "<policyId>"
+   }
+  ],
+  "full": [
+   {
+    "policyId": "<policyId>"
+   },
+   {}
+  ]
+ },
+ "removePolicyPermission": {
+  "min": [
+   {
+    "policyId": "<policyId>",
+    "policyPermissionId": "<policyPermissionId>"
+   }
+  ],
+  "full": [
+   {
+    "policyId": "<policyId>",
+    "policyPermissionId": "<policyPermissionId>"
+   }
+  ]
+ },
+ "getWorkspace": {
+  "min": [],
+  "full": []
+ },
+ "updateWorkspace": {
+  "min": [],
+  "full": [
+   {
+    "name": "<name>",
+    "slug": "<slug>"
+   }
+  ]
+ },
+ "getSettingsEffective": {
+  "min": [
+   {
+    "namespace": "<namespace>"
+   }
+  ],
+  "full": [
+   {
+    "namespace": "<namespace>"
+   },
+   {
+    "principalId": "<principalId>"
+   }
+  ]
+ },
+ "setSetting": {
+  "min": [
+   {
+    "namespace": "<namespace>",
+    "key": "<key>",
+    "scope": "global",
+    "valueJson": "<valueJson:unknown>"
+   }
+  ],
+  "full": [
+   {
+    "namespace": "<namespace>",
+    "key": "<key>",
+    "scope": "global",
+    "valueJson": "<valueJson:unknown>"
+   },
+   {
+    "principalId": "<principalId>"
+   }
+  ]
+ },
+ "detectExecutionAgents": {
+  "min": [],
+  "full": [
+   {},
+   {
+    "force": false
+   }
+  ]
+ },
+ "testExecutionConnection": {
+  "min": [
+   {
+    "protocol": "<protocol>",
+    "baseUrl": "<baseUrl>",
+    "apiKey": "<apiKey>",
+    "model": "<model>"
+   }
+  ],
+  "full": [
+   {
+    "protocol": "<protocol>",
+    "baseUrl": "<baseUrl>",
+    "apiKey": "<apiKey>",
+    "model": "<model>",
+    "apiVersion": "<apiVersion>",
+    "useStoredCredential": false,
+    "useAdminStoredCredential": false
+   }
+  ]
+ },
+ "testExecutionAgent": {
+  "min": [
+   {
+    "agentId": "<agentId>"
+   }
+  ],
+  "full": [
+   {
+    "agentId": "<agentId>",
+    "model": "<model>"
+   }
+  ]
+ },
+ "listExecutionModels": {
+  "min": [
+   {
+    "protocol": "<protocol>",
+    "baseUrl": "<baseUrl>",
+    "apiKey": "<apiKey>"
+   }
+  ],
+  "full": [
+   {
+    "protocol": "<protocol>",
+    "baseUrl": "<baseUrl>",
+    "apiKey": "<apiKey>",
+    "apiVersion": "<apiVersion>",
+    "useStoredCredential": false,
+    "useAdminStoredCredential": false
+   }
+  ]
+ },
+ "listForms": {
+  "min": [],
+  "full": []
+ },
+ "getAssistantSettings": {
+  "min": [],
+  "full": []
+ },
+ "setAssistantSettings": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {
+    "publicEnabled": false,
+    "widget": "react"
+   }
+  ]
+ },
+ "getFsFilesCustomRoot": {
+  "min": [],
+  "full": []
+ },
+ "setFsFilesCustomRoot": {
+  "min": [
+   {
+    "path": "<path>"
+   }
+  ],
+  "full": [
+   {
+    "path": "<path>"
+   },
+   {}
+  ]
+ },
+ "clearFsFilesCustomRoot": {
+  "min": [],
+  "full": []
+ },
+ "getFolderPicker": {
+  "min": [],
+  "full": []
+ },
+ "pickFolder": {
+  "min": [],
+  "full": []
+ },
+ "restartAssistantDaemon": {
+  "min": [],
+  "full": []
+ },
+ "getAssistantDaemonReadyz": {
+  "min": [],
+  "full": []
+ },
+ "getAssistantSiteCredential": {
+  "min": [],
+  "full": []
+ },
+ "setAssistantSiteCredential": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {
+    "apiKey": "<apiKey>",
+    "provider": "<provider>",
+    "baseUrl": "<baseUrl>",
+    "model": "<model>"
+   }
+  ]
+ },
+ "deleteAssistantSiteCredential": {
+  "min": [],
+  "full": []
+ },
+ "getAdminExecutionCredential": {
+  "min": [],
+  "full": []
+ },
+ "setAdminExecutionCredential": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {
+    "apiKey": "<apiKey>",
+    "protocol": "<protocol>",
+    "providerId": "<providerId>",
+    "baseUrl": "<baseUrl>",
+    "model": "<model>",
+    "maxTokens": 7
+   }
+  ]
+ },
+ "deleteAdminExecutionCredential": {
+  "min": [],
+  "full": []
+ },
+ "listContentTypes": {
+  "min": [],
+  "full": []
+ },
+ "createContentType": {
+  "min": [
+   {
+    "key": "<key>",
+    "label": "<label>",
+    "fields": [
+     {
+      "name": "<name>",
+      "kind": "boolean",
+      "required": true,
+      "queryable": true
+     }
+    ]
+   }
+  ],
+  "full": [
+   {
+    "key": "<key>",
+    "label": "<label>",
+    "fields": [
+     {
+      "name": "<name>",
+      "kind": "boolean",
+      "required": true,
+      "queryable": true
+     }
+    ]
+   }
+  ]
+ },
+ "updateContentTypeFields": {
+  "min": [
+   {
+    "key": "<key>",
+    "fields": [
+     {
+      "name": "<name>",
+      "kind": "boolean",
+      "required": true,
+      "queryable": true
+     }
+    ],
+    "expectedVersion": 7
+   }
+  ],
+  "full": [
+   {
+    "key": "<key>",
+    "fields": [
+     {
+      "name": "<name>",
+      "kind": "boolean",
+      "required": true,
+      "queryable": true
+     }
+    ],
+    "expectedVersion": 7
+   },
+   {}
+  ]
+ },
+ "contentTypeLifecycle": {
+  "min": [
+   {
+    "key": "<key>",
+    "op": "deprecate",
+    "expectedVersion": 7
+   }
+  ],
+  "full": [
+   {
+    "key": "<key>",
+    "op": "deprecate",
+    "expectedVersion": 7
+   },
+   {}
+  ]
+ },
+ "listEntries": {
+  "min": [],
+  "full": [
+   {
+    "type": "<type>"
+   }
+  ]
+ },
+ "createEntry": {
+  "min": [
+   {
+    "type": "<type>",
+    "slug": "<slug>",
+    "title": "<title>"
+   }
+  ],
+  "full": [
+   {
+    "type": "<type>",
+    "slug": "<slug>",
+    "title": "<title>"
+   },
+   {
+    "fieldsJson": "<fieldsJson:unknown>",
+    "bodyJson": "<bodyJson:unknown>"
+   }
+  ]
+ },
+ "updateEntry": {
+  "min": [
+   {
+    "id": "<id>",
+    "expectedVersion": 7
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "expectedVersion": 7
+   },
+   {
+    "title": "<title>",
+    "fieldsJson": "<fieldsJson:unknown>",
+    "bodyJson": "<bodyJson:unknown>"
+   }
+  ]
+ },
+ "entryLifecycle": {
+  "min": [
+   {
+    "id": "<id>",
+    "op": "publish",
+    "expectedVersion": 7
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "op": "publish",
+    "expectedVersion": 7
+   },
+   {}
+  ]
+ },
+ "listTaxonomies": {
+  "min": [],
+  "full": []
+ },
+ "createTaxonomy": {
+  "min": [
+   {
+    "name": "<name>",
+    "hierarchical": true
+   }
+  ],
+  "full": [
+   {
+    "name": "<name>",
+    "hierarchical": true
+   }
+  ]
+ },
+ "createTerm": {
+  "min": [
+   {
+    "taxonomyId": "<taxonomyId>",
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "taxonomyId": "<taxonomyId>",
+    "name": "<name>"
+   },
+   {
+    "parentId": "<parentId>"
+   }
+  ]
+ },
+ "renameTerm": {
+  "min": [
+   {
+    "termId": "<termId>",
+    "newName": "<newName>"
+   }
+  ],
+  "full": [
+   {
+    "termId": "<termId>",
+    "newName": "<newName>"
+   },
+   {}
+  ]
+ },
+ "assignTerms": {
+  "min": [
+   {
+    "contentType": "<contentType>",
+    "contentId": "<contentId>",
+    "termIds": [
+     "<termIds>"
+    ]
+   }
+  ],
+  "full": [
+   {
+    "contentType": "<contentType>",
+    "contentId": "<contentId>",
+    "termIds": [
+     "<termIds>"
+    ]
+   }
+  ]
+ },
+ "unassignTerms": {
+  "min": [
+   {
+    "contentType": "<contentType>",
+    "contentId": "<contentId>",
+    "termIds": [
+     "<termIds>"
+    ]
+   }
+  ],
+  "full": [
+   {
+    "contentType": "<contentType>",
+    "contentId": "<contentId>",
+    "termIds": [
+     "<termIds>"
+    ]
+   }
+  ]
+ },
+ "assignedTerms": {
+  "min": [
+   {
+    "contentType": "<contentType>",
+    "contentId": "<contentId>"
+   }
+  ],
+  "full": [
+   {
+    "contentType": "<contentType>",
+    "contentId": "<contentId>"
+   }
+  ]
+ },
+ "planMergeTerm": {
+  "min": [
+   {
+    "fromTermId": "<fromTermId>",
+    "intoTermId": "<intoTermId>"
+   }
+  ],
+  "full": [
+   {
+    "fromTermId": "<fromTermId>",
+    "intoTermId": "<intoTermId>"
+   },
+   {}
+  ]
+ },
+ "confirmMergeTerm": {
+  "min": [
+   {
+    "fromTermId": "<fromTermId>",
+    "planId": "<planId>",
+    "planHash": "<planHash>"
+   }
+  ],
+  "full": [
+   {
+    "fromTermId": "<fromTermId>",
+    "planId": "<planId>",
+    "planHash": "<planHash>"
+   },
+   {}
+  ]
+ },
+ "executeMergeTerm": {
+  "min": [
+   {
+    "fromTermId": "<fromTermId>",
+    "intoTermId": "<intoTermId>",
+    "confirmationToken": "<confirmationToken>"
+   }
+  ],
+  "full": [
+   {
+    "fromTermId": "<fromTermId>",
+    "intoTermId": "<intoTermId>",
+    "confirmationToken": "<confirmationToken>"
+   },
+   {}
+  ]
+ },
+ "getDatabaseTimeline": {
+  "min": [],
+  "full": [
+   {
+    "kind": "<kind>",
+    "outcome": "<outcome>",
+    "fromDate": "<fromDate>",
+    "toDate": "<toDate>",
+    "cursor": "<cursor>",
+    "limit": 7
+   }
+  ]
+ },
+ "getDatabaseSchemaState": {
+  "min": [],
+  "full": []
+ },
+ "planMigrateForward": {
+  "min": [],
+  "full": []
+ },
+ "confirmMigrateForward": {
+  "min": [
+   {
+    "planId": "<planId>",
+    "planHash": "<planHash>"
+   }
+  ],
+  "full": [
+   {
+    "planId": "<planId>",
+    "planHash": "<planHash>"
+   },
+   {}
+  ]
+ },
+ "executeMigrateForward": {
+  "min": [
+   {
+    "confirmationToken": "<confirmationToken>"
+   }
+  ],
+  "full": [
+   {
+    "confirmationToken": "<confirmationToken>"
+   },
+   {}
+  ]
+ },
+ "listRecoveryRestorePoints": {
+  "min": [],
+  "full": []
+ },
+ "createRecoveryRestorePoint": {
+  "min": [],
+  "full": [
+   {
+    "trigger": "<trigger>",
+    "costAck": false
+   }
+  ]
+ },
+ "computeRecoveryDisclosure": {
+  "min": [
+   {
+    "restorePointId": "<restorePointId>"
+   }
+  ],
+  "full": [
+   {
+    "restorePointId": "<restorePointId>"
+   },
+   {}
+  ]
+ },
+ "resolveRecoveryDeepLink": {
+  "min": [
+   {
+    "v": 7,
+    "correlationId": "<correlationId>",
+    "siteId": "<siteId>",
+    "ledgerEventId": "<ledgerEventId>",
+    "restorePointId": "<restorePointId>",
+    "drift": "<drift>",
+    "intent": "<intent>",
+    "issuedAt": "<issuedAt>"
+   }
+  ],
+  "full": [
+   {
+    "v": 7,
+    "correlationId": "<correlationId>",
+    "siteId": "<siteId>",
+    "ledgerEventId": "<ledgerEventId>",
+    "restorePointId": "<restorePointId>",
+    "drift": "<drift>",
+    "intent": "<intent>",
+    "issuedAt": "<issuedAt>"
+   }
+  ]
+ },
+ "getRecoveryStatus": {
+  "min": [],
+  "full": []
+ },
+ "planRestore": {
+  "min": [
+   {
+    "restorePointId": "<restorePointId>"
+   }
+  ],
+  "full": [
+   {
+    "restorePointId": "<restorePointId>"
+   },
+   {}
+  ]
+ },
+ "confirmRestore": {
+  "min": [
+   {
+    "planId": "<planId>",
+    "planHash": "<planHash>",
+    "disclosureAcknowledged": true
+   }
+  ],
+  "full": [
+   {
+    "planId": "<planId>",
+    "planHash": "<planHash>",
+    "disclosureAcknowledged": true
+   },
+   {}
+  ]
+ },
+ "executeRestore": {
+  "min": [
+   {
+    "confirmationToken": "<confirmationToken>",
+    "restorePointId": "<restorePointId>"
+   }
+  ],
+  "full": [
+   {
+    "confirmationToken": "<confirmationToken>",
+    "restorePointId": "<restorePointId>"
+   },
+   {}
+  ]
+ },
+ "listCommentsQueue": {
+  "min": [],
+  "full": [
+   {
+    "status": "pending",
+    "cursor": "<cursor>",
+    "limit": 7
+   }
+  ]
+ },
+ "listTrash": {
+  "min": [],
+  "full": [
+   {
+    "cursor": "<cursor>",
+    "limit": 7,
+    "entityTypes": [
+     "<entityTypes>"
+    ]
+   }
+  ]
+ },
+ "restoreTrashItems": {
+  "min": [
+   {
+    "items": [
+     {
+      "entityType": "<entityType>",
+      "entityId": "<entityId>"
+     }
+    ]
+   }
+  ],
+  "full": [
+   {
+    "items": [
+     {
+      "entityType": "<entityType>",
+      "entityId": "<entityId>"
+     }
+    ]
+   }
+  ]
+ },
+ "purgeTrashItems": {
+  "min": [
+   {
+    "ids": [
+     "<ids>"
+    ]
+   }
+  ],
+  "full": [
+   {
+    "ids": [
+     "<ids>"
+    ]
+   }
+  ]
+ },
+ "trash": {
+  "min": [
+   {
+    "type": "<type>",
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "type": "<type>",
+    "id": "<id>"
+   }
+  ]
+ },
+ "listWidgets": {
+  "min": [],
+  "full": [
+   {
+    "widgetType": "<widgetType>",
+    "includeInactive": false
+   }
+  ]
+ },
+ "getWidget": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "createWidget": {
+  "min": [
+   {
+    "widgetType": "text",
+    "title": "<title>",
+    "config": {}
+   }
+  ],
+  "full": [
+   {
+    "widgetType": "text",
+    "title": "<title>",
+    "config": {
+     "<configKey>": "<configValue:unknown>"
+    }
+   },
+   {
+    "slug": "<slug>"
+   }
+  ]
+ },
+ "listPlugins": {
+  "min": [],
+  "full": []
+ },
+ "getPluginProviderSettings": {
+  "min": [
+   {
+    "pluginId": "<pluginId>"
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>"
+   },
+   {}
+  ]
+ },
+ "savePluginProviderSettings": {
+  "min": [
+   {
+    "pluginId": "<pluginId>",
+    "values": {}
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>",
+    "values": {
+     "<valuesKey>": "<valuesValue>"
+    }
+   },
+   {}
+  ]
+ },
+ "useProjectKey": {
+  "min": [
+   {
+    "keyId": "<keyId>",
+    "use": true
+   }
+  ],
+  "full": [
+   {
+    "keyId": "<keyId>",
+    "use": true
+   },
+   {}
+  ]
+ },
+ "setPluginEnabled": {
+  "min": [
+   {
+    "pluginId": "<pluginId>",
+    "enabled": true
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>",
+    "enabled": true
+   },
+   {}
+  ]
+ },
+ "uninstallPlugin": {
+  "min": [
+   {
+    "pluginId": "<pluginId>"
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>"
+   },
+   {}
+  ]
+ },
+ "getPluginFiles": {
+  "min": [
+   {
+    "pluginId": "<pluginId>"
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>"
+   },
+   {}
+  ]
+ },
+ "listAgentPlugins": {
+  "min": [],
+  "full": []
+ },
+ "getAgentPluginFiles": {
+  "min": [
+   {
+    "pluginId": "<pluginId>"
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>"
+   },
+   {}
+  ]
+ },
+ "setAgentPluginEnabled": {
+  "min": [
+   {
+    "pluginId": "<pluginId>",
+    "enabled": true
+   }
+  ],
+  "full": [
+   {
+    "pluginId": "<pluginId>",
+    "enabled": true
+   },
+   {}
+  ]
+ },
+ "getDeploymentOverview": {
+  "min": [],
+  "full": []
+ },
+ "getObservabilityStatus": {
+  "min": [],
+  "full": []
+ },
+ "sendObservabilityTestError": {
+  "min": [],
+  "full": []
+ },
+ "getToolGaps": {
+  "min": [],
+  "full": []
+ },
+ "getServerLogs": {
+  "min": [],
+  "full": [
+   {
+    "level": "debug",
+    "sinceIso": "<sinceIso>",
+    "contains": "<contains>",
+    "limit": 7
+   }
+  ]
+ },
+ "getMailStatus": {
+  "min": [],
+  "full": []
+ },
+ "getSitesConfig": {
+  "min": [],
+  "full": []
+ },
+ "setSitesConfig": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {
+    "sitesHome": "<sitesHome>",
+    "siteRoots": [
+     "<siteRoots>"
+    ],
+    "databases": "inSite"
+   }
+  ]
+ },
+ "setSitesHome": {
+  "min": [
+   {
+    "path": "<path>"
+   }
+  ],
+  "full": [
+   {
+    "path": "<path>"
+   }
+  ]
+ },
+ "listSites": {
+  "min": [],
+  "full": []
+ },
+ "createSite": {
+  "min": [
+   {
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "name": "<name>",
+    "adminPassword": "<adminPassword>",
+    "agentPluginTokens": {
+     "<agentPluginTokensKey>": "<agentPluginTokensValue>"
+    }
+   }
+  ]
+ },
+ "listTokenSignInPlugins": {
+  "min": [],
+  "full": []
+ },
+ "activateSite": {
+  "min": [
+   {
+    "name": "<name>"
+   }
+  ],
+  "full": [
+   {
+    "name": "<name>"
+   },
+   {}
+  ]
+ },
+ "manageLocalSite": {
+  "min": [
+   {
+    "name": "<name>",
+    "action": "trash"
+   }
+  ],
+  "full": [
+   {
+    "name": "<name>",
+    "action": "trash",
+    "confirmed": false,
+    "checked": false
+   }
+  ]
+ },
+ "getDockerfileSource": {
+  "min": [],
+  "full": []
+ },
+ "setDockerfileSource": {
+  "min": [
+   {
+    "contents": "<contents>",
+    "ifMatch": "<ifMatch>"
+   }
+  ],
+  "full": [
+   {
+    "contents": "<contents>",
+    "ifMatch": "<ifMatch>"
+   },
+   {}
+  ]
+ },
+ "triggerSiteExport": {
+  "min": [],
+  "full": [
+   {
+    "clean": false,
+    "basePath": "<basePath>"
+   }
+  ]
+ },
+ "getSiteExportStatus": {
+  "min": [],
+  "full": []
+ },
+ "getPublishPreview": {
+  "min": [
+   {
+    "target": "<target>",
+    "fields": {}
+   }
+  ],
+  "full": [
+   {
+    "target": "<target>",
+    "fields": {
+     "<fieldsKey>": "<fieldsValue>"
+    }
+   }
+  ]
+ },
+ "getPublishTargets": {
+  "min": [],
+  "full": []
+ },
+ "triggerPublish": {
+  "min": [
+   {
+    "config": {
+     "target": "<target>",
+     "fields": {}
+    },
+    "projectName": "<projectName>"
+   }
+  ],
+  "full": [
+   {
+    "config": {
+     "target": "<target>",
+     "fields": {
+      "<fieldsKey>": "<fieldsValue>"
+     }
+    },
+    "projectName": "<projectName>",
+    "credentialId": "<credentialId>"
+   }
+  ]
+ },
+ "getPublishStatus": {
+  "min": [],
+  "full": []
+ },
+ "listPublishDestinations": {
+  "min": [],
+  "full": []
+ },
+ "listPublishCredentials": {
+  "min": [],
+  "full": []
+ },
+ "createPublishCredential": {
+  "min": [
+   {
+    "label": "<label>",
+    "connection": {
+     "providerId": "<providerId>"
+    }
+   }
+  ],
+  "full": [
+   {
+    "label": "<label>",
+    "connection": {
+     "providerId": "<providerId>",
+     "<connectionKey>": "<connectionValue>"
+    },
+    "isDefault": false,
+    "worksFor": [
+     "<worksFor>"
+    ]
+   }
+  ]
+ },
+ "updatePublishCredential": {
+  "min": [
+   {
+    "id": "<id>",
+    "input": {}
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "input": {
+     "label": "<label>",
+     "connection": {
+      "providerId": "<providerId>",
+      "<connectionKey>": "<connectionValue>"
+     },
+     "isDefault": false,
+     "worksFor": [
+      "<worksFor>"
+     ]
+    }
+   },
+   {}
+  ]
+ },
+ "deletePublishCredential": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "verifyPublishCredential": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "getSiteKeyStatus": {
+  "min": [],
+  "full": []
+ },
+ "revealSiteKey": {
+  "min": [],
+  "full": []
+ },
+ "generateSiteKey": {
+  "min": [],
+  "full": []
+ },
+ "importSiteKey": {
+  "min": [
+   {
+    "siteKey": "<siteKey>"
+   }
+  ],
+  "full": [
+   {
+    "siteKey": "<siteKey>"
+   },
+   {}
+  ]
+ },
+ "previewSiteKeyStartFresh": {
+  "min": [],
+  "full": []
+ },
+ "startFreshSiteKey": {
+  "min": [
+   {
+    "confirm": "<confirm>"
+   }
+  ],
+  "full": [
+   {
+    "confirm": "<confirm>"
+   },
+   {}
+  ]
+ },
+ "listSourceControlProviders": {
+  "min": [],
+  "full": []
+ },
+ "listSourceControlCredentials": {
+  "min": [],
+  "full": []
+ },
+ "createSourceControlCredential": {
+  "min": [
+   {
+    "label": "<label>",
+    "connection": {
+     "providerId": "<providerId>",
+     "token": "<token>"
+    }
+   }
+  ],
+  "full": [
+   {
+    "label": "<label>",
+    "connection": {
+     "providerId": "<providerId>",
+     "token": "<token>",
+     "<connectionKey>": "<connectionValue>"
+    },
+    "isDefault": false
+   }
+  ]
+ },
+ "updateSourceControlCredential": {
+  "min": [
+   {
+    "id": "<id>",
+    "input": {}
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "input": {
+     "label": "<label>",
+     "connection": {
+      "providerId": "<providerId>",
+      "token": "<token>",
+      "<connectionKey>": "<connectionValue>"
+     },
+     "isDefault": false
+    }
+   },
+   {}
+  ]
+ },
+ "deleteSourceControlCredential": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "listCredentialCopySources": {
+  "min": [
+   {}
+  ],
+  "full": [
+   {},
+   {
+    "basePath": "/api/admin/v1",
+    "signal": {
+     "$signal": true
+    },
+    "headers": {
+     "<headersKey>": "<headersValue>"
+    },
+    "keepalive": false,
+    "onOk": {
+     "$fn": true
+    },
+    "retryWrites": false,
+    "requireJson": false,
+    "failureEntry": "page",
+    "errorFactory": {
+     "$fn": true
+    }
+   }
+  ]
+ },
+ "copyCredentials": {
+  "min": [
+   {
+    "sourceSiteId": "<sourceSiteId>",
+    "ids": [
+     "<ids>"
+    ],
+    "overwrite": true
+   }
+  ],
+  "full": [
+   {
+    "sourceSiteId": "<sourceSiteId>",
+    "ids": [
+     "<ids>"
+    ],
+    "overwrite": true
+   },
+   {
+    "basePath": "/api/admin/v1",
+    "signal": {
+     "$signal": true
+    },
+    "headers": {
+     "<headersKey>": "<headersValue>"
+    },
+    "keepalive": false,
+    "onOk": {
+     "$fn": true
+    },
+    "retryWrites": false,
+    "requireJson": false,
+    "failureEntry": "page",
+    "errorFactory": {
+     "$fn": true
+    }
+   }
+  ]
+ },
+ "listCustomCredentials": {
+  "min": [],
+  "full": []
+ },
+ "createCustomCredential": {
+  "min": [
+   {
+    "label": "<label>",
+    "category": "media",
+    "baseUrl": "<baseUrl>",
+    "connection": {
+     "token": "<token>"
+    }
+   }
+  ],
+  "full": [
+   {
+    "scope": "project",
+    "worksFor": [
+     "<worksFor>"
+    ],
+    "label": "<label>",
+    "category": "media",
+    "baseUrl": "<baseUrl>",
+    "additionalHosts": [
+     "<additionalHosts>"
+    ],
+    "connection": {
+     "token": "<token>",
+     "username": "<username>"
+    }
+   }
+  ]
+ },
+ "updateCustomCredential": {
+  "min": [
+   {
+    "id": "<id>",
+    "input": {}
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>",
+    "input": {
+     "worksFor": [
+      "<worksFor>"
+     ],
+     "label": "<label>",
+     "category": "media",
+     "baseUrl": "<baseUrl>",
+     "additionalHosts": [
+      "<additionalHosts>"
+     ],
+     "username": "<username>",
+     "connection": {
+      "token": "<token>",
+      "username": "<username>"
+     }
+    }
+   },
+   {}
+  ]
+ },
+ "deleteCustomCredential": {
+  "min": [
+   {
+    "id": "<id>"
+   }
+  ],
+  "full": [
+   {
+    "id": "<id>"
+   },
+   {}
+  ]
+ },
+ "listPublishContentPeers": {
+  "min": [],
+  "full": []
+ },
+ "getPublishDestination": {
+  "min": [],
+  "full": []
+ },
+ "connectPublishDestination": {
+  "min": [],
+  "full": [
+   {
+    "siteUrl": "<siteUrl>"
+   }
+  ]
+ },
+ "planPublishContent": {
+  "min": [
+   {
+    "peerId": "<peerId>"
+   }
+  ],
+  "full": [
+   {
+    "peerId": "<peerId>",
+    "selectedEntityKeys": [
+     "<selectedEntityKeys>"
+    ],
+    "overwriteEntityKeys": [
+     "<overwriteEntityKeys>"
+    ],
+    "scope": {
+     "entityTypes": [
+      "<entityTypes>"
+     ],
+     "entityKeys": [
+      "<entityKeys>"
+     ]
+    }
+   }
+  ]
+ },
+ "confirmPublishContent": {
+  "min": [
+   {
+    "peerId": "<peerId>",
+    "planId": "<planId>",
+    "planHash": "<planHash>"
+   }
+  ],
+  "full": [
+   {
+    "peerId": "<peerId>",
+    "planId": "<planId>",
+    "planHash": "<planHash>"
+   },
+   {}
+  ]
+ },
+ "executePublishContent": {
+  "min": [
+   {
+    "peerId": "<peerId>",
+    "bundleId": "<bundleId>",
+    "confirmationToken": "<confirmationToken>"
+   }
+  ],
+  "full": [
+   {
+    "peerId": "<peerId>",
+    "bundleId": "<bundleId>",
+    "confirmationToken": "<confirmationToken>",
+    "overwriteEntityKeys": [
+     "<overwriteEntityKeys>"
+    ]
+   },
+   {}
+  ]
+ }
+}
