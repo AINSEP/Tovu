@@ -268,7 +268,7 @@ function bitbucketRegistry(onLoad: () => void = () => {}): LoadSourceControlProv
     credential: { tokenField: 'token', fields: [{ name: 'token', label: 'App password', required: true, secret: true }, { name: 'username', label: 'Username', required: true }] } };
   const module = { create: () => ({ readAccountLabel: async () => 'bb-owner' }) } as unknown as SourceControlProviderModule;
   const loaded: LoadedSourceControlProvider = { descriptor, pluginId: 'bitbucket-plugin', module };
-  return async () => { onLoad(); return { list: () => [loaded], get: id => (id === 'bitbucket' ? loaded : undefined), refusals: [] }; };
+  return async () => { onLoad(); return { list: () => [loaded], get: ({ providerId: id }) => (id === 'bitbucket' ? loaded : undefined), refusals: [] }; };
 }
 function directDeps(f: ReturnType<typeof fixture>, load: LoadSourceControlProviders): SourceControlCredentialSetupDeps {
   const { fetchFn: _unused, ...rest } = f.deps;
@@ -285,7 +285,7 @@ test('a non-default token name stays on the human form and saves as canonical co
     { name: 'accessToken', label: 'Access token', required: true, secret: true as const },
     { name: 'username', label: 'Username', required: true },
   ] } } };
-  const deps = directDeps(f, async () => ({ list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }));
+  const deps = directDeps(f, async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }));
   const emitted: SurfaceEmission[] = [];
   let raised!: () => void;
   const ready = new Promise<void>(resolve => { raised = resolve; });

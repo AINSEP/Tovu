@@ -59,7 +59,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'source-control.credentials.write' }, { entityType: 'source-control' });
   // An ended run must not load plugins; the engine classifies abandonment without opening a card.
   const registry = ctx.signal.aborted ? undefined : await deps.loadSourceControlProviders(deps.workspaceId);
-  const descriptor = registry?.get(provider)?.descriptor;
+  const descriptor = registry?.get({ providerId: provider })?.descriptor;
   if (!ctx.signal.aborted && !descriptor?.credential) {
     throw new ToolInputError({ message: 'No enabled source control provider declares this credential form. Call source_control_get_capabilities for available hosts.' });
   }

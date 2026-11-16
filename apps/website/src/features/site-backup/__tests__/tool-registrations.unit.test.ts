@@ -1024,7 +1024,7 @@ test("a media file over the host's per-file limit is left out of the plan and na
   const lowered: NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> = async (workspaceId) => {
     const registry = await githubFromSource(workspaceId);
     const lower = (loaded: ReturnType<typeof registry.list>[number]) => ({ ...loaded, descriptor: { ...loaded.descriptor, maxFileBytes: 1000 } });
-    return { ...registry, list: () => registry.list().map(lower), get: (id: string) => { const found = registry.get(id); return found ? lower(found) : undefined; } };
+    return { ...registry, list: () => registry.list().map(lower), get: (required: { providerId: string }) => { const found = registry.get(required); return found ? lower(found) : undefined; } };
   };
   const h = harness(t, { providers: lowered });
   write(path.join(h.site.root, "uploads", "ws", "workspace-local", "blobs", "ef", "huge"), "x".repeat(2048));
@@ -1052,7 +1052,7 @@ function providerWith(
     const entries = registry.list().map(entry => ({ ...entry, descriptor: { ...entry.descriptor, ...descriptor }, module: {
       ...entry.module, create: (kit: Parameters<typeof entry.module.create>[0]) => ({ ...entry.module.create(kit), ...operations }),
     } }));
-    return { ...registry, list: () => entries, get: id => entries.find(entry => entry.descriptor.id === id) };
+    return { ...registry, list: () => entries, get: ({ providerId: id }) => entries.find(entry => entry.descriptor.id === id) };
   };
 }
 
@@ -1275,7 +1275,7 @@ test("a named credential for neither of two enabled hosts returns NO_PROVIDER", 
     const registry = await githubFromSource(workspaceId);
     const github = registry.list()[0]!;
     const entries = [github, { ...github, descriptor: { ...github.descriptor, id: "second-host", apiOrigin: "https://second.example", label: "Second host" } }];
-    return { ...registry, list: () => entries, get: id => entries.find(entry => entry.descriptor.id === id) };
+    return { ...registry, list: () => entries, get: ({ providerId: id }) => entries.find(entry => entry.descriptor.id === id) };
   } });
   await h.seed("Other host", "https://third.example");
   const result = await plan(h, { ...PLAN_INPUT, credential: "Other host" });

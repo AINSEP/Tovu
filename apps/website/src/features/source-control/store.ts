@@ -238,7 +238,7 @@ async function normalizeConnectionPatch({ raw, existing, registry }: {
   value.providerId ??= existing;
   if (value.token !== undefined || Object.keys(value).every(key => key === 'providerId' || key === 'token')) return value;
   const loaded = await registry();
-  const descriptor = typeof value.providerId === 'string' ? loaded.get(value.providerId)?.descriptor : undefined;
+  const descriptor = typeof value.providerId === 'string' ? loaded.get({ providerId: value.providerId })?.descriptor : undefined;
   return canonicalConnection({ value, descriptor });
 }
 
@@ -252,7 +252,7 @@ async function assertBlankPatchChangesNoField({ patch, registry }: {
   const named = Object.keys(patch ?? {}).filter(key => key !== 'providerId' && key !== 'token');
   if (named.length === 0) return;
   const providerId = typeof patch?.providerId === 'string' ? patch.providerId : '';
-  const tokenField = (await registry()).get(providerId)?.descriptor.credential?.tokenField;
+  const tokenField = (await registry()).get({ providerId })?.descriptor.credential?.tokenField;
   const changed = named.filter(key => key !== tokenField);
   if (changed.length > 0) throw new SourceControlCredentialValidationError(`changing ${changed.join(', ')} requires a new token`);
 }
@@ -274,7 +274,7 @@ async function preservedProvider({ raw, existing, registry }: {
 
 /** Only loaded providers admit new connections; stored ids are never checked against this list. */
 function requireProvider({ providerId, registry }: { providerId: unknown; registry: SourceControlProviderRegistry }, _options = {}): SourceControlProviderDescriptor {
-  const loaded = typeof providerId === 'string' ? registry.get(providerId) : undefined;
+  const loaded = typeof providerId === 'string' ? registry.get({ providerId }) : undefined;
   if (!loaded) throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${registry.list().map(provider => provider.descriptor.id).join(', ')}`);
   return loaded.descriptor;
 }

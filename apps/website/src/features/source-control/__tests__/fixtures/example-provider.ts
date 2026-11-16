@@ -25,7 +25,7 @@ export function exampleRegistry({ probe = true, ids = ['example-git', 'example-t
       },
     } as SourceControlProviderOperations) },
   }));
-  return { list: () => providers, get: id => providers.find(provider => provider.descriptor.id === id), refusals: [] };
+  return { list: () => providers, get: ({ providerId: id }) => providers.find(provider => provider.descriptor.id === id), refusals: [] };
 }
 export const exampleProviders: LoadSourceControlProviders = async () => exampleRegistry();
 export const exampleProvidersWithoutProbe: LoadSourceControlProviders = async () => exampleRegistry({ probe: false });

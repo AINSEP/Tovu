@@ -15,7 +15,7 @@ const registry = await loadSourceControlProviderRegistryFromSource({ pluginId: "
 
 /** The bundled `github` plugin's site committer, built with the real kit (so `global.fetch` stubs apply). */
 function createGitHubCommitAdapter(): { commit: SourceControlProvider["commitSite"] } {
-  const loaded = registry.get("github");
+  const loaded = registry.get({ providerId: "github" });
   if (!loaded) throw new Error(`github provider did not load: ${registry.refusals.join("; ")}`);
   return { commit: loaded.module.create({ kit: createSourceControlProviderKit() }).commitSite };
 }

@@ -116,7 +116,7 @@ async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
   deps: SourceControlToolDeps; providerId: string; authorizeSavedLookup: () => Promise<void>;
 }, _options = {}): Promise<{ label: string; supportsFolder?: boolean; validateTarget?: RepositoryTargetValidator }> {
   const registry = await providerLoader(deps)(deps.workspaceId);
-  const loaded = registry.get(providerId);
+  const loaded = registry.get({ providerId });
   if (loaded !== undefined) return { label: loaded.descriptor.label, supportsFolder: loaded.module.supportsFolder === true, ...(loaded.module.validateTarget ? { validateTarget: loaded.module.validateTarget } : {}) };
   if (registry.switchedOff?.has(providerId)) return { label: providerId };
   // Saved-only ids are opaque. Authorize before inspecting their existence (registry metadata is public).
@@ -395,7 +395,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         let hasSavedApiKey = false;
         if (savedCredentials.length === 0) hasSavedApiKey = (await findSavedApiKey({ deps, providerId })) !== null;
         const configured = savedCredentials.length > 0 || hasSavedApiKey;
-        const loaded = registry.get(providerId);
+        const loaded = registry.get({ providerId });
         const ready = loaded !== undefined;
         const guidance = buildCapabilityGuidance({ providerId, configured, commitReady: ready, switchedOffPluginId: registry.switchedOff?.get(providerId) });
 

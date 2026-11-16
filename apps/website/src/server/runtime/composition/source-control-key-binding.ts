@@ -30,7 +30,7 @@ export function sourceControlKeyBinding({ credentials, loadProviders }: {
       return saved ? { id: saved.id, label: labelFor({ providerId }), connection: { providerId, token: saved.connection.token } } : null;
     },
     create: async ({ workspaceId, connection }, options = {}) => {
-      const provider = (await loadProviders(workspaceId)).get(connection.providerId);
+      const provider = (await loadProviders(workspaceId)).get({ providerId: connection.providerId });
       if (!provider) throw new Error("The source control provider is unavailable. Turn it on and open its key card again.");
       const repo = options.signal ? abortGuardedCredentialRepo({ store: credentials.repo, signal: options.signal }) : credentials.repo;
       const saved = await createCustomCredential({ ...credentials, repo }, { workspaceId, label: labelFor({ providerId: connection.providerId }), category: 'source-control',

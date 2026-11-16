@@ -29,7 +29,7 @@ function neutralRouteDeps(_required: Record<string, never>, _options = {}): Retu
     },
   }));
   return { ...createRouteDeps(), loadSourceControlProviders: async () => ({
-    list: () => providers, get: id => providers.find(loaded => loaded.descriptor.id === id), refusals: [],
+    list: () => providers, get: ({ providerId: id }) => providers.find(loaded => loaded.descriptor.id === id), refusals: [],
   }) };
 }
 

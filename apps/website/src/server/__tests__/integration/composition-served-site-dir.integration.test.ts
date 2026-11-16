@@ -190,8 +190,8 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       for (const name of envNames) process.env[name] = path.join(sourceRoot, "other-site");
       const providers = await deps!.loadSourceControlProviders(workspaceId);
       assert.deepEqual(providers.refusals, []);
-      assert.equal(providers.get("bound-git")?.pluginId, "github");
-      assert.ok(providers.get("bound-git")!.module);
+      assert.equal(providers.get({ providerId: "bound-git" })?.pluginId, "github");
+      assert.ok(providers.get({ providerId: "bound-git" })!.module);
       assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "github");
       assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "github");
       assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound_mail"]);

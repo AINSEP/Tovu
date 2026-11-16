@@ -104,7 +104,7 @@ test('target folder schema, normalized preview paths and capability refusal are 
   const calls = { count: 0 };
   let deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(calls), exportSiteBound: fakeExportSiteBound({ outputDir: null }) });
   const registry = exampleRegistry({ probe: false, ids: ['example-git'] });
-  const loaded = registry.get('example-git')!;
+  const loaded = registry.get({ providerId: 'example-git' })!;
   deps = { ...deps, loadSourceControlProviders: async () => ({ ...registry, get: () => ({ ...loaded, module: { ...loaded.module, supportsFolder: true } }) }) };
   const registration = buildExecuteCommitTool(deps);
   const schema = registration.descriptor.inputSchema as { properties: { folder: { title: string } } };
@@ -135,7 +135,7 @@ test('a supported folder reaches the provider and is returned with the launcher 
     return { ok: true, branch: 'main', branchCreated: false, commitSha: 'sha', commitUrl: 'https://example.test/sha', filesChanged: input.files.length, filesDeleted: 0 };
   } } });
   const registry = exampleRegistry({ probe: false, ids: ['example-git'] });
-  const loaded = registry.get('example-git')!;
+  const loaded = registry.get({ providerId: 'example-git' })!;
   deps = { ...deps, loadSourceControlProviders: async () => ({ ...registry, get: () => ({ ...loaded, module: { ...loaded.module, supportsFolder: true } }) }) };
   await seedExampleGitCredential(deps);
   const result = await call(buildExecuteCommitTool(deps), { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'update', folder: 'static_sites/' }) as Record<string, unknown>;

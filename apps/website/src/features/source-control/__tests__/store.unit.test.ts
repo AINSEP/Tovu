@@ -760,7 +760,7 @@ test('optional and secret fields reuse credential.fields, while undeclared value
     { name: 'password', label: 'Password', required: false, secret: true as const },
   ] } };
   const loaded = { ...base, descriptor };
-  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === descriptor.id ? loaded : undefined, refusals: [] }) });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === descriptor.id ? loaded : undefined, refusals: [] }) });
   await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'optional-absent', connection: { providerId: descriptor.id, token: 'token-one', undeclared: 'ignored' } } });
   assert.deepEqual((await resolveDefaultForSourceControl(deps, { workspaceId: WORKSPACE, providerId: descriptor.id }))?.connection, { providerId: descriptor.id, token: 'token-one' });
   const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'optional-present', isDefault: true, connection: { providerId: descriptor.id, token: 'token-two', note: 'metadata', password: '  paired-secret  ' } } });
@@ -775,7 +775,7 @@ test('non-default declared token names accept canonical admin input and normaliz
     { name: 'accessToken', label: 'Access token', required: true, secret: true as const },
     { name: 'username', label: 'Username', required: true },
   ] } } };
-  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }) });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === loaded.descriptor.id ? loaded : undefined, refusals: [] }) });
   // Keep public labels distinct from secret field names so the leak assertion checks the payload.
   for (const [field, label] of [['token', 'canonical-input'], ['accessToken', 'declared-input']] as const) {
     const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label, isDefault: true,
@@ -840,7 +840,7 @@ test('T36: blank-token patches refuse changes to other connection fields', async
     ],
   } } };
   const deps = makeDeps({ loadSourceControlProviders: async () => ({
-    list: () => [loaded], get: id => id === loaded.descriptor.id ? loaded : undefined, refusals: [],
+    list: () => [loaded], get: ({ providerId: id }) => id === loaded.descriptor.id ? loaded : undefined, refusals: [],
   }) });
   const connection = { providerId: loaded.descriptor.id, token: 'saved-fixture-token', baseUrl: 'https://old.example.test' };
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'endpoint', connection } });
@@ -858,7 +858,7 @@ test('token-only providers without a credential form still use token admission; 
   const base = exampleRegistry({ probe: false }).list()[0]!;
   const { credential: _credential, ...descriptor } = base.descriptor;
   const loaded = { ...base, descriptor };
-  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === descriptor.id ? loaded : undefined, refusals: [] }) });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === descriptor.id ? loaded : undefined, refusals: [] }) });
   const saved = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: 'no-form', connection: { providerId: descriptor.id, token: 'accepted-secret' } } });
   assert.equal(saved.configured, true);
   const absent = { ...deps, loadSourceControlProviders: undefined };

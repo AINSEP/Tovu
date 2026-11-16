@@ -107,7 +107,7 @@ test("lists a provider from an enabled, Tovu-bundled plugin and builds it from i
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(registry.list().map((loaded) => [loaded.descriptor.id, loaded.descriptor.label, loaded.pluginId]), [["fixture-git", "Fixture Git", "fixture-git"]]);
-    const provider = buildLoadedSourceControlProvider(registry.get("fixture-git")!, {} as never);
+    const provider = buildLoadedSourceControlProvider(registry.get({ providerId: "fixture-git" })!, {} as never);
     // The host facts come from the plugin's DECLARED descriptor, the operations from its module.
     assert.deepEqual([provider.id, provider.label, provider.apiOrigin, provider.maxFileBytes], ["fixture-git", "Fixture Git", "https://git.fixture.test", 1024]);
     assert.equal(await provider.readAccountLabel("t"), "fixture-account");
@@ -277,7 +277,7 @@ test("provider builders load the requested workspace, forward HTTP, select by or
     } },
   }));
   const refusals = ["plugin-gamma refused"];
-  const registry: SourceControlProviderRegistry = { list: () => loaded, get: (id) => loaded.find((p) => p.descriptor.id === id), refusals };
+  const registry: SourceControlProviderRegistry = { list: () => loaded, get: ({ providerId: id }) => loaded.find((p) => p.descriptor.id === id), refusals };
   const load = async (workspaceId: string) => { assert.equal(workspaceId, WORKSPACE_ID); return registry; };
   const built = await buildSourceControlProviders({ load, workspaceId: WORKSPACE_ID, httpClient });
   assert.deepEqual(built.providers.map((p) => p.id), ["alpha", "beta"]);
@@ -307,8 +307,8 @@ test('bundled sources aggregate neutral providers in source order and refuse eve
   });
   assert.deepEqual(requests, [{ sourceRoot: '/product/content/agent-plugins', filename: SOURCE_CONTROL_PROVIDERS_FILENAME }]);
   assert.deepEqual(registry.list().map(provider => provider.descriptor.id), ['example-a', 'example-b']);
-  assert.equal(registry.get('example-shared'), undefined);
-  assert.equal(registry.get('example-b')?.descriptor.id, 'example-b');
+  assert.equal(registry.get({ providerId: 'example-shared' }), undefined);
+  assert.equal(registry.get({ providerId: 'example-b' })?.descriptor.id, 'example-b');
   assert.deepEqual(registry.refusals, ['example-invalid: malformed declaration', "source-control provider 'example-shared' was not loaded: declared more than once"]);
 });
 
@@ -318,7 +318,7 @@ test('missing bundled sources and empty payloads never prevent boot or load exec
   const { loadBundledSourceControlProviderRegistry } = await import('../provider-registry.js');
   const missing = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/missing/product/root' });
   assert.deepEqual(missing.list(), []);
-  assert.equal(missing.get('example-git'), undefined);
+  assert.equal(missing.get({ providerId: 'example-git' }), undefined);
   assert.deepEqual(missing.refusals, ['bundled source-control provider sources could not be read']);
   logs.length = 0;
   const failed = await loadBundledSourceControlProviderRegistry({ sourceRoot: '/product/root' }, {
@@ -354,7 +354,7 @@ test('a rejected package load refuses only that package and never logs exception
   });
   assert.deepEqual(requested, ['unreadable', 'healthy', 'missing-module']);
   assert.deepEqual(registry.list().map(provider => provider.descriptor.id), ['example-healthy']);
-  assert.equal(registry.get('example-healthy')?.pluginId, 'example-healthy');
+  assert.equal(registry.get({ providerId: 'example-healthy' })?.pluginId, 'example-healthy');
   assert.deepEqual(registry.refusals, [
     "source-control provider package 'unreadable' was not loaded: package could not be read or imported",
     "source-control provider package 'missing-module' was not loaded: package could not be read or imported",

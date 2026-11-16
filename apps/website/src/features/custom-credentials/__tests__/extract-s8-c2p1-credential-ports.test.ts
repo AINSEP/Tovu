@@ -164,7 +164,7 @@ function writerRegistry(log: { plans: unknown[]; commits: { self: unknown; plan:
   } as unknown as SourceControlProviderOperations;
   const loaded = [{ pluginId: "example-git", descriptor: { id: "example-git", label: "Example Git", apiOrigin: "https://git.example.test", module: "example.mjs" },
     module: { validateTarget: ({ owner }: { owner: string; repo: string }) => owner === "bad" ? "invalid Example Git owner 'bad'" : null, create: () => ops } }];
-  return { list: () => loaded, get: (id: string) => loaded.find(entry => entry.descriptor.id === id), refusals: [] } as unknown as SourceControlProviderRegistry;
+  return { list: () => loaded, get: ({ providerId: id }: { providerId: string }) => loaded.find(entry => entry.descriptor.id === id), refusals: [] } as unknown as SourceControlProviderRegistry;
 }
 
 test("SourceControlWritePort: one build, target rules before planning, same provider and exact plan to commit", async () => {

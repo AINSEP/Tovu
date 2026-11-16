@@ -35,10 +35,10 @@ const NAMED_PROVIDER_ID = "fixture-git";
  * binding, so reuse its actual provider operations under a non-canonical fixture declaration. */
 async function namedProviderFromSource(workspaceId: string) {
   const registry = await githubFromSource(workspaceId);
-  const source = registry.get("github");
+  const source = registry.get({ providerId: "github" });
   assert.ok(source, "the real bundled provider module must load for this fixture");
   const provider = { ...source, descriptor: { ...source.descriptor, id: NAMED_PROVIDER_ID } };
-  return { ...registry, list: () => [provider], get: (id: string) => id === NAMED_PROVIDER_ID ? provider : undefined };
+  return { ...registry, list: () => [provider], get: ({ providerId: id }: { providerId: string }) => id === NAMED_PROVIDER_ID ? provider : undefined };
 }
 
 function useSiteKey(t: TestContext): void {

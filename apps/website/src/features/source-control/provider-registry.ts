@@ -56,7 +56,7 @@ export interface SourceControlProviderRegistry {
   /** Every loaded provider, in a stable order (plugin id, then declaration order). */
   list(): readonly LoadedSourceControlProvider[];
   /** The first loaded provider serving `providerId`, if any. */
-  get(providerId: string): LoadedSourceControlProvider | undefined;
+  get(required: { providerId: string }, optional?: Record<string, never>): LoadedSourceControlProvider | undefined;
   /** Log-safe, one sentence per plugin or provider that was NOT loaded, and why. */
   readonly refusals: readonly string[];
   /** Provider id -> id of the installed plugin that declares it but is switched off, so a refusal can
@@ -76,7 +76,7 @@ const providerContribution = defineExecutablePluginContribution<SourceControlPro
 type ProviderPackage = TrustedPluginPackage;
 
 function toRegistry({ providers, refusals }: { providers: readonly LoadedSourceControlProvider[]; refusals: readonly string[] }, { switchedOff }: { switchedOff?: ReadonlyMap<string, string> } = {}): SourceControlProviderRegistry {
-  return { list: () => providers, get: (providerId) => providers.find((provider) => provider.descriptor.id === providerId), refusals, ...(switchedOff ? { switchedOff } : {}) };
+  return { list: () => providers, get: ({ providerId }) => providers.find((provider) => provider.descriptor.id === providerId), refusals, ...(switchedOff ? { switchedOff } : {}) };
 }
 
 /**
@@ -314,5 +314,5 @@ export async function buildSourceControlProviderForApi(input: {
 
 /** Adapt the installed-plugin ABI without changing provider operation signatures. */
 function sharedRegistry(registry: SourceControlProviderRegistry) {
-  return { ...registry, list: (_required: Record<string, never>) => registry.list(), get: ({ providerId }: { providerId: string }) => registry.get(providerId) };
+  return { ...registry, list: (_required: Record<string, never>) => registry.list(), get: ({ providerId }: { providerId: string }) => registry.get({ providerId }) };
 }

@@ -495,7 +495,7 @@ test('without an adapter override the provider owns the commit, receiving only i
     ...base.module.create({ kit }),
     commitSite: async (input: unknown) => { captured.push(input); return { ok: false as const, code: 'repository-not-found' as const, message: 'example repository unavailable' }; },
   }) } };
-  const { deps } = fakeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: id => id === base.descriptor.id ? loaded : undefined, refusals: [] }) });
+  const { deps } = fakeDeps({ loadSourceControlProviders: async () => ({ list: () => [loaded], get: ({ providerId: id }) => id === base.descriptor.id ? loaded : undefined, refusals: [] }) });
   await seedExampleGitCredential(deps, 'fixture-wiring-token');
   const executeTool = tool(buildRegistrations(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' })), 'source_control_execute_commit');
   const { pending } = await beginCall(executeTool, { provider: 'example-git', owner: 'octo', repo: 'demo', commitMessage: 'x' });
@@ -723,7 +723,7 @@ test("saved GitHub API key: capabilities reports configured and its source witho
   const { deps } = fakeDeps({ loadSourceControlProviders: async workspaceId => {
     const github = await githubFromSource(workspaceId);
     const other = exampleRegistry({ probe: false, ids: ["example-git"] });
-    return { list: () => [...github.list(), ...other.list()], get: id => github.get(id) ?? other.get(id), refusals: [] };
+    return { list: () => [...github.list(), ...other.list()], get: (required) => github.get(required) ?? other.get(required), refusals: [] };
   } });
   await seedSavedGitHubApiKey({ deps });
   let opens = 0;
