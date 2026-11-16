@@ -171,6 +171,22 @@ export interface RunServeCommandOptional {
   createServingApp?: typeof createServingApp;
 }
 
+/** A listen failure as the error the command reports: a taken port becomes the dedicated `PortInUseError`. */
+function listenFailure(required: { err: NodeJS.ErrnoException; port: number }, _optional = {}): Error {
+  const { err, port } = required;
+  return err.code === "EADDRINUSE" ? new PortInUseError({ message: `Port ${port} is already in use.`, port: port }) : err;
+}
+
+/** Warns on stderr when `--host`/`TOVU_HOST` widened the listener beyond loopback. */
+function warnIfReachableFromLan(required: { host: string | undefined }, _optional = {}): void {
+  const { host } = required;
+  if (!isLoopbackHost({ host })) {
+    process.stderr.write(
+      `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`
+    );
+  }
+}
+
 /**
  * Run `tovu serve <dir> [--port]`: validate/guard/migrate/stamp/resolve the install dir
  * (`bootSiteDir`), wire the existing composition root's `overrides` branch, and bind a listener.
@@ -403,13 +419,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
     // Registered on `server`, not `app`, for the same reason `index.ts` does it that way.
     registerAdminDevProxyUpgrade(server);
 
-    server.once("error", (err: NodeJS.ErrnoException) => {
-      if (err.code === "EADDRINUSE") {
-        reject(new PortInUseError({ message: `Port ${port} is already in use.`, port: port }));
-      } else {
-        reject(err);
-      }
-    });
+    server.once("error", (err: NodeJS.ErrnoException) => reject(listenFailure({ err, port })));
 
     server.once("listening", () => {
       void (async () => {
@@ -439,11 +449,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
       // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `--host`/
       // `TOVU_HOST` widening a `tovu serve` instance beyond loopback becomes visible to whoever
       // started it.
-      if (!isLoopbackHost({ host })) {
-        process.stderr.write(
-          `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`
-        );
-      }
+      warnIfReachableFromLan({ host });
       resolve();
 
       // Register cold, retaining the readiness-before-spawn gate shared with index.ts, and
