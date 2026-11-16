@@ -79,3 +79,105 @@ Test-count changes: Tovu translate 20 → 21 (one case split), wire unit 3 → 2
 ## Next step
 
 Decide A2: either let the ratchets accept a renamed path, or land A3 and E8's change to the `error:` callback first and move the file after. Then A3, and B3 / B4 once OD-9 and OD-3 are answered.
+
+# Run 2
+
+Run date: 2026-11-16 (agui-s2, continuation). Status: **steps 1 to 4 done, step 5 (A2) blocked and skipped.** Branch `refactor/agui-s1` in both repos. Final heads: Jini `66735582`, Tovu `481cc12c` before this report commit. No force-push, no `--no-verify`, no subagents, no pull request. No test process was left running.
+
+## Commits
+
+| Repo | SHA | Step | What |
+|---|---|---|---|
+| Jini | `92fb3ca3` | A3 pins | six lifetime pins for `createAgUiRunClient` (tests only) |
+| Jini | `ce6c9d72` | A3 | `createAgUiRunClient` split into `startRun`, `subscribeRun`, `settleRunOnce` and three small helpers; its size-debt entry removed |
+| Tovu | `4a7bf89d` | B3 pins | five frame cases the wire golden does not hold (tests only) |
+| Tovu | `a42d65b9` | B3 | the route reads frames with Jini's `translateRunFrame`, `readSseFrames`, `readTerminalReason`; Tovu's handlers and parsers deleted |
+| Jini | `d495eca1` | B4 | tool correlation and result fields ride as extra fields, both directions, with the round-trip golden |
+| Tovu | `e045af8d` | B4 pair | T0-1 golden diff and the official `HttpAgent` pipeline test |
+| Tovu | `44bd32d9` | T0-4 | confirmation expiry scenario; the module takes its confirmation scheduler as an optional port |
+| Tovu | `481cc12c` | T0-4 | successful `page.navigate` scenario with an attached page session (tests only) |
+| Jini | `66735582` | B4 follow-up | `handleToolResultAgentEvent` takes `(required, optional = {})`; found by the args audit |
+
+Tovu `assistant-ag-ui.ts`: 503 → 414 lines. One Jini patch changeset added (`chat-ag-ui-tool-field-fidelity`). A3 has none: its exports did not change.
+
+## Wire bytes
+
+**B3 (`a42d65b9`), T0-1 golden.** Headers and the no-end scenario are unchanged. The design's four differences, as they appear:
+
+1. stdout: the echo line is gone from the `RAW` event; the heartbeat line adds `CUSTOM tovu.status` (`api_retry`).
+2. the stderr chunk is a new `RAW` event.
+3. the error frame adds `CUSTOM tovu.status` before `RUN_ERROR`.
+4. a failed `end` is `RUN_ERROR` ("The agent process exited without answering (exit code 1, signal none, resumable no)."); a cancelled `end` is `RUN_FINISHED { result: { reason: "cancelled" } }`.
+
+**One golden difference the design's list does not spell out:** a failed or cancelled `end` also sends the translator's notice line (`CUSTOM tovu.status`, "Run failed — the agent process exited without answering" / "Run canceled") before its terminal event. It is part of what `translateRunFrame` returns for an `end` frame, the same list that carries the `max_tool_turns` notice. I kept it, so the canary shows what the durable path shows. If the owner wants only the four listed lines, this is the one to remove.
+
+**B4 (`d495eca1` + `e045af8d`).** Jini round-trip golden and Tovu T0-1, "every payload" scenario only: `TOOL_CALL_START` gains `toolOrigin` and `bridgeCall`; `TOOL_CALL_RESULT` gains `isError`, `media`, `outcome`. Nothing else changed. A plain call and a plain successful result are byte-identical to before (`isError` is written only when true).
+
+**T0-4.** Two scenarios added; the six existing ones are byte-identical. The list is now complete (8 scenarios).
+
+## Pins and mutation proof
+
+Each pin was green on the unmodified tree, red under its mutation, and the mutation was reverted.
+
+| Pin | File | Mutation that turned it red |
+|---|---|---|
+| pre-aborted signal is refused before the agent runs | Jini `assistant-client/__tests__/ag-ui-transport.test.ts` | the pre-abort check removed |
+| a finished run is forgotten | same | `finish` no longer drops the agent and the listener |
+| a run that failed before its first event is forgotten | same | the error path no longer drops them |
+| a mid-stream failure reports before it settles | same | `finish` before `onError` |
+| a run settles once | same | the settled guard removed (3 red) |
+| two runs stay apart | same | stop aborting every agent |
+| a frame that is not JSON; an agent frame with no type; stdout edge chunks; span status for a failed and a cancelled `end` | Tovu `assistant-ag-ui-routes.test.ts` | tolerant parse, a type check, an empty-chunk skip, `end` → failed: all 5 red |
+| the reader hand-off to Jini's frame reader | same (Stop and no-end tests) | no cancel on close, and no close on done: both hang until the timeout kills them |
+| field fidelity (7 cases) and the round-trip golden | Jini `ag-ui/__tests__/field-fidelity.test.ts` | written first, 5 red on the unmodified files; after the change: projection drops `bridgeCall` (7 red), always writes `isError` (1), reduction forgets `toolOrigin` (4), ignores result fields (3) |
+| "ask tool, expired" | Tovu `site-chat-stream.golden.test.ts` | an expired wait counted as allow (red); the module ignoring the injected scheduler (timeout) |
+| "page.navigate" | same | a navigation that does not end the turn; an end frame with reason `stop` |
+
+## Gates at the end of the run
+
+| Gate | Result |
+|---|---|
+| Jini `@jini-ai/chat` full suite (at `d495eca1`) | 4423 passed, 1 skipped |
+| Jini ag-ui + assistant-client suites (at `66735582`) | 209 of 209; chat `tsc` 0 errors |
+| Jini `pnpm -r typecheck` (at `d495eca1`) | exit 0 |
+| Jini `pnpm guard`, `check:size`, `check:complexity`, `check:log-safety` (at `66735582`) | pass |
+| Tovu AG-UI and site suites (routes 38, translate 21, wire golden 6, wire unit 2, site golden 9, site-assistant routes 16) | 92 of 92 |
+| Tovu admin `assistant-transport.ag-ui` + `AssistantDock` folder | 848 of 848 (67 files); admin `tsc` 0 errors |
+| Tovu `tsc` root and `tsconfig.tests.json` | 0 errors |
+| Tovu `check:size`, `check:complexity`, `check:boundaries` | exit 1, 1, 16, **the same on base** |
+
+The three red Tovu gates were measured on the base commit `2f0877c7` this time (run 1 only inferred it). Sorted output of base against the final head: no new or changed line for size and complexity. For boundaries the only changed line is the summary's count of cruised dependencies (43301 → 43305); violations are 111 (16 errors, 95 warnings) on both.
+
+## Owner audits (self-check)
+
+`owner-rules-audit.mjs` and `args-object-audit.mjs` were run on base and head of both repos and compared for the five production files this run changed. `hook-injection-audit.py` was not run: no `.tsx` file changed.
+
+- Owner rules: 0 new findings. Three existing ones are unchanged (`tovu-id-in-jini` ×2 in `ag-ui-transport.ts`, `swallowed-error` ×1 in `assistant-ag-ui.ts`, `per-cli-code-in-shared-file` ×1 in `site-assistant.ts`).
+- Args, Jini: `ag-ui-transport.ts` 7 → 2 findings. `event-projection.ts` had 1 new finding, fixed in `66735582`; now 0 new.
+- Args, Tovu: `assistant-ag-ui.ts` 9 → 9. Two findings left (`handleDaemonFrame`, `readDaemonSseFrames`); **two new ones are flagged: `pull` and `cancel` in `streamFromReader`.** They are the methods of a `ReadableStream` source, and the platform fixes their arguments. I left them.
+
+## Deviations and stops
+
+1. **A2 skipped: the log-safety ratchet refuses the move.** A trial `git mv` gave: `New raw log path: [stored-error-text] packages/chat/src/core/ag-ui/client/run-client.ts (1)` and `Remove stale debt entry (run --update)` for the old path. After A3 the size ratchet no longer objects (its entry is gone); log-safety is now the only blocker. `--update` rewrites the baseline, which the brief forbids. The trial was reverted; nothing of it is committed.
+2. **B3 uses a small adapter the design does not name (`streamFromReader`).** The design says to replace `readDaemonSseFrames` with `readSseFrames`. Jini's function takes a stream and holds its only reader; the route's close hook must cancel that reader so a client that leaves stops the daemon read at once. The route keeps the reader and hands Jini a stream that pulls from it. Behaviour is unchanged and pinned (row "reader hand-off" above). The other way is a signal or reader argument on Jini's `readSseFrames`, which would be a public Jini change; I did not make it.
+3. **B3 changes more than the design's four items.** All follow from using the one translator; each is pinned in `assistant-ag-ui-routes.test.ts` and named in the commit:
+   - the notice line before a failed or cancelled `end` (see "Wire bytes");
+   - a frame that is not JSON is skipped and the run goes on (before: `RUN_ERROR` with the parser's words, and the daemon run kept running);
+   - an agent frame with no `type` is skipped (before: `CUSTOM tovu.ext.undefined`);
+   - an empty stdout chunk sends nothing; a split echo line is dropped in both halves;
+   - the run span ends `failed` / `canceled` for those `end` frames (before: `succeeded`).
+4. **B3 reason word.** The route sends `reason: "cancelled"` as the design writes it; the daemon's own frame says `canceled`.
+5. **B3 notice words** come from the existing `RUN_NOTICES` in `contracts/core/assistant-run-events.ts`. That file is otherwise a set of forwarders over Jini's run-events; I did not touch it.
+6. **B4: `isError` is written only when true.** The design says `isError?`; an absent field reads as success, which is also what an older server sends. The reduction rebuilds the daemon payload and calls `translateRunAgentPayload`, so both wires accept the same shapes.
+7. **B4 and X4.** `status.data` already round-trips (the whole status event is the `CUSTOM` value; T0-3 pins it), so B4 changed nothing for it. `status.failure` and `RUN_ERROR.error` are E8's. AMENDMENTS-B orders S1 before E8, so nothing waited on E8.
+8. **B4 fallback not needed.** The official `HttpAgent` 0.0.58 keeps the extra fields; a committed admin test proves it. A one-off probe (not committed) showed it also keeps an extra `error` field on `RUN_ERROR`, which E8's first test asks about.
+9. **T0-4 expiry needed one production change:** `createSiteAssistantModule` takes an optional `siteAssistantConfirmationScheduler`. The host passes none. No code line was added inside the module function, so its three size-debt entries did not move.
+10. **T0-4 navigation:** the tab's answer body (`{ navigated: true }`) is a test value; the server does not echo it to the visitor or the model.
+11. **Admin runner flag.** Admin's vitest 4.1.11 rejects `--minWorkers`; admin tests ran with `--maxWorkers=2` only.
+12. **The worker process restarted once**, during the A2 trial. Every commit was already pushed; the trial move was found staged and reverted.
+
+Test-count changes: Jini `ag-ui-transport` 12 → 18, `ag-ui` folder 54 → 61. Tovu routes 33 → 38, admin ag-ui unit 51 → 53, site golden scenarios 6 → 8. No case was deleted.
+
+## Next step
+
+Decide A2: let the log-safety ratchet follow a renamed path, or let error-system E8 remove the `String(error)` in `subscribeRun` first and move the file after. Then S2 Jini-only steps 2.1 to 2.4 (2.5 waits for R7 P1, AMENDMENTS-A A8). Two things for the owner to confirm from this run: the notice line before a failed or cancelled `end` (deviation 3, first item), and the `streamFromReader` adapter (deviation 2).
