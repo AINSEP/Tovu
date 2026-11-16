@@ -14,7 +14,7 @@ import { entryWriteErrorStatus } from "./write-error-status.js";
  * @file design-spec.md §1.5/§1.9 — `PUT /api/admin/v1/entries/:id` (updates an entry's
  * title/fieldsJson, REQ-28). Gated by `admin.collections.manage`.
  */
-export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminEntryUpdateRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.put("/api/admin/v1/entries/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

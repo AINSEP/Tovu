@@ -4,7 +4,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
 import { reportMemberDeliveryFailure, respondToSignInError } from "./sign-in.js";
 
 /** Link-only reset requests share the magic-link counters and detached delivery owner. O(1) setup I/O. */
-export function registerPublicMemberForgotPasswordRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberForgotPasswordRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/forgot-password", async (req, res) => {
     try {
       if (!checkMemberPost({ req, res, deps })) return;

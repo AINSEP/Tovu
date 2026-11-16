@@ -67,9 +67,7 @@ function harness() {
   app.use(express.json());
   for (const register of [registerPublicMemberSignInRequestRoute, registerPublicMemberCompleteSignInRoute,
     registerPublicMemberPasswordSignInRoute, registerPublicMemberForgotPasswordRoute, registerPublicMemberResetPasswordRoute,
-    registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register(app, deps);
-  // Why: the /me registrar alone takes `{ app, deps }` (required-object args, A-41); the rest still take (app, deps).
-  registerPublicMemberMeRoute({ app, deps });
+    registerPublicMemberMeRoute, registerPublicMemberSignOutRoute, registerPublicMemberSetPasswordRoute]) register({ app, deps });
   async function seed(email = "ada@example.test", status: MemberRecord["status"] = "active", password: string | null = "x") {
     const member: MemberRecord = { id: email, workspaceId: deps.workspaceId, email, status,
       createdAt: clock.nowIso(), updatedAt: clock.nowIso(), version: 1 };

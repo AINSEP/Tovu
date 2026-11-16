@@ -140,7 +140,7 @@ test("restarts and site switches replace the sole watcher; an old stop cannot cl
   t.after(() => switched.stop());
   assert.equal(f.closes(), 2);
   await restarted.stop();
-  oldChange("static/basic/styles.css");
+  oldChange({ filename: "static/basic/styles.css" });
   t.mock.timers.tick(1_000);
   assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir }), null);
   assert.equal(nextClosed, 0);

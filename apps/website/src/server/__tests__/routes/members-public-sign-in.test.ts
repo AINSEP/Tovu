@@ -49,7 +49,7 @@ function buildPublicApp(): { app: express.Express; deps: MemberPublicRouteDeps }
   };
   const app = express();
   app.use(express.json());
-  registerPublicMemberSignInRequestRoute(app, deps);
+  registerPublicMemberSignInRequestRoute({ app, deps });
   return { app, deps };
 }
 

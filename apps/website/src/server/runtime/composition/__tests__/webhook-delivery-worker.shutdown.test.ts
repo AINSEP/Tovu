@@ -57,7 +57,7 @@ async function seed(site: ReturnType<typeof openSite>) {
     id: "sub-1", workspaceId: "workspace-1", ownerPrincipalId: "principal-1", label: "Endpoint",
     targetUrl: "https://example.com/hooks", topics: ["form.submission.received"], secretVersion: 1,
     previousSecretVersion: null, status: "active", createdByPrincipalId: "principal-1", createdByPluginId: null,
-    createdAt: T0, updatedAt: T0, disabledAt: null,
+    createdAt: T0, updatedAt: T0, disabledAt: null, version: 1,
   });
   for (const id of ["d1", "d2", "d3"]) {
     const record = delivery(id);

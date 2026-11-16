@@ -6,7 +6,7 @@ import { checkMemberPost, type MemberPublicRouteDeps } from "./deps.js";
 import { sendMemberAuthError, clearMemberSessionCookie, MEMBER_SESSION_COOKIE } from "./complete-sign-in.js";
 
 /** Revoke only the member session; an absent/already-revoked cookie still succeeds. O(1) I/O. */
-export function registerPublicMemberSignOutRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberSignOutRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   const tokens = new NodeSessionTokens({});
   app.post("/api/members/v1/workspaces/:workspaceId/sign-out", async (req, res) => {
     try {

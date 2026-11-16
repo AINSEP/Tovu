@@ -34,9 +34,9 @@ export function createContentTypesModule(deps: ContentTypesRouteDeps): ServerMod
       registerAdminContentTypeUpdateFieldsRoute(app, deps);
       registerAdminContentTypeLifecycleRoute(app, deps);
       registerAdminEntryListRoute(app, deps);
-      registerAdminEntryCreateRoute(app, deps);
-      registerAdminEntryUpdateRoute(app, deps);
-      registerAdminEntryLifecycleRoute(app, deps);
+      registerAdminEntryCreateRoute({ app, deps });
+      registerAdminEntryUpdateRoute({ app, deps });
+      registerAdminEntryLifecycleRoute({ app, deps });
     },
   };
 }

@@ -442,6 +442,13 @@
       "reason": "Literal example of a URL, identifier or markup."
     },
     {
+      "file": "features/sites/SiteImportTab.tsx",
+      "line": 225,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
       "file": "features/skills/SkillRow.tsx",
       "line": 26,
       "kind": "text",

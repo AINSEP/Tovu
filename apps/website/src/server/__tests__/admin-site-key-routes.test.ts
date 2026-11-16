@@ -971,7 +971,7 @@ test("start fresh: the preview names what goes and which webhooks get a new sign
   await deps.webhookSubscriptionRepo.insert({
     id: "wh-1" as never, workspaceId: WORKSPACE as never, ownerPrincipalId: "principal-1" as never, label: "Order sync", targetUrl: "https://hooks.example.test/orders",
     topics: [], secretVersion: 1 as never, previousSecretVersion: null, status: "active" as never, createdByPrincipalId: "principal-1" as never, createdByPluginId: null,
-    createdAt: now as never, updatedAt: now as never, disabledAt: null,
+    createdAt: now as never, updatedAt: now as never, disabledAt: null, version: 1,
   });
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
 

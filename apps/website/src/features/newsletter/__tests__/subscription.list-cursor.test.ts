@@ -84,7 +84,7 @@ test("subscription route keeps its data envelope and continues through cursor", 
     const socket = new PassThrough();
     let text = "";
     socket.on("data", chunk => { text += chunk.toString(); });
-    const req = new IncomingMessage(socket);
+    const req = new IncomingMessage(socket as unknown as Socket);
     req.method = "GET";
     req.url = `/api/admin/v1/workspaces/${WS}/newsletter/lists/list/subscriptions${query}`;
     const res = new ServerResponse(req);

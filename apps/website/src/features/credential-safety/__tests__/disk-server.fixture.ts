@@ -25,7 +25,7 @@ const deps: ExternalMcpProbeRouteDeps = {
   builtInExternalMcpServerIds: [], observability: createNoopObservabilityPort({}),
   siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
   // A hostile upstream error with a credential is the regression: production must discard its text.
-  connect: async spec => { throw Object.assign(new Error(`hostile upstream ${spec.headers?.authorization ?? ''}`), { status: 401 }); },
+  connect: async ({ spec }) => { throw Object.assign(new Error(`hostile upstream ${spec.headers?.authorization ?? ''}`), { status: 401 }); },
 };
 const app = express();
 app.use(express.json());

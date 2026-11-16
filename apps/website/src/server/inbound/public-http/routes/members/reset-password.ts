@@ -4,7 +4,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
 import { sendMemberAuthError } from "./complete-sign-in.js";
 
 /** Consume a link-only reset; policy belongs to the service and a reset never creates a session. */
-export function registerPublicMemberResetPasswordRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberResetPasswordRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/reset-password", async (req, res) => {
     try {
       if (!checkMemberPost({ req, res, deps })) return;

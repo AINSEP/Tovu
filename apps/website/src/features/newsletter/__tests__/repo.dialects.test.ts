@@ -160,7 +160,7 @@ describeEachDialect(
           async transformResult({ result }) { return result; },
         }))) });
         const listed = await observed.list({ workspaceId: WS });
-        assert.equal(listed[0]?.bodyJson, undefined);
+        assert.equal(listed.items[0]?.bodyJson, undefined);
         assert.ok(queries.every(query => !query.includes("newsletter_campaign_revisions")), "list must not read then discard bodies");
         const warnings: string[] = [];
         t.mock.method(console, "warn", (line: string) => warnings.push(line));

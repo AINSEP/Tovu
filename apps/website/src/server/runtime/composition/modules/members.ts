@@ -110,14 +110,14 @@ export function createMembersModule(deps: {
       registerAdminMemberDisableRoute({ app, deps: deps.admin });
       registerAdminMemberDeleteRoute({ app, deps: deps.admin });
       registerAdminMemberRequestMagicLinkRoute({ app, deps: deps.admin });
-      registerPublicMemberSignInRequestRoute(app, deps.public);
-      registerPublicMemberCompleteSignInRoute(app, deps.public);
-      registerPublicMemberPasswordSignInRoute(app, deps.public);
-      registerPublicMemberForgotPasswordRoute(app, deps.public);
-      registerPublicMemberResetPasswordRoute(app, deps.public);
-      registerPublicMemberSetPasswordRoute(app, deps.public);
+      registerPublicMemberSignInRequestRoute({ app, deps: deps.public });
+      registerPublicMemberCompleteSignInRoute({ app, deps: deps.public });
+      registerPublicMemberPasswordSignInRoute({ app, deps: deps.public });
+      registerPublicMemberForgotPasswordRoute({ app, deps: deps.public });
+      registerPublicMemberResetPasswordRoute({ app, deps: deps.public });
+      registerPublicMemberSetPasswordRoute({ app, deps: deps.public });
       registerPublicMemberMeRoute({ app, deps: deps.public }, { login: oidc });
-      registerPublicMemberSignOutRoute(app, deps.public);
+      registerPublicMemberSignOutRoute({ app, deps: deps.public });
       registerOidcRoutes({ app, deps: oidc, members: deps.public });
     },
   };

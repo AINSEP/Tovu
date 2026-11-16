@@ -67,7 +67,7 @@ export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps 
       registerAdminMediaReplaceRoute({ app, deps });
       registerAdminMediaUpdateRoute({ app, deps });
       registerAdminMediaTrashRoute({ app, deps });
-      registerAdminMediaDeleteRoute(app, deps);
+      registerAdminMediaDeleteRoute({ app, deps });
       registerAdminMediaOriginalRoute({ app, deps });
       registerAdminMediaTextRoute({ app, deps });
       registerMediaRenditionRoute({ app, deps });

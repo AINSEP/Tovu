@@ -29,7 +29,7 @@ const routePath = "/api/admin/v1/workspaces/:workspaceId/assistant/execution/det
 
 function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps> = {}) {
   const app = express();
-  registerAdminAssistantDetectAgentsRoute(app, {
+  registerAdminAssistantDetectAgentsRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
@@ -39,7 +39,7 @@ function handler(allowed: boolean, options: Partial<AssistantExecutionRouteDeps>
       return { allowed, reason: allowed ? "granted" : "no_grant" };
     },
     ...options,
-  });
+  } });
   return extractRouteHandler(app, "post", routePath);
 }
 
@@ -121,13 +121,13 @@ test("Rescan forces discovery once after the cached response and preserves exact
   const forces: boolean[] = [];
   let calls = 0;
   const app = express();
-  registerAdminAssistantDetectAgentsRoute(app, {
+  registerAdminAssistantDetectAgentsRoute({ app, deps: {
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
     detectAgents: async (_input, options = {}) => { calls++; forces.push(options.force === true); return agents; },
     workspaceId: "workspace-test", authorize: async () => ({ allowed: true, reason: "granted" }),
-  });
+  } });
   const run = extractRouteHandler(app, "post", routePath);
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-test" };
@@ -155,13 +155,13 @@ test("each route uses its composition's inventory rather than the process compat
     for (const assistantAgentInventory of inventories) {
       await assistantAgentInventory.listAssistantAgents({}, { waitForProbe: true });
       const app = express();
-      registerAdminAssistantDetectAgentsRoute(app, {
+      registerAdminAssistantDetectAgentsRoute({ app, deps: {
         assistantAgentInventory,
         adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
         siteAssistantCredentialRepo: new InMemorySiteAssistantCredentialRepo(),
         siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()),
         workspaceId: "workspace-test", authorize: async () => ({ allowed: true, reason: "granted" }),
-      });
+      } });
       const { res, capture } = createCapturingResponse();
       res.locals.principal = { id: "principal-test" };
       await extractRouteHandler(app, "post", routePath)({ params: { workspaceId: "workspace-test" } }, res);

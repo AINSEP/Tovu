@@ -41,7 +41,7 @@ function buildApp(depsOverrides: Partial<AdminFsFilesCustomRootDeps> = {}): expr
     res.locals.principal = { id: "test-principal" };
     next();
   });
-  registerAdminFsFilesCustomRootRoutes(app, deps);
+  registerAdminFsFilesCustomRootRoutes({ app, deps: deps });
   return app;
 }
 

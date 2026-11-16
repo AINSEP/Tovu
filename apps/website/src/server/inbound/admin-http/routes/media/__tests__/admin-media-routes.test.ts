@@ -38,7 +38,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminMediaUploadRoute({ app, deps });
   registerAdminMediaUpdateRoute({ app, deps });
   registerAdminMediaTrashRoute({ app, deps });
-  registerAdminMediaDeleteRoute(app, deps);
+  registerAdminMediaDeleteRoute({ app, deps });
   return { app, deps };
 }
 

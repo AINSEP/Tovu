@@ -32,9 +32,9 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminContentTypeRegisterRoute(app, deps);
   registerAdminContentTypeLifecycleRoute(app, deps);
   registerAdminEntryListRoute(app, deps);
-  registerAdminEntryCreateRoute(app, deps);
-  registerAdminEntryUpdateRoute(app, deps);
-  registerAdminEntryLifecycleRoute(app, deps);
+  registerAdminEntryCreateRoute({ app, deps });
+  registerAdminEntryUpdateRoute({ app, deps });
+  registerAdminEntryLifecycleRoute({ app, deps });
   return { app, deps };
 }
 

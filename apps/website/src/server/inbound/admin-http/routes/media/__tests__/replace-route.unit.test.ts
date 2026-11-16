@@ -9,7 +9,7 @@ import { registerAdminMediaReplaceRoute } from '../replace.js';
 import { mediaApp } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId/replace';
-const register = (app: Express, deps: Deps) => registerAdminMediaReplaceRoute({ app, deps });
+const register = ({ app, deps }: { app: Express; deps: Deps }) => registerAdminMediaReplaceRoute({ app, deps });
 
 test('media replace: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {
   const { app } = mediaApp(register);

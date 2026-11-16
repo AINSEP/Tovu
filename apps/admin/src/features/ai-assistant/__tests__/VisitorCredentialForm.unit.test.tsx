@@ -421,7 +421,7 @@ it("warns when an Anthropic key is pasted into the standalone OpenAI form", () =
   const preset = DEFAULT_PROVIDER_PRESETS.find((entry) => entry.id === "openai")!;
   render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
     preset,
-    config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: preset.preferredModels[0], apiKey: "sk-ant-" + "x".repeat(40) },
+    config: { protocol: "openai", providerId: "openai", baseUrl: preset.baseUrl, model: "test-model", apiKey: "sk-ant-" + "x".repeat(40) },
   })} />);
   expect(screen.getByText(/looks like.*Anthropic/i)).toBeInTheDocument();
 });

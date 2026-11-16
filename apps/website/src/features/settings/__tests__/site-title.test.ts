@@ -110,7 +110,7 @@ function resolveDeps(
   options: { siteDisplayName?: string; workspaceRepo?: Pick<WorkspaceRepoPort, "findById"> } = {}
 ) {
   const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = options.workspaceRepo ?? {
-    findById: async ({ id }) => ({ id, name: WORKSPACE_NAME, slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
+    findById: async ({ id }) => ({ id, name: WORKSPACE_NAME, slug: id, createdAt: "2026-04-06T00:00:00.000Z", version: 1 }),
   };
   return {
     settingsRepo: ledger.settingsRepo,
@@ -288,7 +288,7 @@ test("REQ-09: an unusable owner value renders the no-owner-title value: the disp
 test("REQ-09: a blank display name falls back to workspaces.name, and a blank workspace name to Tovu Demo Site", async () => {
   const ledger = await makeLedger();
   const blankWorkspace: Pick<WorkspaceRepoPort, "findById"> = {
-    findById: async ({ id }) => ({ id, name: "  ", slug: id, createdAt: "2026-04-06T00:00:00.000Z" }),
+    findById: async ({ id }) => ({ id, name: "  ", slug: id, createdAt: "2026-04-06T00:00:00.000Z", version: 1 }),
   };
   const missingWorkspace: Pick<WorkspaceRepoPort, "findById"> = { findById: async () => null };
 
@@ -452,7 +452,7 @@ test("REQ-05: renderable configured and workspace names are trimmed before rende
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "  Configured title  " }), { workspaceId: "ws-new" }),
     "Configured title");
   const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = {
-    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso() }),
+    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso(), version: 1 }),
   };
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "x".repeat(201), workspaceRepo }), { workspaceId: "ws-new" }),
     "Workspace title");

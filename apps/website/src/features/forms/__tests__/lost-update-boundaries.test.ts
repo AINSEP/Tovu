@@ -21,6 +21,7 @@ async function fixture() {
   const deps = { workspaceId: "ws", formDefinitionRepo: repo, formSubmissionRepo: new InMemoryFormSubmissionRepo(),
     executeCommand, changeSets: new InMemoryChangeSetRepo(), clock: { nowMs: () => 0 }, idGen: { newId: () => `id-${++next}` },
     authorize: async () => ({ allowed: true, reason: "test" }),
+    removeFormSubmission: (async () => { throw new Error("unused: this fixture never deletes a submission"); }) as FormsRouteDeps["removeFormSubmission"],
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },
   };
   return { repo, deps };

@@ -151,7 +151,7 @@ export function extractRouteHandler(
   app: express.Express,
   method: "get" | "post" | "put" | "patch" | "delete",
   path: string
-): (req: unknown, res: unknown) => unknown {
+): (req: unknown, res: unknown, next?: () => void) => unknown {
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
   for (const layer of stack) {
     if (layer.route && layer.route.path === path && layer.route.methods[method]) {

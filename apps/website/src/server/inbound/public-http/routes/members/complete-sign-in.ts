@@ -74,7 +74,7 @@ export function completionCredential({ body, workspaceId }: { body: unknown; wor
  */
 
 /** Complete a purpose-bound link/code challenge and set only the member session cookie. O(1) I/O. */
-export function registerPublicMemberCompleteSignInRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberCompleteSignInRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in/complete", async (req, res) => {
     observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
     try {

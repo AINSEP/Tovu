@@ -11,9 +11,9 @@ import { registerAdminMediaTrashRoute } from '../trash.js';
 import { forbiddenBody, mediaApp, seedPng } from './media-route-harness.js';
 
 const ROUTE = '/api/admin/v1/workspaces/:workspaceId/media/:mediaId';
-const register = (app: Parameters<typeof registerAdminMediaDeleteRoute>[0], deps: Deps) => {
+const register = ({ app, deps }: { app: Parameters<typeof registerAdminMediaDeleteRoute>[0]["app"]; deps: Deps }) => {
   registerAdminMediaTrashRoute({ app, deps });
-  registerAdminMediaDeleteRoute(app, deps);
+  registerAdminMediaDeleteRoute({ app, deps });
 };
 
 test('media delete: denial writes the exact 403 body for media.delete.force and names the asset to authorize', async () => {

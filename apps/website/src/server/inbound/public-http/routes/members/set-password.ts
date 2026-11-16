@@ -8,7 +8,7 @@ import { MEMBER_SESSION_COOKIE, sendMemberAuthError } from "./complete-sign-in.j
 /** Member self-service; share /me's session check and charge both strict counters before Argon2.
  * @complexity O(n + s) in password size n and affected sessions s; service owns the write lifecycle.
  */
-export function registerPublicMemberSetPasswordRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberSetPasswordRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/password/set", async (req, res) => {
     try {
       if (!checkMemberPost({ req, res, deps })) return;
