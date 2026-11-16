@@ -33,3 +33,18 @@ test("a rejected checkpoint is logged once, with the run id in the line and the 
   await until(() => finalizer.activeCount() === 0, "the watch ends");
   assert.deepEqual(recording.calls.at(-1), { op: "settle", runId: RUN, content: "partial", status: "succeeded" });
 });
+
+test("a watch that fails is logged once, with the run id in the line and the error as given", async (t) => {
+  const errors = t.mock.method(console, "error", () => undefined);
+  const settleError = new Error("database is locked");
+  const recording = recordingLedger();
+  recording.hooks.onSettle = () => Promise.reject(settleError);
+  const daemon: RunDaemonClient = { openEvents: async () => new Response(end(RUN), { status: 200 }), runStatus: async () => 200 };
+  const finalizer = createAssistantRunFinalizer({ ledger: recording.ledger, daemon, scheduler: manualScheduler().scheduler });
+  finalizer.watch(watchInput());
+  await finalizer.idle();
+  assert.equal(finalizer.activeCount(), 0);
+  assert.equal(errors.mock.callCount(), 1);
+  assert.deepEqual(errors.mock.calls[0]!.arguments, ["[assistant-run-finalizer] watching run run-1 failed", settleError]);
+  assert.equal(errors.mock.calls[0]!.arguments[1], settleError);
+});
