@@ -1337,5 +1337,27 @@
   "tests": [
    "apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts"
   ]
+ },
+ {
+  "id": "D11b",
+  "what": "retire write shares the item idempotency key (no per-run retire key)",
+  "file": "apps/website/src/features/publish-content/apply-loop.ts",
+  "find": "idempotencyKey: `${itemIdempotencyKey}:retire:${ctx.runId}`,",
+  "replace": "idempotencyKey: itemIdempotencyKey,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "D11c",
+  "what": "run-scoped types no longer get a per-run idempotency key",
+  "file": "apps/website/src/features/publish-content/apply-loop.ts",
+  "find": "+ (handler.idempotencyScope === \"run\" ? `:${ctx.runId}` : \"\"),",
+  "replace": "+ \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
  }
 ]
