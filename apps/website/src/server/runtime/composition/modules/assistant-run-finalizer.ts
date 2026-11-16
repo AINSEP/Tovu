@@ -42,7 +42,7 @@ import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node"
 import { type ChatRunLedger, type RunSettlement } from "#src/assistant/index";
 import { createHttpRunDaemonClient, type RunDaemonClient, type RunDaemonRequest } from "./run-daemon-http-client.js";
 import { approximateJsonBytes, checkpointGrew, hasUnsavedCheckpointGrowth } from "./run-finalizer/checkpoint-policy.js";
-import { clearTrailing, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
+import { clearTrailing, interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
 import {
   readSseFrames,
   runContentFromEvents,
@@ -219,7 +219,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   }
 
   async function recoverWatch(watch: Watch, trigger: RecoveryTrigger): Promise<void> {
-    const events = interruptionEvents(watch);
+    const events = interruptionEvents({ watch });
     stopWatch({ watch });
     await options.ledger.checkpoint({ ...watch, content: runContentFromEvents(events), events: runEventsForSave(events) });
     if (!recovery) {
@@ -233,14 +233,6 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     // probes so its short grace window cannot turn into a hot loop of adopted watches.
     await delay({ ms: reconnectDelayMs });
     await recovery.recover({ messageId: watch.messageId, expectedRunId: watch.runId, trigger }, {});
-  }
-
-  function interruptionEvents(watch: Watch): AgentEvent[] {
-    // Storage coalesces text deltas. Equal event counts can still mean a shorter replay prefix,
-    // so both text length and event count must catch up before replacing the retained checkpoint.
-    return watch.events.length >= watch.retainedEvents.length &&
-      runContentFromEvents(watch.events).length >= runContentFromEvents(watch.retainedEvents).length
-      ? watch.events : watch.retainedEvents;
   }
 
   /** One cancelable timer owns skipped frames and failed-write retries. Its callback reuses the
@@ -350,7 +342,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     }
     if (response.status === 404) { releaseUnreadBody({ response }); return { kind: "gone" }; }
     if (!response.ok || !response.body) { releaseUnreadBody({ response }); return { kind: "dropped" }; }
-    watch.retainedEvents = [...interruptionEvents(watch)];
+    watch.retainedEvents = [...interruptionEvents({ watch })];
     watch.events = [...watch.attemptBase];
     watch.frameCarry = {};
     watch.failed = false;
@@ -456,7 +448,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   async function resolveStreamOutcome(watch: Watch, result: StreamResult): Promise<AgentRunStatus | undefined> {
     if (result.kind === "ended") {
       if (result.status === "failed" && recovery) await recoverWatch(watch, "attempt-failed");
-      else await settle({ watch, status: result.status, events: interruptionEvents(watch) });
+      else await settle({ watch, status: result.status, events: interruptionEvents({ watch }) });
       return result.status;
     }
     if (result.kind === "unresolved") { await recoverWatch(watch, "timeout"); return "interrupted"; }
@@ -495,32 +487,6 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 
     activeCount: () => active.size,
   };
-
-  function makeWatch({ principalId, conversationId, message, runId, daemon, attemptBase, now, resolutionTimeoutMs }: {
-    principalId: string; conversationId: string; message: ChatMessage; runId: string; daemon: RunDaemonClient; attemptBase: AgentEvent[]; now: number; resolutionTimeoutMs: number;
-  }, _options = {}): Watch {
-    const progress = checkpointProgress({ events: message.events ?? [] });
-    return {
-        daemon,
-        abortStream: new AbortController(),
-        resolutionDeadline: now + resolutionTimeoutMs,
-        principalId,
-        conversationId,
-        messageId: message.id,
-        runId,
-        attemptBase,
-        events: [...(message.events ?? [])],
-        retainedEvents: [...(message.events ?? [])],
-        failed: false,
-        checkpointedAt: Number.NEGATIVE_INFINITY,
-        checkpointedBytes: approximateJsonBytes({ value: message.events ?? [] }),
-        checkpointedTextCharacters: progress.textCharacters,
-        checkpointedExtensionEvents: progress.extensionEvents,
-        checkpointedTools: progress.tools,
-        checkpointPending: false,
-        terminal: false,
-    };
-  }
 
   function startWatch(watch: Watch) {
       const { runId, conversationId } = watch;
