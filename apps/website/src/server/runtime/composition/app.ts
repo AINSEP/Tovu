@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeMemoryAgentPlugins } from "./memory-deps/slices/agent-plugins.js";
 import { composeMemorySeo } from "./memory-deps/slices/seo-sitemap.js";
 import { composeMemoryOutboundHttp } from "./memory-deps/slices/outbound-http.js";
 import { composeMemoryTrash } from "./memory-deps/slices/memory-trash.js";
@@ -36,7 +37,6 @@ import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
 import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
 import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
@@ -62,7 +62,6 @@ import { loadBundledSourceControlProviderRegistry } from "#src/features/source-c
 import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { loadBundledCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
-import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
@@ -89,10 +88,6 @@ import { discoverAllBuiltInThemes, resolveActiveTheme, NO_THEME_ID } from "#src/
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
-import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveSkillLayout } from "#src/features/skills/layout";
 import { bundledAgentPluginsDir, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { describeSiteBinding, resolveCheckoutRoot } from "#src/platform/site-dir/index";
@@ -396,25 +391,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const inMemoryChatHistory = createInMemoryChatHistory();
   const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
   const { seoDeps, sitemapService, transformDefinitionRepo } = composeMemorySeo({ postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, originRegistry, clock });
-  const siteBinding = describeSiteBinding();
-  const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteBinding.dir });
-  const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
-    bundledSourceRoot: bundledAgentPluginsDir(),
-    identityAdmission: ({ id, localId, run }) => {
-      const host = routeDeps.pluginHost;
-      if (!host) throw new Error("agent plugin installation has no plugin host");
-      return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
-    },
-    // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
-    // lazily because that store is composed below.
-    mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
-  });
-  const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
-  const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
-  // 2026-08-17 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
-  // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
-  // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
-  const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
+  const { agentPluginLifecycle, agentPluginLayout, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout } = composeMemoryAgentPlugins({ routeDeps: () => routeDeps });
   // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
   // Serialize ledger registration, but never gate consent on unrelated title preservation.
   const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
