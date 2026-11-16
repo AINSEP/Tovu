@@ -13,7 +13,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type RunLifecycle } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
-import { type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
 import {
@@ -80,17 +80,18 @@ async function bootDaemon(): Promise<Harness> {
   app.use("/api/runs/:runId", requireRunOwnership({ registry: owners, lifecycle: lifecycle }, {}));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: owners }, {}));
   app.post("/api/federation/reload", (_req, res) => void res.json({ reloaded: true }));
-  const adapter: RouteHostContext = { resolvedPortRef: { current: 0 }, env: {},
+  const resolvedPortRef = { current: 0 };
+  const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
-    allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
+    config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
-  adapter.resolvedPortRef.current = port;
+  resolvedPortRef.current = port;
   return {
     baseUrl: `http://127.0.0.1:${port}`,
     lifecycle,

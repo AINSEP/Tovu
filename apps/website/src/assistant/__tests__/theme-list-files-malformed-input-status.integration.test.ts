@@ -14,6 +14,7 @@ import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
+import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 
 /**
  * @file Regression test for the bug report: `theme_list_files` called with a malformed/wrong
@@ -133,7 +134,7 @@ test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malf
     const { run, ...deps } = await buildDelegatedToolDeps();
     const app = express();
     app.use(express.json());
-    registerDelegatedToolRoutes({ app, deps: deps, adapter: { resolvedPortRef: { current: 7456 }, env: {}, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } });
+    registerDelegatedToolRoutes({ app, deps: deps, adapter: { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) } });
 
     // Drive real IncomingMessage/ServerResponse and Express routing over an in-memory
     // stream: no listening socket, and no stub of the adapter's status or JSON writers.

@@ -11,7 +11,7 @@ import ts from "typescript";
 
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
 import { registerRunRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
-import { type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 
 import {
   createOwnedRunListHandler,
@@ -73,10 +73,11 @@ async function bootDaemonRoutes(): Promise<Harness> {
   app.use(express.json());
   app.use("/api/runs/:runId", requireRunOwnership({ registry: registry, lifecycle: lifecycle }, {}));
   app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry }, {}));
-  const adapter: RouteHostContext = { resolvedPortRef: { current: 0 }, env: {},
+  const resolvedPortRef = { current: 0 };
+  const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
-    allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
+    config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
 
   const server: Server = createServer(app);
@@ -86,7 +87,7 @@ async function bootDaemonRoutes(): Promise<Harness> {
   // http-kit's `requireSameOrigin` routes (run start, run cancel) compare the request's `Host`
   // against this ref, so it has to hold the ephemeral port the OS just handed out — the real
   // daemon sets it to its own fixed port for the same reason.
-  adapter.resolvedPortRef.current = port;
+  resolvedPortRef.current = port;
   return {
     baseUrl: `http://127.0.0.1:${port}`,
     lifecycle,
@@ -109,6 +110,25 @@ async function startRun(harness: Harness, principalId: string, prompt = "hello")
 function asPrincipal(principalId: string): Record<string, string> {
   return { [RUN_PRINCIPAL_HEADER]: principalId };
 }
+
+// Characterization of the origin gate the daemon binds with `createLocalSameOriginPolicy`: a browser page on
+// another origin cannot start a run, even through a loopback address, and a page the daemon itself served can.
+test("the daemon's same-origin policy refuses a foreign-origin run start and admits its own page", async (t) => {
+  const harness = await bootDaemonRoutes();
+  t.after(harness.close);
+  const start = (origin: string) => fetch(`${harness.baseUrl}/api/runs`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin, [RUN_PRINCIPAL_HEADER]: ALICE },
+    body: JSON.stringify({ contextRef: contextRefFor(ALICE, "hello") }),
+  });
+
+  const foreign = await start("https://evil.example");
+  const own = await start(harness.baseUrl);
+
+  assert.equal(foreign.status, 403);
+  assert.deepEqual(await foreign.json(), { error: { code: "FORBIDDEN", message: "cross-origin request rejected" } });
+  assert.equal(own.status, 201);
+});
 
 test("a non-owner cannot read another principal's run status", async (t) => {
   const harness = await bootDaemonRoutes();

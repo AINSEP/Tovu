@@ -5,6 +5,7 @@ import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";
+import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 
 type CatalogBody = { hits: { id: string }[]; id: string; description: string };
 
@@ -27,7 +28,7 @@ export async function mountDaemonCatalog(registry: ToolRegistry, auditSink: Tool
   await evaluateDaemonStatements([mount], {
     siteTools: host, registerToolCatalogRoutes,
     app: { get: (path: string, handler: (request: unknown, response: unknown) => Promise<void>) => { assert.equal(handlers.has(path), false); handlers.set(path, handler); } },
-    adapter: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST", resolvedPortRef: { current: 7456 }, env: {} },
+    adapter: { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "TOVU_ALLOWED_ORIGINS", webPortEnvVar: "TOVU_WEB_PORT", bindHostEnvVar: "TOVU_BIND_HOST" } }) },
   });
   return {
     onAdmitted(_result: unknown) { refresh = true; },
