@@ -52,7 +52,7 @@ async function rig(input: { provider?: string; key?: boolean; sender?: { email?:
     resolve: { workspaceId: WS, mode: 'production', customCredentialRepo: repo, sealer,
       httpClient: { send: async request => { http.push(request); return { status: 200, headers: {}, bodyText: JSON.stringify({ id: `mail-${http.length}` }) }; } },
       loadMailAdapters: async () => adapters, log: () => {}, warn: () => {}, clock,
-      createSmtpTransport: config => ({ sendMail: async mail => { smtp.push({ config, mail }); return { messageId: 'smtp-1' }; } }),
+      createSmtpTransport: config => ({ sendMail: async ({ mail }) => { smtp.push({ config, mail }); return { messageId: 'smtp-1' }; } }), // the port takes `({ mail })`
     },
     settings: { repo: settingsRepo, deps: settingsDeps, systemPrincipalId: 'system', authorize: async () => ({ allowed: true, reason: 'golden' }) },
     settingsReady: Promise.resolve(), delivery: { ledger, suppression: { isSuppressed: async ({ normalizedAddress }) => normalizedAddress === 'blocked@example.test', suppress: async () => {} }, capture },
