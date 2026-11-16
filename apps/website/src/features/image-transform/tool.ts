@@ -54,7 +54,7 @@ export const imageTransformDerivedRisk: DerivedRiskByToolId = new Map([[IMAGE_TR
 interface Prepared { source: Awaited<ReturnType<typeof inspectImage>>; rendered: RenderedImage[]; assets?: PreparedAssets }
 const isCallerError = ({ error }: { error: unknown }, _optional = {}) => {
   if (error instanceof ImageTransformError || error instanceof FsFilePathError || error instanceof FsWriteInputError) return true;
-  return isThemeShapeRejection(error) || isImportShapeRejection({ error });
+  return isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
 };
 const view = (rendered: readonly RenderedImage[]) => rendered.map(({ path, format, width, height, bytes }) => ({ path, format, width, height, bytes: bytes.length }));
 

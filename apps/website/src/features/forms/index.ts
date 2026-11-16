@@ -72,7 +72,7 @@ export { FORMS_SUBMIT_PROFILE } from "./rate-limit-profile.js";
 const RESERVED_SLUGS = new Set(["new"]);
 const FORMS_PERMISSION = "admin.forms.manage";
 const authoring = createFormAuthoring({ permission: "pages.edit_html" }, {});
-export const formSlugPolicy = { slugify: toSlug, maxAttempts: MAX_SUFFIX_ATTEMPTS, reservedSlugs: RESERVED_SLUGS };
+export const formSlugPolicy = { slugify: (text: string) => toSlug({ text }), maxAttempts: MAX_SUFFIX_ATTEMPTS, reservedSlugs: RESERVED_SLUGS };
 
 /** Tovu's command-gateway adapter. Policy stays here; validation and audited writes live in Jini. */
 export interface FormWriteServiceDeps extends Omit<PackageWriteDeps, "permission" | "reservedSlugs"> {

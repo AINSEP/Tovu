@@ -106,7 +106,7 @@ export function buildWidgetHostPorts(required: { postRepo?: PostRepoPort }, _opt
     },
     media: { findMediaByIdOrSlug, getLatestTransformDefinition, publicTransformName: CORE_PUBLIC_TRANSFORM_NAME },
     entryRefs: { extract: extractEntryRefs },
-    slugify: toSlug,
+    slugify: (text) => toSlug({ text }),
   };
 }
 

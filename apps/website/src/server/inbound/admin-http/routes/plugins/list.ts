@@ -36,11 +36,11 @@ export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDep
     try {
       const principal = getAuthedPrincipal(res);
       if (
-        !(await authorizeOrRespond(res, deps.authorize, {
+        !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
           principalId: principal.id,
           permission: "admin.plugins.read",
           workspaceId: deps.workspaceId,
-        }))
+        } }))
       )
         return;
 

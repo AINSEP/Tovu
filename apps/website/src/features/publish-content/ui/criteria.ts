@@ -93,7 +93,7 @@ function matchesItem({ row, item }: { row: PublishReportRow; item: string }, _op
 export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria: PublishCriteria & { readonly excludeItems?: readonly string[] }): CriteriaSelection {
   const types = criteria.types ?? [];
   const items = criteria.items ?? [];
-  const normalizedTypes = new Set(types.map(normalizeType));
+  const normalizedTypes = new Set(types.map((type) => normalizeType({ type })));
   const hasTypes = normalizedTypes.size > 0;
   const hasItems = items.length > 0;
 

@@ -818,7 +818,7 @@ export interface PostDeps {
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
   /** Renders a doc Page body as Page HTML, so an assistant edit keeps what the page already holds. */
-  docBodyAsPageHtml?: (bodyJson: unknown) => string;
+  docBodyAsPageHtml?: (required: { bodyJson: unknown }, optional?: Record<string, never>) => string;
   /**
    * SPEC-009 REQ-15 — routing's slug-change slot lookup (`getSlugChangeCapture`), handed to every
    * `updatePost` call a route or agent tool makes so a published entry's rename leaves a 301 from

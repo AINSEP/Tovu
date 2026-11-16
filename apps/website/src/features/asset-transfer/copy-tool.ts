@@ -46,7 +46,7 @@ export const filesCopyDerivedRisk: DerivedRiskByToolId = new Map([["files_copy",
 const byId = indexCatalogById({ catalog: filesCopyAgentToolCatalog });
 const callerError = ({ error }: { error: unknown }, _optional = {}) => {
   if (error instanceof FsFilePathError || error instanceof FsWriteInputError || error instanceof MediaValidationError) return true;
-  return isThemeShapeRejection(error) || isImportShapeRejection({ error });
+  return isThemeShapeRejection({ error }) || isImportShapeRejection({ error });
 };
 
 /** URL sources reuse fetchImage and its safe egress port, with the existing theme font sniffer. */

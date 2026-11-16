@@ -60,7 +60,7 @@ async function usernameHeldByTrashedUser({ deps, rawUsername }: { deps: UsersRou
   if (!username) return false;
   const existingUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username });
   if (!existingUser) return false;
-  return deps.isInTrash(existingUser.principalId);
+  return deps.isInTrash({ principalId: existingUser.principalId });
 }
 
 /**

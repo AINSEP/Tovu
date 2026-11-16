@@ -93,7 +93,7 @@ export async function preparePublishConfirmation(
   const keepSet = new Set(keep);
   const carriedKept = rows.filter(row => row.includedFor.length > 0 && rowPublishesWithSelection(row, keepSet)).map(row => row.key);
   const next = await required.planPublish({ selectedEntityKeys: keep,
-    ...overwriteKeysWithin(required.plan.overwriteEntityKeys, [...keep, ...carriedKept]) });
+    ...overwriteKeysWithin({ overwriteEntityKeys: required.plan.overwriteEntityKeys, keep: [...keep, ...carriedKept] }) });
   const changing = new Set(rows.filter(row => !rowPublishesWithSelection(row, keepSet)).map(row => row.key));
   const tickedKeys = new Set((required.plan.overwriteEntityKeys ?? []).filter(key => !changing.has(key)));
   if (!overwriteReplanIsConsistent({ shown: required.plan.details, next: next.details, tickedKeys, changing })) {

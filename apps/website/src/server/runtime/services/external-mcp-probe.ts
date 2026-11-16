@@ -11,9 +11,12 @@ import { McpAuthFailedError, McpProtocolError, describeRemoteToolSurface } from 
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";
 
 /** Injectable session factory — the seam a route test scripts instead of opening a real socket.
- *  Same shape `mcp-federation/bootstrap.ts`'s own `connect` parameter uses for the identical reason:
+ *  Same seam `mcp-federation/bootstrap.ts`'s own `connect` parameter provides, for the identical reason:
  *  the protocol code under test should be the real thing, not a second hand-rolled fake of it. */
-export type ExternalMcpProbeSessionFactory = (spec: McpHttpLaunchSpec, requestTimeoutMs: number) => Promise<McpSessionPort>;
+export type ExternalMcpProbeSessionFactory = (
+  required: { spec: McpHttpLaunchSpec; requestTimeoutMs: number },
+  optional?: Record<string, never>,
+) => Promise<McpSessionPort>;
 
 export type ExternalMcpProbeServiceDeps = Pick<ExternalMcpToolDeps, "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer"> & {
   /**
@@ -167,7 +170,7 @@ function isProbeTimeoutFailure({ error }: { error: unknown }, _options = {}): bo
 async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTarget): Promise<{ ok: true; tools: ReturnType<typeof describeRemoteToolSurface> } | { ok: false; kind: "auth" | "timeout" | "unreachable" }> {
   let session: McpSessionPort | undefined;
   try {
-    session = await connect(target.launch, target.federationConfig.connectTimeoutMs);
+    session = await connect({ spec: target.launch, requestTimeoutMs: target.federationConfig.connectTimeoutMs });
     const tools = await session.listTools();
     return { ok: true, tools: describeRemoteToolSurface({ tools, config: target.federationConfig }) };
   } catch (err) {

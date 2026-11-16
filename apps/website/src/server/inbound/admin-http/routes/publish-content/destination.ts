@@ -141,11 +141,11 @@ export function registerPublishContentDestinationRoutes(
       return false;
     }
     const principal = getAuthedPrincipal(res);
-    return authorizeOrRespond(res, deps.authorize, {
+    return authorizeOrRespond({ res, authorize: deps.authorize, params: {
       principalId: principal.id,
       permission: "publish_content.apply",
       workspaceId: deps.workspaceId,
-    });
+    } });
   };
 
   app.get(base, async (req, res) => {

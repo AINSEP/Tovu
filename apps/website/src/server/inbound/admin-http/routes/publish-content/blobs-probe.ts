@@ -56,11 +56,11 @@ export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar
       try {
         const principal = getAuthedPrincipal(res);
         if (
-          !(await authorizeOrRespond(res, deps.authorize, {
+          !(await authorizeOrRespond({ res, authorize: deps.authorize, params: {
             principalId: principal.id,
             permission: "publish_content.apply",
             workspaceId: deps.workspaceId,
-          }))
+          } }))
         )
           return;
 

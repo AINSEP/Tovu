@@ -54,7 +54,7 @@ export function themeRosterFingerprint(
     }
   };
   const revision = readThemePreviewRefresh({ themesDir })?.revision ?? null;
-  return JSON.stringify([revision, mtimeOf({ sub: null }), ...ENGINE_SUBFOLDERS.map(mtimeOf)]);
+  return JSON.stringify([revision, mtimeOf({ sub: null }), ...ENGINE_SUBFOLDERS.map((sub) => mtimeOf({ sub }))]);
 }
 
 /**

@@ -62,7 +62,7 @@ export const registerAdminUserEnableRoute: UsersRouteRegistrar = ({ app, deps },
 
       // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition:
       // re-activating a trashed principal would leave an ACTIVE user still indexed for purge.
-      if (await deps.isInTrash(principalId)) {
+      if (await deps.isInTrash({ principalId })) {
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 

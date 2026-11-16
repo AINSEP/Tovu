@@ -62,7 +62,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = ({ app, 
 
       // OWNER DECISION 2026-09-24 (delete-user plan v2, decision 7) — refuse BEFORE the transition;
       // see `enable.ts`'s identical guard for why.
-      if (await deps.isInTrash(principalId)) {
+      if (await deps.isInTrash({ principalId })) {
         throw new UserInTrashError("this user is in the Trash; restore them first");
       }
 

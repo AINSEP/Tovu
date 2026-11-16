@@ -144,23 +144,23 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   try {
     const paths = resolveSiteDatabasePaths({ dir: target });
     const dbPath = paths.contentDbPath;
-    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)(dbPath, {
-      db: bootResult.db,
-      chatDbPath: paths.chatDbPath,
-      store: bootResult.store,
-      workspaceId: bootResult.workspaceId,
-      uploadsDir: path.join(target, "uploads"),
-      // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
-      // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
-      // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
-      themesDir: path.join(target, "themes"),
-      // The site this command exports. Without it the binding falls back to `describeSiteBinding()`,
-      // `<cwd>/sites/<name>`, and every `<site>/...` default the composition derives from it (the
-      // export root above all) lands in that unrelated site. Same values as `serve.ts`'s binding,
-      // for the same reasons; this command does not pin `TOVU_SITE_DIR` the way `serve` does.
-      siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
-      onStoreOpened: ({ store }, _optional = {}) => (composedStore = store),
-    });
+    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)({ dbPath, overrides: {
+        db: bootResult.db,
+        chatDbPath: paths.chatDbPath,
+        store: bootResult.store,
+        workspaceId: bootResult.workspaceId,
+        uploadsDir: path.join(target, "uploads"),
+        // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
+        // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
+        // `sites/tovu-dev/themes` beside the operator's shell instead of the site it was given.
+        themesDir: path.join(target, "themes"),
+        // The site this command exports. Without it the binding falls back to `describeSiteBinding()`,
+        // `<cwd>/sites/<name>`, and every `<site>/...` default the composition derives from it (the
+        // export root above all) lands in that unrelated site. Same values as `serve.ts`'s binding,
+        // for the same reasons; this command does not pin `TOVU_SITE_DIR` the way `serve` does.
+        siteBinding: { dir: target, name: path.basename(target), dirOverridden: true, switcherCompatible: false },
+        onStoreOpened: ({ store }, _optional = {}) => (composedStore = store),
+    } });
     routeDepsForCleanup = routeDeps;
     const outputDir = resolveExportOutputDir({ input: input, exportOutputRootDir: routeDeps.exportOutputRootDir });
 

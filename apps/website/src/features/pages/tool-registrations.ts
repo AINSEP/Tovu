@@ -185,7 +185,7 @@ function assertTopLevelSectionsAreTagged(
   { html, scan }: { html: string; scan: HtmlRegionScan },
   _options: Record<string, never> = {},
 ): void {
-  const offenders = untaggedTopLevelSections({ html, scan }, { slugify: toSlug });
+  const offenders = untaggedTopLevelSections({ html, scan }, { slugify: (text) => toSlug({ text }) });
   if (offenders.length === 0) return;
   const listed = offenders
     .map((offender) =>
@@ -417,7 +417,7 @@ export interface PagesToolDeps {
   themesDir?: string;
   resolveActiveThemeId?: () => Promise<string>;
   /** Renders a doc body as Page HTML. Absent only in standalone page-store consumers. */
-  docBodyAsPageHtml?: (bodyJson: unknown) => string;
+  docBodyAsPageHtml?: (required: { bodyJson: unknown }, optional?: Record<string, never>) => string;
 }
 
 /**
@@ -459,7 +459,7 @@ async function readDocPageFallback(
   // model must be told before it calls `pages_write_html` and silently discards it.
   const hasDocContent = Array.isArray(row.bodyJson.content) && row.bodyJson.content.length > 0;
   // Without this the model sees an empty page and any addition erases the owner's text and form.
-  const html = hasDocContent && deps.docBodyAsPageHtml ? deps.docBodyAsPageHtml(row.bodyJson) : "";
+  const html = hasDocContent && deps.docBodyAsPageHtml ? deps.docBodyAsPageHtml({ bodyJson: row.bodyJson }) : "";
   return {
     id,
     html,
