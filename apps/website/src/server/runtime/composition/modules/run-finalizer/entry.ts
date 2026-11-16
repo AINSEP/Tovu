@@ -257,7 +257,9 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     ledger: options.ledger, durable, now, mintRunId: randomUUID, daemon,
     recoveryDaemon: () => options.recoveryDaemon,
     probe: ({ run, client }) => probeRun({ timers, statusTimeoutMs: settings.statusTimeoutMs, client, run }),
-    attach: (required, optional) => { finalizer.watch(required, optional); },
+    attach: ({ principalId, conversationId, message }, { attemptBase, daemon: holder }) => {
+      finalizer.watch({ principalId, conversationId, message }, { attemptBase, daemon: holder });
+    },
     // No process identity is guessed from daemon PID existence. Until the executor provides a
     // verified child identity, reconstruction is the safe universal continuation path.
     verifyChildDead: options.verifyChildDead ?? ((required, _options) => verifyAttemptChildDead(required, {})),
@@ -271,7 +273,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     retainLive: ({ watch }) => retainLive({ recovery, watch }),
   });
   const registry: Registry = {
-    active, tracker, follower, log: consoleRunLog, attemptEnded, onAttemptEnded: (required) => options.onAttemptEnded?.(required),
+    active, tracker, follower, log: consoleRunLog, attemptEnded, onAttemptEnded: ({ runId }) => options.onAttemptEnded?.({ runId }),
   };
   const finalizer: AssistantRunFinalizer = {
     recover: async (required, optional) => recovery ? recovery.recover(required, optional) : "gone",
