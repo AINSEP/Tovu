@@ -303,7 +303,7 @@ Order matters only where stated. Every step compiles and passes alone. Bug fixes
 
 The wider class (§2.5: 1,871 handlers) is not swept by row. It enters the debt list in E0 and shrinks when a file is touched, with the four idioms doing most of the work. A lane must not "fix" a parse fallback by adding a log line; the gate's parse-refusal rule already passes it.
 
-Untangle interaction (lesson 10): E2 adds a new core folder and does not touch files owned by wave B/C lanes. E4 edits `http-kit/src/internal-error.ts` and E5 edits `core/src/contracts/server/api-error.ts`, which lane C4 owns; both go after C4's applier pass. E3's tracker type rides the observability design's M1 (type move to core); until M1 lands the reporter restates the one method structurally.
+Untangle interaction (lesson 10): E2 adds a new core folder and does not touch files owned by wave B/C lanes. E5 edits `core/src/contracts/server/api-error.ts`, in the folder lane C4 created (it is present on `integ/wave-b-r2`), and E4 edits `http-kit/src/internal-error.ts` (not in C4's listed paths, but in the same package). Both start only after wave B is merged, so they do not collide with an applier pass. E3's tracker type rides the observability design's M1 (type move to core); until M1 lands the reporter restates the one method structurally.
 
 ## 5. Rough cost
 
