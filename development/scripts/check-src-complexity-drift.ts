@@ -129,7 +129,7 @@ export function functionLocations(file: string, source: string): FunctionLocatio
 }
 
 /** Convert ESLint's JSON locations and measured values into reviewable debt entries. */
-function readViolations(result: EslintFileResult): Violation[] {
+export function readViolations(result: EslintFileResult): Violation[] {
   const file = path.relative(REPO_ROOT, result.filePath).split(path.sep).join("/");
   const relevant = result.messages.filter(message => {
     if (message.fatal || message.ruleId === null) throw new Error(`${file}:${message.line}: ${message.message}`);
@@ -184,7 +184,7 @@ function printViolation(violation: Violation): string {
 }
 
 /** Validate the committed debt format before trusting it as an allowance. */
-function readDebt(raw: string): Violation[] {
+export function readDebt(raw: string): Violation[] {
   const debt = JSON.parse(raw) as { version?: number; violations?: Violation[] };
   if (debt.version !== 2 || !Array.isArray(debt.violations)) throw new Error("Invalid complexity debt format");
   for (const entry of debt.violations) {
@@ -197,11 +197,18 @@ function readDebt(raw: string): Violation[] {
   return debt.violations;
 }
 
+function showDebtAtBase(base: string): string {
+  return execFileSync("git", ["show", `${base}:${DEBT_FILE}`], { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+}
+
 /** Compare the proposed debt against CI's base, allowing the one-time legacy-format migration. */
-function checkDebtHistory(current: readonly Violation[]): boolean {
-  const base = process.env.COMPLEXITY_BASE_REF;
+export function checkDebtHistory(
+  current: readonly Violation[],
+  { env = process.env, show = showDebtAtBase }: { env?: Record<string, string | undefined>; show?: (base: string) => string } = {},
+): boolean {
+  const base = env.COMPLEXITY_BASE_REF;
   if (!base) return true;
-  const raw = execFileSync("git", ["show", `${base}:${DEBT_FILE}`], { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+  const raw = show(base);
   const previous = JSON.parse(raw) as { version?: number; violations?: unknown[] };
   if (previous.version === undefined && previous.violations?.every(entry => typeof entry === "object" && entry !== null && "reason" in entry)) {
     console.log("check:complexity — replacing the legacy baseline with the first unified snapshot.");
@@ -215,10 +222,16 @@ function checkDebtHistory(current: readonly Violation[]): boolean {
   return drift.added.length === 0 && drift.worsened.length === 0;
 }
 
-export function main(): void {
-  const debt = readDebt(readFileSync(DEBT_PATH, "utf8"));
-  const historyOk = checkDebtHistory(debt);
-  const current = findViolations();
+export interface MainOptions {
+  debtRaw?: string;
+  find?: () => Violation[];
+  history?: typeof checkDebtHistory;
+}
+
+export function main({ debtRaw, find = findViolations, history = checkDebtHistory }: MainOptions = {}): void {
+  const debt = readDebt(debtRaw ?? readFileSync(DEBT_PATH, "utf8"));
+  const historyOk = history(debt);
+  const current = find();
   const { added, removed, worsened } = diffAgainstBaseline(debt, current);
   for (const entry of added) console.error(`New violation: ${printViolation(entry)}`);
   for (const { baseline, current: entry } of worsened) {
