@@ -1,7 +1,8 @@
 import { act, cleanup, render, renderHook, screen } from "@/__tests__/fetch-query-render";
 import { lazy, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createAdmin, defineAdminModule } from '@jini-ai/admin/core/module';
+import { createAdmin } from '@jini-ai/admin/core/module';
+import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
 import type { ModulePageProps } from '@jini-ai/admin/react/bind-react';
 import { createOverlayController } from '@jini-ai/admin/react/overlays';
 import { AdminModulesContext, createHostAdminScope, mediaPublishContribution, useAdminModules, useHostMediaPicker, useModulePanel, useModuleProviderContent } from '../modules.hooks';

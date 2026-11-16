@@ -1,5 +1,6 @@
 import { createElement, useContext, useEffect, useState, Suspense, type ReactNode } from 'react';
-import { createAdmin, defineAdminModule } from '@jini-ai/admin/core/module';
+import { createAdmin } from '@jini-ai/admin/core/module';
+import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
 import { media } from '@jini-ai/admin/media/react';
 import { mediaPickerToken } from '@jini-ai/admin/contracts/media-picker';
 import { createOverlayController, OverlayHost } from '@jini-ai/admin/react/overlays';

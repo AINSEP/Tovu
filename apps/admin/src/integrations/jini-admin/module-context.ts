@@ -1,5 +1,5 @@
 import { createContext, useContext, type ComponentType, type LazyExoticComponent, type ReactNode } from 'react';
-import type { AdminInstance } from '@jini-ai/admin/core/module';
+import type { AdminInstance } from '@jini-ai/core/contracts/admin-module';
 import type { ModulePageProps, TabViewProps } from '@jini-ai/admin/react/bind-react';
 import type { MediaPickerPort } from '@jini-ai/admin/contracts/media-picker';
 import type { createOverlayController } from '@jini-ai/admin/react/overlays';
