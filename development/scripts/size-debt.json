@@ -1619,20 +1619,6 @@
       "value": 96
     },
     {
-      "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
-      "function": "<file>",
-      "line": 1093,
-      "rule": "max-lines",
-      "value": 1489
-    },
-    {
-      "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
-      "function": "registerSiteRoutes#1",
-      "line": 2990,
-      "rule": "max-lines-per-function",
-      "value": 88
-    },
-    {
       "file": "apps/website/src/server/routes/types.ts",
       "function": "<file>",
       "line": 1620,
