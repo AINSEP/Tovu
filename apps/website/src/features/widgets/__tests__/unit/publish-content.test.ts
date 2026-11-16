@@ -163,9 +163,9 @@ test("widget/widget-area references: a widget names the media its config uses; a
   const widget = entities.find((e) => e.entityType === "widget" && e.id === a.id)!;
   const area = entities.find((e) => e.entityType === "widget-area")!;
   const unknownType = { ...widget, state: { ...widget.state, widgetType: "no-such-widget-type" } };
-  assert.deepEqual(await byType.get("widget")!.references!(unknownType), [], "an unregistered widget type references nothing");
-  assert.deepEqual(await byType.get("widget")!.references!(widget), [{ entityType: "media", key: "hero-key" }]);
-  const areaRefs = (await byType.get("widget-area")!.references!(area)).map((r) => JSON.stringify(r));
+  assert.deepEqual(await byType.get("widget")!.references!({ entity: unknownType }), [], "an unregistered widget type references nothing");
+  assert.deepEqual(await byType.get("widget")!.references!({ entity: widget }), [{ entityType: "media", key: "hero-key" }]);
+  const areaRefs = (await byType.get("widget-area")!.references!({ entity: area })).map((r) => JSON.stringify(r));
   assert.ok(areaRefs.some((r) => r.includes(a.id)) && areaRefs.some((r) => r.includes(b.id)), `area references name both placed widgets: ${areaRefs.join(" ")}`);
 });
 
@@ -189,10 +189,10 @@ test("widget references name configured form, menu and term references, and tole
   const { src, a } = await sites();
   const handler = contributeWidgetPublish().build(src.site);
   const widget = (await packAll(src.site)).find((e) => e.entityType === "widget" && e.id === a.id)!;
-  const refs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } });
+  const refs = await handler.references!({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", formDefinitionId: "contact", menuRef: "main", categoryTermId: "" } } } });
   assert.deepEqual(refs.filter((r) => r.entityType !== "media"), [{ entityType: "form", key: "contact" }, { entityType: "menu", key: "main" }]);
-  assert.deepEqual(await handler.references!({ ...widget, state: { ...widget.state, config: undefined } }), []);
-  const htmlRefs = await handler.references!({ ...widget, state: { ...widget.state, config: { body: "plain", html: '<img src="/media/html-key/original">' } } });
+  assert.deepEqual(await handler.references!({ entity: { ...widget, state: { ...widget.state, config: undefined } } }), []);
+  const htmlRefs = await handler.references!({ entity: { ...widget, state: { ...widget.state, config: { body: "plain", html: '<img src="/media/html-key/original">' } } } });
   assert.deepEqual(htmlRefs, [{ entityType: "media", key: "html-key" }], "media inside a raw-html config field is referenced too");
 });
 
