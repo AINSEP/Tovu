@@ -191,7 +191,7 @@ export class InMemoryMemberRepo implements MemberRepoPort {
   async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<MemberRecord>> {
     const rows = this.rows.filter((row) => row.workspaceId === required.workspaceId && row.status !== "trash");
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
-    return pageFromArray({ rows, limit, cursor: optional.cursor ?? null, positionOf: (member) => [member.id] });
+    return pageFromArray({ rows, limit, cursor: optional.cursor ?? null, positionOf: (member) => [member.id], shape: ['string'] });
   }
 
   async save(record: MemberRecord): Promise<void> {

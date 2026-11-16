@@ -125,7 +125,7 @@ export async function runLocalSiteChild(
     const runtimeDir = proc.env.TOVU_LOCAL_ADMIN_BUILD_ROOT;
     const repoRoot = proc.env.TOVU_REPO_ROOT;
     if (runtimeDir === undefined || repoRoot === undefined) {
-      timers.clearInterval(watchdog);
+      timers.clearInterval({ handle: watchdog });
       throw new Error(runtimeDir === undefined ? "local site child has no admin build root" : "local site child has no repository root");
     }
     proc.env.TOVU_ADMIN_DIST = await buildAdminBundle({

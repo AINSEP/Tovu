@@ -186,7 +186,7 @@ export class SqlMemberRepo implements MemberRepoPort {
    */
   async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<MemberRecord>> {
     const limit = Math.min(optional.limit ?? MAX_PAGE, MAX_PAGE);
-    const after = optional.cursor ? decodeListCursor({ cursor: optional.cursor, size: 1 }) : null;
+    const after = optional.cursor ? decodeListCursor({ cursor: optional.cursor, shape: ['string'] }) : null;
     const rows = await this.kernel.run((db) => {
       let query = db.selectFrom("members").selectAll().where("workspace_id", "=", required.workspaceId)
         .where("status", "<>", "trash");

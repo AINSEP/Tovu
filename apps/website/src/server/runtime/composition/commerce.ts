@@ -211,7 +211,9 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     return current.server;
   }
   async function checkoutServer(): Promise<CommerceServer> { return readyServer({ current: await resolve() }); }
-  const worker = createCommerceWorker({ owner: required.workerOwner, directory: required.workerDirectory, warn,
+  const worker = createCommerceWorker({ owner: required.workerOwner, directory: required.workerDirectory,
+    // The worker's logger takes the object-args shape; this module's `warn` still takes a bare string.
+    warn: ({ message }) => warn(message),
     active: isActive, hasPending: async () => {
       if (!storageReady) return false;
       if (await ledger.transaction({ fn: tx => tx.hasOpenPayment({ workspaceId: required.workspaceId }) })) return true;

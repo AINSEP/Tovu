@@ -1,7 +1,8 @@
 import type { JsonObject } from '@jini-ai/core/primitives';
 import { isNonArrayRecord } from '@jini-ai/core/records';
 import { requireWidgetsPermissionOrRespond, mapWidgetErrorToResponse } from '#src/server/inbound/admin-http/http/widgets';
-import type { RouteDeps, RouteRegistrar } from '#src/server/routes/types';
+import type { Express } from 'express';
+import type { RouteDeps } from '#src/server/routes/types';
 import { renderWidgetPreview, type WidgetPreviewInput } from './preview-render.js';
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
@@ -21,7 +22,7 @@ export function parseWidgetPreviewBody({ raw }: { raw: unknown }, _optional: Rec
 /** Admin middleware authenticates this route, just like saved-widget routes. This local guard
  * also fails closed for direct invocation; permission/workspace checks precede rendering.
  */
-export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Parameters<RouteRegistrar>[0]; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
+export function registerAdminWidgetPreviewRoute({ app, deps }: { app: Express; deps: RouteDeps }, { render = renderWidgetPreview }: { render?: typeof renderWidgetPreview } = {}): void {
   app.post('/api/admin/v1/workspaces/:workspaceId/widgets/preview', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     if (!res.locals.principal) { res.status(401).json({ error: 'authentication required' }); return; }

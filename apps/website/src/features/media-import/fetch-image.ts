@@ -174,7 +174,7 @@ export function fetchImage(
     outboundGuard: { send: ({ httpClient, request }) => httpClient.send({ request }) },
   }, { timeoutMs: MEDIA_IMPORT_TIMEOUT_MS });
   if (twin.packageUrl === url) return fetched;
-  return fetched.then((image) => ({ ...image, url: new URL(twin.toReal(image.url.href)) }));
+  return fetched.then((image) => ({ ...image, url: new URL(twin.toReal({ value: image.url.href })) }));
 }
 
 /** Applies the same Tovu byte/type policy to guarded local reads. No I/O occurs here.
