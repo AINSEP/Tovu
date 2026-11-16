@@ -379,6 +379,23 @@ describe("WidgetEmbedNodeView", () => {
     expect(updateAttributes).toHaveBeenCalledWith({ cssClass: null, htmlAttributes: null, content: null });
   });
 
+  it("for a media widget, choosing a custom set for this spot shows it checked and saves a non-null content override", async () => {
+    const user = userEvent.setup();
+    const updateAttributes = vi.fn();
+    const mediaWidget = { ...ACTIVE_WIDGET, title: "Photo strip", widgetType: "media" as const, config: { mode: "media", items: [], layout: "grid" } };
+    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: mediaWidget, whereUsed: NO_WHERE_USED } as unknown as Awaited<ReturnType<typeof api.getWidget>>);
+    render(<WidgetEmbedNodeView {...fakeNodeViewProps({ widgetEntryId: "w1", placementId: "p1" }, { updateAttributes })} />);
+    await screen.findByText("Photo strip");
+    await user.click(screen.getByRole("button", { name: "Style" }));
+    await screen.findByRole("dialog");
+    await user.click(screen.getByRole("radio", { name: "Custom for this post" }));
+    expect(screen.getByRole("radio", { name: "Custom for this post" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Use the widget's content" })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(updateAttributes).toHaveBeenCalledTimes(1);
+    expect(updateAttributes.mock.calls[0]![0].content).not.toBeNull();
+  });
+
   it("Cancel from the Style dialog closes it without updating the node", async () => {
     const user = userEvent.setup();
     const updateAttributes = vi.fn();
@@ -450,6 +467,13 @@ describe("WidgetEmbedStatus", () => {
     render(<WidgetEmbedStatus widget={null} isBroken={true} typeLabel="" />);
     const label = screen.getByRole("img", { name: "Broken widget reference" });
     expect(label).toHaveTextContent(/^⚠ Widget unavailable$/);
+  });
+
+  it("refuses to render a resolved embed that has no widget, instead of showing an empty label", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(() => render(<WidgetEmbedStatus widget={null} isBroken={false} typeLabel="" />))
+      .toThrow("widget embed is marked resolved but has no widget");
+    consoleError.mockRestore();
   });
 
   it("renders the resolved title and type label when not broken", () => {

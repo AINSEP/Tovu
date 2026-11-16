@@ -100,7 +100,7 @@ Uncovered items = statements + branches + functions uncovered in the post-fix fu
 6. `panel-pages.ts` (20: lazy loaders), `App.tsx` (20), `App.chrome.tsx` (20), `App.hooks.ts` (13)
 7. `features/auth/OwnerRecoverySignIn.hooks.ts` (18), `Login.tsx` (9), `OwnerRecoverySignIn.tsx` (9)
 8. `features/consent/use-consent-page.hooks.ts` (12)
-9. `features/ai-assistant/hooks/use-visitor-tools.hooks.ts` (10), `lib/widget-embed-extension.tsx` (6: line 69 guard + the placement-content setters at 113-114), `components/EmbedInsertControl/EmbedInsertControl.tsx` (8), `components/AssistantDock/DockHeader.tsx` (6)
+9. `features/ai-assistant/hooks/use-visitor-tools.hooks.ts` (10), `lib/widget-embed-extension.tsx` (1 left: line 114, the `setContent` forwarder; needs the media-items editor driven inside the Style dialog), `components/EmbedInsertControl/EmbedInsertControl.tsx` (8), `components/AssistantDock/DockHeader.tsx` (6)
 10. Remaining `lib/api.ts` items, then the long tail (~100 files with < 6 uncovered items each).
 
 Note: the full-suite per-file percentages were not re-measured at the end (a full run takes ~25 min); each file above
