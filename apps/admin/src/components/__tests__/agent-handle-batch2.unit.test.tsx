@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../lib/api";
+import { formsApi } from "../../features/forms/api/forms-api";
 import { WidgetConfigFields } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
@@ -98,7 +99,7 @@ describe("menu", () => {
 
 describe("contact-form", () => {
   it("publishes the select and the success-message input under <base>-form-definition-id/-success-message", async () => {
-    vi.spyOn(api, "listForms").mockResolvedValue({ data: [] });
+    vi.spyOn(formsApi, "listForms").mockResolvedValue({ data: [] });
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} agentHandle="contact" />);
     await waitFor(() => expect(screen.getByLabelText("Form")).toBeInTheDocument());
     expect(screen.getByLabelText("Form")).toHaveAttribute(AGENT_ELEMENT, "contact-form-definition-id");

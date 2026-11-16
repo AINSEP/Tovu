@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isAdminDevServerOrigin } from "../admin-dev-origin";
 import { api } from "../api";
+import { formsApi } from "../../features/forms/api/forms-api";
 import { ApiError } from "../admin-http/request";
 
 // `templatePreviewUrl` routes through `lib/site-url.ts`, which now asks whether the page is actually
@@ -253,7 +254,7 @@ describe("policies", () => {
 describe("forms", () => {
   test("listForms GETs the workspace forms collection and resolves it verbatim", async () => {
     const { calls, method } = stubFetchCapturing(() => jsonResponse({ data: [{ id: "f1", name: "Contact" }] }));
-    await expect(api.listForms()).resolves.toEqual({ data: [{ id: "f1", name: "Contact" }] });
+    await expect(formsApi.listForms()).resolves.toEqual({ data: [{ id: "f1", name: "Contact" }] });
     expect(calls[0].url).toBe(`${BASE_WORKSPACE}/forms`);
     expect(method()).toBe("GET");
   });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../lib/api";
+import { formsApi } from "../../features/forms/api/forms-api";
 import {
   createFakeWidgetConfigFieldsPort,
   defaultWidgetConfigFieldsPort,
@@ -30,7 +31,7 @@ describe("defaultWidgetConfigFieldsPort", () => {
 
   it("listForms delegates to api.listForms", async () => {
     const result = { data: [{ id: "f1", workspaceId: "ws1", name: "Contact us", slug: "contact", fields: [], notify: { enabled: false, recipients: [] }, status: "active" as const, createdAt: "2026-01-01", updatedAt: "2026-01-01" }] };
-    const spy = vi.spyOn(api, "listForms").mockResolvedValue(result);
+    const spy = vi.spyOn(formsApi, "listForms").mockResolvedValue(result);
     await expect(defaultWidgetConfigFieldsPort.listForms()).resolves.toEqual(result);
     expect(spy).toHaveBeenCalledTimes(1);
   });

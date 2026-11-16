@@ -1,7 +1,8 @@
 import { MediaContentEditor } from "./MediaContentEditor";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { isUserCollection } from "../../features/collections/rules";
-import type { AdminContentType, AdminFormDefinition, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
+import type { AdminContentType, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
+import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
 
 import {
   COLLECTION_DISPLAYABLE_FIELD_KINDS,

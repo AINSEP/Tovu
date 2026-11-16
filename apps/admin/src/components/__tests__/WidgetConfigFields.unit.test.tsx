@@ -4,6 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminWidgetType } from "../../lib/api";
+import { formsApi } from "../../features/forms/api/forms-api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
@@ -55,7 +56,7 @@ describe("WidgetConfigFields — dispatch", () => {
   });
 
   it("contact-form renders ContactFormConfigFields (starts in its loading state)", () => {
-    vi.spyOn(api, "listForms").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(formsApi, "listForms").mockReturnValue(new Promise(() => {}));
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} />);
     expect(screen.getByText("Loading forms…")).toBeInTheDocument();
   });
@@ -514,14 +515,14 @@ const FORMS = [
 
 describe("ContactFormConfigFields", () => {
   it("shows an error notice when api.listForms rejects with an Error", async () => {
-    vi.spyOn(api, "listForms").mockRejectedValue(new Error("forms endpoint down"));
+    vi.spyOn(formsApi, "listForms").mockRejectedValue(new Error("forms endpoint down"));
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} />);
 
     expect(await screen.findByText("forms endpoint down")).toBeInTheDocument();
   });
 
   it("shows the generic fallback message when the rejection is not an Error instance", async () => {
-    vi.spyOn(api, "listForms").mockRejectedValue({ code: 500 });
+    vi.spyOn(formsApi, "listForms").mockRejectedValue({ code: 500 });
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} />);
 
     expect(await screen.findByText("failed to load forms")).toBeInTheDocument();
@@ -530,7 +531,7 @@ describe("ContactFormConfigFields", () => {
   it("lists loaded forms with inline status and selecting one calls onChange with formDefinitionId", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    vi.spyOn(api, "listForms").mockResolvedValue({ data: FORMS });
+    vi.spyOn(formsApi, "listForms").mockResolvedValue({ data: FORMS });
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={onChange} />);
 
     const select = await screen.findByLabelText("Form");
@@ -544,7 +545,7 @@ describe("ContactFormConfigFields", () => {
   it("typing a success message sets it, and clearing it sets undefined rather than an empty string", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    vi.spyOn(api, "listForms").mockResolvedValue({ data: FORMS });
+    vi.spyOn(formsApi, "listForms").mockResolvedValue({ data: FORMS });
     render(<WidgetConfigFields widgetType="contact-form" config={{ successMessage: "Thanks!" }} onChange={onChange} />);
 
     await waitFor(() => expect(screen.getByLabelText("Success message (optional)")).toHaveValue("Thanks!"));
@@ -740,7 +741,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
   });
 
   it("ContactFormConfigFields: translates the loading state, both labels, and the empty option", async () => {
-    vi.spyOn(api, "listForms").mockResolvedValue({ data: FORMS });
+    vi.spyOn(formsApi, "listForms").mockResolvedValue({ data: FORMS });
     const DICT: Record<string, string> = {
       "Loading forms…": "Cargando-formularios-FAKE…",
       Form: "Formulario-FAKE",
@@ -758,7 +759,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
   });
 
   it("ContactFormConfigFields: translates the generic error fallback (rejection is not an Error instance)", async () => {
-    vi.spyOn(api, "listForms").mockRejectedValue({ code: 500 });
+    vi.spyOn(formsApi, "listForms").mockRejectedValue({ code: 500 });
     const t = (key: string) => (key === "failed to load forms" ? "fallo-formulario-FAKE" : key);
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} t={t} />);
 

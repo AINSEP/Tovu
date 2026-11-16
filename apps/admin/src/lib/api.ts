@@ -1,19 +1,13 @@
-import { BASE, WORKSPACE_ID } from "./admin-http/config";
-import { authenticatedAdminRequest, fetchOrThrowUnreachable, request, requestOnce, bodyFitsKeepalive, ApiError, type AuthenticatedAdminRequestOptions } from "./admin-http/request";
-import { adminFailureChannel } from "./admin-failure-channel";
-import type { CredentialTokenHint } from './credential-copy';
 import type { SettingScope } from "@jini-ai/core/settings";
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
-import type {
-  PublishContentConfirmResult,
-  PublishContentExecuteResult,
-  PublishContentPeerSummary,
-  PublishContentPlanResult,
-  PublishScope,
-} from "@tovu/publish-content-ui";
-import { siteUrl } from "./site-url";
-import { shareSettingsEffectiveRead } from "./settings-effective-reads";
+import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishScope } from "@tovu/publish-content-ui";
+import { adminFailureChannel } from "./admin-failure-channel";
+import { BASE, WORKSPACE_ID } from "./admin-http/config";
+import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, bodyFitsKeepalive, fetchOrThrowUnreachable, request, requestOnce } from "./admin-http/request";
+import type { CredentialTokenHint } from "./credential-copy";
 import { querySuffix } from "./query-suffix";
+import { type SettingResolvedValue, shareSettingsEffectiveRead } from "./settings-effective-reads";
+import { siteUrl } from "./site-url";
 
 /** The peer-scoped prefix every publish-content push call hangs off — the peer is named in the PATH
  *  (`routes/publish-content/peer-transport.ts`), never in a body, and never as a URL or credential. */
@@ -34,7 +28,6 @@ export interface AdminUser {
   id: string;
   username: string;
 }
-import type { SettingResolvedValue } from "./settings-effective-reads";
 
 export type ProviderDomainVerification =
   | { state: "verified" | "pending" | "failed" | "not_found"; domain: string; providerId: string }
@@ -1756,49 +1749,6 @@ export interface AdminWorkspace {
   createdAt: string;
 }
 
-/**
- * SPEC-010 Forms (Tier-1 sample plugin) — client-side types mirroring `apps/website/src/server/inbound/admin-http/http/forms.ts`
- * + api.spec.md §5. Response envelopes use `{ data: ... }` (Forms' own contract shape), unlike the
- * `{ menu: ... }`/`{ member: ... }`-style envelopes elsewhere in this file.
- */
-export interface AdminFormField {
-  id: string;
-  label: string;
-  type: "text" | "email" | "textarea" | "checkbox";
-  required: boolean;
-  maxLength?: number | null;
-  className?: string;
-  attributes?: Record<string, string>;
-}
-
-export interface AdminFormNotify {
-  enabled: boolean;
-  recipients: string[];
-}
-
-export interface AdminFormDefinition {
-  id: string;
-  workspaceId: string;
-  name: string;
-  slug: string;
-  fields: AdminFormField[];
-  notify: AdminFormNotify;
-  status: "active" | "disabled";
-  createdAt: string;
-  updatedAt: string;
-  mode?: "builder" | "html";
-  html?: string;
-}
-
-export interface AdminFormSubmission {
-  id: string;
-  formDefinitionId: string;
-  workspaceId: string;
-  data: Record<string, string | boolean>;
-  sourceIp: string;
-  submittedAt: string;
-}
-
 /** Mirrors `apps/website/src/server/inbound/admin-http/http/redirects.ts`'s `AdminRedirectDto` (SPEC-009). */
 export interface AdminRedirect {
   id: string;
@@ -3120,9 +3070,6 @@ export const api = {
     useAdminStoredCredential?: boolean;
   }) =>
     authenticatedAdminRequest<{ ok: boolean; models: string[]; message?: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/assistant/execution/models`, body: input }),
-
-  // SPEC-010 Forms (Tier-1 sample plugin) — admin UI.
-  listForms: () => authenticatedAdminRequest<{ data: AdminFormDefinition[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms` }),
 
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as Jini's SEO settings adapter, because the two routes are deliberately
