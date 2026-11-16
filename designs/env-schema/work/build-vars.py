@@ -140,6 +140,7 @@ for repo, tsv, root in (('tovu', tovu_tsv, tovu_root), ('jini', jini_tsv, jini_r
                     step = 'T7' if 'admin' in a or 'site-chat' in a else 'T6' if 'desktop' in a and 'web/' not in a else 'T5' if 'web/' in a and not re.search(r'web/(server|cli|other)', a) else 'T3'
         ev = f"{reads[0]['file']}:{reads[0]['line']}" if reads else (f"{real[0]['file']}:{real[0]['line']}" if real else '')
         secret = 'yes' if SECRET.search(name) and not re.search(r'BROWSER_KEY|PUBLIC_KEY|KEY_NOTICE|TOKENS_DIR', name) else 'no'
+        if d and secret == 'yes': d = '(has a development default in code; value not copied here)'
         default = f'{d} [code {dsite}]' if d else (f'{ex_default[name]} [.env.example text, not code-verified]' if name in ex_default and repo == 'tovu' else ('NOT VERIFIED (not on the read line)' if reads else ''))
         out.append([name, repo, readers, phase_of(root, reads, k), secret, default, dec, step, k, new, str(len(reads)), str(len({r['file'] for r in reads})), ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '; '.join(also), ev, note])
         counts[(repo, dec)] += 1; counts[(repo, 'kind:' + k)] += 1; counts[(repo, 'secret:' + secret)] += 1
