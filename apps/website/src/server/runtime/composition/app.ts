@@ -49,8 +49,6 @@ import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
-import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import {
   buildTrashRegistry,
   COMMENT_ENTITY_TYPE,
@@ -76,6 +74,7 @@ import {
   type TrashAdapter,
   withFollowUps,
 } from "@jini-ai/cms/trash";
+import { memoryCommentTrashAdapter, memoryMediaTrashAdapter, memoryPostTrashAdapter, memoryRedirectTrashAdapter } from "./memory-deps/slices/trash-adapters-content.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
@@ -143,7 +142,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
-import { DEFAULT_GC_GRACE_MS, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryImageTransformer, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { DEFAULT_GC_GRACE_MS, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryImageTransformer, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { createInMemoryIdentityRouteDeps, resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import {
@@ -216,7 +215,6 @@ import {
 import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
 import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
-import type { CommentRecord } from "@jini-ai/cms/comments";
 import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import {
   SqliteEntryTermRepo,
@@ -491,112 +489,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   if (!termTrashEntry || !taxonomyTrashEntry || !formTrashEntry) throw new Error("memory trash registry is missing a term, taxonomy, or form entry");
   const trashAdapters = new Map<string, TrashAdapter>([
     [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
-    [
-      POST_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<PostRecord>({
-        entityType: POST_ENTITY_TYPE,
-        store: {
-          findById: required => (postRepo).findById(required),
-          save: ({ record }) => (postRepo).save(record)
-        },
-        isHidden: ({ record }) => record.deletedAt !== undefined && record.deletedAt !== null,
-        hidden: ({ record, at }) => ({
-          ...record,
-          deletedAt: at,
-          updatedAt: at
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          deletedAt: null,
-          updatedAt: at
-        })
-      }, {
-        // 2026-09-20: `PostRepoPort.hardDelete` now exists on both adapters, so this purges for
-        // real. The former stand-down ("`InMemoryPostRepo` has no row removal") was honest but left
-        // an expired post un-purgeable in this composition — the sweeper released the lease and
-        // retried the same row on every pass, forever. Same cascade the durable adapter performs:
-        // `hardDelete` takes the revision ledger and the parked autosave with the row.
-        hardDelete: (required) => postRepo.hardDelete(required)
-      }),
-    ],
-    [
-      REDIRECT_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<RedirectRecord>({
-        entityType: REDIRECT_ENTITY_TYPE,
-        // `insertRedirect` rather than `save`: this repo's `save` insists on a paired revision, and
-        // the revision for a tombstone is written by `tombstoneRedirect` itself.
-        store: {
-          findById: (required) => redirectRepo.findById(required),
-          save: async ({ record }) => {
-            await redirectRepo.insertRedirect(record);
-          }
-        },
-        isHidden: ({ record }) => record.status === "disabled",
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "disabled",
-          updatedAt: at
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          status: "active",
-          updatedAt: at
-        })
-      }),
-    ],
-    [
-      COMMENT_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<CommentRecord>({
-        entityType: COMMENT_ENTITY_TYPE,
-        // `save` is this double's direct-write seam (not on `CommentRepoPort`) — the moderation
-        // write-service has already flipped the status by the time `remove` runs, so `hide` is a
-        // no-op here and only `unhide` (a Trash-screen restore) actually writes.
-        store: {
-          findById: required => (commentRepo).findById(required),
-          save: ({ record }) => (commentRepo).save(record)
-        },
-        isHidden: ({ record }) => record.status === "trash",
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "trash",
-          updatedAt: at
-        }),
-        // Back to moderation, not to the prior status: the original is recorded nowhere the
-        // no-parse rule lets an adapter read, and of the two guesses this is the one that cannot
-        // republish spam onto a public page.
-        shown: ({ record, at }) => ({
-          ...record,
-          status: "pending",
-          updatedAt: at
-        })
-        // No `hardDelete`: `InMemoryCommentRepo.purge` needs a moderator, an action and a note this
-        // adapter does not have, so purge stands down rather than claiming a removal.
-      }),
-    ],
-    [
-      MEDIA_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<MediaRecord>({
-        entityType: MEDIA_ENTITY_TYPE,
-        store: {
-          findById: required => (mediaRepo).findById(required),
-          save: ({ record }) => (mediaRepo).save(record)
-        },
-        isHidden: ({ record }) => record.status === "trashed",
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "trashed",
-          updatedAt: at
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          status: "active",
-          updatedAt: at
-        })
-        // No `hardDelete`: a media purge is not a row delete — rendition rows hang off it and the
-        // blob store holds bytes, a ladder `purgeMedia` owns. Reimplementing it here would orphan
-        // bytes, so purge stands down instead.
-      }),
-    ],
+    [POST_ENTITY_TYPE, memoryPostTrashAdapter({ postRepo })],
+    [REDIRECT_ENTITY_TYPE, memoryRedirectTrashAdapter({ redirectRepo })],
+    [COMMENT_ENTITY_TYPE, memoryCommentTrashAdapter({ commentRepo })],
+    [MEDIA_ENTITY_TYPE, memoryMediaTrashAdapter({ mediaRepo })],
     [
       "form",
       createRecordStoreTrashAdapter({
