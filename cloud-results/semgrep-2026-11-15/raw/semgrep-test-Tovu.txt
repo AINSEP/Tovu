@@ -1,0 +1,37 @@
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file with 1 Code rule:
+  Scanning 1 file.
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file with 1 Code rule:
+  Scanning 1 file.
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file with 1 Code rule:
+  Scanning 1 file.
+  Scanning 1 file with 1 Code rule:
+  Scanning 1 file.
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file with 2 Code rules:
+  Scanning 1 file with 2 ts rules.
+6/6: ✓ All tests passed
+No tests for fixes found.
