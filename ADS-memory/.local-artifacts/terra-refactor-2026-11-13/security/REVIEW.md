@@ -777,7 +777,7 @@ So:
 2. **Staged config, CLI parity + bypass mode** → the strict flag is dropped (`shared.ts:30-32`, `:71-72`).
 3. **Staged config, strict flag present** → the staged file already contains the project's MCP server
    definitions (`claude/mcp-config.ts:21-24`), and passing it explicitly is documented in the same
-   file as skipping the CLI's own project-trust prompt (`shared.ts:45-47`). The flag isolates nothing
+   file as skipping the CLI's own project-trust prompt (`shared.ts:44-46`). The flag isolates nothing
    that matters here.
 
 Before this commit the definition declared no isolation, so the planner asked for the personal-MCP
@@ -846,6 +846,8 @@ The claim **is** true for the one case the new test checks: the capability expli
   `cli-permission-layer.ts:25-27`); I did not trace the resolved value to the executor call. The Jini
   finding stands regardless: Jini's contract allows unset, and other hosts use it.
 - The CLI's real behaviour (see C-F2).
+- Existing behaviour, not changed by this commit and not assessed here: the daemon backstop does not
+  run at all when a host passes neither the access switch nor any capability (`launch.ts:1120`).
 
 ### The other commits on these branches (briefly)
 
@@ -869,10 +871,10 @@ confirmed.**
 - The lookup refuses unless the supplied principal equals the stored one:
   `apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts:216`.
 - The middleware reads the supplied run id and principal id, and answers 403 if either is not a
-  string or there is no run store (`:231`); it passes the supplied principal into the lookup (`:232`)
-  and answers 403 when the lookup returns nothing (`:233`).
+  string or there is no run store (`:232`); it passes the supplied principal into the lookup (`:233`)
+  and answers 403 when the lookup returns nothing (`:234`).
 - Only **after** that does it replace the request's principal with the stored id, keeping only a
-  `read-only` tool-access narrowing from the caller (`:234`). Every other caller-supplied principal
+  `read-only` tool-access narrowing from the caller (`:235`). Every other caller-supplied principal
   field is dropped.
 - So "principal A, run recorded under B" is **refused with 403 and nothing executes** today. A
   characterisation that expects it to "execute as B" describes a different, weaker system. The judge
@@ -883,10 +885,8 @@ confirmed.**
   caller with a malformed body and no valid run gets 403, not 400. Moving authorization after
   validation changes which refusal a caller sees.
 - The lookup also requires the run to be the live attempt, the same run id, and this workspace
-  (`assistant-tool-exec.ts:211-215`).
-
-(The judge cites `:233`, `:234`, `:235`; on my read the three statements are at `:232`, `:233`, `:234`.
-Same code, one line off.)
+  (`assistant-tool-exec.ts:212`).
+- The judge's line citations (`:216`, `:233`, `:234`, `:235`) match the code exactly.
 
 ### D2 — the Tovu blanket body parser gate (judge finding 2): **confirmed**
 
@@ -895,7 +895,7 @@ Same code, one line off.)
 - A second credential check for delegated tool calls is registered **after** that parser, at `:1433`,
   with `validateDelegatedRunId: true`.
 - That check reads the parsed body: Jini `packages/daemon/src/http/run-credentials.ts:30` passes
-  `req.body` to the authorizer only in this mode, and `packages/daemon/src/run-credentials.ts:153-155`
+  `req.body` to the authorizer only in this mode, and `packages/daemon/src/run-credentials.ts:154`
   refuses a run-scoped credential unless `body.runId` equals the credential's own run.
 - Therefore, if the blanket parser is removed and nothing replaces it for that path, `req.body` is
   undefined there and every delegated call from a run-scoped credential is refused (fail closed — a
