@@ -1,4 +1,4 @@
-import { RemixIcon } from "@jini-ai/ui";
+import { CodeWithLines, CodeWrapToggle, RemixIcon, useCodeWrap } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
@@ -8,8 +8,6 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
-import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
-import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
 import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 
 /**
@@ -213,7 +211,7 @@ function PackageFileBody({ file, wrap }: { file: PackageFileView; wrap: boolean 
       </p>
     );
   }
-  return <CodeView text={file.content} wrap={wrap} />;
+  return <CodeWithLines text={file.content} wrap={wrap} />;
 }
 
 export function PackageFilesModal({

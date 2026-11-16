@@ -1,12 +1,10 @@
 import { createThemePublishClick } from "./ThemeExplore.hooks";
 import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePreviewMode } from "./hooks/use-theme-explore-preview.hooks";
 import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
-import { CodeView, CodeWrapToggle } from "../../components/CodeView/CodeView";
-import { useCodeWrap } from "../../components/CodeView/use-code-wrap.hooks";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { Icon, Toast } from "@jini-ai/ui";
+import { CodeWithLines, CodeWrapToggle, Icon, Toast, useCodeWrap } from "@jini-ai/ui";
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
@@ -1037,7 +1035,7 @@ function ThemeExplorePublishToggle({
  * heavily than sequential ones at the same depth.
  *
  * 2026-10-10: a data/style/script file (`previewMode === "code"`) shows its text in the shared
- * read-only `CodeView` at normal size instead of the device-scaled iframe. An unloaded buffer shows
+ * read-only `CodeWithLines` at normal size instead of the device-scaled iframe. An unloaded buffer shows
  * as empty, same as the HTML tab's `"unloaded"` case: whatever it holds is not this file.
  *
  * @complexity O(n) for n characters of source in the code branch; O(1) otherwise.
@@ -1073,7 +1071,7 @@ function ThemeExploreMainPane({
   if (previewMode === "code") {
     return (
       <div className="theme-explore-code-view" role="region" aria-label={t("Theme file source (read-only)")}>
-        <CodeView text={sourceLoaded ? source : ""} wrap={wrap} />
+        <CodeWithLines text={sourceLoaded ? source : ""} wrap={wrap} />
       </div>
     );
   }

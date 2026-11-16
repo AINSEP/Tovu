@@ -675,7 +675,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
    to this one context so `PageEditor`'s own spacing is untouched. Since the file tray moved above
    the toolbar (2026-10-11), `.theme-explore`'s own grid gap is the only space between the two. */
 .theme-explore-main .page-editor-toolbar { margin-top: 0; }
-/* Preview of a data/style/script file (2026-10-10, `ThemeExploreMainPane`): the shared `CodeView`
+/* Preview of a data/style/script file (2026-10-10, `ThemeExploreMainPane`): the shared `CodeWithLines`
    at the HTML tab's own type size instead of the device-scaled iframe, which shrank Chrome's raw
    JSON viewer to unreadable. Same gutter/wrap rules as `.template-source-modal`'s viewer below; the
    code box is its own scroller so the sticky gutter stays put while code scrolls under it. */
@@ -704,14 +704,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--focus-ring); ou
   position: sticky; left: 0; text-align: right; user-select: none;
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
-.theme-explore-code-view .code-viewer--wrap {
+.theme-explore-code-view .jini-code-viewer--wrap {
   grid-template-columns: auto minmax(0, 1fr); align-content: start; padding: var(--space-3) 0;
 }
-.theme-explore-code-view .code-viewer--wrap .line-number {
+.theme-explore-code-view .jini-code-viewer--wrap .jini-code-viewer__line-number {
   position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
-.theme-explore-code-view .code-viewer--wrap .line-content {
+.theme-explore-code-view .jini-code-viewer--wrap .jini-code-viewer__line-content {
   padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 /* The view tabs plus the publish toggle sit together on the LEFT of the toolbar; the preview-width
@@ -5297,13 +5297,13 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
 /* Wrap mode (item 1): one grid row per source line instead of `CodeWithLines`'s two monolithic
-   `pre` blocks — see `WrappedCode` in `components/CodeView/CodeView.tsx` for why the two-block
+   `pre` blocks — see `WrappedCode` in Jini's `CodeWithLines` (`@jini-ai/ui`) for why the two-block
    layout can't wrap without desyncing the gutter. `minmax(0, 1fr)` here (not the base rule's
    `minmax(max-content, 1fr)`) is the load-bearing change: `max-content` sizes the column to the
    widest *unwrapped* line, which would defeat wrapping outright. Vertical padding moves to the grid
    container itself, since CSS Grid applies container padding once around every row, not per cell —
-   putting it on `.line-number`/`.line-content` instead would pad every single line. */
-.agent-plugin-source-content .code-viewer--wrap {
+   putting it on `.jini-code-viewer__line-number`/`.jini-code-viewer__line-content` instead would pad every single line. */
+.agent-plugin-source-content .jini-code-viewer--wrap {
   grid-template-columns: auto minmax(0, 1fr);
   /* Rows pack at the top. Without this the grid's default `align-content: stretch` shares the
      pane's spare height across every line, so a 5-line file spread its lines down the whole pane
@@ -5311,11 +5311,11 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   align-content: start;
   padding: var(--space-4) 0;
 }
-.agent-plugin-source-content .code-viewer--wrap .line-number {
+.agent-plugin-source-content .jini-code-viewer--wrap .jini-code-viewer__line-number {
   position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
-.agent-plugin-source-content .code-viewer--wrap .line-content {
+.agent-plugin-source-content .jini-code-viewer--wrap .jini-code-viewer__line-content {
   padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
@@ -5407,15 +5407,15 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
   margin: 0; color: var(--fg-2); background: var(--surface); font: var(--text-xs)/1.6 var(--font-mono);
   border: 1px solid var(--border); border-radius: var(--r-md);
 }
-/* Wrap mode: the same one-row-per-line grid the plugin viewer uses (see `CodeView.tsx`). */
-.template-source-modal [data-preview-modal-stage-custom] .code-viewer--wrap {
+/* Wrap mode: the same one-row-per-line grid the plugin viewer uses (see Jini's `CodeWithLines`). */
+.template-source-modal [data-preview-modal-stage-custom] .jini-code-viewer--wrap {
   grid-template-columns: auto minmax(0, 1fr); align-content: start; padding: var(--space-3) 0;
 }
-.template-source-modal [data-preview-modal-stage-custom] .code-viewer--wrap .line-number {
+.template-source-modal [data-preview-modal-stage-custom] .jini-code-viewer--wrap .jini-code-viewer__line-number {
   position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
 }
-.template-source-modal [data-preview-modal-stage-custom] .code-viewer--wrap .line-content {
+.template-source-modal [data-preview-modal-stage-custom] .jini-code-viewer--wrap .jini-code-viewer__line-content {
   padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .template-source-modal [data-preview-modal-stage-custom] .code-viewer code { display: block; padding: var(--space-3) var(--space-4); white-space: pre; }

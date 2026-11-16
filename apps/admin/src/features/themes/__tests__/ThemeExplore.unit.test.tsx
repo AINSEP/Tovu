@@ -264,10 +264,10 @@ describe("preview src — pages, partials, and templates", () => {
   it("toggles the code Preview's line wrapping from the toolbar", async () => {
     const user = userEvent.setup();
     const { container } = renderExplore({ selected: "css/styles.css" });
-    expect(container.querySelector(".theme-explore-code-view .code-viewer--wrap")).not.toBeNull();
+    expect(container.querySelector(".theme-explore-code-view .jini-code-viewer--wrap")).not.toBeNull();
     await user.click(screen.getByRole("button", { name: "Wrap: on" }));
     expect(screen.getByRole("button", { name: "Wrap: off" })).toHaveAttribute("aria-pressed", "false");
-    expect(container.querySelector(".theme-explore-code-view .code-viewer--wrap")).toBeNull();
+    expect(container.querySelector(".theme-explore-code-view .jini-code-viewer--wrap")).toBeNull();
   });
 
   it("shows an empty code Preview while the selected file's source is not loaded", () => {

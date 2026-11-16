@@ -1,7 +1,6 @@
 import { createGoToTemplateInEditor } from "./TemplateSourceModal.hooks";
 import { agentHandle } from "@jini-ai/agentic";
-import { CodeView, CodeWrapToggle } from "@/components/CodeView/CodeView";
-import { useCodeWrap } from "@/components/CodeView/use-code-wrap.hooks";
+import { CodeWithLines, CodeWrapToggle, useCodeWrap } from "@jini-ai/ui";
 import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 
@@ -127,7 +126,7 @@ export function TemplateSourceModal({
       </p>
     );
   } else {
-    stageContent = <CodeView text={fetchState.html} wrap={wrap} />;
+    stageContent = <CodeWithLines text={fetchState.html} wrap={wrap} />;
   }
 
   return (

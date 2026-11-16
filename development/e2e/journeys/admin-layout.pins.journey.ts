@@ -1445,12 +1445,12 @@ test("package files wrap long lines and keep each gutter aligned with its source
     await expect(pane.getByRole("heading", { name: file, exact: true })).toBeVisible();
     // Constrain the real pane to guarantee the fixture wraps even on wide displays.
     await pane.evaluate((element) => { (element as HTMLElement).style.width = "240px"; });
-    const viewer = pane.locator(".code-viewer--wrap");
+    const viewer = pane.locator(".jini-code-viewer--wrap");
     await expect(viewer).toBeVisible();
-    await expect(viewer.locator(".line-number")).toHaveText(["1", "2", "3"]);
+    await expect(viewer.locator(".jini-code-viewer__line-number")).toHaveText(["1", "2", "3"]);
     const layout = await viewer.evaluate((element) => {
-      const lines = [...element.querySelectorAll<HTMLElement>(".line-content")];
-      const numbers = [...element.querySelectorAll<HTMLElement>(".line-number")];
+      const lines = [...element.querySelectorAll<HTMLElement>(".jini-code-viewer__line-content")];
+      const numbers = [...element.querySelectorAll<HTMLElement>(".jini-code-viewer__line-number")];
       return { overflow: element.scrollWidth - element.clientWidth,
         heights: lines.map((line) => line.getBoundingClientRect().height),
         offsets: lines.map((line, index) => line.getBoundingClientRect().top - numbers[index]!.getBoundingClientRect().top),
