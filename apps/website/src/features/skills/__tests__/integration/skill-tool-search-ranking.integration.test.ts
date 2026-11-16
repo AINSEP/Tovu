@@ -135,7 +135,7 @@ async function buildRealSurfaceWithSkillTool(skillsDir: string) {
 
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), { surfaces: undefined, options: { contributions } })) registry.register(registration);
-  await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy });
+  await registerInstalledSkillTools({ registry, ctx: { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy } });
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };

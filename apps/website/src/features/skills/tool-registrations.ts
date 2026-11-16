@@ -398,8 +398,11 @@ export function buildSkillToolRegistrations(
 const liveRegistrations = new WeakMap<object, (tools: readonly ToolRegistration[]) => boolean>();
 
 export async function registerInstalledSkillTools(
-  registry: Pick<SkillsRefreshRegistry, "register"> & Partial<Pick<SkillsRefreshRegistry, "has" | "list" | "refreshInstalledSkills">>,
-  ctx: { readonly workspaceId: string; readonly skillLayout: SkillLayout; readonly siteBinding: { readonly dir: string }; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  { registry, ctx }: {
+    registry: Pick<SkillsRefreshRegistry, "register"> & Partial<Pick<SkillsRefreshRegistry, "has" | "list" | "refreshInstalledSkills">>;
+    ctx: { readonly workspaceId: string; readonly skillLayout: SkillLayout; readonly siteBinding: { readonly dir: string }; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy };
+  },
+  _optional = {},
 ): Promise<void> {
   if (!registry.has || !registry.list) {
     for (const registration of buildSkillToolRegistrations({ sources: await loadInstalledSkillToolSources(ctx), withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) registry.register(registration);

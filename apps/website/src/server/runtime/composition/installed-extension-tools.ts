@@ -63,7 +63,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
   await registry.refreshInstalledAgentPlugins();
 
   try {
-    await registerInstalledSkillTools(registry, { ...deps, withExtensionApprovalPolicy });
+    await registerInstalledSkillTools({ registry, ctx: { ...deps, withExtensionApprovalPolicy } });
   } catch (error) {
     warnFamilySkipped({ log, family: "skill tools", error });
   }

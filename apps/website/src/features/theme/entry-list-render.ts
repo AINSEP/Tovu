@@ -252,7 +252,7 @@ function renderUrlAttributeValue({ value, item, escapeValue }: { value: string; 
  *
  * @complexity O(n) over the attribute's length.
  */
-function renderTemplateAttribute(attribute: { name: string; equals: string; value: string }, item: EntryListItem): string {
+function renderTemplateAttribute({ attribute, item }: { attribute: { name: string; equals: string; value: string }; item: EntryListItem }, _optional = {}): string {
   const { name, equals, value } = attribute;
   const quote = value.startsWith('"') || value.startsWith("'") ? value.charAt(0) : "";
   const inner = quote === "" ? value : value.slice(1, -1);
@@ -276,7 +276,7 @@ function renderTemplateTag({ tag, item }: { tag: string; item: EntryListItem }, 
     // alternatives are exclusive, and the attribute alternative (the only one leaving `key`
     // undefined) always captures group 1, so `name` is defined whenever it is read.
     (_match, name: string, equals: string, value: string, key: string | undefined) =>
-      key === undefined ? renderTemplateAttribute({ name, equals, value }, item) : escapeForUnquotedAttribute({ raw: resolvePlaceholderRawValue({ key, item }) })
+      key === undefined ? renderTemplateAttribute({ attribute: { name, equals, value }, item }) : escapeForUnquotedAttribute({ raw: resolvePlaceholderRawValue({ key, item }) })
   );
 }
 

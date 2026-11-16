@@ -26,7 +26,7 @@ const upload = () => installSkill(testSiteLayoutContext({ ...ctx, files: [{ path
 
 test("daemon skill middleware refreshes discovery and refuses removed tools on the same real executor", () => fixture(async () => {
   const registry = createToolRegistry({});
-  await registerInstalledSkillTools(registry, { ...ctx, withExtensionApprovalPolicy });
+  await registerInstalledSkillTools({ registry, ctx: { ...ctx, withExtensionApprovalPolicy } });
   const executor = createToolExecutor({ registry });
   let catalog = buildToolCatalogQuery(registry);
   const middleware = createSkillRefreshMiddleware({ registry, onChanged: () => { catalog = buildToolCatalogQuery(registry); } });
@@ -48,7 +48,7 @@ test("daemon skill middleware refreshes discovery and refuses removed tools on t
 test("BYOK meta-tools discover and execute a post-boot installation, then drop a disabled skill", () => fixture(async () => {
   const deps = { ...ctx, getEffective: async () => null, clock: { nowMs: () => Date.parse("2026-10-01T00:00:00Z") }, idGen: { newId: () => "id-hot" }, authorize: async () => ({ allowed: true, reason: "owner" }) } as unknown as ByokToolSurfaceDeps;
   const surface = createByokToolSurface(deps, {
-    registerInstalledExtensions: ({ registry, deps: extensionDeps }) => registerInstalledSkillTools(registry, { ...extensionDeps, withExtensionApprovalPolicy }),
+    registerInstalledExtensions: ({ registry, deps: extensionDeps }) => registerInstalledSkillTools({ registry, ctx: { ...extensionDeps, withExtensionApprovalPolicy } }),
   });
   await surface.ready;
   await upload();
