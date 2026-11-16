@@ -88,7 +88,7 @@ test('desktop model discovery declares its integrations runtime library', () => 
   assert.equal(lock.packages[''].dependencies['@jini-ai/integrations'], manifest.dependencies['@jini-ai/integrations']);
 });
 
-test('the packaged desktop can load its shared agent daemon supervisor without the site payload', () => {
+test('the packaged desktop can load its shared agent daemon supervisor without the site payload', (t) => {
   const directory = path.join(REPO_ROOT, 'apps', 'desktop');
   const manifest = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.join(directory, 'package-lock.json'), 'utf8'));
@@ -96,6 +96,13 @@ test('the packaged desktop can load its shared agent daemon supervisor without t
   assert.equal(lock.packages[''].dependencies['@jini-ai/sidecar'], manifest.dependencies['@jini-ai/sidecar']);
   const sidecar = findPackageDir({ fromDir: directory, depName: '@jini-ai/sidecar' });
   assert.ok(sidecar, 'the desktop must resolve its daemon supervisor without the site payload');
+  // `npm run link:jini` points this at a Jini checkout outside the repository, whose version is
+  // whatever that checkout is on. A linked tree can never be packaged (check-no-linked-jini.mjs),
+  // so the lockfile is compared only with an installed copy.
+  if (!sidecar.startsWith(REPO_ROOT + path.sep)) {
+    t.diagnostic('Jini is linked to a local checkout, so the locked sidecar version was not compared with it.');
+    return;
+  }
   const sidecarManifest = JSON.parse(fs.readFileSync(path.join(sidecar, 'package.json'), 'utf8'));
   assert.equal(lock.packages['node_modules/@jini-ai/sidecar'].version, sidecarManifest.version);
 });

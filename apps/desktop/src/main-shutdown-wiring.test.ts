@@ -20,6 +20,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import os from "node:os";
+import { stripTypeScriptTypes } from "node:module";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 import { handleStop } from "./project-ipc.ts";
 import { createKeyedSerializer } from "./keyed-serializer.ts";
@@ -64,6 +65,12 @@ function beforeQuitHandler() {
   return source.slice(start, end);
 }
 
+/** The same handler as JavaScript the VM can run. The entry is TypeScript, so a type annotation
+ *  inside the handler is ordinary code there and a syntax error here unless it is stripped first. */
+function runnableBeforeQuitHandler(): string {
+  return stripTypeScriptTypes(`${beforeQuitHandler()}\n});`);
+}
+
 test("before-quit waits on in-flight teardowns, not only on openSites", async () => {
   // The defect: the `closed` handler empties `openSites` synchronously and only then begins
   // stopping the child, so closing the last window made this read "nothing to drain" while a
@@ -87,7 +94,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   let finalQuits = 0;
   let lifecycleStops = 0;
   let quitNotifications = 0;
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
@@ -155,7 +162,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   let quitNotifications = 0;
   let imports = 0;
   const shutdownOrder: string[] = [];
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
@@ -239,7 +246,7 @@ test("a failed agent-service shutdown still waits for every tracked teardown bef
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let finalQuits = 0;
   const logged: string[] = [];
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     console: { error: (line: string) => { logged.push(line); } },
     lastWindowQuit: { onQuitStarted: () => {} },
     stopSiteLifecycle: () => {},

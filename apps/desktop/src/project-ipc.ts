@@ -1161,6 +1161,23 @@ function identityHasChanged(row: SiteRow): boolean {
 }
 
 /**
+ * The name a rename asked for, once it passes the site-name rule and no other tracked site has it.
+ *
+ * @throws {Error} operator-facing: a missing or invalid name (`site-config.ts`'s 1..200-after-trim
+ *   check), or a name another site on this computer already uses.
+ * @complexity O(n) in the tracked-site count, for the duplicate check.
+ */
+function acceptedNewSiteName({ requestedName, siteDir, deps }: {
+  requestedName: unknown; siteDir: string; deps: Pick<ProjectIpcDeps, "projectsPath" | "readSiteName">;
+}, _options = {}): string {
+  const nameError = siteNameError({ name: requestedName });
+  if (nameError || typeof requestedName !== "string") throw new Error(nameError ?? "A site name is required to rename a website.");
+  const duplicateError = duplicateSiteNameError({ name: requestedName, names: otherSiteNames({ deps, siteDir }) });
+  if (duplicateError) throw new Error(duplicateError);
+  return requestedName;
+}
+
+/**
  * Change a site's display name — `config.json`'s `name`, the one `readSiteName` reads for every
  * card's `displayName`.
  *
@@ -1224,11 +1241,7 @@ function handleRename(input: RenameSiteInput, deps: Pick<ProjectIpcDeps, "projec
     );
   }
 
-  const requestedName = input?.name;
-  const nameError = siteNameError({ name: requestedName });
-  if (nameError || typeof requestedName !== "string") throw new Error(nameError ?? "A site name is required to rename a website.");
-  const duplicateError = duplicateSiteNameError({ name: requestedName, names: otherSiteNames({ deps, siteDir: row.siteDir }) });
-  if (duplicateError) throw new Error(duplicateError);
+  const requestedName = acceptedNewSiteName({ requestedName: input?.name, siteDir: row.siteDir, deps });
   const name = deps.writeSiteName({ siteDir: row.siteDir, rawName: requestedName });
   // An explicit successful rename replaces any Add alias; otherwise the card would keep its old name.
   row.displayNameAlias = undefined;

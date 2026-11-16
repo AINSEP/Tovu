@@ -80,5 +80,5 @@ test("the inlined channel literal matches contracts/zoom.ts", () => {
 });
 
 test("the preload subscribes to that channel", () => {
-  assert.match(read("preload", "preload.mts"), /onZoomCommand:[^\n]*\n?\s*subscribe[^\n]*ZOOM_COMMAND_CHANNEL, listener\)/);
+  assert.match(read("preload", "preload.mts"), /onZoomCommand:[^\n]*\n?\s*subscribe[^\n]*\{ channel: ZOOM_COMMAND_CHANNEL, listener \}\)/);
 });

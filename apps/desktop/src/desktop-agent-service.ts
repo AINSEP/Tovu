@@ -263,15 +263,27 @@ async function withdrawSite({ ctx, scopeKey }: { ctx: ServiceContext; scopeKey: 
 
 type ControlArgs = { ctx: ServiceContext; binding: SiteBinding; scopeKey: SiteScopeKey; child: ChildProcess; siteDir: string; payload: unknown };
 
+/** The two requests a site makes about itself: register (demand its daemon scope) and withdraw. */
+type BoundSiteRequest = Extract<ReturnType<typeof daemonControlRequest.parse>, { siteId: string }>;
+
+/** Serves a register or withdraw, once the site proved it is the one this server was bound to.
+ * @throws when the server has no authenticated workspace yet, names another site, or registers a
+ *   directory other than the one this desktop launched.
+ * @complexity O(1) local work and one bounded daemon request.
+ */
+async function handleBoundSiteControl({ ctx, binding, scopeKey, child, siteDir, request }: Omit<ControlArgs, "payload"> & { request: BoundSiteRequest }, _options = {}) {
+  if (!binding.workspaceId || request.siteId !== binding.workspaceId) throw new Error("site identity is not bound");
+  if (request.operation === "withdraw") { await withdrawSite({ ctx, scopeKey }, { server: child }); return {}; }
+  assertSiteDirectory({ directory: request.env.TOVU_SITE_DIR, siteDir });
+  return demandSite({ ctx, config: { ...request, scopeKey } }, { server: child });
+}
+
 async function handleSiteControl({ ctx, binding, scopeKey, child, siteDir, payload }: ControlArgs, _options = {}) {
   if (binding.closed) throw new Error("site server disconnected");
   const request = daemonControlRequest.parse(payload);
   if (request.operation === "parking") { ctx.supervisor.markParking({ pid: request.pid }, {}); return {}; }
   if (request.operation === "ready" || request.operation === "unavailable" || request.operation === "stopIfIdle") throw new Error("unexpected site control");
-  if (!binding.workspaceId || request.siteId !== binding.workspaceId) throw new Error("site identity is not bound");
-  if (request.operation === "withdraw") { await withdrawSite({ ctx, scopeKey }, { server: child }); return {}; }
-  assertSiteDirectory({ directory: request.env.TOVU_SITE_DIR, siteDir });
-  return demandSite({ ctx, config: { ...request, scopeKey } }, { server: child });
+  return handleBoundSiteControl({ ctx, binding, scopeKey, child, siteDir, request });
 }
 
 async function handleSiteControlOrRefuse(args: ControlArgs, _options = {}) {
