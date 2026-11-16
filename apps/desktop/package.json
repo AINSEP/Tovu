@@ -59,6 +59,7 @@
     "@jini-ai/devops": "^0.7.0",
     "@jini-ai/protocol": "^0.7.0",
     "@jini-ai/ui": "^0.7.0",
+    "@jini-ai/ui-kit": "^0.7.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

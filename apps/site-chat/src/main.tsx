@@ -1,6 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
 
 import { installRemixIconOverride } from "./remixicon-override";
+import { UiKitProvider } from "@jini-ai/ui/react-kit";
+import { uiKit } from "./jini-kits";
 import { SiteAssistantWidget } from "./SiteAssistantWidget";
 import "./widget.css";
 
@@ -38,7 +40,7 @@ export function mount(): Root {
     document.body.appendChild(el);
   }
   const root = createRoot(el);
-  root.render(<SiteAssistantWidget />);
+  root.render(<UiKitProvider kit={uiKit}><SiteAssistantWidget /></UiKitProvider>);
   return root;
 }
 

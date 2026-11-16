@@ -5,6 +5,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TooltipLayer } from '@jini-ai/ui';
+import { UiKitProvider } from '@jini-ai/ui/react-kit';
+import { uiKit } from './jini-kits.js';
 import { App } from './App.js';
 import { mountRenderer } from './mount-renderer.js';
 import { installShellErrorReporting } from './product-telemetry.js';
@@ -21,8 +23,10 @@ mountRenderer({
   createRoot,
   app: (
     <StrictMode>
-      <App />
-      <TooltipLayer />
+      <UiKitProvider kit={uiKit}>
+        <App />
+        <TooltipLayer />
+      </UiKitProvider>
     </StrictMode>
   ),
 });
