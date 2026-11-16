@@ -1,3 +1,5 @@
+> **Revision 2:** read `## Revision 2` at the end first; it overrides the sections above where they differ.
+
 # 05 — Tovu `apps/admin/src/features/posts/PostEditor.tsx`
 
 Measured at `origin/integ/wave-b-fixed`: 2,106 lines (1,590 code), 33 imports, 19 components in one module.
@@ -125,3 +127,50 @@ The feature has 20+ test files that render through the port fake — they are th
 ## 7. Estimate
 
 ≈30 commits. Sonnet executor **≈340k tokens** (DOM characterization 60k; 27 files × 9k; screen hook + root 35k). Risk: **medium-low** (view code behind an existing port fake; main hazard is DOM shape).
+
+
+## Revision 2 (2026-11-16, after the Codex judgment)
+
+Re-verified at Tovu `integ/wave-b-r2` (65302ee5): `apps/admin/src/features/posts/PostEditor.tsx` 2,106 lines, 116 functions. Components over 50 code lines (`work/function-sizes.cjs`): `Toolbar` 345, `PostEditor` 271, `PostEditorActions` 116, `PostEditorHeader` 112, `PostPreview` 83, `PostPreviewFrame` 76, `PostEditorTemplatePicker` 70, `PostEditorBody` 58, `PostEditorNotices` 53. React components are exempt from the 50-line target only; file ≤500 and complexity ≤10 still apply (`npm run check:complexity`). Judge: "needs rework" (5 majors, 1 minor). **6 accepted, 0 rebutted.**
+
+### R1. Changes to the target (override §2)
+
+1. **Root composes the real, contiguous regions.** `PostEditorChrome` / `PostEditorWorkspace` are dropped: the real order interleaves them. `PostEditor.tsx` keeps the root JSX, in today's order: `PostEditorHeader` (1598) → `PostEditorNotices` (1609) → view/template toolbar row (1633) → `PostEditorActions` (1676) → `PostSettingsDialog` (1692) → `PostEditorSlugCollisionWarning` (1706) → preview **or** body (1712) → saved-post panels, content analysis + taxonomy, only when `post.id` (1758-1761) → `ConfirmDialog` (1764) → `PostDeleteConfirmDialog` (1774) → `PostEditorTemplateModalGate` (1785). The root is that list plus the loading/error switch (≈120 lines). The two regions that are inline JSX today (1633 row, 1758 panels) become `PostEditorViewBar` and `PostSavedPanels`, in place, same position.
+2. **Seams that exist** (replace the invented names): `PostEditorHeader` (651-769) = back navigation + title + slug → `PostEditorBackLink`, `PostEditorTitleSlugFields`. `PostEditorActions` (943-1060) = status and publishing controls (985-999) + publish/save/delete/settings buttons (1006-1060) + save feedback → `PostStatusControl`, `PostActionButtons`, `PostSaveFeedback`. There is no menu: `ActionsMenu`, `PostEditorTitleRow` and `PostEditorStatusRow` are deleted from the design.
+3. **Toolbar: formatting ≠ insertion.** Typography selects end at 459. 460-533 is `EmbedInsertControl`, image/YouTube insertion and post mentions (`AdminPost`, `mentionablePosts`, `currentPostId`) → `toolbar/insert-controls.tsx`, Tovu CMS code. §6's "the toolbar has no post vocabulary → `@jini-ai/ui`" is **withdrawn**; a generic formatting toolbar would need insertion passed in as a slot and a TipTap dependency in `@jini-ai/ui` (owner decision 05-a). Nothing moves to Jini here.
+4. **Export map (8 exports, not 1):**
+
+   | export (line) | destination | consumers repointed in the same commit |
+   |---|---|---|
+   | `ToolbarState` 150, `TOOLBAR_DEFAULTS` 155, `probeToolbar` 199 | `toolbar/toolbar-state.ts` (data + probe + comments together) | `__tests__/PostEditor.toolbar-probes.unit.test.ts:4`, toolbar components |
+   | `BubbleMenuState` 593, `BUBBLE_MENU_DEFAULTS` 597, `probeBubbleMenu` 607 | `bubble-menu/bubble-menu-state.ts` | same test, bubble menu |
+   | `PostEditorProps` 1423, `PostEditor` 1513 | stay in `PostEditor.tsx` | none |
+
+   No forwarding exports from `PostEditor.tsx`.
+5. **Screen hook contract with loading/error.** `usePostEditorScreen(required, optional = {})` calls every inner hook unconditionally (as 1513-1582 does today) and returns `{ status: 'loading' } | { status: 'error'; … } | { status: 'ready'; post; …region props }`. The root returns the loading/error UI (1583-1592) before it touches `post`. **`usePostUrlDialog({ editor })` stays in `PostEditorBody` (1286) with its dialog (1297):** it unmounts when the view switches to preview and that reset is behaviour. It is not lifted to the screen hook.
+6. **Tests added to step 0** (vitest + jsdom): DOM order of the 11 regions for a new post and a saved post; edit → open URL dialog → preview → edit shows the dialog closed and its input empty; toolbar overflow with **controlled geometry** — stubbed `offsetWidth`/`clientWidth`, stubbed computed gap, a fake `ResizeObserver` that the test triggers — asserting which ranked controls stay primary at three widths and that "More" fits (`hooks/use-post-editor-ui.hooks.ts:152-161, 185-194`). An `innerHTML` snapshot alone cannot see this.
+
+### R2. Migration graph
+
+0 tests → 1 state/probe files (exports + test import) → 2 toolbar leaves (formatting, insertion, typography), one per commit → 3 bubble menu → 4 header and actions splits in place, then moved → 5 preview files → 6 `PostEditorViewBar`, `PostSavedPanels` in place → 7 `usePostEditorScreen` → 8 root. Every commit: `npm run typecheck`, `npx vitest run` in `apps/admin`, `npm run check:complexity`, `npm run check:size`. Green baseline first (same rule as design 06 R1.8).
+
+### R3. Owner practices check
+
+1 DI: the screen keeps using `PostEditorPort` (`post-editor-dependencies.hooks.ts`); no new concrete import · 2 args: new hooks/helpers `(required, optional = {})`; components take props · 3: files ≤500; complexity checked per commit · 4: one region per file · 5: no forwarders (R1.4) · 6: probe comments move with the probes · 7: nothing to Jini; the autosave/conflict banners still go to `@jini-ai/ui/panel-kit` in their own lane, **after** this split · 8: characterization first, fakes of the port · 9: no error text changed · 10: no new disables · 11: two invented wrappers removed · 12: typing hot path — no new effect, observer or state subscription is added; the toolbar keeps one `ResizeObserver`.
+
+### R4. Estimate
+
+≈30 commits, Sonnet **≈380k tokens** (was 340k). Risk: **medium-low**.
+
+## Judge response
+
+| # | sev | verdict | what changed / evidence |
+|---|---|---|---|
+| 1 | major | accepted | Root order confirmed at 1598, 1609, 1676, 1692, 1706, 1712, 1758, 1764, 1774, 1785. R1.1 |
+| 2 | major | accepted | Header is 651-769; actions 943-1060 with no menu. R1.2 |
+| 3 | major | accepted | Insertion controls at 460-533 use post types. R1.3 |
+| 4 | major | accepted | 8 exports at 150, 155, 199, 593, 597, 607, 1423, 1513. R1.4 |
+| 5 | major | accepted | Early returns 1583-1592; `usePostUrlDialog` at 1286. R1.5 |
+| 6 | minor | accepted | Controlled geometry test. R1.6 |
+
+Accepted 6 · rebutted 0 · blockers left 0.
