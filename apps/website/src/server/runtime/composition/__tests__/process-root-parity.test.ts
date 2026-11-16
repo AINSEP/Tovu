@@ -390,6 +390,8 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     model: undefined, reasoning: undefined, attachmentRunFields: {},
     // Chrome/subagent preferences resolve before the run; OFF contributes no options here.
     runtimeLaunch: { guidance: "", runOptions: {} },
+    // The launch closure now also reads the run's admitted Agent Plugin ids; none are admitted in this dev-mode run.
+    pluginIds: [],
   });
   const { required, optional } = await captured;
   assert.equal(Object.hasOwn(required, "permissionMode"), false);
@@ -403,8 +405,8 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
 test("daemon termination signals stay registered throughout asynchronous disposal", async () => {
   const { daemonEntrySource } = await import("../../../inbound/assistant/__tests__/helpers/daemon-entry-source.js");
   const source = daemonEntrySource.getFullText();
-  assert.ok(source.includes('process.on("SIGTERM", () => { void exitDaemon(143); });'));
-  assert.ok(source.includes('process.on("SIGINT", () => { void exitDaemon(130); });'));
+  assert.ok(source.includes('process.on("SIGTERM", () => { void exitDaemon({ exitCode: 143 }); });'));
+  assert.ok(source.includes('process.on("SIGINT", () => { void exitDaemon({ exitCode: 130 }); });'));
 });
 
 test("daemon shutdown waits for publication even when durability fails after rename", async () => {
@@ -430,8 +432,8 @@ test("daemon shutdown waits for publication even when durability fails after ren
       closeWithinBound,
       new Map([['site', Promise.resolve({ dispose: async () => { calls.push("store-closing"); await storeClosed; calls.push("store-closed"); } })]]),
     );
-  const first = exit(143);
-  await exit(130);
+  const first = exit({ exitCode: 143 });
+  await exit({ exitCode: 130 });
   // Scope disposal now follows the asynchronous listener drain, before database cleanup.
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.deepEqual(calls, ["store-closing"], "a second signal must not duplicate cleanup or removal");
