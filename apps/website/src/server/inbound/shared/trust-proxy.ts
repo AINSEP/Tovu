@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { HostSignalOptions } from "#src/contracts/core/host-signals";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
+import { resolveTrustProxySetting as resolveOverrideOrPlatformHops, type TrustProxySetting } from "@jini-ai/http-kit";
 
 /**
  * @file Express `trust proxy` for the site app.
@@ -13,11 +14,11 @@ import { resolveHostSignals } from "#src/server/runtime/composition/host-signals
  *
  * With a hop count of N, Express takes the Nth address from the RIGHT of X-Forwarded-For — the one
  * the outermost trusted proxy appended — so whatever the client wrote to the left is ignored.
+ *
+ * The decision itself lives in `@jini-ai/http-kit` (`resolveTrustProxySetting`); this file binds Tovu's env name, host signals and Express.
  */
 
-/** The value handed to `app.set("trust proxy", ...)`: `false`, a hop count, or Express's
- *  address/subnet list (e.g. `"loopback, 10.0.0.0/8"`). */
-export type TrustProxySetting = false | number | string;
+export type { TrustProxySetting };
 
 /**
  * Decide `trust proxy` from the environment.
@@ -35,19 +36,11 @@ export type TrustProxySetting = false | number | string;
  * @example resolveTrustProxySetting({ env }, { hostSignals });
  */
 export function resolveTrustProxySetting({ env }: { env: NodeJS.ProcessEnv }, optional: HostSignalOptions = {}): TrustProxySetting {
-  const override = env.TOVU_TRUST_PROXY?.trim() ?? "";
-  if (override !== "") {
-    const lower = override.toLowerCase();
-    if (lower === "true") {
-      throw new Error(
-        'TOVU_TRUST_PROXY="true" would trust X-Forwarded-For from any client. Set the number of proxy hops in front of Tovu (e.g. 1), or a list of proxy addresses/subnets.'
-      );
-    }
-    if (["false", "0", "off", "no"].includes(lower)) return false;
-    if (/^\d+$/.test(override)) return Number(override);
-    return override;
-  }
-  return (optional.hostSignals ?? resolveHostSignals({ env })).trustProxyHops ?? false;
+  return resolveOverrideOrPlatformHops({ override: env.TOVU_TRUST_PROXY }, {
+    platformHops: () => (optional.hostSignals ?? resolveHostSignals({ env })).trustProxyHops,
+    overrideName: "TOVU_TRUST_PROXY",
+    serverLabel: "Tovu",
+  });
 }
 
 /** Sets `trust proxy` on `app` from {@link resolveTrustProxySetting}.
