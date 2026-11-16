@@ -357,7 +357,7 @@ export function prebuildTarget({ entryName }: { entryName: string }, _optional =
  *
  * @complexity O(t) in targets.
  */
-function prebuildServesTarget(built: PrebuildBuilt, targets: readonly Target[]): boolean {
+function prebuildServesTarget({ built, targets }: { built: PrebuildBuilt; targets: readonly Target[] }, _options = {}): boolean {
   return targets.some(
     (target: Target) =>
       built.architectures.includes(target.arch) &&
@@ -383,7 +383,7 @@ function prebuildServesTarget(built: PrebuildBuilt, targets: readonly Target[]):
  *
  * @complexity O(1).
  */
-export function resolveTargets(env: NodeJS.ProcessEnv, host: HostInfo): Target[] {
+export function resolveTargets({ env, host }: { env: NodeJS.ProcessEnv; host: HostInfo }, _options = {}): Target[] {
   const platform = env.TOVU_TARGET_PLATFORM || host.platform;
   const arch = env.TOVU_TARGET_ARCH || host.arch;
   if (arch === "universal") return [{ platform, arch: "x64" }, { platform, arch: "arm64" }];
@@ -427,7 +427,7 @@ function prunePrebuildDir({ packageDir, targets, modulesDir, tally }: { packageD
   for (const entry of readdirSync(prebuildsDir)) {
     const built = prebuildTarget({ entryName: entry });
     if (built === undefined) continue;
-    if (prebuildServesTarget(built, targets)) {
+    if (prebuildServesTarget({ built, targets })) {
       servesTarget = true;
     } else {
       const full = path.join(prebuildsDir, entry);
@@ -477,7 +477,7 @@ export function pruneNativePrebuilds({ outDir, targets }: { outDir: string; targ
 
 /** Whether to descend into / consider one directory entry at all.
  *  @complexity O(1). */
-function isWalkable(entry: Dirent): boolean {
+function isWalkable({ entry }: { entry: Dirent }, _options = {}): boolean {
   if (entry.name === NODE_MODULES || entry.name.startsWith(".")) return false;
   return isBundleInput({ relPath: entry.isDirectory() ? `${entry.name}/` : entry.name });
 }
@@ -490,7 +490,7 @@ export function newestMtime({ abs }: { abs: string }, _optional = {}): number {
   if (!stat.isDirectory()) return isBundleInput({ relPath: abs }) ? stat.mtimeMs : 0;
   let newest = 0;
   for (const entry of readdirSync(abs, { withFileTypes: true })) {
-    if (isWalkable(entry)) newest = Math.max(newest, newestMtime({ abs: path.join(abs, entry.name) }));
+    if (isWalkable({ entry })) newest = Math.max(newest, newestMtime({ abs: path.join(abs, entry.name) }));
   }
   return newest;
 }
