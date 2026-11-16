@@ -22,7 +22,7 @@ import type {
   StandingDraftStaleBasis,
 } from "../../hooks/use-standing-draft-autosave.hooks";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
-import { usePostPreviewIframeEscape, usePostSettingsDialog, useToolbarOverflow } from "./hooks/use-post-editor-ui.hooks";
+import { usePostPreviewIframeEscape, usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
@@ -32,14 +32,8 @@ import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
 import { PostUrlDialog } from "./PostUrlDialog";
+import { Toolbar } from "./editor/toolbar/Toolbar";
 import { probeBubbleMenu } from "./editor/bubble-menu/bubble-menu-state";
-import { ToolbarAlignGroup, ToolbarBlockGroup, ToolbarHeadingGroup, ToolbarHistoryGroup, ToolbarMarksGroup } from "./editor/toolbar/ToolbarFormattingGroup";
-import { ToolbarColorGroup } from "./editor/toolbar/ToolbarColorGroup";
-import { ToolbarTypographyGroup } from "./editor/toolbar/ToolbarTypographyGroup";
-import { ToolbarInsertControls } from "./editor/toolbar/insert-controls";
-import { ToolbarCharacterCount } from "./editor/toolbar/ToolbarCharacterCount";
-import { ToolbarOverflowMenu } from "./editor/toolbar/ToolbarOverflowMenu";
-import { probeToolbar } from "./editor/toolbar/toolbar-state";
 import { usePostUrlDialog, type PostUrlDialogController } from "./hooks/use-post-url-dialog.hooks";
 import {
   toolbarBtnClass,
@@ -89,46 +83,6 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string;
  *  the `.segmented` pill row is a different visual control, only the keyboard contract is shared.
  *  Spread, not rebuilt, so nothing in the JSX below has to change which field it reads. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/** Formatting toolbar wired to the live editor. Active state stays in sync via useEditorState. */
-function Toolbar({
-  editor,
-  mentionablePosts,
-  currentPostId,
-  urlDialog,
-  t,
-}: {
-  editor: Editor;
-  /** Mention feature (2026-08-11) — every other post/page this workspace has, unfiltered (this
-   *  component excludes `currentPostId` at render time). See `use-post-editor.hooks.ts`'s own
-   *  field doc for why an empty array here means "loading or fetch failed", not "no other posts". */
-  mentionablePosts: AdminPost[];
-  currentPostId: string;
-  urlDialog: PostUrlDialogController;
-  t: Translate;
-}) {
-  const s = useEditorState({
-    editor,
-    selector: ({ editor }) => probeToolbar({ editor }),
-  });
-
-  const overflow = useToolbarOverflow();
-
-  return (
-    <div ref={overflow.toolbarRef} className="editor-toolbar" role="toolbar" aria-label={t("Formatting")} data-more-open={overflow.open}>
-      <ToolbarMarksGroup editor={editor} state={s} t={t} overflow={overflow} urlDialog={urlDialog} />
-      <ToolbarHeadingGroup editor={editor} state={s} t={t} overflow={overflow} />
-      <ToolbarBlockGroup editor={editor} state={s} t={t} overflow={overflow} />
-      <ToolbarAlignGroup editor={editor} state={s} t={t} />
-      <ToolbarHistoryGroup editor={editor} state={s} t={t} />
-      <ToolbarColorGroup editor={editor} state={s} t={t} />
-      <ToolbarTypographyGroup editor={editor} state={s} t={t} />
-      <ToolbarInsertControls editor={editor} mentionablePosts={mentionablePosts} currentPostId={currentPostId} urlDialog={urlDialog} t={t} />
-      <ToolbarOverflowMenu overflow={overflow} t={t} />
-      <ToolbarCharacterCount state={s} t={t} />
-    </div>
-  );
-}
 
 /**
  * Selection bubble menu (owner, 2026-08-11: "anything and everything") — floats above a text
