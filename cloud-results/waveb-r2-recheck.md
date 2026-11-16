@@ -1,6 +1,6 @@
 # Wave-B r2 re-check — 2026-11-16 (unattended; only merges + this report committed)
 
-**Verdict: GO for merging into refactor/terra, conditional.** All type/lint/size/guard gates are green in both repos; Jini tests are green except 2 pre-existing/known; Tovu admin is green except the known recharts-0.7.0 pin. The website still has 35 NEW-class + 13 KNOWN failing files (down from 85 non-ENV), mostly assertion-shape/format drift, not crashes. The human should decide on those and on the charts-recharts pin (needs re-review).
+**Verdict: GO for merging into refactor/terra, conditional.** All type/lint/size/guard gates are green in both repos; Jini tests are green except 2 pre-existing/known; Tovu admin is green except the known recharts-0.7.0 pin. The website still has 36 NEW-class + 13 KNOWN failing files (down from 85 non-ENV), mostly assertion-shape/format drift, not crashes. The human should decide on those and on the charts-recharts pin (needs re-review).
 
 ## Merge (Tovu `integ/wave-b-r2` = `integ/wave-b-fixed` + web-a + web-b + tsc, `--no-ff`, pushed; Jini untouched at `origin/integ/wave-b-r2` 02edbb68)
 - web-a: clean. web-b: 5 conflicts. tsc: 9 conflicts (4 files overlapped with web-b's already-resolved ones). All test-only except one port type.
@@ -40,9 +40,9 @@ Tests (full `pnpm -r test` hit my 25-min cap under CPU contention; unfinished pk
 | apps/site-chat tsc / tests | 0 / 189 pass | 0 / **189 pass** |
 | apps/admin vitest (`--maxWorkers=2`) | 8 failed / 14472, 12 files | **0 failed tests / 14472** (14470 pass, 2 skip); 1 file fails to load: `recharts-bundle-integer-ticks.unit.test.ts` (Jini has `charts-recharts/0.7.1`, not the 0.7.0 pinned dir) — **KNOWN** |
 | desktop tsc main / preload / renderer | 61 / 0 / 0 | **61** / 0 / 0 (unchanged; mostly `../website/**` re-checked under desktop config + `desktop-agent.ts`, 3 `*-ipc.test.ts`; not edited) |
-| website node:test FULL (3005 files, 76 batches) | 1323 files: 333 failed subtests, 112 failing files (27 ENV, 85 non-ENV) | **3005 files: 33778 tests, 33515 pass, 208 fail + 19 cancelled; 90 failing files: 41 ENV, 35 NEW, 13 KNOWN; non-ENV failed subtests 85+** |
+| website node:test FULL (3005 files, 76 batches) | 1323 files: 333 failed subtests, 112 failing files (27 ENV, 85 non-ENV) | **3005 files: 33778 tests, 33515 pass, 208 fail + 19 cancelled; 91 failing files: 42 ENV, 36 NEW, 13 KNOWN; non-ENV failed subtests 85+** |
 
-Website non-ENV list with first error lines: `cloud-results/web-fail-files-r2.txt` (48 lines). ENV = postgres/psql (not available), playwright browsers (not installed), cancelled postgres parent tests.
+Website non-ENV list with first error lines: `cloud-results/web-fail-files-r2.txt` (49 lines). ENV = postgres/psql (not available), playwright browsers (not installed), cancelled postgres parent tests.
 Notes: `cli/__tests__/integration/{serve,adopt}-command` are very slow (20–50 s per test); batch 072 timed out at 840 s, so I re-ran its files one by one — all pass except `introspect-command` and `serve-command` (the injected seed failure test) which are in the list as NEW, `storage-move.postgres` ENV. The 85-failing-subtest comparison with the earlier 85 files is not like-for-like (earlier run covered only changed + importer files).
 
 ## Known open items (status, not fixed)
