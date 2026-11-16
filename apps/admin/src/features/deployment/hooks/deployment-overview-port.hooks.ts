@@ -1,4 +1,4 @@
-import type { AdminDeploymentOverview } from "@/lib/api";
+import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file What `useDeploymentOverview` needs from the outside world, as an interface rather than a

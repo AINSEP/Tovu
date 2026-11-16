@@ -1,10 +1,11 @@
-import { api, type AdminDeploymentOverview } from "@/lib/api";
+import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `integrations-dependencies.hooks.ts`'s `defaultIntegrationsPort`. */
 export const defaultDeploymentOverviewPort: DeploymentOverviewPort = {
-  getDeploymentOverview: () => api.getDeploymentOverview(),
+  getDeploymentOverview: () => deploymentApi.getDeploymentOverview(),
 };
 
 /**

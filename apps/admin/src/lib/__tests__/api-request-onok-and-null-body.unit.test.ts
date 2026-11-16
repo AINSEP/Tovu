@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 
@@ -39,7 +39,7 @@ test("onOk merges the ETag response header into a successful getDockerfileSource
       })
   );
 
-  await expect(api.getDockerfileSource()).resolves.toEqual({
+  await expect(deploymentApi.getDockerfileSource()).resolves.toEqual({
     exists: true,
     contents: "FROM node:22\n",
     etag: '"abc123"',
@@ -55,7 +55,7 @@ test("onOk falls back to an empty-string etag when the response has no ETag head
       })
   );
 
-  await expect(api.getDockerfileSource()).resolves.toEqual({ exists: false, contents: null, etag: "" });
+  await expect(deploymentApi.getDockerfileSource()).resolves.toEqual({ exists: false, contents: null, etag: "" });
 });
 
 test("onOk is not invoked on a non-2xx response", async () => {
@@ -69,7 +69,7 @@ test("onOk is not invoked on a non-2xx response", async () => {
     return res;
   });
 
-  await expect(api.getDockerfileSource()).rejects.toThrow("not found");
+  await expect(deploymentApi.getDockerfileSource()).rejects.toThrow("not found");
   expect(headersGet.mock.calls).toEqual([["x-tovu-upstream-status"]]);
 });
 

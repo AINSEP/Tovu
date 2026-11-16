@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
 import { sourceControlApi } from "../../features/source-control/api/source-control-api";
 import { observabilityApi } from "../../features/observability/api/observability-api";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
@@ -129,7 +130,7 @@ const BASE = `/api/admin/v1/workspaces/workspace-local`;
 
 test("getDeploymentOverview is a bare GET at /system/deployment-overview", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDeploymentOverview();
+  await deploymentApi.getDeploymentOverview();
   expect(calls[0].url).toBe(`${BASE}/system/deployment-overview`);
   expect(calls[0].init?.method).toBeUndefined();
 });
@@ -177,7 +178,7 @@ test("getSiteExportStatus is a bare GET at /system/export, distinct from trigger
 
 test("triggerPublish POSTs config's own fields merged with projectName as the body", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.triggerPublish({
+  await deploymentApi.triggerPublish({
     config: { target: "repo-host", fields: { owner: "acme", repo: "site" } },
     projectName: "my-site",
   });
@@ -188,7 +189,7 @@ test("triggerPublish POSTs config's own fields merged with projectName as the bo
 
 test("triggerPublish merges any host's config fields the same way", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerPublish({ config: { target: "team-host", fields: { teamId: "team-1" } }, projectName: "my-site" });
+  await deploymentApi.triggerPublish({ config: { target: "team-host", fields: { teamId: "team-1" } }, projectName: "my-site" });
   expect(body()).toEqual({ target: "team-host", teamId: "team-1", projectName: "my-site" });
 });
 
@@ -197,7 +198,7 @@ test("triggerPublish merges any host's config fields the same way", async () => 
 // publish fired inside a "make this one the default" window goes to the PREVIOUS account.
 test("triggerPublish sends the chosen credential's id so the server publishes with THAT connection", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerPublish({
+  await deploymentApi.triggerPublish({
     config: { target: "repo-host", fields: { owner: "acme", repo: "site" } },
     projectName: "my-site",
     credentialId: "cred-chosen",
@@ -207,14 +208,14 @@ test("triggerPublish sends the chosen credential's id so the server publishes wi
 
 test("triggerPublish omits credentialId entirely when there is no chosen connection — never sends an explicit undefined", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerPublish({ config: { target: "plain-host", fields: {} }, projectName: "my-site" });
+  await deploymentApi.triggerPublish({ config: { target: "plain-host", fields: {} }, projectName: "my-site" });
   expect(body()).toEqual({ target: "plain-host", projectName: "my-site" });
   expect(Object.keys(body() as object)).not.toContain("credentialId");
 });
 
 test("getPublishStatus is a bare GET at /system/publish, distinct from triggerPublish's POST to the same URL", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishStatus();
+  await deploymentApi.getPublishStatus();
   expect(calls[0].url).toBe(`${BASE}/system/publish`);
   expect(calls[0].init?.method).toBeUndefined();
 });

@@ -1,4 +1,4 @@
-import type { AdminPublishTargetDescriptor } from "@/lib/api";
+import type { AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file The deploy registry's targets as `GET .../system/publish-targets` returns them — a copy of

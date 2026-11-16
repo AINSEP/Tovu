@@ -5,7 +5,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useStaticPublish } from "../use-static-publish.hooks";
 import { createFakeStaticPublishPort } from "../static-publish-dependencies.hooks";
 import { PLAIN_TARGET, PUBLISH_TARGETS } from "../../__tests__/publish-targets.fixture";
-import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
+import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file `useStaticPublish` — the Static Site tab's provider form, preview, and publish

@@ -1,4 +1,4 @@
-import type { AdminDescriptorI18n, AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "./api";
+import type { AdminDescriptorI18n, AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "../features/deployment/api/deployment-api.types";
 import type { AdminSourceControlProviderDescriptor } from "../features/source-control/api/source-control-api.types";
 
 /**

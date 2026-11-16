@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
 import { observabilityApi } from "../../features/observability/api/observability-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
@@ -166,7 +167,7 @@ describe("endpoints", () => {
     const calls = stubFetch();
     await observabilityApi.getObservabilityStatus();
     await observabilityApi.getToolGaps();
-    await api.listPublishDestinations();
+    await deploymentApi.listPublishDestinations();
     expect(calls.map((call) => call.url)).toEqual([`${W}/system/observability-status`, `${W}/system/tool-gaps`, `${W}/system/publish/destinations`]);
   });
 

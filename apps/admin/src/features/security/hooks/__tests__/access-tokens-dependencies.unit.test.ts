@@ -51,8 +51,12 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: { ...actual.api, getPublishTargets, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, listCustomCredentials, createCustomCredential, updateCustomCredential, deleteCustomCredential },
+    api: { ...actual.api, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, listCustomCredentials, createCustomCredential, updateCustomCredential, deleteCustomCredential },
   };
+});
+vi.mock("../../../deployment/api/deployment-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../deployment/api/deployment-api")>();
+  return { ...actual, deploymentApi: { ...actual.deploymentApi, getPublishTargets } };
 });
 vi.mock("../../../source-control/api/source-control-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../source-control/api/source-control-api")>();

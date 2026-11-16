@@ -1,5 +1,6 @@
 import type { CredentialTokenHint } from "@/lib/credential-copy";
-import { type AdminCustomConnectionInput, type AdminPublishConnectionInput, type AdminPublishCredentialProviderId, type AdminPublishTargetCredentialSpec, type AdminPublishTargetDescriptor, type AdminPublishTargetField } from "../../lib/api";
+import { type AdminCustomConnectionInput, type AdminPublishConnectionInput, type AdminPublishCredentialProviderId } from "../../lib/api";
+import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import type { AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor } from "../source-control/api/source-control-api.types";
 import { ApiError } from "../../lib/admin-http/request";
 import {

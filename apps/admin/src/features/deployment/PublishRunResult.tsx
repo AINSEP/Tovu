@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import type { AdminPublishRunSnapshot } from "@/lib/api";
+import type { AdminPublishRunSnapshot } from "@/features/deployment/api/deployment-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

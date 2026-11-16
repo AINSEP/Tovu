@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
@@ -462,7 +462,7 @@ test("setDockerfileSource merges the ETag response header into a successful resu
         })
     )
   );
-  await expect(api.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' })).resolves.toEqual({
+  await expect(deploymentApi.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' })).resolves.toEqual({
     exists: true,
     contents: "FROM node:22\n",
     etag: '"def456"',
@@ -480,7 +480,7 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
         })
     )
   );
-  await expect(api.setDockerfileSource({ contents: "x", ifMatch: '"abc123"' })).resolves.toEqual({ exists: true, contents: "x", etag: "" });
+  await expect(deploymentApi.setDockerfileSource({ contents: "x", ifMatch: '"abc123"' })).resolves.toEqual({ exists: true, contents: "x", etag: "" });
 });
 
 // Regression for the 2026-09-04 complexity pass on `buildFetchInit` (`api.ts`): `setDockerfileSource`
@@ -495,7 +495,7 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
 // doesn't intend), and this assertion goes red the moment it does.
 test("setDockerfileSource keeps Content-Type: application/json alongside its custom If-Match header, and still defaults credentials to same-origin", async () => {
   const { calls } = stubFetchCapturing();
-  await api.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' });
+  await deploymentApi.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"abc123"' });
   expect(calls[0].init?.headers).toEqual({
     "Content-Type": "application/json",
     "If-Match": '"abc123"',
@@ -509,7 +509,7 @@ test("setDockerfileSource preserves the 412 conflict snapshot in ApiError.body",
     error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
   }, { status: 412 }));
   vi.stubGlobal("fetch", fetchMock);
-  await expect(api.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"old"' })).rejects.toMatchObject({
+  await expect(deploymentApi.setDockerfileSource({ contents: "FROM node:22\n", ifMatch: '"old"' })).rejects.toMatchObject({
     status: 412, code: "DOCKERFILE_CONFLICT", body: {
       error: "the Dockerfile changed on the server", code: "DOCKERFILE_CONFLICT", current,
     },
@@ -531,7 +531,7 @@ test("triggerSiteExport sends the given options as the body", async () => {
 
 test("getPublishPreview sends the target plus each config field as a query param", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "repo-host", fields: { owner: "acme", repo: "site" } });
+  await deploymentApi.getPublishPreview({ target: "repo-host", fields: { owner: "acme", repo: "site" } });
   expect(calls[0].url).toContain("target=repo-host");
   expect(calls[0].url).toContain("owner=acme");
   expect(calls[0].url).toContain("repo=site");
@@ -540,7 +540,7 @@ test("getPublishPreview sends the target plus each config field as a query param
 
 test("getPublishPreview for a host with no config fields sends only the target", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPublishPreview({ target: "plain-host", fields: {} });
+  await deploymentApi.getPublishPreview({ target: "plain-host", fields: {} });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish/preview?target=plain-host`);
 });
 
@@ -554,6 +554,6 @@ test("getPublishTargets GETs /system/publish-targets and unwraps the targets lis
       return okJson({ targets });
     })
   );
-  await expect(api.getPublishTargets()).resolves.toEqual(targets);
+  await expect(deploymentApi.getPublishTargets()).resolves.toEqual(targets);
   expect(calls[0]).toBe(`/api/admin/v1/workspaces/workspace-local/system/publish-targets`);
 });

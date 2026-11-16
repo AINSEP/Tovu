@@ -1,4 +1,5 @@
 import { api, type AdminCustomCredentialsSnapshot, type AdminPublishCredentialsSnapshot } from "@/lib/api";
+import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/api/source-control-api";
 import { providersApi } from "@/features/providers/api/providers-api";
@@ -10,7 +11,7 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  *  adds no new HTTP surface, only a second reader/writer of the same two endpoints. */
 // Forward optional Works for metadata unchanged: omission preserves, [] clears, no token needed.
 export const defaultAccessTokensPort: AccessTokensPort = {
-  publishTargets: { list: () => api.getPublishTargets() },
+  publishTargets: { list: () => deploymentApi.getPublishTargets() },
   sourceControlProviders: { list: () => sourceControlApi.listSourceControlProviders().then((res) => res.providers) },
   publish: {
     list: () => api.listPublishCredentials(),

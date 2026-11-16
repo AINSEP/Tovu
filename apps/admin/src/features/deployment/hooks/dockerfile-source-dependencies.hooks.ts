@@ -1,11 +1,12 @@
-import { api, type AdminDockerfileSource } from "@/lib/api";
+import type { AdminDockerfileSource } from "@/features/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultDockerfileSourcePort: DockerfileSourcePort = {
-  getDockerfileSource: () => api.getDockerfileSource(),
-  setDockerfileSource: ({ contents, ifMatch }, _options = {}) => api.setDockerfileSource({ contents, ifMatch }),
+  getDockerfileSource: () => deploymentApi.getDockerfileSource(),
+  setDockerfileSource: ({ contents, ifMatch }, _options = {}) => deploymentApi.setDockerfileSource({ contents, ifMatch }),
 };
 
 /** A fixed, deliberately-fake-looking etag for {@link createFakeDockerfileSourcePort}'s default

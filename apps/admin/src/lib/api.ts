@@ -3,30 +3,6 @@ import { WORKSPACE_ID } from "./admin-http/config";
 import { authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, request } from "./admin-http/request";
 import type { CredentialTokenHint } from "./credential-copy";
 
-/** One required-for-production env var's presence — never its value. Mirrors
- *  `DeploymentEnvVarStatus` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`. */
-export interface AdminDeploymentEnvVarStatus {
-  name: string;
-  set: boolean;
-  /** `TOVU_SITE_KEY` only: where the site key came from. There `set` means "a usable
-   *  site key resolves" — a valid generated key file counts, malformed material does not. */
-  source?: "env" | "file" | "none";
-  /** `TOVU_SITE_KEY` only, present iff key material was found but is malformed. */
-  invalid?: true;
-}
-
-/** Mirrors `DeploymentOverviewSnapshot` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`
- *  — see that type's own doc comments for what each field does and does not prove. */
-export interface AdminDeploymentOverview {
-  mode: "production" | "local";
-  productionReadinessGate: { applicable: boolean; passed: boolean };
-  defaultOwnerPasswordUnsafe: boolean;
-  daemonKnownFailed: boolean;
-  dbPath: string;
-  uploadsDir: string;
-  envVars: AdminDeploymentEnvVarStatus[];
-}
-
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in
  *  `apps/website/src/platform/site-dir/site-registry.ts`. Only directories carrying a valid
  *  `.site-meta.json` commit marker appear; see {@link AdminSiteBinding.listed} for why that matters. */
@@ -133,153 +109,6 @@ export interface AdminSiteActivation {
   activeSiteName: string;
   restartRequired: boolean;
   restartInstructions: string;
-}
-
-/** Mirrors `DockerfileSourceSnapshot` in `apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`. */
-export interface AdminDockerfileSource {
-  exists: boolean;
-  contents: string | null;
-  /**
-   * A content-derived optimistic-concurrency token, read from the response's own `ETag` header —
-   * NOT a field the server's JSON body carries (see `dockerfile-source.ts`'s server-side header for
-   * why the etag travels only via the header). `getDockerfileSource`/`setDockerfileSource` below
-   * both merge it in from the raw `Response` before resolving.
-   *
-   * Pass this back as `ifMatch` to `setDockerfileSource` (sent as the `If-Match` request header) to
-   * prove a write is based on the CURRENT contents. A stale or missing value is refused — `412`
-   * (with the real current contents in the error body to reconcile against) or `400` respectively —
-   * rather than silently overwriting a concurrent edit (Terra audit finding C5, 2026-08-15: a human
-   * in this admin tab and the AI assistant's `deployment_set_dockerfile` tool can both write the
-   * same file).
-   */
-  etag: string;
-}
-
-/** A deploy target's id — whatever the server's deploy registry (the `deploy` agent plugin's
- *  descriptors) lists. Never a closed union: the admin learns the set from
- *  {@link AdminPublishTargetDescriptor}, so a host the plugin adds needs no admin change. Kept as an
- *  alias of {@link AdminPublishCredentialProviderId}: a saved credential is keyed by the same id. */
-export type AdminStaticPublishTargetId = AdminPublishCredentialProviderId;
-
-/** A plugin descriptor's translations of its own text: locale, then the English string, then its
- *  translation. Mirrors the server's `DescriptorI18n`; `lib/descriptor-i18n.ts` applies it. */
-export type AdminDescriptorI18n = Record<string, Record<string, string>>;
-
-/** One named string field a person fills in — mirrors the server's `DeployTargetFieldSpec`. */
-export interface AdminPublishTargetField {
-  name: string;
-  label: string;
-  required?: boolean;
-  /** The agent's hint; the form shows {@link userHelp} when present. */
-  help?: string;
-  /** The person-facing help under the input. */
-  userHelp?: string;
-  /** Never echoed back once saved (credential fields only). */
-  secret?: true;
-}
-
-/** A host's saved-credential form as `GET .../system/publish-targets` returns it (field specs and
- *  help only, never a value). `tokenField` names the field that is the token. */
-export interface AdminPublishTargetCredentialSpec {
-  /** The agent's guidance; the form shows {@link userHelp} when present. */
-  help?: string;
-  /** The same guidance written for the person. */
-  userHelp?: string;
-  /** The company whose console issues and revokes the token, when it differs from the host's own
-   *  label (a host named for a place, not a vendor). */
-  vendorLabel?: string;
-  tokenField: string;
-  /** Where the person creates a token for this host. */
-  tokenPageUrl?: string;
-  fields: AdminPublishTargetField[];
-}
-
-/** One publish target from the deploy registry: its display label, the per-publish config fields
- *  (a repository, a team), its credential form, and the per-host label/help for the publish's
- *  `projectName` (absent: the host takes no project name, so the admin hides that field). */
-export interface AdminPublishTargetDescriptor {
-  id: AdminStaticPublishTargetId;
-  label: string;
-  configFields: AdminPublishTargetField[];
-  credential?: AdminPublishTargetCredentialSpec;
-  projectName?: { label: string; help?: string };
-  i18n?: AdminDescriptorI18n;
-}
-
-/** A publish's target plus its descriptor-declared config values (blank optional values already
- *  dropped). The server derives `basePath` itself; there is no field here to set one. */
-export interface AdminStaticPublishConfig {
-  target: AdminStaticPublishTargetId;
-  fields: Readonly<Record<string, string>>;
-}
-
-/** Mirrors `StaticPublishOutcome` (same file) — the terminal result of one publish attempt, present
- *  on an {@link AdminPublishRunSnapshot} once `status` is `"completed"` or `"errored"`. */
-export type AdminStaticPublishOutcome =
-  | { ok: true; targetId: AdminStaticPublishTargetId; url: string; status: string; deploymentId?: string; basePath?: string }
-  | { ok: false; code: "INVALID_CONFIG" | "NO_CREDENTIALS_CONFIGURED" | "EXPORT_FAILED" | "PROVIDER_ERROR"; message: string };
-
-/** Mirrors `PublishRunStatus` in `apps/website/src/features/deployments/static-publish/publish-run.ts`. */
-export type AdminPublishRunStatus = "idle" | "running" | "completed" | "errored";
-
-/** Mirrors `PublishRunSnapshot` (same file) — the trigger+poll run slot for a publish to a
- *  static host, independent of {@link AdminExportRunSnapshot}'s own run slot (a plain export and a
- *  publish are different server-side operations with their own process-local state). */
-export interface AdminPublishRunSnapshot {
-  status: AdminPublishRunStatus;
-  startedAtIso: string | null;
-  finishedAtIso: string | null;
-  target: AdminStaticPublishTargetId | null;
-  /** Present only once `status` is `"completed"` or `"errored"`. */
-  result?: AdminStaticPublishOutcome;
-  /** Present only on the rare path where the route itself failed unexpectedly — never echoes the
-   *  raw error object. */
-  error?: string;
-}
-
-/** One place this site was published or deployed to before, as `GET .../system/publish/destinations`
- *  lists it (`static-publish/publish-history.ts`'s `PublishDestination`), newest first. Labels and
- *  target ids are the server's; no secret is ever in a row (`credentialId` names a saved connection). */
-export type AdminPublishDestination =
-  | {
-      id: string;
-      kind: "static";
-      lastPublishedAt: string;
-      label: string;
-      url: string;
-      target: AdminStaticPublishTargetId;
-      projectName: string;
-      credentialId?: string;
-      configFields: Readonly<Record<string, string>>;
-    }
-  | { id: string; kind: "tovu-peer"; peerId: string; label: string; url: string; lastPublishedAt: string }
-  | {
-      id: string;
-      kind: "deploy";
-      /** `started` = the host accepted the deploy but nothing confirmed it landed. */
-      status: "started" | "confirmed";
-      statusMessage?: string;
-      target: string;
-      label: string;
-      url: string;
-      lastPublishedAt: string;
-      /** The saved Tovu peer at this deploy's address, when there is one: content publishes there. */
-      linkedPeerId?: string;
-    };
-
-/** Mirrors the JSON shape `GET .../system/publish/preview` returns — see that route's own doc
- *  comment in `publish-site.ts`. A pure read: never starts a run, never echoes a credential's value,
- *  only whether one is configured. */
-export interface AdminStaticPublishPreview {
-  target: AdminStaticPublishTargetId;
-  valid: boolean;
-  validationError: string | null;
-  /** `/${repo}` for a host that serves under a repository subpath, `null` for a root-served host or an invalid config — always SERVER-derived,
-   *  never something the caller supplied. */
-  basePath: string | null;
-  credentialsConfigured: boolean;
-  credentialGuidance: string | null;
-  willInjectNojekyll: boolean;
 }
 
 /** A publish credential's provider id — the deploy target id it publishes with (see
@@ -551,13 +380,6 @@ export interface AdminCredentialCopyResult {
 
 export const api = {
 
-  // Deployment panel (`apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts` /
-  // `dockerfile-source.ts`) — `system.read`-gated, same shape as `getModuleStatus` just above.
-  /** Runtime mode, boot-gate/default-password status, agent-daemon known-failure state, db/uploads
-   *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
-  getDeploymentOverview: () =>
-    request<AdminDeploymentOverview>({ path: `/workspaces/${WORKSPACE_ID}/system/deployment-overview` }),
-
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with
   // `SITE_SWITCHING_DISABLED` when the deployment capability flag is off. Same `system.*` split as
@@ -598,80 +420,6 @@ export const api = {
       method: "POST", body: JSON.stringify({ confirmed: input.confirmed, checked: input.checked }),
     } });
   },
-  /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
-   *  generated yet, plus its `etag` merged in from the response's own `ETag` header (never the JSON
-   *  body — see {@link AdminDockerfileSource.etag}'s own doc). */
-  getDockerfileSource: (): Promise<AdminDockerfileSource> => {
-    let etag = "";
-    return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
-      { method: "GET", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile` },
-      { onOk: ({ response }, _optional = {}) => {
-        etag = response.headers.get("ETag") ?? "";
-      } }
-    ).then((body) => ({ ...body, etag }));
-  },
-  /** 2026-08-15 — `PUT` half of the Dockerfile tab, `system.write`-gated (distinct from the `GET`
-   *  above's `system.read`, mirroring `triggerSiteExport`'s own `system.export` vs `system.read`
-   *  split below). Overwrites the repo-root Dockerfile with `contents` and returns the snapshot it
-   *  now has — this only writes bytes to disk, it never builds or deploys anything.
-   *
-   *  `ifMatch` (the etag from the last `getDockerfileSource`/`setDockerfileSource` response) is sent
-   *  as the `If-Match` request header and REQUIRED by the server — a stale value rejects with a
-   *  `412` `ApiError` whose `.body.current` carries the real `{exists, contents}` currently on disk,
-   *  a missing/empty one with `400`; see {@link AdminDockerfileSource.etag}'s own doc for why. */
-  setDockerfileSource: ({ contents, ifMatch }: { contents: string; ifMatch: string }, _optional: Record<string, never> = {}): Promise<AdminDockerfileSource> => {
-    let etag = "";
-    return authenticatedAdminRequest<{ exists: boolean; contents: string | null }>(
-      { method: "PUT", path: `/workspaces/${WORKSPACE_ID}/system/dockerfile`, body: { contents } },
-      { headers: { "If-Match": ifMatch }, onOk: ({ response }, _optional = {}) => {
-        etag = response.headers.get("ETag") ?? "";
-      } }
-    ).then((body) => ({ ...body, etag }));
-  },
-
-  // Static Site tab "Getting it online" card (`apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts`) —
-  // publishing the current export straight to an installed static host plugin's target.
-  // Same trigger+poll shape as
-  // the export pair just above, plus a third pure-read preview route with no run of its own.
-  /** Read-only: validates `config`, reports the base path a real publish would use (always
-   *  SERVER-derived — see {@link AdminStaticPublishConfig}'s own doc), and whether a credential is
-   *  configured for the target (a boolean only, never the credential itself). Never starts a run. */
-  getPublishPreview: (config: AdminStaticPublishConfig) => {
-    const query = new URLSearchParams({ ...config.fields, target: config.target });
-    return request<AdminStaticPublishPreview>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}` });
-  },
-  /** The deploy targets the installed hosting plugins provide, with their publish and credential
-   *  form fields — the publish card renders from this. */
-  getPublishTargets: () =>
-    request<{ targets: AdminPublishTargetDescriptor[] }>({ path: `/workspaces/${WORKSPACE_ID}/system/publish-targets` }).then((res) => res.targets),
-  /** Starts a new publish to `config.target`. `409` (surfaced as a thrown error) if one is already
-   *  running — this instance runs at most one publish at a time, independent of a plain export.
-   *
-   *  `credentialId` names the saved connection the operator chose, and BINDS the publish to it
-   *  (terra review 2026-09-20, finding 1 — Critical): without it the server resolved whichever row
-   *  was `is_default` when the POST landed, so picking connection B and clicking Publish while B's
-   *  promotion was still in flight published the site to A's account. The server validates the id
-   *  against this workspace and this target and REFUSES on a mismatch — it never falls back to the
-   *  default (`static-publish/credentials.ts`). Omitted entirely (never sent as an explicit
-   *  `undefined`) when this provider has no saved connection — an install publishing from server
-   *  env vars has no connection ids at all, and that caller keeps the default lookup. */
-  triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string; credentialId?: string }) =>
-    request<AdminPublishRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/publish` }, { init: {
-      method: "POST",
-      body: JSON.stringify({
-        ...input.config.fields,
-        target: input.config.target,
-        projectName: input.projectName,
-        ...(input.credentialId !== undefined ? { credentialId: input.credentialId } : {}),
-      }),
-    } }),
-  /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
-   *  is no longer `"running"`. */
-  getPublishStatus: () => request<AdminPublishRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/publish` }),
-  /** Past static publishes, Tovu peers pushed to, and deploys of this site, newest first. Read-only:
-   *  publishing again still goes through `triggerPublish` or the publish-content push. */
-  listPublishDestinations: () =>
-    request<AdminPublishDestination[]>({ path: `/workspaces/${WORKSPACE_ID}/system/publish/destinations` }),
 
   // Static Site tab "Getting it online" card → credential management (`apps/website/src/server/inbound/admin-http/routes/
   // system/publish-credentials.ts`) — named provider connections for `triggerPublish`, stored

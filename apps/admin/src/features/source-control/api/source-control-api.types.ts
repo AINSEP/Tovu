@@ -1,5 +1,5 @@
-import type { AdminDescriptorI18n, AdminPublishTargetField } from "../../../lib/api";
 import type { CredentialTokenHint } from "../../../lib/credential-copy";
+import type { AdminDescriptorI18n, AdminPublishTargetField } from "../../deployment/api/deployment-api.types";
 
 /**
  * A source-control host's id. The hosts come from plugins (`GET .../system/source-control/providers`),

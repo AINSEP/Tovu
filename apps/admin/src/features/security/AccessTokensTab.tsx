@@ -8,7 +8,7 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref } from "../../lib/router";
 
-import type { AdminPublishTargetField } from "../../lib/api";
+import type { AdminPublishTargetField } from "../deployment/api/deployment-api.types";
 import { fieldHelpText } from "../deployment/rules";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "./security-i18n";
 import {
