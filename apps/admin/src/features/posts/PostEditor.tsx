@@ -419,8 +419,8 @@ function Toolbar({
               <option key={p.id} value={p.slug}>{p.title}</option>
             ))}
         </select>
+      </div>
       <ToolbarOverflowMenu overflow={overflow} t={t} />
-      </button>
       <ToolbarCharacterCount state={s} t={t} />
     </div>
   );
