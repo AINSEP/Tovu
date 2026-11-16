@@ -189,6 +189,7 @@ test("C3 changes zero bytes in historical SQL, metadata, chat steps or checksum 
     ...readdirSync(resolve(root, "apps/website/src/platform/db/migrations/chat")).filter(n => n.endsWith(".ts")).map(n => `apps/website/src/platform/db/migrations/chat/${n}`),
   ];
   // Later migrations are additive; freeze the C3 inventory and its hashes, not future filenames.
+  // Why: chat 0000/0001 were re-pinned once after wave B's import-only rewrite (1be21a4f: StorageKernel -> KyselyKernel types; SQL statements and ledger checksums untouched).
   assert.deepEqual(actualFiles.filter(file => Object.hasOwn(expected, file)).sort(), Object.keys(expected).sort());
   for (const [file, hash] of Object.entries(expected)) {
     assert.equal(createHash("sha256").update(readFileSync(resolve(root, file))).digest("hex"), hash, `${file}: historical bytes changed after the C3 handoff`);

@@ -111,7 +111,8 @@ test("openContentDbReadOnly: never advances a database sitting one migration beh
   );
   assert.equal(appliedMigrationCount(dbPath), migrationsBefore, "openContentDbReadOnly must never record a new migration as applied");
   // The read-only handle can still read existing tables/rows fine.
-  assert.doesNotThrow(() => readOnlyDb.select().from(schema.workspaces).all());
+  // Why: a legacy-drizzle-only fixture predates Kysely migration 0042, which added `workspaces.version` (commit 50253e2d); selecting the whole row would ask for that absent column.
+  assert.doesNotThrow(() => readOnlyDb.select({ id: schema.workspaces.id }).from(schema.workspaces).all());
   readOnlyDb.$client.close();
 
   // --- Control: plain openContentDb (still used by every `--apply` path, unchanged) DOES advance

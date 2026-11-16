@@ -125,7 +125,7 @@ test("exactly enough staging space proceeds, and the staging directory is remove
   let staging = "";
   const statfsPort: StagingSpacePort = async (dir) => { staging = dir; return { bavail: sql.serialize().length + 16 * 1024 * 1024, bsize: 1 }; };
   const { rows } = await share(t, sql, { statfs: statfsPort });
-  assert.deepEqual(rows("workspaces"), [{ id: "ws", name: "Site", slug: "site", created_at: stamp }]);
+  assert.deepEqual(rows("workspaces"), [{ id: "ws", name: "Site", slug: "site", created_at: stamp, version: 1 }]);
   assert.equal(existsSync(staging), false);
 });
 
