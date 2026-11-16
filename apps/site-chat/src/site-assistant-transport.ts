@@ -179,6 +179,129 @@ function consumeToolConfirmation({ data, settled, receive }: {
   return true;
 }
 
+type Options = SiteAssistantTransportOptions;
+type RunArgs = { input: StartRunInput; handlers: RunHandlers; options: Options; runId: string; controller: AbortController; idleTimeoutMs: number; fetchChat: typeof fetch };
+
+/** Run bookkeeping: one settle, one error at most, and the idle timer. Settled runs stay silent. */
+function createRunLifecycle({ input, handlers, options, runId, controller, idleTimeoutMs }: RunArgs, _options = {}) {
+  const collected: AgentEvent[] = [];
+  const flags = { settled: false, failed: false, replied: false, timedOut: false };
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  // `input.signal` closes the browser-side subscription (component unmount, pane reset). This
+  // backend has no host-side continuation once that happens — the whole run IS this fetch — so
+  // unlike the admin transport's `signal` doc, here that also means stopping the run for real.
+  const abort = () => controller.abort();
+  const armIdleTimer = () => {
+    // The response can keep delivering bytes after its terminal frame.
+    if (flags.settled) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { flags.timedOut = true; controller.abort(); }, idleTimeoutMs);
+  };
+  // Settled runs stay silent: an error after `end` (a late frame, a reset socket) must not
+  // paint a failure under a reply the visitor already has.
+  const fail = ({ error }: { error: unknown }, _failOptions = {}) => {
+    if (flags.settled) return;
+    flags.failed = true;
+    handlers.onError(visitorFacingError({ error }));
+  };
+  // `expectReply: false` only for an abort: a visitor's own Stop is not a missing reply.
+  const finish = ({ expectReply = true }: { expectReply?: boolean } = {}) => {
+    if (flags.settled) return;
+    if (expectReply && !flags.failed && !flags.replied) fail({ error: NO_REPLY_REASON });
+    flags.settled = true;
+    options.onToolConfirmation?.({ directive: null });
+    clearTimeout(idleTimer);
+    input.signal.removeEventListener("abort", abort);
+    activeRuns.delete(runId);
+    handlers.onDone(collected);
+  };
+  input.signal.addEventListener("abort", abort);
+  return { collected, flags, armIdleTimer, fail, finish };
+}
+type RunLifecycle = ReturnType<typeof createRunLifecycle>;
+
+function handleTextFrame({ data, life, handlers }: { data: unknown; life: RunLifecycle; handlers: RunHandlers }, _options = {}) {
+  const ev: AgentEvent = { kind: "text", text: (data as ChatFrameText).delta };
+  if (ev.text.trim()) life.flags.replied = true;
+  life.collected.push(ev);
+  handlers.onEvent(ev);
+}
+
+function handleEndFrame({ data, life, args }: { data: unknown; life: RunLifecycle; args: RunArgs }, _options = {}) {
+  const { input, options, runId } = args;
+  // The end reason is server telemetry only; nothing here branches on it.
+  life.finish();
+  options.frontend?.finish({ navigation: (data as { reason?: string }).reason === 'navigation', messages: [
+    ...input.history, { id: input.assistantMessageId ?? runId, role: 'assistant', content: assistantContentFromEvents({ events: life.collected }), events: life.collected, runStatus: 'succeeded' },
+  ] });
+}
+
+function handleFrame({ event, data, life, args }: { event: string; data: unknown; life: RunLifecycle; args: RunArgs }, _options = {}) {
+  // End is terminal even for frames coalesced into the same response chunk.
+  if (life.flags.settled) return;
+  if (event === "text") {
+    handleTextFrame({ data, life, handlers: args.handlers });
+  } else if (event === "error") {
+    life.fail({ error: new Error((data as ChatFrameError).message || "site assistant error") });
+  } else if (event === "end") {
+    handleEndFrame({ data, life, args });
+  } else if (event === "client_directive") {
+    // Confirmation directives go to their receiver; retired/unknown machine directives
+    // never enter the visitor transcript either way.
+    consumeToolConfirmation({ data, settled: life.flags.settled, receive: args.options.onToolConfirmation });
+  } else {
+    // Ignore event kinds outside this transport's protocol.
+  }
+}
+
+function postChat({ args, message, frontendHeaders }: { args: RunArgs; message: string; frontendHeaders: Record<string, string> }, _options = {}): Promise<Response> {
+  return args.fetchChat(CHAT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...frontendHeaders },
+    credentials: "same-origin", mode: "same-origin", redirect: "error",
+    // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
+    // key stays server-side, and this route requires no admin session.
+    body: JSON.stringify({ message, history: boundHistoryForRequest({ history: args.input.history as ChatMessage[] }) }),
+    signal: args.controller.signal,
+  });
+}
+
+async function failOnRefusal({ response, life }: { response: Response; life: RunLifecycle }, _options = {}) {
+  // A non-JSON refusal still reaches the visitor with its HTTP status below.
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  life.fail({ error: new Error(body?.error || `site assistant request failed (${response.status})`) });
+  life.finish();
+}
+
+/** One chat turn end to end: POST, pump the SSE body, and always settle the run exactly once. */
+async function performRun({ args, life, message }: { args: RunArgs; life: RunLifecycle; message: string }, _options = {}) {
+  try {
+    life.armIdleTimer();
+    const frontendHeaders = await args.options.frontend?.headers() ?? {};
+    const response = await postChat({ args, message, frontendHeaders });
+    if (!response.ok) {
+      await failOnRefusal({ response, life });
+      return;
+    }
+    await pumpServerSentEvents({ response, onFrame: (event, data) => handleFrame({ event, data, life, args }), onChunk: life.armIdleTimer });
+    // Stream ended without an explicit "end" frame (e.g. the connection just closed) —
+    // finish anyway so the pane never shows a run stuck "in progress" forever.
+    life.finish();
+  } catch (error) {
+    // An abort we caused ourselves (stopRun, or the pane unmounting) is not a failure to
+    // report — it is the requested outcome, and `res.on("close")` server-side already turned
+    // it into a clean upstream cancellation rather than a wasted completed generation. The
+    // idle timer's abort is the exception: the visitor asked nothing to stop, so say why.
+    if (error instanceof DOMException && error.name === "AbortError") {
+      if (life.flags.timedOut) life.fail({ error: TIMEOUT_REASON });
+      life.finish({ expectReply: false });
+      return;
+    }
+    life.fail({ error });
+    life.finish();
+  }
+}
+
 /**
  * Every failure a visitor can hit — non-ok HTTP (incl. the server's JSON `{ error }`), an SSE
  * `error` frame, a network/stream failure, a stream that settles with no reply, or
@@ -196,107 +319,8 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       const runId = crypto.randomUUID();
       const controller = new AbortController();
       activeRuns.set(runId, controller);
-      // `input.signal` closes the browser-side subscription (component unmount, pane reset). This
-      // backend has no host-side continuation once that happens — the whole run IS this fetch — so
-      // unlike the admin transport's `signal` doc, here that also means stopping the run for real.
-      const abort = () => controller.abort();
-      input.signal.addEventListener("abort", abort);
-
-      const collected: AgentEvent[] = [];
-      let settled = false;
-      let failed = false;
-      let replied = false;
-      let timedOut = false;
-      let idleTimer: ReturnType<typeof setTimeout> | undefined;
-      const armIdleTimer = () => {
-        // The response can keep delivering bytes after its terminal frame.
-        if (settled) return;
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => { timedOut = true; controller.abort(); }, idleTimeoutMs);
-      };
-      // Settled runs stay silent: an error after `end` (a late frame, a reset socket) must not
-      // paint a failure under a reply the visitor already has.
-      const fail = ({ error }: { error: unknown }, _options = {}) => {
-        if (settled) return;
-        failed = true;
-        handlers.onError(visitorFacingError({ error }));
-      };
-      // `expectReply: false` only for an abort: a visitor's own Stop is not a missing reply.
-      const finish = ({ expectReply = true }: { expectReply?: boolean } = {}) => {
-        if (settled) return;
-        if (expectReply && !failed && !replied) fail({ error: NO_REPLY_REASON });
-        settled = true;
-        options.onToolConfirmation?.({ directive: null });
-        clearTimeout(idleTimer);
-        input.signal.removeEventListener("abort", abort);
-        activeRuns.delete(runId);
-        handlers.onDone(collected);
-      };
-
-      (async () => {
-        try {
-          armIdleTimer();
-          const frontendHeaders = await options.frontend?.headers() ?? {};
-          const response = await fetchChat(CHAT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...frontendHeaders },
-            credentials: "same-origin", mode: "same-origin", redirect: "error",
-            // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
-            // key stays server-side, and this route requires no admin session.
-            body: JSON.stringify({ message, history: boundHistoryForRequest({ history: input.history as ChatMessage[] }) }),
-            signal: controller.signal,
-          });
-
-          if (!response.ok) {
-            // A non-JSON refusal still reaches the visitor with its HTTP status below.
-            const body = (await response.json().catch(() => null)) as { error?: string } | null;
-            fail({ error: new Error(body?.error || `site assistant request failed (${response.status})`) });
-            finish();
-            return;
-          }
-
-          await pumpServerSentEvents({ response, onFrame: (event, data) => {
-            // End is terminal even for frames coalesced into the same response chunk.
-            if (settled) return;
-            if (event === "text") {
-              const ev: AgentEvent = { kind: "text", text: (data as ChatFrameText).delta };
-              if (ev.text.trim()) replied = true;
-              collected.push(ev);
-              handlers.onEvent(ev);
-            } else if (event === "error") {
-              fail({ error: new Error((data as ChatFrameError).message || "site assistant error") });
-            } else if (event === "end") {
-              // The end reason is server telemetry only; nothing here branches on it.
-              finish();
-              options.frontend?.finish({ navigation: (data as { reason?: string }).reason === 'navigation', messages: [
-                ...input.history, { id: input.assistantMessageId ?? runId, role: 'assistant', content: assistantContentFromEvents({ events: collected }), events: collected, runStatus: 'succeeded' },
-              ] });
-            } else if (event === "client_directive") {
-              // Confirmation directives go to their receiver; retired/unknown machine directives
-              // never enter the visitor transcript either way.
-              consumeToolConfirmation({ data, settled, receive: options.onToolConfirmation });
-            } else {
-              // Ignore event kinds outside this transport's protocol.
-            }
-          }, onChunk: armIdleTimer });
-          // Stream ended without an explicit "end" frame (e.g. the connection just closed) —
-          // finish anyway so the pane never shows a run stuck "in progress" forever.
-          finish();
-        } catch (error) {
-          // An abort we caused ourselves (stopRun, or the pane unmounting) is not a failure to
-          // report — it is the requested outcome, and `res.on("close")` server-side already turned
-          // it into a clean upstream cancellation rather than a wasted completed generation. The
-          // idle timer's abort is the exception: the visitor asked nothing to stop, so say why.
-          if (error instanceof DOMException && error.name === "AbortError") {
-            if (timedOut) fail({ error: TIMEOUT_REASON });
-            finish({ expectReply: false });
-            return;
-          }
-          fail({ error });
-          finish();
-        }
-      })();
-
+      const args: RunArgs = { input, handlers, options, runId, controller, idleTimeoutMs, fetchChat };
+      void performRun({ args, life: createRunLifecycle(args), message });
       return { runId };
     },
 

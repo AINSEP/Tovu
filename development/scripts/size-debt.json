@@ -926,20 +926,6 @@
       "value": 514
     },
     {
-      "file": "apps/site-chat/src/site-assistant-transport.ts",
-      "function": "createSiteAssistantTransport#1",
-      "line": 188,
-      "rule": "max-lines-per-function",
-      "value": 98
-    },
-    {
-      "file": "apps/site-chat/src/site-assistant-transport.ts",
-      "function": "createSiteAssistantTransport#1.startRun#1",
-      "line": 192,
-      "rule": "max-lines-per-function",
-      "value": 83
-    },
-    {
       "file": "apps/website/src/assistant/byok-tool-surface.ts",
       "function": "createByokToolSurface#1",
       "line": 621,
