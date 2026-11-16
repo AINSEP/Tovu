@@ -61,6 +61,11 @@ type EventsBehavior =
   | "end-frame-max-tool-turns"
   | "keepalive-frame"
   | "stays-open-until-aborted"
+  | "malformed-agent-frame"
+  | "agent-frame-without-type"
+  | "stdout-edge-chunks"
+  | "end-frame-failed"
+  | "end-frame-canceled"
   | "delayed-then-normal";
 let startRunBehavior: StartRunBehavior = "ok";
 let eventsBehavior: EventsBehavior = "normal";
@@ -153,6 +158,43 @@ const EVENTS_SCRIPTS: Record<Exclude<EventsBehavior, "http-failure" | "delayed-t
     // No `message` field at all — an explicit daemon "error" frame, not a transport failure, whose
     // payload happens to omit the field `RUN_ERROR`'s text comes from.
     res.write(`event: error\ndata: ${wireFrame("error", {})}\n\n`);
+    res.end();
+  },
+  "malformed-agent-frame": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "before" })}\n\n`);
+    // Not JSON at all: a frame cut short on the daemon side.
+    res.write(`event: agent\ndata: {"runId":"daemon-run-1","payload":\n\n`);
+    res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: " after" })}\n\n`);
+    res.write(`event: end\ndata: ${wireFrame("end", { reason: "stop" })}\n\n`);
+    res.end();
+  },
+  "agent-frame-without-type": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: agent\ndata: ${wireFrame("agent", { delta: "no type" })}\n\n`);
+    res.write(`event: end\ndata: ${wireFrame("end", { reason: "stop" })}\n\n`);
+    res.end();
+  },
+  "stdout-edge-chunks": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: stdout\ndata: ${wireFrame("stdout", { chunk: "" })}\n\n`);
+    res.write(`event: stdout\ndata: ${wireFrame("stdout", { chunk: { structured: true } })}\n\n`);
+    // One echo line split over two chunks: only the first piece carries the echo prefix.
+    res.write(`event: stdout\ndata: ${wireFrame("stdout", { chunk: '{"type":"user","message":{"content":"tool result pro' })}\n\n`);
+    res.write(`event: stdout\ndata: ${wireFrame("stdout", { chunk: 'se"}}\nplain tail\n' })}\n\n`);
+    res.write(`event: end\ndata: ${wireFrame("end", { reason: "stop" })}\n\n`);
+    res.end();
+  },
+  "end-frame-failed": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "partial" })}\n\n`);
+    res.write(`event: end\ndata: ${wireFrame("end", { reason: "error", status: "failed", code: 1, signal: null, resumable: false })}\n\n`);
+    res.end();
+  },
+  "end-frame-canceled": (_req, res) => {
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "partial" })}\n\n`);
+    res.write(`event: end\ndata: ${wireFrame("end", { reason: "canceled", status: "canceled", code: null, signal: "SIGTERM", resumable: true })}\n\n`);
     res.end();
   },
   "end-frame-no-reason": (_req, res) => {
@@ -1024,3 +1066,53 @@ test("AG-UI omits malformed or oversized originating tab ids", async t => {
     assert.equal(Object.hasOwn(context, "frontendTabId"), false);
   }
 });
+
+// ---------------------------------------------------------------------------------------------
+// Frame cases the wire golden does not hold. Each pins what the route does today, so the change
+// to Jini's frame translator (AG-UI design S1 step B3) shows up here case by case.
+// ---------------------------------------------------------------------------------------------
+
+async function runScript(t: import("node:test").TestContext, behavior: EventsBehavior) {
+  const { baseUrl, cookie } = await bootAgUi(t);
+  eventsBehavior = behavior;
+  const res = await postAgUiRun(baseUrl, cookie);
+  assert.equal(res.status, 200);
+  return parseAgUiResponseBody(await res.text());
+}
+
+test("a daemon frame that is not JSON fails the run on the spot with the parser's own words", async (t) => {
+  const events = await runScript(t, "malformed-agent-frame");
+  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_ERROR"]);
+  assert.match(String(events.at(-1)!.message), /JSON/);
+});
+
+test("an agent frame whose payload names no type goes out as an extension event named 'undefined'", async (t) => {
+  const events = await runScript(t, "agent-frame-without-type");
+  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "CUSTOM", "RUN_FINISHED"]);
+  assert.equal(events[1]!.name, "tovu.ext.undefined");
+});
+
+test("stdout chunks go out as RAW one for one: empty, structured, and both halves of a split echo line", async (t) => {
+  const events = await runScript(t, "stdout-edge-chunks");
+  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "RAW", "RAW", "RAW", "RAW", "RUN_FINISHED"]);
+  assert.deepEqual(events.filter((e) => e.type === "RAW").map((e) => e.event), [
+    "",
+    '{"structured":true}',
+    '{"type":"user","message":{"content":"tool result pro',
+    'se"}}\nplain tail\n',
+  ]);
+});
+
+for (const behavior of ["end-frame-failed", "end-frame-canceled"] as const) {
+  test(`spans: ${behavior} ends the run span as succeeded`, async (t) => {
+    const { exporter, port } = createInMemoryOtel();
+    const { baseUrl, cookie } = await bootAgUi(t, port);
+    eventsBehavior = behavior;
+
+    await (await postAgUiRun(baseUrl, cookie)).text();
+
+    const run = await agentRunSpan(exporter);
+    assert.equal(run.attributes["agent.run.status"], "succeeded");
+    assert.equal(run.status.code, SpanStatusCode.UNSET);
+  });
+}
