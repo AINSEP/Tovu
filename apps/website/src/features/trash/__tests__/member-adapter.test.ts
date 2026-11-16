@@ -83,7 +83,7 @@ for (const status of ["active", "pending", "disabled"]) {
     assert.deepEqual(await h.move(), { ok: true, version: 2 });
     assert.equal((await h.members.findByEmail({ workspaceId: WS, email: stale.email }))!.credentialsRevokedAt, AT);
     assert.equal(await h.members.findById({ workspaceId: WS, id: "member-1" }), null);
-    assert.deepEqual((await h.members.list({ workspaceId: WS })).map(m => m.id), ["member-2"]);
+    assert.deepEqual((await h.members.list({ workspaceId: WS })).items.map(m => m.id), ["member-2"]);
     assert.equal((await h.members.findByEmail({ workspaceId: WS, email: stale.email }))!.status, "trash", "email stays reserved");
     await assert.rejects(h.members.save(stale), { message: "member changed or is in Trash; re-read it before updating" });
     const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });

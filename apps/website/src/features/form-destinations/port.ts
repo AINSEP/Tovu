@@ -14,7 +14,7 @@ import type { FormDestinationCredential, FormDestinationForm, FormDestinationReg
 export interface FormDestinationPortDeps {
   readonly listForms: (required: { readonly workspaceId: string }) => Promise<readonly FormDestinationForm[]>;
   readonly credentials: CustomCredentialWriteDeps;
-  readonly loadRegistry: (workspaceId: string) => Promise<FormDestinationRegistry>;
+  readonly loadRegistry: (required: { workspaceId: string }, optional?: Record<string, never>) => Promise<FormDestinationRegistry>;
   /** The site's `core.forms` `receiver` value; undefined = unset (auto). */
   readonly readSetting: (required: { readonly workspaceId: string }) => Promise<string | undefined>;
 }
@@ -48,7 +48,7 @@ export function createFormDestinationPort(required: FormDestinationPortDeps, opt
 
 /** @complexity One registry load plus one setting read. */
 async function selectFor({ deps, input }: { deps: FormDestinationPortDeps; input: PortInput }, _optional = {}): Promise<FormReceiverSelection> {
-  const [registry, setting] = await Promise.all([deps.loadRegistry(input.workspaceId), deps.readSetting({ workspaceId: input.workspaceId })]);
+  const [registry, setting] = await Promise.all([deps.loadRegistry({ workspaceId: input.workspaceId }), deps.readSetting({ workspaceId: input.workspaceId })]);
   return selectFormReceiver({ registry, setting, hostingTargetId: input.hostingTargetId });
 }
 

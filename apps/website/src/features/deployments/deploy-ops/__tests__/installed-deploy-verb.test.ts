@@ -55,10 +55,10 @@ for (const deployEnabled of [false, true]) {
         assert.equal(ops.get("github-actions")?.pluginId, githubEnabled ? "github" : undefined);
         assert.equal(ops.get("fly")?.pluginId, deployEnabled ? "fly" : undefined);
         const sourceControl = await loadSourceControlProviderRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: lifecycle.loadPluginContributions });
-        assert.equal(sourceControl.get("github")?.pluginId, githubEnabled ? "github" : undefined);
+        assert.equal(sourceControl.get({ providerId: "github" })?.pluginId, githubEnabled ? "github" : undefined);
         if (githubEnabled) {
           const { createSourceControlProviderKit } = await import("../../../source-control/provider-kit.js");
-          const provider = sourceControl.get("github")!.module.create({ kit: createSourceControlProviderKit({ httpClient: { send: async () => { throw new Error("unexpected HTTP call"); } } }) });
+          const provider = sourceControl.get({ providerId: "github" })!.module.create({ kit: createSourceControlProviderKit({ httpClient: { send: async () => { throw new Error("unexpected HTTP call"); } } }) });
           assert.equal(typeof provider.commitFiles, "function");
           assert.equal(typeof provider.commitBackupTree, "function");
         }

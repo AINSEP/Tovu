@@ -302,7 +302,7 @@ for (const mode of ["stale", "no-alternative", "csrf", "duplicate", "staff", "fo
     const expected = new Map<string, number>([["csrf", 403], ["foreign-workspace", 404]]).get(mode) ?? 401;
     assert.equal(response.status, expected);
     assert.ok(!cookie(response, "tovu_member_session"));
-    const [member] = await f.members.memberRepo.list({ workspaceId: "ws" });
+    const [member] = (await f.members.memberRepo.list({ workspaceId: "ws" })).items;
     assert.ok(!(await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
   });
 }
@@ -370,7 +370,7 @@ async function unlinkAfter(t: test.TestContext, advanceMs: number, body: unknown
   const sessionCookie = cookie(login, "tovu_member_session");
   f.clock.advanceMs(advanceMs);
   const response = await post(base, `${BASE}/identities/google/unlink`, body, sessionCookie);
-  const [member] = await f.members.memberRepo.list({ workspaceId: "ws" });
+  const [member] = (await f.members.memberRepo.list({ workspaceId: "ws" })).items;
   const unlinked = Boolean((await f.identities.findByMemberAndProvider({ workspaceId: "ws", memberId: member.id, providerId: "google" }))?.unlinkedAt);
   return { f, base, response, unlinked };
 }
@@ -416,7 +416,7 @@ async function linkedLogin(t: test.TestContext) {
   return { f, member, base, sessionCookie: cookie(login, "tovu_member_session") };
 }
 const unverified = async (f: ReturnType<typeof fixture>) => {
-  const [current] = await f.members.memberRepo.list({ workspaceId: "ws" });
+  const [current] = (await f.members.memberRepo.list({ workspaceId: "ws" })).items;
   await f.members.memberRepo.save({ ...current!, emailVerifiedAt: undefined });
 };
 

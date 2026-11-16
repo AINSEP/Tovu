@@ -145,7 +145,7 @@ test("createAccountLabelHealScheduler — defends against a heal that throws syn
     // to prove the scheduler does not simply trust callers to get that right.
     heal: (() => {
       throw new Error("sync boom");
-    }) as unknown as (id: string) => Promise<unknown>,
+    }) as unknown as (required: { id: string }, optional?: Record<string, never>) => Promise<unknown>,
     onHealError: ({ id, err }) => {
       errors.push({ id, err });
     },

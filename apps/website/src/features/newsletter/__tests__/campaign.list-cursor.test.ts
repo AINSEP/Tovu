@@ -88,7 +88,7 @@ test("campaign HTTP response keeps data and exposes the next page", async () => 
     const socket = new PassThrough();
     let response = "";
     socket.on("data", chunk => { response += chunk.toString(); });
-    const req = new IncomingMessage(socket);
+    const req = new IncomingMessage(socket as unknown as Socket);
     req.method = "GET";
     req.url = `/api/admin/v1/workspaces/${WS}/newsletter/campaigns${query}`;
     const res = new ServerResponse(req);

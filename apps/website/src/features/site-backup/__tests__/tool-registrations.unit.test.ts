@@ -1047,7 +1047,7 @@ function providerWith(
   operations: Partial<SourceControlProviderOperations>,
   descriptor: Partial<SourceControlProviderDescriptor> = {},
 ): NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> {
-  return async workspaceId => {
+  return async ({ workspaceId }) => {
     const registry = await githubFromSource({ workspaceId });
     const entries = registry.list().map(entry => ({ ...entry, descriptor: { ...entry.descriptor, ...descriptor }, module: {
       ...entry.module, create: (kit: Parameters<typeof entry.module.create>[0]) => ({ ...entry.module.create(kit), ...operations }),
@@ -1271,7 +1271,7 @@ test("a plugin host without a legacy connection kind cannot read another host's 
 });
 
 test("a named credential for neither of two enabled hosts returns NO_PROVIDER", async t => {
-  const h = harness(t, { providers: async workspaceId => {
+  const h = harness(t, { providers: async ({ workspaceId }) => {
     const registry = await githubFromSource({ workspaceId });
     const github = registry.list()[0]!;
     const entries = [github, { ...github, descriptor: { ...github.descriptor, id: "second-host", apiOrigin: "https://second.example", label: "Second host" } }];
