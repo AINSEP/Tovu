@@ -7,8 +7,9 @@ import { useAdminThemeDocument } from "./admin-themes/use-admin-theme.hooks";
 import { AdminModulesProvider } from "./integrations/jini-admin/AdminModulesProvider";
 import { ChartRegistryProvider } from "./integrations/chart-providers/ChartRegistryProvider";
 import { AdminBootScopeContext } from "./lib/admin-boot-scope";
-import { api } from "./lib/api";
+import { api, type AdminUser } from "./lib/api";
 import { useMemo, type ReactNode } from "react";
+import { ChatDockAside, ShellMain, ShellOverlays, ShellSkipLink, type DockT } from "./App.chrome";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
@@ -350,26 +351,15 @@ function AssistantChrome(props: {
    *  anyway would show a permanently broken dock instead of nothing. Distinct from the
    *  `ai-assistant` operator control panel (`panels.tsx`), which stays reachable regardless. */
   enabled: boolean;
-  chatOpen: boolean;
-  setChatOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  sheetExpanded: boolean;
-  setSheetExpanded: React.Dispatch<React.SetStateAction<boolean>>;
-  isSheetMode: boolean;
-  sheetHeightPx: number;
-  dockWidthPx: number;
-  chatDockRef: React.RefObject<HTMLElement | null>;
-  chatFabRef: React.RefObject<HTMLButtonElement | null>;
-  /** SPEC-053 — `useChatDockLayout`'s `handleDockDropCapture` (`App.hooks.ts`): the `<aside>`'s
-   *  capture-phase drop handler. */
-  onDockDropCapture: (event: React.DragEvent<HTMLElement>) => void;
-  /** SPEC-053 — `useChatDockLayout`'s `publishDropCapture`, handed to `AssistantDock` as its
-   *  `onFolderDropCaptureReady`. */
-  publishDropCapture: (handler: (event: React.DragEvent<HTMLElement>) => void) => void;
+  /** `useChatDockLayout`'s result, handed over whole — including SPEC-053's `handleDockDropCapture`
+   *  (the `<aside>`'s capture-phase drop handler) and `publishDropCapture` (handed to `AssistantDock`
+   *  as its `onFolderDropCaptureReady`). */
+  dock: ReturnType<typeof useChatDockLayout>;
   agentBridge: FrontendSessionBridge | null;
   /** The signed-in admin's id — scopes the assistant's remembered last conversation. */
   principalId: string;
   /** Bound translator — see `App`'s own `dockT` for where this comes from. */
-  dockT: (input: { key: string }, options?: Record<string, never>) => string;
+  dockT: DockT;
   locale: string;
   /** Settings → User Interface, via `useInterfacePreferences` (`resolveChatFabClearance` reads it). */
   hideFabWhileOpen: boolean;
@@ -377,23 +367,8 @@ function AssistantChrome(props: {
   const themeBoundary = useAdminThemeBoundary({}, {});
   if (!props.enabled) return null;
 
-  const {
-    chatOpen,
-    setChatOpen,
-    sheetExpanded,
-    setSheetExpanded,
-    isSheetMode,
-    sheetHeightPx,
-    dockWidthPx,
-    chatDockRef,
-    chatFabRef,
-    onDockDropCapture,
-    publishDropCapture,
-    agentBridge,
-    principalId,
-    dockT,
-    locale,
-  } = props;
+  const { dock, agentBridge, principalId, dockT, locale } = props;
+  const { chatOpen, setChatOpen, isSheetMode, sheetHeightPx, dockWidthPx, chatFabRef } = dock;
   const { avoidBottomPx, avoidRightPx } = resolveChatFabClearance({
     isSheetMode,
     chatOpen,
@@ -404,95 +379,7 @@ function AssistantChrome(props: {
 
   return (
     <>
-      {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must
-          survive both closing the dock and navigating to a different section (ADR-049).
-          `inert` alongside it (not instead of it) — belt-and-suspenders: `hidden` already drops
-          this to `display: none`, which removes it from the tab order and accessibility tree on
-          its own, but `inert` states that intent explicitly rather than leaving it as a side
-          effect of a display value. `tabIndex={-1}` makes the element a valid *programmatic*
-          focus target (the open-focus effect in `useChatDockLayout`) without adding it to the
-          normal Tab order — the sheet's own close button and the assistant's composer are what Tab
-          should reach, not the `<aside>` wrapper itself. */}
-      {/*
-        Classic's light pin is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
-        and `features/ai-assistant/AiAssistant.tsx` pin it — and it must live on THIS element, not on a wrapper
-        inside `<AssistantDock>`. Glass uses the document's resolved scheme at this same boundary.
-
-        The runtime picker's BYOK model dropdown is `@jini-ai/ui`'s `CustomSelect`, which portals its
-        menu to `document.body` and so escapes any ancestor's theme. It compensates by copying the
-        theme from its trigger's nearest `[data-theme]` ancestor. The dock had none, so the menu fell
-        through to the stylesheet's dark variant and opened dark inside an all-light admin.
-
-        A `display: contents` wrapper inside `AssistantDock` looks like the tidier place for this and
-        is a trap: it generates no box, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }`
-        matched the wrapper and applied to nothing, while `ChatPane` — a grandchild in the DOM, which
-        is what child combinators read — stopped matching it at all and collapsed to content width.
-        Measured: the dock rendered at roughly half its width. Putting the attribute here adds no
-        element and cannot affect layout.
-      */}
-      <aside
-        ref={chatDockRef}
-        {...themeBoundary}
-        // Jini's tip placement keeps every ⓘ / header tip bubble inside the dock, not over the page.
-        data-jini-tip-bounds=""
-        className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}
-        hidden={!chatOpen}
-        inert={!chatOpen}
-        tabIndex={-1}
-        aria-label={tApp({ locale: locale, key: "Assistant" })}
-        // SPEC-053: capture phase, on this EXISTING element rather than a new wrapper inside
-        // `<AssistantDock>` — a `display: contents` (or any real) div added there is the exact
-        // layout trap `data-theme="light"`'s own comment two blocks up already documents for
-        // `.admin-chat-dock > * { flex: 1 }`. `onDockDropCapture` (`useChatDockLayout`) is a no-op
-        // until `AssistantDock` mounts and publishes its handler through `onFolderDropCaptureReady`,
-        // so a drop before then just falls through to `ChatPane`'s own (bubble-phase)
-        // attachment-upload handling — the same "no-op until ready" behavior
-        // `getPathForFile === undefined` gives the desktop shell's own equivalent handler.
-        onDropCapture={onDockDropCapture}
-      >
-        {/* Mobile-sheet-only chrome (`styles.css` hides this at desktop widths, where the docked
-            panel closes only via the FAB same as before) — rendered here, around
-            `<AssistantDock>`, rather than inside it: that component's own internals are not
-            where this dispatch's changes belong (ADR-049's "never unmount" is about not touching
-            its mount lifecycle, and staying out of its render body is the safest way to honor
-            that). */}
-        <div className="chat-sheet-bar">
-          <span className="chat-sheet-handle" aria-hidden="true" />
-          <span className="chat-sheet-bar-title">{dockT({ key: "Tovu assistant" })}</span>
-          <span className="chat-sheet-bar-actions">
-            <button
-              type="button"
-              className="chat-sheet-action"
-              onClick={() => setSheetExpanded((current) => !current)}
-              aria-expanded={sheetExpanded}
-              aria-label={sheetExpanded ? dockT({ key: "Collapse assistant panel" }) : dockT({ key: "Expand assistant panel" })}
-              title={sheetExpanded ? dockT({ key: "Collapse assistant panel" }) : dockT({ key: "Expand assistant panel" })}
-            >
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                {sheetExpanded ? <path d="M4 6.5 9 11.5l5-5" /> : <path d="M4 11.5 9 6.5l5 5" />}
-              </svg>
-            </button>
-            {/* Same white tip under it as the dock header's other icon buttons (owner, 2026-10-11). */}
-            <DockHeaderTip label={dockT({ key: "Close AI chat" })}>
-              <button
-                type="button"
-                className="chat-sheet-action"
-                onClick={() => setChatOpen(false)}
-                aria-label={dockT({ key: "Close AI chat" })}
-              >
-                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                  <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
-                </svg>
-              </button>
-            </DockHeaderTip>
-          </span>
-        </div>
-        <AssistantDock
-          agentBridge={agentBridge}
-          principalId={principalId}
-          onFolderDropCaptureReady={publishDropCapture}
-        />
-      </aside>
+      <ChatDockAside dock={dock} themeBoundary={themeBoundary} agentBridge={agentBridge} principalId={principalId} dockT={dockT} locale={locale} />
       <ChatFab
         ref={chatFabRef}
         open={chatOpen}
@@ -575,15 +462,8 @@ export function App(props: AppProps) {
   </AdminBootScopeContext.Provider>;
 }
 
-function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSession> }) {
-  const useDrawer = resolveDrawerHook({ override: props.useDrawer });
-  const useLinkInterceptor = resolveLinkInterceptorHook({ override: props.useLinkInterceptor });
-  const useChatDock = resolveChatDockHook({ override: props.useChatDock });
-  const useAgentBridge = resolveAgentBridgeHook({ override: props.useAgentBridge });
-
-  // `effectivePermissions` stays `undefined` until known — the nav filter and route gate below read
-  // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
-  const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
+/** Availability flags the shell reads before the `checking`/`!user` early returns: called unconditionally for the rules of hooks. */
+function useShellAvailability({ user, logout }: { user: AdminUser | null; logout: () => Promise<void> }, _options = {}) {
   // Confirmation-modal state around `logout` above — see `useLogoutConfirm`'s own doc comment
   // (`App.hooks.ts`) for why this is its own hook rather than a `useSession()` field. Called
   // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),
@@ -602,6 +482,10 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   // does not arrive late and shift the rows under it, while the route gate still holds.
   const siteSection = useSiteSectionAvailability({ user });
   const sidebarSiteSection = useSidebarSiteSection(siteSection);
+  return { logoutConfirm, adminAssistantEnabled, siteSection, sidebarSiteSection };
+}
+
+function useShellRoute({ user, checking }: { user: AdminUser | null; checking: boolean }, _options = {}) {
   const routePath = useRouteLocation();
   useDesktopViewRelease({ routePath, signedIn: Boolean(user) && !checking });
   const route = useMemo(() => parseRoute({ routePath }), [routePath]);
@@ -609,7 +493,14 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   useAgentScreenRoute({ path: routePath, section: agentPageId(route), view: route.view });
   // The admin's own page views (route template only) and errors, relayed by the server.
   useAdminTelemetry({ signedIn: Boolean(user), routePath, params: route.params });
+  return { routePath, route };
+}
 
+/** Drawer, link interceptor, and the assistant dock layout with the rail it folds the nav into. */
+function useShellDockChrome(
+  { routePath, useDrawer, useLinkInterceptor, useChatDock }: { routePath: string; useDrawer: typeof useSidebarDrawer; useLinkInterceptor: typeof useInternalLinkInterceptor; useChatDock: typeof useChatDockLayout },
+  _options = {},
+) {
   const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
   // The phone drawer opens with the current page's item in its vertical middle (owner, 2026-10-07).
   useDrawerActiveItemCentring({ open: sidebarOpen });
@@ -617,30 +508,20 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
 
   // --- Assistant dock/sheet chrome (MSG-06/MSG-09) — see `useChatDockLayout`'s own doc for why
   // this is one hook rather than several: every value here reads or reacts to at least one other.
-  const {
-    chatOpen,
-    setChatOpen,
-    sheetExpanded,
-    setSheetExpanded,
-    isSheetMode,
-    sheetHeightPx,
-    dockWidthPx,
-    chatDockRef,
-    chatFabRef,
-    handleDockDropCapture,
-    publishDropCapture,
-  } = useChatDock();
+  const dock = useChatDock();
   // Nav expanded + dock open in a 901–1171px window left a phone-width page: fold the nav to its
   // rail while the dock is open there (see the hook's doc for the rule and the mechanism).
-  const dockRail = useDockAutoRail({ dockOpen: chatOpen });
+  const dockRail = useDockAutoRail({ dockOpen: dock.chatOpen });
+  return { sidebarOpen, setSidebarOpen, dock, dockRail };
+}
 
+function useShellContent({ useAgentBridge }: { useAgentBridge: typeof useAgentPageBridge }, _options = {}) {
   const { setContentEl, contentEl, agentBridge } = useAgentBridge();
   // Phone card layout for every `.list-table` needs each cell's column name (mobile catalog P-4).
-  const contentNode = contentEl ?? null;
-  useListTableCellLabels({ root: contentNode });
+  useListTableCellLabels({ root: contentEl ?? null });
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.ts`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
-  const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
+  const screenshot = useScreenshotAnnouncement();
   // publish-criteria-tool-webmcp-plan-2026-09-24.md §4 S2 — the Publish dialog moved here, to the top
   // of the tree, because none of its three callers (the Dashboard button, the chat capability, the
   // WebMCP projection) is the component that renders it. `publish-request.store.ts`'s own header
@@ -649,7 +530,32 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
   // The admin's own `?publish=` deep link — see `usePublishCriteriaDeepLink`'s own doc for why this
   // is unconditional (before the `checking`/`!user` early returns below) and gated on nothing.
   usePublishCriteriaDeepLink();
+  return { setContentEl, contentEl, agentBridge, screenshot, openPublishRequest };
+}
 
+function useShellLocale() {
+  /**
+   * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
+   * renders on every admin page, not just inside the settings dialog. `useWiredAdminLocale()`
+   * (shared with every translated content screen — see `use-admin-locale.hooks.ts`'s own doc
+   * comment) re-fetches on every `core.language` refresh notification, not just at mount, so
+   * switching the Language setting updates the sidebar immediately instead of requiring a reload.
+   */
+  const navLocale = useWiredAdminLocale();
+  useAdminDocumentLocale({ locale: navLocale }, {});
+  useAdminAppearance({}, {});
+  // The operator's admin theme + scheme on <html> (Studio → Admin Themes).
+  useAdminThemeDocument({}, {});
+  /** Settings → User Interface: whether the FAB hides while the dock is open, and whether phone tab
+   *  strips wrap (see the hook's doc). */
+  const interfacePreferences = useInterfacePreferences();
+  return { navLocale, interfacePreferences };
+}
+
+function buildShellNav(
+  { sidebarSiteSection, effectivePermissions, navLocale }: { sidebarSiteSection: SiteSectionAvailability; effectivePermissions: readonly string[] | undefined; navLocale: string },
+  _options = {},
+) {
   /**
    * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both
    * slices are guaranteed to come from the same array instance. `getNav()` is memoized internally
@@ -672,26 +578,83 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
     panels: ADMIN_PANELS,
     permissions: effectivePermissions,
   });
-
-  /**
-   * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
-   * renders on every admin page, not just inside the settings dialog. `useWiredAdminLocale()`
-   * (shared with every translated content screen — see `use-admin-locale.hooks.ts`'s own doc
-   * comment) re-fetches on every `core.language` refresh notification, not just at mount, so
-   * switching the Language setting updates the sidebar immediately instead of requiring a reload.
-   */
-  const navLocale = useWiredAdminLocale();
-  useAdminDocumentLocale({ locale: navLocale }, {});
-  useAdminAppearance({}, {});
-  // The operator's admin theme + scheme on <html> (Studio → Admin Themes).
-  useAdminThemeDocument({}, {});
-  /** Settings → User Interface: whether the FAB hides while the dock is open, and whether phone tab
-   *  strips wrap (see the hook's doc). */
-  const interfacePreferences = useInterfacePreferences();
-  const hideFabWhileOpen = interfacePreferences.hideChatFabWhileOpen;
   const navGroups = translateAdminNavGroups({ locale: navLocale, groups: rawNavGroups });
   const navSoonLabel = translateAdminNavLabel({ locale: navLocale, key: "Soon" });
+  return { navGroups, navSoonLabel };
+}
 
+/** The sidebar: both nav slices with the rail toggle between them, and the logout button. */
+function AdminSidebar(props: {
+  activeId: string;
+  sidebarOpen: boolean;
+  setSidebarOpen: (value: boolean) => void;
+  dockRail: ReturnType<typeof useDockAutoRail>;
+  navGroups: ReturnType<typeof buildShellNav>["navGroups"];
+  navSoonLabel: string;
+  navLocale: string;
+  collapsibleGroups: ReturnType<typeof useCollapsibleNavGroupLabels>;
+  logoutConfirm: UseLogoutConfirm;
+}) {
+  const { activeId, sidebarOpen, setSidebarOpen, dockRail, navGroups, navSoonLabel, navLocale, collapsibleGroups, logoutConfirm } = props;
+  // `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
+  // the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
+  // forced state — anyone who toggles the rail has their choice persisted under
+  // `SIDEBAR_RAIL_STORAGE_KEY` and that stored value wins on every later load.
+  return (
+    <Sidebar
+      activeId={activeId}
+      open={sidebarOpen}
+      railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}
+      {...dockRail}
+      railDefaultCollapsed
+    >
+      <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
+      <SidebarEmptyClickToggle />
+      <SidebarLabelTooltips />
+      {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
+          Assistant" instead of down in the footer — the operator wants the collapse control
+          beside the sections it collapses, not adrift at the bottom of a 26-item list.
+          `getNav()[0]` is the ungrouped top row (Overview + Sites + AI Assistant, in that order —
+          Sites ranks above AI Assistant per the owner's 2026-09-05 call; see `panels.tsx:109`),
+          and every later group is a labelled section starting with CONTENT. Sites is absent from
+          that row on a deployment that has no Sites section (`withoutSiteSection` above); Overview
+          and AI Assistant are not, so the row itself always exists and this index is stable.
+
+          Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
+          `.cms-section` divs — no wrapper element, no ids, no internal indexing across groups —
+          so two calls produce exactly the DOM one call would, with the toggle spliced between.
+          Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
+          so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
+      <SitesSidebarNav groups={navGroups.slice(0, 1)} locale={navLocale} soonLabel={navSoonLabel} />
+      <Sidebar.RailToggle />
+      {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
+          all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is
+          what turns the headings into controls; other hosts embedding the admin are unaffected.
+          Open/closed state persists per section via `useNavSections` (localStorage), survives
+          reload and navigation, and syncs across tabs. */}
+      <Sidebar.Nav groups={navGroups.slice(1)} collapsibleGroups={collapsibleGroups} soonLabel={navSoonLabel} />
+      <Sidebar.Footer>
+        <SidebarLogoutButton onLogout={logoutConfirm.request} locale={navLocale} />
+      </Sidebar.Footer>
+    </Sidebar>
+  );
+}
+
+function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSession> }) {
+  const useDrawer = resolveDrawerHook({ override: props.useDrawer });
+  const useLinkInterceptor = resolveLinkInterceptorHook({ override: props.useLinkInterceptor });
+  const useChatDock = resolveChatDockHook({ override: props.useChatDock });
+  const useAgentBridge = resolveAgentBridgeHook({ override: props.useAgentBridge });
+
+  // `effectivePermissions` stays `undefined` until known — the nav filter and route gate below read
+  // that as "show everything"; `AdminModulesProvider` gets `[]` for it, as before.
+  const { user, checking, handleLogin, logout, effectivePermissions } = props.session;
+  const { logoutConfirm, adminAssistantEnabled, siteSection, sidebarSiteSection } = useShellAvailability({ user, logout });
+  const { routePath, route } = useShellRoute({ user, checking });
+  const { sidebarOpen, setSidebarOpen, dock, dockRail } = useShellDockChrome({ routePath, useDrawer, useLinkInterceptor, useChatDock });
+  const shellContent = useShellContent({ useAgentBridge });
+  const { navLocale, interfacePreferences } = useShellLocale();
+  const { navGroups, navSoonLabel } = buildShellNav({ sidebarSiteSection, effectivePermissions, navLocale });
   const { dockT, dashboardT } = createAdminShellTranslators({ locale: navLocale, translateDashboard });
 
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
@@ -716,165 +679,25 @@ function AdminShell(props: AppProps & { session: ReturnType<typeof useAdminSessi
     <ChartRegistryProvider key={user.id} principalId={user.id}>
     <ConfirmDialogDefaultsProvider cancelLabel={tApp({ locale: navLocale, key: "Cancel" })}>
       <div className={resolveAdminLayoutClassName(interfacePreferences)}>
-        {/* First focusable element in the app, deliberately before `<Sidebar>` — the auditor
-            measured 26 Tab presses to reach main content from a fresh load, because every route
-            repeats the full sidebar first, paid on every navigation by a keyboard/screen-reader
-            operator. Visually hidden until focused (`.skip-link` in styles.css); the target is
-            `#main-content` on `<main>` below, not a route change, so this works identically
-            whichever section is currently rendered there. */}
-        <a href="#main-content" className="skip-link">
-          {tApp({ locale: navLocale, key: "Skip to content" })}
-        </a>
-        {/* `railDefaultCollapsed`: Tovu's admin opens as an icon rail for a first-time operator, so
-            the 26-item nav does not claim 232px before anyone has asked it to. It is a DEFAULT, not a
-            forced state — anyone who toggles the rail has their choice persisted under
-            `SIDEBAR_RAIL_STORAGE_KEY` and that stored value wins on every later load. */}
-        <Sidebar
-          activeId={currentPanelId(route)}
-          open={sidebarOpen}
-          railStorageKey={SIDEBAR_RAIL_STORAGE_KEY}
-          {...dockRail}
-          railDefaultCollapsed
-        >
-          <Sidebar.MobileHeader onClose={() => setSidebarOpen(false)} />
-          <SidebarEmptyClickToggle />
-          <SidebarLabelTooltips />
-          {/* The nav is rendered in two calls so the rail toggle can sit directly under "AI
-              Assistant" instead of down in the footer — the operator wants the collapse control
-              beside the sections it collapses, not adrift at the bottom of a 26-item list.
-              `getNav()[0]` is the ungrouped top row (Overview + Sites + AI Assistant, in that order —
-              Sites ranks above AI Assistant per the owner's 2026-09-05 call; see `panels.tsx:109`),
-              and every later group is a labelled section starting with CONTENT. Sites is absent from
-              that row on a deployment that has no Sites section (`withoutSiteSection` above); Overview
-              and AI Assistant are not, so the row itself always exists and this index is stable.
-
-              Splitting is safe precisely because `Sidebar.Nav` renders a bare fragment of
-              `.cms-section` divs — no wrapper element, no ids, no internal indexing across groups —
-              so two calls produce exactly the DOM one call would, with the toggle spliced between.
-              Doing it here also keeps this a host-only layout choice: `@jini-ai/admin` is unchanged,
-              so no package rebuild is involved and no other host inherits Tovu's arrangement. */}
-          <SitesSidebarNav groups={navGroups.slice(0, 1)} locale={navLocale} soonLabel={navSoonLabel} />
-          <Sidebar.RailToggle />
-          {/* Collapsible sections (owner-directed, 2026-08-06 — piloted on PEOPLE, then widened to
-              all six). `collapsibleGroups` defaults to empty in `@jini-ai/admin`, so this opt-in is
-              what turns the headings into controls; other hosts embedding the admin are unaffected.
-              Open/closed state persists per section via `useNavSections` (localStorage), survives
-              reload and navigation, and syncs across tabs. */}
-          <Sidebar.Nav groups={navGroups.slice(1)} collapsibleGroups={collapsibleGroups} soonLabel={navSoonLabel} />
-          <Sidebar.Footer>
-            <SidebarLogoutButton onLogout={logoutConfirm.request} locale={navLocale} />
-          </Sidebar.Footer>
-        </Sidebar>
+        <ShellSkipLink locale={navLocale} />
+        <AdminSidebar activeId={currentPanelId(route)} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} dockRail={dockRail}
+          navGroups={navGroups} navSoonLabel={navSoonLabel} navLocale={navLocale} collapsibleGroups={collapsibleGroups} logoutConfirm={logoutConfirm} />
         <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
         {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
             behavior above 900px, so this has nothing to sit behind there either — conditionally
             rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole
             page, intercepting clicks, whenever the drawer is closed). */}
         {sidebarOpen ? <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} /> : null}
-        <div className="admin-main-col">
-          {/* Hidden above the tablet breakpoint (desktop keeps the always-visible sidebar) — see
-              `.admin-topbar` in styles.css. */}
-          <AdminTopbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} navLocale={navLocale} />
-          {/* `data-agent-page` is how the page driver reports where it is: `page.find_elements` tags
-              every handle with its nearest `[data-agent-page]` ancestor, and `page.navigate` reads it
-              back to say which page it left and which it landed on. `agentPageId`, not
-              `currentPanelId` — they agree for every route but widget regions, where the published
-              page id and the highlighted sidebar row are genuinely different things. */}
-          {/* `tabIndex={-1}` — without it, activating the skip link above scrolls `<main>` into
-              view but does not actually move keyboard focus there, since a plain `<main>` isn't
-              natively focusable; the skip link would then satisfy the letter of "skip navigation"
-              while missing the actual point (the next Tab press would resume from wherever focus
-              really was, not from main content). Not in the normal Tab order either way, since -1
-              only allows *programmatic* focus (the skip link's own `href` jump). */}
-          {/* MailStatusBanner (components/MailStatusBanner) is not mounted while email is parked
-              (owner, 2026-10-23: "we aren't doing anything with email right now"); re-mount it here
-              with fetchStatus={api.getMailStatus} when email work resumes (development/todos.md). */}
-          <main id="main-content" className="admin-content" ref={setContentEl} tabIndex={-1} data-agent-page={agentPageId(route)}>
-            {/* Keep page overlays in the same allowed root and page identity as their triggers. */}
-            <KitProvider kit={tovuKit} agent={tovuAgentAttrs} overlayContainer={contentEl}>
-              {content}
-            </KitProvider>
-          </main>
-          {/* One ↑/↓ pair for every long admin page (owner, 2026-10-21); `styles.css` places it
-              beside the assistant FAB. */}
-          <ScrollJumpButtons
-            container={contentNode}
-            labels={{ toTop: tApp({ locale: navLocale, key: "Scroll to top" }), toBottom: tApp({ locale: navLocale, key: "Scroll to bottom" }) }}
-          />
-        </div>
+        <ShellMain sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} navLocale={navLocale} agentPage={agentPageId(route)}
+          setContentEl={shellContent.setContentEl} contentEl={shellContent.contentEl} content={content} />
         {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
             decides, not a ternary here. */}
-        <AssistantChrome
-          enabled={adminAssistantEnabled}
-          chatOpen={chatOpen}
-          setChatOpen={setChatOpen}
-          sheetExpanded={sheetExpanded}
-          setSheetExpanded={setSheetExpanded}
-          isSheetMode={isSheetMode}
-          sheetHeightPx={sheetHeightPx}
-          dockWidthPx={dockWidthPx}
-          chatDockRef={chatDockRef}
-          chatFabRef={chatFabRef}
-          onDockDropCapture={handleDockDropCapture}
-          publishDropCapture={publishDropCapture}
-          agentBridge={agentBridge}
-          principalId={user.id}
-          dockT={dockT}
-          locale={navLocale}
-          hideFabWhileOpen={hideFabWhileOpen}
-        />
-        {/* Rendered unconditionally on `chatOpen`, deliberately: the assistant can capture a
-            screenshot while the panel is collapsed (a background run in flight), and the operator must
-            see the announcement either way — see `screenshotAnnounced`'s own comment above. */}
-        {screenshotAnnounced ? (
-          <Toast
-            message={dockT({ key: "The assistant just captured a screenshot of this screen." })}
-            tone="default"
-            ttlMs={5000}
-            onDismiss={dismissScreenshotAnnouncement}
-          />
-        ) : null}
-        {/* publish-criteria-tool-webmcp-plan-2026-09-24.md §4 S2 — `key={requestId}` remounts the
-            dialog fresh per request, so a stale instance can never call a newer request's own
-            `resolve` (see `publish-request.store.ts`'s header). `port` is left `undefined`: this is
-            the one real (non-test) mount, so the dialog resolves its own default port itself. */}
-        {openPublishRequest ? (
-          <PublishContentDialog
-            key={openPublishRequest.requestId}
-            criteria={openPublishRequest.criteria}
-            scope={openPublishRequest.scope}
-            onPlanned={openPublishRequest.resolve}
-            onCancel={closePublishRequest}
-            t={(key) => dashboardT({ key })}
-            port={undefined}
-          />
-        ) : null}
+        <AssistantChrome enabled={adminAssistantEnabled} dock={dock} agentBridge={shellContent.agentBridge} principalId={user.id}
+          dockT={dockT} locale={navLocale} hideFabWhileOpen={interfacePreferences.hideChatFabWhileOpen} />
+        <ShellOverlays screenshot={shellContent.screenshot} openPublishRequest={shellContent.openPublishRequest} dockT={dockT} dashboardT={dashboardT} />
       </div>
     </ConfirmDialogDefaultsProvider>
     </ChartRegistryProvider>
     </AdminModulesProvider>
-  );
-}
-
-/** Mobile shell chrome follows the same drawer state as the sidebar and backdrop. */
-function AdminTopbar({ sidebarOpen, setSidebarOpen, navLocale }: {
-  sidebarOpen: boolean; setSidebarOpen: (value: boolean | ((current: boolean) => boolean)) => void; navLocale: string;
-}) {
-  return (
-    <div className="admin-topbar">
-      <button
-        type="button"
-        className="admin-topbar-toggle"
-        aria-expanded={sidebarOpen}
-        aria-controls="admin-sidebar"
-        aria-label={tApp({ locale: navLocale, key: sidebarOpen ? "Close navigation" : "Open navigation" })}
-        onClick={() => setSidebarOpen((current) => !current)}
-      >
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-          <path d="M2.5 5h13M2.5 9h13M2.5 13h13" strokeLinecap="round" />
-        </svg>
-      </button>
-      <span className="admin-topbar-title">Tovu</span>
-    </div>
   );
 }

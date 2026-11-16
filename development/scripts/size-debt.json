@@ -9,20 +9,6 @@
       "value": 513
     },
     {
-      "file": "apps/admin/src/App.tsx",
-      "function": "AssistantChrome#1",
-      "line": 347,
-      "rule": "max-lines-per-function",
-      "value": 113
-    },
-    {
-      "file": "apps/admin/src/App.tsx",
-      "function": "AdminShell#1",
-      "line": 578,
-      "rule": "max-lines-per-function",
-      "value": 166
-    },
-    {
       "file": "apps/admin/src/components/AssistantDock/AssistantDock.tsx",
       "function": "AssistantDock#1",
       "line": 317,
