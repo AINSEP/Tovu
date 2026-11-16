@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { databaseApi } from "../../features/database/api/database-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
@@ -337,7 +338,7 @@ test("listEntries has no ?type query param when no type filter is given", async 
 
 test("getDatabaseTimeline sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseTimeline({ limit: 25 });
+  await databaseApi.getDatabaseTimeline({ limit: 25 });
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("25");
 });
 
@@ -346,7 +347,7 @@ test("getDatabaseTimeline sets limit in the query when given", async () => {
 // `limit`'s own false arm, and the empty-querystring ternary arm were all untested.
 test("getDatabaseTimeline sets every other filter option in the query when given (and omits limit)", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseTimeline({
+  await databaseApi.getDatabaseTimeline({
     kind: "migration",
     outcome: "success",
     fromDate: "2026-01-01",
@@ -365,16 +366,16 @@ test("getDatabaseTimeline sets every other filter option in the query when given
 
 test("getDatabaseTimeline builds a bare, query-less URL when every filter option is omitted", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseTimeline();
+  await databaseApi.getDatabaseTimeline();
   expect(calls[0].url).toBe(`/api/admin/v1/database/timeline`);
 });
 
 test("confirmMigrateForward sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.confirmMigrateForward({ planId: "p1", planHash: "h1" });
+  await databaseApi.confirmMigrateForward({ planId: "p1", planHash: "h1" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.confirmMigrateForward({ planId: "p1", planHash: "h1" }, {});
+  await databaseApi.confirmMigrateForward({ planId: "p1", planHash: "h1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].url).toBe(`/api/admin/v1/database/migrate-forward/confirm`);
   for (const call of [a[0], b[0]]) {

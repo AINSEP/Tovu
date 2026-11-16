@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { membersApi } from "../../features/members/api/members-api";
@@ -384,14 +385,14 @@ test("executeMergeTerm POSTs { intoTermId, confirmationToken } to /taxonomy/term
 
 test("getDatabaseSchemaState hits GET /database/schema-state", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getDatabaseSchemaState();
+  await databaseApi.getDatabaseSchemaState();
   expect(calls[0].url).toBe(`/api/admin/v1/database/schema-state`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planMigrateForward POSTs with no body at all", async () => {
   const { calls } = stubFetchCapturing();
-  await api.planMigrateForward();
+  await databaseApi.planMigrateForward();
   expect(calls[0].url).toBe(`/api/admin/v1/database/migrate-forward/plan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -399,7 +400,7 @@ test("planMigrateForward POSTs with no body at all", async () => {
 
 test("executeMigrateForward POSTs { confirmationToken } to /database/migrate-forward/execute", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.executeMigrateForward({ confirmationToken: "tok1" });
+  await databaseApi.executeMigrateForward({ confirmationToken: "tok1" });
   expect(calls[0].url).toBe(`/api/admin/v1/database/migrate-forward/execute`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ confirmationToken: "tok1" });

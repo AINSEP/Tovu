@@ -1,5 +1,6 @@
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishScope } from "@tovu/publish-content-ui";
+import type { RestorePointCostClass } from "../features/database/api/database-api.types";
 import type { AdminPluginFiles } from "../features/plugins/api/plugins-api.types";
 import { adminFailureChannel } from "./admin-failure-channel";
 import { BASE, WORKSPACE_ID } from "./admin-http/config";
@@ -1556,17 +1557,6 @@ export interface AdminTaxonomyWithTerms {
   terms: AdminTerm[];
 }
 
-/** Database — Timeline (ADR-041 §1). Mirrors `features/database/timeline.ts`'s `LedgerRow`. */
-export interface AdminLedgerRow {
-  id: string;
-  kind: string;
-  createdAt: string;
-  restorePointId: string | null;
-  outcome: string;
-}
-
-export type RestorePointCostClass = "cheap" | "expensive" | "unavailable";
-
 /** One persisted `restore_points` row (Database's and Recovery's shared list source). */
 export interface AdminRestorePoint {
   id: string;
@@ -1575,32 +1565,6 @@ export interface AdminRestorePoint {
   kind: string;
   watermarkAtCapture: number | null;
   createdAt: string;
-}
-
-export interface AdminRestorePointSummary {
-  id: string;
-  costClass: RestorePointCostClass;
-  kind: string;
-}
-
-/** Database — schema drift (ADR-041 §3). Mirrors `src/platform/db/drift.ts`'s `DriftStatus`, plus the
- *  `"unknown"` the server adds whenever either side of the comparison is unavailable. Kept as the
- *  full five-value union rather than a boolean precisely so `"unknown"` cannot be silently folded
- *  into either "fine" or "broken" — see `features/database/rules.ts`'s `resolveSchemaStateWarning`. */
-export type AdminSchemaDriftStatus = "in-sync" | "ahead" | "behind" | "diverged" | "unknown";
-
-/** One side of the drift comparison. Mirrors `src/platform/db/drift.ts`'s `SchemaSnapshot`. */
-export interface AdminSchemaSnapshot {
-  version: number;
-  tag: string;
-}
-
-/** Mirrors `features/database/adapter.sqlite.ts`'s `SchemaStateSummary`. Either snapshot may be
- *  `null` independently, which is exactly when `status` is `"unknown"`. */
-export interface AdminSchemaState {
-  status: AdminSchemaDriftStatus;
-  siteMeta: AdminSchemaSnapshot | null;
-  runtime: AdminSchemaSnapshot | null;
 }
 
 /** Recovery (ADR-045) — mirrors `@jini-ai/db/recovery/disclosure`'s `DisclosureResult`. */
@@ -1672,10 +1636,6 @@ export interface MergeTermPlanDetails {
   intoTermId: string;
   overlapLossDisclosed: boolean;
   overlappingContentCount: number;
-}
-
-export interface MigrateForwardExecuteResult {
-  migrated: true;
 }
 
 export interface RestoreExecuteResult {
@@ -2627,62 +2587,9 @@ export const api = {
       body: JSON.stringify({ intoTermId, confirmationToken }),
     } }),
 
-  // Database — Timeline + restore points (ADR-041).
-  getDatabaseTimeline: (options: {
-    kind?: string;
-    outcome?: string;
-    fromDate?: string;
-    toDate?: string;
-    cursor?: string;
-    limit?: number;
-  } = {}) => {
-    const params = new URLSearchParams();
-    if (options.kind) params.set("kind", options.kind);
-    if (options.outcome) params.set("outcome", options.outcome);
-    if (options.fromDate) params.set("fromDate", options.fromDate);
-    if (options.toDate) params.set("toDate", options.toDate);
-    if (options.cursor) params.set("cursor", options.cursor);
-    if (options.limit) params.set("limit", String(options.limit));
-    const qs = params.toString();
-    return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
-      { path: `/database/timeline${querySuffix({ query: qs })}` }
-    );
-  },
-  /** ADR-041 §3 — this site's drift classification. Read-only: there is deliberately no matching
-   *  write/repair call, and the server exposes none. */
-  getDatabaseSchemaState: () => request<AdminSchemaState>({ path: "/database/schema-state" }),
-
-  // Database — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
-  // the plan is computed entirely from the site's current migration/capability state server-side.
-  planMigrateForward: () =>
-    request<GatedPlanResult>({ path: "/database/migrate-forward/plan" }, { init: { method: "POST" } }),
-  confirmMigrateForward: (
-    { planId, planHash }: { planId: string; planHash: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<GatedConfirmResult>({ path: "/database/migrate-forward/confirm" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ planId, planHash }),
-    } }),
-  executeMigrateForward: ({ confirmationToken }: { confirmationToken: string }, _optional: Record<string, never> = {}) =>
-    request<MigrateForwardExecuteResult>({ path: "/database/migrate-forward/execute" }, { init: {
-      method: "POST",
-      body: JSON.stringify({ confirmationToken }),
-    } }),
-
   // Recovery (ADR-045) — restore-points list (shared with Database), disclosure, deep-link, status,
   // and the restore ceremony itself (SPEC-019 C-301/C-302/C-303).
   listRecoveryRestorePoints: () => request<{ items: AdminRestorePoint[] }>({ path: "/recovery/restore-points" }),
-  /** Same underlying `/database/restore-points` write `createDatabaseRestorePoint` above uses — the
-   *  `restore_points` table is genuinely shared (see `AdminRestorePoint`'s own doc comment) and
-   *  there is no separate Recovery-owned write route. Recovery grew its own create action
-   *  (2026-09-10, restore-point functionality consolidation) so this gets a Recovery-named entry
-   *  point for that reason, not because the backend route differs. */
-  createRecoveryRestorePoint: (options: { trigger?: string; costAck?: boolean } = {}) =>
-    request<{ restorePoint: AdminRestorePointSummary }>({ path: "/database/restore-points" }, { init: {
-      method: "POST",
-      body: JSON.stringify(options),
-    } }),
   computeRecoveryDisclosure: ({ restorePointId }: { restorePointId: string }, _optional: Record<string, never> = {}) =>
     request<AdminDisclosureResult>({ path: "/recovery/disclosure" }, { init: {
       method: "POST",

@@ -1,4 +1,6 @@
-import { api, type GatedConfirmResult, type GatedPlanResult, type MigrateForwardExecuteResult } from "@/lib/api";
+import { type GatedConfirmResult, type GatedPlanResult } from "@/lib/api";
+import type { MigrateForwardExecuteResult } from "@/features/database/api/database-api.types";
+import { databaseApi } from "@/features/database/api/database-api";
 import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";
 
 /**
@@ -8,9 +10,9 @@ import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.h
 
 /** The live implementation, as a module-level singleton. */
 export const defaultMigrateForwardSectionPort: MigrateForwardSectionPort = {
-  planMigrateForward: () => api.planMigrateForward(),
-  confirmMigrateForward: (input, _options = {}) => api.confirmMigrateForward(input),
-  executeMigrateForward: ({ confirmationToken }, _options = {}) => api.executeMigrateForward({ confirmationToken }),
+  planMigrateForward: () => databaseApi.planMigrateForward(),
+  confirmMigrateForward: (input, _options = {}) => databaseApi.confirmMigrateForward(input),
+  executeMigrateForward: ({ confirmationToken }, _options = {}) => databaseApi.executeMigrateForward({ confirmationToken }),
 };
 
 /** Seed state for {@link createFakeMigrateForwardSectionPort}. */

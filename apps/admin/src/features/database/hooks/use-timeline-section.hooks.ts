@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { type AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";

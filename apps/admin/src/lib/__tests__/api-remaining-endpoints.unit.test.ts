@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
 import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
@@ -130,8 +131,8 @@ describe("endpoints", () => {
 
   it("creates a recovery restore point with or without options", async () => {
     const calls = stubFetch();
-    await api.createRecoveryRestorePoint();
-    await api.createRecoveryRestorePoint({ trigger: "manual", costAck: true });
+    await databaseApi.createRecoveryRestorePoint();
+    await databaseApi.createRecoveryRestorePoint({ trigger: "manual", costAck: true });
     expect(calls).toEqual([
       { url: "/api/admin/v1/database/restore-points", method: "POST", body: {} },
       { url: "/api/admin/v1/database/restore-points", method: "POST", body: { trigger: "manual", costAck: true } },

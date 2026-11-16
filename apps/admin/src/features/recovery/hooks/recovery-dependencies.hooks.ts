@@ -1,11 +1,6 @@
-import {
-  api,
-  type AdminRecoveryDeepLinkResult,
-  type AdminRecoveryStatus,
-  type AdminRestorePoint,
-  type AdminRestorePointSummary,
-  type DatabaseContextEnvelope,
-} from "@/lib/api";
+import { api, type AdminRecoveryDeepLinkResult, type AdminRecoveryStatus, type AdminRestorePoint, type DatabaseContextEnvelope } from "@/lib/api";
+import type { AdminRestorePointSummary } from "@/features/database/api/database-api.types";
+import { databaseApi } from "@/features/database/api/database-api";
 import type { RecoveryPort } from "./recovery-port.hooks";
 
 /**
@@ -17,7 +12,7 @@ import type { RecoveryPort } from "./recovery-port.hooks";
 export const defaultRecoveryPort: RecoveryPort = {
   getRecoveryStatus: () => api.getRecoveryStatus(),
   listRecoveryRestorePoints: () => api.listRecoveryRestorePoints(),
-  createRestorePoint: (_input, options = {}) => api.createRecoveryRestorePoint(options),
+  createRestorePoint: (_input, options = {}) => databaseApi.createRecoveryRestorePoint(options),
   resolveRecoveryDeepLink: (envelope, _options = {}) => api.resolveRecoveryDeepLink(envelope),
 };
 

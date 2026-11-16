@@ -1,4 +1,5 @@
-import { api, type AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
+import { databaseApi } from "@/features/database/api/database-api";
 import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /**
@@ -8,7 +9,7 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultTimelineSectionPort: TimelineSectionPort = {
-  getDatabaseTimeline: (_required, { options } = {}) => api.getDatabaseTimeline(options),
+  getDatabaseTimeline: (_required, { options } = {}) => databaseApi.getDatabaseTimeline(options),
 };
 
 /** Seed state for {@link createFakeTimelineSectionPort}. */

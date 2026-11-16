@@ -1,5 +1,5 @@
 import { navigateDatabaseTab } from "./Database.hooks";
-import { type AdminLedgerRow } from "../../lib/api";
+import type { AdminLedgerRow } from "./api/database-api.types";
 
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
