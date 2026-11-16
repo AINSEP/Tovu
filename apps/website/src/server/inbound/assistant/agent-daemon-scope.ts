@@ -86,8 +86,7 @@ import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
-import { bearerTokenFromHeader } from "@jini-ai/http-kit";
-import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
