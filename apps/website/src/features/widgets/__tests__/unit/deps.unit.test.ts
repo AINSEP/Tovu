@@ -127,6 +127,12 @@ test("buildWidgetHostPorts: published-post lookups use the bound postRepo, and f
   assert.deepEqual(seen, ["bound:findById:p-1", "caller:findById:p-1", "bound:findBySlug:s-1", "caller:findBySlug:s-1"]);
 });
 
+test("buildWidgetHostPorts: slugify takes the plain title string Jini's write-service passes", () => {
+  // Jini's `WidgetHostPorts.slugify(text: string)` is called positionally (`host.slugify(title)`);
+  // Tovu's own `toSlug` takes `{ text }`, so the port must adapt at this boundary.
+  assert.equal(buildWidgetHostPorts({}).slugify("Hello World"), "hello-world");
+});
+
 test("buildWidgetHostPorts: error classifiers recognise only their own error classes", () => {
   const host = buildWidgetHostPorts({});
   assert.equal(host.entries.isVersionConflict(new VersionConflictError({ message: "stale" })), true);

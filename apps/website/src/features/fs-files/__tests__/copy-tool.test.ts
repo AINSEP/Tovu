@@ -34,6 +34,13 @@ test("picked → theme copies exact binary bytes, checks theme.edit and reloads 
   assert.equal(h.emitted.length, 0);
 });
 
+test("an unknown theme destination is a caller error that carries the tool's schema", async t => {
+  // Theme shape errors (`isShapeRejection`) must be classed as caller errors, so the refusal
+  // publishes the schema back instead of surfacing as an undecorated failure.
+  const h = await harness(t);
+  await assert.rejects(() => h.call({ sources: [source], destination: { ...theme, themeId: "no-such-theme" } }), /Schema for 'files_copy'/);
+});
+
 test("theme and site sources reuse the guarded file reader, preserving folder structure for globs", async t => {
   const h = await harness(t);
   fs.mkdirSync(path.join(h.theme, "assets/deep"), { recursive: true });

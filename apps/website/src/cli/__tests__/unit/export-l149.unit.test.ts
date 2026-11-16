@@ -22,7 +22,7 @@ for (const work of ["none", "legacy", "app", "both"] as const) {
     const effects: RunExportCommandOptional = {
       registerPluginSdkResolver: () => { order.push("resolver"); },
       bootSiteDir: async () => { order.push("boot"); return boot; },
-      createSiteRouteDeps: async (_path, options) => { options?.onStoreOpened?.({ store: store }); return deps; },
+      createSiteRouteDeps: async ({ overrides }) => { overrides?.onStoreOpened?.({ store: store }); return deps; },
       reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
       exportSite: async input => {
         assert.equal(input.outputDir, "/tmp/export"); assert.equal(input.clean, false);
@@ -46,8 +46,27 @@ test("export closes the boot and partially composed store when composition fails
   let closed = false;
   await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
     registerPluginSdkResolver: () => {}, bootSiteDir: async () => boot,
-    createSiteRouteDeps: async (_path, options) => { options?.onStoreOpened?.({ store: store }); throw failure; },
+    createSiteRouteDeps: async ({ overrides }) => { overrides?.onStoreOpened?.({ store: store }); throw failure; },
     closeSiteDirBoot: async (actualBoot, actualStore) => { assert.equal(actualBoot, boot); assert.equal(actualStore, store); closed = true; },
   }), error => error === failure);
   assert.equal(closed, true);
+});
+
+test("export composes against the site's own content database with the booted store and site paths", async t => {
+  // The composition must receive this site's dbPath and the boot's overrides; a dropped argument
+  // would silently compose against the default database instead of the site being exported.
+  t.mock.method(process.stdout, "write", () => true);
+  const boot = { workspaceId: "ws", db: { marker: "db" }, store: { marker: "store" } } as unknown as Boot;
+  const seen: { dbPath?: string; overrides?: Record<string, unknown> } = {};
+  const failure = new Error("stop after composition");
+  await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
+    registerPluginSdkResolver: () => {}, bootSiteDir: async () => boot,
+    createSiteRouteDeps: async ({ dbPath, overrides }) => { Object.assign(seen, { dbPath, overrides }); throw failure; },
+    closeSiteDirBoot: async () => {},
+  }), error => error === failure);
+  assert.match(String(seen.dbPath), /^\/tmp\/site\//);
+  assert.equal(seen.overrides?.db, (boot as unknown as { db: unknown }).db);
+  assert.equal(seen.overrides?.store, (boot as unknown as { store: unknown }).store);
+  assert.equal(seen.overrides?.workspaceId, "ws");
+  assert.equal(seen.overrides?.themesDir, "/tmp/site/themes");
 });

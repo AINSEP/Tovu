@@ -337,7 +337,7 @@ test("RESET_USER_PASSWORD route: 500 internal error when an unexpected error is 
 
 test("RESET_USER_PASSWORD route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
   const trashedIds = new Set<string>();
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => trashedIds.has(id) });
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async ({ principalId }) => trashedIds.has(principalId) });
   const baseUrl = await startTestServer(app, t);
   const { principalId, originalHash } = await createTestUser(deps, ownerId, "resettrashed");
   trashedIds.add(principalId);

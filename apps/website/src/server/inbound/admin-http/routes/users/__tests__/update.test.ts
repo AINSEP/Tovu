@@ -270,7 +270,7 @@ test("UPDATE_USER route: 500 internal error when an unexpected error is thrown",
 
 test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
   let trashedTargetId = "";
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async (id) => id === trashedTargetId });
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async ({ principalId }) => principalId === trashedTargetId });
   const baseUrl = await startTestServer(app, t);
   const { principal: target } = await createUser({ deps: identityServiceDepsFrom(deps), input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username: "updatetrashed", password: "updatetrashed-p4ssw0rd!" } }, { email: "trashed-original@example.com" });
 
@@ -318,7 +318,7 @@ test("username PATCH retains email and sessions, writes a secret-free audit entr
 
 test("username PATCH gives exact validation and conflict reasons, including Trash reservations", async () => {
   const trash = new Set<string>();
-  const { app, deps, ownerId } = await buildApp({ isInTrash: async id => trash.has(id) });
+  const { app, deps, ownerId } = await buildApp({ isInTrash: async ({ principalId }) => trash.has(principalId) });
   const service = identityServiceDepsFrom(deps);
   const make = (username: string) => createUser({ deps: service, input: { workspaceId: WORKSPACE_ID, callerPrincipalId: ownerId, username, password: "rename-conflict-password" } });
   const { user: target } = await make("first"); const { user: held } = await make("taken");

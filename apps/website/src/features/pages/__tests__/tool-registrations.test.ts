@@ -205,6 +205,18 @@ test("pages_write_html refuses markup whose top-level sections carry no editable
   );
 });
 
+test("pages_write_html suggests a handle derived from an untagged section's heading", async () => {
+  // Jini's `untaggedTopLevelSections` calls its `slugify` slot with a plain string; the suggestion
+  // proves Tovu's slug function is adapted to that shape rather than passed by reference.
+  const { repo, call } = harness();
+  await seedPage(repo, "page-1", "Landing");
+
+  await assert.rejects(
+    () => call("pages_write_html", { id: "page-1", html: "<div><h2>Our Team</h2></div>" }),
+    /suggested handle: "our-team"/
+  );
+});
+
 test("pages_write_html refuses a post id with a reason the model can act on, not a thrown error", async () => {
   const { repo, call } = harness();
   await createPost({
