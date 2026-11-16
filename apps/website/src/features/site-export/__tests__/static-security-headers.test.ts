@@ -69,13 +69,13 @@ test("changing the shared header set changes the live response and every static 
 
   assert.deepEqual(live, { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-test-header": "a \"quoted\" value" });
   assert.deepEqual(parseHeadersFile(renderHeadersFile(custom)), live);
-  assert.match(withSecurityMeta({ html: "<head></head>" }, custom), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
+  assert.match(withSecurityMeta({ html: "<head></head>" }, { headers: custom }), /^<head><meta name="referrer" content="no-referrer"><\/head>$/);
 });
 
 test("withSecurityMeta: leaves HTML with no <head> or a set with no Referrer-Policy untouched, and escapes the value", () => {
   assert.equal(withSecurityMeta({ html: "<p>fragment</p>" }), "<p>fragment</p>");
-  assert.equal(withSecurityMeta({ html: "<head></head>" }, { "X-Content-Type-Options": "nosniff" }), "<head></head>");
-  assert.equal(withSecurityMeta({ html: `<HEAD lang="en"></HEAD>` }, { "Referrer-Policy": `a"b` }), `<HEAD lang="en"><meta name="referrer" content="a&quot;b"></HEAD>`);
+  assert.equal(withSecurityMeta({ html: "<head></head>" }, { headers: { "X-Content-Type-Options": "nosniff" } }), "<head></head>");
+  assert.equal(withSecurityMeta({ html: `<HEAD lang="en"></HEAD>` }, { headers: { "Referrer-Policy": `a"b` } }), `<HEAD lang="en"><meta name="referrer" content="a&quot;b"></HEAD>`);
   // `<header>` is not `<head>`: only the real head element gets the tag.
   assert.equal(withSecurityMeta({ html: "<header></header>" }), "<header></header>");
 });
