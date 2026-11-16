@@ -59,7 +59,7 @@ it("ignores restored history and conversation switches, but announces live runs 
       paneKey, initialMessages, onMessagesChange,
     } }), { initialProps: { paneKey: "saved", initialMessages: history } });
     act(() => result.current(history));
-    expect(onMessagesChange).toHaveBeenCalledWith(history);
+    expect(onMessagesChange).toHaveBeenCalledWith({ messages: history });
     expect(settings).not.toHaveBeenCalled();
     expect(content).not.toHaveBeenCalled();
     const next: ChatMessage[] = [...history, { id: "new", role: "assistant", content: "New reply", runStatus: "succeeded" }];
