@@ -277,3 +277,165 @@ the exact plaintext back. Failure throws `invalid-record` and nothing is written
   `platform/secrets/vault-kinds.ts:87-88`); both pass `seal` and `open` to the same sealer, so they are
   compatible. I did not enumerate every `SecretsVaultService` construction in Tovu, Tovu-Runner or Zana.
 - `ab0ef93c` merges onto Jini `integ/wave-b-r2` without conflicts (`git merge-tree`).
+
+---
+
+## A3 — Jini moves/audit2-desktop "A37": pinned capability and bearer handoff (`1b5af586`)
+
+**Verdict (Jini half): safe with fixes.** Highest severity: **medium**.
+**The move as a whole is not mergeable yet:** the Tovu half (`13400b01`) was never pushed, was built on
+`refactor/desktop-args` (not `integ/wave-b-r2`), and two of its tests could not load. Until the Tovu
+half exists on the integration base, the Jini code has no consumer and the security claim "Tovu's
+desktop bearer handling runs on Jini" is unproven.
+
+### What the change is
+
+A new Jini module, `packages/mcp/src/federation/hosted/pinned-capability.ts`, with two functions:
+
+- `createPinnedCapabilityRuntime` — reads `{ url, token }` and a handoff token from an environment
+  object, deletes those keys, pins the first valid capability, and returns a bearer supplier that
+  answers only for the exact pinned URL.
+- `startCapabilityDelivery` — POSTs each capability the host publishes to one child, with the handoff
+  token as bearer, until disconnected.
+
+It is a generic copy of Tovu `apps/website/src/assistant/desktop-mcp-runtime.ts:38-65` and
+`apps/desktop/src/desktop-mcp-http.ts:54-75` (`integ/wave-b-r2`).
+
+### Gates traced across the whole chain (verified by reading)
+
+| Gate | Where today | In the Jini half | Kept? |
+|---|---|---|---|
+| Capability shape: canonical loopback URL, port range, 64-hex token | Tovu `desktop-mcp-runtime.ts:11-22` | host-supplied `isCapability` | **Tovu must keep** |
+| Bearer answers only for the exact pinned URL | Tovu `:47-50` | `pinned-capability.ts:63` | yes |
+| First capability is immutable; same value may be re-delivered | Tovu `:51-56` | `:65-70` | yes |
+| Handoff token shape (64 hex) or dropped | Tovu `:42` | `:44`, `:58` (fixed in Jini) | yes |
+| Keys removed from the environment object | Tovu `:43` | `:59` | yes, see F2 |
+| Real process environment scrubbed | Tovu `startup-secrets.ts:18-23` (token + handoff) and `desktop-mcp-runtime.ts:75` (URL) | **not in Jini** | **Tovu must keep** |
+| Handoff token minted per main, 32 random bytes, never stored | Tovu `desktop-mcp-http.ts:35` | host-supplied | **Tovu must keep** |
+| Delivery only to a loopback admin URL, fixed path | Tovu `desktop-mcp-http.ts:56` | host-supplied `endpoint` | **Tovu must keep** |
+| Delivery never follows redirects; 5 s timeout; cancellable | Tovu `:67-69` | `:102-105` | yes |
+| Receiving route: browser origin refused, loopback peer, timing-safe bearer, refused when no token is configured, 1 KiB body, shape check, pin check | Tovu `desktop-mcp-handoff.ts:15-27`; Jini `packages/daemon/src/http/tool-execution-routes.ts:69-79` | not touched | yes |
+| Receiving route runs before the public JSON parser | Tovu `app.ts:2005-2006` (internal router mounted first) | not touched | yes |
+| Connection handed to the tool layer carries the URL only, never the token | Tovu `desktop-mcp-runtime.ts:57-63` (`headers: {}`) | — | **Tovu must keep** |
+| Bearer is attached by the HTTP adapter for the configured URL only, redirects refused | Jini `packages/mcp/src/federation/adapter.http.ts:336`, `:502` | not touched | yes |
+
+### Findings
+
+**A3-F1 — medium — a new accessor hands out the raw token without the endpoint check.**
+- Class: token scope widened by API shape.
+- Location: Jini `pinned-capability.ts:29` (interface) and `:64` (`capability()`).
+- Fact: the Tovu runtime exposes the token only through `bearerToken({ url })`, which checks the exact
+  URL. The Jini runtime adds `capability()`, which returns `{ url, token }` to any caller in the
+  process. The file's own header says the supplier "answers only for the exact pinned endpoint"; this
+  accessor is a second way to the same secret with no such check, and it returns a plain object that is
+  easy to log or serialise by accident. Tovu only needs the URL from it (to build `connection()`).
+- Fix: replace `capability()` with an accessor that returns the pinned URL only (for example
+  `endpointUrl()`); keep the token reachable only through `bearerToken`. Must-fix before the Jini API
+  is published, because narrowing it later is a breaking change.
+- Regression test: a type-level and runtime test that no member of the runtime other than
+  `bearerToken` and `handoffToken` returns a 64-hex token — **missing**.
+
+**A3-F2 — medium — the "scrubbed before any child can inherit" promise depends on what the host passes.**
+- Class: security property stated by the port but only true for one binding.
+- Location: Jini `pinned-capability.ts:35-36` (doc) and `:59`; Tovu `desktop-mcp-runtime.ts:74-75`,
+  `server/runtime/boot/startup-secrets.ts:41-43`.
+- Fact: Jini deletes the three keys from the object it is given. Tovu gives it a **detached copy**
+  (`startupSecretEnvironment` returns `{ ...env, ...credentials }`). So in Tovu the Jini scrub changes
+  nothing a child could inherit; the real protection is Tovu's startup-secret capture (token and
+  handoff) plus the explicit delete of the URL key at `:75`. A second host that reads the Jini doc and
+  passes a copy would believe its environment is clean when it is not.
+- Fix: say in the Jini doc that the caller must pass the live environment object or scrub it itself;
+  return the list of key names removed so a host can assert on it. In Tovu keep both existing scrubs
+  (see "What the Tovu half must do").
+- Regression test: Tovu `tovu-server.desktop-mcp.test.ts:17` ("unrelated desktop CLI children never
+  inherit the desktop capability") **exists**; add a website test that after first use of
+  `desktopMcpRuntime` none of the three names is in `process.env` — **missing**.
+
+**A3-F3 — medium — the Jini tests do not pin the two properties that protect the handoff bearer in transit.**
+- Class: test gap on a security gate.
+- Location: Jini `packages/mcp/src/federation/hosted/__tests__/pinned-capability.test.ts`.
+- Fact (from reading the test): it asserts the URL, the `authorization` header and the body. It does
+  not assert `redirect: "error"`, does not assert that a signal is passed, and never disconnects
+  before the host resolves or during a POST. Removing `redirect: "error"` at `:102`, or the abort
+  check at `:100`, leaves all five tests green. Tovu's desktop tests do not assert the redirect mode
+  either (no match for `redirect` in `desktop-mcp-http*.test.ts`).
+- Fix: add four cases with a fake `fetch`: (1) `init.redirect === "error"`; (2) the signal aborts on
+  `disconnect` during a POST; (3) `disconnect` before the host resolves subscribes nothing; (4) the
+  timeout aborts a hung POST. Each fails when its line is removed.
+- Also missing: malformed URL or token values are still deleted from the environment object (a mutant
+  that scrubs only valid values survives test 1); a handoff-only runtime gives no bearer before
+  `accept` and the right bearer after.
+
+**A3-F4 — low — failures are reported with no cause.**
+- Class: swallowed error (owner practice).
+- Location: Jini `pinned-capability.ts:88` (`onUnavailable` takes no error), `:108` (`catch` drops it),
+  `:106` (fixed message, HTTP status dropped).
+- Fact: this copies the Tovu behaviour, but it now fixes it into a port signature, so no host can log
+  a redacted cause even if it wants to.
+- Fix: pass `{ error }` to `onUnavailable` and include the HTTP status in the delivery error. The
+  handoff token and capability token must never appear; the host words and redacts.
+
+**A3-F5 — low — the handoff token format is fixed in the engine while everything else is host policy.**
+- Location: Jini `pinned-capability.ts:44`.
+- Fact: a host that mints a different format gets `handoffToken: undefined` and `owned: false` with no
+  signal. It fails closed, so this is not exploitable; it is a silent behaviour trap.
+- Fix: take the handoff predicate from the host like `isCapability`, or document the fixed format.
+
+**A3-F6 — low — `accept` copies every enumerable property of the delivered object.**
+- Location: Jini `pinned-capability.ts:68` (`{ ...input }`), same as Tovu `:54`.
+- Fact: whether extra properties are possible depends on the host's `isCapability`. Tovu's guard does
+  not reject extras. They are then held on the pinned object.
+- Fix: store `{ url: input.url, token: input.token }` only.
+
+### What the Tovu half must do, exactly
+
+The unpushed commit must be redone on `integ/wave-b-r2`. To be accepted it must:
+
+1. **`apps/website/src/assistant/desktop-mcp-runtime.ts`**
+   - Keep `isDesktopMcpCapability` and `isDesktopMcpUrl` byte-for-byte in Tovu and pass
+     `isDesktopMcpCapability` as `isCapability`. The endpoint policy never moves to Jini.
+   - Pass `names = { url: "TOVU_DESKTOP_MCP_URL", token: "TOVU_DESKTOP_MCP_TOKEN", handoff: DESKTOP_MCP_HANDOFF_ENV }`.
+   - Keep `connection()` in Tovu, built from the pinned **URL only**, with `launch.headers` empty and
+     the same three allowlists (`allowedToolNames`, `writeAllowedToolNames`, `readOnlyRemoteNames`).
+   - Keep `runtimeForProcess` as is: build from `startupSecretEnvironment({ env: process.env })` and
+     keep `delete process.env.TOVU_DESKTOP_MCP_URL`. Do not rely on Jini's scrub (F2).
+   - Keep the `DesktopMcpRuntime` interface as it is today (`handoffToken`, `owned`, `bearerToken`,
+     `connection`, `accept`). Do **not** re-export Jini's `capability()` to the rest of Tovu (F1).
+   - Keep `TOVU_DESKTOP_MCP_TOKEN` and `TOVU_DESKTOP_MCP_HANDOFF_TOKEN` in `STARTUP_SECRET_KEYS`.
+2. **`apps/desktop/src/desktop-mcp-http.ts`**
+   - `connectSite` keeps, in this order: the `stopped` check; `assertLoopbackAdminUrl({ adminUrl })`
+     before the endpoint is built; the fixed path `/internal/desktop-mcp-capability`; registration in
+     the `disconnects` set and with `onExit`. Only then call `startCapabilityDelivery`.
+   - The handoff token stays `randomBytes(32).toString("hex")`, minted once per main, never written to
+     disk, a keyring or a log.
+   - `environment()` still returns `{}` once stopped, and `close()` still disconnects every site.
+   - The warning texts stay fixed strings; no token, URL with token, or request body in any warning.
+3. **`apps/website/src/server/runtime/composition/modules/desktop-mcp-handoff.ts`** — no change. The
+   order `rejectBrowser` → `requireToolExecutionCaller` → `json({ limit: "1kb" })` → shape check →
+   `accept` must stay, and the route must stay on the internal router that mounts before the public
+   parser (`app.ts:2005`).
+4. **Tests that must be run and green on the integration base** (the executor could not load the
+   first two): `desktop-mcp-runtime.integration.test.ts`, the startup-secrets tests,
+   `desktop-mcp-capability.unit.test.ts`, `desktop-mcp-http.test.ts`,
+   `desktop-mcp-http-runtime.test.ts`, `tovu-server.desktop-mcp.test.ts`.
+5. **Not bypass the pre-push gates.** The executor's note proposes pushing with the hooks skipped.
+   The gates failed because of the Jini base build; fix the base, then push normally.
+
+### Regression tests that must exist
+
+| Test | Exists? |
+|---|---|
+| Bearer only for the exact URL; first capability immutable; malformed handoff dropped | yes (Jini test 1-3) |
+| Capability shape: loopback spelling, port bounds, token shape | yes (Tovu `desktop-mcp-capability.unit.test.ts:6`) |
+| Only the spawning main can supply a capability; other children do not inherit it | yes (Tovu `tovu-server.desktop-mcp.test.ts:7,17`) |
+| Delivery refuses redirects; aborts on disconnect and timeout | **missing** (F3) |
+| No accessor other than the supplier returns the token | **missing** (F1) |
+| `process.env` holds none of the three names after first use | **missing** (F2) |
+| Receiving route: origin, non-loopback peer, wrong bearer, no token configured, oversized body, second different capability → refused | not checked in this review (route is unchanged); confirm before the Tovu half merges |
+
+### Not verified
+
+- I could not read the Tovu half: `13400b01` exists only in the executor's container. Everything
+  under "What the Tovu half must do" is derived from today's Tovu code, not from that commit.
+- No test was run. The executor reports Jini 5/5 and hosted 12/12.
+- I did not check Tovu-Runner or Zana for a second consumer of this module.
