@@ -1,4 +1,5 @@
 import { api, type AdminPlugin, type AdminPluginFiles, type AdminPluginProviderSettings } from "@/lib/api";
+import { providersApi } from "@/features/providers/api/providers-api";
 import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { providerSettingRequiredHere } from "../rules";
@@ -12,7 +13,7 @@ import type { PluginsPort } from "./plugins-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPluginsPort: PluginsPort = {
-  useProjectKey: (input, _optional = {}) => api.useProjectKey(input),
+  useProjectKey: (input, _optional = {}) => providersApi.useProjectKey(input),
   listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
   setPluginEnabled: ({ id, patch }, _optional = {}) => api.setPluginEnabled({ pluginId: id, enabled: patch.enabled }),
   uninstallPlugin: ({ id }, _optional = {}) => api.uninstallPlugin({ pluginId: id }),

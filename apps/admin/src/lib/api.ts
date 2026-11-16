@@ -3372,8 +3372,6 @@ export const api = {
     request<AdminPluginProviderSettings>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings` }, { init: {
       method: "PUT", body: JSON.stringify({ values }),
     } }),
-  useProjectKey: ({ keyId, use }: { keyId: string; use: boolean }, _optional = {}) =>
-    request<{ keyId: string; usedByThisSite: boolean; usedBy: string[]; appliesAt: "now" | "restart" | "failed"; message?: string }>({ path: `/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use` }, { init: { method: "PUT", body: JSON.stringify({ use }) } }),
   setPluginEnabled: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }, _optional: Record<string, never> = {}) =>
     request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
       { path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}` },

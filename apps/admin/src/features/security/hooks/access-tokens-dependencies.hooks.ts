@@ -1,9 +1,5 @@
-import {
-  api,
-  type AdminCustomCredentialsSnapshot,
-  type AdminPublishCredentialsSnapshot,
-  type AdminSourceControlCredentialsSnapshot,
-} from "@/lib/api";
+import { api, type AdminCustomCredentialsSnapshot, type AdminPublishCredentialsSnapshot, type AdminSourceControlCredentialsSnapshot } from "@/lib/api";
+import { providersApi } from "@/features/providers/api/providers-api";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
@@ -28,7 +24,7 @@ export const defaultAccessTokensPort: AccessTokensPort = {
   },
   custom: {
     list: () => api.listCustomCredentials(),
-    useKey: (input, _optional = {}) => api.useProjectKey(input),
+    useKey: (input, _optional = {}) => providersApi.useProjectKey(input),
     create: (input, _optional = {}) => api.createCustomCredential(input).then((res) => res.credential),
     update: ({ id, input }, _optional = {}) => api.updateCustomCredential({ id, input }).then((res) => res.credential),
     remove: ({ id }, _optional = {}) => api.deleteCustomCredential({ id }),
