@@ -94,7 +94,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly requiredBlobs?: (row: Row, optional?: Record<string, never>) => readonly string[];
   /** A better on-screen name than any packed field (`PackedEntity.displayLabel`). Display only:
    *  never hashed or applied. `undefined` leaves the row named from its state. */
-  readonly displayLabel?: (row: Row) => string | undefined;
+  readonly displayLabel?: (required: { row: Row }, optional?: Record<string, never>) => string | undefined;
 
   /** A second unique address (slug, key, name). Precheck refuses when `holder` returns a row with a
    *  different `idOf`. An empty value is not checked. When the address stays held by a trashed row,
@@ -198,7 +198,7 @@ export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConf
       if (!p) return;
       const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.({ row }) ?? true));
       for (const row of config.packOrder ? config.packOrder(rows) : rows) {
-        const displayLabel = config.displayLabel?.(row);
+        const displayLabel = config.displayLabel?.({ row });
         yield {
           entityType,
           id: idOf({ row }),

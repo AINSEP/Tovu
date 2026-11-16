@@ -50,7 +50,7 @@ export type ThemeRosterDeps = Pick<ThemeToolDeps, "themes" | "themesDir">;
 /** Raised when `themeId` names no discovered theme. Its own class so the handler layer can decorate
  * it with the published schema — a wrong id is a shape problem a different input fixes. */
 export class ThemeNotFoundError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeNotFoundError";
   }
@@ -61,7 +61,7 @@ export class ThemeNotFoundError extends Error {
  * or `theme.json`) is exactly what would fix this, so it is a shape rejection like
  * {@link ThemePathError}. */
 export class ThemeFileReadOnlyError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeFileReadOnlyError";
   }
@@ -73,7 +73,7 @@ export class ThemeFileReadOnlyError extends Error {
  * one). A different `oldString`/`replaceAll` is exactly what would fix this, so it is a shape
  * rejection like {@link ThemePathError}. */
 export class ThemeFileEditMatchError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeFileEditMatchError";
   }
@@ -87,7 +87,7 @@ export class ThemeFileEditMatchError extends Error {
  * {@link ThemePathError}, matching `explore.ts`'s own `NO_ORIGINAL`/`NOT_IN_ORIGINAL` HTTP codes for
  * the identical two refusals on its per-file reset route. */
 export class ThemeFileNoOriginalError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeFileNoOriginalError";
   }
@@ -99,7 +99,7 @@ export class ThemeFileNoOriginalError extends Error {
  * clear. Retrying with the same input cannot succeed, so it is a shape rejection like that class; the
  * other bucket reaches the agent as a redacted internal failure, and the agent needs this message. */
 export class ThemeOriginalLayoutMismatchError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeOriginalLayoutMismatchError";
   }
@@ -114,7 +114,7 @@ export class ThemeOriginalLayoutMismatchError extends Error {
  * three DIFFERENT reasons into the same class would blur which check actually fired. A different
  * `path` is exactly what would fix this, so it is a shape rejection like {@link ThemePathError}. */
 export class ThemeFileIdentityLockedError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeFileIdentityLockedError";
   }
@@ -123,17 +123,17 @@ export class ThemeFileIdentityLockedError extends Error {
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the schema back with. A
  * genuine I/O failure (a permission-denied disk, a full volume) is not one of these and propagates
  * undecorated, because retrying with different arguments would not help. */
-export function isShapeRejection(error: unknown): boolean {
+export function isShapeRejection({ error }: { error: unknown }, _optional = {}): boolean {
   return [ThemePathError, ThemeNotFoundError, ThemeFileReadOnlyError, ThemeFileEditMatchError,
     ThemeFileIdentityLockedError, ThemeFileNoOriginalError, ThemeOriginalLayoutMismatchError]
     .some(ErrorType => error instanceof ErrorType);
 }
 
-export function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): DiscoveredTheme {
+export function findThemeOrThrow({ routeDeps, themeId }: { routeDeps: ThemeToolDeps; themeId: string }, _optional = {}): DiscoveredTheme {
   const theme = routeDeps.themes.find((t) => t.manifest.id === themeId);
   if (!theme) {
     const known = routeDeps.themes.map((t) => t.manifest.id).join(", ") || "(none discovered)";
-    throw new ThemeNotFoundError(`theme '${themeId}' was not found — discovered themes are: ${known}. Create it first with theme_duplicate, then retry.`);
+    throw new ThemeNotFoundError({ message: `theme '${themeId}' was not found — discovered themes are: ${known}. Create it first with theme_duplicate, then retry.` });
   }
   return theme;
 }
@@ -150,30 +150,24 @@ export function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): Dis
  * would have a second, unaudited way to mutate what is supposed to be inert, already-soft-deleted
  * content.
  */
-export function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): void {
+export function assertThemeFileWritable({ theme, relativePath }: { theme: DiscoveredTheme; relativePath: string }, _optional = {}): void {
   const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
   if (writeScope.kind === "generated-readonly") {
-    throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
+    throw new ThemeFileReadOnlyError({ message: `'${relativePath}' is read-only: ${writeScope.reason}` });
   }
   if (isGeneratedThemePath({ relativePath })) {
-    throw new ThemeFileReadOnlyError(
-      `'${relativePath}' is read-only: this file is generated output (build-preview.mjs's own preview tree); it is not real theme source and is silently overwritten on the next preview build — edit the file it derives from instead`
-    );
+    throw new ThemeFileReadOnlyError({ message: `'${relativePath}' is read-only: this file is generated output (build-preview.mjs's own preview tree); it is not real theme source and is silently overwritten on the next preview build — edit the file it derives from instead` });
   }
-  if (isTrashedThemePath(relativePath)) {
-    throw new ThemeFileReadOnlyError(
-      `'${relativePath}' is inside the trash and cannot be written to directly — restore it first with theme_restore_trashed_file`
-    );
+  if (isTrashedThemePath({ relativePath })) {
+    throw new ThemeFileReadOnlyError({ message: `'${relativePath}' is inside the trash and cannot be written to directly — restore it first with theme_restore_trashed_file` });
   }
   // Same disjoint sourceDir rule `explore.ts`'s HTTP PUT route enforces (`isPutWritable`): inside a
   // compiled theme's `build.sourceDir`, ONLY the framework-source extension allowlist decides —
   // falling back to the group-based checks above would silently readmit an extension (e.g. `.js`)
   // the sourceDir allowlist exists to exclude. Without this, `theme_write_file`/`theme_edit_file`
   // could write straight past the PUT route's own gate on the identical compiled-theme path.
-  if (isInsideCompiledSourceDir(theme, relativePath, writeScope) && !isSourceDirWritableExtension(relativePath)) {
-    throw new ThemeFileReadOnlyError(
-      `'${relativePath}' is read-only: only framework source extensions can be written inside a compiled theme's build.sourceDir`
-    );
+  if (isInsideCompiledSourceDir({ theme, relativePath, writeScope }) && !isSourceDirWritableExtension({ relativePath })) {
+    throw new ThemeFileReadOnlyError({ message: `'${relativePath}' is read-only: only framework source extensions can be written inside a compiled theme's build.sourceDir` });
   }
 }
 
@@ -185,7 +179,7 @@ export function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: st
  * page view). Returns the reloaded theme so the caller can report its `status`/`errors` in the same
  * turn.
  */
-export function reloadThemeInPlace(routeDeps: ThemeRosterDeps, theme: DiscoveredTheme, themeId: string): DiscoveredTheme {
+export function reloadThemeInPlace({ routeDeps, theme, themeId }: { routeDeps: ThemeRosterDeps; theme: DiscoveredTheme; themeId: string }, _optional = {}): DiscoveredTheme {
   const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
   const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index >= 0) routeDeps.themes[index] = reloaded;
@@ -211,7 +205,7 @@ export function trashThemeFile(
   _options: Record<string, never> = {},
 ): { trashedPath: string; reloaded: DiscoveredTheme } {
   const themeId = theme.manifest.id;
-  if (isTrashedThemePath(relativePath)) {
+  if (isTrashedThemePath({ relativePath })) {
     throw new ThemePathError({ message: `'${relativePath}' was moved to the theme's trash; restore with theme_restore_trashed_file using themeId '${themeId}' and trashedPath '${relativePath}'` });
   }
 
@@ -221,11 +215,11 @@ export function trashThemeFile(
   // `agent-tools.ts`'s header — losing a required file still drops the theme to 'invalid',
   // and nothing tracks what still references a script/other file by its old location).
   const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
-  const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
-  if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+  const lock = validateFileIdentityChange({ theme, path: relativePath, writeScope, action: "trashed" });
+  if (lock) throw new ThemeFileIdentityLockedError({ message: lock.error });
 
   const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
-  const trashedPath = trashDestinationFor(relativePath, existingPaths);
+  const trashedPath = trashDestinationFor({ relativePath }, { existingPaths });
   // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
   // sits at the theme's ROOT, which is only "editable" for an authored theme.
   // For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither
@@ -234,12 +228,10 @@ export function trashThemeFile(
   // "restore the generated tree" call would wipe it without warning.
   const trashWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: trashedPath });
   if (trashWriteScope.kind === "generated-readonly") {
-    throw new ThemeFileReadOnlyError(
-      `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into`
-    );
+    throw new ThemeFileReadOnlyError({ message: `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into` });
   }
 
   renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath: relativePath, destPath: trashedPath });
-  const reloaded = reloadThemeInPlace(deps, theme, themeId);
+  const reloaded = reloadThemeInPlace({ routeDeps: deps, theme, themeId });
   return { trashedPath, reloaded };
 }

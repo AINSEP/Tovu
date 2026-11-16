@@ -378,9 +378,9 @@ test("a failure writing the stored original removes the copy too — never a cop
 });
 
 test("themeIdFromName folds diacritics and punctuation into single hyphens", () => {
-  assert.equal(themeIdFromName("  Café — Noir!! "), "cafe-noir");
-  assert.equal(themeIdFromName("***"), "");
-  assert.equal(themeIdFromName("a".repeat(60)).length, 48);
+  assert.equal(themeIdFromName({ name: "  Café — Noir!! " }), "cafe-noir");
+  assert.equal(themeIdFromName({ name: "***" }), "");
+  assert.equal(themeIdFromName({ name: "a".repeat(60) }).length, 48);
 });
 
 /** Refusal with both the specific code and the message that names what failed. */

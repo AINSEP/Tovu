@@ -38,7 +38,7 @@ function stripVariantPrefix({ request, path }: { request: Request; path: string 
 
 async function preparePreviewPage({ request, response, deps }: { request: Request; response: Response; deps: RouteDeps }, _options = {}): Promise<PreviewPage | undefined> {
   // The preview reader handles missing defaults; a title pin must never block a public page.
-  const active = resolveActiveTheme(deps, await resolveActiveThemeId(deps));
+  const active = resolveActiveTheme({ deps, activeThemeId: await resolveActiveThemeId(deps) });
   if (!active || typeof active === "string") return undefined;
   const activeThemeId = active.manifest.id;
   const config = await readPreviewSwitcher({ ...deps, activeThemeId });

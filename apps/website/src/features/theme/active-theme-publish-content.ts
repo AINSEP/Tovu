@@ -43,17 +43,17 @@ export interface ActiveThemeRow {
 type Ports = PublishContentPorts["active-theme"];
 
 /** @complexity O(themes). */
-function installedTheme(ports: Ports, themeId: string): DiscoveredTheme | undefined {
+function installedTheme({ ports, themeId }: { ports: Ports; themeId: string }, _optional = {}): DiscoveredTheme | undefined {
   return ports.themes.find((t) => t.status === "valid" && themeIdCandidates({ id: themeId }).includes(t.manifest.id));
 }
 
 /** @complexity O(1). */
-function treeOf(theme: DiscoveredTheme | undefined): string | null {
+function treeOf({ theme }: { theme: DiscoveredTheme | undefined }, _optional = {}): string | null {
   return theme ? `${path.basename(path.dirname(theme.dir))}/${path.basename(theme.dir)}` : null;
 }
 
 /** @complexity O(1). */
-function nameOf(theme: DiscoveredTheme | undefined): string | null {
+function nameOf({ theme }: { theme: DiscoveredTheme | undefined }, _optional = {}): string | null {
   const name: unknown = theme?.manifest.name;
   return typeof name === "string" && name.trim().length > 0 ? name.trim() : null;
 }
@@ -64,12 +64,12 @@ async function findActiveTheme({ ports, workspaceId, id }: { ports: Ports; works
   const record = await ports.presentation.findByWorkspaceId({ workspaceId });
   if (!record) return null;
   const themeId = RENAMED_THEME_IDS[record.activeThemeId] ?? record.activeThemeId;
-  const theme = installedTheme(ports, themeId);
-  return { id, label: themeId, themeId, tree: treeOf(theme), themeName: nameOf(theme), version: Date.parse(record.updatedAt) || 0 };
+  const theme = installedTheme({ ports, themeId });
+  return { id, label: themeId, themeId, tree: treeOf({ theme }), themeName: nameOf({ theme }), version: Date.parse(record.updatedAt) || 0 };
 }
 
 /** Plain refusal, rewritten for the owner by `ui/report-rows.ts`. */
-const notInstalled = (themeId: string) => `active theme '${themeId}' is not installed at this destination`;
+const notInstalled = ({ themeId }: { themeId: string }, _optional = {}) => `active theme '${themeId}' is not installed at this destination`;
 
 export const contributeActiveThemePublish = (): PublishContentContributor =>
   createRepoPublishHandler<ActiveThemeRow, Ports>({
@@ -85,7 +85,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
     find: ({ ports, workspaceId, id }) => findActiveTheme({ ports, workspaceId, id }),
     fields: { id: "local", label: "provenance", themeId: "transferred", tree: "provenance", themeName: "local", version: "local" },
     // The dialog names the row "Tovu Theme", not the id `label` still packs (so hashes stay put).
-    displayLabel: (row) => row.themeName ?? undefined,
+    displayLabel: ({ row }, _optional = {}) => row.themeName ?? undefined,
     references: ({ entity }) => (typeof entity.state.tree === "string" ? [{ entityType: "theme-files", key: entity.state.tree }] : []),
     write: async ({ ports, deps, workspaceId, state, principalId }) => {
       const themeId = state.themeId as string;
@@ -96,7 +96,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
       }
       const available = writableThemeIds({ themes: [...ports.themes] });
       const activeThemeId = themeIdCandidates({ id: themeId }).find((candidate) => available.includes(candidate));
-      if (!activeThemeId) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: notInstalled(themeId) });
+      if (!activeThemeId) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: notInstalled({ themeId }) });
       const { settings } = await setActiveTheme({
         deps: { repo: ports.presentation, clock: deps.clock, availableThemeIds: available },
         input: { workspaceId, activeThemeId },

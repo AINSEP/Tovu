@@ -40,10 +40,10 @@ export function protectThemeFileTools(
           const relativePath = requireString({ input, key: 'path' });
           await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId,
             principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: 'theme', entityId: themeId });
-          return withSchemaOnRejection({ toolId, catalog, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+          return withSchemaOnRejection({ toolId, catalog, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
             syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
-            const theme = findThemeOrThrow(deps, themeId);
-            assertThemeFileWritable(theme, relativePath);
+            const theme = findThemeOrThrow({ routeDeps: deps, themeId });
+            assertThemeFileWritable({ theme, relativePath });
             const file = { themeDir: theme.dir, themesRoot: deps.themesDir, relativePath };
             if (toolId === 'theme_write_file') validateThemeFileWrite({ ...file, content: requireString({ input, key: 'content' }) }, { overwriteOversized: input.overwriteOversized === true });
             return { file, ...readThemeFileVersion(file) };

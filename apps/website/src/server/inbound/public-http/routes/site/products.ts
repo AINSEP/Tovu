@@ -75,7 +75,7 @@ export const registerProductRoutes = (app: import("express").IRouter, deps: Comm
         resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveSiteTitleForRender(deps),
       ]);
-      const resolved = resolveActiveTheme(deps, activeThemeId);
+      const resolved = resolveActiveTheme({ deps, activeThemeId });
       if (resolved === null) {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
@@ -107,7 +107,7 @@ export const registerProductRoutes = (app: import("express").IRouter, deps: Comm
         resolveSiteAssistantWidgetForRequest({ request: req, deps }),
         resolveSiteTitleForRender(deps),
       ]);
-      const resolved = resolveActiveTheme(deps, activeThemeId);
+      const resolved = resolveActiveTheme({ deps, activeThemeId });
       if (resolved === null) {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;

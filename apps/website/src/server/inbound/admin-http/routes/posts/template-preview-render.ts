@@ -156,7 +156,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
     deps: { repo: deps.presentationRepo },
     input: { workspaceId: deps.workspaceId },
   });
-  const resolved = resolveActiveTheme(deps, settings.activeThemeId);
+  const resolved = resolveActiveTheme({ deps, activeThemeId: settings.activeThemeId });
   if (resolved === null) {
     throw new TemplatePreviewRenderError({ status: 500, message: "no themes installed" });
   }

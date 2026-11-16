@@ -73,13 +73,13 @@ function convertEngineField(raw: Record<string, unknown>, tier: ThemeTier): Reco
  * under the project's own disk location, not `/tmp`). A sibling directory is guaranteed same-filesystem
  * by construction, so the final atomic-replace rename below can never throw `EXDEV`.
  */
-function createStagingDir(themeDir: string, id: string): string {
+function createStagingDir({ themeDir, id }: { themeDir: string; id: string }, _optional = {}): string {
   const stagingDir = join(dirname(themeDir), `${MIGRATION_STAGING_DIR_PREFIX}${id}-${randomBytes(6).toString("hex")}`);
   mkdirSync(stagingDir, { recursive: true });
   return stagingDir;
 }
 
-function readRawManifest(themeDir: string): Record<string, unknown> {
+function readRawManifest({ themeDir }: { themeDir: string }, _optional = {}): Record<string, unknown> {
   const raw: unknown = JSON.parse(readFileSync(join(themeDir, "theme.json"), "utf8"));
   if (!isObject(raw)) throw new Error(`${themeDir}/theme.json is not a JSON object`);
   return raw;
@@ -91,7 +91,7 @@ function readRawManifest(themeDir: string): Record<string, unknown> {
  * to exist by the planner. Directories are created as needed — `cpSync` on a single file does not
  * create missing parent directories on its own.
  */
-function applyMoves(themeDir: string, stagingDir: string, plan: ThemeMigrationPlan): void {
+function applyMoves({ themeDir, stagingDir, plan }: { themeDir: string; stagingDir: string; plan: ThemeMigrationPlan }, _optional = {}): void {
   for (const move of plan.moves) {
     const destination = join(stagingDir, move.to);
     mkdirSync(dirname(destination), { recursive: true });
@@ -115,7 +115,7 @@ function applyMoves(themeDir: string, stagingDir: string, plan: ThemeMigrationPl
  * Neither the validator nor `loadTheme()` catches a missing one (both are optional, lazy-loaded), so
  * the loss was invisible until someone diffed a migrated theme against its v1 backup by hand.
  */
-function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
+function copyCarryOverFiles({ themeDir, stagingDir }: { themeDir: string; stagingDir: string }, _optional = {}): void {
   const tokensSource = join(themeDir, "tokens.json");
   if (existsSync(tokensSource)) cpSync(tokensSource, join(stagingDir, "tokens.json"));
 
@@ -142,7 +142,7 @@ function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
  * @complexity O(f * r) in the theme's own `render/`-bound file count times its (small, fixed)
  * rewrite-rule count.
  */
-function applyAssetPathRewrites(stagingDir: string, id: string, plan: ThemeMigrationPlan): void {
+function applyAssetPathRewrites({ stagingDir, id, plan }: { stagingDir: string; id: string; plan: ThemeMigrationPlan }, _optional = {}): void {
   const rules = plan.assetPathRewrites;
   if (!rules || rules.length === 0) return;
   for (const move of plan.moves) {
@@ -166,7 +166,7 @@ function applyAssetPathRewrites(stagingDir: string, id: string, plan: ThemeMigra
  *
  * @complexity O(n) over `html`'s length — two regex passes.
  */
-export function rewriteStaticAssetHtml(html: string): string {
+export function rewriteStaticAssetHtml({ html }: { html: string }, _optional = {}): string {
   return html
     .replace(/href=(["'])\.\.\/css\/styles\.css\1/g, (_match, quote: string) => `href=${quote}../css/theme.css${quote}`)
     .replace(/src=(["'])\.\.\/js\//g, (_match, quote: string) => `src=${quote}../scripts/`);
@@ -189,12 +189,12 @@ export function rewriteStaticAssetHtml(html: string): string {
  *
  * @complexity O(f) in the theme's own `render/`-bound file count — one read/replace/write pass.
  */
-function rewriteRelativeStaticAssetReferences(stagingDir: string, plan: ThemeMigrationPlan): void {
+function rewriteRelativeStaticAssetReferences({ stagingDir, plan }: { stagingDir: string; plan: ThemeMigrationPlan }, _optional = {}): void {
   for (const move of plan.moves) {
     if (!move.to.startsWith("render/")) continue;
     const filePath = join(stagingDir, move.to);
     const original = readFileSync(filePath, "utf8");
-    const rewritten = rewriteStaticAssetHtml(original);
+    const rewritten = rewriteStaticAssetHtml({ html: original });
     if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
   }
 }
@@ -225,8 +225,8 @@ type MigrationPlanResult =
  * `apiVersion: 2` (idempotent), build the tier's move plan, and refuse an unrecognized root-level
  * file — all read-only, the real theme directory is never touched here.
  */
-function resolveMigrationPlan(themeDir: string): MigrationPlanResult {
-  const raw = readRawManifest(themeDir);
+function resolveMigrationPlan({ themeDir }: { themeDir: string }, _optional = {}): MigrationPlanResult {
+  const raw = readRawManifest({ themeDir });
   if (raw.apiVersion === 2) return { status: "already-migrated" };
 
   const tier = typeof raw.tier === "string" ? (raw.tier as ThemeTier) : "declarative";
@@ -261,18 +261,12 @@ interface StagedMigration {
  * output two ways (structural validation AND a real `loadTheme()` call). The real theme directory
  * is never touched here.
  */
-function stageAndVerifyMigration(
-  themeDir: string,
-  id: string,
-  raw: Record<string, unknown>,
-  tier: ThemeTier,
-  plan: ThemeMigrationPlan
-): StagedMigration {
-  const stagingDir = createStagingDir(themeDir, id);
-  applyMoves(themeDir, stagingDir, plan);
-  copyCarryOverFiles(themeDir, stagingDir);
-  applyAssetPathRewrites(stagingDir, id, plan);
-  rewriteRelativeStaticAssetReferences(stagingDir, plan);
+function stageAndVerifyMigration({ themeDir, id, raw, tier, plan }: { themeDir: string; id: string; raw: Record<string, unknown>; tier: ThemeTier; plan: ThemeMigrationPlan }, _optional = {}): StagedMigration {
+  const stagingDir = createStagingDir({ themeDir, id });
+  applyMoves({ themeDir, stagingDir, plan });
+  copyCarryOverFiles({ themeDir, stagingDir });
+  applyAssetPathRewrites({ stagingDir, id, plan });
+  rewriteRelativeStaticAssetReferences({ stagingDir, plan });
   writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw, tier), null, 2) + "\n", "utf8");
 
   const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });
@@ -286,7 +280,7 @@ function stageAndVerifyMigration(
  * (staging directory left on disk either way); otherwise, on verification success, atomically
  * replaces the real theme directory with the staged one, keeping a timestamped v1 backup.
  */
-function finalizeMigration(themeDir: string, id: string, plan: ThemeMigrationPlan, staged: StagedMigration, dryRun: boolean): MigrateThemeResult {
+function finalizeMigration({ themeDir, id, plan, staged, dryRun }: { themeDir: string; id: string; plan: ThemeMigrationPlan; staged: StagedMigration; dryRun: boolean }, _optional = {}): MigrateThemeResult {
   const { stagingDir, validation, loadErrors, loadValid } = staged;
 
   if (dryRun) {
@@ -353,7 +347,7 @@ export function migrateThemeToV2(
   const { themeDir, id } = required;
   const { dryRun = false } = optional;
 
-  const planResult = resolveMigrationPlan(themeDir);
+  const planResult = resolveMigrationPlan({ themeDir });
   if (planResult.status === "already-migrated") {
     return { themeId: id, status: "already-migrated" };
   }
@@ -364,13 +358,13 @@ export function migrateThemeToV2(
     return { themeId: id, status: "failed", plan: planResult.plan, reason: planResult.reason };
   }
 
-  const staged = stageAndVerifyMigration(themeDir, id, planResult.raw, planResult.tier, planResult.plan);
-  return finalizeMigration(themeDir, id, planResult.plan, staged, dryRun);
+  const staged = stageAndVerifyMigration({ themeDir, id, raw: planResult.raw, tier: planResult.tier, plan: planResult.plan });
+  return finalizeMigration({ themeDir, id, plan: planResult.plan, staged, dryRun });
 }
 
 /** Test/CLI convenience — remove a `staged-dry-run`/`failed` run's leftover staging directory once a
  * caller is done inspecting it. Never call this on a `migrated` result's `outputDir` (that's the real
  * theme directory) or its `backupDir` (the v1 rollback copy). */
-export function cleanupMigrationOutput(outputDir: string): void {
+export function cleanupMigrationOutput({ outputDir }: { outputDir: string }, _optional = {}): void {
   rmSync(outputDir, { recursive: true, force: true });
 }

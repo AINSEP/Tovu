@@ -28,7 +28,7 @@ export function registerCommerceHttp({ app, deps }: { app: Express; deps: RouteD
   const storefront = express.Router();
   registerCommerceRoutes({ app: storefront, deps: { ...deps, renderCommercePage: async ({ res, title, body }) => {
     const [themeId, siteTitle] = await Promise.all([resolveRenderThemeId(res, deps), resolveSiteTitleForRender(deps)]);
-    const resolved = resolveActiveTheme(deps, themeId);
+    const resolved = resolveActiveTheme({ deps, activeThemeId: themeId });
     // Payment status remains readable even when no theme is installed.
     return pageShell({ title: `${title} | ${siteTitle}`, theme: resolved === NO_THEME_ID ? null : resolved, body });
   } } });

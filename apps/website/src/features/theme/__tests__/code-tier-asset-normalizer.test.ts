@@ -145,15 +145,15 @@ test("rewriteBundlerHtml throws loudly, not silently, when the plain tag shape i
 });
 
 test("rewriteCssRelativeUrls prepends ../ to a bare relative url() reference", () => {
-  assert.equal(rewriteCssRelativeUrls("body{background:url(favicon.ico)}"), "body{background:url(../favicon.ico)}");
+  assert.equal(rewriteCssRelativeUrls({ cssContent: "body{background:url(favicon.ico)}" }), "body{background:url(../favicon.ico)}");
 });
 
 test("rewriteCssRelativeUrls prepends ../ to an already-../-prefixed url(), preserving quotes", () => {
   assert.equal(
-    rewriteCssRelativeUrls("@font-face{src:url('../fonts/x.woff2')}"),
+    rewriteCssRelativeUrls({ cssContent: "@font-face{src:url('../fonts/x.woff2')}" }),
     "@font-face{src:url('../../fonts/x.woff2')}"
   );
-  assert.equal(rewriteCssRelativeUrls('div{background:url("media/logo.png")}'), 'div{background:url("../media/logo.png")}');
+  assert.equal(rewriteCssRelativeUrls({ cssContent: 'div{background:url("media/logo.png")}' }), 'div{background:url("../media/logo.png")}');
 });
 
 test("rewriteCssRelativeUrls leaves scheme, root-relative, protocol-relative, fragment, and empty urls untouched", () => {
@@ -166,7 +166,7 @@ test("rewriteCssRelativeUrls leaves scheme, root-relative, protocol-relative, fr
     "url()",
   ];
   for (const css of untouchedCases) {
-    assert.equal(rewriteCssRelativeUrls(css), css, css);
+    assert.equal(rewriteCssRelativeUrls({ cssContent: css }), css, css);
   }
 });
 

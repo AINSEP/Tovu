@@ -244,7 +244,7 @@ test("cross-process: a theme another process created resolves on the server's ne
   const warnings: string[] = [];
   t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
   await request("/");
-  const resolved = resolveActiveTheme({ themes }, "editorial-rose");
+  const resolved = resolveActiveTheme({ deps: { themes }, activeThemeId: "editorial-rose" });
   assert.notEqual(resolved, null);
   assert.equal(typeof resolved === "object" && resolved?.manifest.id, "editorial-rose");
   assert.deepEqual(warnings, [], "the active theme must resolve without a fallback warning");

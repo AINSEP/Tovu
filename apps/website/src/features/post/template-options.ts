@@ -26,6 +26,6 @@ export async function readPostTemplateOptions(
 ): Promise<string[]> {
   if (!deps.presentationRepo || !deps.themes) return [];
   const activeId = await resolveActiveThemeId({ workspaceId: deps.workspaceId, presentationRepo: deps.presentationRepo });
-  const theme = resolveActiveTheme({ themes: deps.themes }, activeId);
+  const theme = resolveActiveTheme({ deps: { themes: deps.themes }, activeThemeId: activeId });
   return applicableThemeTemplates({ manifest: theme && theme !== NO_THEME_ID ? theme.manifest : undefined, kind });
 }

@@ -834,7 +834,7 @@ export function renderStaticPage(
   html = injectCollectionEmbeds({ html, lists: collectionLists ?? new Map() });
   html = injectFeaturedImage({ html, image: featuredImage });
   html = injectPostAuthor({ html, post: postAuthor });
-  html = withEntryListStyleOnce(html);
+  html = withEntryListStyleOnce({ html });
   html = rewritePageLinks({ html });
   return injectMenuDropdownScript({ html: injectListingScript({ html }) });
 }

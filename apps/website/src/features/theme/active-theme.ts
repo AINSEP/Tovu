@@ -154,7 +154,7 @@ export type ActiveThemeResolution = DiscoveredTheme | typeof NO_THEME_ID | null;
  *
  * @complexity O(n) over the discovered-theme list (three linear scans in the worst case).
  */
-export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeId: string): ActiveThemeResolution {
+export function resolveActiveTheme({ deps, activeThemeId }: { deps: ActiveThemeResolutionDeps; activeThemeId: string }, _optional = {}): ActiveThemeResolution {
   if (activeThemeId === NO_THEME_ID) return NO_THEME_ID;
 
   const active = findStoredTheme({ themes: deps.themes, id: activeThemeId });
@@ -170,6 +170,11 @@ export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeI
     }
   }
 
+  return substituteFirstTheme({ deps, activeThemeId });
+}
+
+/** Last resort of {@link resolveActiveTheme}: the first valid theme (else the first at all, else `null`), with the warning. */
+function substituteFirstTheme({ deps, activeThemeId }: { deps: ActiveThemeResolutionDeps; activeThemeId: string }, _optional = {}): ActiveThemeResolution {
   const substitute = deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
   console.warn(
     substitute === null

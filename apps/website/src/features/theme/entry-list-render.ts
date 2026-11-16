@@ -125,7 +125,7 @@ function renderFieldRow(field: EntryListFieldValue): string {
 }
 
 /** The title element shared by cards and list items: linked only when `href` is non-null (D1). */
-function renderTitle(item: EntryListItem, tag: "h3"): string {
+function renderTitle({ item, tag }: { item: EntryListItem; tag: "h3" }, _optional = {}): string {
   const title = escapeHtml(item.title);
   const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref({ value: item.href }))}">${title}</a>`;
   return `<${tag} class="entry-card__title">${inner}</${tag}>`;
@@ -135,13 +135,13 @@ function renderTitle(item: EntryListItem, tag: "h3"): string {
  * none — matching the empty-`fields` case producing no empty `<dl></dl>`. */
 function renderCard(item: EntryListItem): string {
   const fields = item.fields.length === 0 ? "" : `<dl class="entry-card__fields">${item.fields.map(renderFieldRow).join("")}</dl>`;
-  return `<article class="entry-card">${renderTitle(item, "h3")}${fields}</article>`;
+  return `<article class="entry-card">${renderTitle({ item, tag: "h3" })}${fields}</article>`;
 }
 
 /** One list item: same title/fields content as a card, without the `<article>`/card wrapper. */
 function renderListItem(item: EntryListItem): string {
   const fields = item.fields.length === 0 ? "" : `<dl class="entry-card__fields">${item.fields.map(renderFieldRow).join("")}</dl>`;
-  return `<li class="entry-list__item">${renderTitle(item, "h3")}${fields}</li>`;
+  return `<li class="entry-list__item">${renderTitle({ item, tag: "h3" })}${fields}</li>`;
 }
 
 /** An item's displayed field values that are not empty, formatted the way the visible list shows them. */
@@ -181,7 +181,7 @@ function renderFaqPageJsonLd(items: readonly EntryListItem[]): string {
  * placeholders — including a `{{fields.<name>}}` naming a field this entry doesn't carry — resolve to
  * `""` rather than throwing, so one theme's differently-shaped entries never break another's template.
  */
-function resolvePlaceholderRawValue(key: string, item: EntryListItem): string {
+function resolvePlaceholderRawValue({ key, item }: { key: string; item: EntryListItem }, _optional = {}): string {
   if (key === "title") return item.title;
   if (key === "url") return item.href ?? "";
   if (key === "date") return item.dateLabel;
@@ -219,13 +219,13 @@ type PlaceholderEscape = (raw: string) => string;
 
 /** Substitutes every `{{...}}` placeholder in `text` with its resolved raw value for `item`, each
  * passed through `transform` before insertion. One `replace` pass, so inserted text is never rescanned. */
-function substitutePlaceholders(text: string, item: EntryListItem, transform: PlaceholderEscape): string {
-  return text.replace(PLACEHOLDER_PATTERN, (_match, key: string) => transform(resolvePlaceholderRawValue(key, item)));
+function substitutePlaceholders({ text, item, transform }: { text: string; item: EntryListItem; transform: PlaceholderEscape }, _optional = {}): string {
+  return text.replace(PLACEHOLDER_PATTERN, (_match, key: string) => transform(resolvePlaceholderRawValue({ key, item })));
 }
 
 /** Entity-encodes the characters that end or split an UNQUOTED attribute value (whitespace, `=`,
  * backtick) on top of {@link escapeHtml}, so an entry value there cannot start a second attribute. */
-function escapeForUnquotedAttribute(raw: string): string {
+function escapeForUnquotedAttribute({ raw }: { raw: string }, _optional = {}): string {
   return escapeHtml(raw).replace(/[\s=`]/g, (char) => `&#${char.codePointAt(0)};`);
 }
 
@@ -237,10 +237,10 @@ function escapeForUnquotedAttribute(raw: string): string {
  *
  * @complexity O(n) over the value's length (two placeholder passes).
  */
-function renderUrlAttributeValue(value: string, item: EntryListItem, escapeValue: PlaceholderEscape): string {
-  const composed = substitutePlaceholders(value, item, (raw) => raw);
+function renderUrlAttributeValue({ value, item, escapeValue }: { value: string; item: EntryListItem; escapeValue: PlaceholderEscape }, _optional = {}): string {
+  const composed = substitutePlaceholders({ text: value, item, transform: (raw) => raw });
   if (safeHref({ value: composed }) !== composed.trim()) return "#";
-  return substitutePlaceholders(value, item, escapeValue);
+  return substitutePlaceholders({ text: value, item, transform: escapeValue });
 }
 
 /**
@@ -256,27 +256,27 @@ function renderTemplateAttribute(attribute: { name: string; equals: string; valu
   const { name, equals, value } = attribute;
   const quote = value.startsWith('"') || value.startsWith("'") ? value.charAt(0) : "";
   const inner = quote === "" ? value : value.slice(1, -1);
-  const escapeValue: PlaceholderEscape = quote === "" ? escapeForUnquotedAttribute : escapeHtml;
-  return `${name}${equals}${quote}${fillAttributeValue(name.toLowerCase(), inner, item, escapeValue)}${quote}`;
+  const escapeValue: PlaceholderEscape = quote === "" ? (raw: string) => escapeForUnquotedAttribute({ raw }) : escapeHtml;
+  return `${name}${equals}${quote}${fillAttributeValue({ lowerName: name.toLowerCase(), inner, item, escapeValue })}${quote}`;
 }
 
 /** {@link renderTemplateAttribute}'s per-name rule, split out to keep each function's branching small. */
-function fillAttributeValue(lowerName: string, inner: string, item: EntryListItem, escapeValue: PlaceholderEscape): string {
-  if (lowerName.startsWith("on") || lowerName === "srcdoc") return substitutePlaceholders(inner, item, () => "");
-  if (URL_ATTRIBUTE_NAMES.has(lowerName) && HAS_PLACEHOLDER.test(inner)) return renderUrlAttributeValue(inner, item, escapeValue);
-  return substitutePlaceholders(inner, item, escapeValue);
+function fillAttributeValue({ lowerName, inner, item, escapeValue }: { lowerName: string; inner: string; item: EntryListItem; escapeValue: PlaceholderEscape }, _optional = {}): string {
+  if (lowerName.startsWith("on") || lowerName === "srcdoc") return substitutePlaceholders({ text: inner, item, transform: () => "" });
+  if (URL_ATTRIBUTE_NAMES.has(lowerName) && HAS_PLACEHOLDER.test(inner)) return renderUrlAttributeValue({ value: inner, item, escapeValue });
+  return substitutePlaceholders({ text: inner, item, transform: escapeValue });
 }
 
 /** Fills one opening tag's placeholders attribute by attribute ({@link renderTemplateAttribute}); a
  * placeholder in an attribute-name position gets the unquoted-value encoding. @complexity O(n). */
-function renderTemplateTag(tag: string, item: EntryListItem): string {
+function renderTemplateTag({ tag, item }: { tag: string; item: EntryListItem }, _optional = {}): string {
   return tag.replace(
     TAG_ATTRIBUTE_OR_PLACEHOLDER,
     // `name` is typed `string` with no `?? ""` fallback: TAG_ATTRIBUTE_OR_PLACEHOLDER's two
     // alternatives are exclusive, and the attribute alternative (the only one leaving `key`
     // undefined) always captures group 1, so `name` is defined whenever it is read.
     (_match, name: string, equals: string, value: string, key: string | undefined) =>
-      key === undefined ? renderTemplateAttribute({ name, equals, value }, item) : escapeForUnquotedAttribute(resolvePlaceholderRawValue(key, item))
+      key === undefined ? renderTemplateAttribute({ name, equals, value }, item) : escapeForUnquotedAttribute({ raw: resolvePlaceholderRawValue({ key, item }) })
   );
 }
 
@@ -289,9 +289,9 @@ function renderTemplateTag(tag: string, item: EntryListItem): string {
  *
  * @complexity O(n) over `template`'s length — one pass, plus one pass per opening tag over that tag.
  */
-function renderTemplateItem(template: string, item: EntryListItem): string {
+function renderTemplateItem({ template, item }: { template: string; item: EntryListItem }, _optional = {}): string {
   return template.replace(TEMPLATE_TAG_OR_PLACEHOLDER, (match, key: string | undefined) =>
-    key === undefined ? renderTemplateTag(match, item) : escapeHtml(resolvePlaceholderRawValue(key, item))
+    key === undefined ? renderTemplateTag({ tag: match, item }) : escapeHtml(resolvePlaceholderRawValue({ key, item }))
   );
 }
 
@@ -326,26 +326,26 @@ export function renderEntryListStructuredData(items: readonly EntryListItem[], o
 /** {@link renderEntryList}'s markup half, one branch per presentation. @complexity O(n · f). */
 function renderEntryListBody(items: readonly EntryListItem[], options: EntryListRenderOptions): string {
   const key = options.listingKey;
-  const wrap = (html: string) => (key === undefined ? html : wrapListingItems({ key, items: html }));
+  const wrap = ({ html }: { html: string }, _optional = {}) => (key === undefined ? html : wrapListingItems({ key, items: html }));
   if (options.template !== undefined) {
-    return wrap(items.map((item) => renderTemplateItem(options.template as string, item)).join(""));
+    return wrap({ html: items.map((item) => renderTemplateItem({ template: options.template as string, item })).join("") });
   }
   const typeClass = escapeHtml(options.typeKey);
   const marker = key === undefined ? "data-tovu-entry-list" : `data-tovu-entry-list data-jini-listing="${key}"`;
   if (options.layout === "list") {
-    return `<ul class="entry-list entry-list--${typeClass} entry-list--list" ${marker}>${wrap(items.map(renderListItem).join(""))}</ul>`;
+    return `<ul class="entry-list entry-list--${typeClass} entry-list--list" ${marker}>${wrap({ html: items.map(renderListItem).join("") })}</ul>`;
   }
   if (options.layout === "accordion") {
-    return `<div class="entry-list entry-list--${typeClass} entry-list--accordion" ${marker}>${wrap(items.map(renderAccordionItem).join(""))}</div>`;
+    return `<div class="entry-list entry-list--${typeClass} entry-list--accordion" ${marker}>${wrap({ html: items.map(renderAccordionItem).join("") })}</div>`;
   }
   if (options.layout === "carousel") {
     // `tabindex="0"`: an overflowing scroll container must be focusable or keyboard users cannot
     // scroll it (WCAG 2.1.1).
-    return `<div class="entry-list entry-list--${typeClass} entry-list--carousel" ${marker} tabindex="0">${wrap(items.map(renderCard).join(""))}</div>`;
+    return `<div class="entry-list entry-list--${typeClass} entry-list--carousel" ${marker} tabindex="0">${wrap({ html: items.map(renderCard).join("") })}</div>`;
   }
   return (
     `<div class="entry-list entry-list--${typeClass}" ${marker} style="--entry-list-columns:${options.columns}">` +
-    `${wrap(items.map(renderCard).join(""))}</div>`
+    `${wrap({ html: items.map(renderCard).join("") })}</div>`
   );
 }
 
@@ -366,7 +366,7 @@ function renderEntryListBody(items: readonly EntryListItem[], options: EntryList
  * present, or there is no `</head>` to insert before; otherwise `html` with the style spliced in.
  * @complexity O(n) over `html`'s length for the two substring scans plus the slice/concat.
  */
-export function withEntryListStyleOnce(html: string): string {
+export function withEntryListStyleOnce({ html }: { html: string }, _optional = {}): string {
   if (!html.includes("data-tovu-entry-list")) return html;
   if (html.includes(ENTRY_LIST_STYLE_OPEN_TAG)) return html;
   const headCloseIndex = html.indexOf("</head>");

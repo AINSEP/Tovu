@@ -729,7 +729,7 @@ function loadJsonTemplateFile({ templatesDir, templatesDirName, file, target }: 
 function loadLiquidTemplateFile({ templatesDir, templatesDirName, file, target }: { templatesDir: string; templatesDirName: string; file: string; target: { liquidTemplates: Record<string, string>; errors: string[] } }, _optional = {}): void {
   const templateId = file.slice(0, -".liquid".length);
   const source = readFileSync(join(templatesDir, file), "utf8");
-  const violations = lintLiquidTemplate(source);
+  const violations = lintLiquidTemplate({ source });
   if (violations.length > 0) {
     target.errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
   } else {
@@ -751,7 +751,7 @@ function loadHandlebarsTemplateFile({ templatesDir, templatesDirName, file, targ
   const ext = file.endsWith(".hbs") ? ".hbs" : ".handlebars";
   const templateId = file.slice(0, -ext.length);
   const source = readFileSync(join(templatesDir, file), "utf8");
-  const violations = lintHandlebarsTemplate(source);
+  const violations = lintHandlebarsTemplate({ source });
   if (violations.length > 0) {
     target.errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
   } else {
@@ -1033,13 +1033,13 @@ export function discoverAllBuiltInThemes(
  */
 export function nextAvailableThemeId(
   required: { desiredId: string; themesRoot: string; tier: ThemeTier },
-  optional: { alsoTaken?: (id: string) => boolean } = {}
+  optional: { alsoTaken?: (required: { id: string }, optional?: Record<string, never>) => boolean } = {}
 ): string {
   const { desiredId, themesRoot, tier } = required;
   const isTaken = ({ id }: { id: string }, _optional = {}): boolean =>
     existsSync(join(themesRoot, tier, id)) ||
     existsSync(join(themesRoot, THEME_CATALOG_DIR, tier, id)) ||
-    optional.alsoTaken?.(id) === true;
+    optional.alsoTaken?.({ id }) === true;
 
   if (!isTaken({ id: desiredId })) return desiredId;
 

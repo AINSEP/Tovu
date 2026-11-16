@@ -157,7 +157,7 @@ const RELOCATED_JS_EXTENSIONS: readonly string[] = [".js", ".mjs", ".js.map", ".
 /** One flat-output filename's relocation, or `null` if it stays exactly where the build put it — the
  *  per-entry classification `planAssetRelocation`'s loop applies. Split out so the loop itself carries
  *  none of the extension-matching branches. */
-function classifyAssetRelocation(name: string): AssetRelocation | null {
+function classifyAssetRelocation({ name }: { name: string }, _optional = {}): AssetRelocation | null {
   if (name.includes("/") || name.includes("\\")) {
     throw new RangeError(
       `planAssetRelocation expects a FLAT build-output root, but got '${name}' — a build whose output already has subdirectories is not the flat-output case this normalizer exists to fix; verify the build config (see this module's file header)`
@@ -177,7 +177,7 @@ export function planAssetRelocation(required: { fileNames: readonly string[] }, 
   const relocations: AssetRelocation[] = [];
 
   for (const name of fileNames) {
-    const relocation = classifyAssetRelocation(name);
+    const relocation = classifyAssetRelocation({ name });
     if (relocation) relocations.push(relocation);
   }
 
@@ -194,7 +194,7 @@ export function planAssetRelocation(required: { fileNames: readonly string[] }, 
  *
  * @complexity O(n) over `html`'s length — one regex scan per call.
  */
-function rewriteExactBareAttributeValue(html: string, attr: "href" | "src", fileName: string, replacementValue: string): string {
+function rewriteExactBareAttributeValue({ html, attr, fileName, replacementValue }: { html: string; attr: "href" | "src"; fileName: string; replacementValue: string }, _optional = {}): string {
   /** Escapes every regex metacharacter in `value` so it can be embedded literally inside a `RegExp` source
    * string — filenames are build output, not attacker input, but a `.` in `styles.css` must still match
    * only a literal dot, not "any character", or `stylesXcss` would wrongly match too. */
@@ -259,7 +259,7 @@ export function rewriteBundlerHtml(
     // `//# sourceMappingURL=` comment, never an `href=`/`src=` attribute), so this is a harmless no-op for
     // `.map` entries rather than a load-bearing rewrite.
     const attr = relocation.to.startsWith("css/") ? "href" : "src";
-    html = rewriteExactBareAttributeValue(html, attr, relocation.from, `../${relocation.to}`);
+    html = rewriteExactBareAttributeValue({ html, attr, fileName: relocation.from, replacementValue: `../${relocation.to}` });
   }
 
   return html;
@@ -293,7 +293,7 @@ function rewriteCssUrlSegment({ segment }: { segment: string }, _options = {}): 
     }
     const parsed = cssUrlContent({ segment, start, contentEnd, quotes, quoteIndex });
     if (parsed) {
-      if (!isRelativeCssUrl(parsed.rawUrl)) return segment;
+      if (!isRelativeCssUrl({ value: parsed.rawUrl })) return segment;
       return segment.slice(0, match.index) + `url(${parsed.quote}../${parsed.rawUrl}${parsed.quote}`;
     }
   }
@@ -316,7 +316,7 @@ function cssUrlContent({ segment, start, contentEnd, quotes, quoteIndex }: {
  * true for an ordinary relative path (`foo.png`, `../fonts/x.woff2`, `media/logo.png`), false for
  * anything already independent of the stylesheet's own location: a URL scheme (`data:`, `http:`, ...), a
  * protocol-relative (`//cdn...`) or root-relative (`/...`) path, a bare fragment (`#...`), or empty. */
-function isRelativeCssUrl(value: string): boolean {
+function isRelativeCssUrl({ value }: { value: string }, _optional = {}): boolean {
   if (value.length === 0) return false;
   if (value.startsWith("#")) return false;
   if (value.startsWith("/")) return false; // covers both root-relative '/x' and protocol-relative '//x'
@@ -334,7 +334,7 @@ function isRelativeCssUrl(value: string): boolean {
  *
  * @complexity O(n) over `cssContent`'s length — each segment and quote is scanned once.
  */
-export function rewriteCssRelativeUrls(cssContent: string): string {
+export function rewriteCssRelativeUrls({ cssContent }: { cssContent: string }, _optional = {}): string {
   const segments = cssContent.split(")");
   return segments.map((segment, index) => index === segments.length - 1
     ? segment : rewriteCssUrlSegment({ segment }) + ")").join("");
@@ -399,7 +399,7 @@ export function normalizeBuildOutputDirectory(
     mkdirSync(dirname(destination), { recursive: true });
     renameSync(join(outputDir, relocation.from), destination);
     if (relocation.from.endsWith(".css")) {
-      writeFileSync(destination, rewriteCssRelativeUrls(readFileSync(destination, "utf8")), "utf8");
+      writeFileSync(destination, rewriteCssRelativeUrls({ cssContent: readFileSync(destination, "utf8") }), "utf8");
     }
   }
 

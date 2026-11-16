@@ -29,17 +29,17 @@ test("fileExtension: a path with no dot after the last slash has no extension", 
   // `nextAvailableFileName`'s doc explicitly cross-references this exact rule (dot must fall AFTER
   // the last slash to count as the file's own extension), and `isSourceDirWritableExtension` is the
   // one real caller -- a sourceDir file like `Makefile` or `LICENSE` has no extension at all.
-  assert.equal(fileExtension("Makefile"), "");
-  assert.equal(fileExtension("src/LICENSE"), "");
+  assert.equal(fileExtension({ relativePath: "Makefile" }), "");
+  assert.equal(fileExtension({ relativePath: "src/LICENSE" }), "");
 });
 
 test("fileExtension: a dotfile/directory-with-a-dot before the last slash still has no extension", () => {
-  assert.equal(fileExtension("v1.0/README"), "");
+  assert.equal(fileExtension({ relativePath: "v1.0/README" }), "");
 });
 
 test("fileExtension: a real extension is lowercased and returned with its leading dot", () => {
-  assert.equal(fileExtension("pages/about.HTML"), ".html");
-  assert.equal(fileExtension("styles.css"), ".css");
+  assert.equal(fileExtension({ relativePath: "pages/about.HTML" }), ".html");
+  assert.equal(fileExtension({ relativePath: "styles.css" }), ".css");
 });
 
 test("nextAvailableFileName: a desired path with no existing collision is returned unchanged", () => {

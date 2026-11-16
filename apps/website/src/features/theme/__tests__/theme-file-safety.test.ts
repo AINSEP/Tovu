@@ -84,7 +84,7 @@ for (const { toolId, ext, fields, expected } of cases) {
     for (const name of ['a', 'b']) assert.deepEqual(fs.readFileSync(path.join(f.themeDir, `${name}.${ext}`)), expected);
     assert.equal(f.revisions().length, 2);
     for (const revision of f.revisions()) {
-      assert.match(originalPathFromTrashedPath(revision)!, new RegExp(`^[ab]\\.${ext}$`));
+      assert.match(originalPathFromTrashedPath({ trashedPath: revision })!, new RegExp(`^[ab]\\.${ext}$`));
       assert.deepEqual(fs.readFileSync(path.join(f.themeDir, revision)), before);
     }
   });
@@ -103,7 +103,7 @@ for (const { toolId, ext, fields, expected } of cases) {
       assert.deepEqual(fs.readFileSync(path.join(f.themeDir, `a.${ext}`)), expected);
       const revisions = f.revisions();
       assert.equal(revisions.length, 1);
-      assert.equal(originalPathFromTrashedPath(revisions[0]!), `a.${ext}`);
+      assert.equal(originalPathFromTrashedPath({ trashedPath: revisions[0]! }), `a.${ext}`);
       assert.deepEqual(fs.readFileSync(path.join(f.themeDir, revisions[0]!)), before);
     });
   }
@@ -163,7 +163,7 @@ test('theme replacement retains the newest 20 revisions per file and never prune
   fs.mkdirSync(path.dirname(manual), { recursive: true }); fs.writeFileSync(manual, 'manual trash');
   for (const relativePath of ['a.css', 'b.css']) {
     for (let i = 0; i < 25; i++) writeThemeFile({ themeDir: f.themeDir, themesRoot: f.root, relativePath, content: String(i) }, { now: () => 5_000 });
-    const revisions = f.revisions().filter(file => originalPathFromTrashedPath(file) === relativePath);
+    const revisions = f.revisions().filter(file => originalPathFromTrashedPath({ trashedPath: file }) === relativePath);
     const values = revisions.map(file => fs.readFileSync(path.join(f.themeDir, file), 'utf8'));
     assert.equal(values.length, 20, 'retention is bounded independently for each file');
     assert.deepEqual(values.sort((a, b) => Number(a) - Number(b)), Array.from({ length: 20 }, (_, i) => String(i + 4)));
@@ -226,6 +226,6 @@ test('a committed theme replacement reloads despite pruning failure and retries 
   assert.match(String(warnings[0]?.[0]), /File saved; revision cleanup failed/);
   pruning.mock.restore(); syncBuiltinESMExports();
   writeThemeFile({ themeDir: f.themeDir, themesRoot: f.root, relativePath: 'theme.json', content });
-  assert.equal(f.revisions().filter(file => originalPathFromTrashedPath(file) === 'theme.json').length, 20);
-  assert.equal(f.revisions().filter(file => originalPathFromTrashedPath(file) === 'a.css').length, 20);
+  assert.equal(f.revisions().filter(file => originalPathFromTrashedPath({ trashedPath: file }) === 'theme.json').length, 20);
+  assert.equal(f.revisions().filter(file => originalPathFromTrashedPath({ trashedPath: file }) === 'a.css').length, 20);
 });

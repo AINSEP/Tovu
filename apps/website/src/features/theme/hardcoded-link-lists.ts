@@ -28,7 +28,7 @@ const HREF_VALUE = /(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/y;
 /** `https:`, `mailto:`, `tel:`, `javascript:` … — not a link to a page of this site. */
 const URL_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 
-function isInternalHref(href: string): boolean {
+function isInternalHref({ href }: { href: string }, _optional = {}): boolean {
   const trimmed = href.trim();
   if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("//")) return false;
   // A templated href (`{{ url }}`, `{% … %}`) is already data-driven, not a hard-coded link.
@@ -37,7 +37,7 @@ function isInternalHref(href: string): boolean {
 }
 
 /** `html` with every comment, raw-text body and menu-marker element blanked to spaces, same length. */
-function maskMenusAndNonRenderable(html: string): string {
+function maskMenusAndNonRenderable({ html }: { html: string }, _optional = {}): string {
   let masked = maskNonRenderableRegions({ html });
   for (const marker of markersOfType({ html, type: MENU_MARKER_TYPE })) {
     masked = masked.slice(0, marker.index) + " ".repeat(marker.whole.length) + masked.slice(marker.index + marker.whole.length);
@@ -53,13 +53,13 @@ function maskMenusAndNonRenderable(html: string): string {
  */
 export function findHardcodedLinks({ html }: { html: string }, _optional: {} = {}): readonly string[] {
   const hrefs: string[] = [];
-  const masked = maskMenusAndNonRenderable(html);
+  const masked = maskMenusAndNonRenderable({ html });
   const anchors = new RegExp(ANCHOR_START);
   for (let anchor = anchors.exec(masked); anchor; anchor = anchors.exec(masked)) {
     const found = anchorHref({ html: masked, start: anchors.lastIndex });
     if (found) {
       anchors.lastIndex = found.end;
-      if (isInternalHref(found.href)) hrefs.push(found.href.trim());
+      if (isInternalHref({ href: found.href })) hrefs.push(found.href.trim());
     }
   }
   return hrefs;

@@ -61,7 +61,7 @@ export type DuplicateThemeErrorCode =
  *  one, so callers map it to a 4xx / a tool input error, never a 500. `ID_TAKEN` is a conflict. */
 export class DuplicateThemeError extends Error {
   readonly code: DuplicateThemeErrorCode;
-  constructor(code: DuplicateThemeErrorCode, message: string) {
+  constructor({ code, message }: { code: DuplicateThemeErrorCode; message: string }) {
     super(message);
     this.name = "DuplicateThemeError";
     this.code = code;
@@ -92,7 +92,7 @@ export interface DuplicateThemeOptions {
 function validateStructureSource(source: DiscoveredTheme, mode: DuplicateThemeOptions["mode"]): void {
   if (mode !== "structure-only") return;
   if (source.manifest.apiVersion === 2 && source.manifest.tier === "static" && source.manifest.build?.source !== "compiled") return;
-  throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", "Structure-only duplication needs an authored v2 static theme. Choose Tovu Starter, or use mode 'full' for an exact copy.");
+  throw new DuplicateThemeError({ code: "SOURCE_NOT_COPYABLE", message: "Structure-only duplication needs an authored v2 static theme. Choose Tovu Starter, or use mode 'full' for an exact copy." });
 }
 
 /**
@@ -101,7 +101,7 @@ function validateStructureSource(source: DiscoveredTheme, mode: DuplicateThemeOp
  * suffix inside {@link THEME_ID_PATTERN}'s 64). Empty when the name has no Latin letters/digits.
  * @complexity O(n) in the name length.
  */
-export function themeIdFromName(name: string): string {
+export function themeIdFromName({ name }: { name: string }, _optional = {}): string {
   return name
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
@@ -113,13 +113,13 @@ export function themeIdFromName(name: string): string {
 }
 
 /** Trimmed, length-checked, control-character-free display name, or a refusal. */
-function validateThemeName(newName: string): string {
+function validateThemeName({ newName }: { newName: string }, _optional = {}): string {
   const name = newName.trim();
-  if (name.length === 0) throw new DuplicateThemeError("INVALID_NAME", "newName must not be empty");
+  if (name.length === 0) throw new DuplicateThemeError({ code: "INVALID_NAME", message: "newName must not be empty" });
   if (name.length > MAX_THEME_NAME_LENGTH) {
-    throw new DuplicateThemeError("INVALID_NAME", `newName must be at most ${MAX_THEME_NAME_LENGTH} characters`);
+    throw new DuplicateThemeError({ code: "INVALID_NAME", message: `newName must be at most ${MAX_THEME_NAME_LENGTH} characters` });
   }
-  if ([...name].some(character => character.charCodeAt(0) < 0x20 || character.charCodeAt(0) === 0x7f)) throw new DuplicateThemeError("INVALID_NAME", "newName must not contain control characters");
+  if ([...name].some(character => character.charCodeAt(0) < 0x20 || character.charCodeAt(0) === 0x7f)) throw new DuplicateThemeError({ code: "INVALID_NAME", message: "newName must not contain control characters" });
   return name;
 }
 
@@ -134,23 +134,20 @@ function assignThemeId(
 ): string {
   const { source, themesRoot, name, takenIds } = required;
   const parentDir = dirname(source.dir);
-  const alsoTaken = (id: string): boolean => takenIds.has(id) || existsSync(join(parentDir, id));
-  const pick = (desiredId: string): string =>
+  const alsoTaken = ({ id }: { id: string }, _optional = {}): boolean => takenIds.has(id) || existsSync(join(parentDir, id));
+  const pick = ({ desiredId }: { desiredId: string }, _optional = {}): string =>
     nextAvailableThemeId({ desiredId, themesRoot, tier: source.manifest.tier }, { alsoTaken });
 
   if (optional.newId !== undefined) {
     if (!THEME_ID_PATTERN.test(optional.newId)) {
-      throw new DuplicateThemeError(
-        "INVALID_ID",
-        `newId '${optional.newId}' must be lowercase letters, digits and single hyphens (1-64 chars, no leading/trailing hyphen)`
-      );
+      throw new DuplicateThemeError({ code: "INVALID_ID", message: `newId '${optional.newId}' must be lowercase letters, digits and single hyphens (1-64 chars, no leading/trailing hyphen)` });
     }
-    if (pick(optional.newId) !== optional.newId) {
-      throw new DuplicateThemeError("ID_TAKEN", `theme id '${optional.newId}' is already taken — pick another newId, or omit it to get a free one`);
+    if (pick({ desiredId: optional.newId }) !== optional.newId) {
+      throw new DuplicateThemeError({ code: "ID_TAKEN", message: `theme id '${optional.newId}' is already taken — pick another newId, or omit it to get a free one` });
     }
     return optional.newId;
   }
-  return pick(themeIdFromName(name) || `${source.manifest.id}-copy`);
+  return pick({ desiredId: themeIdFromName({ name }) || `${source.manifest.id}-copy` });
 }
 
 /** One file to copy, relative to the theme folder (`/`-separated). */
@@ -174,7 +171,7 @@ interface ThemeCopyPlan {
  * `.trash/` is skipped: soft-deleted files are not part of the theme.
  * @complexity O(n) in the source's file count, one `lstat` each.
  */
-function planThemeCopy(sourceDir: string): ThemeCopyPlan {
+function planThemeCopy({ sourceDir }: { sourceDir: string }, _optional = {}): ThemeCopyPlan {
   const plan: ThemeCopyPlan = { files: [], dirs: [], bytes: 0 };
   planThemeFolder({ plan, absDir: sourceDir, relDir: "", depth: 0 });
   return plan;
@@ -188,7 +185,7 @@ function planThemeCopy(sourceDir: string): ThemeCopyPlan {
 function planThemeFolder(required: { plan: ThemeCopyPlan; absDir: string; relDir: string; depth: number }): void {
   const { absDir, relDir, depth } = required;
   if (depth > MAX_WALK_DEPTH) {
-    throw new DuplicateThemeError("TOO_LARGE", `source theme is nested deeper than ${MAX_WALK_DEPTH} folders ('${relDir}')`);
+    throw new DuplicateThemeError({ code: "TOO_LARGE", message: `source theme is nested deeper than ${MAX_WALK_DEPTH} folders ('${relDir}')` });
   }
   for (const entry of readdirSync(absDir).sort()) {
     const relativePath = relDir ? `${relDir}/${entry}` : entry;
@@ -207,7 +204,7 @@ function planThemeEntry(required: { plan: ThemeCopyPlan; absPath: string; relati
   const { plan, absPath, relativePath, depth } = required;
   const stat = lstatSync(absPath);
   if (stat.isSymbolicLink()) {
-    throw new DuplicateThemeError("SYMLINK", `source theme contains a symbolic link ('${relativePath}'); themes with links cannot be duplicated`);
+    throw new DuplicateThemeError({ code: "SYMLINK", message: `source theme contains a symbolic link ('${relativePath}'); themes with links cannot be duplicated` });
   }
   if (stat.isDirectory()) {
     plan.dirs.push(relativePath);
@@ -228,10 +225,10 @@ function addPlannedFile(required: { plan: ThemeCopyPlan; file: PlannedFile }): v
   plan.bytes += file.bytes;
   plan.files.push(file);
   if (plan.files.length > MAX_LISTED_FILES) {
-    throw new DuplicateThemeError("TOO_LARGE", `source theme has more than ${MAX_LISTED_FILES} files`);
+    throw new DuplicateThemeError({ code: "TOO_LARGE", message: `source theme has more than ${MAX_LISTED_FILES} files` });
   }
   if (plan.bytes > MAX_DUPLICATE_THEME_BYTES) {
-    throw new DuplicateThemeError("TOO_LARGE", `source theme is larger than ${MAX_DUPLICATE_THEME_BYTES} bytes`);
+    throw new DuplicateThemeError({ code: "TOO_LARGE", message: `source theme is larger than ${MAX_DUPLICATE_THEME_BYTES} bytes` });
   }
 }
 
@@ -240,16 +237,16 @@ function addPlannedFile(required: { plan: ThemeCopyPlan; file: PlannedFile }): v
  * `invalid`), `name`, a reset `version`, and `lineage` — the same metadata-only record the CLI's
  * `copy` writes (nothing at runtime reads it; it answers "what was this forked from").
  */
-function rewriteCopiedManifest(stagingDir: string, identity: { id: string; name: string; source: DiscoveredTheme; mode?: DuplicateThemeOptions["mode"] }): void {
+function rewriteCopiedManifest({ stagingDir, identity }: { stagingDir: string; identity: { id: string; name: string; source: DiscoveredTheme; mode?: DuplicateThemeOptions["mode"] } }, _optional = {}): void {
   const manifestPath = join(stagingDir, "theme.json");
   let manifest: unknown;
   try {
     manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   } catch {
-    throw new DuplicateThemeError("BAD_MANIFEST", `source theme '${identity.source.manifest.id}' has no readable theme.json`);
+    throw new DuplicateThemeError({ code: "BAD_MANIFEST", message: `source theme '${identity.source.manifest.id}' has no readable theme.json` });
   }
   if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
-    throw new DuplicateThemeError("BAD_MANIFEST", `source theme '${identity.source.manifest.id}' has a theme.json that is not a JSON object`);
+    throw new DuplicateThemeError({ code: "BAD_MANIFEST", message: `source theme '${identity.source.manifest.id}' has a theme.json that is not a JSON object` });
   }
   const record = manifest as Record<string, unknown>;
   const sourceVersion = String(record.version ?? identity.source.manifest.version);
@@ -297,7 +294,7 @@ function rewriteCopiedAssetPaths(required: {
 }): void {
   const { stagingDir, files, sourceThemeId, targetThemeId } = required;
   for (const file of files) {
-    if (fileGroup(file.relativePath, undefined) === "asset" && fileExtension(file.relativePath) !== ".svg") continue;
+    if (fileGroup({ relativePath: file.relativePath, apiVersion: undefined }) === "asset" && fileExtension({ relativePath: file.relativePath }) !== ".svg") continue;
     const filePath = join(stagingDir, file.relativePath);
     const bytes = readFileSync(filePath);
     if (!bytes.includes(0) && isUtf8(bytes)) {
@@ -359,13 +356,13 @@ export function duplicateTheme(
   const { source, themesRoot, takenIds } = required;
   validateStructureSource(source, optional.mode);
   if (!isRecognizedThemeRoot({ themeDir: source.dir, themesRoot }) || !existsSync(source.dir)) {
-    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", `theme '${source.manifest.id}' is not inside this site's themes folder`);
+    throw new DuplicateThemeError({ code: "SOURCE_NOT_COPYABLE", message: `theme '${source.manifest.id}' is not inside this site's themes folder` });
   }
-  const name = validateThemeName(required.newName);
+  const name = validateThemeName({ newName: required.newName });
   const id = assignThemeId({ source, themesRoot, name, takenIds }, { newId: optional.newId });
 
   const sourceDir = realpathSync(source.dir);
-  const plan = planThemeCopy(sourceDir);
+  const plan = planThemeCopy({ sourceDir });
   if (optional.mode === "structure-only") {
     plan.files = plan.files.filter(file => keepStructureFile(file));
     plan.bytes = plan.files.reduce((bytes, file) => bytes + file.bytes, 0);
@@ -377,10 +374,10 @@ export function duplicateTheme(
 
   try {
     copyStagedTheme({ sourceDir, stagingDir, plan, sourceThemeId: source.manifest.id, id, mode: optional.mode });
-    rewriteCopiedManifest(stagingDir, { id, name, source, mode: optional.mode });
+    rewriteCopiedManifest({ stagingDir, identity: { id, name, source, mode: optional.mode } });
     // Re-checked right before the rename: `renameSync` onto an EMPTY existing directory replaces it
     // silently on POSIX, so a folder created since `assignThemeId` must be refused here, not merged.
-    if (existsSync(destDir)) throw new DuplicateThemeError("ID_TAKEN", `theme id '${id}' was taken while copying — try again`);
+    if (existsSync(destDir)) throw new DuplicateThemeError({ code: "ID_TAKEN", message: `theme id '${id}' was taken while copying — try again` });
     renameSync(stagingDir, destDir);
   } catch (err) {
     rmSync(stagingDir, { recursive: true, force: true });
@@ -410,7 +407,7 @@ export function duplicateDiscoveredTheme(
   const source = themes.find((t) => t.manifest.id === sourceThemeId);
   if (!source) {
     const known = themes.map((t) => t.manifest.id).join(", ") || "(none discovered)";
-    throw new DuplicateThemeError("SOURCE_NOT_FOUND", `theme '${sourceThemeId}' was not found — discovered themes are: ${known}`);
+    throw new DuplicateThemeError({ code: "SOURCE_NOT_FOUND", message: `theme '${sourceThemeId}' was not found — discovered themes are: ${known}` });
   }
   const takenIds = new Set(themes.map((t) => t.manifest.id));
   const result = duplicateTheme({ source, themesRoot: themesDir, newName, takenIds }, optional);

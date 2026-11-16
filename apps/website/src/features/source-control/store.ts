@@ -61,7 +61,7 @@ function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCred
  *
  * @complexity One registry load plus at most one bounded HTTP request.
  */
-async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspaceId: UUID, providerId: SourceControlProviderId, token: string): Promise<{ accountLabel: string | null; connection: CredentialConnection }> {
+async function probeAccountLabel({ deps, workspaceId, providerId, token }: { deps: SourceControlCredentialWriteDeps; workspaceId: UUID; providerId: SourceControlProviderId; token: string }, _optional = {}): Promise<{ accountLabel: string | null; connection: CredentialConnection }> {
   let connection: CredentialConnection = 'saved';
   const fetchFn: typeof fetch = async (input, init) => {
     try {
@@ -176,7 +176,7 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every
  *  rejection is a {@link SourceControlCredentialValidationError} the route layer can map to its own
  *  `400`. */
-function validateLabel(raw: unknown): string {
+function validateLabel({ raw }: { raw: unknown }, _optional = {}): string {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new SourceControlCredentialValidationError("label must be a non-empty string");
   }
@@ -187,7 +187,7 @@ function validateLabel(raw: unknown): string {
   return raw;
 }
 
-function requireNonEmptyString(raw: unknown, field: string, providerId: string): string {
+function requireNonEmptyString({ raw, field, providerId }: { raw: unknown; field: string; providerId: string }, _optional = {}): string {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new SourceControlCredentialValidationError(`'${field}' (non-empty string) is required for provider '${providerId}'`);
   }
@@ -196,7 +196,7 @@ function requireNonEmptyString(raw: unknown, field: string, providerId: string):
 
 /** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested"; any
  *  other non-boolean value is rejected rather than coerced. */
-function optionalBoolean(raw: unknown, field: string): boolean | undefined {
+function optionalBoolean({ raw, field }: { raw: unknown; field: string }, _optional = {}): boolean | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "boolean") {
     throw new SourceControlCredentialValidationError(`'${field}' must be a boolean when provided`);
@@ -323,7 +323,7 @@ function validateDeclaredField({ value, field, providerId }: {
   value: unknown; field: import('./credential-form.js').SourceControlCredentialField; providerId: string;
 }, _options = {}): string | undefined {
   if (value === undefined && !field.required) return undefined;
-  const text = requireNonEmptyString(value, field.name, providerId);
+  const text = requireNonEmptyString({ raw: value, field: field.name, providerId });
   if (field.secret) return normalizeStoredToken({ value: text });
   assertPlainField({ value: text, field: field.name });
   return text;
@@ -332,7 +332,7 @@ function validateDeclaredField({ value, field, providerId }: {
 /** True iff `err` is the label's UNIQUE `(workspace_id, provider_id, label)` index rejecting a
  *  duplicate, on any database (`isUniqueViolation`, storage kernel: SQLite's code/message, Postgres
  *  SQLSTATE 23505). */
-export function isUniqueLabelViolation(err: unknown): boolean {
+export function isUniqueLabelViolation({ err }: { err: unknown }, _optional = {}): boolean {
   return isUniqueViolation(err);
 }
 
@@ -376,14 +376,14 @@ export async function createSourceControlCredential(
   { deps, input }: { deps: SourceControlCredentialWriteDeps; input: CreateSourceControlCredentialInput },
   _options = {},
 ): Promise<SourceControlCredentialSummary> {
-  const label = validateLabel(input.label);
+  const label = validateLabel({ raw: input.label });
   const connection = validateConnection({ raw: input.connection, registry: await credentialRegistry({ deps, workspaceId: input.workspaceId }) });
   const canonical = deps.repo.canonical;
   if (canonical?.supports({ providerId: connection.providerId })) {
     if (!canonical.create) throw new SourceControlCredentialValidationError("Open the provider's API key card to save this shared key.");
     return canonical.create({ workspaceId: input.workspaceId, connection });
   }
-  const isDefault = optionalBoolean(input.isDefault, "isDefault");
+  const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   // Project-first (`vendor-credentials/project-scope.ts`); "site" = only for this site.
   const target = credentialCreateTarget(deps, input, message => new SourceControlCredentialValidationError(message));
   await assertLabelFreeOnSite({ deps, target, workspaceId: input.workspaceId, providerId: connection.providerId, label });
@@ -399,7 +399,7 @@ async function saveConnection({ deps, input }: { deps: SourceControlCredentialWr
   try { return await vault(deps).put(input); }
   catch (error) {
     if (error instanceof ProjectKeyCreateConflictError) throw new SourceControlCredentialDuplicateLabelError(error.message);
-    const duplicate = isUniqueLabelViolation(error) || error instanceof VaultError && error.code === "conflict" &&
+    const duplicate = isUniqueLabelViolation({ err: error }) || error instanceof VaultError && error.code === "conflict" &&
       (await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: input.provider as SourceControlProviderId }))
         .some(row => row.id !== input.id && row.label === input.label);
     if (duplicate) throw new SourceControlCredentialDuplicateLabelError(input.workspaceId === 'project' ? `Your project already has a key named '${input.label}'. Use it here, or pick another name.` : `a '${input.provider}' credential labeled '${input.label}' already exists in this workspace`);
@@ -409,7 +409,7 @@ async function saveConnection({ deps, input }: { deps: SourceControlCredentialWr
 
 /** `deps` writes the store holding `summary`'s row; `workspaceId` is the site's (its provider registry). */
 async function probeSavedConnection({ deps, summary, connection, workspaceId }: { deps: SourceControlCredentialWriteDeps; summary: VaultSummary; connection: SourceControlConnectionInput; workspaceId: UUID }, _options = {}): Promise<SourceControlCredentialSummary> {
-  const probe = await probeAccountLabel(deps, workspaceId, connection.providerId, connection.token);
+  const probe = await probeAccountLabel({ deps, workspaceId, providerId: connection.providerId, token: connection.token });
   try { if (probe.accountLabel !== null) assertPlainAccountLabel({ value: probe.accountLabel }); } catch { probe.accountLabel = null; }
   if (probe.accountLabel !== null) {
     // This is the saved revision, not a new read's revision: an old probe must not heal a rotation.
@@ -450,8 +450,8 @@ export async function updateSourceControlCredential(
   const located = await locateById(deps, input);
   if (!located) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
   const { scoped, record: existing } = located;
-  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
-  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
+  const label = input.label !== undefined ? validateLabel({ raw: input.label }) : existing.label;
+  const requestedDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   if (!scoped.deps.repo.vault) throw new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
   const row = await scoped.deps.repo.vault.find({ workspaceId: scoped.workspaceId, id: input.id });
   if (!row) throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);

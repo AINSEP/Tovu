@@ -33,7 +33,7 @@ export async function renderWidgetPreview(
   const result = resolved.get(id);
   const html = renderWidgetIr(result?.ok ? result.ir : { componentId: 'widget-placeholder', props: {} });
   const activeThemeId = await resolveActiveThemeId(deps);
-  const active = resolveActiveTheme(deps, activeThemeId);
+  const active = resolveActiveTheme({ deps, activeThemeId });
   const theme = active === NO_THEME_ID ? null : active;
   const document = theme?.manifest.tier === 'static'
     ? renderStaticFragment({ theme, html, label: 'widget-preview' })

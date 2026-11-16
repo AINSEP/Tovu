@@ -100,7 +100,7 @@ type ThemeImportDestination = { themeDir: string; themesRoot: string; relativePa
  */
 function validateThemeImportDestination(required: ThemeImportDestination, _optional: Record<string, never> = {}): void {
   resolveThemeFilePath(required);
-  if (!IMPORTABLE_EXTENSIONS.has(fileExtension(required.relativePath))) {
+  if (!IMPORTABLE_EXTENSIONS.has(fileExtension({ relativePath: required.relativePath }))) {
     throw new ThemePathError({ message: `path '${required.relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
         "SVG and other text files: read as text and write with theme_write_file." });
   }
@@ -123,7 +123,7 @@ function persistThemeImport(
   if (bytes.byteLength === 0 || bytes.byteLength > THEME_IMPORT_MAX_BYTES || allowed.length === 0) {
     throw new MediaImportValidationError({ message: `'${source}' must contain a supported font or image, up to ${THEME_IMPORT_MAX_BYTES} bytes. Nothing was saved.` });
   }
-  if (!allowed.includes(fileExtension(relativePath))) {
+  if (!allowed.includes(fileExtension({ relativePath }))) {
     throw new MediaImportValidationError({
       message: `'${source}' is ${contentType}, so '${relativePath}' needs a ${allowed.join(" or ")} extension. Nothing was saved.`,
     });

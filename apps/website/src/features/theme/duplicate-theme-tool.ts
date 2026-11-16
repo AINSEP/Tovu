@@ -90,10 +90,10 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: duplicateThemeAgentToolCatalog
 function duplicationMode(input: Record<string, unknown>): "full" | "structure-only" {
   const mode = input.mode ?? "full";
   if (mode !== "full" && mode !== "structure-only") {
-    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", "mode must be 'full' or 'structure-only'. Choose structure-only for a new design.");
+    throw new DuplicateThemeError({ code: "SOURCE_NOT_COPYABLE", message: "mode must be 'full' or 'structure-only'. Choose structure-only for a new design." });
   }
   if (mode === "structure-only" && input.activate === true) {
-    throw new DuplicateThemeError("SOURCE_NOT_COPYABLE", THEME_STYLING_REQUIRED_MESSAGE);
+    throw new DuplicateThemeError({ code: "SOURCE_NOT_COPYABLE", message: THEME_STYLING_REQUIRED_MESSAGE });
   }
   return mode;
 }

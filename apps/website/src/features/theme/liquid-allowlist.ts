@@ -197,17 +197,17 @@ interface WalkableNode {
 }
 
 /** Records `node`'s own tag name, if it has one. */
-function collectNodeTag(node: WalkableNode, tags: Set<string>): void {
+function collectNodeTag({ node, tags }: { node: WalkableNode; tags: Set<string> }, _optional = {}): void {
   if (typeof node.name === "string") tags.add(node.name);
 }
 
 /** Records the filters applied directly to `node.value` (an `Output` node's own `{{ x | filter }}` chain). */
-function collectNodeValueFilters(node: WalkableNode, filters: Set<string>): void {
+function collectNodeValueFilters({ node, filters }: { node: WalkableNode; filters: Set<string> }, _optional = {}): void {
   for (const filter of node.value?.filters ?? []) filters.add(filter.name);
 }
 
 /** Records filters used inside `node`'s own tag arguments (e.g. an `assign`/`if` expression's filters). */
-function collectNodeArgumentFilters(node: WalkableNode, filters: Set<string>): void {
+function collectNodeArgumentFilters({ node, filters }: { node: WalkableNode; filters: Set<string> }, _optional = {}): void {
   if (typeof node.arguments !== "function") return;
   for (const arg of node.arguments()) {
     for (const filter of arg?.filters ?? []) filters.add(filter.name);
@@ -215,7 +215,7 @@ function collectNodeArgumentFilters(node: WalkableNode, filters: Set<string>): v
 }
 
 /** Flags an oversized literal `for` range into `rangeViolations` — see `MAX_FOR_RANGE_SPAN`'s own doc. */
-function collectForRangeViolation(node: WalkableNode, rangeViolations: string[]): void {
+function collectForRangeViolation({ node, rangeViolations }: { node: WalkableNode; rangeViolations: string[] }, _optional = {}): void {
   if (node.name !== "for" || !node.collection) return;
   const lhs = node.collection.lhs?.content;
   const rhs = node.collection.rhs?.content;
@@ -250,19 +250,14 @@ function drainChildren(node: WalkableNode): WalkableNode[] | undefined {
  * @complexity O(n) in AST node count — one pass, no backtracking, no
  * re-visiting of a node.
  */
-function collectLiquidUsage(
-  nodes: WalkableNode[],
-  tags: Set<string>,
-  filters: Set<string>,
-  rangeViolations: string[]
-): void {
+function collectLiquidUsage({ nodes, tags, filters, rangeViolations }: { nodes: WalkableNode[]; tags: Set<string>; filters: Set<string>; rangeViolations: string[] }, _optional = {}): void {
   for (const node of nodes) {
-    collectNodeTag(node, tags);
-    collectNodeValueFilters(node, filters);
-    collectNodeArgumentFilters(node, filters);
-    collectForRangeViolation(node, rangeViolations);
+    collectNodeTag({ node, tags });
+    collectNodeValueFilters({ node, filters });
+    collectNodeArgumentFilters({ node, filters });
+    collectForRangeViolation({ node, rangeViolations });
     const children = drainChildren(node);
-    if (children) collectLiquidUsage(children, tags, filters, rangeViolations);
+    if (children) collectLiquidUsage({ nodes: children, tags, filters, rangeViolations });
   }
 }
 
@@ -279,7 +274,7 @@ function collectLiquidUsage(
  * @complexity O(n) in template size — one parse plus one AST walk.
  * @overallScore 100/100
  */
-export function lintLiquidTemplate(source: string): string[] {
+export function lintLiquidTemplate({ source }: { source: string }, _optional = {}): string[] {
   let parsed: WalkableNode[];
   try {
     parsed = parser.parse(source) as unknown as WalkableNode[];
@@ -290,7 +285,7 @@ export function lintLiquidTemplate(source: string): string[] {
   const tags = new Set<string>();
   const filters = new Set<string>();
   const violations: string[] = [];
-  collectLiquidUsage(parsed, tags, filters, violations);
+  collectLiquidUsage({ nodes: parsed, tags, filters, rangeViolations: violations });
 
   for (const tag of tags) {
     if (!ALLOWED_LIQUID_TAGS.has(tag)) violations.push(`disallowed tag "${tag}"`);

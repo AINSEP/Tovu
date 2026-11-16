@@ -59,8 +59,8 @@ function choosePath({ folder, path, policy, reserved }: { folder: string; path: 
 function checkFile({ deps, destination, path, bytes }: { deps: AssetToolDeps; destination: AssetDestination; path: string; bytes: Buffer }): void {
   if (destination.kind === "theme") {
     if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
-    const theme = findThemeOrThrow(deps, destination.themeId);
-    assertThemeFileWritable(theme, path);
+    const theme = findThemeOrThrow({ routeDeps: deps, themeId: destination.themeId });
+    assertThemeFileWritable({ theme, relativePath: path });
     resolveThemeFilePath({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
   }
   if (destination.kind !== "media") return;
@@ -78,7 +78,7 @@ export function prepareAssetWrites({ deps, destination, files, policy = "overwri
   if (destination.kind === "site") folder = deps.siteBinding.dir;
   if (destination.kind === "theme") {
     if (destination.themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
-    folder = findThemeOrThrow(deps, destination.themeId).dir;
+    folder = findThemeOrThrow({ routeDeps: deps, themeId: destination.themeId }).dir;
   }
   const reserved = new Set<string>();
   for (const file of files) {
@@ -118,9 +118,9 @@ export async function writeAssetFiles({ deps, ctx, prepared }: { deps: AssetTool
   }
   const themeId = destination.themeId;
   if (themeId === undefined) throw new ToolInputError({ message: "Theme asset destination has no theme ID" });
-  const theme = findThemeOrThrow(deps, themeId);
+  const theme = findThemeOrThrow({ routeDeps: deps, themeId });
   for (const file of files) writeThemeBinaryFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: file.path, bytes: file.bytes });
-  const reloaded = files.length ? reloadThemeInPlace(deps, theme, themeId) : theme;
+  const reloaded = files.length ? reloadThemeInPlace({ routeDeps: deps, theme, themeId }) : theme;
   return { written: files.map(({ path }) => path), skipped, status: reloaded.status, errors: reloaded.errors };
 }
 

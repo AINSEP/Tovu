@@ -137,21 +137,21 @@ test("withEntryListStyleOnce: inserts the default style tag once before </head>,
   const list2 = assertRendered(renderEntryList([item({ title: "B" })], options({ typeKey: "tovu_feature" })));
   const html = `<html><head></head><body>${list1}${list2}</body></html>`;
 
-  const once = withEntryListStyleOnce(html);
+  const once = withEntryListStyleOnce({ html });
   const styleTagOccurrences = once.split("<style data-tovu-entry-list>").length - 1;
   assert.equal(styleTagOccurrences, 1);
   assert.ok(once.includes(ENTRY_LIST_DEFAULT_STYLE));
   assert.ok(once.indexOf(ENTRY_LIST_DEFAULT_STYLE) < once.indexOf("</head>"));
   assert.ok(once.includes("display:grid;gap:1rem;grid-template-columns:repeat(var(--entry-list-columns,3),minmax(0,1fr))"));
 
-  const twice = withEntryListStyleOnce(once);
+  const twice = withEntryListStyleOnce({ html: once });
   assert.equal(twice.split("<style data-tovu-entry-list>").length - 1, 1);
   assert.equal(twice, once);
 });
 
 test("withEntryListStyleOnce: leaves html untouched when there is no [data-tovu-entry-list] wrapper", () => {
   const html = "<html><head></head><body>no lists here</body></html>";
-  assert.equal(withEntryListStyleOnce(html), html);
+  assert.equal(withEntryListStyleOnce({ html }), html);
 });
 
 // ---------------------------------------------------------------------------
@@ -165,13 +165,13 @@ test("withEntryListStyleOnce: a theme's own unrelated .entry-list markup (no dat
   const html =
     '<html><head></head><body><section class="entry-list entry-list--index"><div class="wrap">' +
     "<ol class=\"entries\"><li class=\"entry\">real post, not a collection card</li></ol></div></section></body></html>";
-  assert.equal(withEntryListStyleOnce(html), html, "a bare .entry-list class must never inject the collection card style");
+  assert.equal(withEntryListStyleOnce({ html }), html, "a bare .entry-list class must never inject the collection card style");
 });
 
 test("withEntryListStyleOnce: the injected grid selector stays attribute-scoped on a mixed page", () => {
   const collection = assertRendered(renderEntryList([item()], options()));
   const unrelated = '<section class="entry-list"><p>Theme list</p></section>';
-  const html = withEntryListStyleOnce(`<html><head></head><body>${collection}${unrelated}</body></html>`);
+  const html = withEntryListStyleOnce({ html: `<html><head></head><body>${collection}${unrelated}</body></html>` });
   assert.ok(html.includes(unrelated));
   const style = html.match(/<style data-tovu-entry-list>([\s\S]*?)<\/style>/)?.[1];
   assert.ok(style);
@@ -274,5 +274,5 @@ test("list layout: an item with fields renders its <dl>", () => {
 
 test("withEntryListStyleOnce: a page with an entry list but no </head> is left untouched", () => {
   const html = '<body><div data-tovu-entry-list class="entry-list"></div></body>';
-  assert.equal(withEntryListStyleOnce(html), html);
+  assert.equal(withEntryListStyleOnce({ html }), html);
 });

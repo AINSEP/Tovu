@@ -125,10 +125,10 @@ function buildImportThemeFileHandler(
     return withSchemaOnRejection({
       toolId,
       catalog: CATALOG_BY_ID,
-      isShapeRejection: ({ error }) => isShapeRejection(error) || isImportShapeRejection({ error }) || error instanceof FsFilePathError,
+      isShapeRejection: ({ error }) => isShapeRejection({ error }) || isImportShapeRejection({ error }) || error instanceof FsFilePathError,
       fn: () => withCallerSafeEgressRefusal(logEgressRefusal, async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
-        assertThemeFileWritable(theme, relativePath);
+        const theme = findThemeOrThrow({ routeDeps, themeId });
+        assertThemeFileWritable({ theme, relativePath });
         const destination = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
         ctx.signal.throwIfAborted();
         const imported = toolId === "theme_import_local_file"
@@ -140,7 +140,7 @@ function buildImportThemeFileHandler(
               { ...destination, httpClient: routeDeps.mediaImportHttpClient, url: requireString({ input, key: "url" }) },
               { plainHttpTestOrigins: routeDeps.outboundTestOrigins },
             );
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
         return { themeId, ...imported,
           ...(toolId === "theme_import_local_file" ? { sourcePath: requireString({ input, key: "sourcePath" }) } : {}),
           status: reloaded.status, errors: reloaded.errors };

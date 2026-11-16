@@ -97,7 +97,7 @@ function providerLoader(deps: SourceControlToolDeps): LoadSourceControlProviders
 }
 
 /** The injected adapter, or the plugin provider's for `providerId`; a caller-safe refusal otherwise. */
-async function resolveCommitAdapter(deps: SourceControlToolDeps, providerId: string): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
+async function resolveCommitAdapter({ deps, providerId }: { deps: SourceControlToolDeps; providerId: string }, _optional = {}): Promise<{ ok: true; adapter: SourceControlCommitAdapter } | { ok: false; message: string }> {
   if (deps.gitAdapter) return { ok: true, adapter: deps.gitAdapter };
   const built = await buildSourceControlProvider({ load: deps.loadSourceControlProviders, observability: deps.observability, workspaceId: deps.workspaceId, providerId });
   return built.ok ? { ok: true, adapter: { commit: built.provider.commitSite } } : { ok: false, message: built.message };
@@ -287,7 +287,7 @@ function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
  * @throws {ToolInputError} on any invalid field.
  * @complexity O(1).
  */
-function requireValidTarget(command: ParsedCommitCommand, validateTarget: RepositoryTargetValidator | undefined): void {
+function requireValidTarget({ command, validateTarget }: { command: ParsedCommitCommand; validateTarget: RepositoryTargetValidator | undefined }, _optional = {}): void {
   const { owner, repo, branch, commitMessage } = command;
   const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }, validateTarget);
   if (configError !== null) {
@@ -341,7 +341,7 @@ function buildCommitOutcomeResult(outcome: SourceControlCommitOutcome): unknown 
  *
  * @complexity O(1) — fixed string interpolation, no iteration.
  */
-function buildCapabilityGuidance(providerId: string, configured: boolean, commitReady: boolean, switchedOffPluginId: string | undefined): string | undefined {
+function buildCapabilityGuidance({ providerId, configured, commitReady, switchedOffPluginId }: { providerId: string; configured: boolean; commitReady: boolean; switchedOffPluginId: string | undefined }, _optional = {}): string | undefined {
   const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence(switchedOffPluginId)}`;
   if (!configured && !commitReady) {
     return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
@@ -397,7 +397,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
         const configured = savedCredentials.length > 0 || hasSavedApiKey;
         const loaded = registry.get(providerId);
         const ready = loaded !== undefined;
-        const guidance = buildCapabilityGuidance(providerId, configured, ready, registry.switchedOff?.get(providerId));
+        const guidance = buildCapabilityGuidance({ providerId, configured, commitReady: ready, switchedOffPluginId: registry.switchedOff?.get(providerId) });
 
         return {
           providerId,
@@ -423,7 +423,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       const authorizeCommit = () => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.commit" }, { entityType: "source-control" });
       const host = await requireKnownHost({ deps, providerId: command.provider, authorizeSavedLookup: authorizeCommit });
       const hostLabel = host.label;
-      requireValidTarget(command, host.validateTarget);
+      requireValidTarget({ command, validateTarget: host.validateTarget });
       await authorizeCommit();
       if (command.folder && host.supportsFolder !== true) return { committed: false, reason: "folder-unsupported", message: `${hostLabel} does not support folder commits. Update its provider before selecting a folder.` };
 
@@ -472,7 +472,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           message: `No ${hostLabel} source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.`,
         };
       }
-      const commitAdapter = await resolveCommitAdapter(deps, command.provider);
+      const commitAdapter = await resolveCommitAdapter({ deps, providerId: command.provider });
       if (!commitAdapter.ok) return { committed: false, reason: "no-provider", message: commitAdapter.message };
 
       // The run ended during the pre-dialog reads: no dialog, and no call left waiting on an abort already past.

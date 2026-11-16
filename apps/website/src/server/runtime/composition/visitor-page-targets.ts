@@ -23,7 +23,7 @@ export function createVisitorPageTargets({ deps }: { deps: RouteDeps }, _options
       // occupied slugs. A second DB read costs a full list and can disagree during a publish.
       const publicPosts = await readAnonymousPublishedPosts({ deps: { ...content, listPublishedPosts: async () => all } });
       const occupied = new Set(all.posts.map(post => post.slug));
-      const theme = resolveActiveTheme(deps, await resolveActiveThemeId(deps));
+      const theme = resolveActiveTheme({ deps, activeThemeId: await resolveActiveThemeId(deps) });
       const themePages = !theme || theme === 'none' || theme.manifest.tier !== 'static' ? [] : Object.keys(theme.pages)
         .filter(id => isStandaloneThemePage({ theme, pageId: id }) && !occupied.has(id) && !['signin', 'signup'].includes(id))
         .map(id => ({ id: `theme:${id}`, label: id === 'index' ? 'Home' : id, path: id === 'index' ? '/' : `/${id}` }));

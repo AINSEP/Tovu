@@ -32,15 +32,15 @@ function ledgerTemplate(name: "home" | "entry"): string {
 }
 
 test("a clean template with no expressions at all reports no violations", () => {
-  assert.deepEqual(lintHandlebarsTemplate("<p>plain HTML, no Handlebars</p>"), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: "<p>plain HTML, no Handlebars</p>" }), []);
 });
 
 test("the live themes/handlebars/ledger home template uses only allowed helpers/expressions", () => {
-  assert.deepEqual(lintHandlebarsTemplate(ledgerTemplate("home")), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: ledgerTemplate("home") }), []);
 });
 
 test("the live themes/handlebars/ledger entry template uses only allowed helpers/expressions", () => {
-  assert.deepEqual(lintHandlebarsTemplate(ledgerTemplate("entry")), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: ledgerTemplate("entry") }), []);
 });
 
 test("every helper the ledger templates actually use is on the allowlist (sanity check on the allowlist itself)", () => {
@@ -58,13 +58,13 @@ test("every helper the ledger templates actually use is on the allowlist (sanity
 // ---------------------------------------------------------------------------
 
 test("a partial reference ({{> name}}) is rejected", () => {
-  const violations = lintHandlebarsTemplate("{{> header}}");
+  const violations = lintHandlebarsTemplate({ source: "{{> header}}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed partial "header"/);
 });
 
 test("a partial BLOCK ({{#> name}}…{{/name}}) is rejected too — the block form is not an escape hatch", () => {
-  const violations = lintHandlebarsTemplate("{{#> layout}}x{{/layout}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#> layout}}x{{/layout}}" });
   assert.match(violations[0], /disallowed partial "layout"/);
 });
 
@@ -72,7 +72,7 @@ test("a partial pointing at a filesystem-shaped name is rejected without the lin
   // `Handlebars.parse()` builds an AST and nothing else — no compile, no partial
   // resolution, no file read. If that ever changed, this case would attempt to
   // read /etc/hosts instead of cleanly reporting the disallowed partial.
-  const violations = lintHandlebarsTemplate('{{> "/etc/hosts"}}');
+  const violations = lintHandlebarsTemplate({ source: '{{> "/etc/hosts"}}' });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed partial/);
 });
@@ -82,7 +82,7 @@ test("a partial pointing at a filesystem-shaped name is rejected without the lin
 // ---------------------------------------------------------------------------
 
 test("an inline decorator ({{#*inline}}) is rejected", () => {
-  const violations = lintHandlebarsTemplate('{{#*inline "mine"}}y{{/inline}}');
+  const violations = lintHandlebarsTemplate({ source: '{{#*inline "mine"}}y{{/inline}}' });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed decorator "inline"/);
 });
@@ -92,24 +92,24 @@ test("an inline decorator ({{#*inline}}) is rejected", () => {
 // ---------------------------------------------------------------------------
 
 test("a triple-stash raw output is rejected for an ordinary path", () => {
-  const violations = lintHandlebarsTemplate("{{{post.title}}}");
+  const violations = lintHandlebarsTemplate({ source: "{{{post.title}}}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed raw output "\{\{\{post\.title\}\}\}"/);
 });
 
 test("the {{&x}} ampersand form is the same unescaped output and is rejected identically", () => {
-  const violations = lintHandlebarsTemplate("{{&site.title}}");
+  const violations = lintHandlebarsTemplate({ source: "{{&site.title}}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed raw output/);
 });
 
 test("{{{post.content}}} — and only it — is permitted raw, because it is server-rendered pre-sanitized HTML", () => {
-  assert.deepEqual(lintHandlebarsTemplate("{{{post.content}}}"), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: "{{{post.content}}}" }), []);
   assert.deepEqual([...ALLOWED_HANDLEBARS_RAW_PATHS], ["post.content"]);
 });
 
 test("the escaped form of the same expression is always fine", () => {
-  assert.deepEqual(lintHandlebarsTemplate("{{post.title}} {{site.title}}"), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: "{{post.title}} {{site.title}}" }), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -119,34 +119,34 @@ test("the escaped form of the same expression is always fine", () => {
 // ---------------------------------------------------------------------------
 
 test("the built-in log helper (console I/O from template text) is rejected", () => {
-  const violations = lintHandlebarsTemplate('{{log "pwn"}}');
+  const violations = lintHandlebarsTemplate({ source: '{{log "pwn"}}' });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed helper "log"/);
 });
 
 test("the built-in lookup helper (dynamic property access by computed key) is rejected", () => {
-  const violations = lintHandlebarsTemplate('{{lookup this "constructor"}}');
+  const violations = lintHandlebarsTemplate({ source: '{{lookup this "constructor"}}' });
   assert.match(violations[0], /disallowed helper "lookup"/);
 });
 
 test("an unknown block helper is rejected — a theme cannot register one, so there is nothing it could resolve to", () => {
-  const violations = lintHandlebarsTemplate("{{#customBlock}}x{{/customBlock}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#customBlock}}x{{/customBlock}}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed block helper "customBlock"/);
 });
 
 test("a raw block ({{{{name}}}}…{{{{/name}}}}) goes through the same block-helper allowlist", () => {
-  const violations = lintHandlebarsTemplate("{{{{rawblock}}}}{{x}}{{{{/rawblock}}}}");
+  const violations = lintHandlebarsTemplate({ source: "{{{{rawblock}}}}{{x}}{{{{/rawblock}}}}" });
   assert.match(violations[0], /disallowed block helper "rawblock"/);
 });
 
 test("Tovu's own render_block seam is allowed, in both its component and region forms", () => {
-  assert.deepEqual(lintHandlebarsTemplate('{{render_block component="tovu/site-header" tagline="x"}}'), []);
-  assert.deepEqual(lintHandlebarsTemplate('{{render_block region="footer"}}'), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: '{{render_block component="tovu/site-header" tagline="x"}}' }), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: '{{render_block region="footer"}}' }), []);
 });
 
 test("a bare {{render_block}} with no params/hash at all is still allowed — isInvocation() is false here, so it is the allowlisted-helper-name arm of the OR, not the invocation arm, that lets it through", () => {
-  assert.deepEqual(lintHandlebarsTemplate("{{render_block}}"), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: "{{render_block}}" }), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -155,32 +155,32 @@ test("a bare {{render_block}} with no params/hash at all is still allowed — is
 // ---------------------------------------------------------------------------
 
 test("a disallowed helper inside an if/each body is still caught (nested AST walk, not just top level)", () => {
-  const violations = lintHandlebarsTemplate('{{#each posts}}{{#if title}}{{lookup this "x"}}{{/if}}{{/each}}');
+  const violations = lintHandlebarsTemplate({ source: '{{#each posts}}{{#if title}}{{lookup this "x"}}{{/if}}{{/each}}' });
   assert.ok(violations.some((v) => /disallowed helper "lookup"/.test(v)));
 });
 
 test("a disallowed partial inside an each body is still caught", () => {
-  const violations = lintHandlebarsTemplate("{{#each posts}}{{> leak}}{{/each}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#each posts}}{{> leak}}{{/each}}" });
   assert.ok(violations.some((v) => /disallowed partial "leak"/.test(v)));
 });
 
 test("a raw output inside an each body is still caught", () => {
-  const violations = lintHandlebarsTemplate("{{#each posts}}{{{title}}}{{/each}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#each posts}}{{{title}}}{{/each}}" });
   assert.ok(violations.some((v) => /disallowed raw output/.test(v)));
 });
 
 test("a disallowed partial smuggled into an {{else}} inverse branch is still caught", () => {
-  const violations = lintHandlebarsTemplate("{{#if a}}x{{else}}{{> leak}}{{/if}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#if a}}x{{else}}{{> leak}}{{/if}}" });
   assert.ok(violations.some((v) => /disallowed partial "leak"/.test(v)));
 });
 
 test("a disallowed helper smuggled into a subexpression argument of an ALLOWED block is still caught", () => {
-  const violations = lintHandlebarsTemplate('{{#if (lookup a b)}}x{{/if}}');
+  const violations = lintHandlebarsTemplate({ source: '{{#if (lookup a b)}}x{{/if}}' });
   assert.ok(violations.some((v) => /disallowed helper "lookup"/.test(v)));
 });
 
 test("a disallowed helper smuggled into a hash value of the render_block seam is still caught", () => {
-  const violations = lintHandlebarsTemplate("{{render_block component=(lookup a b)}}");
+  const violations = lintHandlebarsTemplate({ source: "{{render_block component=(lookup a b)}}" });
   assert.ok(violations.some((v) => /disallowed helper "lookup"/.test(v)));
 });
 
@@ -190,33 +190,33 @@ test("a disallowed helper smuggled into a hash value of the render_block seam is
 // ---------------------------------------------------------------------------
 
 test("a path traversing constructor is rejected", () => {
-  const violations = lintHandlebarsTemplate("{{a.constructor.b}}");
+  const violations = lintHandlebarsTemplate({ source: "{{a.constructor.b}}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /disallowed path segment "constructor"/);
 });
 
 test("a path traversing __proto__ is rejected, including nested inside a loop body", () => {
-  const violations = lintHandlebarsTemplate("{{#each posts}}{{__proto__.x}}{{/each}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#each posts}}{{__proto__.x}}{{/each}}" });
   assert.ok(violations.some((v) => /disallowed path segment "__proto__"/.test(v)));
 });
 
 test("@root is rejected (scope escape), while the loop data variables a real theme needs are allowed", () => {
-  assert.match(lintHandlebarsTemplate("{{@root.site.title}}")[0], /disallowed data variable/);
-  assert.deepEqual(lintHandlebarsTemplate("{{#each posts}}{{@index}}{{@key}}{{@first}}{{@last}}{{/each}}"), []);
+  assert.match(lintHandlebarsTemplate({ source: "{{@root.site.title}}" })[0], /disallowed data variable/);
+  assert.deepEqual(lintHandlebarsTemplate({ source: "{{#each posts}}{{@index}}{{@key}}{{@first}}{{@last}}{{/each}}" }), []);
 });
 
 test("a forbidden path segment past an allowlisted @-data head is rejected — {{@index.constructor}} and {{@key.__proto__.polluted}} get the same treatment {{this.constructor}} already gets, not a free pass because parts[0] is an allowed loop variable", () => {
-  const constructorViolations = lintHandlebarsTemplate("{{@index.constructor}}");
+  const constructorViolations = lintHandlebarsTemplate({ source: "{{@index.constructor}}" });
   assert.equal(constructorViolations.length, 1, `expected one violation, got: ${JSON.stringify(constructorViolations)}`);
   assert.match(constructorViolations[0], /disallowed path segment "constructor"/);
 
-  const protoViolations = lintHandlebarsTemplate("{{@key.__proto__.polluted}}");
+  const protoViolations = lintHandlebarsTemplate({ source: "{{@key.__proto__.polluted}}" });
   assert.equal(protoViolations.length, 1, `expected one violation, got: ${JSON.stringify(protoViolations)}`);
   assert.match(protoViolations[0], /disallowed path segment "__proto__"/);
 });
 
 test("a parent-scope path (../) is ordinary scoping, not a violation", () => {
-  assert.deepEqual(lintHandlebarsTemplate("{{#each posts}}{{../site.title}}{{/each}}"), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: "{{#each posts}}{{../site.title}}{{/each}}" }), []);
 });
 
 // ---------------------------------------------------------------------------
@@ -224,21 +224,21 @@ test("a parent-scope path (../) is ordinary scoping, not a violation", () => {
 // ---------------------------------------------------------------------------
 
 test("a Handlebars syntax error is reported as a violation message rather than thrown", () => {
-  const violations = lintHandlebarsTemplate("{{#if unterminated}}");
+  const violations = lintHandlebarsTemplate({ source: "{{#if unterminated}}" });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /Handlebars syntax error/);
 });
 
 test("a pathologically deeply nested template is rejected rather than recursing without bound", () => {
   const deep = `${"{{#if a}}".repeat(70)}x${"{{/if}}".repeat(70)}`;
-  const violations = lintHandlebarsTemplate(deep);
+  const violations = lintHandlebarsTemplate({ source: deep });
   assert.equal(violations.length, 1, `expected one de-duplicated depth violation, got: ${JSON.stringify(violations)}`);
   assert.match(violations[0], /nesting exceeds the maximum allowed depth/);
 });
 
 test("nesting well within the depth cap is allowed", () => {
   const shallow = `${"{{#if a}}".repeat(10)}{{title}}${"{{/if}}".repeat(10)}`;
-  assert.deepEqual(lintHandlebarsTemplate(shallow), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: shallow }), []);
 });
 
 // Subexpression nesting (`(helper (helper (helper …)))`) is a SEPARATE recursion path from block
@@ -254,13 +254,13 @@ function nestedSubexpression(depth: number): string {
 }
 
 test("a template with subexpression nesting past the depth cap is rejected the same way block nesting is, not left to recurse unbounded", () => {
-  const violations = lintHandlebarsTemplate(nestedSubexpression(100));
+  const violations = lintHandlebarsTemplate({ source: nestedSubexpression(100) });
   assert.equal(violations.length, 1, `expected one de-duplicated depth violation, got: ${JSON.stringify(violations)}`);
   assert.match(violations[0], /nesting exceeds the maximum allowed depth/);
 });
 
 test("subexpression nesting well within the depth cap is allowed", () => {
-  assert.deepEqual(lintHandlebarsTemplate(nestedSubexpression(10)), []);
+  assert.deepEqual(lintHandlebarsTemplate({ source: nestedSubexpression(10) }), []);
 });
 
 test("an unexpected exception during the AST walk itself is caught and reported as a violation rather than escaping — defense in depth for the documented 'total, non-throwing predicate' contract, independent of the depth guard above", () => {
@@ -277,7 +277,7 @@ test("an unexpected exception during the AST walk itself is caught and reported 
       ],
     });
 
-    const violations = lintHandlebarsTemplate("any");
+    const violations = lintHandlebarsTemplate({ source: "any" });
     assert.equal(violations.length, 1);
     assert.match(violations[0], /Handlebars template failed lint/);
   } finally {
@@ -287,7 +287,7 @@ test("an unexpected exception during the AST walk itself is caught and reported 
 
 test("an oversized template source is rejected before it is ever parsed", (t) => {
   const parse = t.mock.method(Handlebars, "parse");
-  const violations = lintHandlebarsTemplate("x".repeat(1_000_001));
+  const violations = lintHandlebarsTemplate({ source: "x".repeat(1_000_001) });
   assert.equal(violations.length, 1);
   assert.match(violations[0], /exceeds the maximum allowed size/);
   assert.equal(parse.mock.callCount(), 0);
@@ -346,7 +346,7 @@ test("handles unknown statement kinds by traversing nested program and inverse b
       ],
     });
 
-    const violations = lintHandlebarsTemplate("any");
+    const violations = lintHandlebarsTemplate({ source: "any" });
     assert.ok(violations.includes('disallowed helper "lookup"'));
     assert.ok(violations.includes('disallowed helper "log"'));
   } finally {
@@ -362,7 +362,7 @@ test("handles empty or missing program body safely", () => {
       body: undefined,
     });
 
-    const violations = lintHandlebarsTemplate("any");
+    const violations = lintHandlebarsTemplate({ source: "any" });
     assert.deepEqual(violations, []);
   } finally {
     (Handlebars as unknown as { parse: unknown }).parse = originalParse;
@@ -384,7 +384,7 @@ test("a node with no 'type' at all falls back to handleUnknownStatement rather t
       ],
     });
 
-    const violations = lintHandlebarsTemplate("any");
+    const violations = lintHandlebarsTemplate({ source: "any" });
     assert.deepEqual(violations, ['disallowed helper "lookup"']);
   } finally {
     (Handlebars as unknown as { parse: unknown }).parse = originalParse;

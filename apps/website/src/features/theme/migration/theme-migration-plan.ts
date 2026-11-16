@@ -66,10 +66,7 @@ const NON_STATIC_TIER_EXTENSIONS: Readonly<Record<"declarative" | "templated" | 
  * out of `planNonStaticTierMigration` because a `for` loop plus its inner branch is the bulk of that
  * function's own complexity, and this section is fully self-contained (no other section reads or
  * writes `templates/`). */
-function planTemplatesFolderMoves(
-  themeDir: string,
-  extensions: readonly string[]
-): { moves: MigrationFileMove[]; unrecognized: string[] } {
+function planTemplatesFolderMoves({ themeDir, extensions }: { themeDir: string; extensions: readonly string[] }, _optional = {}): { moves: MigrationFileMove[]; unrecognized: string[] } {
   const templatesDir = join(themeDir, "templates");
   const moves: MigrationFileMove[] = [];
   const unrecognized: string[] = [];
@@ -88,7 +85,7 @@ function planTemplatesFolderMoves(
 /** A flat root `assets/` bag (fashion-modern's real shape: one hero photo, no images/video/audio/
  * fonts/files subfolders yet) nests under v2's `assets/images/` — any moved page's own absolute
  * `/theme-assets/<id>/assets/...` reference has to move with it (see AssetPathRewriteRule's header). */
-function planFlatAssetsFolderMoves(themeDir: string): { moves: MigrationFileMove[]; assetPathRewrites: AssetPathRewriteRule[] } {
+function planFlatAssetsFolderMoves({ themeDir }: { themeDir: string }, _optional = {}): { moves: MigrationFileMove[]; assetPathRewrites: AssetPathRewriteRule[] } {
   const assetsDir = join(themeDir, "assets");
   if (!existsSync(assetsDir)) return { moves: [], assetPathRewrites: [] };
 
@@ -100,7 +97,7 @@ function planFlatAssetsFolderMoves(themeDir: string): { moves: MigrationFileMove
  * instead of a 4-way `||` so this stays a single branch no matter how many roots are reserved. */
 const NON_STATIC_TIER_SKIP_ROOTS: ReadonlySet<string> = new Set(["theme.json", "styles.css", "templates", "assets"]);
 
-function planNonStaticRootScan(themeDir: string): string[] {
+function planNonStaticRootScan({ themeDir }: { themeDir: string }, _optional = {}): string[] {
   const unrecognized: string[] = [];
   for (const name of readdirSync(themeDir)) {
     if (NON_STATIC_TIER_SKIP_ROOTS.has(name) || CARRY_OVER_UNCHANGED.has(name) || TOKENS_MODE_FILE_PATTERN.test(name)) continue;
@@ -120,18 +117,15 @@ function planNonStaticRootScan(themeDir: string): string[] {
  *
  * @complexity O(f) in the theme root's own (small) entry count.
  */
-function planNonStaticTierMigration(
-  themeDir: string,
-  tier: "declarative" | "templated" | "handlebars"
-): ThemeMigrationPlan {
+function planNonStaticTierMigration({ themeDir, tier }: { themeDir: string; tier: "declarative" | "templated" | "handlebars" }, _optional = {}): ThemeMigrationPlan {
   const stylesCssMove: MigrationFileMove[] = existsSync(join(themeDir, "styles.css"))
     ? [{ from: "styles.css", to: "css/theme.css" }]
     : [];
-  const templates = planTemplatesFolderMoves(themeDir, NON_STATIC_TIER_EXTENSIONS[tier]);
-  const assets = planFlatAssetsFolderMoves(themeDir);
+  const templates = planTemplatesFolderMoves({ themeDir, extensions: NON_STATIC_TIER_EXTENSIONS[tier] });
+  const assets = planFlatAssetsFolderMoves({ themeDir });
 
   const moves = [...stylesCssMove, ...templates.moves, ...assets.moves];
-  const unrecognized = [...templates.unrecognized, ...planNonStaticRootScan(themeDir)];
+  const unrecognized = [...templates.unrecognized, ...planNonStaticRootScan({ themeDir })];
 
   return { moves, unrecognized, ...(assets.assetPathRewrites.length > 0 ? { assetPathRewrites: assets.assetPathRewrites } : {}) };
 }
@@ -142,12 +136,12 @@ function planNonStaticTierMigration(
  *
  * @complexity O(f) in the folder's own file count.
  */
-function walkFilesRecursive(dir: string, relPrefix = ""): string[] {
+function walkFilesRecursive({ dir }: { dir: string }, { relPrefix = "" }: { relPrefix?: string } = {}): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
     const rel = relPrefix ? `${relPrefix}/${name}` : name;
     if (statSync(join(dir, name)).isDirectory()) {
-      out.push(...walkFilesRecursive(join(dir, name), rel));
+      out.push(...walkFilesRecursive({ dir: join(dir, name) }, { relPrefix: rel }));
     } else {
       out.push(rel);
     }
@@ -163,14 +157,14 @@ function walkFilesRecursive(dir: string, relPrefix = ""): string[] {
  * isn't already there). */
 const PARTIAL_SLOT_STEMS: readonly string[] = ["nav", "footer"];
 
-function isConventionalPartialFile(name: string): boolean {
+function isConventionalPartialFile({ name }: { name: string }, _optional = {}): boolean {
   if (!name.endsWith(".html")) return false;
   return PARTIAL_SLOT_STEMS.some((stem) => name === `${stem}.html` || name.startsWith(`${stem}-`));
 }
 
 /** `css/` has exactly one recognized entry (`styles.css`); everything else in that folder is
  * unrecognized rather than silently skipped, same policy as the tier's other folders. */
-function planCssFolderMoves(themeDir: string): { moves: MigrationFileMove[]; unrecognized: string[] } {
+function planCssFolderMoves({ themeDir }: { themeDir: string }, _optional = {}): { moves: MigrationFileMove[]; unrecognized: string[] } {
   const cssDir = join(themeDir, "css");
   const moves: MigrationFileMove[] = [];
   const unrecognized: string[] = [];
@@ -186,16 +180,16 @@ function planCssFolderMoves(themeDir: string): { moves: MigrationFileMove[]; unr
 /** `js/**` moves to `scripts/**` wholesale, nesting preserved (`js/vendor/<lib>/...` is the one v1
  * static-tier folder with real nested structure) — every file found is recognized, so there is no
  * unrecognized side to this section. */
-function planScriptsFolderMoves(themeDir: string): MigrationFileMove[] {
+function planScriptsFolderMoves({ themeDir }: { themeDir: string }, _optional = {}): MigrationFileMove[] {
   const jsDir = join(themeDir, "js");
   if (!existsSync(jsDir)) return [];
-  return walkFilesRecursive(jsDir).map((rel) => ({ from: `js/${rel}`, to: `scripts/${rel}` }));
+  return walkFilesRecursive({ dir: jsDir }).map((rel) => ({ from: `js/${rel}`, to: `scripts/${rel}` }));
 }
 
 /** OPTIONAL `images/` folder (-> `assets/images/`, with the matching {@link AssetPathRewriteRule}
  * for any moved page's own hardcoded `/theme-assets/<id>/images/...` reference) — `tailark-*` ship
  * no `images/` at all, so the rule comes back absent rather than a no-op empty array. */
-function planImagesFolderMoves(themeDir: string): { moves: MigrationFileMove[]; assetPathRewrites: AssetPathRewriteRule[] } {
+function planImagesFolderMoves({ themeDir }: { themeDir: string }, _optional = {}): { moves: MigrationFileMove[]; assetPathRewrites: AssetPathRewriteRule[] } {
   const imagesDir = join(themeDir, "images");
   if (!existsSync(imagesDir)) return { moves: [], assetPathRewrites: [] };
 
@@ -205,7 +199,7 @@ function planImagesFolderMoves(themeDir: string): { moves: MigrationFileMove[]; 
 
 /** `pages/*.html` -> `render/pages/`; a non-`.html` entry is unrecognized rather than silently
  * dropped or guessed at. */
-function planPagesFolderMoves(themeDir: string): { moves: MigrationFileMove[]; unrecognized: string[] } {
+function planPagesFolderMoves({ themeDir }: { themeDir: string }, _optional = {}): { moves: MigrationFileMove[]; unrecognized: string[] } {
   const pagesDir = join(themeDir, "pages");
   const moves: MigrationFileMove[] = [];
   const unrecognized: string[] = [];
@@ -223,12 +217,12 @@ const STATIC_TIER_SKIP_ROOTS: ReadonlySet<string> = new Set(["theme.json", "css"
 
 /** Root partial files matching a known slot stem move to `render/partials/`; everything else
  * carried-over or already-recognized is skipped, and anything left is unrecognized. */
-function planStaticRootScan(themeDir: string): { moves: MigrationFileMove[]; unrecognized: string[] } {
+function planStaticRootScan({ themeDir }: { themeDir: string }, _optional = {}): { moves: MigrationFileMove[]; unrecognized: string[] } {
   const moves: MigrationFileMove[] = [];
   const unrecognized: string[] = [];
   for (const name of readdirSync(themeDir)) {
     if (STATIC_TIER_SKIP_ROOTS.has(name)) continue;
-    if (isConventionalPartialFile(name)) {
+    if (isConventionalPartialFile({ name })) {
       moves.push({ from: name, to: `render/partials/${name}` });
     } else if (!CARRY_OVER_UNCHANGED.has(name) && !TOKENS_MODE_FILE_PATTERN.test(name)) {
       unrecognized.push(name);
@@ -257,12 +251,12 @@ function planStaticRootScan(themeDir: string): { moves: MigrationFileMove[]; unr
  *
  * @complexity O(f) in the theme's own file count (one walk per top-level folder, one root scan).
  */
-function planStaticTierMigration(themeDir: string): ThemeMigrationPlan {
-  const css = planCssFolderMoves(themeDir);
-  const scripts = planScriptsFolderMoves(themeDir);
-  const images = planImagesFolderMoves(themeDir);
-  const pages = planPagesFolderMoves(themeDir);
-  const rootScan = planStaticRootScan(themeDir);
+function planStaticTierMigration({ themeDir }: { themeDir: string }, _optional = {}): ThemeMigrationPlan {
+  const css = planCssFolderMoves({ themeDir });
+  const scripts = planScriptsFolderMoves({ themeDir });
+  const images = planImagesFolderMoves({ themeDir });
+  const pages = planPagesFolderMoves({ themeDir });
+  const rootScan = planStaticRootScan({ themeDir });
 
   const moves = [...css.moves, ...scripts, ...images.moves, ...pages.moves, ...rootScan.moves];
   const unrecognized = [...css.unrecognized, ...pages.unrecognized, ...rootScan.unrecognized];
@@ -277,10 +271,10 @@ function planStaticTierMigration(themeDir: string): ThemeMigrationPlan {
 export function planV2Migration(required: { themeDir: string; tier: ThemeTier }): ThemeMigrationPlan {
   const { themeDir, tier } = required;
   if (tier === "declarative" || tier === "templated" || tier === "handlebars") {
-    return planNonStaticTierMigration(themeDir, tier);
+    return planNonStaticTierMigration({ themeDir, tier });
   }
   if (tier === "static") {
-    return planStaticTierMigration(themeDir);
+    return planStaticTierMigration({ themeDir });
   }
   throw new Error(`planV2Migration: no v2 migration plan implemented yet for tier '${tier}'`);
 }

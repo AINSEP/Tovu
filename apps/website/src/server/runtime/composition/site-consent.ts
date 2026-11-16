@@ -33,7 +33,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
     trustedRegion: Boolean(deps.consentTrustedRegionHeader),
     published: async () => { await deps.cookieConsent?.refresh?.(); },
     declarationEvidence: async ({ path }) => {
-      const theme = resolveActiveTheme(deps, await deps.resolveActiveThemeId());
+      const theme = resolveActiveTheme({ deps, activeThemeId: await deps.resolveActiveThemeId() });
       const plugins = await deps.cookieConsent?.scriptDeclarations?.().catch(() => ({
         scripts: [], problems: ['Active plugin script declarations could not be read; optional plugin scripts will remain stopped.'],
       })) ?? { scripts: [], problems: [] };
