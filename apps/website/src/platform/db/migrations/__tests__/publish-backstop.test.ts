@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import { listColumns, listIndexes, tableExists } from "#src/platform/db/kernel/dialect";
+import { listColumns, listIndexes, tableExists } from "@jini-ai/db/kernel";
 import { openMemorySqliteKernel } from "#src/platform/db/kernel/drivers/sqlite";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { runMigrations } from "../runner.js";
 import { publishBackstop } from "../0007_publish_backstop.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
 import { CONTENT_MIGRATIONS } from "../index.js";
 
 /** Owner follow-up 2026-10-04 / ADR-066: additive audit storage, both dialects, exactly once. */
-const adapters: { name: string; make: () => StorageKernel<unknown> }[] = [
+const adapters: { name: string; make: () => KyselyKernel<unknown> }[] = [
   { name: "sqlite", make: () => openMemorySqliteKernel<unknown>() },
   { name: "pglite", make: () => openPgliteKernel<unknown>() },
 ];

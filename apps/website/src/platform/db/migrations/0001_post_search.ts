@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Step `0001_post_search`: post full-text search on Postgres/PGlite (storage-adapter plan F1,
@@ -31,9 +31,9 @@ const STATEMENTS = [
   sql`CREATE INDEX post_search_document_search_idx ON post_search_document USING GIN (search)`,
 ];
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect === "sqlite") return;
   for (const statement of STATEMENTS) await kernel.execute(statement);
 }
 
-export const postSearch = (checksum: string): MigrationStep => ({ id: POST_SEARCH_ID, checksum, up });
+export const postSearch = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: POST_SEARCH_ID, checksum, up });

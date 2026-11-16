@@ -4,7 +4,7 @@ import test from "node:test";
 import { ensureVaultRepoFixture } from "./vault-repo.fixture.js";
 
 import { createCustomCredential, updateCustomCredential, describeCredential, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/store";
-import { isUniqueViolation } from "#src/platform/db/kernel/dialect";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/types";

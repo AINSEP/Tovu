@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0019: durable form delivery plans and the shared receiver pull lease.
@@ -23,11 +23,11 @@ export const FORM_DELIVERY_PLANS_STATEMENTS = [
   "CREATE TABLE form_receiver_pulls (workspace_id text NOT NULL, receiver_key text NOT NULL, lease_token text, lease_expires_at text, last_started_at text NOT NULL, PRIMARY KEY (workspace_id, receiver_key))",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of FORM_DELIVERY_PLANS_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example formDeliveryPlans({ checksum: pinnedChecksum }) */
-export function formDeliveryPlans(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function formDeliveryPlans(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: "0019_form_delivery_plans", checksum: required.checksum, up };
 }

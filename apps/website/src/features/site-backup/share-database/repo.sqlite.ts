@@ -14,16 +14,16 @@ import { PUBLISHABLE_SETTINGS } from "#src/features/settings/contracts";
 import { backfillPostSearchIndex } from "#src/features/post/index";
 import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
-import { listColumns, listTables } from "../../../platform/db/kernel/dialect.js";
+import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../../platform/db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CHAT_TABLE_NAMES } from "../../../platform/db/sqlite/chat-orphan-check.js";
 import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { declareDataModule, type DataModuleDecl, type TableDecl } from "@jini-ai/db/data-modules";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row>;
-type Kernel = StorageKernel<Tables>;
+type Kernel = KyselyKernel<Tables>;
 /** Free-space probe for the private staging directory (`node:fs/promises` `statfs` by default). */
 export type StagingSpacePort = (path: string) => Promise<{ bavail: number; bsize: number }>;
 

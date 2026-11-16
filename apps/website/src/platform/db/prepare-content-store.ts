@@ -1,7 +1,7 @@
 import { getTableColumns, getTableName, type Table } from "drizzle-orm";
 
 import type { ContentKernel } from "./content-kernel.js";
-import type { StorageKernel } from "./kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import * as schema from "./schema.sqlite.js";
 import type { ContentDbSeedData } from "./sqlite/content-db.js";
 
@@ -34,7 +34,7 @@ export function columnRow(table: Table, value: object): AnyRow {
 
 async function insertRow({ kernel, table, value }: { kernel: ContentKernel; table: Table; value: object }, _optional: Record<string, never> = {}): Promise<void> {
   // Any table by its runtime name: the typed Kysely surface cannot name a table picked at runtime.
-  await (kernel as unknown as StorageKernel<AnyTables>).run((db) => db.insertInto(getTableName(table)).values(columnRow(table, value)).execute());
+  await (kernel as unknown as KyselyKernel<AnyTables>).run((db) => db.insertInto(getTableName(table)).values(columnRow(table, value)).execute());
 }
 
 /**

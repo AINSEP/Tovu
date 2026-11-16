@@ -5,9 +5,8 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import { listTables } from "../../kernel/dialect.js";
-import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { readSchemaShape, listTables } from "@jini-ai/db/kernel";
 import { openChatDb } from "../../sqlite/chat-db.js";
 import { CHAT_MIGRATIONS, CONTENT_MIGRATIONS, migrateChatDatabase, migrateContentDatabase, runMigrations } from "../index.js";
 import { hasLedger } from "../runner.js";
@@ -20,12 +19,12 @@ import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
  * `runner.postgres.test.ts`.
  */
 
-const opened: StorageKernel<unknown>[] = [];
+const opened: KyselyKernel<unknown>[] = [];
 after(async () => {
   for (const kernel of opened) await kernel.close();
 });
 
-function open<K extends StorageKernel<unknown>>(kernel: K): K {
+function open<K extends KyselyKernel<unknown>>(kernel: K): K {
   opened.push(kernel);
   return kernel;
 }

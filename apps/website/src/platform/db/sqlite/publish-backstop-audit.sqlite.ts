@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 import type { ContentKernel } from "../content-kernel.js";
-import { tableExists } from "../kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import type { BackstopAuditPort, BackstopAuditRecord, BackstopGap } from "#src/features/publish-content/backstop-audit";
 
 /** Optional, staged schema: absent storage keeps the feature closed, without crashing boot. */

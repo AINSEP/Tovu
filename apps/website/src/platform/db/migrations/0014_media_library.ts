@@ -1,17 +1,17 @@
 import { sql } from 'kysely';
-import type { StorageKernel } from '../kernel/port.js';
-import type { MigrationStep } from './step.js';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import type { MigrationStep } from '@jini-ai/core/contracts/storage';
 
 export const MEDIA_LIBRARY_STATEMENTS = [
   "ALTER TABLE media ADD COLUMN kind text NOT NULL DEFAULT 'media' CHECK (kind IN ('media', 'document'))",
   "ALTER TABLE media ADD COLUMN original_filename text",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of MEDIA_LIBRARY_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 export const mediaLibrary = (required: { checksum: string },
-  _optional: Record<string, never> = {}): MigrationStep => ({
+  _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({
   id: '0014_media_library', checksum: required.checksum, up,
 });

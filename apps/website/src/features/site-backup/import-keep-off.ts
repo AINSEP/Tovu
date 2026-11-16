@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { NO_THEME_ID } from "#src/features/theme/active-theme";
 import { sanitizePageHtml } from "#src/features/widgets/media-html";
@@ -21,7 +21,7 @@ const INERT_DROPS: ReadonlySet<string> = new Set(["mark"]);
 const MAX_PAGE_NOTICES = 20;
 const MAX_NOTICE_TITLE = 80;
 
-type Kernel = StorageKernel<ContentDatabase>;
+type Kernel = KyselyKernel<ContentDatabase>;
 
 /**
  * Ids of live theme trees that are not byte-identical to the copy this new site already holds.

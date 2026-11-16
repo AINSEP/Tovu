@@ -10,7 +10,7 @@ import {
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
-import { listTables } from "../../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import { COMMERCE_MIGRATIONS, CONTENT_MIGRATIONS, migrateCommerceDatabase } from "../index.js";
 
 const AT = "2026-11-05T19:00:00.000Z";

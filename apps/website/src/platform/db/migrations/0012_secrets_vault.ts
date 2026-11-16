@@ -1,9 +1,9 @@
 import { sql } from "kysely";
 import type { VaultKind, VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import type { SecretsVaultTable } from "@jini-ai/db/secrets-vault";
-import { tableExists } from "../kernel/dialect.js";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationContext, MigrationStep } from "./step.js";
+import { tableExists } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationContext, MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /** ADR-066/S2: opaque copy first, destructive changes only after coverage. This file deliberately
  * owns its mapping and DDL: changing a runtime registry must never change a pinned migration.
@@ -68,7 +68,7 @@ export function secretsVaultStatements({ dialect }: { dialect: "sqlite" | "postg
   ];
   return [table, ...indexes];
 }
-async function createVault({ kernel }: { kernel: StorageKernel<unknown> }): Promise<void> {
+async function createVault({ kernel }: { kernel: KyselyKernel<unknown> }): Promise<void> {
   for (const statement of secretsVaultStatements({ dialect: kernel.dialect })) await kernel.execute(sql.raw(statement));
 }
 
@@ -82,7 +82,7 @@ function nullable({ row, field }: { row: LegacyRow; field: string }): string | n
 }
 
 /** Count guards fail closed; absence/NaN never becomes an apparently empty source. */
-async function count({ kernel, table, where = sql`true` }: { kernel: StorageKernel<unknown>; table: string; where?: ReturnType<typeof sql> }): Promise<number> {
+async function count({ kernel, table, where = sql`true` }: { kernel: KyselyKernel<unknown>; table: string; where?: ReturnType<typeof sql> }): Promise<number> {
   const rows = await kernel.query<{ n: number | string }>(sql`SELECT count(*) AS n FROM ${sql.table(table)} WHERE ${where}`);
   const raw = rows[0]?.n;
   const n = Number(raw);
@@ -147,7 +147,7 @@ function originalId({ row, kind }: { row: LegacyRow; kind: VaultKind }): string 
 
 /** One opaque insert; its explicit source context is the only input to future legacy opening. */
 async function insertMapped({ kernel, table, kind, row, id, label, isDefault }: {
-  kernel: StorageKernel<unknown>; table: string; kind: VaultKind; row: LegacyRow; id: string; label: string; isDefault: boolean;
+  kernel: KyselyKernel<unknown>; table: string; kind: VaultKind; row: LegacyRow; id: string; label: string; isDefault: boolean;
 }): Promise<void> {
   const workspaceId = text({ row, field: "workspace_id" });
   const mcp = table === "external_mcp_servers";
@@ -217,7 +217,7 @@ export const MCP_VAULT_SQLITE_STATEMENTS: readonly string[] = (() => {
  * plain fields and the approval child rows that ON DELETE CASCADE would otherwise remove.
  * The device table references workspaces only and is never read or changed by this step.
  */
-async function finishMcp({ kernel }: { kernel: StorageKernel<unknown> }): Promise<void> {
+async function finishMcp({ kernel }: { kernel: KyselyKernel<unknown> }): Promise<void> {
   if (kernel.dialect === "sqlite") {
     const unknownChildren = await kernel.query(sql`SELECT DISTINCT m.name FROM sqlite_schema m,
       pragma_foreign_key_list(m.name) fk WHERE m.type='table' AND fk."table"='external_mcp_servers'
@@ -257,7 +257,7 @@ async function finishMcp({ kernel }: { kernel: StorageKernel<unknown> }): Promis
 /** O(n log n) CPU/O(n) memory for n credential rows; fixed table reads, one opaque insert per row.
  * Runner supplies the transaction and migration lock. Coverage failure rolls back copies and DDL.
  */
-async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   const affected = [...SOURCES.map(source => source.table), "external_mcp_servers", "oauth_pending_authorizations", "tovu_migrations"];
   if (await tableExists(kernel, "external_mcp_tool_approvals")) affected.push("external_mcp_tool_approvals");
   if (kernel.dialect === "postgres") {
@@ -336,6 +336,6 @@ async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Pr
 }
 
 /** Activated content step; the final source checksum is pinned in checksums.ts. */
-export function secretsVault(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function secretsVault(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: SECRETS_VAULT_ID, checksum: required.checksum, up };
 }

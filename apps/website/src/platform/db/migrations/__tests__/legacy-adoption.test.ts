@@ -8,12 +8,11 @@ import Database from "better-sqlite3";
 import { sql } from "kysely";
 
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { readSchemaShape } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS, migrateContentDatabase, runMigrations } from "../index.js";
-import { applyLegacyEntries, FROZEN_CHAIN, readFrozenChain } from "../legacy-sqlite.js";
+import { applyLegacyEntries, FROZEN_CHAIN, readFrozenChain, LegacyHistoryError } from "../legacy-sqlite.js";
 import { hasLedger } from "../runner.js";
-import { LegacyHistoryError } from "../step.js";
 import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
 
 /**
@@ -28,31 +27,31 @@ import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
 const BOOKKEEPING = ["__drizzle_migrations", "tovu_migrations"];
 const chain = readFrozenChain();
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-legacy-adoption-"));
-const opened: Array<StorageKernel<unknown>> = [];
+const opened: Array<KyselyKernel<unknown>> = [];
 
 after(async () => {
   for (const kernel of opened) await kernel.close();
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-function memory(): StorageKernel<unknown> {
+function memory(): KyselyKernel<unknown> {
   const kernel = openMemorySqliteKernel<unknown>();
   opened.push(kernel);
   return kernel;
 }
 
-async function drizzleRows(kernel: StorageKernel<unknown>): Promise<number> {
+async function drizzleRows(kernel: KyselyKernel<unknown>): Promise<number> {
   const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM __drizzle_migrations`);
   return n;
 }
 
-async function ledgerIds(kernel: StorageKernel<unknown>): Promise<string[]> {
+async function ledgerIds(kernel: KyselyKernel<unknown>): Promise<string[]> {
   if (!(await hasLedger(kernel))) return [];
   return (await kernel.query<{ id: string }>(sql`SELECT id FROM tovu_migrations ORDER BY id`)).map((row) => row.id);
 }
 
 /** A kernel whose database has the first `count` chain entries, recorded the way drizzle does. */
-async function partial(count: number): Promise<StorageKernel<unknown>> {
+async function partial(count: number): Promise<KyselyKernel<unknown>> {
   const kernel = memory();
   await kernel.transaction(() => applyLegacyEntries(kernel, chain.slice(0, count)));
   return kernel;

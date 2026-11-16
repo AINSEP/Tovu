@@ -5,22 +5,22 @@ import { sql } from 'kysely';
 import { freshSqliteContentKernel, sharedPgContentKernel } from '#src/platform/db/kernel/__tests__/dialect-matrix';
 import { openPgliteKernel } from '#src/platform/db/kernel/drivers/pglite';
 import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
-import { listColumns } from '#src/platform/db/kernel/dialect';
-import type { StorageKernel } from '#src/platform/db/kernel/port';
+import { listColumns } from '@jini-ai/db/kernel';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 import { runMigrations } from '../runner.js';
 import { documentBlobOwnership } from '../0015_document_blob_ownership.js';
 import { MIGRATION_CHECKSUMS } from '../checksums.js';
 
 const dialects = [
-  { name: 'sqlite', open: () => openMemorySqliteKernel<unknown>(), fresh: () => freshSqliteContentKernel() as StorageKernel<unknown>, owned: 1, unowned: 0 },
-  { name: 'pglite', open: () => openPgliteKernel<unknown>(), fresh: () => sharedPgContentKernel() as StorageKernel<unknown>, owned: true, unowned: false },
+  { name: 'sqlite', open: () => openMemorySqliteKernel<unknown>(), fresh: () => freshSqliteContentKernel() as KyselyKernel<unknown>, owned: 1, unowned: 0 },
+  { name: 'pglite', open: () => openPgliteKernel<unknown>(), fresh: () => sharedPgContentKernel() as KyselyKernel<unknown>, owned: true, unowned: false },
 ] as const;
 
-const insertBlob = (kernel: StorageKernel<unknown>, id: string, workspace = 'site-a') => kernel.execute(sql`INSERT INTO asset_blobs
+const insertBlob = (kernel: KyselyKernel<unknown>, id: string, workspace = 'site-a') => kernel.execute(sql`INSERT INTO asset_blobs
   (id, workspace_id, sha256, storage_key, created_by_principal, created_at, status) VALUES (${id}, ${workspace}, ${id}, ${id}, 'owner', 'now', 'active')`);
 
 /** Column shape plus its declared default, so a fresh head database matches an upgraded one. */
-async function ownershipColumn(kernel: StorageKernel<unknown>) {
+async function ownershipColumn(kernel: KyselyKernel<unknown>) {
   const column = (await listColumns(kernel, 'asset_blobs')).find(entry => entry.name === 'document_owned');
   const [declared] = await kernel.query<{ value: string | null }>(kernel.dialect === 'sqlite'
     ? sql`SELECT dflt_value AS value FROM pragma_table_info('asset_blobs') WHERE name = 'document_owned'`

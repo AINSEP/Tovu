@@ -1,7 +1,7 @@
 import type { Insertable, Selectable } from "kysely";
 
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
-import { toBool } from "../../platform/db/kernel/index.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
 import type { Taxonomy, TaxonomyRevisionRow, Term } from "./index.js";
 
 /**

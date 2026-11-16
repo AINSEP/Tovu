@@ -4,7 +4,8 @@ import path from "node:path";
 import { copyPgStore, type CopiedTable, nonEmptyTables } from "#src/platform/db/site-store-copy";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { acquireOwnerLock, PgliteOwnerLockedError } from "#src/platform/db/kernel/drivers/pglite-owner";
-import { openPostgresKernel, storageOps, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel, storageOps } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import { ValidationError } from "#src/platform/site-dir/errors";
@@ -101,8 +102,8 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
   const meta = readMeta({ siteDir });
   const dataDir = requirePgliteDataDir({ siteDir, meta });
   const release = lockStoppedSite({ dataDir });
-  let source: StorageKernel<unknown> | undefined;
-  let target: StorageKernel<unknown> | undefined;
+  let source: KyselyKernel<unknown> | undefined;
+  let target: KyselyKernel<unknown> | undefined;
   try {
     source = openPgliteKernel<unknown>({ dataDir });
     target = openPostgresKernel<unknown>({ connectionString, max: 2 });

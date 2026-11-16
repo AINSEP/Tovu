@@ -5,7 +5,8 @@ import { dirname, join } from "node:path";
 
 import { chatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
 import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
-import { closeSqliteConnection, openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { closeSqliteConnection, openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
@@ -170,7 +171,7 @@ async function waitForPgliteSocket(
  */
 async function preparePgStore(required: {
   storage: Exclude<SiteStorage, { kind: "sqlite" }>;
-  base: StorageKernel<unknown>;
+  base: KyselyKernel<unknown>;
   close: () => Promise<void>;
   seed?: ContentDbSeedData;
 }): Promise<SiteStore> {

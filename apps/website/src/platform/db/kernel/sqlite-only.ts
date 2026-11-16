@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 
-import type { StorageKernel } from "./port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file SQLite-only primitives with no portable equivalent, spelled once here at the kernel boundary
@@ -49,7 +49,7 @@ export interface SqliteSchemaObject {
   sql: string | null;
 }
 
-function requireSqlite<DB>({ kernel, operation }: { kernel: StorageKernel<DB>; operation: string }, _optional: Record<string, never> = {}): void {
+function requireSqlite<DB>({ kernel, operation }: { kernel: KyselyKernel<DB>; operation: string }, _optional: Record<string, never> = {}): void {
   if (kernel.dialect !== "sqlite") {
     throw new Error(`${operation} is SQLite-only; this kernel is ${kernel.dialect}`);
   }
@@ -61,7 +61,7 @@ function requireSqlite<DB>({ kernel, operation }: { kernel: StorageKernel<DB>; o
  * @complexity O(columns) time and space.
  */
 export async function sqliteTableExtendedInfo<DB>(
-  { kernel, table }: { kernel: StorageKernel<DB>; table: string }, _options = {},
+  { kernel, table }: { kernel: KyselyKernel<DB>; table: string }, _options = {},
 ): Promise<SqliteExtendedTableColumn[]> {
   requireSqlite({ kernel, operation: "sqliteTableExtendedInfo" });
   return kernel.query<SqliteExtendedTableColumn>(sql`SELECT * FROM pragma_table_xinfo(${table}) ORDER BY cid`);
@@ -74,7 +74,7 @@ export async function sqliteTableExtendedInfo<DB>(
  * @complexity O(s log s) database ordering and O(s + DDL bytes) memory for s schema objects.
  */
 export async function sqliteSchemaObjects<DB>(
-  { kernel }: { kernel: StorageKernel<DB> }, _options: Record<string, never> = {},
+  { kernel }: { kernel: KyselyKernel<DB> }, _options: Record<string, never> = {},
 ): Promise<SqliteSchemaObject[]> {
   requireSqlite({ kernel, operation: "sqliteSchemaObjects" });
   return kernel.query<SqliteSchemaObject>(sql`SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name`);
@@ -87,7 +87,7 @@ export async function sqliteSchemaObjects<DB>(
  * @throws {Error} On a non-SQLite kernel.
  */
 export async function sqliteTableInfo<DB>(
-  required: { kernel: StorageKernel<DB>; table: string },
+  required: { kernel: KyselyKernel<DB>; table: string },
   _optional: Record<string, never> = {},
 ): Promise<SqliteTableColumn[] | null> {
   const { kernel, table } = required;
@@ -105,7 +105,7 @@ export async function sqliteTableInfo<DB>(
  * @throws {Error} On a non-SQLite kernel.
  */
 export async function sqliteForeignKeyCheckedTransaction<DB, T>(
-  required: { kernel: StorageKernel<DB>; work: () => Promise<T>; onViolation: (required: { violation: SqliteForeignKeyViolation }, optional?: Record<string, never>) => Error },
+  required: { kernel: KyselyKernel<DB>; work: () => Promise<T>; onViolation: (required: { violation: SqliteForeignKeyViolation }, optional?: Record<string, never>) => Error },
   _optional: Record<string, never> = {},
 ): Promise<T> {
   const { kernel, work, onViolation } = required;

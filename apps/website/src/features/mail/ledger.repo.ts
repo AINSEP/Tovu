@@ -2,12 +2,12 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import type { MailDeliveryLane, MailLedgerOutcome, MailSendLedgerPort } from "@jini-ai/platform/mail";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /** The content database kernel. Generic so a typed `ContentKernel` fits: these tables are raw SQL,
  * outside the generated Kysely types, so only `query`/`execute`/`transaction`/`lockKey` are used. */
 export interface MailRepoDeps<DB = unknown> {
-  db: StorageKernel<DB>;
+  db: KyselyKernel<DB>;
 }
 
 export interface MailRepoOptions {

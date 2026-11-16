@@ -3,7 +3,7 @@ import test from "node:test";
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { SecretsVaultService, buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { vaultFixture, vaultStep, stamp } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { unifyVaultCredentials } from "#src/platform/db/migrations/0013_unify_vault_credentials";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
@@ -23,7 +23,7 @@ for (const dialect of ["sqlite", "pglite"] as const) for (const normalized of [f
       // Remove referencing fixture servers before trimming the vault; keep the real RESTRICT FKs.
       await f.kernel.execute(sql`DELETE FROM external_mcp_servers`);
       await f.kernel.execute(sql`DELETE FROM secrets_vault WHERE workspace_id<>'ws' OR id NOT IN ('custom','collision')`);
-      const repo = new SqlSecretsVaultRepo({ kernel: f.kernel as StorageKernel<SecretsVaultDatabase> });
+      const repo = new SqlSecretsVaultRepo({ kernel: f.kernel as KyselyKernel<SecretsVaultDatabase> });
       if (normalized) {
         for (const id of ["custom", "collision"]) {
           const row = (await repo.find({ workspaceId: "ws", id }))!;
@@ -88,7 +88,7 @@ for (const dialect of ["sqlite", "pglite"] as const) for (const normalized of [f
     const f = await vaultFixture(dialect);
     try {
       await f.kernel.transaction(() => vaultStep.up(f.kernel, { note: () => {} }));
-      const repo = new SqlSecretsVaultRepo({ kernel: f.kernel as StorageKernel<SecretsVaultDatabase> });
+      const repo = new SqlSecretsVaultRepo({ kernel: f.kernel as KyselyKernel<SecretsVaultDatabase> });
       if (normalized) {
         const old = (await repo.find({ workspaceId: "ws", id: "custom" }))!;
         const sealed = await f.sealer.seal({ key: await f.keyring.activeKey({}), aad: buildVaultAad(old), plaintext: JSON.stringify({ token: "synthetic-normalized-key" }) });

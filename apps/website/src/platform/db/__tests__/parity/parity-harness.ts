@@ -7,7 +7,7 @@ import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
 import type { InMemoryKeyring } from "@jini-ai/platform/secrets/testing";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 import { CONTENT_MIGRATIONS } from "../../migrations/index.js";
 import { runMigrations } from "../../migrations/runner.js";
@@ -103,7 +103,7 @@ export const parityDeployTargets = {
 };
 
 export interface ParityContext {
-  kernel: StorageKernel<unknown>;
+  kernel: KyselyKernel<unknown>;
   keyring: InMemoryKeyring;
   sealer: AesGcmSecretSealer;
 }
@@ -126,7 +126,7 @@ export const parityVaultKinds = createTovuVaultKinds({ policy: {
 /** The legacy fixture plus parity rows, upgraded the way a live site is: the REAL pinned 0012 step
  * through the runner, then the boot re-seal for every workspace (clock = the seed stamp, so a
  * re-seal does not move `updatedAt`). Close `kernel` when done. */
-export async function migratedParityFixture(dialect: ParityDialect, options: { kernel?: StorageKernel<unknown> } = {}) {
+export async function migratedParityFixture(dialect: ParityDialect, options: { kernel?: KyselyKernel<unknown> } = {}) {
   const fixture = await vaultFixture(dialect, options);
   try {
     await seedParityRows(fixture, dialect);
@@ -197,9 +197,9 @@ export interface RecordedStatement { kind: string; sql: string; parameters: read
 
 /** `kernel` recording every statement it executes (compiled SQL + parameters), for the hot-path
  * query counts and plans. Repos built over the wrapper go through it for every call. */
-export function countingKernel<DB>(kernel: StorageKernel<DB>): { kernel: StorageKernel<DB>; statements: RecordedStatement[] } {
+export function countingKernel<DB>(kernel: KyselyKernel<DB>): { kernel: KyselyKernel<DB>; statements: RecordedStatement[] } {
   const statements: RecordedStatement[] = [];
-  const wrapped: StorageKernel<DB> = {
+  const wrapped: KyselyKernel<DB> = {
     ...kernel,
     run: fn => kernel.run(db => {
       const plugin: KyselyPlugin = {
@@ -222,7 +222,7 @@ export function countingKernel<DB>(kernel: StorageKernel<DB>): { kernel: Storage
 /** The plan of one recorded statement, flattened to text: SQLite `EXPLAIN QUERY PLAN`, Postgres
  * `EXPLAIN (FORMAT JSON)` with sequential scans disabled so a usable index is always preferred
  * (tiny fixture tables would otherwise be scanned regardless of the indexes). */
-export async function explainPlan(kernel: StorageKernel<unknown>, statement: RecordedStatement): Promise<string> {
+export async function explainPlan(kernel: KyselyKernel<unknown>, statement: RecordedStatement): Promise<string> {
   if (kernel.dialect === "sqlite") {
     const parameters = statement.parameters.map(value => typeof value === "boolean" ? Number(value) : value);
     const rows = await kernel.run(db => db.executeQuery(CompiledQuery.raw(`EXPLAIN QUERY PLAN ${statement.sql}`, parameters)));
@@ -257,7 +257,7 @@ export function assertPostgresVaultPlanIndexed(plan: string, message: string): v
  * migrated SQL rows. External MCP server rows live outside the vault, so `mcp` stays on SQL. */
 export async function memoryParityDeps(mods: ParityModules, ctx: ParityContext): Promise<ParityDeps> {
   const vault = new InMemoryVaultRepo({});
-  const sqlVault = new SqlSecretsVaultRepo({ kernel: ctx.kernel as StorageKernel<SecretsVaultDatabase> });
+  const sqlVault = new SqlSecretsVaultRepo({ kernel: ctx.kernel as KyselyKernel<SecretsVaultDatabase> });
   for (const { workspace_id: workspaceId, id } of await ctx.kernel.query<{ workspace_id: string; id: string }>(sql`SELECT workspace_id, id FROM secrets_vault ORDER BY id`)) {
     const record = await sqlVault.find({ workspaceId, id });
     // A fresh insert must be revision 1; the boot re-seal already moved the SQL rows to 2.

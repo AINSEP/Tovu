@@ -4,7 +4,7 @@ import { dirname } from "node:path";
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import { type ChatDatabase, type ChatKernel, pgChatKernel } from "../chat-kernel.js";
-import type { StorageKernel } from "../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { SiteStorage } from "../../site-dir/index.js";
 
 /**
@@ -118,7 +118,7 @@ async function openSqliteClient(required: OpenSiteDbClientRequired, driver: Site
     }
   }
   const content = driver.openSqliteFileKernel<ContentDatabase>(required.dbPath);
-  let chat: StorageKernel<ChatDatabase>;
+  let chat: KyselyKernel<ChatDatabase>;
   try {
     chat = driver.openSqliteFileKernel<ChatDatabase>(required.chatDbPath);
   } catch (err) {
@@ -138,7 +138,7 @@ async function openSqliteClient(required: OpenSiteDbClientRequired, driver: Site
   };
 }
 
-function openPgliteKernel(required: { env: NodeJS.ProcessEnv }, driver: SiteDbDrivers["pglite"]): StorageKernel<unknown> {
+function openPgliteKernel(required: { env: NodeJS.ProcessEnv }, driver: SiteDbDrivers["pglite"]): KyselyKernel<unknown> {
   const socketPath = required.env[PG_SOCKET_ENV]?.trim();
   if (!socketPath) {
     throw new Error(`this site is stored on pglite and ${PG_SOCKET_ENV} is not set: the daemon supervisor passes the owner's socket`);
@@ -152,7 +152,7 @@ async function openPostgresKernel(
     env: NodeJS.ProcessEnv;
   },
   driver: SiteDbDrivers["postgres"]
-): Promise<StorageKernel<unknown>> {
+): Promise<KyselyKernel<unknown>> {
   const connectionString = await required.resolvePostgresConnectionString(
     { storage: required.storage, siteDir: dirname(required.dbPath) },
     { env: required.env }

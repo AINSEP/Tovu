@@ -1,6 +1,6 @@
 /** @file Thin SQL adapter for site consent snapshots, using the host's instrumented kernel. */
 import { sql } from 'kysely';
-import type { StorageKernel } from '#src/platform/db/kernel/port';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 import { SiteConsentConflict, type SiteConsentRevision, type SiteConsentStore } from './revisions.js';
 
 type Stored = { id: string; config_json: string; actor_id: string; created_at: string };
@@ -8,7 +8,7 @@ type Stored = { id: string; config_json: string; actor_id: string; created_at: s
 /** One workspace's immutable policies and CAS publication; no policy/classification logic.
  * @complexity O(1) indexed reads/writes per operation, bounded config JSON (32 KiB).
  * @example createSiteConsentStore({ kernel, workspaceId: 'site-a' }) */
-export function createSiteConsentStore({ kernel, workspaceId }: { kernel: Pick<StorageKernel<unknown>, "query" | "execute" | "lockKey" | "transaction">; workspaceId: string }, _options = {}): SiteConsentStore {
+export function createSiteConsentStore({ kernel, workspaceId }: { kernel: Pick<KyselyKernel<unknown>, "query" | "execute" | "lockKey" | "transaction">; workspaceId: string }, _options = {}): SiteConsentStore {
   /** Keep all row lookups tenant scoped, including pointers read from storage. */
   const revision = async ({ id }: { id: string | null }, _optional = {}): Promise<SiteConsentRevision | null> => {
     if (id === null) return null;

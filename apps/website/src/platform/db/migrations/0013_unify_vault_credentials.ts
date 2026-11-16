@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /** Data only: the runner owns transaction, backup and ledger. Existing coalesced provider indexes
  * already isolate custom rows' NULL-provider group. The kind CHECK retains dead value 'custom'
@@ -38,7 +38,7 @@ function inferredWorksFor({ label }: { label: string }, _options = {}): string[]
  * instead pin precisely the old custom-kind vault AAD. Re-entry skips already canonical rows.
  * @complexity O(rows × frozen catalog), O(rows + metadata) memory; one metadata scan and CAS/update.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   const rows = await kernel.query<Row>(sql`SELECT workspace_id,id,kind,provider,label,revision,meta
     FROM secrets_vault WHERE kind IN ('vendor','custom') ORDER BY workspace_id,id`);
   for (const row of rows) {
@@ -62,6 +62,6 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** Kept unregistered until the coordinator explicitly activates the reviewed rollout patch. */
-export function unifyVaultCredentials({ checksum }: { checksum: string }, _options = {}): MigrationStep {
+export function unifyVaultCredentials({ checksum }: { checksum: string }, _options = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: UNIFY_VAULT_CREDENTIALS_ID, checksum, up };
 }

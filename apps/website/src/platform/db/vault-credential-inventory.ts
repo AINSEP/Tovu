@@ -3,8 +3,8 @@ import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secr
 import { buildVaultAad, type VaultQuery, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SealedSecret, SecretSealerPort, SiteKeyHandle } from "@jini-ai/platform/secrets";
 import type { ContentKernel } from "./content-kernel.js";
-import type { StorageKernel } from "./kernel/port.js";
-import { listColumns, listTables } from "./kernel/dialect.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { deviceAad } from "./repos/oauth-pending-store.js";
 
 /** @file Host inventory over Jini's vault plus catalog coverage for unknown sealed columns.
@@ -96,7 +96,7 @@ interface VaultScope { workspace_id: string; kind: VaultQuery["kind"]; owner_key
 async function readVault({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: DiscoveredSealedColumn }): Promise<{
   values: VaultCredentialValue[]; metadataOnly: SealedCredentialInventory["metadataOnly"];
 }> {
-  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const scopes = await deps.kernel.query<VaultScope>(sql`
     SELECT DISTINCT workspace_id,kind,owner_key,principal_id FROM secrets_vault ORDER BY workspace_id,kind,owner_key`);
   const values: VaultCredentialValue[] = [];

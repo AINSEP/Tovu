@@ -3,10 +3,10 @@ import { after, describe, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { listTables } from "../../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { DROP_EMPTY_LEGACY_CHAT_TABLES_ID } from "../0002_drop_empty_legacy_chat_tables.js";
 import { migrateContentDatabase } from "../index.js";
 import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
@@ -19,19 +19,19 @@ import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
 
 const LEGACY_CHAT_TABLES = ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"];
 
-const opened: StorageKernel<unknown>[] = [];
+const opened: KyselyKernel<unknown>[] = [];
 after(async () => {
   for (const kernel of opened) await kernel.close();
 });
 
 /** A content database at the legacy chain's head (drizzle's migrator), not yet adopted. */
-function legacyContentKernel(): StorageKernel<unknown> {
+function legacyContentKernel(): KyselyKernel<unknown> {
   const kernel = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
   opened.push(kernel);
   return kernel;
 }
 
-const legacyChatTablesIn = async (kernel: StorageKernel<unknown>) => (await listTables(kernel)).filter((name) => LEGACY_CHAT_TABLES.includes(name));
+const legacyChatTablesIn = async (kernel: KyselyKernel<unknown>) => (await listTables(kernel)).filter((name) => LEGACY_CHAT_TABLES.includes(name));
 
 describe(DROP_EMPTY_LEGACY_CHAT_TABLES_ID, () => {
   test("SQLite: the three empty legacy chat tables are dropped", async () => {

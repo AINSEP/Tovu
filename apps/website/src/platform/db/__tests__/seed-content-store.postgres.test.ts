@@ -4,7 +4,8 @@ import { after, test } from "node:test";
 import { seededPosts, seededPresentation, seededWorkspace } from "#src/server/runtime/configuration/seed";
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
-import { openPostgresKernel, type StorageKernel } from "../kernel/index.js";
+import { openPostgresKernel } from "../kernel/index.js";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "../migrations/index.js";
 import { prepareContentStore } from "../prepare-content-store.js";
 import { dropDatabase, freshPostgresDatabase } from "./postgres-database.js";
@@ -38,7 +39,7 @@ async function freshKernels(suffix: string, connections = 1): Promise<ContentKer
   databases.push(name);
   const kernels = Array.from({ length: connections }, () => openPostgresKernel<ContentDatabase>({ connectionString: url }));
   opened.push(...kernels);
-  await migrateContentDatabase(kernels[0] as unknown as StorageKernel<unknown>);
+  await migrateContentDatabase(kernels[0] as unknown as KyselyKernel<unknown>);
   return kernels;
 }
 

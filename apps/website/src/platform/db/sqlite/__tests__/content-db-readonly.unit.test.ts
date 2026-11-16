@@ -9,7 +9,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import { migrateSqliteContentFile, MIGRATION_BACKUP_PREFIX, openContentDb, openContentDbReadOnly, openSqliteContentConnection } from "../content-db.js";
-import { LegacyHistoryError } from "../../migrations/step.js";
+import { LegacyHistoryError } from "../../migrations/legacy-sqlite.js";
 import * as schema from "../../schema.sqlite.js";
 
 /**

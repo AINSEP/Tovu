@@ -10,7 +10,7 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
 import { NEWSLETTER_DATA_MODULE } from "#src/features/newsletter/data-module-manifest";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import { listColumns, listTables } from "../../kernel/dialect.js";
+import { listColumns, listTables } from "@jini-ai/db/kernel";
 import { openContentDb } from "../content-db.js";
 import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
 import { prepareSharePluginTables, type StagingSpacePort } from "#src/features/site-backup/share-database/repo.sqlite";

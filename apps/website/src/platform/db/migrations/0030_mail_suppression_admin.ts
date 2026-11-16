@@ -1,6 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule, sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0030: the Email page's suppression list and feedback setup (email phase 5,
@@ -44,13 +44,13 @@ export function mailSuppressionSchema({ schema }: { schema: SchemaModule }, _opt
 const sqliteSchema = new Kysely<unknown>({ dialect: new SqliteDialect({ database: {} as never }) }).schema;
 export const MAIL_SUPPRESSION_ADMIN_STATEMENTS = mailSuppressionSchema({ schema: sqliteSchema }).map(step => step.compile().sql);
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   await kernel.run(async db => { for (const step of mailSuppressionSchema({ schema: db.schema })) await step.execute(); });
   const identity = kernel.dialect === "sqlite" ? sql`lower(hex(randomblob(16)))` : sql`md5(random()::text || clock_timestamp()::text)`;
   await kernel.execute(sql`UPDATE mail_suppression SET revision = ${identity}`);
 }
 
 /** Build the immutable ADR-066 step. @example mailSuppressionAdmin({ checksum: pinnedChecksum }) */
-export function mailSuppressionAdmin(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function mailSuppressionAdmin(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: MAIL_SUPPRESSION_ADMIN_ID, checksum: required.checksum, up };
 }

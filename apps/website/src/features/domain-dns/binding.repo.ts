@@ -1,7 +1,7 @@
 /** @file Thin SQL adapter for `domain_binding` (migrations 0024, 0026), on the host's instrumented kernel. */
 import { sql } from "kysely";
 import type { DelegationState, DnsPlanRequirement } from "@jini-ai/devops/dns";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /** `unknown` = transport failure, retried; `timeout` = the 48 h propagation cap was reached. */
 export type DomainBindingStatus = "pending" | "propagated" | "mismatch" | "timeout" | "unknown";
@@ -61,7 +61,7 @@ function fromRow(row: Stored): DomainBinding {
  * @complexity O(1) keyed reads/writes; `listDue` O(limit) over the (workspace, next_check_at) index.
  * @example createDomainBindingStore({ kernel, workspaceId: "site-a" })
  */
-export function createDomainBindingStore({ kernel, workspaceId }: { kernel: Pick<StorageKernel<unknown>, "query" | "execute">; workspaceId: string }, _options = {}): DomainBindingStore {
+export function createDomainBindingStore({ kernel, workspaceId }: { kernel: Pick<KyselyKernel<unknown>, "query" | "execute">; workspaceId: string }, _options = {}): DomainBindingStore {
   return {
     async get({ hostname }) {
       const [row] = await kernel.query<Stored>(sql`SELECT ${COLUMNS} FROM domain_binding WHERE workspace_id = ${workspaceId} AND hostname = ${hostname}`);

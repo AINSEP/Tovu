@@ -6,7 +6,7 @@ import { dropDatabase, freshPostgresDatabase } from "../../../platform/db/__test
 import type { ContentDatabase } from "../../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import { openPostgresKernel } from "../../../platform/db/kernel/drivers/postgres.js";
-import type { StorageKernel } from "../../../platform/db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "../../../platform/db/migrations/index.js";
 import { ensureVaultRepoFixture } from "../../../platform/db/repos/__tests__/vault-repo.fixture.js";
 import { createExternalMcpConnectionGate } from "../external-mcp-oauth.js";
@@ -47,7 +47,7 @@ async function pgSnapshot(target: ContentKernel): Promise<Record<string, Row[]>>
 before(async () => {
   connectionString = freshPostgresDatabase(database);
   kernel = openPostgresKernel<ContentDatabase>({ connectionString });
-  await migrateContentDatabase(kernel as StorageKernel<unknown>);
+  await migrateContentDatabase(kernel as KyselyKernel<unknown>);
   await ensureVaultRepoFixture({ kernel });
   const rows = await fixtureRows();
   for (const [table] of FROZEN_TABLES) {

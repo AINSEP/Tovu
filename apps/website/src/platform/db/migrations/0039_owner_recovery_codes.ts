@@ -1,5 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule } from 'kysely';
-import type { MigrationStep } from './step.js';
+import type { MigrationStep } from '@jini-ai/core/contracts/storage';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 
 /** Shared DDL for upgrades and synchronous fresh SQLite bootstrap; only scoped digests persist. */
 export function ownerRecoveryCodesSchema({ schema }: { schema: SchemaModule }, _options: Record<string, never> = {}) {
@@ -17,7 +18,7 @@ export const OWNER_RECOVERY_CODES_SQL = ownerRecoveryCodesSchema({ schema: sqlit
  * @returns The checksum-pinned ADR-066 step, applied once by the migration runner.
  * @complexity O(1) DDL for one empty table and its composite primary key.
  */
-export function ownerRecoveryCodes({ checksum }: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function ownerRecoveryCodes({ checksum }: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: '0039_owner_recovery_codes', checksum,
     async up(kernel) {
       await kernel.run(db => ownerRecoveryCodesSchema({ schema: db.schema }).execute());

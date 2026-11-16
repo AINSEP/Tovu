@@ -4,7 +4,7 @@ import { after, before, test } from "node:test";
 import { sql } from "kysely";
 
 import { openPostgresKernel } from "../drivers/postgres.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 
 /**
@@ -18,8 +18,8 @@ interface LedgerDb {
   ledger: { id: string; stream: string; seq: number; previous_id: string | null };
 }
 
-let first: StorageKernel<LedgerDb>;
-let second: StorageKernel<LedgerDb>;
+let first: KyselyKernel<LedgerDb>;
+let second: KyselyKernel<LedgerDb>;
 
 before(async () => {
   const url = freshPostgresDatabase("tovu_kernel_pg_fixture");
@@ -41,7 +41,7 @@ function gate(): { opened: Promise<void>; open: () => void } {
 
 /** Read the stream's latest row, (optionally pause), append after it — the appendRevision shape. */
 async function append(
-  kernel: StorageKernel<LedgerDb>,
+  kernel: KyselyKernel<LedgerDb>,
   input: { stream: string; id: string; lock: boolean; afterRead?: () => Promise<void> }
 ): Promise<string | null> {
   return kernel.transaction(async () => {

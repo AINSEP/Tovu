@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { MAIL_SUPPRESSION_ADMIN_ID } from "../0030_mail_suppression_admin.js";
 import { MAIL_LEDGERS_ID } from "../0023_mail_ledgers.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
@@ -19,7 +19,7 @@ const AT = "2026-10-22T12:00:00.000Z";
 for (const adapter of eachDialect({ tables: ["mail_suppression", "workspaces"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
   test(`[${name}] 0030 follows 0029, adds the removal audit once, and leaves suppressions intact`, async () => {
-    const kernel = adapter.make() as StorageKernel<unknown>;
+    const kernel = adapter.make() as KyselyKernel<unknown>;
     try {
       const ids = CONTENT_MIGRATIONS.map(entry => entry.id);
       assert.equal(ids.indexOf(MAIL_SUPPRESSION_ADMIN_ID), ids.indexOf("0029_mail_activity_indexes") + 1, "0030 follows 0029");

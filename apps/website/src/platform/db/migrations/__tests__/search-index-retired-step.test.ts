@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
 
@@ -30,8 +30,8 @@ for (const adapter of eachDialect({ tables: ["search_index_retired"], make: kern
       assert.equal(CONTENT_MIGRATIONS[CONTENT_MIGRATIONS.indexOf(step) + 1]?.id, "0029_mail_activity_indexes", "0028 is followed directly by 0029");
       await kernel.execute(sql.raw("DROP TABLE search_index_retired"));
       const options = { ledgerTable: "search_index_retired_step_contract_migrations" };
-      assert.deepEqual((await runMigrations(kernel as StorageKernel<unknown>, [step], options)).applied, [ID]);
-      assert.deepEqual((await runMigrations(kernel as StorageKernel<unknown>, [step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, [ID]);
+      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, [], "a second run applies nothing");
       assert.deepEqual(await kernel.query(sql`SELECT * FROM search_index_retired`), []);
     } finally {
       if (name === "sqlite") await kernel.close();

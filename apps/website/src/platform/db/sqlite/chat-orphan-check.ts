@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { listTables } from "../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
 
 /**

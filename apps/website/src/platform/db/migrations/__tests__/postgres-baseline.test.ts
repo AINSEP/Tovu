@@ -5,12 +5,11 @@ import type { PGlite } from "@electric-sql/pglite";
 import { sql } from "kysely";
 
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
-import { listTables } from "../../kernel/dialect.js";
-import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape, type SchemaShape } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { readSchemaShape, type SchemaShape, listTables } from "@jini-ai/db/kernel";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase, runMigrations } from "../index.js";
-import { LegacyHistoryError } from "../step.js";
+import { LegacyHistoryError } from "../legacy-sqlite.js";
 
 /**
  * @file The Postgres half of `0000_legacy_baseline` (ADR-066 §6), on PGlite: the frozen statements
@@ -20,12 +19,12 @@ import { LegacyHistoryError } from "../step.js";
  * schema-file change without a migration step goes red. Real Postgres: `runner.postgres.test.ts`.
  */
 
-const opened: Array<StorageKernel<unknown>> = [];
+const opened: Array<KyselyKernel<unknown>> = [];
 after(async () => {
   for (const kernel of opened) await kernel.close();
 });
 
-function pglite(prepare?: (client: PGlite) => Promise<void>): StorageKernel<unknown> {
+function pglite(prepare?: (client: PGlite) => Promise<void>): KyselyKernel<unknown> {
   const kernel = openPgliteKernel<unknown>({ prepare });
   opened.push(kernel);
   return kernel;

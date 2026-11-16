@@ -3,12 +3,13 @@ import { after, describe, test } from "node:test";
 
 import { sql } from "kysely";
 
-import { listTables } from "../../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { assertValidSteps, runMigrations } from "../runner.js";
-import { MigrationChecksumError, type MigrationStep, UnknownAppliedMigrationError } from "../step.js";
+import { type MigrationStep } from "@jini-ai/core/contracts/storage";
+import { MigrationChecksumError, UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
 
 /**
  * @file The migration runner's rules on every embedded dialect: pending steps apply in order and
@@ -19,7 +20,7 @@ import { MigrationChecksumError, type MigrationStep, UnknownAppliedMigrationErro
 
 const sum = (char: string) => char.repeat(64);
 
-function tableStep(id: string, table: string, checksum = sum("a")): MigrationStep {
+function tableStep(id: string, table: string, checksum = sum("a")): MigrationStep<KyselyKernel<unknown>> {
   return {
     id,
     checksum,
@@ -29,12 +30,12 @@ function tableStep(id: string, table: string, checksum = sum("a")): MigrationSte
   };
 }
 
-const kernels: Array<StorageKernel<unknown>> = [];
+const kernels: Array<KyselyKernel<unknown>> = [];
 after(async () => {
   for (const kernel of kernels) await kernel.close();
 });
 
-const dialects: Array<{ name: string; open: () => StorageKernel<unknown> }> = [
+const dialects: Array<{ name: string; open: () => KyselyKernel<unknown> }> = [
   { name: "sqlite", open: () => openMemorySqliteKernel<unknown>() },
   { name: "pglite", open: () => openPgliteKernel<unknown>() },
 ];
@@ -72,7 +73,7 @@ for (const { name, open } of dialects) {
 
     test("a failing step rolls back its own changes, is not recorded, and stops later steps", async () => {
       const kernel = fresh();
-      const failing: MigrationStep = {
+      const failing: MigrationStep<KyselyKernel<unknown>> = {
         id: "0002_fails",
         checksum: sum("c"),
         up: async (k) => {

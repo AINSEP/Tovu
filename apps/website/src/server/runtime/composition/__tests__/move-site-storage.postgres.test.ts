@@ -12,7 +12,8 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { dropDatabase, freshPostgresDatabase, psql } from "#src/platform/db/__tests__/postgres-database";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { ValidationError } from "#src/platform/site-dir/errors";
 import { initSite } from "#src/server/runtime/composition/site-dir";
@@ -49,7 +50,7 @@ async function openOwner(storageSite: string, optional: { sealer?: AesGcmSecretS
   );
 }
 
-async function counts(kernel: StorageKernel<unknown>): Promise<Record<string, number>> {
+async function counts(kernel: KyselyKernel<unknown>): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
   for (const table of await readCatalog(kernel)) {
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${sql.table(`${table.schema}.${table.name}`)}`);
@@ -207,7 +208,7 @@ test("the move copies every table, seals the secret, switches the meta last, and
 
   const store = await openOwner(siteDir, { sealer: sealing.sealer });
   try {
-    const targetCounts = await counts(store.content as unknown as StorageKernel<unknown>);
+    const targetCounts = await counts(store.content as unknown as KyselyKernel<unknown>);
     assert.deepEqual(targetCounts, sourceCounts, "every table has the same rows on Postgres");
     const targetMessages = (await store.content.query<{ message: string }>(sql`SELECT to_jsonb(m)::text AS message FROM ai_chat.ai_chat_messages AS m ORDER BY id`))
       .map((row) => JSON.parse(row.message) as Record<string, unknown>);

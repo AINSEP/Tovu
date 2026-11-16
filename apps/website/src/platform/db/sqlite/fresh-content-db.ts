@@ -22,7 +22,8 @@ import { documentBlobOwnershipStatements } from "../migrations/0015_document_blo
 import { MEDIA_LIBRARY_STATEMENTS } from "../migrations/0014_media_library.js";
 import { FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS } from "../migrations/0018_form_submission_remote_receipts.js";
 import { FORM_DELIVERY_PLANS_STATEMENTS } from "../migrations/0019_form_delivery_plans.js";
-import { CONTENT_MIGRATIONS, type MigrationStep } from "../migrations/index.js";
+import { CONTENT_MIGRATIONS } from "../migrations/index.js";
+import { type MigrationStep } from "@jini-ai/core/contracts/storage";
 import { POSTS_AUTHOR_SQLITE_STATEMENTS } from "../migrations/0009_posts_author.js";
 import { MEMBERS_CREDENTIALS_REVOKED_AT_SQL } from "../migrations/0010_members_credentials_revoked_at.js";
 import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "../migrations/0011_drop_empty_core_commerce_tables.js";
@@ -30,6 +31,7 @@ import { secretsVaultStatements, MCP_VAULT_SQLITE_STATEMENTS } from "../migratio
 import { widenedVaultTableDdl } from "../migrations/0020_vault_api_connection_kind.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
 import { sqliteClientOf, type NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file Synchronous construction of a BRAND-NEW Tovu content database at head.
@@ -55,7 +57,7 @@ import { sqliteClientOf, type NativeSqliteDatabase } from "../kernel/drivers/sql
 export function bootstrapFreshContentDb(
   { db }: { db: { $client: NativeSqliteDatabase } },
   // Injectable for the drift guard's own test; production always uses the real step list.
-  { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep[] } = {},
+  { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep<KyselyKernel<unknown>>[] } = {},
 ): boolean {
   const client = sqliteClientOf(db);
   const hasTables = () => client.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' LIMIT 1").get() !== undefined;

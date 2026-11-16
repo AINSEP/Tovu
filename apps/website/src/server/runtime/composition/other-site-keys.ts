@@ -9,7 +9,7 @@ import { SecretsVaultService, VaultError, type VaultKind, type VaultMeta, type V
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";
-import { tableExists } from "#src/platform/db/kernel/dialect";
+import { tableExists } from "@jini-ai/db/kernel";
 import { createSitesWorkspace, type SitesWorkspace } from "#src/platform/site-dir/sites-home";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";

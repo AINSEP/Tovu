@@ -1,6 +1,6 @@
 import { Kysely, SqliteDialect, type SchemaModule, sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0029: activity storage for the Email page's **Recent sends and failures** (email
@@ -50,7 +50,7 @@ export function mailActivitySchema({ schema }: { schema: SchemaModule }, _option
 const sqliteSchema = new Kysely<unknown>({ dialect: new SqliteDialect({ database: {} as never }) }).schema;
 export const MAIL_ACTIVITY_INDEXES_STATEMENTS = mailActivitySchema({ schema: sqliteSchema }).map(step => step.compile().sql);
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   await kernel.run(async db => { for (const step of mailActivitySchema({ schema: db.schema })) await step.execute(); });
   // Opaque identities for historical rows: data updates are dialect-specific only for randomness.
   const identity = kernel.dialect === "sqlite" ? sql`lower(hex(randomblob(16)))` : sql`md5(random()::text || clock_timestamp()::text)`;
@@ -58,6 +58,6 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** Build the immutable ADR-066 step. @example mailActivityIndexes({ checksum: pinnedChecksum }) */
-export function mailActivityIndexes(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function mailActivityIndexes(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: MAIL_ACTIVITY_INDEXES_ID, checksum: required.checksum, up };
 }

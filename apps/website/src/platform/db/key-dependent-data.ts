@@ -2,9 +2,9 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { isVaultRestoreArtifact, SEALED_COLUMN_SUFFIX } from "./vault-credential-inventory.js";
 import { sql } from "kysely";
 
-import { listColumns, listTables, tableExists } from "./kernel/dialect.js";
+import { listColumns, listTables, tableExists } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel } from "./kernel/drivers/sqlite.js";
-import type { StorageKernel } from "./kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The "does this site hold data only the current site key can open?" scan (site-key plan
@@ -33,7 +33,7 @@ const WEBHOOK_SUBSCRIPTIONS_TABLE = "webhook_subscriptions";
  * @throws whatever the driver throws for a failed catalog read or probe.
  * @complexity O(t) catalog reads for t tables, plus one `LIMIT 1` probe per sealed column.
  */
-export async function hasKeyDependentData<DB>(kernel: StorageKernel<DB>): Promise<boolean> {
+export async function hasKeyDependentData<DB>(kernel: KyselyKernel<DB>): Promise<boolean> {
   for (const table of await listTables(kernel)) {
     if (isVaultRestoreArtifact({ table })) continue;
     if (await tableHasSealedValue({ kernel, table })) return true;
@@ -47,7 +47,7 @@ export async function hasKeyDependentData<DB>(kernel: StorageKernel<DB>): Promis
  *
  * @complexity O(c) for c catalog columns, plus one `LIMIT 1` probe per sealed column.
  */
-async function tableHasSealedValue<DB>({ kernel, table }: { kernel: StorageKernel<DB>; table: string }): Promise<boolean> {
+async function tableHasSealedValue<DB>({ kernel, table }: { kernel: KyselyKernel<DB>; table: string }): Promise<boolean> {
   for (const column of await listColumns(kernel, table)) {
     if (!column.name.endsWith(SEALED_COLUMN_SUFFIX)) continue;
     const hit = await kernel.query(
@@ -59,7 +59,7 @@ async function tableHasSealedValue<DB>({ kernel, table }: { kernel: StorageKerne
 }
 
 /** Whether a `webhook_subscriptions` table exists and holds any row (its secrets derive from the key). */
-async function hasWebhookSubscription<DB>({ kernel }: { kernel: StorageKernel<DB> }): Promise<boolean> {
+async function hasWebhookSubscription<DB>({ kernel }: { kernel: KyselyKernel<DB> }): Promise<boolean> {
   if (!(await tableExists(kernel, WEBHOOK_SUBSCRIPTIONS_TABLE))) return false;
   const subscription = await kernel.query(sql`SELECT 1 AS hit FROM ${sql.table(WEBHOOK_SUBSCRIPTIONS_TABLE)} LIMIT 1`);
   return subscription.length > 0;
@@ -89,8 +89,8 @@ export async function findKeyDependentData(dbPaths: readonly string[]): Promise<
  *
  * @complexity {@link hasKeyDependentData}'s cost plus one open/close.
  */
-export async function scanOpenedKernel({ open }: { open: () => StorageKernel<unknown> }, _optional: Record<string, never> = {}): Promise<boolean> {
-  let kernel: StorageKernel<unknown>;
+export async function scanOpenedKernel({ open }: { open: () => KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<boolean> {
+  let kernel: KyselyKernel<unknown>;
   try {
     kernel = open();
   } catch {

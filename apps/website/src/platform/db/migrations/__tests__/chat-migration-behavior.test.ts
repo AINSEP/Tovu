@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
 
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
 import { activeRunIndex } from "../chat/0003_active_run_index.js";
 import { chatBaseline } from "../chat/0000_chat_baseline.js";
 import { sqliteChatTables } from "../chat/0001_sqlite_chat_tables.js";
-import type { MigrationContext } from "../step.js";
+import type { MigrationContext } from "@jini-ai/core/contracts/storage";
 
 /** These steps take no backup and report nothing, so the runner's context is inert here. */
 const migrationContext: MigrationContext = { note: () => {} };
@@ -22,7 +22,7 @@ for (const fixture of cases) {
   // F4.4/F6.3: valid sibling fields ensure the named CHECK, FK or composite key is the sole failing guard.
   // Mutations: INTEGER for PG epoch times; omit defaults/CHECK/UNIQUE/CASCADE; shorten approval's key.
   test(`${fixture.name} chat migration preserves milliseconds, defaults, ownership constraints and child cascades`, async () => {
-    const kernel: StorageKernel<unknown> = fixture.open();
+    const kernel: KyselyKernel<unknown> = fixture.open();
     const t = (name: string) => sql.table(`${fixture.prefix}${name}`);
     const constraint = fixture.name === "SQLite" ? { code: "SQLITE_CONSTRAINT_CHECK" } : { code: "23514" };
     const unique = fixture.name === "SQLite" ? { code: "SQLITE_CONSTRAINT_UNIQUE" } : { code: "23505" };
@@ -149,7 +149,7 @@ test("SQLite chat migration propagates an incompatible existing table error with
 
 for (const fixture of cases) {
   test(`${fixture.name} active-run index is added idempotently through the migration step`, async () => {
-    const kernel: StorageKernel<unknown> = fixture.open();
+    const kernel: KyselyKernel<unknown> = fixture.open();
     try {
       await fixture.step.up(kernel, migrationContext);
       const step = activeRunIndex({ checksum: 'new-index' });

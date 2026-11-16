@@ -2,7 +2,7 @@ import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { SecretSealerPort, SiteKeyHandle } from "@jini-ai/platform/secrets";
 import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { StorageKernel } from "./kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { opensVaultCredential, snapshotVaultCredentials, siblingColumns,
   type VaultCredentialKeyDeps, type VaultCredentialValue } from "./vault-credential-inventory.js";
 
@@ -25,7 +25,7 @@ async function lockWorkspaces({ deps, values }: { deps: SealedCredentialKeyDeps;
 }
 /** Recheck all revisions BEFORE mutations: default promotion may legitimately advance later rows. */
 async function currentValues({ deps, values }: { deps: SealedCredentialKeyDeps; values: VaultCredentialValue[] }): Promise<VaultCredentialValue[]> {
-  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const current: VaultCredentialValue[] = [];
   for (const value of values) {
     if (!value.record) { current.push(value); continue; }
@@ -47,7 +47,7 @@ async function unlinkMcp({ deps, record }: { deps: SealedCredentialKeyDeps; reco
 /** Remove only a current record. Settings survive optional clears; hints and legacy markers do not. */
 async function discardVaultValue({ deps, value }: { deps: SealedCredentialKeyDeps; value: VaultCredentialValue }): Promise<number> {
   if (!value.record) return mutateOther({ deps, value });
-  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: deps.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const record = await repo.find(value.record);
   if (!record) return 0;
   if (OPTIONAL_ENVELOPES.has(record.kind)) {

@@ -14,7 +14,9 @@ import { openPgliteKernel } from "../drivers/pglite.js";
 import { defaultPgliteSocketDir, ensurePrivateDir, acquireOwnerLock, OWNER_LOCK_FILE, PGLITE_LOW_MEMORY_START_PARAMS, PgliteOwnerLockedError } from "../drivers/pglite-owner.js";
 import { storageOps, StorageOpNotSupportedError } from "../ops.js";
 import { hasLedger, runMigrations } from "../../migrations/runner.js";
-import { MigrationChecksumError, UnknownAppliedMigrationError, type MigrationStep } from "../../migrations/step.js";
+import { type MigrationStep } from "@jini-ai/core/contracts/storage";
+import { MigrationChecksumError, UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 test("same-file locking crosses from a Tovu shim into a direct Jini kernel", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "j02-locks-"));
@@ -50,7 +52,7 @@ test("same-file locking crosses from a Tovu shim into a direct Jini kernel", asy
 
 test("runner defaults preserve separate content and chat ledgers, no-op reruns and Tovu errors", async () => {
   const kernel = openMemorySqliteKernel<unknown>();
-  const makeStep = (id: string, table: string): MigrationStep => ({
+  const makeStep = (id: string, table: string): MigrationStep<KyselyKernel<unknown>> => ({
     id, checksum: createHash("sha256").update(id).digest("hex"),
     up: (db) => db.execute(sql`CREATE TABLE ${sql.table(table)} (id INTEGER PRIMARY KEY)`),
   });

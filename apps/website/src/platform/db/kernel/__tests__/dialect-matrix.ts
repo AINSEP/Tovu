@@ -5,7 +5,8 @@ import { sql } from "kysely";
 import type { ContentDatabase } from "../../content-database.generated.js";
 import { openPgliteKernel, type PgKernel } from "../drivers/pglite.js";
 import { type SqliteKernel, sqliteKernel } from "../drivers/sqlite.js";
-import type { StorageDialect, StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { StorageDialect } from "@jini-ai/core/contracts/storage";
 import { migrateContentDatabase } from "../../migrations/index.js";
 import { openContentDb } from "../../sqlite/content-db.js";
 
@@ -34,7 +35,7 @@ import { openContentDb } from "../../sqlite/content-db.js";
  *   their tests one after another (node:test's default inside a file). Closed after the file.
  */
 
-export type ContentKernel = StorageKernel<ContentDatabase>;
+export type ContentKernel = KyselyKernel<ContentDatabase>;
 export type SqliteContentKernel = SqliteKernel<ContentDatabase>;
 export type PgContentKernel = PgKernel<ContentDatabase>;
 
@@ -64,7 +65,7 @@ after(async () => {
 export function sharedPgContentKernel(): PgContentKernel {
   if (sharedPg === undefined) {
     const base = openPgliteKernel<ContentDatabase>();
-    const migrated = migrateContentDatabase(base as StorageKernel<unknown>).then(() => undefined);
+    const migrated = migrateContentDatabase(base as KyselyKernel<unknown>).then(() => undefined);
     migrated.catch(() => {});
     sharedPg = heldUntil(base, migrated);
   }
@@ -77,7 +78,7 @@ export function freshSqliteContentKernel(): SqliteContentKernel {
 }
 
 /** `kernel` with every call held until `pending` settles (the per-test table reset). */
-export function heldUntil<DB>(kernel: StorageKernel<DB>, pending: Promise<void>): StorageKernel<DB> {
+export function heldUntil<DB>(kernel: KyselyKernel<DB>, pending: Promise<void>): KyselyKernel<DB> {
   return {
     ...kernel,
     ready: pending,

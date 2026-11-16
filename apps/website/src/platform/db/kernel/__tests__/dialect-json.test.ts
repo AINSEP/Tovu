@@ -5,10 +5,10 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { type RawBuilder, sql } from "kysely";
 
-import { jsonScalarEquals, jsonSortKey } from "../dialect.js";
+import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file `jsonScalarEquals` and `jsonSortKey` on EVERY embedded dialect by the same assertions:
@@ -22,7 +22,7 @@ interface ProbeDb {
 
 interface Case {
   name: string;
-  kernel: StorageKernel<ProbeDb>;
+  kernel: KyselyKernel<ProbeDb>;
   create: RawBuilder<unknown>;
 }
 

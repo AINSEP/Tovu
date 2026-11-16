@@ -6,7 +6,7 @@ import { sql } from "kysely";
 
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
 import { getDriftStatus } from "../drift.js";
-import { tableExists } from "../kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { LEGACY_BASELINE_ID } from "../migrations/0000_legacy_baseline.js";
 import { CONTENT_MIGRATIONS } from "../migrations/index.js";
 import { LEDGER_TABLE } from "../migrations/runner.js";

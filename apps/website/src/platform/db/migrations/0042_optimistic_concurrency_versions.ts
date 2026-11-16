@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0042: a `version` column on six editable tables, for optimistic concurrency.
@@ -29,11 +29,11 @@ export const OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS = OPTIMISTIC_CONCURRENCY
   table => `ALTER TABLE ${table} ADD COLUMN version integer NOT NULL DEFAULT 1`,
 );
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example optimisticConcurrencyVersions({ checksum: pinnedChecksum }) */
-export function optimisticConcurrencyVersions(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function optimisticConcurrencyVersions(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: OPTIMISTIC_CONCURRENCY_VERSIONS_ID, checksum: required.checksum, up };
 }

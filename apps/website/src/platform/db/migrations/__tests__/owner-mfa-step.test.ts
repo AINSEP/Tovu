@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { sql } from 'kysely';
 import { eachDialect } from '../../kernel/__tests__/dialect-matrix.js';
-import { listColumns } from '../../kernel/dialect.js';
+import { listColumns } from '@jini-ai/db/kernel';
 import { CONTENT_MIGRATIONS, runMigrations } from '../index.js';
-import type { StorageKernel } from '../../kernel/port.js';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 
-for (const adapter of eachDialect({ tables: ['owner_mfa_factors', 'owner_mfa_pending'], make: kernel => kernel as StorageKernel<unknown> })) {
+for (const adapter of eachDialect({ tables: ['owner_mfa_factors', 'owner_mfa_pending'], make: kernel => kernel as KyselyKernel<unknown> })) {
   test(`[${adapter.name}] MFA migration preserves recovery kits, adds bounded proofs and applies once`, async t => {
     const kernel = adapter.make();
     if (adapter.dialect === 'sqlite') t.after(() => kernel.close());

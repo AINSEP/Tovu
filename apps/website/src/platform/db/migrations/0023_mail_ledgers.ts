@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0023: the delivery-side mail ledgers (email provider contract v1, Jini
@@ -33,11 +33,11 @@ export const MAIL_LEDGERS_STATEMENTS = [
   "CREATE INDEX idx_mail_capture_workspace_created ON mail_capture (workspace_id, created_at)",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of MAIL_LEDGERS_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example mailLedgers({ checksum: pinnedChecksum }) */
-export function mailLedgers(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function mailLedgers(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: MAIL_LEDGERS_ID, checksum: required.checksum, up };
 }

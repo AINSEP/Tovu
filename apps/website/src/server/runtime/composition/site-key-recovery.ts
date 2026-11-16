@@ -14,7 +14,7 @@ import { readSealedConnectionString, writeSealedConnectionString } from "./stora
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { buildVaultAad, SecretsVaultService, VAULT_KINDS, VaultError, type VaultMetaParsers, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import type { SecretSealerPort } from "@jini-ai/platform/secrets";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { inventoryVaultCredentials } from "#src/platform/db/vault-credential-inventory";
 import { legacyVaultAad } from "./vault-legacy-codecs.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
@@ -143,7 +143,7 @@ async function resealRecord(input: {
   const clock = { nowMs: () => Date.now() };
   if (input.record.meta.legacyAad !== undefined) {
     const registry = await loadSiteVaultKinds({ workspaceId: input.record.workspaceId, siteDir: input.siteDir });
-    await recoverLegacyVaultRecord({ input: { ...input, kernel: input.kernel as unknown as StorageKernel<unknown>,
+    await recoverLegacyVaultRecord({ input: { ...input, kernel: input.kernel as unknown as KyselyKernel<unknown>,
       workspaceId: input.record.workspaceId, siteId: input.record.workspaceId, clock, registry },
       record: input.record, previous: input.previous });
     return;
@@ -154,7 +154,7 @@ async function resealRecord(input: {
     return plain;
   }])) as VaultMetaParsers;
   const service = new SecretsVaultService({
-    repo: new SqlSecretsVaultRepo({ kernel: input.kernel as unknown as StorageKernel<SecretsVaultDatabase> }),
+    repo: new SqlSecretsVaultRepo({ kernel: input.kernel as unknown as KyselyKernel<SecretsVaultDatabase> }),
     keyring: input.keyring, metaParsers: parsers, now: () => new Date(clock.nowMs()).toISOString(),
     newId: () => { throw new VaultError({ code: "invalid-record" }); },
     authorize: async ({ context }) => {

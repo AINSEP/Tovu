@@ -2,9 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { tableExists } from "../db/kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel } from "../db/kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../db/migrations/index.js";
 import { LEDGER_TABLE } from "../db/migrations/runner.js";
 
@@ -63,7 +63,7 @@ interface SchemaLedgers {
 }
 
 async function readContentLedgerIdentity(
-  { ledgers, hasContentLedger }: { ledgers: StorageKernel<SchemaLedgers>; hasContentLedger: boolean },
+  { ledgers, hasContentLedger }: { ledgers: KyselyKernel<SchemaLedgers>; hasContentLedger: boolean },
   _options = {},
 ): Promise<AppliedSchemaIdentity> {
   if (!hasContentLedger) return "none";
@@ -86,9 +86,9 @@ async function readContentLedgerIdentity(
  *   collection.
  */
 export async function readAppliedSchemaIdentity<DB>(
-  kernel: StorageKernel<DB>, { identity = "current" }: { identity?: "current" | "legacy-stamp" } = {},
+  kernel: KyselyKernel<DB>, { identity = "current" }: { identity?: "current" | "legacy-stamp" } = {},
 ): Promise<AppliedSchemaIdentity> {
-  const ledgers = kernel as unknown as StorageKernel<SchemaLedgers>;
+  const ledgers = kernel as unknown as KyselyKernel<SchemaLedgers>;
   const hasContentLedger = await tableExists(kernel, LEDGER_TABLE);
   if (kernel.dialect === "postgres" || (identity === "current" && hasContentLedger)) {
     return readContentLedgerIdentity({ ledgers, hasContentLedger });

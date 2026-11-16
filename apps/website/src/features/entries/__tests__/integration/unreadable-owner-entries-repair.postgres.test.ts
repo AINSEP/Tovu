@@ -4,7 +4,8 @@ import { after, test } from "node:test";
 
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
 import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
@@ -43,7 +44,7 @@ test("two processes booting at once: the mismatched rows go exactly once, one ma
   const url = freshPostgresDatabase(DATABASE);
   const [api, daemon] = [0, 1].map(() => openPostgresKernel<ContentDatabase>({ connectionString: url }));
   opened.push(api!, daemon!);
-  await migrateContentDatabase(api as unknown as StorageKernel<unknown>);
+  await migrateContentDatabase(api as unknown as KyselyKernel<unknown>);
   await prepareContentStore(api!);
   await insertEntry(api!, "probe-widget", "widget", { ext: { site: { payload: "probe" } } });
   await insertEntry(api!, "probe-area", "widget_area", { ext: { site: { payload: "probe" } } });

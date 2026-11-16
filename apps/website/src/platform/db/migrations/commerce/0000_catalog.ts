@@ -1,5 +1,6 @@
 import { sql } from "kysely";
-import type { MigrationStep } from "../step.js";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /** Host-owned borrowed catalog schema; activation never imports legacy store or payment rows. */
 export const COMMERCE_CATALOG_STATEMENTS = [
@@ -45,7 +46,7 @@ export const COMMERCE_CATALOG_STATEMENTS = [
  * @returns One immutable ADR-066 step; DDL failures propagate to the activation warning.
  * @complexity Fixed eight table and five index writes, O(1) application memory; no row reads.
  */
-export function commerceCatalog({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep {
+export function commerceCatalog({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: "0000_catalog", checksum,
     async up(kernel) {
       for (const statement of COMMERCE_CATALOG_STATEMENTS) await kernel.execute(sql.raw(statement));

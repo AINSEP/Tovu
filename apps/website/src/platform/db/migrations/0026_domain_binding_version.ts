@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0026: `domain_binding.version`, the compare-and-swap counter of a binding.
@@ -19,11 +19,11 @@ export const DOMAIN_BINDING_VERSION_STATEMENTS = [
   "ALTER TABLE domain_binding ADD COLUMN version integer NOT NULL DEFAULT 0 CHECK (version >= 0)",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of DOMAIN_BINDING_VERSION_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example domainBindingVersion({ checksum: pinnedChecksum }) */
-export function domainBindingVersion(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function domainBindingVersion(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: DOMAIN_BINDING_VERSION_ID, checksum: required.checksum, up };
 }

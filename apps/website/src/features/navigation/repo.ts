@@ -2,7 +2,7 @@ import type { Insertable, Selectable } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MenusTable, NavLocationBindingsTable } from "../../platform/db/content-database.generated.js";
-import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { MenuConflictError, menuVersionConflictError } from "@jini-ai/cms/navigation";
 import type {
   MenuRepoPort,

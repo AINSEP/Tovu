@@ -11,7 +11,7 @@ import type {
 import { resolvePublishHistoryListLimit } from "#src/contracts/core/publish-history-list-limit";
 import type { ContentKernel } from "../content-kernel.js";
 import type { PublishHistoryTable } from "../content-database.generated.js";
-import { toBool } from "../kernel/index.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file THE `PublishHistoryStore` adapter over `publish_history`: one Kysely query body for every

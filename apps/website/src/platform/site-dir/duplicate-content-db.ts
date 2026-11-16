@@ -2,7 +2,7 @@ import { sql } from "kysely";
 
 import type { ContentKernel } from "../db/content-kernel.js";
 import type { ContentDatabase } from "../db/content-database.generated.js";
-import { tableExists } from "../db/kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { openSqliteFileKernel } from "../db/kernel/drivers/sqlite.js";
 import { StorageOpError, storageOps } from "../db/kernel/ops.js";
 import { CHAT_TABLE_NAMES } from "../db/sqlite/chat-orphan-check.js";

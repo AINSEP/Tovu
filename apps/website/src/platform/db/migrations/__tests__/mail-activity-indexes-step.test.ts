@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { MAIL_ACTIVITY_INDEXES_ID } from "../0029_mail_activity_indexes.js";
 import { MAIL_LEDGERS_ID } from "../0023_mail_ledgers.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
@@ -16,7 +16,7 @@ import { MIGRATION_CHECKSUMS } from "../checksums.js";
 
 const AT = "2026-10-22T12:00:00.000Z";
 
-async function indexNames(kernel: StorageKernel<unknown>, name: "sqlite" | "pglite"): Promise<string[]> {
+async function indexNames(kernel: KyselyKernel<unknown>, name: "sqlite" | "pglite"): Promise<string[]> {
   const rows = name === "sqlite"
     ? await kernel.query<{ name: string }>(sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_mail_%'`)
     : await kernel.query<{ name: string }>(sql`SELECT indexname AS name FROM pg_indexes WHERE indexname LIKE 'idx_mail_%'`);
@@ -26,7 +26,7 @@ async function indexNames(kernel: StorageKernel<unknown>, name: "sqlite" | "pgli
 for (const adapter of eachDialect({ tables: ["mail_send_ledger", "workspaces"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
   test(`[${name}] 0029 follows 0028 and adds activity storage once, preserving send results`, async () => {
-    const kernel = adapter.make() as StorageKernel<unknown>;
+    const kernel = adapter.make() as KyselyKernel<unknown>;
     try {
       const ids = CONTENT_MIGRATIONS.map(entry => entry.id);
       assert.equal(ids.indexOf(MAIL_ACTIVITY_INDEXES_ID), ids.indexOf("0028_search_index_retired") + 1, "0029 follows 0028");

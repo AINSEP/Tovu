@@ -8,7 +8,7 @@ import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
 import { freshPostgresDatabase } from "../../__tests__/postgres-database.js";
 import { openPostgresKernel } from "../drivers/postgres.js";
 import { StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 const { dropDatabase } = createPgFixture({
   host: process.env.PGHOST ?? "/tmp",
@@ -22,7 +22,7 @@ const { dropDatabase } = createPgFixture({
  */
 
 const DB = "tovu_kernel_ops_test";
-let kernel: StorageKernel<unknown>;
+let kernel: KyselyKernel<unknown>;
 
 before(() => {
   kernel = openPostgresKernel<unknown>({ connectionString: freshPostgresDatabase(DB) });

@@ -4,9 +4,8 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { renderDatabaseTypes } from "@jini-ai/db/kernel";
+import { renderDatabaseTypes, listColumns, listTables } from "@jini-ai/db/kernel";
 
-import { listColumns, listTables } from "../dialect.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";

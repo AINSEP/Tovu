@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { MAIL_ACTIVITY_RETENTION_ID } from "../0031_mail_activity_retention.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
@@ -13,7 +13,7 @@ const INDEXES = ["idx_mail_attempts_workspace_use_created", "idx_mail_attempts_w
 
 for (const adapter of eachDialect({ tables: ["mail_activity_attempts", "mail_send_ledger", "workspaces"], make: kernel => kernel })) {
   test(`[${adapter.name}] 0031 adds indexed purposes and retention once, preserving historical outcomes`, async () => {
-    const db = adapter.make() as StorageKernel<unknown>;
+    const db = adapter.make() as KyselyKernel<unknown>;
     try {
       const indexes = async () => {
         const rows = adapter.dialect === "sqlite"

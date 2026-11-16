@@ -11,7 +11,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { sql } from "kysely";
 import pg from "pg";
 
-import { jsonText, listTables, toBool } from "../dialect.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
+import { jsonText, listTables } from "@jini-ai/db/kernel";
 import {
   acquireOwnerLock,
   assertSocketPathFits,
@@ -25,7 +26,7 @@ import {
   startPgliteOwner,
 } from "../drivers/pglite-owner.js";
 import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { ensurePgContentSchema } from "../../__tests__/pg-content-schema.js";
 
 /**
@@ -183,7 +184,7 @@ describe("socket location", () => {
 describe("a running owner", () => {
   let owner: PgliteOwner;
   let site: { dataDir: string; socketDir: string };
-  let kernel: StorageKernel<ProbeDb>;
+  let kernel: KyselyKernel<ProbeDb>;
 
   before(async () => {
     site = freshSite();
@@ -227,7 +228,7 @@ describe("a running owner", () => {
     const second = await startPgliteOwner({ dataDir: other.dataDir }, { socketDir: other.socketDir });
     try {
       const otherKernel = openPgliteSocketKernel<ProbeDb>({ socketPath: second.socketPath });
-      assert.equal((await listTables(otherKernel as StorageKernel<unknown>)).includes("kernel_probe"), false);
+      assert.equal((await listTables(otherKernel as KyselyKernel<unknown>)).includes("kernel_probe"), false);
       await otherKernel.close();
     } finally {
       await second.close();
@@ -240,7 +241,7 @@ describe("a running owner", () => {
 
   const ids = async () =>
     (await kernel.run((db) => db.selectFrom("kernel_probe").select("id").orderBy("id").execute())).map((row) => row.id);
-  const insert = (id: string, on: StorageKernel<ProbeDb> = kernel) =>
+  const insert = (id: string, on: KyselyKernel<ProbeDb> = kernel) =>
     on.run((db) => db.insertInto("kernel_probe").values({ id, doc: null, n: null, flag: null }).execute());
   const reset = () => kernel.execute(sql`DELETE FROM kernel_probe`);
 
@@ -306,7 +307,7 @@ describe("a running owner", () => {
 
   test("the content schema installs through runExclusive and is visible to socket clients", async () => {
     await owner.runExclusive((db) => ensurePgContentSchema(db));
-    const tables = await listTables(kernel as StorageKernel<unknown>);
+    const tables = await listTables(kernel as KyselyKernel<unknown>);
     assert.ok(tables.includes("posts"), `content tables present: ${tables.length}`);
   });
 });

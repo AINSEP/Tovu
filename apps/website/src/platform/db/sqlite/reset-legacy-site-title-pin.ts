@@ -1,5 +1,5 @@
 import { type ContentKernel, contentKernel } from "../content-kernel.js";
-import { tableExists } from "../kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import type { SqliteConnectionSource } from "../kernel/drivers/sqlite.js";
 
 /**

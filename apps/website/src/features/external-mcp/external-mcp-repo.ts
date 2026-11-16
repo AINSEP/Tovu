@@ -3,7 +3,7 @@ import { sql, type Selectable } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase, type SecretsVaultTable } from "@jini-ai/db/secrets-vault";
 import { VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 import { externalMcpVaultEnvelope, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
-import type { StorageKernel } from "../../platform/db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
@@ -11,7 +11,7 @@ import { externalMcpAccessSnapshot } from "./external-mcp-store.js";
 import type { ExternalMcpAccessUpdate, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ExternalMcpServersTable } from "../../platform/db/content-database.generated.js";
-import { toBool } from "../../platform/db/kernel/dialect.js";
+import { toBool } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file THE `ExternalMcpServerRepoPort` adapter: one Kysely query body for every dialect (storage
@@ -132,7 +132,7 @@ function toRow(record: ExternalMcpServerRecord, pointers: { env_secret_id: strin
 export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
   readonly vaultRepo: SqlSecretsVaultRepo;
   constructor(protected readonly kernel: ContentKernel) {
-    this.vaultRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+    this.vaultRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   }
 
   /** One query hydrates both pointers for the entire roster, including empty rosters.

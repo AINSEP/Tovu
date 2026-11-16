@@ -1,6 +1,6 @@
 import type { Generated } from "kysely";
 
-import type { StorageKernel } from "./kernel/index.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The sidecar database journal (`ops/database-journal.db`, see `sqlite/database-journal-db.ts`)
@@ -74,7 +74,7 @@ export type JournalDatabase = {
   restore_points: RestorePointsTable;
 };
 
-export type JournalKernel = StorageKernel<JournalDatabase>;
+export type JournalKernel = KyselyKernel<JournalDatabase>;
 
 /**
  * `kernel` with every database call held until `ready` settles (and failing with its error if it

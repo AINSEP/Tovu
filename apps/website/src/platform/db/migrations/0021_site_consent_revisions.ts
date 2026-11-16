@@ -1,7 +1,7 @@
 /** @file ADR-066: immutable site consent policies and atomic draft/published heads. */
 import { sql } from 'kysely';
-import type { StorageKernel } from '../kernel/port.js';
-import type { MigrationStep } from './step.js';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import type { MigrationStep } from '@jini-ai/core/contracts/storage';
 
 /** Policies outlive receipts (180 days); no visitor identifiers or receipt payloads live here. */
 export const SITE_CONSENT_REVISION_STATEMENTS = [
@@ -10,11 +10,11 @@ export const SITE_CONSENT_REVISION_STATEMENTS = [
 ] as const;
 
 /** Apply portable DDL through the already instrumented storage kernel. */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of SITE_CONSENT_REVISION_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Register only after this file exists. @example siteConsentRevisions({ checksum }) */
-export function siteConsentRevisions(required: { checksum: string }, _options = {}): MigrationStep {
+export function siteConsentRevisions(required: { checksum: string }, _options = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: '0021_site_consent_revisions', checksum: required.checksum, up };
 }

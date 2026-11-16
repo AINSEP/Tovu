@@ -20,7 +20,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { PROJECT_VAULT_STATEMENTS } from "#src/platform/db/migrations/project/0000_project_vault";
 import { PROJECT_CREDENTIAL_KINDS_STATEMENTS } from "#src/platform/db/migrations/project/0001_project_credential_kinds";
 import { PROJECT_LEDGER_TABLE } from "#src/platform/db/migrations/index";
-import { UnknownAppliedMigrationError } from "#src/platform/db/migrations/step";
+import { UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
 
 /**
  * @file `project.db` on a real filesystem (temp dirs only): it and its key live in

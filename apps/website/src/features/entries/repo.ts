@@ -3,7 +3,8 @@ import { type Kysely, type SelectQueryBuilder, sql } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
-import { isUniqueViolation, jsonScalarEquals, jsonSortKey } from "../../platform/db/kernel/dialect.js";
+import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
+import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { EntrySlugConflictError, VersionConflictError } from "./index.js";
 import type { EntryListPort, EntryRecord, EntryRepoPort, EntryRevisionInput, EntryStatus } from "./index.js";
 import type {

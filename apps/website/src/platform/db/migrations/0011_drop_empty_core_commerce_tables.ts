@@ -156,9 +156,9 @@
 
 import { sql } from "kysely";
 
-import { tableExists } from "../kernel/dialect.js";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import { tableExists } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 export const DROP_EMPTY_CORE_COMMERCE_TABLES_ID = "0011_drop_empty_core_commerce_tables";
 
@@ -177,7 +177,7 @@ export const CORE_COMMERCE_TABLES_IN_DROP_ORDER = [
  * @complexity Six existence queries, at most one PG lock, six COUNT scans and six DROP statements;
  * counting costs O(total target rows), with O(1) space for the fixed six-table inventory.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   const existing: string[] = [];
   for (const table of CORE_COMMERCE_TABLES_IN_DROP_ORDER) {
     if (await tableExists(kernel, table)) existing.push(table);
@@ -213,4 +213,4 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 export const dropEmptyCoreCommerceTables = (
   required: { checksum: string },
   _optional: Record<string, never> = {}
-): MigrationStep => ({ id: DROP_EMPTY_CORE_COMMERCE_TABLES_ID, checksum: required.checksum, up });
+): MigrationStep<KyselyKernel<unknown>> => ({ id: DROP_EMPTY_CORE_COMMERCE_TABLES_ID, checksum: required.checksum, up });

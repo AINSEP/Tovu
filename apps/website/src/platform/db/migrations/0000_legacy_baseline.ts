@@ -2,12 +2,12 @@ import crypto from "node:crypto";
 
 import { sql } from "kysely";
 
-import { listTables } from "../kernel/dialect.js";
-import type { StorageKernel } from "../kernel/port.js";
+import { listTables } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { POSTGRES_BASELINE } from "./0000_legacy_baseline.postgres.js";
-import { adoptLegacySqlite, readFrozenChain } from "./legacy-sqlite.js";
+import { adoptLegacySqlite, readFrozenChain, LegacyHistoryError } from "./legacy-sqlite.js";
 import { LEDGER_TABLE } from "./runner.js";
-import { type MigrationContext, type MigrationStep, LegacyHistoryError } from "./step.js";
+import { type MigrationContext, type MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Step `0000_legacy_baseline` (ADR-066 §5–6): everything the schema was at the freeze.
@@ -29,7 +29,7 @@ export function legacyBaselineChecksum(): string {
   return crypto.createHash("sha256").update(JSON.stringify({ sqlite, postgres: POSTGRES_BASELINE })).digest("hex");
 }
 
-async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   if (kernel.dialect === "sqlite") {
     await adoptLegacySqlite(kernel, context.note);
     return;
@@ -44,4 +44,4 @@ async function up(kernel: StorageKernel<unknown>, context: MigrationContext): Pr
   for (const statement of POSTGRES_BASELINE) await kernel.execute(sql.raw(statement));
 }
 
-export const legacyBaseline = (checksum: string): MigrationStep => ({ id: LEGACY_BASELINE_ID, checksum, up });
+export const legacyBaseline = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: LEGACY_BASELINE_ID, checksum, up });

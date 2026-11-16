@@ -7,7 +7,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openChatDb, openSiteChatDb } from "../chat-db.js";
-import { UnknownAppliedMigrationError } from "../../migrations/index.js";
+import { UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
 
 /**
  * @file Integration tests for the sidecar `chat.db` bootstrap, against a real temp-file SQLite

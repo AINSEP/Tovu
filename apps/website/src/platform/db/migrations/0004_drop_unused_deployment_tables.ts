@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Retire migration 0037's never-written deployment model (owner, 2026-10-03).
@@ -23,7 +23,7 @@ const TABLES_IN_DROP_ORDER = [
 /** Drop the obsolete model on every supported dialect (SQLite and Postgres/PGlite).
  * @complexity O(1) — five DDL statements; runner supplies the transaction and migration lock.
  */
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const table of TABLES_IN_DROP_ORDER) {
     await kernel.execute(sql`DROP TABLE IF EXISTS ${sql.table(table)}`);
   }
@@ -33,4 +33,4 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 export const dropUnusedDeploymentTables = (
   required: { checksum: string },
   _optional: Record<string, never> = {}
-): MigrationStep => ({ id: DROP_UNUSED_DEPLOYMENT_TABLES_ID, checksum: required.checksum, up });
+): MigrationStep<KyselyKernel<unknown>> => ({ id: DROP_UNUSED_DEPLOYMENT_TABLES_ID, checksum: required.checksum, up });

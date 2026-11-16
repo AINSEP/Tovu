@@ -6,11 +6,10 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
-import { listIndexes, listTables } from "../../kernel/dialect.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel, openSqliteFileKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { readSchemaShape, listIndexes, listTables } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../index.js";
 import { runMigrations } from "../runner.js";
 
@@ -22,7 +21,7 @@ const archiveName = (table: string) => `_archive_0011_${table}`;
 const steps = () => CONTENT_MIGRATIONS.filter(step => [ARCHIVE_ID, DROP_ID].includes(step.id));
 
 /** Small historical table set with cross-table FKs, an external parent, indexes and opaque bytes. */
-async function seed(kernel: StorageKernel<unknown>): Promise<void> {
+async function seed(kernel: KyselyKernel<unknown>): Promise<void> {
   await kernel.execute(sql`CREATE TABLE retained_content (id text PRIMARY KEY)`);
   await kernel.execute(sql`INSERT INTO retained_content VALUES ('content')`);
   await kernel.execute(sql`CREATE TABLE commerce_products (id text PRIMARY KEY, content_id text REFERENCES retained_content(id), payload text)`);
@@ -43,7 +42,7 @@ async function seed(kernel: StorageKernel<unknown>): Promise<void> {
 }
 
 /** Assert preserved content and actual FK enforcement, rather than just renamed table presence. */
-async function assertRetained(kernel: StorageKernel<unknown>): Promise<void> {
+async function assertRetained(kernel: KyselyKernel<unknown>): Promise<void> {
   const tables = await listTables(kernel);
   for (const table of TABLES) {
     assert.ok(tables.includes(archiveName(table)), `keep even empty sibling ${table}`);

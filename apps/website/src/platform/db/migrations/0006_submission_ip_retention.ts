@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Owner decision 2026-10-04: a form submission's source IP is cleared after 90 days, so the
@@ -10,7 +10,7 @@ import type { MigrationStep } from "./step.js";
  */
 export const SUBMISSION_IP_RETENTION_MIGRATION_ID = "0006_submission_ip_retention";
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect === "sqlite") {
     const columns = await kernel.query<{ name: string; notnull: number }>(sql`PRAGMA table_info(form_submissions)`);
     const ip = columns.find(column => column.name === "source_ip");
@@ -67,6 +67,6 @@ async function up(kernel: StorageKernel<unknown>): Promise<void> {
 export function submissionIpRetentionMigration(
   { checksum }: { checksum: string },
   _optional: Record<string, never> = {},
-): MigrationStep {
+): MigrationStep<KyselyKernel<unknown>> {
   return { id: SUBMISSION_IP_RETENTION_MIGRATION_ID, checksum, up };
 }

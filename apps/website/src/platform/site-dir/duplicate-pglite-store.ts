@@ -4,7 +4,7 @@ import type { ContentKernel } from "../db/content-kernel.js";
 import { openPgliteKernel } from "../db/kernel/drivers/pglite.js";
 import { acquireOwnerLock, PgliteOwnerLockedError, runningPgliteOwner } from "../db/kernel/drivers/pglite-owner.js";
 import { copyServedPgliteTo, StorageOpError, storageOps } from "../db/kernel/ops.js";
-import type { StorageKernel } from "../db/kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CHAT_LEDGER_TABLE } from "../db/migrations/index.js";
 import { resetLegacySiteTitlePin } from "../db/sqlite/reset-legacy-site-title-pin.js";
 import { InternalError, ValidationError } from "./errors.js";
@@ -26,7 +26,7 @@ import { InternalError, ValidationError } from "./errors.js";
  */
 
 /** The `ai_chat` tables emptied in a copy: all of them but the migration ledger. */
-async function purgeAiChat(kernel: StorageKernel<unknown>): Promise<void> {
+async function purgeAiChat(kernel: KyselyKernel<unknown>): Promise<void> {
   const tables = await kernel.query<{ name: string }>(
     sql`SELECT table_name AS name FROM information_schema.tables
         WHERE table_schema = 'ai_chat' AND table_type = 'BASE TABLE' AND table_name <> ${CHAT_LEDGER_TABLE}

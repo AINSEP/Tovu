@@ -8,10 +8,10 @@ import { createPgFixture } from "@jini-ai/db/testing/pg-fixture";
 
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
 import { collectCoreTables } from "../../migration/manifest.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS, migrateChatDatabase, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";
-import type { MigrationStep } from "../step.js";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 const { dropDatabase } = createPgFixture({
   host: process.env.PGHOST ?? "/tmp",
@@ -26,9 +26,9 @@ const { dropDatabase } = createPgFixture({
  * server (`pg_ctl -D /usr/local/var/postgresql@14 start`); fails, never skips, when it is down.
  */
 
-let first: StorageKernel<unknown>;
-let second: StorageKernel<unknown>;
-let baseline: StorageKernel<unknown>;
+let first: KyselyKernel<unknown>;
+let second: KyselyKernel<unknown>;
+let baseline: KyselyKernel<unknown>;
 
 before(() => {
   const url = freshPostgresDatabase("tovu_migrations_pg_fixture");
@@ -47,7 +47,7 @@ after(async () => {
 
 test("two connections migrating at once apply a step exactly once", async () => {
   let runs = 0;
-  const slow: MigrationStep = {
+  const slow: MigrationStep<KyselyKernel<unknown>> = {
     id: "0001_slow",
     checksum: "e".repeat(64),
     up: async (kernel) => {

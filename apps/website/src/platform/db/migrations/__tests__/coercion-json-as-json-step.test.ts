@@ -5,7 +5,7 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { COERCION_JSON_AS_JSON_ID } from "../0003_coercion_json_as_json.js";
 import { migrateContentDatabase } from "../index.js";
 import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
@@ -17,26 +17,26 @@ import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
  * recorded, nothing changed (jsonb never held a bare tag).
  */
 
-const opened: StorageKernel<unknown>[] = [];
+const opened: KyselyKernel<unknown>[] = [];
 after(async () => {
   for (const kernel of opened) await kernel.close();
 });
 
 /** A content database at the legacy chain's head (drizzle's migrator), not yet adopted. */
-function legacyContentKernel(): StorageKernel<unknown> {
+function legacyContentKernel(): KyselyKernel<unknown> {
   const kernel = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
   opened.push(kernel);
   return kernel;
 }
 
-async function insertDefinition(kernel: StorageKernel<unknown>, settingId: string, coercionJson: string | null): Promise<void> {
+async function insertDefinition(kernel: KyselyKernel<unknown>, settingId: string, coercionJson: string | null): Promise<void> {
   await kernel.execute(
     sql`INSERT INTO setting_definitions (setting_id, version, namespace, key, owner_kind, schema_json, scopes, status, coercion_json, created_at, updated_at)
         VALUES (${settingId}, 1, 'core.test', ${settingId}, 'core', '{"type":"string"}', 1, 'active', ${coercionJson}, 'now', 'now')`
   );
 }
 
-const coercionJsonOf = async (kernel: StorageKernel<unknown>, settingId: string) =>
+const coercionJsonOf = async (kernel: KyselyKernel<unknown>, settingId: string) =>
   (await kernel.query<{ coercion_json: string | null }>(sql`SELECT coercion_json FROM setting_definitions WHERE setting_id = ${settingId}`))[0]?.coercion_json;
 
 describe(COERCION_JSON_AS_JSON_ID, () => {

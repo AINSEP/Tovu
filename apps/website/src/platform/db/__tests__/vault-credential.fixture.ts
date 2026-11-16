@@ -4,7 +4,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { seedPrincipals } from "../kernel/__tests__/content-seeds.js";
 import type { ContentKernel } from "../content-kernel.js";
-import type { StorageKernel } from "../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 export const WS = "ws-recovery";
 export const NOW = "2026-10-11T00:00:00.000Z";
@@ -13,7 +13,7 @@ export function keyPair() {
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
 export function vaultRepo(kernel: ContentKernel) {
-  return new SqlSecretsVaultRepo({ kernel: kernel as unknown as StorageKernel<SecretsVaultDatabase> });
+  return new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
 }
 /** Fixture records use the real Jini repository and AAD; no retired table is recreated. */
 export async function fixture(kernel: ContentKernel) {

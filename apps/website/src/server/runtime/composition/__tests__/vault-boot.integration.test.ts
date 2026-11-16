@@ -5,7 +5,7 @@ import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { SecretsVaultService, buildVaultAad, VAULT_KINDS, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock, isOperationInFlight } from "#src/contracts/core/operation-lock";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { vaultFixture, vaultStep, stamp, insertFixture } from "#src/platform/db/migrations/__tests__/secrets-vault.fixture";
 import { describeCredential, resolveCustomCredentialByLabel, updateCustomCredential } from "#src/features/custom-credentials/store";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
@@ -29,7 +29,7 @@ async function prepared(dialect: "sqlite" | "pglite") {
   await fixture.kernel.transaction(() => vaultStep.up(fixture.kernel, { note: () => {} }));
   await fixture.kernel.transaction(() => unifyVaultCredentials({ checksum: "b".repeat(64) }).up(fixture.kernel, { note: () => {} }));
   const input: VaultBootInput = { ...fixture, workspaceId: "ws", siteId: `vault-boot-${dialect}`, clock, registry };
-  const repo = new SqlSecretsVaultRepo({ kernel: fixture.kernel as StorageKernel<SecretsVaultDatabase> });
+  const repo = new SqlSecretsVaultRepo({ kernel: fixture.kernel as KyselyKernel<SecretsVaultDatabase> });
   return { ...fixture, input, repo };
 }
 
@@ -137,7 +137,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
       await kernel.transaction(() => vaultStep.up(kernel, { note: () => {} }));
       await kernel.transaction(() => unifyVaultCredentials({ checksum: "b".repeat(64) }).up(kernel, { note: () => {} }));
       const input: VaultBootInput = { ...fixture, workspaceId: "ws", siteId: `vault-boot-username-${dialect}`, clock, registry };
-      const repo = new SqlSecretsVaultRepo({ kernel: kernel as StorageKernel<SecretsVaultDatabase> });
+      const repo = new SqlSecretsVaultRepo({ kernel: kernel as KyselyKernel<SecretsVaultDatabase> });
       assert.equal((await normalizeVaultAtBoot(input)).green, true);
       const service = new SecretsVaultService({ repo, keyring, sealer, metaParsers: registry.metaParsers,
         authorize: async () => {}, now: () => stamp, newId: () => "unused" });

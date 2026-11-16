@@ -13,7 +13,7 @@ import { OWNER_LOCK_FILE, startPgliteOwner } from "../drivers/pglite-owner.js";
 import { openPgliteSocketKernel } from "../drivers/pglite-socket.js";
 import { openPostgresKernel } from "../drivers/postgres.js";
 import { copyServedPgliteTo, StorageOpError, StorageOpNotSupportedError, storageOps } from "../ops.js";
-import type { StorageKernel } from "../port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 
 /**
  * @file The storage ops port (`ops.ts`) and the SQLite file helpers it leans on: a WAL-safe copy
@@ -97,7 +97,7 @@ test("openSqliteFileKernel readOnly requires the file to exist", () => {
   assert.throws(() => openSqliteFileKernel<unknown>(path.join(tmp, "missing.db"), { readOnly: true }), /unable to open/i);
 });
 
-async function seedPg(kernel: StorageKernel<unknown>, rows: number): Promise<void> {
+async function seedPg(kernel: KyselyKernel<unknown>, rows: number): Promise<void> {
   await kernel.execute(sql`CREATE TABLE tovu_migrations (id text PRIMARY KEY)`);
   await kernel.execute(sql`INSERT INTO tovu_migrations VALUES ('0000_test')`);
   await kernel.execute(sql`CREATE TABLE t (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, v text)`);

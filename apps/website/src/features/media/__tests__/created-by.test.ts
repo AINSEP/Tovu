@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlMediaRepo, SqlAssetBlobRepo } from "#src/platform/db/repos/media-repo";
-import { listColumns } from "#src/platform/db/kernel/dialect";
+import { listColumns } from "@jini-ai/db/kernel";
 import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo,
   InMemoryBlobStore, uploadMedia, updateMediaMetadata, type MediaRecord } from "../index.js";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";

@@ -1,6 +1,6 @@
 import { sql } from "kysely";
-import type { StorageKernel } from "../kernel/port.js";
-import type { MigrationStep } from "./step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Migration 0027: the site-search indexer's bookkeeping (`@jini-ai/search` ports.ts).
@@ -28,11 +28,11 @@ export const SEARCH_INDEX_STATEMENTS = [
   "CREATE TABLE search_index_targets (site_id text PRIMARY KEY NOT NULL, active_provider_id text, active_generation integer, building_provider_id text, building_generation integer, updated_at_ms bigint NOT NULL, CHECK ((active_provider_id IS NULL) = (active_generation IS NULL)), CHECK ((building_provider_id IS NULL) = (building_generation IS NULL)))",
 ] as const;
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of SEARCH_INDEX_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
 /** Build the immutable ADR-066 step. @example searchIndex({ checksum: pinnedChecksum }) */
-export function searchIndex(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep {
+export function searchIndex(required: { checksum: string }, _options: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> {
   return { id: SEARCH_INDEX_ID, checksum: required.checksum, up };
 }

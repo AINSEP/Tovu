@@ -1,6 +1,6 @@
 import { sql } from 'kysely';
-import type { StorageKernel } from '../kernel/port.js';
-import type { MigrationStep } from './step.js';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
+import type { MigrationStep } from '@jini-ai/core/contracts/storage';
 
 // Purge hard-deletes editorial rows before GC: retain ownership on the existing blob owner.
 // Backfill all surviving documents, including Trash, without classifying ordinary orphan blobs.
@@ -14,11 +14,11 @@ export function documentBlobOwnershipStatements({ dialect }: { dialect: 'sqlite'
   ];
 }
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of documentBlobOwnershipStatements({ dialect: kernel.dialect })) await kernel.execute(sql.raw(statement));
 }
 
 export const documentBlobOwnership = (required: { checksum: string },
-  _optional: Record<string, never> = {}): MigrationStep => ({
+  _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({
   id: '0015_document_blob_ownership', checksum: required.checksum, up,
 });

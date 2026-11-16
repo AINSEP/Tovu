@@ -7,7 +7,7 @@
  */
 import { sql, type ExpressionBuilder } from "kysely";
 
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { encodeSearchKey } from "@jini-ai/search";
 import type {
   SearchIndexStatePort, SearchIndexStateRow, SearchIndexStatus, SearchSiteTargets,
@@ -79,7 +79,7 @@ function toTarget({ siteId, providerId, generation }: { siteId: string; provider
 }
 
 /** The bookkeeping half. @complexity each method is one indexed statement (deleteTarget: two). */
-function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchIndexStatePort {
+function createIndexState(kernel: KyselyKernel<SearchIndexDatabase>): SearchIndexStatePort {
   const scoped = (target: SearchTarget) => ({ site_id: target.siteId, provider_id: target.providerId, generation: target.generation });
   return {
     async get({ target, key }) {
@@ -170,7 +170,7 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
  * @complexity O(1), one primary-key UPDATE.
  */
 async function swapPointers(
-  kernel: StorageKernel<SearchIndexDatabase>,
+  kernel: KyselyKernel<SearchIndexDatabase>,
   required: { siteId: string; expected: SearchTarget; active: SearchTarget | null; nowMs: number },
 ): Promise<boolean> {
   const { siteId, expected, active, nowMs } = required;
@@ -189,7 +189,7 @@ async function swapPointers(
 }
 
 /** The pointer half. `promote` is the atomic generation switch. @complexity O(1) per call. */
-function createTargets({ kernel, now }: { kernel: StorageKernel<SearchIndexDatabase>; now: () => number }, _optional = {}): SearchTargetPort {
+function createTargets({ kernel, now }: { kernel: KyselyKernel<SearchIndexDatabase>; now: () => number }, _optional = {}): SearchTargetPort {
   const retainRetired = async ({ siteId, active }: { siteId: string; active: SearchTarget }, _options = {}) => {
     await kernel.run(db => db.insertInto("search_index_retired")
       .values({ site_id: siteId, provider_id: active.providerId, generation: active.generation, retired_at_ms: now() })
@@ -244,11 +244,11 @@ function createTargets({ kernel, now }: { kernel: StorageKernel<SearchIndexDatab
  * @complexity O(1) to build; see each half for per-call cost.
  */
 export function createSqlSearchIndexStore<DB>(
-  required: { readonly kernel: StorageKernel<DB>; readonly now: () => number },
+  required: { readonly kernel: KyselyKernel<DB>; readonly now: () => number },
   _optional: Record<string, never> = {},
 ): SqlSearchIndexStore {
   // The content kernel is typed against the generated schema, which never lists 0027's raw-SQL
   // tables; the same kernel is re-typed for them (Kysely types are compile-time only).
-  const kernel = required.kernel as unknown as StorageKernel<SearchIndexDatabase>;
+  const kernel = required.kernel as unknown as KyselyKernel<SearchIndexDatabase>;
   return { indexState: createIndexState(kernel), targets: createTargets({ kernel, now: required.now }) };
 }

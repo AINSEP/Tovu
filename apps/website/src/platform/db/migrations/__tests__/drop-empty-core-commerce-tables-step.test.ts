@@ -3,11 +3,10 @@ import { test } from "node:test";
 
 import { sql } from "kysely";
 
-import { listTables } from "../../kernel/dialect.js";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
-import { readSchemaShape } from "@jini-ai/db/kernel";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { readSchemaShape, listTables } from "@jini-ai/db/kernel";
 import { DROP_EMPTY_CORE_COMMERCE_TABLES_ID } from "../0011_drop_empty_core_commerce_tables.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";
@@ -22,7 +21,7 @@ const previous = CONTENT_MIGRATIONS.filter(step => step.id < "0011_archive_legac
 const step = CONTENT_MIGRATIONS.find(candidate => candidate.id === DROP_EMPTY_CORE_COMMERCE_TABLES_ID)!;
 
 for (const dialect of ["sqlite", "pglite"] as const) {
-  const open = (): StorageKernel<unknown> =>
+  const open = (): KyselyKernel<unknown> =>
     dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>();
 
   test(`${dialect}: empty targets drop child-first, all other schema and plugin rows survive, rerun is a no-op`, async () => {

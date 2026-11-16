@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { listTables } from "../../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import { openPgliteKernel } from "../../kernel/drivers/pglite.js";
 import { openMemorySqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { DROP_UNUSED_DEPLOYMENT_TABLES_ID } from "../0004_drop_unused_deployment_tables.js";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";
@@ -18,7 +18,7 @@ const RETIRED_TABLES = [
 ];
 
 for (const dialect of ["sqlite", "pglite"] as const) {
-  const open = (): StorageKernel<unknown> =>
+  const open = (): KyselyKernel<unknown> =>
     dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>();
 
   // REGRESSION: fails if 0004 is removed from CONTENT_MIGRATIONS or drops a live table.

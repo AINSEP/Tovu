@@ -9,7 +9,7 @@ import { closeSqliteConnection, openSqliteFileKernel } from "../../kernel/driver
 import { openSiteContentDb } from "#src/server/runtime/composition/open-site-content-db";
 import { CONTENT_MIGRATIONS, migrateContentDatabase } from "../index.js";
 import { runMigrations } from "../runner.js";
-import { UnknownAppliedMigrationError } from "../step.js";
+import { UnknownAppliedMigrationError } from "@jini-ai/db/migrate";
 
 test("a copied current DB rejects an old history without losing data and reopens on the current release", async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "migrated-site-copy-"));

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { MAIL_FEEDBACK_PROCESSED_ID } from "../0025_mail_feedback_processed.js";
 import { MAIL_LEDGERS_ID } from "../0023_mail_ledgers.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
@@ -19,7 +19,7 @@ const AT = "2026-10-21T12:00:00.000Z";
 for (const adapter of eachDialect({ tables: ["mail_feedback_inbox", "workspaces"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
   test(`[${name}] 0025 is registered after 0024 and adds a nullable processed_at once`, async () => {
-    const kernel = adapter.make() as StorageKernel<unknown>;
+    const kernel = adapter.make() as KyselyKernel<unknown>;
     try {
       const ids = CONTENT_MIGRATIONS.map(entry => entry.id);
       assert.equal(ids.indexOf(MAIL_FEEDBACK_PROCESSED_ID), ids.indexOf("0024_domain_bindings") + 1, "0025 follows 0024");

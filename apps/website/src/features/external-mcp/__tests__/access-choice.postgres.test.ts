@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test';
 import { dropDatabase, freshPostgresDatabase } from '../../../platform/db/__tests__/postgres-database.js';
 import { migrateContentDatabase } from '../../../platform/db/migrations/index.js';
 import { openPostgresKernel } from '../../../platform/db/kernel/drivers/postgres.js';
-import type { StorageKernel } from '../../../platform/db/kernel/port.js';
+import type { KyselyKernel } from '@jini-ai/db/kernel';
 import type { ContentDatabase } from '../../../platform/db/content-database.generated.js';
 import type { ContentKernel } from '../../../platform/db/content-kernel.js';
 import { ensureVaultRepoFixture } from '../../../platform/db/repos/__tests__/vault-repo.fixture.js';
@@ -19,7 +19,7 @@ let first: ContentKernel; let second: ContentKernel;
 before(async () => {
   const connectionString = freshPostgresDatabase(database);
   first = openPostgresKernel<ContentDatabase>({ connectionString });
-  await migrateContentDatabase(first as StorageKernel<unknown>);
+  await migrateContentDatabase(first as KyselyKernel<unknown>);
   await ensureVaultRepoFixture({ kernel: first });
   second = openPostgresKernel<ContentDatabase>({ connectionString });
   await first.run(db => db.insertInto('workspaces').values({ id: identity.workspaceId, name: 'Choice fixture', slug: 'choice-fixture', created_at: nowIso }).execute());

@@ -8,15 +8,15 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { sqliteKernel, closeSqliteConnection, openNativeSqlite, openSqliteFileKernel, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
-import { listColumns } from "#src/platform/db/kernel/dialect";
+import { listColumns } from "@jini-ai/db/kernel";
 import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableExtendedInfo, type SqliteSchemaObject } from "#src/platform/db/kernel/sqlite-only";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { sanitizeShareDatabase, prepareSharePluginTables, refuseUnknownShareTables } from "#src/features/site-backup/share-database/repo.sqlite";
 import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/index";
 import { computeBlobStorageKey } from "#src/features/media/index";
 
-type ImportKernel = StorageKernel<Record<string, Record<string, unknown>>>;
+type ImportKernel = KyselyKernel<Record<string, Record<string, unknown>>>;
 
 /** Refuse an unsafe schema object by identity, never echoing its executable SQL.
  * Pure except for throwing INVALID_DATABASE; O(object-name bytes).

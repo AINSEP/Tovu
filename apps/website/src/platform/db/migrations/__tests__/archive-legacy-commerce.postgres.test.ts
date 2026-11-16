@@ -8,9 +8,9 @@ import { test } from "node:test";
 import { sql } from "kysely";
 
 import { dropDatabase, freshPostgresDatabase } from "../../__tests__/postgres-database.js";
-import { listTables } from "../../kernel/dialect.js";
+import { listTables } from "@jini-ai/db/kernel";
 import { openPostgresKernel } from "../../kernel/drivers/postgres.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { CONTENT_MIGRATIONS } from "../index.js";
 import { runMigrations } from "../runner.js";
 
@@ -20,7 +20,7 @@ const TABLES = ["commerce_order_items", "commerce_product_images", "commerce_web
 const steps = CONTENT_MIGRATIONS.filter(step => [ARCHIVE_ID, "0011_drop_empty_core_commerce_tables"].includes(step.id));
 
 /** Verify restored archives still contain the original data, index and enforced FK. */
-async function assertRetained(kernel: StorageKernel<unknown>): Promise<void> {
+async function assertRetained(kernel: KyselyKernel<unknown>): Promise<void> {
   const tables = await listTables(kernel);
   for (const name of TABLES) {
     assert.ok(tables.includes(`_archive_0011_${name}`));

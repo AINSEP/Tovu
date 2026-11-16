@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { sqliteKernel } from "../../kernel/drivers/sqlite.js";
-import type { StorageKernel } from "../../kernel/port.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { openContentDb } from "../../sqlite/content-db.js";
 import { WORKSPACE_MCP_CASCADE_ID, WORKSPACE_MCP_CASCADE_SQLITE } from "../0022_workspace_mcp_cascade.js";
 import { CONTENT_MIGRATIONS } from "../index.js";
@@ -13,7 +13,7 @@ import { insertFixture, seedParityRows, stamp, vaultFixture } from "./secrets-va
 type Row = Record<string, unknown>;
 
 /** Observe every column, including opaque envelopes, pointers, and approval fingerprints. */
-async function snapshot({ kernel }: { kernel: StorageKernel<unknown> }, _options = {}) {
+async function snapshot({ kernel }: { kernel: KyselyKernel<unknown> }, _options = {}) {
   return {
     vault: await kernel.query<Row>(sql`SELECT * FROM secrets_vault ORDER BY workspace_id,id`),
     servers: await kernel.query<Row>(sql`SELECT * FROM external_mcp_servers ORDER BY workspace_id,server_id`),

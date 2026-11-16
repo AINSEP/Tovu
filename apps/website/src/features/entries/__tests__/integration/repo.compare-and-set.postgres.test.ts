@@ -5,7 +5,8 @@ import { sql } from "kysely";
 
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
+import { openPostgresKernel } from "#src/platform/db/kernel/index";
+import { type KyselyKernel } from "@jini-ai/db/kernel";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { importEntry, VersionConflictError } from "../../index.js";
@@ -30,7 +31,7 @@ before(async () => {
   const url = freshPostgresDatabase(DATABASE);
   first = openPostgresKernel<ContentDatabase>({ connectionString: url });
   second = openPostgresKernel<ContentDatabase>({ connectionString: url });
-  await migrateContentDatabase(first as unknown as StorageKernel<unknown>);
+  await migrateContentDatabase(first as unknown as KyselyKernel<unknown>);
 });
 
 after(async () => {

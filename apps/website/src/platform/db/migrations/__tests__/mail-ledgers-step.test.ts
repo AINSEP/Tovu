@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import type { StorageKernel } from "#src/platform/db/kernel/port";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { MAIL_LEDGERS_ID } from "../0023_mail_ledgers.js";
 import { CONTENT_MIGRATIONS, runMigrations } from "../index.js";
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
@@ -21,8 +21,8 @@ const AT = "2026-10-21T12:00:00.000Z";
 
 for (const adapter of eachDialect({ tables: [...TABLES, "workspaces"], make: kernel => kernel })) {
   const name = adapter.name as "sqlite" | "pglite";
-  const withKernel = async (body: (kernel: StorageKernel<unknown>) => Promise<void>) => {
-    const kernel = adapter.make() as StorageKernel<unknown>;
+  const withKernel = async (body: (kernel: KyselyKernel<unknown>) => Promise<void>) => {
+    const kernel = adapter.make() as KyselyKernel<unknown>;
     try {
       await kernel.execute(sql`INSERT INTO workspaces (id, name, slug, created_at) VALUES ('w', 'W', 'w', ${AT}), ('w2', 'W2', 'w2', ${AT})`);
       await body(kernel);
@@ -30,7 +30,7 @@ for (const adapter of eachDialect({ tables: [...TABLES, "workspaces"], make: ker
       if (name === "sqlite") await kernel.close();
     }
   };
-  const ledgerRow = (kernel: StorageKernel<unknown>, workspace: string, outcome = "reserved") =>
+  const ledgerRow = (kernel: KyselyKernel<unknown>, workspace: string, outcome = "reserved") =>
     kernel.execute(sql`INSERT INTO mail_send_ledger (workspace_id, idempotency_key, recipient, payload_hash, lane, provider_id, outcome, created_at, updated_at)
       VALUES (${workspace}, 'k', 'a@x.test', 'h', 'transactional', 'smtp', ${outcome}, ${AT}, ${AT})`);
 

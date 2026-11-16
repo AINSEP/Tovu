@@ -9,7 +9,7 @@ import { sql } from "kysely";
 
 import { readCatalog } from "#src/platform/db/site-store-copy";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
-import type { StorageKernel } from "#src/platform/db/kernel/index";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { openSiteStore } from "#src/server/runtime/composition/open-site-store";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
@@ -26,7 +26,7 @@ import { runStorageMoveCommand } from "../../commands/storage-move.js";
  * is covered in `server/runtime/composition/__tests__/move-site-storage.postgres.test.ts`.
  */
 
-async function counts(kernel: StorageKernel<unknown>): Promise<Record<string, number>> {
+async function counts(kernel: KyselyKernel<unknown>): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
   for (const table of await readCatalog(kernel)) {
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${sql.table(`${table.schema}.${table.name}`)}`);
@@ -106,7 +106,7 @@ test("--storage-env moves the site and leaves the connection string in that vari
   }, { env: { TOVU_MOVE_URL: url } });
   try {
     assert.equal(target.storage.kind, "postgres", "reopen through the moved site's metadata");
-    assert.deepEqual(await counts(target.content as unknown as StorageKernel<unknown>), sourceCounts, "every destination table must retain its source row count");
+    assert.deepEqual(await counts(target.content as unknown as KyselyKernel<unknown>), sourceCounts, "every destination table must retain its source row count");
     assert.deepEqual(await target.content.run((db) => db.selectFrom("posts").select(["id", "title", "slug", "body_json"]).orderBy("id").execute()), sourcePosts);
     assert.deepEqual(await target.content.run((db) => db.selectFrom("workspaces").select(["id", "slug"]).execute()), [
       { id: "workspace-local", slug: "local-tovu" },

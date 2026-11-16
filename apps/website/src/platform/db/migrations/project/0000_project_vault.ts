@@ -1,7 +1,7 @@
 import { sql } from "kysely";
 
-import type { StorageKernel } from "../../kernel/port.js";
-import type { MigrationStep } from "../step.js";
+import type { KyselyKernel } from "@jini-ai/db/kernel";
+import type { MigrationStep } from "@jini-ai/core/contracts/storage";
 
 /**
  * @file Project step `0000_project_vault` (provider wave 2 fix, owner 2026-10-25): `project.db`'s one
@@ -46,9 +46,9 @@ export const PROJECT_VAULT_STATEMENTS: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS secrets_vault_scope ON secrets_vault(workspace_id, kind, owner_key, principal_id, provider)`,
 ];
 
-async function up(kernel: StorageKernel<unknown>): Promise<void> {
+async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   if (kernel.dialect !== "sqlite") return;
   for (const statement of PROJECT_VAULT_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
-export const projectVault = (checksum: string): MigrationStep => ({ id: PROJECT_VAULT_ID, checksum, up });
+export const projectVault = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: PROJECT_VAULT_ID, checksum, up });

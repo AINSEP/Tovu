@@ -11,7 +11,8 @@ import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins
 import { snapshotDb } from "#src/features/plugins/snapshot";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openLegacyContentDb } from "#src/platform/db/migrations/__tests__/legacy-content-db.fixture";
-import { CONTENT_MIGRATIONS, MigrationChecksumError } from "#src/platform/db/migrations/index";
+import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
+import { MigrationChecksumError } from "@jini-ai/db/migrate";
 import { MIGRATION_BACKUP_PREFIX } from "#src/platform/db/sqlite/content-db";
 import { openSiteContentDb } from "../open-site-content-db.js";
 
