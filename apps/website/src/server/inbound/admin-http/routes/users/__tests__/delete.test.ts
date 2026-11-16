@@ -122,8 +122,8 @@ async function buildApp(
     ownerPrincipalId: wiring.ownerPrincipalId,
     outbox: new InMemoryOutbox(),
     removeUser: bindRemoveEntity({ trash, entityType: USER_ENTITY_TYPE }),
-    isInTrash: async (principalIdToCheck: string) =>
-      (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalIdToCheck })) !== null,
+    isInTrash: async ({ principalId }: { principalId: string }) =>
+      (await trashRepo.findByEntity({ workspaceId: WORKSPACE_ID, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null,
     ...depsOverrides,
   };
   const app = mountApp(deps, callerId);
@@ -176,7 +176,7 @@ test("DELETE_USER route: 204 trashes an existing user", async (t) => {
   const res = await fetch(`${baseUrl}${urlFor(target.id)}`, { method: "DELETE" });
   assert.equal(res.status, 204);
   assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "disabled");
-  assert.equal(await deps.isInTrash!(target.id), true);
+  assert.equal(await deps.isInTrash!({ principalId: target.id }), true);
   assert.equal(await deps.sessionRepo.findById({ workspaceId: WORKSPACE_ID, id: active.session.id }), null);
   assert.equal(await validateSession({ deps: svcDeps, input: { workspaceId: WORKSPACE_ID, rawToken: active.rawToken } }), null);
 });
@@ -207,7 +207,7 @@ test("DELETE_USER route: 403 FORBIDDEN when the caller is neither the owner nor 
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "FORBIDDEN");
-  assert.equal(await deps.isInTrash!(target.id), false);
+  assert.equal(await deps.isInTrash!({ principalId: target.id }), false);
   assert.equal((await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }))?.status, "active");
 });
 
@@ -272,7 +272,7 @@ test("DELETE_USER route: 409 OWNER_REQUIRED when a non-owner admin with user.man
   assert.equal(capture.statusCode, 409);
   assert.deepEqual(capture.jsonBody, { error: "only an owner can delete, trash, disable or reset the password of an admin or owner account", code: "OWNER_REQUIRED" });
   assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: target.id }), before);
-  assert.equal(await deps.isInTrash!(target.id), false);
+  assert.equal(await deps.isInTrash!({ principalId: target.id }), false);
 });
 
 test("DELETE_USER route: 409 SELF_DELETE when the caller targets their own principal", async (t) => {

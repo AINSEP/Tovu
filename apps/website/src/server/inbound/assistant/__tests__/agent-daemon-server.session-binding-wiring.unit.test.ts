@@ -19,6 +19,7 @@ import { admittedToolSources, type ToolAccessRun } from "@jini-ai/daemon";
 import { isTerminalRunState } from "@jini-ai/protocol";
 import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from "../assistant-run-tool-policy.js";
 import { assistantRunToolFacts } from "../assistant-run-tool-facts.js";
+import { assemblePromptWithPluginPrefix } from "../plugin-prompt-assembly.js";
 import { daemonInitializer, evaluateDaemonExpression, withDaemonLifecycle } from "./helpers/daemon-source.js";
 
 /**
@@ -71,7 +72,8 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     assistantInventory: { listAssistantAgents: async () => ["claude", "codex"].map(id => ({ id, available: true, authStatus: "unknown" })) },
     ensureJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" },
     parseRunStartContextRef: ({ contextRef }: { contextRef: string }) => ({ ...contexts.get(contextRef), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
-    assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
+    // Bind the real assembly, as the shared daemon harness does, so the fake cannot drift from its signature.
+    assemblePromptWithPluginPrefix,
     buildPageContextPromptBlock: () => "",
     principalByRunId: new Map(), messageAttachmentRefsByRunId: new Map(), durableMessageIdsByRunId: new Map(), runOwners: { record() {} }, ownerRetentionTimers: new Set(),
     // No live executor in this harness: isolate serialization of the binding, not the live-run gate.

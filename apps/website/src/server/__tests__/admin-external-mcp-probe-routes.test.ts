@@ -239,9 +239,9 @@ test("a successful probe describes every advertised tool, admitted or not, with 
   // A holder object, not a bare `let`: TS's control-flow analysis cannot see the closure's write,
   // so a `let seenSpec = null` stays narrowed to `null` (and `.url` to `never`) at the assertion.
   const seen: { spec: McpHttpLaunchSpec | null; timeout: number | undefined } = { spec: null, timeout: undefined };
-  const connect: ExternalMcpProbeSessionFactory = async (spec, timeout) => {
+  const connect: ExternalMcpProbeSessionFactory = async ({ spec, requestTimeoutMs }) => {
     seen.spec = spec;
-    seen.timeout = timeout;
+    seen.timeout = requestTimeoutMs;
     return scriptedSession({
       tools: [
         { name: "generate_image", description: "Makes an image.", inputSchema: {}, annotations: { readOnlyHint: false } },
@@ -306,7 +306,7 @@ test("INV-006: the response carries no secret — not the OAuth bearer token, no
     },
   };
   let seenAuthHeader: string | undefined;
-  const connect: ExternalMcpProbeSessionFactory = async (spec) => {
+  const connect: ExternalMcpProbeSessionFactory = async ({ spec }) => {
     seenAuthHeader = spec.headers.authorization;
     return scriptedSession({ tools: [{ name: "generate_image", description: "d", inputSchema: {}, annotations: { readOnlyHint: false } }] });
   };

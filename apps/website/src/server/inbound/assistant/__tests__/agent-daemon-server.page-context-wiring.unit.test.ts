@@ -23,7 +23,7 @@ test("the run prompt renders decoded.pageContext directly after the dispatch mar
     DAEMON_ENTRY_SOURCE,
     // History is selected (resume tail or cold-start context) before this decoration, so the
     // decorated `prompt` already holds the operator's words; `pageContext` is the decoded field.
-    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(prompt, buildPageContextPromptBlock\(\{ context: pageContext \}\)\)\}`;/,
+    /prompt = `<<SUBAGENT_DISPATCH>>\\n\\n\$\{assemblePromptWithPluginPrefix\(\{ basePrompt: prompt, pluginPromptPrefix: buildPageContextPromptBlock\(\{ context: pageContext \}\) \}\)\}`;/,
   );
 });
 
