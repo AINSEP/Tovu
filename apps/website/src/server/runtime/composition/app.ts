@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeMemoryOutboundHttp } from "./memory-deps/slices/outbound-http.js";
 import { composeMemoryTrash } from "./memory-deps/slices/memory-trash.js";
 import { composePublishContentStores } from "./memory-deps/slices/publish-content-stores.js";
 import { composeNavFormContentRepos } from "./memory-deps/slices/nav-form-content-repos.js";
@@ -32,7 +33,7 @@ import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
-import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
@@ -41,9 +42,7 @@ import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { bindWidgetRemoval } from "#src/features/trash/index";
-import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
-import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
@@ -396,18 +395,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
 
   // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
   const inMemoryChatHistory = createInMemoryChatHistory();
-  // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
-  const guardedOutboundHttpClient = createGuardedMediaHttpClient({
-      ...createNodeGuardedHttpPorts({}),
-      userAgent: "Tovu/0.1.0",
-      // Preserve Jini's generation budget (10 minutes, 96 MiB); asset requests may choose less.
-      // Redirects are refused; provider-returned URLs get no private-network exception.
-      policy: { allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
-        maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
-        maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
-    });
-  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
+  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
   const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
   const sitemapService = createSitemapService({ deps: seoDeps }, {});
