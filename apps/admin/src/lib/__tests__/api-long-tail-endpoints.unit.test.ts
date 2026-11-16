@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
@@ -243,7 +244,7 @@ test("listIntegrationDeliveries hits GET /integrations/subscriptions/:id/deliver
 
 test("listContentTypes hits GET /content-types — not workspace-scoped", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listContentTypes();
+  await collectionsApi.listContentTypes();
   expect(calls[0].url).toBe(`/api/admin/v1/content-types`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -251,7 +252,7 @@ test("listContentTypes hits GET /content-types — not workspace-scoped", async 
 test("createContentType POSTs the input verbatim to /content-types", async () => {
   const { calls, body } = stubFetchCapturing();
   const fields = [{ name: "title", kind: "text" as const, required: true, queryable: false }];
-  await api.createContentType({ key: "recipe", label: "Recipe", fields });
+  await collectionsApi.createContentType({ key: "recipe", label: "Recipe", fields });
   expect(calls[0].url).toBe(`/api/admin/v1/content-types`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ key: "recipe", label: "Recipe", fields });
@@ -260,7 +261,7 @@ test("createContentType POSTs the input verbatim to /content-types", async () =>
 test("updateContentTypeFields PUTs { fields, expectedVersion } to /content-types/:key/fields", async () => {
   const { calls, body } = stubFetchCapturing();
   const fields = [{ name: "title", kind: "text" as const, required: true, queryable: false }];
-  await api.updateContentTypeFields({ key: "recipe", fields, expectedVersion: 2 });
+  await collectionsApi.updateContentTypeFields({ key: "recipe", fields, expectedVersion: 2 });
   expect(calls[0].url).toBe(`/api/admin/v1/content-types/recipe/fields`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ fields, expectedVersion: 2 });
@@ -268,7 +269,7 @@ test("updateContentTypeFields PUTs { fields, expectedVersion } to /content-types
 
 test("contentTypeLifecycle POSTs { op, expectedVersion } to /content-types/:key/lifecycle", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.contentTypeLifecycle({ key: "recipe", op: "deprecate", expectedVersion: 3 });
+  await collectionsApi.contentTypeLifecycle({ key: "recipe", op: "deprecate", expectedVersion: 3 });
   expect(calls[0].url).toBe(`/api/admin/v1/content-types/recipe/lifecycle`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ op: "deprecate", expectedVersion: 3 });
@@ -278,13 +279,13 @@ test("contentTypeLifecycle POSTs { op, expectedVersion } to /content-types/:key/
 
 test("listEntries appends ?type= only when a type filter is given — not workspace-scoped", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listEntries({ type: "recipe" });
+  await collectionsApi.listEntries({ type: "recipe" });
   expect(calls[0].url).toBe(`/api/admin/v1/entries?type=recipe`);
 });
 
 test("createEntry POSTs input+options merged to /entries", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createEntry({ type: "recipe", slug: "chili", title: "Chili" }, { bodyJson: { blocks: [] } });
+  await collectionsApi.createEntry({ type: "recipe", slug: "chili", title: "Chili" }, { bodyJson: { blocks: [] } });
   expect(calls[0].url).toBe(`/api/admin/v1/entries`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ type: "recipe", slug: "chili", title: "Chili", bodyJson: { blocks: [] } });
@@ -292,7 +293,7 @@ test("createEntry POSTs input+options merged to /entries", async () => {
 
 test("updateEntry PUTs { expectedVersion, ...options } to /entries/:id, accepting bodyJson", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updateEntry({ id: "e1", expectedVersion: 4 }, { title: "New title", bodyJson: { blocks: ["x"] } });
+  await collectionsApi.updateEntry({ id: "e1", expectedVersion: 4 }, { title: "New title", bodyJson: { blocks: ["x"] } });
   expect(calls[0].url).toBe(`/api/admin/v1/entries/e1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ expectedVersion: 4, title: "New title", bodyJson: { blocks: ["x"] } });
@@ -300,7 +301,7 @@ test("updateEntry PUTs { expectedVersion, ...options } to /entries/:id, acceptin
 
 test("entryLifecycle POSTs { op, expectedVersion } to /entries/:id/lifecycle", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.entryLifecycle({ id: "e1", op: "publish", expectedVersion: 1 });
+  await collectionsApi.entryLifecycle({ id: "e1", op: "publish", expectedVersion: 1 });
   expect(calls[0].url).toBe(`/api/admin/v1/entries/e1/lifecycle`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ op: "publish", expectedVersion: 1 });

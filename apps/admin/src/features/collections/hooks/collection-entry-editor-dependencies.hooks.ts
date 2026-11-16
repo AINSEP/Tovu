@@ -1,4 +1,5 @@
-import { api, type AdminContentType, type AdminEntry } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import { collectionsApi } from "@/features/collections/api/collections-api";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
 
 /**
@@ -8,11 +9,11 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
 
 /** The live implementation, as a module-level singleton. */
 export const defaultCollectionEntryEditorPort: CollectionEntryEditorPort = {
-  listContentTypes: () => api.listContentTypes(),
-  listEntries: (options, _optional = {}) => api.listEntries(options),
-  updateEntry: ({ target, patch }, _optional = {}) => api.updateEntry(target, patch),
-  createEntry: ({ input, options }, _optional = {}) => api.createEntry(input, options),
-  entryLifecycle: (input, _optional = {}) => api.entryLifecycle(input),
+  listContentTypes: () => collectionsApi.listContentTypes(),
+  listEntries: (options, _optional = {}) => collectionsApi.listEntries(options),
+  updateEntry: ({ target, patch }, _optional = {}) => collectionsApi.updateEntry(target, patch),
+  createEntry: ({ input, options }, _optional = {}) => collectionsApi.createEntry(input, options),
+  entryLifecycle: (input, _optional = {}) => collectionsApi.entryLifecycle(input),
 };
 
 /** Its one caller (`createEntry` below) always assigns the next id, so `id` is required rather

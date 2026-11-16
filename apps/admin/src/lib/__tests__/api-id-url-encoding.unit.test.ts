@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
@@ -134,18 +135,18 @@ const singleIdCases: Case[] = [
 
   [
     "updateContentTypeFields",
-    () => api.updateContentTypeFields({ key: SLASH_ID, fields: [], expectedVersion: 1 }),
+    () => collectionsApi.updateContentTypeFields({ key: SLASH_ID, fields: [], expectedVersion: 1 }),
     `${BASE_API}/content-types/${ENC}/fields`,
   ],
   [
     "contentTypeLifecycle",
-    () => api.contentTypeLifecycle({ key: SLASH_ID, op: "deprecate", expectedVersion: 1 }),
+    () => collectionsApi.contentTypeLifecycle({ key: SLASH_ID, op: "deprecate", expectedVersion: 1 }),
     `${BASE_API}/content-types/${ENC}/lifecycle`,
   ],
-  ["updateEntry", () => api.updateEntry({ id: SLASH_ID, expectedVersion: 1 }), `${BASE_API}/entries/${ENC}`],
+  ["updateEntry", () => collectionsApi.updateEntry({ id: SLASH_ID, expectedVersion: 1 }), `${BASE_API}/entries/${ENC}`],
   [
     "entryLifecycle",
-    () => api.entryLifecycle({ id: SLASH_ID, op: "publish", expectedVersion: 1 }),
+    () => collectionsApi.entryLifecycle({ id: SLASH_ID, op: "publish", expectedVersion: 1 }),
     `${BASE_API}/entries/${ENC}/lifecycle`,
   ],
   [

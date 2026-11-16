@@ -1,4 +1,4 @@
-import type { AdminContentType, AdminEntry } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file What `use-collection-entry-editor.hooks.ts` needs from the outside world, as an interface

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { type AdminContentType, type ContentTypeLifecycleOp } from "@/lib/api";
+import type { AdminContentType, ContentTypeLifecycleOp } from "@/features/collections/api/collections-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { collectionEmbedSnippet, isUserCollection, KEYS, type LifecycleConfirmOp } from "../rules";

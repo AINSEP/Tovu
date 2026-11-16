@@ -1,4 +1,5 @@
-import { api, type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
+import { collectionsApi } from "@/features/collections/api/collections-api";
 import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
 
 /**
@@ -8,7 +9,7 @@ import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.ho
 
 /** The live implementation, as a module-level singleton. */
 export const defaultNewContentTypeDialogPort: NewContentTypeDialogPort = {
-  createContentType: (input, _optional = {}) => api.createContentType(input),
+  createContentType: (input, _optional = {}) => collectionsApi.createContentType(input),
 };
 
 /** Seed state for {@link createFakeNewContentTypeDialogPort}. */

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../lib/api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
@@ -192,7 +192,7 @@ describe("RecentEntriesConfigFields", () => {
     // Every case below fetches the content-type registry for the Collection select on mount (same
     // `useFetchedOptions` seam `MenuConfigFields`/`ContactFormConfigFields` use) — stub it here so
     // tests that don't care about that fetch don't see a real network call.
-    vi.spyOn(api, "listContentTypes").mockResolvedValue({ items: COLLECTIONS });
+    vi.spyOn(collectionsApi, "listContentTypes").mockResolvedValue({ items: COLLECTIONS });
   });
 
   it("defaults maxItems to 5 when the config value is missing or not a number", () => {
@@ -244,7 +244,7 @@ describe("RecentEntriesConfigFields", () => {
   });
 
   it("shows an error notice when api.listContentTypes rejects with an Error", async () => {
-    vi.spyOn(api, "listContentTypes").mockRejectedValue(new Error("collections down"));
+    vi.spyOn(collectionsApi, "listContentTypes").mockRejectedValue(new Error("collections down"));
     render(<WidgetConfigFields widgetType="recent-entries" config={{ maxItems: 5 }} onChange={vi.fn()} />);
 
     expect(await screen.findByText("collections down")).toBeInTheDocument();
@@ -702,7 +702,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
   });
 
   it("RecentEntriesConfigFields: translates collection, sort, layout, fields, filter and fallback copy", async () => {
-    vi.spyOn(api, "listContentTypes").mockResolvedValue({ items: COLLECTIONS });
+    vi.spyOn(collectionsApi, "listContentTypes").mockResolvedValue({ items: COLLECTIONS });
     const t = (key: string) => `${key}-FAKE`;
     const { unmount } = render(<WidgetConfigFields widgetType="recent-entries" config={{ collection: "tovu_feature", where: { featured: true } }} onChange={vi.fn()} t={t} />);
     await screen.findByText("Fields to show-FAKE");
@@ -713,7 +713,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
       expect(screen.getByRole("option", { name: `${option}-FAKE` })).toBeInTheDocument();
     }
     unmount();
-    vi.mocked(api.listContentTypes).mockRejectedValue("failed");
+    vi.mocked(collectionsApi.listContentTypes).mockRejectedValue("failed");
     render(<WidgetConfigFields widgetType="recent-entries" config={{}} onChange={vi.fn()} t={t} />);
     expect(await screen.findByText("failed to load collections-FAKE")).toBeInTheDocument();
   });

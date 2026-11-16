@@ -1,4 +1,5 @@
-import { api, type AdminContentType, type AdminEntry } from "@/lib/api";
+import type { AdminContentType, AdminEntry } from "@/features/collections/api/collections-api.types";
+import { collectionsApi } from "@/features/collections/api/collections-api";
 import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
 
 /**
@@ -8,8 +9,8 @@ import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultCollectionEntriesPort: CollectionEntriesPort = {
-  listContentTypes: () => api.listContentTypes(),
-  listEntries: (options, _optional = {}) => api.listEntries(options),
+  listContentTypes: () => collectionsApi.listContentTypes(),
+  listEntries: (options, _optional = {}) => collectionsApi.listEntries(options),
 };
 
 /** Seed state for {@link createFakeCollectionEntriesPort}. */

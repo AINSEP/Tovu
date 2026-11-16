@@ -1,4 +1,5 @@
-import { api, type AdminContentType } from "../../lib/api";
+import type { AdminContentType } from "../../features/collections/api/collections-api.types";
+import { collectionsApi } from "../../features/collections/api/collections-api";
 import type { AdminMenu } from "../../features/menus/api/menus-api.types";
 import { menusApi } from "../../features/menus/api/menus-api";
 import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
@@ -17,7 +18,7 @@ import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 export const defaultWidgetConfigFieldsPort: WidgetConfigFieldsPort = {
   listMenus: () => menusApi.listMenus(),
   listForms: () => formsApi.listForms(),
-  listContentTypes: () => api.listContentTypes(),
+  listContentTypes: () => collectionsApi.listContentTypes(),
 };
 
 /** Tovu's authenticated preview adapter; the server owns widget rendering and active-theme CSS.

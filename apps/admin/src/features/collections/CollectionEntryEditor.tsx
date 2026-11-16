@@ -1,6 +1,6 @@
 import { EditorContent, type Editor } from "@tiptap/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import { type ContentTypeFieldDef } from "../../lib/api";
+import type { ContentTypeFieldDef } from "./api/collections-api.types";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { ServerLabel } from "@/components/status-labels";

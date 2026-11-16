@@ -1,4 +1,4 @@
-import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "../../lib/api";
+import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "./api/collections-api.types";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";

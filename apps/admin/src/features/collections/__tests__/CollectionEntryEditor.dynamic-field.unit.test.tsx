@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
-import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, AdminEntry, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
 
 /**
  * @file `CollectionEntryEditor` — the render-layer branches `CollectionEntryEditor.unit.test.tsx`

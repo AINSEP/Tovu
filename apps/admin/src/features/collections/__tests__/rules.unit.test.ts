@@ -23,7 +23,7 @@ import {
   visibleEntryEditorError,
   type DraftField,
 } from "../rules";
-import { type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "@/features/collections/api/collections-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 
 /**

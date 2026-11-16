@@ -2,7 +2,7 @@ import { fireEvent, render, renderHook, screen } from "@/__tests__/fetch-query-r
 import { describe, expect, it, vi } from "vitest";
 
 import { LifecycleConfirmDialog } from "../Collections";
-import type { AdminContentType } from "@/lib/api";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
 import { useLifecycleConfirmDialog } from "../hooks/use-lifecycle-confirm-dialog.hooks";
 
 /**

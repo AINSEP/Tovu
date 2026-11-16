@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { type AdminContentType } from "@/lib/api";
+import type { AdminContentType } from "@/features/collections/api/collections-api.types";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import {
   addDraftField,

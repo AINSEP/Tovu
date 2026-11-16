@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
@@ -330,7 +331,7 @@ test("restartAssistantDaemon resolves { ok: false, reason } for a 409 refusal, i
 
 test("listEntries has no ?type query param when no type filter is given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listEntries();
+  await collectionsApi.listEntries();
   expect(calls[0].url).toBe(`/api/admin/v1/entries`);
 });
 

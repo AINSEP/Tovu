@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../lib/api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { formsApi } from "../../features/forms/api/forms-api";
 import {
@@ -39,7 +39,7 @@ describe("defaultWidgetConfigFieldsPort", () => {
 
   it("listContentTypes delegates to api.listContentTypes", async () => {
     const result = { items: [{ workspaceId: "ws1", key: "docs_page", label: "Docs page", fields: [], status: "active" as const, version: 1 }] };
-    const spy = vi.spyOn(api, "listContentTypes").mockResolvedValue(result);
+    const spy = vi.spyOn(collectionsApi, "listContentTypes").mockResolvedValue(result);
     await expect(defaultWidgetConfigFieldsPort.listContentTypes()).resolves.toEqual(result);
     expect(spy).toHaveBeenCalledTimes(1);
   });
