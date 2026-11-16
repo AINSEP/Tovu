@@ -6,7 +6,8 @@ import type { RouteDeps } from '#src/server/routes/types';
 import type { DiscoveredTheme, StaticMenuItem } from '#src/features/theme/index';
 import { NAV_DOC_TYPE, type NavMenuEntry } from '#src/features/navigation/index';
 import type { PublicPostRecord } from '#src/features/post/index';
-import { resolveStaticMenusForRender, resolveMediaAssetMetadataForRender } from "../../pages.js";
+import { resolveMediaAssetMetadataForRender } from "../../pages.js";
+import { resolveStaticMenusForRender } from "../../pages/render-context/static-menus.js";
 import { resolveSiteAssistantWidgetForRequest } from "../../pages/render-context/widgets.js";
 import type { TemplateRenderDeps, RenderContextResolutionDeps } from "../../pages/render-context/deps.js";
 

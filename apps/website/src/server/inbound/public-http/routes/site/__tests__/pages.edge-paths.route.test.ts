@@ -22,7 +22,8 @@ import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
-import { finishStaticTierDocument, registerSiteRoutes, resolveMarketingPageOrOverride, resolveStaticMenusForRender } from "../pages.js";
+import { finishStaticTierDocument, registerSiteRoutes, resolveMarketingPageOrOverride } from "../pages.js";
+import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
 import { resolveHtmlFormatContentMarkers } from "../pages/render-context/content-markers.js";
 import { placeAfterCurrentContent } from "../pages/render-context/taxonomy.js";
 
