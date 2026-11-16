@@ -43,8 +43,10 @@ test('t10 source callback delivers a human token only to its parked call, reject
   const f = fixture(); const { pending, emitted } = await form(f);
   let handler!: (req: Request, res: Response) => Promise<void>;
   // Invoke the registered production handler directly: no HTTP listener or transport mock.
-  registerMcpUiToolCallsRoute({ post: (path: string, callback: typeof handler) => {
-    assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = callback;
+  // why: the route is wrapped in asyncRoute (b394c8ca8), whose wrapper returns before the work ends;
+  // `.handler` is the original async handler, so each call is awaited before its response is read.
+  registerMcpUiToolCallsRoute({ post: (path: string, route: { handler: typeof handler }) => {
+    assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = route.handler;
   } } as unknown as Express, {
     surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
