@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { revertChangeSet } from "../../index.js";
-import { InMemoryChangeSetRepo } from "../../repo.memory.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { createPostRevertRegistry, InMemoryPostRepo } from "#src/features/post/index";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/core/contracts/events";
 import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";
@@ -10,7 +10,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 /**
- * @file `core/commands/revert.ts` × the post `update` reverter — SPEC-005 BR-08, AC-17.
+ * @file Jini `cms/core/commands/revert.ts` × the post `update` reverter — SPEC-005 BR-08, AC-17.
  * **CIC U-005 (Binding — the SM2 transition specifically ESCALATE_SECURITY): revert must never
  * re-fire the hook.** This is the dedicated, direct coverage the TDD dispatch requires for U-005.
  *

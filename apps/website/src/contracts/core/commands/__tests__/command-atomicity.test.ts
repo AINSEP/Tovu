@@ -14,7 +14,7 @@ import {
   type CommandMutation,
   type DomainEvent,
 } from "@jini-ai/core/contracts/events";
-import { InMemoryChangeSetRepo } from "../repo.memory.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**

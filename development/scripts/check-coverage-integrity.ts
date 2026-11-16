@@ -85,8 +85,8 @@
  * additionally satisfies the SEVERE full-subset condition below. Neither is evidence of a genuine
  * Route A dual-instantiation: it is the STRUCTURALLY GUARANTEED shape of compiling any pure re-export
  * file, present or absent regardless of whether Route A is ever fixed. This is categorically
- * different from a real logic-bearing file (`apps/website/src/contracts/core/commands/revert.ts`,
- * `.../platform/export/route-manifest.ts`) that happens to ALSO show wrapper names -- there, the
+ * different from a real logic-bearing file (`apps/website/src/platform/export/route-manifest.ts`)
+ * that happens to ALSO show wrapper names -- there, the
  * wrapper presence genuinely does mean a second image merged over real function/line data, exactly
  * what this script exists to catch, and this exclusion does not touch that case at all: detection is
  * by the file's SOURCE shape (`isPureReExportBarrelSource`, read from disk by `main`, threaded through
