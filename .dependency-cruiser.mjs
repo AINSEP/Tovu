@@ -703,6 +703,7 @@ const REVIEWED_IMPORT_PAIRS = [
   ["server/inbound/public-http/http/site/render.ts", "features/media/public-path.ts"],
   ["server/inbound/public-http/http/site/render/doc/media-ref.ts", "features/media/public-path.ts"],
   ["server/inbound/public-http/http/site/render/doc/media-tags.ts", "features/media/public-path.ts"],
+  ["server/inbound/public-http/http/site/render/doc/nodes-media.ts", "features/media/public-path.ts"],
   ["features/deployments/static-publish/adapter.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/static-security-headers.ts", "features/theme/public-page-security-headers.ts"],
   ["features/site-export/theme-preview-manifest.ts", "features/theme/preview-switcher-html.ts"],
