@@ -185,20 +185,25 @@ export interface DescribedTransportError {
   readonly logDetail: string;
 }
 
-/** What a module may call that is not a Node builtin: a plugin ships no npm dependencies. */
+/**
+ * What a module may call that is not a Node builtin: a plugin ships no npm dependencies.
+ * why: this is the plugin module ABI. Shipped provider modules (`@jini-ai/agent-plugins/github`)
+ * call `kit.fetch(url, init)` positionally, like the deploy and form-destination kits, so the
+ * args rule does not apply here; an object signature would hand them `url === undefined`.
+ */
 export interface SourceControlProviderKit {
   readonly repositoryPaths: import("@jini-ai/devops/source-control").SourceControlProviderKit["repositoryPaths"];
   /** Plain `fetch`, looked up at call time. */
-  fetch(required: { url: string; init: RequestInit }, optional?: Record<string, never>): Promise<Response>;
+  fetch(url: string, init: RequestInit): Promise<Response>;
   /** A `RequestInit` that never follows a redirect. */
-  redirectGuardInit(required: { init: RequestInit }, optional?: Record<string, never>): RequestInit;
+  redirectGuardInit(init: RequestInit): RequestInit;
   /** Throws when `response` is a redirect, so a token is never sent on to another host. */
-  assertNotRedirected(required: { response: Response; hostName: string }, optional?: Record<string, never>): void;
+  assertNotRedirected(response: Response, hostName: string): void;
   /** True for the error {@link assertNotRedirected} throws. */
-  isRedirectRefusal(required: { error: unknown }, optional?: Record<string, never>): boolean;
+  isRedirectRefusal(error: unknown): boolean;
   /** The guarded outbound-HTTP seam (ADR-038) for credentialed custom-credential calls. */
   readonly httpClient: HttpClientPort;
-  describeTransportError(required: { error: unknown }, optional?: Record<string, never>): DescribedTransportError;
+  describeTransportError(error: unknown): DescribedTransportError;
   /** Waits before a retry. Optional so a hand-built kit may omit it; a module falls back to a timer. */
   sleep?(ms: number): Promise<void>;
 }

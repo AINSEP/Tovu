@@ -278,7 +278,7 @@ test("provider builders load the requested workspace, forward HTTP, select by or
   }));
   const refusals = ["plugin-gamma refused"];
   const registry: SourceControlProviderRegistry = { list: () => loaded, get: ({ providerId: id }) => loaded.find((p) => p.descriptor.id === id), refusals };
-  const load = async (workspaceId: string) => { assert.equal(workspaceId, WORKSPACE_ID); return registry; };
+  const load = async ({ workspaceId }: { workspaceId: string }) => { assert.equal(workspaceId, WORKSPACE_ID); return registry; };
   const built = await buildSourceControlProviders({ load, workspaceId: WORKSPACE_ID, httpClient });
   assert.deepEqual(built.providers.map((p) => p.id), ["alpha", "beta"]);
   assert.deepEqual(await Promise.all(built.providers.map((p) => p.readAccountLabel("secret"))), ["alpha:secret", "beta:secret"]);

@@ -38,12 +38,13 @@ export function createSourceControlProviderKit(
   }, { fetchRedirectPolicy: "caller" });
   return {
     repositoryPaths: kit.repositoryPaths,
-    fetch: ({ url, init }) => kit.fetch({ url, init }),
-    redirectGuardInit: ({ init }) => kit.redirectGuardInit({ init }),
-    assertNotRedirected: ({ response, hostName }) => kit.assertNotRedirected({ response, hostName }),
-    isRedirectRefusal: ({ error }) => kit.isRedirectRefusal({ error }),
+    // why: positional on purpose: the plugin module ABI (see SourceControlProviderKit).
+    fetch: (url, init) => kit.fetch({ url, init }),
+    redirectGuardInit: init => kit.redirectGuardInit({ init }),
+    assertNotRedirected: (response, hostName) => kit.assertNotRedirected({ response, hostName }),
+    isRedirectRefusal: error => kit.isRedirectRefusal({ error }),
     httpClient,
-    describeTransportError: ({ error }) => kit.describeTransportError({ error }),
+    describeTransportError: error => kit.describeTransportError({ error }),
     sleep: options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms))),
   };
 }
