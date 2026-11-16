@@ -109,7 +109,7 @@ const EVENTS_SCRIPTS: Record<Exclude<EventsBehavior, "http-failure" | "delayed-t
   "stdout-and-unknown-frame": (_req, res) => {
     res.writeHead(200, { "content-type": "text/event-stream" });
     res.write(`event: stdout\ndata: ${wireFrame("stdout", { chunk: "raw stdout line" })}\n\n`);
-    // `heartbeat` is not a kind `handleDaemonFrame` recognizes — it must be silently ignored, not
+    // `heartbeat` is not a kind Jini's `translateRunFrame` recognizes — it must be silently ignored, not
     // drop or corrupt the rest of the stream.
     res.write(`event: heartbeat\ndata: ${wireFrame("heartbeat", {})}\n\n`);
     // `thinking_start` reduces to `null` (no wire-side `thinking_end` to pair it with) — a real
@@ -128,9 +128,8 @@ const EVENTS_SCRIPTS: Record<Exclude<EventsBehavior, "http-failure" | "delayed-t
   },
   "keepalive-frame": (_req, res) => {
     res.writeHead(200, { "content-type": "text/event-stream" });
-    // A bare `id:`-only frame with no `data:` line at all — `parseDaemonFrame` returns `null` for
-    // it and `readDaemonSseFrames` must skip yielding it entirely, not choke on it or drop the
-    // frames around it.
+    // A bare `id:`-only frame with no `data:` line at all — Jini's `readSseFrames` must skip
+    // yielding it entirely, not choke on it or drop the frames around it.
     res.write(`id: 0\n\n`);
     res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "after keepalive" })}\n\n`);
     res.write(`event: end\ndata: ${wireFrame("end", { reason: "stop" })}\n\n`);
@@ -635,7 +634,7 @@ test("the daemon connection dropping mid-stream (no clean end frame) closes any 
   assert.deepEqual(types, ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_ERROR"]);
 });
 
-test("an explicit daemon 'error' frame with no message field falls back to a generic RUN_ERROR message", async (t) => {
+test("an explicit daemon 'error' frame with no message field falls back to a generic message, shown as a status line and as RUN_ERROR", async (t) => {
   const { baseUrl, cookie } = await bootAgUi(t);
   eventsBehavior = "error-frame-no-message";
 
@@ -648,7 +647,9 @@ test("an explicit daemon 'error' frame with no message field falls back to a gen
   assert.equal(res.status, 200);
   const events = parseAgUiResponseBody(await res.text());
   const types = events.map((e) => e.type);
-  assert.deepEqual(types, ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_ERROR"]);
+  // The status line carries the reason into the saved turn; RUN_ERROR alone is live-only state.
+  assert.deepEqual(types, ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "CUSTOM", "TEXT_MESSAGE_END", "RUN_ERROR"]);
+  assert.deepEqual(events[3], { type: "CUSTOM", name: "tovu.status", value: { kind: "status", label: "agent run failed" } });
   const errorEvent = events.find((e) => e.type === "RUN_ERROR") as { message?: string };
   assert.equal(errorEvent.message, "agent run failed");
 });
@@ -1068,8 +1069,8 @@ test("AG-UI omits malformed or oversized originating tab ids", async t => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Frame cases the wire golden does not hold. Each pins what the route does today, so the change
-// to Jini's frame translator (AG-UI design S1 step B3) shows up here case by case.
+// Frame cases the wire golden does not hold. Jini's `translateRunFrame` reads every frame (AG-UI
+// design S1 step B3); a frame it cannot read yields no event and the run goes on.
 // ---------------------------------------------------------------------------------------------
 
 async function runScript(t: import("node:test").TestContext, behavior: EventsBehavior) {
@@ -1080,39 +1081,43 @@ async function runScript(t: import("node:test").TestContext, behavior: EventsBeh
   return parseAgUiResponseBody(await res.text());
 }
 
-test("a daemon frame that is not JSON fails the run on the spot with the parser's own words", async (t) => {
+test("a daemon frame that is not JSON is skipped and the run goes on to its own end", async (t) => {
   const events = await runScript(t, "malformed-agent-frame");
-  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_ERROR"]);
-  assert.match(String(events.at(-1)!.message), /JSON/);
+  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_FINISHED"]);
+  assert.deepEqual(events.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta), ["before", " after"]);
 });
 
-test("an agent frame whose payload names no type goes out as an extension event named 'undefined'", async (t) => {
+test("an agent frame whose payload names no type is skipped", async (t) => {
   const events = await runScript(t, "agent-frame-without-type");
-  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "CUSTOM", "RUN_FINISHED"]);
-  assert.equal(events[1]!.name, "tovu.ext.undefined");
+  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "RUN_FINISHED"]);
 });
 
-test("stdout chunks go out as RAW one for one: empty, structured, and both halves of a split echo line", async (t) => {
+test("stdout chunks: an empty one sends nothing, a structured one is RAW JSON, and a split echo line is dropped in both halves", async (t) => {
   const events = await runScript(t, "stdout-edge-chunks");
-  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "RAW", "RAW", "RAW", "RAW", "RUN_FINISHED"]);
-  assert.deepEqual(events.filter((e) => e.type === "RAW").map((e) => e.event), [
-    "",
-    '{"structured":true}',
-    '{"type":"user","message":{"content":"tool result pro',
-    'se"}}\nplain tail\n',
-  ]);
+  assert.deepEqual(events.map((e) => e.type), ["RUN_STARTED", "RAW", "RAW", "RUN_FINISHED"]);
+  assert.deepEqual(events.filter((e) => e.type === "RAW").map((e) => e.event), ['{"structured":true}', "plain tail\n"]);
 });
 
-for (const behavior of ["end-frame-failed", "end-frame-canceled"] as const) {
-  test(`spans: ${behavior} ends the run span as succeeded`, async (t) => {
-    const { exporter, port } = createInMemoryOtel();
-    const { baseUrl, cookie } = await bootAgUi(t, port);
-    eventsBehavior = behavior;
+test("spans: an end frame the daemon classified as failed ends the run span as failed", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  eventsBehavior = "end-frame-failed";
 
-    await (await postAgUiRun(baseUrl, cookie)).text();
+  await (await postAgUiRun(baseUrl, cookie)).text();
 
-    const run = await agentRunSpan(exporter);
-    assert.equal(run.attributes["agent.run.status"], "succeeded");
-    assert.equal(run.status.code, SpanStatusCode.UNSET);
-  });
-}
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "failed");
+  assert.equal(run.status.code, SpanStatusCode.ERROR);
+});
+
+test("spans: an end frame the daemon classified as canceled ends the run span as canceled", async (t) => {
+  const { exporter, port } = createInMemoryOtel();
+  const { baseUrl, cookie } = await bootAgUi(t, port);
+  eventsBehavior = "end-frame-canceled";
+
+  await (await postAgUiRun(baseUrl, cookie)).text();
+
+  const run = await agentRunSpan(exporter);
+  assert.equal(run.attributes["agent.run.status"], "canceled");
+  assert.equal(run.status.code, SpanStatusCode.UNSET, "a canceled run is not a failure");
+});

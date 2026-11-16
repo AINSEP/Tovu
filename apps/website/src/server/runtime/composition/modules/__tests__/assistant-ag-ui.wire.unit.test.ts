@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
+import { terminalReasonNotice as jiniTerminalReasonNotice, translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 
-import { terminalReasonNotice } from "../assistant-ag-ui.js";
+import { RUN_NOTICES } from "#src/contracts/core/assistant-run-events";
+
+/** Jini's notice rule with the words this host passes it, as the route's frame translation does. */
+const terminalReasonNotice = ({ reason }: { reason: string }) => jiniTerminalReasonNotice({ reason, notice: RUN_NOTICES.toolStepLimit });
 
 const reduce = (payload: RunAgentPayload) => translateRunAgentPayload({ payload });
 
