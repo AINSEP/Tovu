@@ -19,6 +19,28 @@ linked with `JINI_PACKAGES_DIR=/home/user/Jini/packages node development/scripts
 | registerPublishTrustHandshakeRoutes | 069a3b16 |
 | registerAdminDatabaseMigrateForwardRoutes | 51337f07 |
 | registerAdminSiteImportRoutes (first attempt dropped `deps` from the upload registrar and hung the integration test; fixed before commit, 9/9 pass) | see git log |
+| (continuation 2) registerAdminSiteShareRoutes | 4fcf21cd |
+| registerAdminPublishCredentialsRoutes | 35a064ef |
+| registerAdminPublishSiteRoutes | c0e62221 |
+| registerAdminSitesRoutes | da322e9e |
+| registerPublishContentImportRoutes | 4b541ab0 |
+| createAssistantChatsModule (+ registerRoutes) | c9c0a360 |
+| publishContentFromTool | ca61f59d |
+| contributeRawFilePublish (+ build) | f96459a0 |
+| buildRawRowHandler | 95c47f06 |
+| createSiteImportBackend | 819b01d2 |
+| createSiteShareBackend | fe6a5fab |
+| createTovuAgentPluginLifecycle | d4bbc4ae |
+| serveBootedSite (new sibling `serve-listen.ts`; serve.ts was 495 lines) | 44d1b7a2 |
+| contributeCollectionEntryPublish | 9dfdf397 |
+| buildPublishContentImportHooks | 2e7ba4d6 |
+| useDockerfileSource | 3d612704 |
+| useLibrary | 2876197c |
+| useMediaContentEditor | 7afb9e46 |
+| useSkills | 1cac615e |
+| useThemes | 77067b5f |
+| useSites | 1678bc6b |
+| createFakePageEditorPort | 4aa4199d |
 
 ## SKIPPED
 - AssistantDock (AssistantDock.tsx): ~40 hook calls + ~190-line JSX; needs a multi-bundle hook split plus a view split. Not attempted for budget; plan: 5 bundle hooks in a sibling `AssistantDock.state.hooks.ts` + `DockChatPane` view.
