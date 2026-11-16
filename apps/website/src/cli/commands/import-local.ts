@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
+import { readStdinRequestLine, type RequestLineStream } from "@jini-ai/cli";
 import { leaveSavedKeysOut } from "#src/features/site-backup/saved-keys";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import type { SiteImportBackend, SiteImportSource, SiteImportView } from "#src/features/site-backup/import-backend";
@@ -17,8 +18,6 @@ const NOT_A_ZIP = "That file is not a usable .tovu.zip. It is damaged, cut short
 
 export interface ImportLocalResult { dir: string; name: string; siteId: string; warnings: readonly string[] }
 interface ImportLocalRequest { file?: string; url?: string; tidy?: true }
-/** What this command needs of stdin. `unref` is absent when stdin is a file rather than a pipe. */
-type RequestStream = Pick<NodeJS.ReadableStream, "on" | "once"> & { unref?: () => unknown };
 
 const MAX_REQUEST_BYTES = 16 * 1024;
 const STOPPED = "The import was stopped. No website was created.";
@@ -83,35 +82,15 @@ function terminationSignal({ stop }: { stop: AbortController }): AbortSignal {
 }
 
 /**
- * The first line of stdin, then keeps watching: stdin ending after that line aborts `stop`. Input
- * that ends with no newline is still a request, with nothing left to watch. Later bytes are dropped.
- * `unref` lets the process exit once its work is done, with the stream still open.
+ * The request line on stdin with this command's cap and wording; reading and the stop-on-close watch
+ * are `readStdinRequestLine` in `@jini-ai/cli`.
  * @throws {ValidationError} when the request is over {@link MAX_REQUEST_BYTES}.
- * @complexity O(request bytes); holds at most one chunk past the cap.
  */
-export function readRequestLine({ input, stop }: { input: RequestStream; stop: AbortController }, _optional: Record<string, never> = {}): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let received: Buffer = Buffer.alloc(0), finishedReading = false, lineSeen = false;
-    input.on("data", (chunk: string | Buffer) => {
-      if (finishedReading) return;
-      received = Buffer.concat([received, Buffer.from(chunk)]);
-      const newline = received.indexOf(10);
-      if ((newline === -1 ? received.length : newline) > MAX_REQUEST_BYTES) {
-        finishedReading = true;
-        reject(new ValidationError({ message: "import-local: the request on stdin is too large." }));
-      } else if (newline !== -1) {
-        finishedReading = lineSeen = true;
-        input.unref?.();
-        resolve(received.subarray(0, newline).toString("utf8"));
-      }
-    });
-    const ended = () => {
-      if (lineSeen) stop.abort(new ValidationError({ message: STOPPED }));
-      else resolve(received.toString("utf8"));
-    };
-    input.once("end", ended);
-    input.once("close", ended);
-    input.once("error", ended);
+export function readRequestLine({ input, stop }: { input: RequestLineStream; stop: AbortController }, _optional: Record<string, never> = {}): Promise<string> {
+  return readStdinRequestLine({ input, stop }, {
+    maxBytes: MAX_REQUEST_BYTES,
+    tooLarge: () => new ValidationError({ message: "import-local: the request on stdin is too large." }),
+    stopped: () => new ValidationError({ message: STOPPED }),
   });
 }
 
