@@ -24,7 +24,7 @@ import type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContributio
 import { NO_THEME_ID, resolveActiveTheme } from '#src/features/theme/active-theme';
 import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cookie-consent';
 import type { RouteDeps } from '#src/server/routes/types';
-import { isStaticExportRequest } from '../routes/site/pages.js';
+import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
 import { asyncRoute } from "../../shared/async-route.js";
 
