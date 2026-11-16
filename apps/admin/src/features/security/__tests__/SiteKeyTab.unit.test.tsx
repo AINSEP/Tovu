@@ -6,7 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { SiteKeyGenerateAction, SiteKeyTab } from "../SiteKeyTab";
 import type { SiteKeyController } from "../hooks/use-site-key.hooks";
 import type { SiteKeyRecoveryController } from "../hooks/use-site-key-recovery.hooks";
-import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/agentic";
+import { AGENT_PRIVATE_ATTRIBUTE } from "@jini-ai/core/agent-handles";
 import type { AdminSiteKeyStatus } from "@/lib/api";
 
 /**

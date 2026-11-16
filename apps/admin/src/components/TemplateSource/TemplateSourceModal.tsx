@@ -1,5 +1,5 @@
 import { createGoToTemplateInEditor } from "./TemplateSourceModal.hooks";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { CodeWithLines, CodeWrapToggle, useCodeWrap } from "@jini-ai/ui";
 import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";

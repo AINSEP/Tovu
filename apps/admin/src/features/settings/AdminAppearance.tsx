@@ -1,6 +1,10 @@
 import { ACCENT_SWATCHES, I18nProvider, resolveAccentColor, SETTINGS_DIALOG_DICTIONARIES, useT } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandleProps, agentSubHandle, buildAgentListHandles } from "@jini-ai/agentic";
+import {
+  agentHandleProps,
+  agentSubHandle,
+  buildAgentListHandles,
+} from "@jini-ai/core/agent-handles";
 import type { AdminThemeDocumentEnv, AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
 import { useAdminThemeBoundary, useAdminThemeState } from "../../admin-themes/use-admin-theme.hooks";
 import { adminThemeAccentDefaults, findAdminTheme } from "../../admin-themes/registry";

@@ -4,7 +4,7 @@ import { ownerPasskeySettingsPort } from '../../lib/owner-passkey-api';
 import { TotpSettings } from "@jini-ai/user-management/react";
 import { ownerMfaPort } from "../../lib/owner-mfa-api";
 import { RecoveryCodesCard } from "./RecoveryCodesCard";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 

@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import type { RefObject } from "react";
 
 /** Shared confirmation markup; each caller retains its own dialog lifecycle and copy. */

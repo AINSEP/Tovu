@@ -2,7 +2,7 @@ import { useId } from "react";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import { Icon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "../../lib/api";

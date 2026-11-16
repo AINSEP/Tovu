@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { t } from "./email-i18n";
 import type { MailDnsRecordStatus, MailDnsStatus } from "./email-api";

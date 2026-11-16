@@ -4,7 +4,7 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { type AdminPost } from "../../lib/api";
 import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,

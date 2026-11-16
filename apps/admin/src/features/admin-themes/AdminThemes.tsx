@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { SettingsThemeChoice } from "@jini-ai/ui";
 
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { resolveAdminThemeDocument } from "../../admin-themes/apply";
 import { ADMIN_THEMES, findAdminTheme, type AdminThemeManifest, type AdminThemeScheme } from "../../admin-themes/registry";

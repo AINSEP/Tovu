@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties, JSX } from "react";
 import { resolveTone, toneClassName, type RowMenuProps } from "@jini-ai/admin/react";
-import { agentHandle, buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useTaxonomyRowMenu } from "./TaxonomyRowMenu.hooks";
 
 type MenuState = ReturnType<typeof useTaxonomyRowMenu>;

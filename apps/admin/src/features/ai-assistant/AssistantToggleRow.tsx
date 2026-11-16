@@ -1,6 +1,6 @@
 import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import type { AgentHandleProps } from "@jini-ai/agentic";
+import type { AgentHandleProps } from "@jini-ai/core/agent-handles";
 
 /**
  * One on/off setting on the AI Assistant screen: checkbox, bold label, and an ⓘ holding the

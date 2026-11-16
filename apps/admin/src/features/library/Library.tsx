@@ -1,7 +1,7 @@
 import { createRenameKeyDown, createPreviewKeyDown } from "./Library.hooks";
 import { useLayoutEffect, useRef, useState } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { FileDropzone, Toast } from "@jini-ai/ui";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";

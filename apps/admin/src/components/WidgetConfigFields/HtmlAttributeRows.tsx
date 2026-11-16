@@ -1,5 +1,5 @@
 import { Icon } from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import "../../styles/media-content-editor.css";
 import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";

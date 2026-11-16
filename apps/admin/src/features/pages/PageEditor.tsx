@@ -4,7 +4,7 @@ import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButto
 import { useEffect, type RefObject } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { Icon } from "@jini-ai/ui";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import {
   InteractiveHtmlEditor,
   type CanvasEmbedPlaceholderDescriptor,

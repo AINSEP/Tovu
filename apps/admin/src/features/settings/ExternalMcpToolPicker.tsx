@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useT } from "@jini-ai/ui";
 
 import { SeeMore } from "@jini-ai/ui/admin-widgets";

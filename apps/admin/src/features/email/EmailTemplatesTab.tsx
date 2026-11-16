@@ -1,5 +1,5 @@
 import { ConfirmDialog, DataTable, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { adminHref, navigate } from "../../lib/router";
 import { t } from "./email-i18n";

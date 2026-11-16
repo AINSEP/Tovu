@@ -1,6 +1,6 @@
 import { createKit } from '@jini-ai/ui-kit/react';
 import type { AgentAttrsPort } from '@jini-ai/ui-kit';
-import { agentHandle } from '@jini-ai/agentic';
+import { agentHandle } from '@jini-ai/core/agent-handles';
 /** Jini owns the markup and classes; jini-media.css supplies the host presentation. */
 export const tovuKit = createKit({}, { id: 'tovu' });
 

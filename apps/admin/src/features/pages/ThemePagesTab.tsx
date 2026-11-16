@@ -1,12 +1,11 @@
 import "../../styles/theme-pages-tab.css";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useState, type ReactNode } from "react";
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { navigate } from "../../lib/router";
 import { siteUrl } from "../../lib/site-url";
-import { buildAgentListHandles } from "@jini-ai/agentic";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 import { themePageRowMenuItems } from "./rules";
 import { ThemePageDetailsModal } from "./ThemePageDetailsModal";

@@ -2,7 +2,7 @@ import { createEmailProviderLabel, createEmailProviderSelect } from "./EmailProv
 import type { ChangeEvent } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import type { AdminMailStatus } from "../../lib/api";
 import { agentPluginDisplayName } from "../plugins/rules";

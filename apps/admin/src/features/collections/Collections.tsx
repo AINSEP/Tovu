@@ -2,8 +2,7 @@ import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldK
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
-import { agentHandle } from "@jini-ai/agentic";
-import { buildAgentListHandles } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { contentTypeMenuItems, type DraftField, type LifecycleConfirmOp } from "./rules";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { ServerLabel } from "@/components/status-labels";

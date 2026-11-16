@@ -1,6 +1,7 @@
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
-import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import type { AgentElementRole } from "@jini-ai/core/agent-handles";
 import type { AdminWidget, AdminWidgetType } from "../../lib/api";
 
 import { widgetTypeLabel } from "@jini-ai/admin/widgets";

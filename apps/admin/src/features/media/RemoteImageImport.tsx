@@ -2,7 +2,7 @@ import { Button, Dialog, TextField } from "@jini-ai/ui-kit/react";
 import { useRemoteImageImport } from "./hooks/use-remote-image-import.hooks";
 import type { MediaImportPort } from "./hooks/media-import-dependencies.hooks";
 import { DockHeaderTip } from "@/components/AssistantDock/DockHeaderTip";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import "../../styles/native-domain-dialogs.css";
 
 /** Markup only; downloads, mutation state, dialog state and list invalidation live in the hook.

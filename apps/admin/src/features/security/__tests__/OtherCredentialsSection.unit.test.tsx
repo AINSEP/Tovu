@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
-import { isValidElementHandle } from "@jini-ai/agentic";
+import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 
 import { OtherCredentialEntry } from "../OtherCredentialsSection";
 import type { OtherCredentialRowState, OtherCredentialsController } from "../hooks/use-other-credentials.hooks";

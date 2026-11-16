@@ -1,6 +1,6 @@
 import { SiteTrashTab } from "./SiteTrashTab";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
 

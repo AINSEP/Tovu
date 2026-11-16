@@ -3,7 +3,7 @@ import { themeExplorePreviewMode, useThemeExplorePreview, type ThemeExplorePrevi
 import { WiredThemePreviewReloadButton } from "./ThemePreviewReloadButton";
 import { type KeyboardEvent, type MouseEvent, type RefObject, type SyntheticEvent } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { CodeWithLines, CodeWrapToggle, Icon, Toast, useCodeWrap } from "@jini-ai/ui";
 
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
@@ -14,7 +14,6 @@ import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePrevie
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 
-import { buildAgentListHandles } from "@jini-ai/agentic";
 import {
   canResetThemeFile,
   dispatchPublishToggle,

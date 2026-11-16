@@ -1,6 +1,6 @@
 import { useSkillsTranslator } from "./Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import "@jini-ai/ui/settings-dialog.css";

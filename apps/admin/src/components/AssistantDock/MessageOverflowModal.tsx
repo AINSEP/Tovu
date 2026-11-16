@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useT } from "@jini-ai/chat/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { useMessageOverflowModal } from "./MessageOverflowModal.hooks";
 

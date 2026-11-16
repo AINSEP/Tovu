@@ -6,9 +6,8 @@ import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";
 import { mediaProviderCatalogPolicy } from "@jini-ai/integrations/media-providers/catalog";
 import "@jini-ai/ui/settings-dialog.css";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
-import { buildAgentListHandles } from "@jini-ai/agentic";
 import {
   filterMediaByTab,
   showsUntypedMediaNote,

@@ -1,9 +1,8 @@
 import { CodeWithLines, CodeWrapToggle, RemixIcon, useCodeWrap } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { useId, type ReactNode } from "react";
 
-import { buildAgentListHandles } from "@jini-ai/agentic";
 
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";

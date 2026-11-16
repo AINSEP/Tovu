@@ -1,6 +1,7 @@
 import { createEmbedInsertControlTranslator } from "./EmbedInsertControl.hooks";
 import { useRef } from "react";
-import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
+import type { AgentElementRole } from "@jini-ai/core/agent-handles";
 import type { AdminWidgetType } from "../../lib/api";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";

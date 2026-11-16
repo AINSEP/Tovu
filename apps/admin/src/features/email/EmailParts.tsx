@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ChatSettingsSegmented } from "@jini-ai/chat/react";
 
 import { t } from "./email-i18n";

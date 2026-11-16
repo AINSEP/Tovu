@@ -1,5 +1,5 @@
 import { forwardRef, useRef, type RefObject } from "react";
-import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
+import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 

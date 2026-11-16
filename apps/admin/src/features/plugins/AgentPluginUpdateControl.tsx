@@ -1,4 +1,4 @@
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useId } from "react";
 
 import { AddAgentPluginPanel } from "./AddAgentPluginPanel";

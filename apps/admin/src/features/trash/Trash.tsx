@@ -1,9 +1,8 @@
 import { DataTable, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { AdminTrashItem } from "../../lib/api";
-import { buildAgentListHandles } from "@jini-ai/agentic";
 
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { actorLabel, coverageLine, entityTypeLabel, itemSubtitle } from "./rules";

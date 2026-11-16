@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { adminHref, navigate } from "../../lib/router";
 

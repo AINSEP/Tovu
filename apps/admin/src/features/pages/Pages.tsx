@@ -2,7 +2,7 @@ import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByS
 import { createPagesTabSelect } from "./Pages.hooks";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { DataTableSortState } from "@jini-ai/admin/core";
-import { agentHandle } from "@jini-ai/agentic";
+import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
