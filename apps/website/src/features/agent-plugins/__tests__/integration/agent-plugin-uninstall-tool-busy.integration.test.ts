@@ -35,7 +35,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * The historical module replacement above is now filesystem DI into that same uninstall owner.
  */
 
-const real = await import("@jini-ai/platform/fs/file-lock");
+// The lock error classes live in core's runtime contract; platform keeps the filesystem lock itself.
+const { FileLockTimeoutError } = await import("@jini-ai/core/contracts/runtime");
 
 const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
@@ -171,7 +172,7 @@ function timeoutBehavior(pid: number, lockBasename = "activations.json.lock"): t
     const lockPath = String(args[0]);
     if (path.basename(lockPath) !== lockBasename) return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
+    throw new FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 

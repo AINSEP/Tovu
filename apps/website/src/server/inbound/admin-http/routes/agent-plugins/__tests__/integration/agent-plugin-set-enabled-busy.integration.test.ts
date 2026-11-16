@@ -33,7 +33,8 @@ import type { AgentPluginsRouteDeps } from "../../deps.js";
  * module replacement is now DI into the owner: the real lock/write/error-mapping path still runs.
  */
 
-const real = await import("@jini-ai/platform/fs/file-lock");
+// The lock error classes live in core's runtime contract; platform keeps the filesystem lock itself.
+const { FileLockTimeoutError } = await import("@jini-ai/core/contracts/runtime");
 
 const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
@@ -140,7 +141,7 @@ function timeoutBehavior(pid: number): typeof behavior {
     const lockPath = String(args[0]);
     if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
+    throw new FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 

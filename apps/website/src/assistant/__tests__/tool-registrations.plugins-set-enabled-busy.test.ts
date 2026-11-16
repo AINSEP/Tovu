@@ -38,7 +38,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * handler, "Order is load-bearing".
  */
 
-const real = await import("@jini-ai/platform/fs/file-lock");
+// The lock error classes live in core's runtime contract; platform keeps the filesystem lock itself.
+const { FileLockTimeoutError } = await import("@jini-ai/core/contracts/runtime");
 const realFsp = await import("node:fs/promises");
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../features/agent-plugins/lifecycle.js");
 // Exercise the owner's real lock-error translation, not a raw error at its preflight boundary.
@@ -164,7 +165,7 @@ function timeoutBehavior(pid: number): typeof behavior {
     const lockPath = String(args[0]);
     if (path.basename(lockPath) !== "activations.json.lock") return realFsp.open(...args);
     const holder = { pid, hostname: "otherhost", token: "t", acquiredAt: new Date().toISOString() };
-    throw new real.FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
+    throw new FileLockTimeoutError({ lockPath, holder, waitedMs: 15_000 });
   };
 }
 
