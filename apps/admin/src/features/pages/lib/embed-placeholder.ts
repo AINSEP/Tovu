@@ -29,7 +29,7 @@ const EMBED_MARKER_ATTRIBUTES = ["data-embed-config", "data-embed-type", "data-w
  *  `isComponent` callback, which is not always called with a real DOM `Element` — see that helper's
  *  own doc in `@jini-ai/ui/html-editor`. */
 export function isProtectedEmbedElement(el: Element): boolean {
-  return EMBED_MARKER_ATTRIBUTES.some((attr) => hasAttributeOnAnyNodeShape(el, attr));
+  return EMBED_MARKER_ATTRIBUTES.some((attr) => hasAttributeOnAnyNodeShape({ node: el, attribute: attr }));
 }
 
 /**
