@@ -1,5 +1,6 @@
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { commentsApi } from "../../features/comments/api/comments-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { formsApi } from "../../features/forms/api/forms-api";
@@ -16,4 +17,4 @@ import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
-export const API_CLIENTS: Record<string, object> = { analyticsApi, api, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, providersApi, publishContentApi, settingsApi, trashApi, widgetsApi, workspaceApi };
+export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, providersApi, publishContentApi, settingsApi, trashApi, widgetsApi, workspaceApi };

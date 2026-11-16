@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
@@ -40,7 +41,7 @@ it("anonymous failures disclose only synthesized safe wording and the incident r
   setAdminDraftIdentity({ id: null });
   const failure = formatUserFacingError({ message: "HOST_SECRET_CANARY", action: "HOST_SECRET_CANARY", step: "HOST_SECRET_CANARY", cause: "HOST_SECRET_CANARY" }, { errorId: "incident-3" });
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "HOST_SECRET_CANARY", errorId: "incident-3", details: { failure } }), { status: 500 })));
-  await api.login({ username: "a", password: "b" }).catch(() => undefined);
+  await authApi.login({ username: "a", password: "b" }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.errorId).toBe("incident-3");
   expect(adminFailureChannel.getSnapshot()?.copyText).not.toContain("HOST_SECRET_CANARY");
 });
@@ -89,7 +90,7 @@ it("clears retained details on genuine session invalidation and accepted site sw
   const failure = formatUserFacingError({ message: "Pages could not be loaded.", action: "Try again.", step: "Loading pages", cause: "Safe report" });
   adminFailureChannel.publish({ failure });
   vi.stubGlobal("fetch", vi.fn(async () => new Response('{"error":"Sign in","code":"UNAUTHENTICATED"}', { status: 401 })));
-  await api.me().catch(() => undefined);
+  await authApi.me().catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()).toBeNull();
   adminFailureChannel.publish({ failure });
   vi.stubGlobal("fetch", vi.fn(async () => new Response('{"restart":{"accepted":true}}')));

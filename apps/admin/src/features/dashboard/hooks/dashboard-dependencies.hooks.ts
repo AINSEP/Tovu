@@ -1,4 +1,5 @@
 import { api, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
+import { authApi } from "@/features/auth/api/auth-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { commentsApi } from "@/features/comments/api/comments-api";
 import type { DashboardPort } from "./dashboard-port.hooks";
@@ -20,7 +21,7 @@ export const defaultDashboardPort: DashboardPort = {
   getPresentation: () => api.getPresentation(),
   getPasswordStatus: async ({ principalId } = {}) => {
     // App already authenticated this principal. Standalone dashboard consumers still resolve it.
-    const [status, id] = await Promise.all([api.getPasswordStatus(), principalId ?? api.me().then(me => me.user.id)]);
+    const [status, id] = await Promise.all([authApi.getPasswordStatus(), principalId ?? authApi.me().then(me => me.user.id)]);
     return { usesDefaultPassword: status.usesDefaultPassword, principalId: id };
   },
   getSiteKeyState: async () => {

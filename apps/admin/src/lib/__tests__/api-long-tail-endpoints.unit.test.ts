@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
@@ -114,7 +115,7 @@ function stubFetchCapturing(): { calls: Array<{ url: string; init?: RequestInit 
 
 test("me hits GET /auth/me with no body", async () => {
   const { calls } = stubFetchCapturing();
-  await api.me();
+  await authApi.me();
   expect(calls[0].url).toBe(`/api/admin/v1/auth/me`);
   expect(calls[0].init?.method).toBeUndefined();
 });

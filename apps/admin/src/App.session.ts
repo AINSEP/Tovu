@@ -1,7 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
-import { api, type AdminUser } from "./lib/api";
+import type { AdminUser } from "./features/auth/api/auth-api.types";
+import { authApi } from "./features/auth/api/auth-api";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
@@ -14,7 +15,7 @@ import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 
 /** @file The pure (non-hook) pieces of `useAdminSession` in `App.hooks.ts`: session reads, sign-in and sign-out. */
 
-export type SessionApi = Pick<typeof api, "me" | "redeemBootSession" | "signInLocalOwner" | "logout">;
+export type SessionApi = Pick<typeof authApi, "me" | "redeemBootSession" | "signInLocalOwner" | "logout">;
 export type AdminSessionOptions = {
   sessionApi?: SessionApi;
   location?: Pick<Location, "hostname" | "hash" | "pathname" | "search">;
@@ -22,7 +23,7 @@ export type AdminSessionOptions = {
   subscribeUnauthenticated?: typeof onUnauthenticated;
   subscribeSettingsChanges?: typeof subscribeToSettingsChanges;
 };
-export type MeResponse = Awaited<ReturnType<typeof api.me>>;
+export type MeResponse = Awaited<ReturnType<typeof authApi.me>>;
 export type SessionSetters = {
   setUser: (user: AdminUser | null) => void;
   setEffectivePermissions: (permissions: readonly string[] | undefined) => void;

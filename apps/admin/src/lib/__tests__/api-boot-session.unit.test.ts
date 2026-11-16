@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 
 /**
  * @file `api.redeemBootSession` — the thin wrapper `App.hooks.ts`'s boot effect calls with the
@@ -28,7 +28,7 @@ test("redeemBootSession POSTs the token to /auth/boot-session", async () => {
     })
   );
 
-  const result = await api.redeemBootSession({ token: "tok-abc123" });
+  const result = await authApi.redeemBootSession({ token: "tok-abc123" });
 
   expect(calls).toHaveLength(1);
   expect(calls[0].url).toBe("/api/admin/v1/auth/boot-session");
@@ -48,5 +48,5 @@ test("redeemBootSession rejects on the documented 401 (invalid or spent token)",
     )
   );
 
-  await expect(api.redeemBootSession({ token: "bad-token" })).rejects.toThrow("invalid or spent boot token");
+  await expect(authApi.redeemBootSession({ token: "bad-token" })).rejects.toThrow("invalid or spent boot token");
 });

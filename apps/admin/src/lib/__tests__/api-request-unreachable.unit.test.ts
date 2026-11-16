@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { API_UNREACHABLE_CODE, REQUEST_TIMEOUT_CODE, ApiError } from "../admin-http/request";
 
 /**
@@ -38,7 +38,7 @@ function stubFetch(impl: () => Promise<Response>): void {
 test("an unparseable 5xx names the unreachable API instead of asserting a server error", async () => {
   stubFetch(async () => proxyFailureResponse(500));
 
-  const error = await api.login({ username: "admin", password: "tovu-dev" }).catch((e: unknown) => e);
+  const error = await authApi.login({ username: "admin", password: "tovu-dev" }).catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).message).toBe("cannot reach the Tovu API (HTTP 500) — is the server running?");
@@ -49,7 +49,7 @@ test("an unparseable 5xx names the unreachable API instead of asserting a server
 test("a gateway status from a real reverse proxy is treated the same way", async () => {
   stubFetch(async () => proxyFailureResponse(502));
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error.message).toBe("cannot reach the Tovu API (HTTP 502) — is the server running?");
 });
@@ -59,7 +59,7 @@ test("a rejected fetch — nothing listening at the origin — becomes the same 
     throw new TypeError("Failed to fetch");
   });
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error).toBeInstanceOf(ApiError);
   expect(error.message).toBe("cannot reach the Tovu API — is the server running?");
@@ -81,7 +81,7 @@ test("a fetch rejection that is neither AbortError, TimeoutError, nor TypeError 
     throw weird;
   });
 
-  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+  const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
 
   expect(error).toBe(weird);
   expect(error).not.toBeInstanceOf(ApiError);
@@ -98,7 +98,7 @@ test("a fetch rejection with no .name at all (errorName's undefined-fallback arm
     throw "boom";
   });
 
-  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+  const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
 
   expect(error).toBe("boom");
   expect(error).not.toBeInstanceOf(ApiError);
@@ -111,7 +111,7 @@ test("a caller-cancelled request is NOT reported as unreachable", async () => {
     throw abort;
   });
 
-  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+  const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
 
   expect(error).toBe(abort);
   expect(error).not.toBeInstanceOf(ApiError);
@@ -127,7 +127,7 @@ test("a request that never gets a free connection times out as a readable ApiErr
     throw new DOMException("signal timed out", "TimeoutError");
   });
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error).toBeInstanceOf(ApiError);
   expect(error.status).toBe(0);
@@ -146,7 +146,7 @@ test("a TimeoutError whose cause IS an Error uses its own .message, not String(c
     throw timeoutError;
   });
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error).toBeInstanceOf(ApiError);
   expect(error.code).toBe(REQUEST_TIMEOUT_CODE);
@@ -162,7 +162,7 @@ test("a JSON error envelope still wins — the server answered, so its own messa
       })
   );
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error.message).toBe("invalid credentials");
   expect(error.code).toBe("UNAUTHORIZED");
@@ -174,7 +174,7 @@ test("a JSON-bodied 500 names the failed request — parseable JSON proves an ap
       new Response(JSON.stringify({}), { status: 500, headers: { "Content-Type": "application/json" } })
   );
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error.message).toBe("The API could not finish POST /auth/login (HTTP 500). Check whether your change was saved before trying again. Copy details and report this problem.");
   expect(error.code).toBeUndefined();
@@ -183,7 +183,7 @@ test("a JSON-bodied 500 names the failed request — parseable JSON proves an ap
 test("an unparseable 4xx names the failed request — a proxy that answered 404 is reachable", async () => {
   stubFetch(async () => proxyFailureResponse(404));
 
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
 
   expect(error.message).toBe("The API could not finish POST /auth/login (HTTP 404). Check whether your change was saved before trying again. Copy details and report this problem.");
 });
@@ -193,7 +193,7 @@ test("a successful request with an empty body still resolves, unchanged", async 
   // all for it, including an empty string.
   stubFetch(async () => new Response(null, { status: 204 }));
 
-  await expect(api.logout()).resolves.toEqual({});
+  await expect(authApi.logout()).resolves.toEqual({});
 });
 
 test("the configured deadline aborts a pending fetch and translates its signal reason", async () => {
@@ -209,7 +209,7 @@ test("the configured deadline aborts a pending fetch and translates its signal r
     signal?.addEventListener("abort", () => reject(signal!.reason), { once: true });
   })));
   let settled = false;
-  const pending = api.login({ username: "a", password: "b" }).catch((error: unknown) => { settled = true; return error; });
+  const pending = authApi.login({ username: "a", password: "b" }).catch((error: unknown) => { settled = true; return error; });
   expect(timeout).toHaveBeenCalledWith(60_000);
   expect(signal).toBeInstanceOf(AbortSignal);
   await vi.advanceTimersByTimeAsync(59_999);
@@ -226,7 +226,7 @@ test("the configured deadline aborts a pending fetch and translates its signal r
 // were unasserted by the lib-scoped suite.
 test("the timeout copy names the real 60 s bound", async () => {
   stubFetch(async () => { throw new DOMException("signal timed out", "TimeoutError"); });
-  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+  const error = (await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
   expect(error.code).toBe(REQUEST_TIMEOUT_CODE);
   expect(error.message).toBe("The Tovu API did not respond within 60s — the browser may be out of free connections for this origin (try closing other admin tabs) or the server is unresponsive");
 });
@@ -234,18 +234,18 @@ test("the timeout copy names the real 60 s bound", async () => {
 test("rejections that only look like named errors are rethrown untouched, never reclassified", async () => {
   for (const cause of [null, 0, "AbortError", { name: 42 }, { message: "no name" }, Object.create(null)]) {
     stubFetch(async () => { throw cause; });
-    const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+    const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
     expect(error).toBe(cause);
   }
   const plainAbort = { name: "AbortError" };
   stubFetch(async () => { throw plainAbort; });
-  expect(await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)).toBe(plainAbort);
+  expect(await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e)).toBe(plainAbort);
 });
 
 test("login POSTs exactly {username, password} as JSON to /auth/login", async () => {
   const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: { user: { id: "u" } } }), { status: 200, headers: { "Content-Type": "application/json" } }));
   vi.stubGlobal("fetch", fetchMock);
-  await api.login({ username: "admin", password: "s3cret" });
+  await authApi.login({ username: "admin", password: "s3cret" });
   const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
   expect(url).toBe("/api/admin/v1/auth/login");
   expect(init.method).toBe("POST");

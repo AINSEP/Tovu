@@ -1,4 +1,5 @@
 import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
+import { authApi } from "@/features/auth/api/auth-api";
 import type { UsersPort } from "./users-port.hooks";
 
 /**
@@ -13,7 +14,7 @@ export const defaultUsersPort: UsersPort = {
   // (delete-user plan v2) — same "absent means not yet supported" convention `effectivePermissions`
   // already uses elsewhere on this same response.
   me: async () => {
-    const res = await api.me();
+    const res = await authApi.me();
     return { user: { id: res.user.id }, canManageUserTrash: res.canManageUserTrash ?? false, effectivePermissions: res.effectivePermissions ?? [] };
   },
   listRoles: () => api.listRoles(),

@@ -1,4 +1,5 @@
 import { api, type AdminMedia } from "@/lib/api";
+import { authApi } from "@/features/auth/api/auth-api";
 import type { LibraryPort } from "./library-port.hooks";
 
 /** @file The production Library port (wired to `lib/api.ts`) and an in-memory fake for tests. */
@@ -42,9 +43,22 @@ export function createApiLibraryPort({ client, fetchFn }: { client: LibraryApiCl
   };
 }
 
+/** The Library reads three feature API clients. Each method is looked up when it is called, so a
+ *  test that replaces a client method is still reached, as it was when one object held them all. */
+const libraryApiClient: LibraryApiClient = {
+  listDocuments: (...args) => api.listDocuments(...args),
+  uploadDocument: (...args) => api.uploadDocument(...args),
+  updateMedia: (...args) => api.updateMedia(...args),
+  trashMedia: (...args) => api.trashMedia(...args),
+  readDocumentText: (...args) => api.readDocumentText(...args),
+  mediaOriginalUrl: (...args) => api.mediaOriginalUrl(...args),
+  me: (...args) => authApi.me(...args),
+  listUsers: (...args) => api.listUsers(...args),
+};
+
 /** The production port: the real API client, and the global `fetch` read at call time (so a
  *  page-level `fetch` replacement, such as a test stub, is honoured). */
-export const defaultLibraryPort: LibraryPort = createApiLibraryPort({ client: api, fetchFn: ({ url, init }, _optional = {}) => fetch(url, init) });
+export const defaultLibraryPort: LibraryPort = createApiLibraryPort({ client: libraryApiClient, fetchFn: ({ url, init }, _optional = {}) => fetch(url, init) });
 
 export interface FakeLibraryPortOptions {
   documents?: AdminMedia[];

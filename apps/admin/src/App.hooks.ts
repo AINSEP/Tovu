@@ -24,7 +24,9 @@ import {
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
-import { api, type AdminUser } from "./lib/api";
+import { api } from "./lib/api";
+import type { AdminUser } from "./features/auth/api/auth-api.types";
+import { authApi } from "./features/auth/api/auth-api";
 import { WORKSPACE_ID } from "./lib/admin-http/config";
 import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
@@ -104,7 +106,7 @@ export interface UseAdminSession {
  * const { user, checking, handleLogin, logout } = useAdminSession();
  */
 export function useAdminSession(_required: Record<string, never> = {}, {
-  sessionApi = api, location = window.location, history = window.history,
+  sessionApi = authApi, location = window.location, history = window.history,
   subscribeUnauthenticated = onUnauthenticated,
   subscribeSettingsChanges = subscribeToSettingsChanges,
 }: AdminSessionOptions = {}): UseAdminSession {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { adminFailureChannel, publishAdminFailure } from "../admin-failure-channel";
-import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { API_UNREACHABLE_CODE, ApiError, KEEPALIVE_MAX_BODY_BYTES, REQUEST_TIMEOUT_CODE, authenticatedAdminRequest, bodyFitsKeepalive, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 import type { ServerReconnect } from "../server-reconnect";
 
@@ -220,7 +220,7 @@ describe("the failure notice of a finished request", () => {
     const expected = expectedNotice({ body: { cause: "Failed to fetch" }, path: "/auth/logout", method: "POST", status: 0, generation });
     const publish = vi.spyOn(adminFailureChannel, "publish");
 
-    const error = await rejection({ run: () => api.logout() });
+    const error = await rejection({ run: () => authApi.logout() });
 
     expect(error).toMatchObject({ status: 0, code: API_UNREACHABLE_CODE });
     expect(publish).toHaveBeenCalledTimes(1);
@@ -235,7 +235,7 @@ describe("the failure notice of a finished request", () => {
     const expected = expectedNotice({ body, path: "/auth/me", method: "GET", status: 503, generation });
     const publish = vi.spyOn(adminFailureChannel, "publish");
 
-    await rejection({ run: () => api.me() });
+    await rejection({ run: () => authApi.me() });
 
     expect(publish).toHaveBeenCalledTimes(1);
     expect(publish.mock.calls[0][0]).toEqual(expected);
@@ -245,7 +245,7 @@ describe("the failure notice of a finished request", () => {
     stubFetch(async () => json({ status, body: { error: "Refused", code: "REFUSED" } }));
     const publish = vi.spyOn(adminFailureChannel, "publish");
 
-    const error = await rejection({ run: () => api.logout() });
+    const error = await rejection({ run: () => authApi.logout() });
 
     expect(error).toMatchObject({ status, message: "Refused" });
     expect(publish).not.toHaveBeenCalled();
@@ -256,7 +256,7 @@ describe("the failure notice of a finished request", () => {
     stubFetch(async () => json({ status: 500, body }));
     const publish = vi.spyOn(adminFailureChannel, "publish").mockImplementation(() => { throw new Error("the notice broke"); });
 
-    const error = await rejection({ run: () => api.logout() });
+    const error = await rejection({ run: () => authApi.logout() });
 
     expect(publish).toHaveBeenCalledTimes(1);
     expect(error).toBeInstanceOf(ApiError);

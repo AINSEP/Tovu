@@ -14,7 +14,8 @@ import {
   type SiteSectionAvailability,
 } from "../../App.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { api, type AdminUser } from "../../lib/api";
+import { api } from "../../lib/api";
+import type { AdminUser } from "../../features/auth/api/auth-api.types";
 import { ApiError } from "../../lib/admin-http/request";
 import { getNav } from "../../nav";
 

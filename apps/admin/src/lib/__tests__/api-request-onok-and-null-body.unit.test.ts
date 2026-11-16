@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 
 /**
@@ -75,7 +76,7 @@ test("onOk is not invoked on a non-2xx response", async () => {
 test("a literal JSON null error body is treated as a body with no code/error field, not as UNPARSEABLE", async () => {
   stubFetch(async () => new Response("null", { status: 500, headers: { "Content-Type": "application/json" } }));
 
-  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+  const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(Error);
   const apiError = error as import("../admin-http/request").ApiError;
@@ -92,7 +93,7 @@ test("a literal JSON null 401 body does not notify unauthenticated listeners —
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   try {
-    const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+    const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
     expect((error as Error).message).toBe("The API could not finish POST /auth/login (HTTP 401). Check whether your change was saved before trying again. Copy details and report this problem.");
     expect(listener).not.toHaveBeenCalled();
   } finally {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
@@ -61,8 +62,8 @@ describe("request options", () => {
 describe("endpoints", () => {
   it("auth: local owner sign-in and password status", async () => {
     const calls = stubFetch();
-    await api.signInLocalOwner({});
-    await api.getPasswordStatus();
+    await authApi.signInLocalOwner({});
+    await authApi.getPasswordStatus();
     expect(calls).toEqual([
       { url: "/api/admin/v1/auth/local-boot-session", method: "POST" },
       { url: "/api/admin/v1/auth/me/password-status", method: "GET" },
