@@ -57,13 +57,13 @@ argument, and the tail of `confirm` was split out as `settleHeld`.
 | Reply route rate limit, enabled check, closed body shape, JSON content type, same-origin | `site-assistant-confirm.ts:31-41` | not touched | yes |
 | Body shape depends on the ID format (22 base64url chars) | route regex `site-assistant-confirm.ts:23`; generator `site-assistant.ts:584` (16 random bytes) | not touched | yes |
 | Dedicated exchange store, never the admin store | `site-assistant.ts:581-585` | not touched | yes |
-| Owner check before the claim; a mismatch does not consume the prompt | `visitor-confirmations.ts` (old `confirm`) | `bound-confirmations.ts:127-130` | yes |
+| Owner check before the claim; a mismatch does not consume the prompt | `visitor-confirmations.ts` (old `confirm`) | `bound-confirmations.ts:128` | yes |
 | Claim before any await (no double answer) | old `confirm` | `bound-confirmations.ts:130` then `settleHeld` | yes |
 | Expiry checked before and after the host validation; answer always delivered | old `confirm` | `settleHeld`, `bound-confirmations.ts:61-73` | yes |
 | Caps: 20 held, 2 per client address, 1 per run | literals in Tovu | `limits` passed from Tovu `visitor-confirmations.ts:27-28`; no Jini default | yes |
-| Default deny when policy or channel is missing, mode off, or not ask and not forced | inline in old `confirm` | `decideVisitorConfirmation`, Tovu `visitor-confirmation-gate.ts:46-55` | yes |
-| Snapshot revision + publication + input digest re-checked after the click and right before the handler; single use | old gate | `bound-confirmations.ts:176-181` and `isApproved` `:199-206`; Tovu `isCurrent` `:66-69` | yes |
-| No resume after abort; a failed resume is reported, not thrown | old `resumeSafely` | `bound-confirmations.ts:160-164` | yes |
+| Default deny when policy or channel is missing, mode off, or not ask and not forced | inline in old `confirm` | `decideVisitorConfirmation`, Tovu `visitor-confirmation-gate.ts:48-55` | yes |
+| Snapshot revision + publication + input digest re-checked after the click and right before the handler; single use | old gate | `bound-confirmations.ts:183-187` and `isApproved` `:202-209`; Tovu `isCurrent` `:66-69` | yes |
+| No resume after abort; a failed resume is reported, not thrown | old `resumeSafely` | `bound-confirmations.ts:170-174` | yes |
 
 **Port/adapter behaviour (not just types).** `DigestCryptoPort` is `{ subtle: { digest } }`
 (`packages/core/src/records.ts:175`). Tovu passes `globalThis.crypto`, the same object the old code
@@ -102,7 +102,7 @@ Both commits merge onto `integ/wave-b-r2` without conflicts (`git merge-tree` ch
   `bound-confirmations.ts` would **not** fail the Jini suite:
   1. `isApproved` never returns true (the positive path is never asserted there);
   2. the single-use delete in `isApproved` is removed (no second call with the approved input);
-  3. the abort checks at `:179`, `:204` and `:161` are removed (no abort case);
+  3. the abort checks at `:186`, `:208` and `:171` are removed (no abort case);
   4. `decide` returning `'deny'` still prompts (the fake always returns `'ask'`);
   5. `deliver` is moved out of the `finally` in `settleHeld` (no throwing `validate` case; the waiting
      execution would stay parked until expiry);
@@ -115,8 +115,8 @@ Both commits merge onto `integ/wave-b-r2` without conflicts (`git merge-tree` ch
 
 **A1-F3 — low — the bearer-strength requirement is not stated on the Jini API.**
 - Class: undocumented security precondition on a port.
-- Location: Jini `packages/daemon/src/bound-confirmations.ts:38-47` (`BoundConfirmationsDeps`).
-- Fact: with no `owner` on the binding, the exchange ID is the only credential (`:127-128`). The safety
+- Location: Jini `packages/daemon/src/bound-confirmations.ts:40-47` (`BoundConfirmationsDeps`).
+- Fact: with no `owner` on the binding, the exchange ID is the only credential (`:128`). The safety
   of that depends on the host giving the exchange store a cryptographically random ID generator. Tovu
   does (`site-assistant.ts:583-584`). The Jini note only tells hosts to reserve `principalId` and
   `channel`.
@@ -154,3 +154,126 @@ Both commits merge onto `integ/wave-b-r2` without conflicts (`git merge-tree` ch
 - The executor says the Jini subpath isolation script "printed nothing (not independently confirmed)".
   I checked by reading that `bound-confirmations.ts` imports only `@jini-ai/core`,
   `@jini-ai/core/records` and a type from `./tool-executor.js`; I did not run the script.
+
+---
+
+## A2 — Jini moves/audit2-a "B07": vault rotate verifies the re-seal (`ab0ef93c`)
+
+**Verdict: unsafe - do not merge as is** (the Jini logic is right; it breaks a Tovu recovery path that
+has no matching change). Highest severity: **high**.
+
+### What the change is
+
+`SecretsVaultService.rotate` (`packages/platform/src/secrets/credential-sets/vault.service.ts:376-387`)
+now calls a new private `assertOpensTo` (`:162-169`) between sealing and the compare-and-set write. It
+opens the fresh envelope with `this.deps.sealer.open` under the stored row's own binding and requires
+the exact plaintext back. Failure throws `invalid-record` and nothing is written.
+
+### What is right (verified by reading)
+
+- The check runs **before** `repo.put`; the write stays compare-and-set on `expectedRevision`.
+- It opens under the binding of the **stored row** (`buildVaultAad(record)`), while the seal used the
+  caller's identity. A caller identity that differs from the row is therefore caught here as well as in
+  `find` (`:150`).
+- A row with no payload is not opened (`sealed === null` returns first).
+- The error carries no envelope and no plaintext.
+- The two refusal tests are real guards: each asserts the stored revision is still 1 and the stored
+  envelope is unchanged. Without the gate `rotate` writes revision 2, so both fail. The executor
+  recorded both failing on the parent commit (red first).
+
+### Findings
+
+**A2-F1 — high — the sealer port binding in Tovu's key recovery is not behaviourally compatible.**
+- Class: port/adapter behavioural mismatch (types match, behaviour does not); breaks a recovery path.
+- Location: Jini `vault.service.ts:167` (new `this.deps.sealer.open` call on the fresh envelope);
+  Tovu `apps/website/src/server/runtime/composition/site-key-recovery.ts:169-173` and `:175`
+  (`integ/wave-b-r2`), the only Tovu caller of `rotate`.
+- Fact: in that composition the service's `sealer.open` is bound to the **previous** key's opener
+  (`open: … input.previous.open(…)`, where `previous` is built from `previousHex` at `:90`), and
+  `sealer.seal` is bound to the **new** key's sealer. That was fine while `rotate` only used `open` to
+  read the existing row. B07 now also uses the same `open` to read the envelope it has just sealed
+  under the new key. The previous-key opener cannot open that envelope, so every vault row moved by
+  "switch to a different site key" is refused with `invalid-record`.
+  `resealVaultCredentialsOpeningUnder` runs these inside one transaction
+  (`apps/website/src/platform/db/vault-credential-recovery.ts:113-121`), so the whole re-seal rolls back
+  and the admin route's re-seal step (`routes/system/site-key.ts:511`) fails. Nothing is lost (fail
+  closed), but the key-switch recovery stops working for any site with sealed vault rows under the old
+  key.
+- Why it was missed: B07 was done "Jini only", and its result note says "no contract change". It is a
+  contract change: the port now requires `open(seal(x))` to succeed on the same bound sealer. The
+  executor's verification list does not include any Tovu site-key test.
+- Note: Tovu's binding already does its own seal-then-open check with the new sealer (`:170-172`), so
+  the property B07 wants was already enforced for this caller.
+- Fix (pick one, must land with B07):
+  1. Preferred (keeps one typed port per job): give `rotate` an explicit, optional **source opener**
+     for reading the existing row (the same idea `transferRow` already uses with its `source` service),
+     and keep `deps.sealer.open` meaning "open with the current keyring". Tovu then binds `sealer` to
+     the new-key sealer, passes the previous-key opener as the source, and deletes its own duplicate
+     check at `:170-172`.
+  2. Minimal: Tovu binds `open` to try the new-key sealer for the envelope just produced and the
+     previous-key opener otherwise. This is harder to reason about; use only as a stopgap.
+- Regression tests needed:
+  - Tovu `site-key-recovery.unit.test.ts:130` ("resealFrom moves the sealed row and the storage secret
+    from the previous key onto the new one") **exists**. From reading, it should fail as soon as Tovu is
+    linked to a Jini that contains B07 without the fix. **I did not run it** — run it first; if it stays
+    green, the row in its fixture is not a vault record and a vault-record case must be added.
+  - A sealer **contract test** in Jini (one reusable suite: `open(seal(x)) === x` under the same
+    binding, wrong binding refused), run against every binding a host hands to `SecretsVaultService`,
+    including Tovu's recovery binding — **missing**.
+
+**A2-F2 — medium — the cause of a refused rotation is thrown away.**
+- Class: swallowed error / indistinguishable failure (owner practice: errors are never swallowed or
+  generic).
+- Location: Jini `vault.service.ts:167` (`catch { throw invalidRecord(); }`) and `:168`.
+- Fact: "the key store could not supply the key", "the envelope failed authentication" and "the
+  plaintext differs" all become the same bare `invalid-record`, which is also the code for a malformed
+  stored row (`:73-75`). An operator cannot tell that the **new** seal is the problem and the stored
+  row is fine. Reading the existing row at `:381` lets the sealer's own error through unchanged, so the
+  two halves of one method report differently.
+- Fix: keep the fixed public code if the contract must not grow, but attach a redacted cause: which
+  step failed (open of the new envelope, or plaintext mismatch), the active key id, and the sealer
+  error's name/code. Never the envelope, the binding string or any plaintext. Say in plain words that
+  the stored secret was not changed.
+- Regression tests: the first refusal test already asserts the message does not contain the secret
+  (**exists**). Add: the thrown error names the failing step and contains neither the envelope nor the
+  plaintext (**missing**).
+
+**A2-F3 — medium — the same unverified re-seal still exists on the copy-overwrite path.**
+- Class: inconsistent gate (one write path guarded, a sibling path not).
+- Location: Jini `vault.service.ts:337` and `:342` (`writeCopy`).
+- Fact: copying onto an existing target with overwrite replaces the target's sealed value with a fresh
+  seal and no open-back check. The source row survives, so this is less destructive than rotation, but
+  the target's previous secret is gone and the new one may not open. `put` (`:228`) has the same shape;
+  there the caller still holds the plaintext.
+- Fix: do the open-back check once inside `seal` (`:155-161`) so every write path gets it, once F1 has
+  separated "source opener" from "current sealer".
+- Regression test: copy-overwrite with a sealer whose seal does not open leaves the target row
+  untouched — **missing**.
+
+**A2-F4 — low — the "real key store failure" case named in the executor's own checklist is not tested.**
+- Location: Jini `packages/platform/src/secrets/__tests__/vault.service.test.ts:506-540`.
+- Fact: both refusal tests fake the fault inside `seal`. No test makes `open` itself fail for a
+  non-authentication reason (key not yet readable), or makes `keyring.activeKey` return a key the
+  opener does not know.
+- Fix: add those two cases with fakes of the `sealer` and `keyring` ports.
+
+### Regression tests that must exist
+
+| Test | Exists? |
+|---|---|
+| Re-seal that does not open is refused; row untouched | yes (`vault.service.test.ts:506`) |
+| Re-seal with different plaintext is refused; row untouched | yes (`:521`) |
+| Metadata-only row is rotated without opening | yes (`:534`) |
+| Tovu key-switch re-seal still works against Jini with B07 | exists (`site-key-recovery.unit.test.ts:130`) — **not run against B07** |
+| Sealer contract suite per binding | **missing** |
+| Refusal error names the step, leaks nothing | **missing** |
+| Copy-overwrite is verified | **missing** |
+| Key store failure on open / unknown active key | **missing** |
+
+### Not verified
+
+- I did not run the Tovu recovery test against B07; F1 is from reading both sides.
+- I read two other Tovu sealer bindings (`features/vendor-credentials/vault-adapter.ts:140-146`,
+  `platform/secrets/vault-kinds.ts:87-88`); both pass `seal` and `open` to the same sealer, so they are
+  compatible. I did not enumerate every `SecretsVaultService` construction in Tovu, Tovu-Runner or Zana.
+- `ab0ef93c` merges onto Jini `integ/wave-b-r2` without conflicts (`git merge-tree`).
