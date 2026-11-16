@@ -37,3 +37,6 @@ Paste these into every future split/move DESIGN brief (and executor brief):
 
 ## Added after the import-cycle judgment (2026-11-16)
 22. Runtime vs type-only import classification depends on each package's compiler settings (verbatimModuleSyntax, isolatedModules, importsNotUsedAsValues); layer-registration invariants need node checks (isolated/sink modules), not only edge rules.
+
+## Added after the ACP judgment (2026-11-16)
+23. Protocol/adapter work: track an adapter executable and its backing engine as separate identities (version, probe, config, teardown); configured support != advertised capability != demonstrated interoperability; preserve telemetry dimensions (context vs billable usage, cumulative vs delta, units); a savings claim needs a deletion ledger (file, lines, why deletable).
