@@ -135,7 +135,7 @@ Amendments A and B and SEQUENCE were read again: they still do not override this
 
 ## Result
 
-`modules/run-finalizer/` now holds 9 files: `ports.ts` 21 lines, `report.ts` 23, `shared.ts` 35, `checkpoint-policy.ts` 48, `stream.ts` 74, `recovery-binding.ts` 81, `watch-state.ts` 104, `checkpointer.ts` 147, `bounded-follow.ts` 177, `entry.ts` 299.
+`modules/run-finalizer/` now holds 10 files: `ports.ts` 21 lines, `report.ts` 23, `shared.ts` 35, `checkpoint-policy.ts` 48, `stream.ts` 74, `recovery-binding.ts` 81, `watch-state.ts` 104, `checkpointer.ts` 147, `bounded-follow.ts` 177, `entry.ts` 299.
 Every function is under 50 lines and under complexity 10 by the lint tools, not by reading: `check:size` and `check:complexity` print nothing about these files.
 Neither debt file names these paths any more. No file re-exports the old path.
 
@@ -212,6 +212,6 @@ While running the A6 mutations, a cleanup command killed the session's own shell
 
 ## For the next run
 
-- B1 starts from `18618b08`. The files to carry to Jini are the 9 under `modules/run-finalizer/` minus `shared.ts`.
+- B1 starts from `18618b08`. The files to carry to Jini are the 10 under `modules/run-finalizer/` except `shared.ts`.
 - In B1 the engine must call the Jini run-event owners with object arguments; the Tovu wrappers used here are positional (design 4.3). `now` becomes the `Clock` port, and the host defaults in `createAssistantRunFinalizer` (`randomUUID`, the child check, the agent table, the console, the unref'd timer) stay behind in `jini-run-finalizer.ts`.
 - The mutation runner and its specs lived in the session scratchpad and are gone. The tables above name each mutation.
