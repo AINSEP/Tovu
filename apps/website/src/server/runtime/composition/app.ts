@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeMemoryComments } from "./memory-deps/slices/comments.js";
 import { composeMemoryAgentPlugins } from "./memory-deps/slices/agent-plugins.js";
 import { composeMemorySeo } from "./memory-deps/slices/seo-sitemap.js";
 import { composeMemoryOutboundHttp } from "./memory-deps/slices/outbound-http.js";
@@ -24,9 +25,7 @@ import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
-import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
-import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
@@ -130,8 +129,6 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
 import { noopStampWatermark } from "#src/features/taxonomy/index";
@@ -308,29 +305,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     contentTypes: contentTypeRepo,
   });
-  const commentsModule = createCommentsModule({
-    commentRepo,
-    // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
-    // read lazily at submit time, after this root has finished constructing it.
-    entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo.findById(required) } }),
-    outbox,
-    clock,
-    idGen,
-    spamCheck: new HeuristicSpamCheck(),
-    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId }, {}),
-    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-      trash: trash,
-      entityType: COMMENT_ENTITY_TYPE
-    }) }),
-    forgetRemoved: ({ workspaceId: ws, id }) =>
-      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
-    // Nothing in this composition opens a database transaction; see `createTrashService` above.
-    runInTransaction: (fn) => fn(),
-  }, {});
-  const commentsCapability = createCommentsCapability({
-    siteId: seededWorkspace.id, module: commentsModule, commentsReady: Promise.resolve(), settingsReady: commentsSettingsReady,
-    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
-  });
+  const { commentsModule, commentsCapability } = composeMemoryComments({ commentRepo, entryRepo, postRepo, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, commentsSettingsReady, identity, settingsPrincipals });
   const { externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks } = composeMemberSecrets({  });
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
