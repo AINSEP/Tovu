@@ -340,7 +340,7 @@ function recordCalls(deps: Deps, log: string[]): Deps {
       },
     });
   }
-  return wrapped as Deps;
+  return wrapped as unknown as Deps;
 }
 
 test("static-tier finisher: partials, embeds, menus, previews, collections, render, assets — assets once, last", async () => {
