@@ -60,7 +60,8 @@ for (const placement of ['inSite', 'appData'] as const) test(`${placement}: read
   const html = await f.call('pages_read_html', { site: 'B', id: 'page' }) as { html: string; theme: unknown };
   assert.match(html.html, /B page/);
   assert.deepEqual(html.theme, { id: 'selected', tokens: { '--ink': '#123456' }, tokensLight: {} });
-  assert.deepEqual(await f.call('theme_get_preview_switcher', { site: 'B' }), { enabled: false, themes: [], position: 'top' });
+  // why: 84d9382e2 (Terra lost-update) returns revisionSeq so theme_update_preview_switcher can send expectedRevisionSeq.
+  assert.deepEqual(await f.call('theme_get_preview_switcher', { site: 'B' }), { enabled: false, themes: [], position: 'top', revisionSeq: 0 });
   const image = await f.call('media_view_image', { site: 'B', mediaId: 'media' }) as { content: Array<{ type: string; data?: string }> };
   const block = image.content.find(block => block.type === 'image'); assert.ok(block?.data);
   const pixels = await sharp(Buffer.from(block.data, 'base64')).removeAlpha().raw().toBuffer();
