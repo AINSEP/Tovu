@@ -1,4 +1,5 @@
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
+import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
 import { PostEditorToolbarEnd } from "./editor/header/PostEditorToolbarEnd";
 import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
 import { PostEditorActions } from "./editor/header/PostEditorActions";
@@ -14,11 +15,10 @@ import { usePreviewPaneWidth, useDevicePreviewDevice } from "../../components/De
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import type { AdminPost, ThemeTier } from "../../lib/api";
+import type { AdminPost } from "../../lib/api";
 
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { usePostPreviewIframeEscape, usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
-import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { TermPicker } from "../taxonomy/TermPicker";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
@@ -135,51 +135,6 @@ function PostEditorBody({
         <EditorContent editor={editor} />
       </div>
     </div>
-  );
-}
-
-/**
- * The "View Template" modal's mount gate — pulled out of `PostEditor` (complexity-ceiling pass,
- * 2026-08-20) as its own top-level function so the three-condition `&&` chain scores in its own
- * scope. Conditionally mounted, not always-mounted-with-`open`: `PreviewModalShell` (the shell
- * `TemplateSourceModal` renders through) is a plain fixed-position overlay `<div>`, not the native
- * `<dialog>` `ConfirmDialog` wraps — there is no `open` prop to toggle, so this follows
- * `AgentPluginDetailsModal`'s own call site (`AgentPlugins.tsx`) instead. `templateChoice` and
- * `activeThemeId` are re-checked here (not just at the "View Template" button's `disabled`) so this
- * can never render with an empty/`null` URL segment even if state changes out from under an
- * already-open modal.
- */
-function PostEditorTemplateModalGate({
-  show,
-  templateChoice,
-  activeThemeId,
-  activeThemeTier,
-  activeThemeApiVersion,
-  onClose,
-  confirmLeave,
-  t,
-}: {
-  show: boolean;
-  templateChoice: string | null;
-  activeThemeId: string | null;
-  activeThemeTier: ThemeTier | null;
-  activeThemeApiVersion: 2 | undefined;
-  onClose: () => void;
-  confirmLeave: () => boolean;
-  t: Translate;
-}) {
-  if (!show || !templateChoice || !activeThemeId) return null;
-  return (
-    <TemplateSourceModal
-      themeId={activeThemeId}
-      themeTier={activeThemeTier}
-      themeApiVersion={activeThemeApiVersion}
-      templateFilename={templateChoice}
-      onClose={onClose}
-      confirmLeave={confirmLeave}
-      t={t}
-      editAgentHandleId="post-template-edit"
-    />
   );
 }
 
