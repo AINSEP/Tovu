@@ -60,7 +60,8 @@ import type {
   RepointResult,
   RetireTarget,
 } from "../type-registry.js";
-import { createPublishContentApplyPort, publishContentItemIdempotencyKey } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
+import { publishContentItemIdempotencyKey } from "../idempotency.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 /** `post` depends on `term`; no taxonomy ports are wired here, so both pack nothing. */

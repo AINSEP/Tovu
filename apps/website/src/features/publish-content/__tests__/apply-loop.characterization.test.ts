@@ -12,7 +12,7 @@ import test from "node:test";
 
 import { PluginHookFailedError } from "../../../contracts/core/plugin-hook-failed-error.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
-import { createPublishContentApplyPort } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";

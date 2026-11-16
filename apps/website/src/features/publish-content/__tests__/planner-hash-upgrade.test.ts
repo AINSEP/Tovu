@@ -61,7 +61,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
   mock.module(new URL("../backstop-service.ts", import.meta.url).href, {
     namedExports: { readBackstopMetadata: () => null },
   });
-  const { createPublishContentApplyPort } = await import("../apply-loop.js");
+  const { createPublishContentApplyPort } = await import("../apply-port.js");
   const { InMemoryPublishContentBaselineRepo } = await import("../baseline-repo.js");
   const { InMemoryPublishContentBundleRepo, stageBundle } = await import("../bundle-staging.js");
   const { InMemoryPublishContentRunRepo } = await import("../run-repo.js");

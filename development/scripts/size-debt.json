@@ -1136,13 +1136,6 @@
       "value": 85
     },
     {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "<file>",
-      "line": 735,
-      "rule": "max-lines",
-      "value": 720
-    },
-    {
       "file": "apps/website/src/features/publish-content/peer-transport.ts",
       "function": "<file>",
       "line": 901,

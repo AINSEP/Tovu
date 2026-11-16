@@ -122,7 +122,7 @@ test("pack: more than 200 selected rows is refused with the exact words", async 
 test("listSkipped returns a copy", async () => {
   const f = setup();
   await f.pack();
-  (await f.handler.listSkipped!()).length = 0;
+  ((await f.handler.listSkipped!()) as unknown[]).length = 0;
   assert.equal((await f.handler.listSkipped!()).length, 1);
 });
 

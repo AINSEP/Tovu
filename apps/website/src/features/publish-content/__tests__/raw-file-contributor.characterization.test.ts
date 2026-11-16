@@ -104,7 +104,7 @@ test("pack: without a blob index nothing is packed or skipped, and 50 selected f
 test("listSkipped returns a copy", async (t) => {
   const f = await fixture(t);
   await f.pack();
-  (await f.handler.listSkipped!()).length = 0;
+  ((await f.handler.listSkipped!()) as unknown[]).length = 0;
   assert.equal((await f.handler.listSkipped!()).length, 1);
 });
 

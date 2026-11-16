@@ -8,7 +8,7 @@ import { createRawRowSqlitePort } from "#src/features/publish-content/publish-ba
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { contributeRawRowPublish } from "../raw-row-contributor.js";
-import { createPublishContentApplyPort } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentRunRepo, getPublishContentRunStatus } from "../run-repo.js";

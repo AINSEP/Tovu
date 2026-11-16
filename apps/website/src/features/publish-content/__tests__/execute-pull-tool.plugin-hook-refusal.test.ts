@@ -30,7 +30,7 @@ import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
-import { createPublishContentApplyPort } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { getPublishContentRunStatus } from "../run-repo.js";
 import { registerPublishContentContributor, type PackedEntity, type PublishContentDeps } from "../type-registry.js";
