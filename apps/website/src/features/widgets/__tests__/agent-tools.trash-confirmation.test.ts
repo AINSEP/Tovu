@@ -14,7 +14,7 @@ import { buildWidgetsDeps } from "../deps.js";
 import { createWidgetInstance } from "@jini-ai/cms/widgets";
 import type { WidgetInstanceEntry } from "@jini-ai/cms/widgets";
 import { buildWidgetsRegistrations, type WidgetsToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

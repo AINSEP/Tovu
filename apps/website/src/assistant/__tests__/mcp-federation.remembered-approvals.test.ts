@@ -19,7 +19,7 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-a
 import { TOVU_MCP_APPROVAL_FINGERPRINT_DOMAIN } from "../mcp-federation/presets.js";
 import { buildFederatedMcpRegistrations, type FederationDeps } from "../mcp-federation/registrations.js";
 import { createSqliteConversationToolApprovalStore } from "../persistence/conversation-tool-approval-store.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

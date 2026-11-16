@@ -17,7 +17,7 @@ import { pluginMemory } from "../../memory.js";
 import { pluginNoteHandler } from "../../write-note-tool.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

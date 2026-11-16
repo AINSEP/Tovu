@@ -5,7 +5,7 @@ import { ToolInputError, type ToolExecutionContext } from '@jini-ai/core';
 import { VIDEO_MAX_INPUT_BYTES, type VideoContactSheet, type VideoFrameExtractor, type VideoFrameResult } from '@jini-ai/cms/media';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { createRandomUuidGenerator, createSystemClock } from '@jini-ai/core/primitives';
+import { createRandomUuidGenerator, createSystemClock } from '@jini-ai/platform/system';
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, uploadMedia } from '../index.js';
 import { buildMediaViewVideoRegistrations, contributeMediaViewVideoTools, MEDIA_VIEW_VIDEO_TOOL_ID, type MediaViewVideoToolDeps } from '../view-video-tool.js';
 

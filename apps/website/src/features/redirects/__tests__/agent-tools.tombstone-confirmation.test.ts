@@ -20,7 +20,7 @@ import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-reg
 import { getRedirectsAgentToolCatalog } from "../agent-tools.js";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

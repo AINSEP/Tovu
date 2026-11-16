@@ -3,7 +3,7 @@ import type { ToolExecutionOptions, ToolRegistration } from '@jini-ai/core';
 import { buildAssistantToolRegistrations } from '../../tool-registrations.js';
 import { toolApprovalPolicyFor } from '../../assistant-tool-approval-policy.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { buildThemesRegistrations, type ThemeToolDeps } from '../../../features/theme/tool-registrations.js';

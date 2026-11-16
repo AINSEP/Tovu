@@ -13,7 +13,7 @@ import { googleParametersOf } from "@jini-ai/agent-runtime/providers/tool-turn";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

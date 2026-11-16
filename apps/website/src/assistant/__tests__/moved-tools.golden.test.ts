@@ -16,7 +16,7 @@ import test from 'node:test';
 import { SURFACE_DISMISSED_PARAM, type ToolExecutionContext } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { buildFormSurface } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { SecretCardForm } from '@jini-ai/ui/mcp-ui/secret-card';

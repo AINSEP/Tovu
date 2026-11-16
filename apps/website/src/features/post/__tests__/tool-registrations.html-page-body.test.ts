@@ -13,7 +13,7 @@ import { SqlitePostRepo } from "../repo.sqlite.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { InMemoryPagesHtmlDocumentStore } from "../../pages/html-document-store.memory.js";
 import { DEFAULT_PAGE_SKELETON } from "../../pages/skeleton.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

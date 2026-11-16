@@ -37,7 +37,8 @@ import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetPlacementNode, WidgetTypeKey } from "@jini-ai/cms/widgets";
 import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
-import { createSystemClock, createRandomUuidGenerator, type JsonObject } from "@jini-ai/core/primitives";
+import { type JsonObject } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state";

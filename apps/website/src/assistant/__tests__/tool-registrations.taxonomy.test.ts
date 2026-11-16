@@ -24,7 +24,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeTaxonomyTools, taxonomyDerivedRisk } from "../../features/taxonomy/tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 

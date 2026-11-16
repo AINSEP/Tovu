@@ -9,7 +9,7 @@ import { buildMcpJsonServerEntry, createInMemoryEventLog, createRunLifecycle, cr
   type ExecutionDelegate, type McpJsonInjectionOptions } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute, toolCatalogDescribeRoute, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { serve } from "@jini-ai/mcp/bin";
 import { createRunScopedCredentials } from "../../../../assistant/daemon-access.js";

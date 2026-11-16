@@ -95,7 +95,8 @@ import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js"
 import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
 import type { PeerSiteReads as GenericPeerSiteReads, ProviderConfigSource, AssistantHistoryHostDeps } from "./host-contracts.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
-import { createSystemClock, createRandomUuidGenerator, nowIso } from "@jini-ai/core/primitives";
+import { nowIso } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 /** Compatibility names bind neutral contracts only where the full assistant is assembled. */

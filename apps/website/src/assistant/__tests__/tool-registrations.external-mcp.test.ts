@@ -26,7 +26,7 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
 import { contributeExternalMcpTools } from "../../features/external-mcp/tool-registrations.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../external-mcp-roster-change.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

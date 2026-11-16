@@ -4,7 +4,7 @@ import test from "node:test";
 import { buildExternalMcpRegistrations, externalMcpDerivedRisk } from "../../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildExternalMcpOperationsRegistrations, contributeExternalMcpOperationsTools, externalMcpOperationsDerivedRisk } from "../../operations-tools.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

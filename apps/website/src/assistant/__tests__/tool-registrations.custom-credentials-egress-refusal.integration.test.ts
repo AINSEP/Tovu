@@ -15,7 +15,7 @@ import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpRes
 import { createHttpClient } from "../../platform/http/client.js";
 import type { HttpTransportAdapter } from "../../platform/http/ports.js";
 import { InMemoryCredentialedRequestAuditLog } from "../../features/custom-credentials/credentialed-request.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

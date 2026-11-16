@@ -11,7 +11,7 @@ import { duplicateMediaAsset } from "../duplicate-asset.js";
 import { buildMediaRegistrationsForTovu } from "../tool-registrations.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { uploadMedia as packageUploadMedia } from "@jini-ai/cms/media";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

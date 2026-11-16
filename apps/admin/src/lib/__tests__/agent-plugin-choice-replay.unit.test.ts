@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { askAgentPluginChoice, ASK_CHOICE_TOOL_ID } from '../../../../website/src/assistant/ask-choice-tool.js';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import type { SurfaceEmission } from '@jini-ai/core';
 import { SURFACE_QUESTION_META_KEY, projectAcceptedInputEvents, acceptedInputEvent, isAwaitingAnswer, type AgentEvent } from '@jini-ai/chat/core';

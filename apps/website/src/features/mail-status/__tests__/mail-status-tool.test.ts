@@ -6,7 +6,7 @@ import { ConsoleMailerAdapter } from "../../members/index.js";
 import { SmtpMailerAdapter, type MailerPort } from "../../../platform/mail/index.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import type { ToolExecutionOptions } from "@jini-ai/core";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { buildMailStatusRegistrations, contributeMailStatusTools, mailStatusDerivedRisk, type MailStatusToolDeps } from "../tool-registrations.js";

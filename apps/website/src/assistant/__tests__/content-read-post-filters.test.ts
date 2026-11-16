@@ -12,7 +12,7 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { deriveContentReadRegistrations } from "../content-read-tool.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

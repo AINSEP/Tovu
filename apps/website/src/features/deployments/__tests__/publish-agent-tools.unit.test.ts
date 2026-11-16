@@ -33,7 +33,7 @@ import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from "../deploy-targets/types.js";
 import { loadBundledDeployTargets } from "../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { buildPublishHostCredentialHandler, buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

@@ -8,7 +8,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";

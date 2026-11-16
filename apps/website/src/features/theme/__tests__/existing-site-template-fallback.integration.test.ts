@@ -15,7 +15,7 @@ import { InMemoryPresentationSettingsRepo } from "../../presentation/index.js";
 import { withContentTargets } from "../../../assistant/__tests__/fixtures/content-target-inputs.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import type { ToolExecutionContext } from "@jini-ai/core";
 
 /** Class B: site copies and package templates need not be the same version. */

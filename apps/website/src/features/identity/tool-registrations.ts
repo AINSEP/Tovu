@@ -27,7 +27,7 @@ import { assertCallerHasAnyPermission, normalizeUsername, parseIdentityToolInput
 import { ToolInputError, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createUsernameChangePort } from "./username-change-ports.js";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";

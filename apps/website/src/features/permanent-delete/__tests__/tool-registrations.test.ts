@@ -4,7 +4,7 @@ import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildPermanentDeleteRegistrations, contributePermanentDeleteTools, permanentDeleteDerivedRisk, type PermanentDeleteToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

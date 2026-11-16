@@ -20,7 +20,7 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 import { createAppPermissionGrants } from "../app-permission-grants.js";
 import { withUserTrashAdminOverride } from "../trash-user-admin-override.js";
 import { buildPermanentDeleteDeps } from "../permanent-delete-deps.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

@@ -31,7 +31,7 @@ import { InMemorySourceControlCredentialSetRepo } from "../../source-control/rep
 import { createSourceControlCredential } from "../../source-control/store.js";
 import { FakeGitHub } from "./fixtures/fake-github.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

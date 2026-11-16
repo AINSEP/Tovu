@@ -4,7 +4,7 @@ import { JSDOM } from 'jsdom';
 import type { UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { InMemorySettingsRepo } from '../../settings/index.js';
 import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';

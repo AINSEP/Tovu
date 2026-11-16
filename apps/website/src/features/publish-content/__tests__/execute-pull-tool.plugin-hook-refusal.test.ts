@@ -36,7 +36,7 @@ import { getPublishContentRunStatus } from "../run-repo.js";
 import { registerPublishContentContributor, type PackedEntity, type PublishContentDeps } from "../type-registry.js";
 import type { PublishContentToolDeps } from "../tool-registrations.js";
 import { context, fixture, OWNER, tool } from "./pull-tool-fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

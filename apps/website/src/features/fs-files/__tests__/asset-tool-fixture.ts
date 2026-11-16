@@ -5,7 +5,7 @@ import path from "node:path";
 import type { TestContext } from "node:test";
 import sharp from "sharp";
 import type { SurfaceEmission, ToolRegistration } from "@jini-ai/core";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";

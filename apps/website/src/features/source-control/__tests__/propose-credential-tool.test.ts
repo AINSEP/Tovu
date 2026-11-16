@@ -26,7 +26,7 @@ import type { ToolExecutor } from '@jini-ai/daemon';
 import { PROPOSE_CREDENTIAL_ABORTED, PROPOSE_CREDENTIAL_CANCELLED, PROPOSE_CREDENTIAL_CLOSED, PROPOSE_CREDENTIAL_SAVE_FAILED, proposeSourceControlCredential, type SourceControlCredentialSetupDeps } from '../credential-setup.js';
 import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceControlProviderDescriptor } from '../provider-registry.js';
 import type { SourceControlProviderModule } from '../provider-module.js';
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

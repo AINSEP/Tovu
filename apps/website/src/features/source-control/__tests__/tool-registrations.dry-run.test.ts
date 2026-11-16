@@ -15,7 +15,7 @@ import type { ExportReport } from "#src/features/site-export/index";
 import type { ExportSiteBoundFn, SourceControlCommitAdapter } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";
 import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

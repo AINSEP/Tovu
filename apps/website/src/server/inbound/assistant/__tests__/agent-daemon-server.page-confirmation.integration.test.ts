@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import ts from "typescript";
 import { createToolRegistry, type SurfaceEmission, type ToolRegistration } from "@jini-ai/core";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, SURFACE_TYPED_ANSWER_PARAM } from "@jini-ai/daemon/surface-exchanges";

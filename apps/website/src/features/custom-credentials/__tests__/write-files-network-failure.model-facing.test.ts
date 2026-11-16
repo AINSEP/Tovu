@@ -29,7 +29,7 @@ import { createCustomCredential } from "../store.js";
 import { buildCustomCredentialsRegistrations, type CustomCredentialsToolDeps } from "../tool-registrations.js";
 import { WRITE_FILES_TOOL_ID } from "../agent-tools.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

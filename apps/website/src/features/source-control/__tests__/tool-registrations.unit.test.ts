@@ -23,7 +23,7 @@ import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtur
 import { githubFromSource } from "./fixtures/github-from-source.js";
 
 import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

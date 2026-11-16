@@ -27,7 +27,7 @@ import type { RedirectHitSink, RedirectRepoPort } from "@jini-ai/cms/redirects";
 import { createRedirect, importRedirects, listRedirects, tombstoneRedirect, updateRedirect, MAX_IMPORT_BATCH_SIZE, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { REDIRECT_MATCH_TYPES, REDIRECT_SOURCES, REDIRECT_STATUSES, RedirectConflictError, RedirectLoopError, RedirectNotFoundError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
 import type { CreateRedirectInput, RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const MANAGE_REDIRECTS_PERMISSION = "admin.redirects.manage" as const;

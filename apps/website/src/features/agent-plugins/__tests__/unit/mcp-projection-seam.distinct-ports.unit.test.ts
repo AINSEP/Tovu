@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ToolInputError } from '@jini-ai/core';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import { InMemoryPluginActivationRepo } from '@jini-ai/plugins/host';
 import { InMemoryKeyring } from '../../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../../webhooks/secret-sealer.aesgcm.js';

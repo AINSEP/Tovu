@@ -9,7 +9,7 @@ import test from 'node:test';
 import { createToolRegistry, type ToolRegistration } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { applyToolApprovalPolicy } from '../tool-approval-policy.js';
 import { isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';

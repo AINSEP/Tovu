@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolHandler } from "@jini-ai/core";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";

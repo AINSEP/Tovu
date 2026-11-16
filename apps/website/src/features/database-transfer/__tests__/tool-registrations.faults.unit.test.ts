@@ -15,7 +15,7 @@ import { buildDatabaseTransferRegistrations, contributeDatabaseTransferTools, da
 import { openPreparedContentDb } from "../../../platform/db/sqlite/__tests__/helpers/open-prepared-content-db.js";
 import { openMemorySqliteKernel } from "../../../platform/db/kernel/drivers/sqlite.js";
 import type { ContentDatabase } from "../../../platform/db/content-database.generated.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

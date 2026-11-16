@@ -15,7 +15,7 @@ import { after, before, test } from "node:test";
 
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";

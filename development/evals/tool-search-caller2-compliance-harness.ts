@@ -85,7 +85,7 @@ import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/contracts/core/rate-limit/rate-limit.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";

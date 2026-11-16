@@ -4,7 +4,7 @@ import { requireInputRecord, type SurfaceEmission, type ToolExecutionContext } f
 
 import { approvalToolHandler, humanConfirmedToolHandler, notConfirmedResult, refuseUnexpectedKeys, requireHumanConfirm, type HumanConfirmSpec } from '../human-confirm.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

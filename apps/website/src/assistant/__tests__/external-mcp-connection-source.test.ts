@@ -12,7 +12,7 @@ import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../f
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 
 /**
  * @file RED-first coverage for `external-mcp-connection-source.ts`'s two new pieces (design-byok

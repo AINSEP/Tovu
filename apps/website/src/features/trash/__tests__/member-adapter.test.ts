@@ -29,7 +29,7 @@ import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../agent-tools
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { TRASH_RETENTION_DAYS } from "../ports.js";
 
 const WS = "member-trash-workspace";

@@ -24,7 +24,7 @@ import { registerMcpUiToolCallsRoute, MCP_UI_TOOL_CALLS_PATH } from '../../../as
 import { RUN_PRINCIPAL_HEADER } from "../../../assistant/daemon-access.js";
 import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutor } from '@jini-ai/daemon';
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

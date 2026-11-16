@@ -7,7 +7,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations, renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

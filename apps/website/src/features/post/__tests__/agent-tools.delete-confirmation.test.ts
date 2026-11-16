@@ -8,7 +8,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 import { removeVia } from "./remove-post-double.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

@@ -3,7 +3,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolExecutionOptions } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import type { MailerPort, MailerSendResult } from "../../../platform/mail/index.js";
 import { buildMailStatusRegistrations, type MailStatusToolDeps } from "../tool-registrations.js";
 import {

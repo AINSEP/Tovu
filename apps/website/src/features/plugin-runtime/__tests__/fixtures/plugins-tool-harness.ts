@@ -2,7 +2,7 @@ import { notifyExternalMcpRosterChanged } from "../../../../assistant/external-m
 import assert from "node:assert/strict";
 
 import type { SurfaceEmission, SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";

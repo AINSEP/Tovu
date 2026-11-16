@@ -26,7 +26,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
 import { identityServiceDepsFrom, type UsersRouteDeps } from "#src/server/inbound/admin-http/routes/users/deps";
 import { bindTrashUserForTool } from "../trash-user-tool-port.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

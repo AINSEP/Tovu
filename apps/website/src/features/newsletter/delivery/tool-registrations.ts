@@ -21,7 +21,7 @@ import { NewsletterCampaignNotEditableError, NewsletterCampaignNotFoundError, Ne
 import { evaluateLaunchGate } from "../launch-gate.js";
 import { authorizeSend, claimBatch, completeIfDrained, freezeAudience, resumeCampaign, sendTestCampaign } from "../send-pipeline.js";
 import { toNewsletterSendPipelineDeps, type NewsletterToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;

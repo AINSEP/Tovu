@@ -144,7 +144,7 @@ import { createEarlySessionCapture } from "./early-run-session.js";
 import { agentReceivesImageAttachments, durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "./run-start-decisions.js";
 import { readProcessStart } from "./attempt-process-identity.js";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-work.js";
 

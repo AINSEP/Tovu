@@ -7,7 +7,7 @@ import { confirm, ForbiddenError } from "../../../contracts/core/gated-mutations
 import { buildConfirmOnlyHooks } from "../../../contracts/core/gated-mutations/composition.js";
 import { isMcpUiToolCallPermitted } from "../../../assistant/mcp-ui-tool-calls.js";
 import { fixture, packed, context, tool, OWNER } from "./pull-tool-fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const ID = "publish_content_execute_pull";

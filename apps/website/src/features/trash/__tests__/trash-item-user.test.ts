@@ -7,7 +7,7 @@ import type { TrashEntityType } from "@jini-ai/cms/trash";
 
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { deriveTrashItemRegistrations, type TrashItemToolDeps, type TrashUserPort, type TrashItemDelegate } from "#src/features/trash/trash-item-tool";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";

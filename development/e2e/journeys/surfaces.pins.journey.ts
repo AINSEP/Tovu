@@ -9,7 +9,7 @@ import { type APIRequestContext } from "../support/bug-pin-fixtures.js";
 import { type Page } from "../support/bug-pin-fixtures.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { buildConfirmationSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 import { pinSessionHeaders } from "../support/bug-pin-auth.js";
 

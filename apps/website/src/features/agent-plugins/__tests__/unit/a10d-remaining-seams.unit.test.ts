@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import { ToolInputError } from '@jini-ai/core';
 import { InMemoryExternalMcpServerRepo } from '../../../external-mcp/external-mcp-store.memory.js';
 import { applyExternalMcpAccess, saveExternalMcpServer } from '../../../external-mcp/external-mcp-store.js';

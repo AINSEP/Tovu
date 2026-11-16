@@ -9,7 +9,7 @@ import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assistant/index.js";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "./helpers/http-test-server.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

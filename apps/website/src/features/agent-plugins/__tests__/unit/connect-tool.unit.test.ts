@@ -27,7 +27,7 @@ import { defaultResolveInstalledAgentPlugin, runAgentPluginConnect as runConnect
 import { ToolInputError } from "@jini-ai/core";
 import { provisionAgentPluginMcpServers } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
 

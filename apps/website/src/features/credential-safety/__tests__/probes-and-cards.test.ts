@@ -15,7 +15,7 @@ import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-tr
 import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
 import { McpProtocolError } from '@jini-ai/mcp/federation';
 import type { SurfaceEmission } from '@jini-ai/core';
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

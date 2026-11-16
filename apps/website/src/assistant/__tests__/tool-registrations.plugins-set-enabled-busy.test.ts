@@ -14,7 +14,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../../features/agent-plugins/lifecycle.js";
 import type { PluginsToolDeps } from "#src/__tests__/support/plugin-tool-host";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

@@ -32,7 +32,7 @@ import { getCommentsSettings, setCommentsSettings } from "./settings.js";
 import { COMMENT_STATUSES } from "@jini-ai/cms/comments";
 import type { CommentsSettings, CommentStatus, ModerationAction, ModerationQueuePage } from "@jini-ai/cms/comments";
 import type { CommentWriteService } from "@jini-ai/cms/comments";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/comments';
 import { approvalToolHandler, refuseUnexpectedKeys } from '#src/contracts/core/human-confirm';

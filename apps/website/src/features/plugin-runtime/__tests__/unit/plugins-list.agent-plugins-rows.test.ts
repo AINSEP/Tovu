@@ -7,7 +7,7 @@ import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/lay
 import { test } from "node:test";
 
 import type { ToolExecutionContext } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

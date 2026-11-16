@@ -15,7 +15,7 @@ import { startTestServer } from "./helpers/http-test-server.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { createContributionRegistry } from "@jini-ai/core";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";

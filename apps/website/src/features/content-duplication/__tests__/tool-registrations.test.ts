@@ -7,7 +7,7 @@ import type { ContentDuplicationToolDeps } from "../tool-registrations.js";
 import type { DuplicateResourceHandlerContributor } from "../../../assistant/duplicate-resource-registry.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { buildContentDuplicationRegistrations, contributeContentDuplicationTools } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

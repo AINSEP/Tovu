@@ -13,7 +13,7 @@ import { loadDeployOpsRegistryFromSource } from "../registry.js";
 import { runListSecrets, runSetSecret, runUnsetSecret, secretFingerprint, type SecretConfirmRequest } from "../secrets.js";
 import { buildDeployOpsRegistrations } from "../tool-registrations.js";
 import { fixture, execution } from "./example-ops-fixture.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

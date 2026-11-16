@@ -45,7 +45,7 @@ import {
   WebhookSubscriptionValidationError,
 } from "./subscriptions.js";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const MANAGE_INTEGRATIONS_PERMISSION = "admin.integrations.manage";

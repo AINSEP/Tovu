@@ -17,7 +17,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/ht
 import type { AgentPluginAccessTokenToolDeps } from "../../access-token-tool.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 

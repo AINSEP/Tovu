@@ -27,7 +27,7 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { pluginAgentToolCatalog } from "#src/features/plugin-runtime/agent-tools";
 import type { AgentPluginUninstallToolDeps } from "../../uninstall-tool.js";
 import { buildPluginsUninstallRegistration } from "../fixtures/plugins-uninstall-registration.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

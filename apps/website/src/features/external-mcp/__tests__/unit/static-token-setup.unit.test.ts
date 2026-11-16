@@ -13,7 +13,7 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { buildExternalMcpRegistrations, contributeExternalMcpTools } from "../../tool-registrations.js";
 import { externalMcpAgentToolCatalog } from "../../agent-tools.js";
 import { buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill } from "../../save-form.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

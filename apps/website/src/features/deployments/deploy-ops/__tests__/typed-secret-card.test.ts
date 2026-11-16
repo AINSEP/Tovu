@@ -7,7 +7,7 @@ import path from "node:path";
 import type { SurfaceEmission } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { askThenReport } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryCustomCredentialSetRepo } from "../../../custom-credentials/repo.memory.js";
 import { forceRemove } from "../../../agent-plugins/__tests__/fixtures/force-remove.js";

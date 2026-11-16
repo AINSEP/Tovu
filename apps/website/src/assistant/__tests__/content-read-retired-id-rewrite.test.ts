@@ -12,7 +12,7 @@ import { KEYWORD_MARKER } from "#src/assistant/tool-search-keywords";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

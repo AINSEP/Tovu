@@ -52,7 +52,7 @@ import {
 import { computeDisclosure, type DisclosureWatermarkSourcePort } from "@jini-ai/db/recovery/disclosure";
 import { confirmRestore, executeRestore, planRestore } from "./recovery-orchestrator.js";
 import { resolveDegradedBanner } from "@jini-ai/db/recovery/degraded-banners";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const BACKUP_READ_PERMISSION = "backup.read" as const;

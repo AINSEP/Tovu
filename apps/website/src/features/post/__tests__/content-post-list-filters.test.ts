@@ -14,7 +14,7 @@ import { InMemoryPostSearchIndex } from "../search-index.memory.js";
 import { removeVia } from "./remove-post-double.js";
 import type { PostRecord } from "../post.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

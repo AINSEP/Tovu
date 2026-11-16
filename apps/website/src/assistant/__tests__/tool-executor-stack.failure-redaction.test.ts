@@ -20,7 +20,7 @@ import { createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-su
 import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN, type ToolFailureRecord } from "../tool-recovery-preset.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

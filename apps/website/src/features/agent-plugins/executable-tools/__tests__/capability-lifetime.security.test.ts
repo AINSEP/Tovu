@@ -11,7 +11,7 @@ import test from 'node:test';
 import { createToolRegistry } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createIssuedTokenMemories } from '@jini-ai/agent-plugins/lifecycle/tools';
 import { parseAdminSurfacesFile, type AdminSurfaceCapabilities, type AdminSurfaceHandlerModule, type LoadedAdminSurface } from '@jini-ai/agent-plugins/admin-surfaces';

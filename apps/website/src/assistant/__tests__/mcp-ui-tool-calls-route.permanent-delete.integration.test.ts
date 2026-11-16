@@ -8,7 +8,7 @@ import { PERMANENT_DELETE_SPECS } from "#src/features/permanent-delete/agent-too
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

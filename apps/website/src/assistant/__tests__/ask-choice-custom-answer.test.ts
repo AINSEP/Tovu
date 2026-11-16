@@ -4,7 +4,7 @@ import Ajv from "ajv";
 
 import type { SurfaceEmitter, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { ASK_CHOICE_TOOL_ID, askChoiceAgentToolCatalog, buildAskChoiceRegistrations } from "../ask-choice-tool.js";

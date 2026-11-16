@@ -7,7 +7,8 @@ import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-too
 import { createToolRegistry, type ToolRegistry } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock, createRandomUuidGenerator, type HttpClientPort, type HttpRequest } from '@jini-ai/core/primitives';
+import { type HttpClientPort, type HttpRequest } from '@jini-ai/core/primitives';
+import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createIssuedTokenMemories, type LoadedAgentPluginTool, type AgentPluginToolModule } from '@jini-ai/agent-plugins/lifecycle/tools';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';

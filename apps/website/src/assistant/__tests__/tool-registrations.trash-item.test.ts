@@ -33,7 +33,7 @@ import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aw
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import { trashThemeAgentToolCatalog } from "#src/features/theme/trash-theme-tool";
 import { createRedirect } from "@jini-ai/cms/redirects";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

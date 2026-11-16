@@ -16,7 +16,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { buildExternalMcpRegistrations } from "../../tool-registrations.js";
 import type { ExternalMcpToolDeps } from "../../deps.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

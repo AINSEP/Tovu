@@ -1,6 +1,7 @@
 /** Tovu's idle policy and HTTP stream lifecycle over Jini's shared activity/idle owner. */
 import type { RequestHandler, Response } from "express";
-import { createSystemClock, type Clock } from "@jini-ai/core/primitives";
+import { type Clock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createIdleMonitor, type IdleMonitor } from "@jini-ai/daemon";
 import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
 import { AGENT_DAEMON_EXIT_CODE } from "#src/assistant/daemon-exit-codes";

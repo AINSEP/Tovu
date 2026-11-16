@@ -61,7 +61,6 @@ export {
   type DefinitionInput,
   validateDefinitionInput,
   validateValueAgainstSchema,
-  registerCoercer,
   invalidateDefinitionNamespaceCache,
   invalidateWorkspaceSettingsCache,
   resolveDefinitionRaw,

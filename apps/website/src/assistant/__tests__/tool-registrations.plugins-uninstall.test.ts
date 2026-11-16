@@ -32,7 +32,7 @@ import { composePluginProviderFaces } from "../../server/runtime/composition/age
 import { forceRemove } from "../../features/agent-plugins/__tests__/fixtures/force-remove.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry } from "../../features/agent-plugins/lifecycle.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

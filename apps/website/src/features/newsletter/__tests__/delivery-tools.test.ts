@@ -11,7 +11,7 @@ import { buildNewsletterDeliveryRegistrations, contributeNewsletterDeliveryTools
 import { buildNewsletterRegistrations } from "../tool-registrations.js";
 import { handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../send-pipeline.js";
 import type { SendBatchJob } from "../ports.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

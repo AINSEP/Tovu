@@ -82,7 +82,7 @@ import {
   originalPathFromTrashedPath,
   validateFileIdentityChange,
 } from "./file-identity-lock.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { protectThemeFileTools } from './file-mutation-tools.js';
 

@@ -6,7 +6,7 @@ import test from 'node:test';
 import { syncBuiltinESMExports } from 'node:module';
 import type { ToolExecutionContext } from '@jini-ai/core';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
-import { createSystemClock } from '@jini-ai/core/primitives';
+import { createSystemClock } from '@jini-ai/platform/system';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { discoverAllBuiltInThemes } from '../theme.js';
 import { buildThemesRegistrations } from '../tool-registrations.js';

@@ -14,7 +14,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { bundledDeployEnvVars } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 import type { DeployTargetCreateContext, HostDeployPublishInput, LoadedDeployTarget } from "#src/features/deployments/deploy-targets/types";
-import { createSystemClock } from "@jini-ai/core/primitives";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { set as setSetting } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";

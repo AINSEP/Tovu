@@ -13,7 +13,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 import { createToolRegistry, type ToolRegistration, type ToolRegistry } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
+import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 

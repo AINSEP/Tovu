@@ -9,7 +9,7 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExch
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import { createSubscription, pauseSubscription } from "../subscriptions.js";
 import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

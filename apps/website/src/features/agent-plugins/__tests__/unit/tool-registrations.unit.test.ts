@@ -43,7 +43,7 @@ import {
   loadInstalledAgentPluginToolSources,
   registerInstalledAgentPluginTools,
 } from "../../tool-registrations.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { UNTESTED_PLUGIN_GUIDANCE } from "@jini-ai/agent-plugins/lifecycle/host-tools";
 import { composedBundledSourceRoot, selectedPluginSourceRoot } from "../fixtures/bundled-source-root.js";

@@ -18,7 +18,7 @@ import path from "node:path";
 import test, { after, before, type TestContext } from "node:test";
 
 import { AesGcmSecretSealer as PlatformSealer } from "@jini-ai/platform/secrets";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { MailProviderSetting } from "@jini-ai/platform/mail";

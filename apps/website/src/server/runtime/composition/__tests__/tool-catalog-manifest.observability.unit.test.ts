@@ -12,7 +12,7 @@ import type { createDefaultHttpClient } from "#src/platform/http/client";
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 

@@ -6,7 +6,7 @@ import type { ToolRegistration } from "@jini-ai/core";
 
 import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations, validateDemoA2uiMessage } from "../demo-a2ui-tool.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
+import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 
