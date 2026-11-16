@@ -54,7 +54,6 @@ import {
   COMMENT_ENTITY_TYPE,
   createDirectoryTrashAdapter,
   unhideIfRemoveThrows,
-  createTableTrashAdapter,
   MEDIA_ENTITY_TYPE,
   PLUGIN_ENTITY_TYPE,
   THEME_ENTITY_TYPE,
@@ -67,15 +66,13 @@ import {
 import {
   bindRemoveEntity,
   bindForgetRemovedEntity,
-  createRecordStoreTrashAdapter,
   createTrashService,
   createTrashSweep,
   InMemoryTrashRepo,
   type TrashAdapter,
   withFollowUps,
 } from "@jini-ai/cms/trash";
-import { memoryFormSubmissionTrashAdapter, memoryFormTrashAdapter, memoryMenuTrashAdapter, memoryWidgetTrashAdapter } from "./memory-deps/slices/trash-adapters-forms-widgets.js";
-import { memoryCommentTrashAdapter, memoryMediaTrashAdapter, memoryPostTrashAdapter, memoryRedirectTrashAdapter } from "./memory-deps/slices/trash-adapters-content.js";
+import { composeMemoryTrashAdapters } from "./memory-deps/slices/trash-adapters.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
@@ -222,7 +219,6 @@ import {
   SqliteTaxonomyRevisionRepo,
   SqliteTermRepo,
 } from "#src/features/taxonomy/repo.sqlite";
-import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -487,47 +483,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const taxonomyTrashEntry = trashRegistry.get("taxonomy");
   const formTrashEntry = trashRegistry.get("form");
   if (!termTrashEntry || !taxonomyTrashEntry || !formTrashEntry) throw new Error("memory trash registry is missing a term, taxonomy, or form entry");
-  const trashAdapters = new Map<string, TrashAdapter>([
-    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
-    [POST_ENTITY_TYPE, memoryPostTrashAdapter({ postRepo })],
-    [REDIRECT_ENTITY_TYPE, memoryRedirectTrashAdapter({ redirectRepo })],
-    [COMMENT_ENTITY_TYPE, memoryCommentTrashAdapter({ commentRepo })],
-    [MEDIA_ENTITY_TYPE, memoryMediaTrashAdapter({ mediaRepo })],
-    ["form", memoryFormTrashAdapter({ formDefinitionRepo: () => formDefinitionRepo, formSubmissionRepo, trashRepo })],
-    ["form_submission", memoryFormSubmissionTrashAdapter({ formSubmissionRepo })],
-    ["widget", memoryWidgetTrashAdapter({ entryRepo, entryRefsRepo: () => entryRefsRepo })],
-    ["menu", memoryMenuTrashAdapter({ menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo })],
-    [
-      "term",
-      withFollowUps({
-        adapter: createTableTrashAdapter({
-          entry: termTrashEntry,
-          db: sqliteTrashDb,
-        })
-      }, createTermPurgeFollowUp({
-        termRepo: taxonomyFollowUpTermRepo,
-        trash: trashRepo,
-        revisions: taxonomyFollowUpRevisions,
-        outbox: taxonomyFollowUpOutbox,
-        clock,
-      })),
-    ],
-    [
-      "taxonomy",
-      withFollowUps({
-        adapter: createTableTrashAdapter({
-          entry: taxonomyTrashEntry,
-          db: sqliteTrashDb,
-        })
-      }, createTaxonomyPurgeFollowUp({
-        termRepo: taxonomyFollowUpTermRepo,
-        trash: trashRepo,
-        revisions: taxonomyFollowUpRevisions,
-        outbox: taxonomyFollowUpOutbox,
-        clock,
-      })),
-    ],
-  ]);
+  const taxonomyFollowUps = { termRepo: taxonomyFollowUpTermRepo, trash: trashRepo, revisions: taxonomyFollowUpRevisions, outbox: taxonomyFollowUpOutbox, clock };
+  const trashAdapters = composeMemoryTrashAdapters({
+    pluginTrashAdapter, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, trashRepo, entryRepo,
+    formDefinitionRepo: () => formDefinitionRepo, entryRefsRepo: () => entryRefsRepo,
+    menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo,
+    term: { entry: termTrashEntry, db: sqliteTrashDb, followUps: taxonomyFollowUps },
+    taxonomy: { entry: taxonomyTrashEntry, db: sqliteTrashDb, followUps: taxonomyFollowUps },
+  });
   for (const entityType of ["form", "form_submission"] as const) {
     const adapter = trashAdapters.get(entityType);
     if (!adapter) throw new Error(`memory trash has no ${entityType} adapter`);
