@@ -57,6 +57,7 @@ import { resolveEmbedHtmlAttributes, omitKey, formatHtmlAttributes, NO_MARKER_AT
 import { renderImageTag, renderVideoTag } from "./render/doc/media-tags.js";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
+import { isObject, str, arr, obj } from "./render/value-readers.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -79,30 +80,6 @@ export {
   type FormSubmissionRedirectResult,
   type FormFlashPayload,
 };
-
-/**
- * @file Template-tree renderer for the public site (SPEC-004 spike slice).
- *
- * Purpose:
- * Turns a discovered declarative theme + page context into HTML. Resolves the
- * route to a template id, walks the template's JSON block tree, and renders
- * three node kinds: content doc nodes (TipTap/ProseMirror vocab), `slot` nodes
- * (context-filled), and `component` nodes (resolved against a core component
- * registry). No theme code executes — the theme is data.
- *
- * How it relates to the project:
- * - Used by `apps/website/src/server/inbound/public-http/routes/site/pages.ts`.
- * - Theme look switches with the presentation feature's `activeThemeId`; the
- *   route resolves that id to a `DiscoveredTheme` and passes it here.
- *
- * Spike scope (VibeCoder): the four v1 core components + three slots, no theme
- * settings, no per-block sanitization. The blessed React renderer (ADR-002) can
- * replace this implementation without touching themes.
- */
-
-function isObject(value: unknown): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /** `YYYY-MM-DD` — the calendar day of `iso` in the site's `timeZone` (UTC when absent), so a post
  *  published at 11pm in Los Angeles is not shown as the next day. Bug D follow-up. */
@@ -1446,18 +1423,6 @@ function themeBadge(ctx: SiteRenderContext): string {
 
 function siteFooter(ctx: SiteRenderContext): string {
   return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml({ text: ctx.siteTitle })} — powered by Tovu</span>${themeBadge(ctx)}</div></footer>`;
-}
-
-// --- Prop readers (templates are untrusted-ish data — read defensively) ---
-
-function str({ value }: { value: JsonValue | undefined }, { fallback = "" }: { fallback?: string } = {}): string {
-  return typeof value === "string" ? value : fallback;
-}
-function arr({ value }: { value: JsonValue | undefined }, _optional = {}): JsonValue[] {
-  return Array.isArray(value) ? value : [];
-}
-function obj({ value }: { value: JsonValue | undefined }, _optional = {}): JsonObject | undefined {
-  return isObject(value) ? value : undefined;
 }
 
 /**
