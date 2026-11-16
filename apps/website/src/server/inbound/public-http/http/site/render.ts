@@ -59,6 +59,7 @@ import { mediaPlaceholder } from "./render/media-placeholder.js";
 import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
 import { isPlausibleMediaRefId, plausibleMediaRefId } from "./render/doc/media-ref.js";
+import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler } from "./render/doc/doc-render-contract.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -164,29 +165,12 @@ function renderNodes(
     .join("");
 }
 
-/** Threaded-through render state every {@link renderDocNode} case handler needs — bundled into one
- *  object so each extracted handler (see {@link DOC_NODE_HANDLERS}) takes one params object instead
- *  of the same three maps plus `depth` repeated at every call site, the way the old single-`switch`
- *  body used to spell them out inline for every case. */
-interface DocNodeRenderDeps {
-  readonly inlineResolved: ReadonlyMap<string, WidgetRenderIR>;
-  readonly mediaTransformVersions: ReadonlyMap<string, number>;
-  readonly mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>;
-  readonly depth: number;
-}
-
 /** Renders `content` one level deeper than the current node — every handler's own recursion entry
  *  point, replacing the `renderNodes(content, inlineResolved, mediaTransformVersions,
  *  mediaAssetMetadata, depth + 1)` call every case used to spell out individually. */
 function renderChildNodes({ content, deps }: { content: JsonValue[] | undefined; deps: DocNodeRenderDeps }, _optional = {}): string {
   return renderNodes({ nodes: content, inlineResolved: deps.inlineResolved, mediaTransformVersions: deps.mediaTransformVersions, mediaAssetMetadata: deps.mediaAssetMetadata, depth: deps.depth + 1 });
 }
-
-/** One handler per doc-node `type`, dispatched by {@link renderDocNode} through
- *  {@link DOC_NODE_HANDLERS} — see that table's own doc for why this file moved off a single large
- *  `switch`. */
-type DocNodeHandlerRequired = { node: JsonObject; content: JsonValue[] | undefined; deps: DocNodeRenderDeps };
-type DocNodeHandler = (required: DocNodeHandlerRequired, optional?: Record<string, never>) => string;
 
 function renderDocDocNode({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   // Dedupe at the doc boundary — see `dedupeHeadingIds` for why this is a pass over the finished
