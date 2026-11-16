@@ -109,6 +109,60 @@ function parseFields({ raw }: { raw: string }, _options = {}): unknown {
   }
 }
 
+type DeclaredOwnerRow = Awaited<ReturnType<typeof selectDeclaredOwnerRows>>[number];
+
+async function repairMarkerIsSet(required: { kernel: ContentKernel }, _optional = {}): Promise<boolean> {
+  const marker = await required.kernel.run((db) =>
+    db.selectFrom("setting_values_global").select("setting_id").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).executeTakeFirst()
+  );
+  return marker !== undefined;
+}
+
+function selectDeclaredOwnerRows(required: { kernel: ContentKernel }, _optional = {}) {
+  return required.kernel.run((db) =>
+    db
+      .selectFrom("entries")
+      .select(["id", "workspace_id", "type", "version", "fields_json"])
+      .where("type", "in", Object.keys(DECLARED_CONTENT_TYPE_OWNERS))
+      .where("deleted_at", "is", null)
+      .orderBy("id")
+      .execute()
+  );
+}
+
+/** Hides then purges one mismatched row, each step guarded by the version it classified; any refusal aborts the run. */
+async function hideAndPurgeEntry(
+  required: { row: DeclaredOwnerRow; removalFor: (type: string) => OwnerEntryRemoval; at: string },
+  _optional = {}
+): Promise<RemovedOwnerEntry> {
+  const { row, removalFor, at } = required;
+  const { adapter, via } = removalFor(row.type);
+  const where = { workspaceId: row.workspace_id, entityId: row.id };
+  const hidden = await adapter.hide({ ...where, at, expectedVersion: Number(row.version) });
+  if (!hidden.ok) {
+    throw new Error(`boot repair: entry ${row.id} (type ${row.type}) changed since it was classified (${hidden.reason}); nothing was removed, the next boot retries`);
+  }
+  const purged = await adapter.purge({ ...where, expectedVersion: hidden.version });
+  if (purged !== "purged") {
+    throw new Error(`boot repair: entry ${row.id} (type ${row.type}) was not purged (${purged}); nothing was removed, the next boot retries`);
+  }
+  return { workspaceId: row.workspace_id, id: row.id, type: row.type, via };
+}
+
+async function writeRepairMarker(required: { kernel: ContentKernel; at: string; removed: RemovedOwnerEntry[] }, _optional = {}): Promise<void> {
+  const { kernel, at, removed } = required;
+  const value = { completedAt: at, removed, hardDeleteReason: UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON };
+  await kernel.run((db) =>
+    db
+      .insertInto("setting_values_global")
+      .values({
+        setting_id: UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID, value_json: JSON.stringify(value), state: "set", def_version: 0, seq: 0,
+        updated_by: "system:boot-repair", updated_at: at, origin_plugin_id: null,
+      })
+      .execute()
+  );
+}
+
 /**
  * Runs the repair once per site: under one transaction and lock, skips when the marker exists,
  * otherwise removes every matching row, stamps the write watermark when anything went, and writes
@@ -130,50 +184,20 @@ export async function removeUnreadableOwnerEntries(
   const { removalFor = (type: string) => ownerEntryRemovalFor({ kernel, type }), log = console.log, now = () => new Date().toISOString() } = optional;
   const result = await kernel.transaction(async () => {
     await kernel.lockKey(LOCK_KEY);
-    const marker = await kernel.run((db) =>
-      db.selectFrom("setting_values_global").select("setting_id").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).executeTakeFirst()
-    );
-    if (marker !== undefined) return { ran: false, removed: [] };
+    if (await repairMarkerIsSet({ kernel })) return { ran: false, removed: [] };
 
-    const rows = await kernel.run((db) =>
-      db
-        .selectFrom("entries")
-        .select(["id", "workspace_id", "type", "version", "fields_json"])
-        .where("type", "in", Object.keys(DECLARED_CONTENT_TYPE_OWNERS))
-        .where("deleted_at", "is", null)
-        .orderBy("id")
-        .execute()
-    );
+    const rows = await selectDeclaredOwnerRows({ kernel });
     const at = now();
     const removed: RemovedOwnerEntry[] = [];
     for (const row of rows) {
       const owner = DECLARED_CONTENT_TYPE_OWNERS[row.type];
       if (owner === undefined) throw new Error(`Owner entry repair has no owner for type ${row.type}`);
       if (!isMismatchedOwnerEnvelope({ fieldsJson: parseFields({ raw: row.fields_json }), owner })) continue;
-      const { adapter, via } = removalFor(row.type);
-      const where = { workspaceId: row.workspace_id, entityId: row.id };
-      const hidden = await adapter.hide({ ...where, at, expectedVersion: Number(row.version) });
-      if (!hidden.ok) {
-        throw new Error(`boot repair: entry ${row.id} (type ${row.type}) changed since it was classified (${hidden.reason}); nothing was removed, the next boot retries`);
-      }
-      const purged = await adapter.purge({ ...where, expectedVersion: hidden.version });
-      if (purged !== "purged") {
-        throw new Error(`boot repair: entry ${row.id} (type ${row.type}) was not purged (${purged}); nothing was removed, the next boot retries`);
-      }
-      removed.push({ workspaceId: row.workspace_id, id: row.id, type: row.type, via });
+      removed.push(await hideAndPurgeEntry({ row, removalFor, at }));
     }
 
     if (removed.length > 0) await required.stampWatermark();
-    const value = { completedAt: at, removed, hardDeleteReason: UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON };
-    await kernel.run((db) =>
-      db
-        .insertInto("setting_values_global")
-        .values({
-          setting_id: UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID, value_json: JSON.stringify(value), state: "set", def_version: 0, seq: 0,
-          updated_by: "system:boot-repair", updated_at: at, origin_plugin_id: null,
-        })
-        .execute()
-    );
+    await writeRepairMarker({ kernel, at, removed });
     return { ran: true, removed };
   });
   for (const entry of result.removed) {
