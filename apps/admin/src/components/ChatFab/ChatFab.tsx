@@ -1,8 +1,8 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useFabPosition } from "./ChatFab.hooks";
 import { DEFAULT_LOCALE } from "../../lib/settings-tabs";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry } from '@jini-ai/core/text';
 interface ChatFabProps {
   open: boolean;
   onToggle: () => void;

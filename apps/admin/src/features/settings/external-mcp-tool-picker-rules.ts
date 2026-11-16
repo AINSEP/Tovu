@@ -1,8 +1,8 @@
 import { ApiError, describeApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { parseSavedToolNames } from "./external-mcp-admissions-rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The write-tool picker's own decisions, with no React in it — the `rules.ts` convention this
  * feature already follows (`features/settings/rules.ts`, `external-mcp-admissions-rules.ts`).

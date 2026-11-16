@@ -3,7 +3,7 @@ import { Dialog } from "@jini-ai/ui-kit/react";
 import { Icon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { agentHandle } from "@jini-ai/agentic";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "../../lib/api";
 import type { MediaPickerPort } from "../MediaPickerDialog/media-picker-port.hooks";
@@ -16,6 +16,7 @@ import type { MediaContentMode, MediaLayout, MediaSlugProblem } from "./media-co
 import { DevicePreviewFrame } from "../DevicePreview/DevicePreviewFrame";
 import { useWidgetPreview } from "./WidgetPreview.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file `MediaContentEditor` — the owner-approved two-tab editor ("Media" structured / "Raw HTML")
  * for media content (2026-10-11). ONE component, two hosts: `WidgetConfigFields` renders it for

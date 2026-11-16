@@ -1,8 +1,7 @@
 import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Deployment panel (`/admin/deployment`) — five tabs (Overview, Static
  * Site, Full Site, Dockerfile, History). Same shape as `integrations-i18n.tsx`/`recovery-i18n.tsx`:

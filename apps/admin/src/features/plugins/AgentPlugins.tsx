@@ -26,9 +26,10 @@ import { defaultAgentPluginInstallPort } from "./hooks/agent-plugin-install-depe
 import type { AgentPluginInstallPort } from "./hooks/agent-plugin-install-port.hooks";
 import { useAgentPluginInstall } from "./hooks/use-agent-plugin-install.hooks";
 import { useAgentPluginUpdate } from "./hooks/use-agent-plugin-update.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useAgentPluginTab } from "./hooks/use-agent-plugin-tab.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
 /**

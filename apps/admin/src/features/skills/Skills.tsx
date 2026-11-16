@@ -2,7 +2,7 @@ import { useSkillsTranslator } from "./Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
-import { ErrorNotice, type Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
 import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
@@ -13,6 +13,7 @@ import { PackageFilesModal } from "../plugins/PackageFilesModal";
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
 import { useSkillFilesModal } from "./use-skill-files.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "./skills.css";
 
 /** Installed rows and their loading/empty states share the default Skills tab. */

@@ -1,11 +1,11 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import "./recent-errors.css";
 import { CheckIcon, ChevronIcon, CopyIcon } from "./observability-visuals";
 import { useRecentErrorItem } from "./hooks/use-recent-error-item.hooks";
 import type { RecentServerErrorRow, RecentServerErrorsController, useWiredRecentServerErrors } from "./hooks/use-recent-server-errors.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * Recent errors tab (gap A-04, slice L2): the newest server error lines, the same data the
  * `system_read_server_logs` chat tool returns. Markup only — state lives in

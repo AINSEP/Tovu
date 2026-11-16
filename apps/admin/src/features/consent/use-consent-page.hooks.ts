@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/consent/react';
-import type { Translate } from '@jini-ai/ui/panel-kit';
+
 import { describeApiError } from '@/lib/api';
 import { createConsentAutosave, type ConsentAutosave, type ConsentTimers } from './consent-autosave';
 import { canPublishConsent, consentPreviewScale, isConsentConflict, type ConsentSaveState } from './rules';
 import type { ConsentEditorLimits, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from './settings.hooks';
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Cookie Consent page. The page edits one draft revision (autosaved, see
  * `consent-autosave.ts`) and publishes it explicitly; the live site changes only on Publish. All

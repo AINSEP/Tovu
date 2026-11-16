@@ -1,9 +1,9 @@
 import { hasAttributeOnAnyNodeShape, type CanvasEmbedPlaceholderDescriptor } from "@jini-ai/ui/html-editor";
 import { embedMarkerTarget, parseEmbedMarkerConfig, type EmbedMarkerTarget } from "@jini-ai/cms/widgets/markers";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { AdminPagePluginEmbed } from "@/lib/api";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Bug A (2026-09-23 interactive-bugs plan, Slice A2): the Tovu-specific adapter
  * `PageEditor.tsx` (Slice A3) hands to `@jini-ai/ui/html-editor`'s generic `InteractiveHtmlEditor` as

@@ -6,13 +6,12 @@ import { agentHandle } from "@jini-ai/agentic";
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ImagePreviewModal } from "@jini-ai/ui/admin-widgets";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import { useThemeDeleteRequest } from "./hooks/use-theme-delete-request.hooks";
@@ -32,6 +31,7 @@ import {
   type ThemeTabGroup,
 } from "./rules";
 
+import { resolveActiveTabId, type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file The Themes screen — markup only.
  *

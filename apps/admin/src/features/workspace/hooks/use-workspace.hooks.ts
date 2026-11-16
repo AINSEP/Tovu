@@ -6,10 +6,11 @@ import type { AdminWorkspace } from "@/lib/api";
 import { describeApiError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../workspace-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultWorkspacePort } from "./workspace-dependencies.hooks";
 import type { WorkspacePort } from "./workspace-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Workspace screen does, so `Workspace.tsx` is only markup.
  *

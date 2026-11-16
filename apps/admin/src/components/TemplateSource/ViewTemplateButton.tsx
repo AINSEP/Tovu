@@ -1,7 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
-
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The eye-icon "View Template" trigger that sits left of a template-choice `<select>` — opens
  * a {@link TemplateSourceModal `TemplateSourceModal`} showing the selected template's read-only HTML

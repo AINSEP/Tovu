@@ -4,8 +4,8 @@ import { nextConfigForAgentSelect, nextConfigForAgentModel, nextConfigForAgentRe
 
 import { EXECUTION_NAMESPACE, saveExecutionConfig, selectedLocalCliModel, selectedLocalCliReasoning } from "@/lib/execution-settings";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
 
+import { isAbortError } from '@jini-ai/core/text';
 /**
  * @file The dock pickers' one write path: apply a change to `executionConfig`, then save it — the
  * save OUTSIDE the state updater. The pickers used to call `saveExecutionConfig` inside their

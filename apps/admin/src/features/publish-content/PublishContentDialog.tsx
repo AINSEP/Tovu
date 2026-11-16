@@ -5,13 +5,13 @@ import "../../styles/native-domain-dialogs.css";
 
 import type { PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
 import {
   usePublishContentConfirm,
 } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentConfirmView } from "./hooks/use-publish-content-confirm.hooks";
 import type { PublishContentPort } from "./hooks/publish-content-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The publish-content slice's dialog, opened from the Dashboard's header button, and the whole
  * plan -> report -> confirm -> execute ceremony behind it

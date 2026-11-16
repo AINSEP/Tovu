@@ -17,8 +17,8 @@ import { COMMON_I18N } from "./i18n-common";
  * translation surface, not covered here.
  */
 import type { AdminNavGroup } from "@jini-ai/admin/core";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 const ADMIN_NAV_DICT: Record<string, Record<string, string>> = {
   es: {
   "Log out": "Cerrar sesión",

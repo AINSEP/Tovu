@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultRestoreFlowPort } from "./restore-flow-dependencies.hooks";
 import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) plus the
  * discarded-write-window disclosure fetch, so `RestoreFlow` in `Recovery.tsx` is only markup.

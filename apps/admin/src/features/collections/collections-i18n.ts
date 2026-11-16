@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Collections.tsx` (list + its three modals), `CollectionEntries.tsx`
  * (per-type entry list), and `CollectionEntryEditor.tsx` (entry editor). Same
@@ -9,8 +10,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * label) sits in the middle of the Spanish sentence, not always in the same relative position
  * English puts it.
  */
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const COLLECTIONS_DICT: Record<string, Record<string, string>> = {
   es: {

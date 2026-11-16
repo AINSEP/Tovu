@@ -1,10 +1,10 @@
 import { CUSTOM, usePluginProviderChoice } from "./PluginProviderSettingField.hooks";
 import { agentHandle } from "@jini-ai/agentic";
-import { interpolate } from "@jini-ai/ui/panel-kit";
 
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import type { AdminPluginProviderSettingField } from "@/lib/api";
 
+import { interpolate } from '@jini-ai/core/text';
 /**
  * @file One declared provider setting on `PluginProviderSettingsDialog` (2026-10-25 redesign): label
  * above a full-width control, the manifest's hint below in muted text. The control is whatever the

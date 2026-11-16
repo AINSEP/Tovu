@@ -1,12 +1,13 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { useEffect, useId } from "react";
 
 import type { AdminPlugin, AdminPluginProviderSettings } from "@/lib/api";
 import { useWiredPluginProviderSettings } from "./hooks/use-plugin-provider-settings.hooks";
 import { ProviderSettingField } from "./PluginProviderSettingField";
 import { providerSettingRequiredHere } from "./rules";
+import { interpolate } from '@jini-ai/core/text';
 import "../../styles/native-domain-dialogs.css";
 import "./provider-settings-dialog.css";
 

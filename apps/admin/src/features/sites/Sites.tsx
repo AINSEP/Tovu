@@ -3,7 +3,7 @@ import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { AllSitesTab } from "./AllSitesTab";
@@ -16,6 +16,7 @@ import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hoo
 import { useWiredSites } from "./hooks/use-sites.hooks";
 import { useWiredSiteListPrefs, type SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Owner update 2026-10-08: independent full-site children, recoverable Trash and default selection.
  * Earlier design explanations below are retained history; manual restart instructions are no longer rendered.
  */

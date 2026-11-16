@@ -50,11 +50,12 @@ import {
 import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
 import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The colocated `PublishContentDialog` behaviour — Escape-to-cancel, plus plan -> confirm ->
  * execute ceremony (`ADS-memory/reports/2026-09-18-publish-feature-implementation-plan.md` §4

@@ -1,4 +1,4 @@
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 
 /**
  * @file Strings for the Visitor's AI Assistant inner tabs and the Visitor tools tab (2026-10-22), in

@@ -1,4 +1,4 @@
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 
 /** Settings copy merges into the existing Sites translator; paths and app names remain data. */
 export const SITES_SETTINGS_DICT: Record<string, Record<string, string>> = {

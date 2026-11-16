@@ -5,9 +5,10 @@ import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-ic
 import { PreviewModalShell } from "@jini-ai/ui/preview-modal-shell";
 
 import type { ThemeTier } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useWiredTemplateSource } from "./use-template-source.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file "View Template" (2026-08-10) — read-only inspection of the theme page a Post's or Page's
  * `templateChoice` renders through on the public site. The owner's own framing: "I just wanna see

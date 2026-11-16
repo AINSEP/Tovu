@@ -1,9 +1,10 @@
 import { formatUserFacingError, type UserFacingError } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
-import type { Translate } from '@jini-ai/ui/panel-kit';
+
 import { describeApiError } from './api';
 import { requestOnce } from './api';
 
+import { type Translate } from '@jini-ai/core/text';
 export interface OwnerRecoveryStatus { isOwner: boolean; available: boolean; desktopOwnerReset: boolean }
 export interface OwnerRecoveryPort {
   status(): Promise<OwnerRecoveryStatus>;
@@ -25,7 +26,6 @@ export const ownerRecoveryPort: OwnerRecoveryPort = {
   reset: (input, _optional = {}) => post({ path: 'reset-owner', body: input }),
   recover: (input, _optional = {}) => post({ path: 'recover-owner', body: input }),
 };
-
 
 /** Preserve the server's specific explanation and provide selectable, redacted incident evidence.
  * Submitted secrets are exact redaction hints because a driver may echo them without a label.

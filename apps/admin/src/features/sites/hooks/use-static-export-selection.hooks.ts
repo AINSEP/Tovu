@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { describeApiError } from "@/lib/api";
 import type { SiteTransferPort } from "./site-transfer-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export const STATIC_EXPORT_OPTIONS_KEY = ["sites", "static-export-options"] as const;
 
 /** Keep an ordered, deliberate selection across roster refreshes; removed IDs cannot be exported.

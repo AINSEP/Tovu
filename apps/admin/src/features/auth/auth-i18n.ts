@@ -1,7 +1,7 @@
 import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /** Login-screen copy.  Keep this separate from the app-shell dictionary: Login is rendered
  * before the shell and must not fall back to English for a signed-out operator. */
 const AUTH_DICT: Record<string, Record<string, string>> = {

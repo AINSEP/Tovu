@@ -9,9 +9,10 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * Same two-step fallback every other `t()` in this app uses: translated value, else the English
  * source string itself.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import { t as postT } from "../posts/posts-i18n";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * Page-editor-only copy. The shared editor vocabulary is inherited from the Posts editor's
  * complete locale set below; it is deliberately merged into this feature's dictionary before
@@ -405,7 +406,6 @@ export const SCRIPT_BLOCK_DICT: Record<string, Record<string, string>> = {
 };
 const scriptBlockT = createDictionaryTranslator({ featureDictionary: SCRIPT_BLOCK_DICT }, { commonDictionary: COMMON_I18N });
 const scriptBlockKeys = new Set(Object.keys(SCRIPT_BLOCK_DICT.es));
-
 
 const hookT = createDictionaryTranslator({ featureDictionary: PAGE_EDITOR_DICT }, { commonDictionary: COMMON_I18N });
 const markupT = createDictionaryTranslator({ featureDictionary: pageEditorMarkupTranslations }, { commonDictionary: COMMON_I18N });

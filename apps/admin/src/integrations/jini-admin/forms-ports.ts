@@ -1,13 +1,14 @@
 /** Workspace/auth/localization bindings for the existing Jini Forms owner. */
 import { createHttpFormsApi, createHttpFormsTrash, type FormsTransportPort } from '@jini-ai/admin/forms/adapters/http';
 import { FORMS_LIST_RESOURCE, type AdminFormsPort, type FormsTrashPort, type FormsEventsPort, type FormsNavigationPort, type FormsTranslator } from '@jini-ai/admin/forms';
-import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
+import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateForms } from '../../features/forms/forms-i18n';
 import { WORKSPACE_ID } from '../../lib/api';
 import { navigate } from '../../lib/router';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { mediaTransport } from './media-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface FormsHostPorts {
   formsApi: AdminFormsPort;
   formsTrash: FormsTrashPort;

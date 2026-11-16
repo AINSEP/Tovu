@@ -1,8 +1,9 @@
 import type { ConsentFieldProblem } from '@jini-ai/admin/consent/react';
-import { resolveActiveTabId } from '@jini-ai/ui/panel-kit';
+
 import { ApiError } from '@/lib/api';
 import type { ConsentDetectedItem } from './settings.hooks';
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /** @file Pure decisions for the Cookie Consent page: tabs, problem routing, status copy, publish gate. */
 
 export const CONSENT_TAB_IDS = ['overview', 'banner', 'look', 'rules'] as const;

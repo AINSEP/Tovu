@@ -7,7 +7,7 @@ import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 import {
   postRowMenuItems,
@@ -17,6 +17,7 @@ import { ServerLabel } from "@/components/status-labels";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file The Posts list screen — markup only.
  *

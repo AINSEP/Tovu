@@ -1,6 +1,7 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { SiteImport, SiteImportState, SiteShare } from "./hooks/site-transfer-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure display rules for the Export Site and Import Site tabs: labels, pill tones and short
  * forms of links. No React, so each rule is tested directly.

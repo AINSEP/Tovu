@@ -1,9 +1,10 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import { useFocusTrap } from "../../../hooks/use-focus-trap.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { buildExternalMcpRemoveConfirmCopy, type RemoveConfirmCopy } from "../rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `ExternalMcpRemoveConfirmDialog`'s only two behaviours — Escape-to-cancel and the
  * name/auth-mode-derived copy — so the dialog component itself is only markup. Mirrors

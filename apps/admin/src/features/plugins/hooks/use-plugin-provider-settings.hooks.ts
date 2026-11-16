@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import type { AdminPluginProviderSettings } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../plugins-i18n";
 import { describeApiError } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `PluginProviderSettingsDialog`'s data (2026-10-26): one provider plugin's settings card —
  * its manifest-declared fields, the saved public values, and for each secret only whether one is

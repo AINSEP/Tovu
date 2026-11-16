@@ -6,7 +6,7 @@ import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-confl
 import { navigate as realNavigate } from "@/lib/router";
 import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { slugRedirectPath } from "@/lib/slug-redirect-path";
-import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "../html-rules";
 import { t as translate } from "../menus-i18n";
@@ -15,6 +15,7 @@ import type { MenusPort } from "./menus-port.hooks";
 import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
 import { toSlug } from "../../../../../website/src/platform/html/slug";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
  *

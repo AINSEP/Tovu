@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator, type LocaleDictionary } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator, type LocaleDictionary } from '@jini-ai/core/text';
 export const WEBMCP_KEYS = [
   "Browser-agent access (WebMCP)",
   "Enabled by default. This choice applies to the admin in this browser on this site.",

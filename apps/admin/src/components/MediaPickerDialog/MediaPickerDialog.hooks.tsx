@@ -4,11 +4,12 @@ import { acceptsMedia } from "@jini-ai/admin/media";
 import { describeApiError, type AdminMedia } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as sharedComponentsT } from "../shared-components-i18n";
 import { defaultMediaPickerPort } from "./media-picker-dependencies.hooks";
 import type { MediaPickerPort } from "./media-picker-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `MediaPickerDialog`'s data-fetch and selection state, split out of the component so
  * it can be swapped for a fake via the `useDialog` prop on `MediaPickerDialogProps` — see that

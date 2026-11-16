@@ -4,7 +4,7 @@ import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { type AdminPost } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type {
   StandingDraftAutosaveInput,
   StandingDraftStaleBasis,
@@ -15,6 +15,7 @@ import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 export type PageEditorView = "preview" | "html" | "interactive";
 import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `pages` feature — everything that computes a value rather than
  * rendering one.

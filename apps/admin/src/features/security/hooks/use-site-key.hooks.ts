@@ -3,11 +3,12 @@ import { useCallback, useMemo, useState } from "react";
 
 import { ApiError, describeApiError, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as defaultT, siteKeyLoadErrorMessage, siteKeyRevealErrorMessage } from "../security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "unknown error";
 
 /**

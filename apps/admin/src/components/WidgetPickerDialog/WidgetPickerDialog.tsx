@@ -2,13 +2,14 @@ import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
 import type { AdminWidget, AdminWidgetType } from "../../lib/api";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { widgetTypeLabel } from "@jini-ai/admin/widgets";
 import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 import { Select, type SelectOption } from "../Select/Select";
 import { useWidgetAddControl, useWiredWidgetAddControl, useWiredWidgetPickerDialog } from "./WidgetPickerDialog.hooks";
 
+import { interpolate } from '@jini-ai/core/text';
 /**
  * @file `WidgetPickerDialog` (`ui.spec.md` §2/§3.9/§4.8) — REQ-33's explicit reuse-vs-duplicate
  * modal. Two call sites: `RegionPlacementList.onAddWidgetRequest` and `WidgetEmbedNode`'s toolbar

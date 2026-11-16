@@ -2,12 +2,13 @@ import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fe
 import { useCallback, useMemo, useState } from "react";
 
 import { NO_THEME_ID } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { pageAdminPath } from "../rules";
 import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";
 import { defaultThemePagesPort } from "./theme-pages-dependencies.hooks";
 import type { ThemePagesFileEntry, ThemePagesPort, ThemePageSlugCollision } from "./theme-pages-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export type { ThemePageSlugCollision };
 
 /**

@@ -5,12 +5,13 @@ import { useCallback, useMemo, useState } from "react";
 import { ApiError, describeApiError, type AdminAgentPlugin } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translatePlugins } from "../plugins-i18n";
 import { defaultAgentPluginsPort } from "./agent-plugins-dependencies.hooks";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 import { AGENT_PLUGINS_RESOURCE } from "../rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Agent Plugins screen, so `AgentPlugins.tsx` is only markup — same split as
  * this directory's own `use-plugins.hooks.ts` (`Plugins.tsx`'s hook).

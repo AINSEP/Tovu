@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { adminHref, navigate } from "../../lib/router";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   themePageCollisionAdminPath,
   themePagePublishSummary,
@@ -12,6 +12,7 @@ import {
 import { themePageCollisionMessage, themePagePublishState } from "./lib/theme-page-publish-state";
 import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Theme Pages tab's "Details" info modal — 2026-08-31 owner review pass, replacing the
  * row's old inline "see more" disclosure (`Pages.tsx`'s own header covers that history). Owner:

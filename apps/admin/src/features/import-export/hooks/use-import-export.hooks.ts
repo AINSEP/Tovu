@@ -1,11 +1,12 @@
 import { useCallback } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { api } from "@/lib/api";
 import { isDesktopAdmin } from "@/features/settings/ai-agent-presentation";
 import { sitesTranslator, useSitesSnapshot } from "../../sites";
 import { t as dictionaryT } from "../import-export-i18n";
 
+import { type Translate } from '@jini-ai/core/text';
 /** This panel's `t`, bound to the admin's resolved locale — the one place it reads the locale, same
  *  split as `useWiredSites`. @complexity O(1) per lookup. */
 export function useImportExportTranslate(): Translate {

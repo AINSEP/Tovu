@@ -1,9 +1,10 @@
 import { useConfirmRequest, type ConfirmDialogProps } from "@jini-ai/admin/react";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { useState } from "react";
 
 import { themeDeleteBlockReasonKey, type ThemeDeleteRequest } from "../theme-card-menu";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The card menu's "Delete theme…" flow (owner 2026-10-10): a refused Delete reports why, an
  * allowed one asks first ("Delete Plannie copy? It moves to Trash.") and only then calls `trash`.

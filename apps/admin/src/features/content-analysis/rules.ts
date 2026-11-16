@@ -1,7 +1,6 @@
 import { ApiError, describeApiError } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file The Content analysis card's pure half — everything `ContentAnalysisCard.tsx` shows, decided
  * here so the component is only markup and the hook only fetches and holds state.

@@ -1,6 +1,6 @@
 import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `appearance` feature — everything that computes a value rather than
  * rendering one. See `features/posts/rules.ts`'s file header for the standing convention this

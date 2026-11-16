@@ -6,11 +6,12 @@ import { describeApiError, type AdminPost } from "@/lib/api";
 import { ACTIVE_THEME_RESOURCE, activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
 import type { DashboardPort } from "./dashboard-port.hooks";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Password-banner plan (2026-09-24), Slice 3 — per-browser dismiss for the default-password nag.
  *  Namespaced under `tovu.admin.` like `standing-draft-local-backup.ts`'s own keys, so it can never
  *  collide with an unrelated app key. The stored value is the principal id that dismissed it, so a

@@ -2,12 +2,13 @@ import { useState } from "react";
 
 import { ApiError, describeApiError, type AdminSiteKeyAffectedWebhook, type AdminSiteKeyStartFreshPreview, type AdminSiteKeyStatus } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as defaultT } from "../security-i18n";
 import { defaultSiteKeyPort } from "./site-key-dependencies.hooks";
 import type { SiteKeyPort } from "./site-key-port.hooks";
 import type { SiteKeyGenerateFailure } from "./use-site-key.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Site key tab's last-resort recovery for a locked site (server:
  * `routes/system/site-key.ts`'s `import` / `start-fresh`): "Paste your old site key" and "Start

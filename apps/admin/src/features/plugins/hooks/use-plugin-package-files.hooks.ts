@@ -3,7 +3,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../plugins-i18n";
 import {
   describeApiError,
@@ -16,6 +16,7 @@ import {
 } from "../rules";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `PluginPackageFilesModal`'s data: one `PLUGIN_FILES` read for the inspected plugin, mapped
  * onto the shared `PackageFilesModal`'s row shape, plus which file is selected. The Agent Plugins

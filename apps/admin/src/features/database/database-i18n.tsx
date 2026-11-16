@@ -1,8 +1,7 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Database screen (`/admin/database`) — filter bar, table
  * headers, section headings, button/status labels, and the migrate-forward ceremony copy.

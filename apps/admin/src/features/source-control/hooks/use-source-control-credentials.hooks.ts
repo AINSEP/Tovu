@@ -7,7 +7,7 @@ import { localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "../source-control-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
   buildSourceControlConnectionInput,
@@ -20,6 +20,7 @@ import {
 import { defaultSourceControlCredentialsPort } from "./source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Source Control page's credential-management hook — one always-visible row per host
  * (the hosts come from plugins, `GET .../system/source-control/providers`), each with its own token

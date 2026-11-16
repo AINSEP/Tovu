@@ -1,8 +1,9 @@
 import { adminHref } from "../../../lib/router";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 import type { ThemePageSlugCollision } from "../hooks/theme-pages-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure publish-state logic for a Theme Pages row — pulled out of `ThemePagesTab.tsx` (2026-08-31
  * RowMenu/modal pass) so `ThemePageDetailsModal.tsx` can read the SAME derivation the table's own

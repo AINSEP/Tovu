@@ -1,12 +1,13 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { createElement, useState } from "react";
-import { ErrorNotice, type Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
 import { packageFilesRead, packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
 import { listSkillFiles, type InstalledSkill, type SkillFiles } from "./api";
 import { skillFailure } from "./skill-failure";
 
+import { type Translate } from '@jini-ai/core/text';
 interface SkillFilesDependencies {
   readonly toolId: string | null;
   readonly read: (required: { toolId: string }, optional?: Record<string, never>) => Promise<SkillFiles>;

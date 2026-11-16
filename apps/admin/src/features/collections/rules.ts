@@ -2,11 +2,12 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { isVersionConflict } from "../../lib/version-conflict";
 import { t as translate } from "./collections-i18n";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `collections` feature (top-level Collections screen only — see
  * `CollectionEntries.tsx`/`CollectionEntryEditor.tsx` for the entry-level screens' own extraction)

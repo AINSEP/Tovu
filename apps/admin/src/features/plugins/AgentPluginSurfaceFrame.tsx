@@ -1,8 +1,9 @@
 import { adminSurfaceFrameAttributes } from "@jini-ai/agent-plugins/admin-surfaces";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AgentPluginSurfacesPort, AgentPluginSurfaceSummary } from "./hooks/agent-plugin-surfaces-port.hooks";
 import { useAdminSurfaceFrame } from "./hooks/use-admin-surface-frame.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file One plugin-owned admin surface (for example a plugin's "Manage connection" screen) in
  * Jini's sandboxed frame: `sandbox="allow-scripts"` only (never `allow-same-origin`, which with

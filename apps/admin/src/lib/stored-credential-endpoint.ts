@@ -1,7 +1,8 @@
 import { ApiError } from "./api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { trimCharsEnd } from "@jini-ai/core/primitives";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Rules for a BYOK key the server holds write-only and will only send to the endpoint it was saved
  * for — the endpoint pin in the server's `stored-credential-probe.ts`.

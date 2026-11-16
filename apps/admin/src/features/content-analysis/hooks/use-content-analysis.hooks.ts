@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { t as translate } from "../content-analysis-i18n";
 import {
@@ -19,6 +19,7 @@ import {
 import { defaultContentAnalysisPort } from "./content-analysis-dependencies.hooks";
 import type { ContentAnalysisPort } from "./content-analysis-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `ContentAnalysisCard`'s state and its one action — the post editor's Content analysis card
  * for the `content-analyzer` plugin (AW-7 Tier 2).

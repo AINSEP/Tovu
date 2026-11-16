@@ -4,13 +4,13 @@ import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
 import type { AdminTrashItem } from "../../lib/api";
 import { buildAgentListHandles } from "@jini-ai/agentic";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { actorLabel, coverageLine, entityTypeLabel, itemSubtitle } from "./rules";
 import { t } from "./trash-i18n";
 import { useWiredTrash, type TrashController } from "./hooks/use-trash.hooks";
 
+import { formatTimestamp, interpolate } from '@jini-ai/core/text';
 /**
  * @file The Trash screen — markup only. Every piece of state lives in `hooks/use-trash.hooks.ts`.
  *

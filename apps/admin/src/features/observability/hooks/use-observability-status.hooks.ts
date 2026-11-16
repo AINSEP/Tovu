@@ -6,8 +6,8 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import { defaultObservabilityStatusPort } from "./observability-status-dependencies.hooks";
 import type { ObservabilityStatusPort } from "./observability-status-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Observability screen's Overview tab, so `Observability.tsx` is only markup —
  * same split as `features/plugins/hooks/use-agent-plugins.hooks.ts` (`AgentPlugins.tsx`'s hook).

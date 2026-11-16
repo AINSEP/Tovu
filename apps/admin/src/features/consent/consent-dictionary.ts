@@ -4,9 +4,10 @@
  * same block as their `dictionary` prop. Engine terms (Global Privacy Control, opt-in/opt-out, CSS,
  * URL, px) stay in English where the locale commonly uses them.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import { COMMON_I18N } from "../../lib/i18n-common";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 export const CONSENT_DICT: Record<string, Record<string, string>> = {
   es: {
     "Banner mode": "Modo del banner",

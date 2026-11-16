@@ -1,4 +1,4 @@
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
@@ -6,6 +6,7 @@ import { AdminThemes } from "../admin-themes";
 import { t } from "../admin-themes/admin-themes-i18n";
 import { IntegrationsRedirect } from "../integrations";
 import { AdminAppearance } from "../settings";
+import { resolveActiveTabId } from '@jini-ai/core/text';
 import "./admin-ui.css";
 
 const TAB_IDS = ["theme", "appearance"] as const;

@@ -3,7 +3,6 @@ import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { navigate } from "../../lib/router";
 import { siteUrl } from "../../lib/site-url";
@@ -20,6 +19,7 @@ import {
   type ThemePagePublishState,
 } from "./lib/theme-page-publish-state";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The "Theme Pages" tab body — split out of `Pages.tsx` (2026-08-30, deep-link/publish-toggle
  * pass), then reworked three more times on owner review (2026-08-31, all three) once "match My

@@ -1,6 +1,6 @@
 import type { AdminPost, AdminSiteKeyState } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `dashboard` feature — everything that computes a value rather than
  * rendering one.

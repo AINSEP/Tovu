@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /** Plugin memory copy in every supported admin locale. */
 export const PLUGIN_MEMORY_DICT: Record<string, Record<string, string>> = {
   "es": {

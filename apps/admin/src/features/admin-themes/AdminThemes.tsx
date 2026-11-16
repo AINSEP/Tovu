@@ -1,12 +1,13 @@
 import type { CSSProperties } from "react";
 import type { SettingsThemeChoice } from "@jini-ai/ui";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { resolveAdminThemeDocument } from "../../admin-themes/apply";
 import { ADMIN_THEMES, findAdminTheme, type AdminThemeManifest, type AdminThemeScheme } from "../../admin-themes/registry";
 import { useAdminThemePicker, type AdminThemeDocumentEnv, type AdminThemePort } from "../../admin-themes/use-admin-theme.hooks";
 import { t } from "./admin-themes-i18n";
+import { interpolate } from '@jini-ai/core/text';
 import "./admin-themes.css";
 
 /**

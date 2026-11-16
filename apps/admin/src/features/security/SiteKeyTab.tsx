@@ -8,8 +8,8 @@ import type { SiteKeyController, SiteKeyGenerateFailure } from "./hooks/use-site
 import { useRevealedKeyCopy } from "./SiteKeyTab.hooks";
 import { isSiteKeyLocked, siteKeyLockedNote, useWiredSiteKeyRecovery, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
 import { SiteKeyRecoveryCard } from "./SiteKeyRecoveryCard";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Secrets page's Site key tab — view/reveal/generate the file half of
  * `TOVU_SITE_KEY`'s resolution (`features/webhooks/keyring.env.ts`, server-side).
@@ -155,7 +155,6 @@ function siteKeyStatusBadgeClass({ active }: { active: boolean }, { invalid = fa
   if (invalid) return "status-warning";
   return active ? "status-ok" : "status-neutral";
 }
-
 
 /** The source-specific explanatory line under the badge — one sentence per case, no `{path}`
  *  template needed (the path is rendered as its own `<code>`, not interpolated into translated

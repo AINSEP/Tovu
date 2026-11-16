@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 const PLAYGROUND_DICT: Record<string, Record<string, string>> = {
   en: { Studio: "Studio", Playground: "Playground", "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.": "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.", Canvas: "Canvas", "Nothing drawn yet — ask the assistant.": "Nothing drawn yet — ask the assistant." },
   es: { Studio: "Estudio", Playground: "Zona de pruebas", "Ask the assistant to build anything — try “Show a pie chart of my posts vs pages.” Every real component is already available to it.": "Pide al asistente que cree cualquier cosa; prueba “Muestra un gráfico circular de mis publicaciones frente a mis páginas”. Ya tiene disponibles todos los componentes reales.", Canvas: "Lienzo", "Nothing drawn yet — ask the assistant.": "Aún no hay nada dibujado; pregúntale al asistente." },

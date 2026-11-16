@@ -1,10 +1,11 @@
 import { Icon } from "@jini-ai/ui";
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import "../../styles/media-content-editor.css";
 import { DockHeaderTip } from "../AssistantDock/DockHeaderTip";
 import { useHtmlAttributeRows } from "./HtmlAttributeRows.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `HtmlAttributeRows` — key = value rows that edit one `htmlAttributes` string, with a
  * "Dropped when rendered" flag per unsafe row. ONE component for the widget editor's Media tab

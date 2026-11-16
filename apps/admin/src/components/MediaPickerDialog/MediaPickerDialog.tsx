@@ -4,9 +4,10 @@ import "../../styles/native-domain-dialogs.css";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMedia } from "../../lib/api";
 import { buildAgentListHandles } from "@jini-ai/agentic";
-import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
+
 import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
+import { splitOnPlaceholders } from '@jini-ai/core/text';
 /**
  * @file `MediaPickerDialog` — lets an operator choose an EXISTING asset from the Media library
  * instead of typing a URL. First call site: the Posts/Pages editors' toolbar ("Insert from Media

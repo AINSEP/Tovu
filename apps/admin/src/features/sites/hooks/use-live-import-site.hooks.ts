@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { describeApiError, type AdminLocalSiteState } from "@/lib/api";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { siteWriteErrorKey } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
 import { validWebsiteAddress } from "./use-site-transfer.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file "From a live website" on the web admin makes a NEW site (owner, 2026-11-10), the way the
  * desktop app's Import page does, and never imports into the site this page belongs to. It reuses

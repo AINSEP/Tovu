@@ -1,8 +1,9 @@
 import type { AdminLedgerRow, AdminSchemaState } from "../../lib/api";
 import type { QueryKey } from "@jini-ai/core/fetch";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { t } from "./database-i18n";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file Pure logic for the `database` feature — everything that computes a value rather than
  * rendering one. New file: this feature had no `rules.ts` before this migration, since none of its

@@ -1,9 +1,9 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 
 import { describeDriftHeadline, type AdmissionDriftConnection, type AdmissionDriftEntry } from "./external-mcp-admissions-rules";
 import type { ExternalMcpAdmissionsController } from "./hooks/use-external-mcp-admissions.hooks";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file "What the assistant is actually running" — the operator half of the refusal channel.
  *

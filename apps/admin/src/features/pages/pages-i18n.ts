@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for the Pages list screen (`Pages.tsx`). `PageEditor.tsx` is
  * deliberately out of scope — see the admin translation dispatch notes — so its strings aren't
@@ -20,7 +21,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * quoted title, so `Move` supplies a contextual prefix instead of repeating the verb. The parity
  * test still excludes this key in these locales because the prefixes were previously empty.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const PAGES_DICT: Record<string, Record<string, string>> = {
   es: {

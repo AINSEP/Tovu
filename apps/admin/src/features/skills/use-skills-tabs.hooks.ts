@@ -1,7 +1,8 @@
 import { useCallback } from "react";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate, useRouteLocation } from "../../lib/router";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const SKILLS_TAB_IDS = ["skills", "add"] as const;
 
 /** URL-backed tabs using the sibling pages' `?tab=` and replacement navigation. */

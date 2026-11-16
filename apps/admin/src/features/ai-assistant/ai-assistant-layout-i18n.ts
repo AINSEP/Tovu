@@ -1,4 +1,4 @@
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 
 /**
  * @file Strings added by the 2026-10-09 AI Assistant layout redesign (status pill, numbered visitor

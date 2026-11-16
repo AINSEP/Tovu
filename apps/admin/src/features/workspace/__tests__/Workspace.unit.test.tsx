@@ -5,9 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Workspace } from "../Workspace";
 import type { WorkspaceController } from "../hooks/use-workspace.hooks";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import type { AdminWorkspace } from "@/lib/api";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file `Workspace` — the `/admin/workspace` screen, driven through the `useWorkspaceHook`
  * dependency-injection seam. `features/workspace` was 0% covered with no test file at all before

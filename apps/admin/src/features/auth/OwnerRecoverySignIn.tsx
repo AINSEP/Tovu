@@ -1,9 +1,10 @@
 import { useOwnerRecoverySignIn } from './OwnerRecoverySignIn.hooks';
-import { ErrorNotice, type Translate } from '@jini-ai/ui/panel-kit';
+import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/agentic';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
 import { ownerRecoveryPort, type OwnerRecoveryPort } from '../../lib/owner-recovery-api';
 
+import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = text => text;
 
 /** Sign-in adapter for a lost owner password; code scope is selected only by the server.

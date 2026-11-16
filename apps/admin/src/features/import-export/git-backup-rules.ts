@@ -1,7 +1,8 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AdminSourceControlCredentialSummary } from "@/lib/api";
 import type { GitBackupPlan, GitBackupPlanInput, GitBackupPushResult, GitBackupRefusal } from "./hooks/git-backup-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure decisions for the Git backup card: which connections it can use, what the form sends,
  * and the plain line a refusal shows.

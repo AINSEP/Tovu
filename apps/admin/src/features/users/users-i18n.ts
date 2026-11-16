@@ -1,14 +1,13 @@
 import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
+import { createDictionaryTranslator, interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Users screen (`Users.tsx`) — this feature's own dictionary,
  * not the shared `lib/admin-nav-i18n.ts` one, so parallel translation passes over other admin
  * sections can't collide on the same file. Same two-step fallback every other `t()` in this app
  * uses: translated value, else the English source string itself.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
 const USERS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {

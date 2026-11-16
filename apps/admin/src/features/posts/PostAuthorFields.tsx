@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Byline controls; the editor hook owns state, dirty tracking and persistence. */
 export function PostAuthorFields({ author, setAuthor, showAuthor, setShowAuthor, t }: {
   author: string;

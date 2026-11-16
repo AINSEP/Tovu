@@ -1,13 +1,14 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
 import { ApiError, type AdminAgentPlugin } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** The server's own cap (`install.ts`'s `maxArchiveBytes`), checked here first so an oversized file
  *  is refused before any bytes are hashed or sent. */
 export const AGENT_PLUGIN_ZIP_MAX_BYTES = 32 * 1024 * 1024;

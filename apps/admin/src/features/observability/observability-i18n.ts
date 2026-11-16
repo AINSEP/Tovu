@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Observability page (`/admin/observability`). Same shape as
  * `security/security-i18n.ts`: a flat `DICT[locale][englishKey] = translation` map, `t =

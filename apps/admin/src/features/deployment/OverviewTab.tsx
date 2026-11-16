@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,
@@ -17,6 +17,7 @@ import {
 import { CapabilityList, FullSiteIcon, StaticSiteIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Overview tab — the screen's actual "which path" moment, above how THIS instance happens to
  * be running right now. Every diagnostic value here is either `AdminDeploymentOverview` (read live

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { describeApiError } from "@/lib/api";
 import type { CredentialWarning, ShareDownloadRefusal, SiteShare, SiteTransferPort } from "./site-transfer-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Export credential warnings (owner, 2026-11-03: "just a warning for the user, and then
  * click that I understand there may be some content that has credentials. It shouldn't be left

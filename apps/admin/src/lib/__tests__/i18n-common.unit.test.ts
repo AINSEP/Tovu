@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COMMON_I18N } from "../i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * One parity test for the shared dictionary, regardless of how many locales it grows to —
  * per-locale test cases must NOT be added here as new languages ship (see the language-expansion

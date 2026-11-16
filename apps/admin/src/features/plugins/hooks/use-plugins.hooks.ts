@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AdminPlugin } from "@/lib/api";
 import { describeApiError, PLUGINS_RESOURCE } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
@@ -13,6 +13,7 @@ import { usePluginInstall, type PluginInstallController } from "./use-plugin-ins
 import { defaultPluginInstallPort } from "./plugin-install-dependencies.hooks";
 import type { PluginInstallPort } from "./plugin-install-port.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Plugins list does, so `Plugins.tsx` is only markup.
  *

@@ -15,8 +15,8 @@ import {
 } from "../recent-errors-rules";
 import { defaultRecentServerErrorsPort } from "./recent-server-errors-dependencies.hooks";
 import type { RecentServerErrorsPort } from "./recent-server-errors-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Observability screen's Recent errors tab (gap A-04, slice L2): the newest
  * error lines from `GET .../system/server-logs?level=error` — the same `readServerLogs` the

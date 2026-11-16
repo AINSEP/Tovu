@@ -1,8 +1,8 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import type { OtherCredentialStoreInfo } from "./rules";
 
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /** Feature-specific Security copy. Shared chrome such as Save and Cancel falls back to COMMON_I18N. */
 const SECURITY_DICT: Record<string, Record<string, string>> = {
   en: {
@@ -683,7 +683,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "Yönetici AI Asistanı anahtarı (BYOK)",
     "Media provider keys": "Medya sağlayıcı anahtarları",
 
-
     "AI Assistant": "AI Asistanı",
     "Settings · AI agent": "Ayarlar · Yapay zekâ ajanı",
     "Media · External Providers": "Medya · Harici Sağlayıcılar",
@@ -795,7 +794,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Ключ модели ассистента сайта",
     "Admin AI Assistant key (BYOK)": "Ключ AI-ассистента администратора (BYOK)",
     "Media provider keys": "Ключи провайдеров медиа",
-
 
     "AI Assistant": "AI-ассистент",
     "Settings · AI agent": "Настройки · ИИ-агент",
@@ -909,7 +907,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "Ключ AI-асистента адміністратора (BYOK)",
     "Media provider keys": "Ключі провайдерів медіа",
 
-
     "AI Assistant": "AI-асистент",
     "Settings · AI agent": "Налаштування · ШІ-агент",
     "Media · External Providers": "Медіа · Зовнішні провайдери",
@@ -1021,7 +1018,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "Kunci model asisten situs",
     "Admin AI Assistant key (BYOK)": "Kunci AI Assistant admin (BYOK)",
     "Media provider keys": "Kunci penyedia media",
-
 
     "AI Assistant": "Asisten AI",
     "Settings · AI agent": "Pengaturan · Agen AI",
@@ -1135,7 +1131,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "مفتاح مساعد الذكاء الاصطناعي للمسؤول (BYOK)",
     "Media provider keys": "مفاتيح مزوّدي الوسائط",
 
-
     "AI Assistant": "مساعد الذكاء الاصطناعي",
     "Settings · AI agent": "الإعدادات · وكيل الذكاء الاصطناعي",
     "Media · External Providers": "الوسائط · المزودون الخارجيون",
@@ -1247,7 +1242,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "کلید مدل دستیار سایت",
     "Admin AI Assistant key (BYOK)": "کلید دستیار هوش مصنوعی مدیر (BYOK)",
     "Media provider keys": "کلیدهای ارائه‌دهندگان رسانه",
-
 
     "AI Assistant": "دستیار هوش مصنوعی",
     "Settings · AI agent": "تنظیمات · عامل هوش مصنوعی",
@@ -1361,7 +1355,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "एडमिन AI असिस्टेंट कुंजी (BYOK)",
     "Media provider keys": "मीडिया प्रदाता कुंजियां",
 
-
     "AI Assistant": "AI असिस्टेंट",
     "Settings · AI agent": "सेटिंग्स · AI एजेंट",
     "Media · External Providers": "मीडिया · बाहरी प्रदाता",
@@ -1473,7 +1466,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "সাইট অ্যাসিস্ট্যান্ট মডেল কী",
     "Admin AI Assistant key (BYOK)": "অ্যাডমিন AI অ্যাসিস্ট্যান্ট কী (BYOK)",
     "Media provider keys": "মিডিয়া প্রদানকারী কী",
-
 
     "AI Assistant": "AI অ্যাসিস্ট্যান্ট",
     "Settings · AI agent": "সেটিংস · AI এজেন্ট",
@@ -1587,7 +1579,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "ایڈمن AI اسسٹنٹ کلید (BYOK)",
     "Media provider keys": "میڈیا فراہم کنندہ کلیدیں",
 
-
     "AI Assistant": "AI اسسٹنٹ",
     "Settings · AI agent": "ترتیبات · AI ایجنٹ",
     "Media · External Providers": "میڈیا · بیرونی فراہم کنندگان",
@@ -1699,7 +1690,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "サイトアシスタントモデルキー",
     "Admin AI Assistant key (BYOK)": "管理者AIアシスタントキー（BYOK）",
     "Media provider keys": "メディアプロバイダーキー",
-
 
     "AI Assistant": "AIアシスタント",
     "Settings · AI agent": "設定 · AI エージェント",
@@ -1813,7 +1803,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "관리자 AI 어시스턴트 키(BYOK)",
     "Media provider keys": "미디어 공급자 키",
 
-
     "AI Assistant": "AI 어시스턴트",
     "Settings · AI agent": "설정 · AI 에이전트",
     "Media · External Providers": "미디어 · 외부 공급자",
@@ -1925,7 +1914,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "คีย์โมเดลผู้ช่วยไซต์",
     "Admin AI Assistant key (BYOK)": "คีย์ผู้ช่วย AI ของผู้ดูแลระบบ (BYOK)",
     "Media provider keys": "คีย์ผู้ให้บริการสื่อ",
-
 
     "AI Assistant": "ผู้ช่วย AI",
     "Settings · AI agent": "การตั้งค่า · เอเจนต์ AI",
@@ -2039,7 +2027,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Admin AI Assistant key (BYOK)": "管理员 AI 助手密钥（BYOK）",
     "Media provider keys": "媒体提供商密钥",
 
-
     "AI Assistant": "AI 助手",
     "Settings · AI agent": "设置 · AI 智能体",
     "Media · External Providers": "媒体 · 外部服务商",
@@ -2151,7 +2138,6 @@ const SECURITY_DICT: Record<string, Record<string, string>> = {
     "Site assistant model key": "網站助理模型金鑰",
     "Admin AI Assistant key (BYOK)": "管理員 AI 助理金鑰（BYOK）",
     "Media provider keys": "媒體供應商金鑰",
-
 
     "AI Assistant": "AI 助理",
     "Settings · AI agent": "設定 · AI 代理",

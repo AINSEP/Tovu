@@ -1,11 +1,12 @@
 import { useState } from "react";
 
 import type { AdminAgentPlugin } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { agentPluginDisplayName } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 import { useAgentPluginInstall } from "./use-agent-plugin-install.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * One operator-installed row's Update state: whether its upload panel is open, and the same bounded
  * upload controller the Add tab uses, bound to `AGENT_PLUGIN_UPDATE_ZIP` with the revision the row

@@ -2,10 +2,11 @@ import { describeApiError, type AdminDeploymentOverview } from "@/lib/api";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, deploymentOverviewLoadErrorMessage } from "../deployment-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultDeploymentOverviewPort } from "./deployment-overview-dependencies.hooks";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Overview tab does, so `OverviewTab.tsx` is only markup.
  *

@@ -1,8 +1,8 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import type { GitBackupController } from "./hooks/use-git-backup.hooks";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file The Import & Export panel's Git backup card: commit this site to a private repository with
  * a saved Source Control connection. Markup only; every effect is in `use-git-backup.hooks.ts`, and

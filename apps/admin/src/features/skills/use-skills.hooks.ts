@@ -4,9 +4,10 @@ import { enableSkill, listSkills, removeSkill, SKILLS_CHANGED_EVENT, type Instal
 import { useSkillInstall } from "./use-skill-install.hooks";
 import { useSkillConfirmation } from "./use-skill-confirmation.hooks";
 import { useSkillsTabs } from "./use-skills-tabs.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { skillFailure } from "./skill-failure";
 
+import { type Translate } from '@jini-ai/core/text';
 export const SKILL_FILE_ACCEPT = ".zip,.md,.txt,.json,.yaml,.yml,.csv,.svg,.sh,.py,.js,.ts,.mjs,.png,.jpg,.jpeg,.webp";
 
 export interface SkillRowView {

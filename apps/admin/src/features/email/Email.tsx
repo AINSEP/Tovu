@@ -1,6 +1,6 @@
 import { createEmailTabLabel } from "./Email.hooks";
 import { agentHandle } from "@jini-ai/agentic";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import "@jini-ai/ui/settings-dialog.css";
 import type { ReactNode } from "react";
@@ -21,6 +21,7 @@ import { useWiredEmailOverview, type EmailOverviewController } from "./hooks/use
 import { useWiredEmailProvider, type EmailProviderController } from "./hooks/use-email-provider.hooks";
 import { useWiredEmailSender, type EmailSenderController } from "./hooks/use-email-sender.hooks";
 import { useWiredEmailTemplates, type EmailTemplatesController } from "./hooks/use-email-templates.hooks";
+import { resolveActiveTabId } from '@jini-ai/core/text';
 // The segmented pill's look (`.jini-chat-settings-segmented`) lives with the chat dock's styles.
 import "../../styles/assistant.css";
 import "./email.css";

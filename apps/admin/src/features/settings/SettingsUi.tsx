@@ -133,7 +133,7 @@ import { describeSaveStatus, resolveByokConfig } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { useSettingsActiveTabScroll } from "./hooks/use-settings-active-tab-scroll.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
@@ -145,6 +145,7 @@ import { UserInterfaceSettingsPanel } from "./UserInterfaceSettingsPanel";
 import { memoryPanelDictionaries } from "./settings-memory-i18n";
 import { BrowserAgentSettingsPanel } from "../webmcp/BrowserAgentSettingsPanel";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Shared 16px icon frame, so a tab's glyph can be written as bare path data. */
 function TabIcon({ children }: { children: React.ReactNode }) {
   return (
@@ -153,8 +154,6 @@ function TabIcon({ children }: { children: React.ReactNode }) {
     </svg>
   );
 }
-
-
 
 /** Stable empty lists for the inert-wrapped `MemorySettingsPanel` mount below
  *  — Tovu's assistant doesn't extract or persist standing facts yet, so an

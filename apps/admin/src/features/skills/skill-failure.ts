@@ -1,8 +1,9 @@
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ApiError, describeApiError } from "../../lib/api";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Format Skills failures at the admin disclosure boundary, preserving the server incident ID.
  * @param input Original failure, operation fallback and the current feature translator.
  * @returns Redacted, bounded details; no transport or clipboard effects.

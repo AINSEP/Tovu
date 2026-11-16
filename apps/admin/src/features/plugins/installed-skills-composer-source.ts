@@ -1,7 +1,8 @@
 import { ApiError, authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
+
 import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
 
+import { isAbortError } from '@jini-ai/core/text';
 /** Installed standalone skills use a conditional snapshot scoped to this source's lifetime.
  * Selection pins guidance behind a removable composer chip; dispatch adds it to the run prompt. */
 

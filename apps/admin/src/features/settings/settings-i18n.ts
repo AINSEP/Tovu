@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /** Settings-shell copy that belongs to Tovu rather than the upstream dialog package. */
 const SETTINGS_DICT: Record<string, Record<string, string>> = {
   es: { "Loading appearance…": "Cargando apariencia…", "Loading settings…": "Cargando configuración…", "Could not load saved settings (": "No se pudo cargar la configuración guardada (", "). Showing defaults — edits will still save.": "). Se muestran los valores predeterminados; las ediciones se seguirán guardando.", "Skills": "Habilidades", "Info": "Información", "Saved": "Guardado", "Saving…": "Guardando…" },

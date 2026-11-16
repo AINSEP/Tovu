@@ -2,11 +2,12 @@ import { useId } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { MediaPickerDialog } from "@/components/MediaPickerDialog/MediaPickerDialog";
 import { useWiredPostFeaturedImage } from "./hooks/use-post-featured-image.hooks";
 import { showsCoverImageSlot, showsHideCoverInBodyToggle } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The cover image above the post's title node (owner, 2026-10-10: "an image in the tiptap above
  * the title"). Editor chrome, not a TipTap node: it sits in the editor shell just above

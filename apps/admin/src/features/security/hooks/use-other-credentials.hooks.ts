@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSerialWrites, type Translate } from "@jini-ai/ui/panel-kit";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import {
   OTHER_CREDENTIAL_STORES,
@@ -20,6 +20,7 @@ import {
 import { defaultOtherCredentialsPort } from "./other-credentials-dependencies.hooks";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Security page's Tier-2 controller — reads all four single-row/per-item credential stores
  * (`rules.ts`'s `OTHER_CREDENTIAL_STORES`) and exposes Replace/Remove for the three that support it

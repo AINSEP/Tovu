@@ -6,8 +6,8 @@ import { describeApiError } from "@/lib/api";
 import { t as translate } from "../plugins-memory-i18n";
 import { defaultAgentPluginMemoryPort } from "./agent-plugin-memory-dependencies.hooks";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 type MemoryStatus = { pluginId: string; message: string } | null;
 
 function memoryStatusMessage({ pluginId, status, error, listing, t }: {

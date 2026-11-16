@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, describeApiError, type AdminDockerfileSource } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
+import { useDirtyGuard } from "@jini-ai/ui/panel-kit";
 import { t as defaultT, dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "../deployment-i18n";
 import { defaultDockerfileSourcePort } from "./dockerfile-source-dependencies.hooks";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Dockerfile tab does — load, edit, save, and the copy-to-clipboard
  * interaction — so `DockerfileTab.tsx` is only markup.

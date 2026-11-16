@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { getImportHandoffPort, type ImportHandoffPort } from "../import-handoff-port";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file "From a live website" inside the desktop app (owner, 2026-11-10): the admin there can't
  * make a site, so it hands off to the app's own Import tab, which does, with the typed address.

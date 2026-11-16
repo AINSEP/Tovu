@@ -8,7 +8,7 @@ import {
   hasTypedAdminKey,
   readLegacyLocalCredential,
 } from "../lib/execution-settings";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
 import {
   STORED_KEY_OTHER_PROVIDER_COPY,
@@ -21,6 +21,7 @@ import type { AdminExecutionCredentialPort } from "./admin-execution-credential-
 import { storedCredentialHint } from "../lib/credential-copy";
 import { useAdminLocale } from "./use-admin-locale.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Host adapter for the shared write-only credential controller; footer/error copy remains product-owned. */
 
 export type AdminByokSaveState = ExecutionCredentialSaveState;

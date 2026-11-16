@@ -1,8 +1,8 @@
 import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 
 import { useAgentPluginDisableConfirm } from "./hooks/use-agent-plugin-disable-confirm.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Confirmation gate in front of the SAME underlying operation from two different controls.
  * There is no admin uninstall route — the only two agent-plugins routes are `GET .../agent-plugins`

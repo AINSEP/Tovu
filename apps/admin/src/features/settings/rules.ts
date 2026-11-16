@@ -4,8 +4,8 @@ import { ACCENT_SWATCH_PRESETS } from "@jini-ai/ui/core";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = (key) => key;
 
 /**

@@ -1,8 +1,8 @@
 import { ConfirmActionDialog } from "../../components/ConfirmActionDialog";
 
 import { usePluginRemoveConfirm } from "./hooks/use-plugin-remove-confirm.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /** @file Confirmation gate before a site plugin moves to the 60-day Trash. */
 
 export interface PluginRemoveConfirmDialogProps {

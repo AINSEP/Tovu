@@ -1,9 +1,10 @@
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { agentHandle } from "@jini-ai/agentic";
 import { isWorkspaceDirty } from "./rules";
 import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
 import { t } from "./workspace-i18n";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file "Workspace" admin screen (SPEC-044) — the `/admin/workspace` route — markup only.
  *

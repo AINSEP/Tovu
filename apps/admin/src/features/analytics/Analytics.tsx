@@ -1,8 +1,9 @@
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { DataTable } from "@jini-ai/admin/react";
 import { adminHref } from "@/lib/router";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only) — markup only.
  *

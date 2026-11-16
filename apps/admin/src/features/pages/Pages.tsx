@@ -6,9 +6,9 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { siteUrl } from "../../lib/site-url";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { ServerLabel } from "@/components/status-labels";
@@ -23,6 +23,7 @@ import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
 import { resolvePagesTabFromUrl, type PagesTabId } from "./hooks/pages-tab-url.hooks";
 import { ThemePagesTab } from "./ThemePagesTab";
 
+import { type Translate, formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file The Pages list screen — markup only.
  *

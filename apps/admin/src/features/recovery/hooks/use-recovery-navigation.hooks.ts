@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import type { AdminRestorePoint } from "@/lib/api";
 import { navigate } from "@/lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const RECOVERY_TAB_IDS = ["restore-points", "restore"] as const;
 
 export interface RecoveryNavigationPort {

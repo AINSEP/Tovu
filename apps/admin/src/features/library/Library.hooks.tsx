@@ -2,17 +2,16 @@ import { LINE_ICON } from "../../components/line-icon";
 import type { KeyboardEvent } from "react";
 import type { LibraryController } from "./hooks/use-library.hooks";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Library screen's two `?tab=` tabs (Upload, Documents) on the shared
  * `@jini-ai/ui/tab-strip` — same convention as `Roles.hooks.tsx` / `Sites`. Upload is first and
  * the landing tab, in the owner's order (2026-10-18); after an upload the tab offers
  * "View in Documents".
  */
-
-
 
 export function UploadIcon({ size = 16 }: { size?: number }) {
   return (

@@ -15,7 +15,7 @@ import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/de
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { withPromotedDefault } from "../../deployment/rules";
 import {
   t as defaultT,
@@ -60,6 +60,7 @@ import {
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "unknown error";
 
 /**

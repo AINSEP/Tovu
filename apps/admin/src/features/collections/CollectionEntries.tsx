@@ -1,4 +1,4 @@
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "@jini-ai/agentic";
@@ -6,6 +6,7 @@ import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks"
 import { ServerLabel } from "@/components/status-labels";
 import { PublishSectionButton } from "../publish-content/PublishSectionButton";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file Collections' entries list (design-spec.md §1.4) — the `/admin/collections/{typeKey}` route.
  * Same `.list-table` shape as `FormsList.tsx`/`Posts.tsx`.

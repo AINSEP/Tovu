@@ -6,10 +6,11 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage } from "../deployment-i18n";
 import { DEPLOYMENT_EXPORT_RESOURCE } from "../rules";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultStaticExportPort } from "./static-export-dependencies.hooks";
 import type { StaticExportPort } from "./static-export-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Static Site tab's "Build static export" action does, so `StaticSiteTab.tsx`
  * is only markup. Wired 2026-08-15 against `POST`/`GET .../system/export`

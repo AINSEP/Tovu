@@ -3,14 +3,13 @@ import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { NO_SWITCH_TARGET_KEY, SERVING_CHAT_WARNING_KEY, siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
 import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 
+import { type Translate, resolveActiveTabId, interpolate } from '@jini-ai/core/text';
 /**
  * @file `Sites.tsx`'s own derived-value logic, split out per the `<Name>.tsx`/`<Name>.hooks.tsx`
  * pattern `TabBar.tsx`/`TabBar.hooks.tsx` establishes (admin TSX-logic-sweep, 2026-09-05) — this

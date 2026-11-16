@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { interpolate, useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { THEMES_RESOURCE, themeCopyName, themeNamesById } from "../rules";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translateThemes } from "../themes-i18n";
@@ -11,6 +11,7 @@ import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
 import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Themes screen does, so `Themes.tsx` is only markup.
  *

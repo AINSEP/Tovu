@@ -1,5 +1,6 @@
 import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Dashboard.tsx` — the admin landing screen's own chrome (header,
  * stat card labels, activity/appearance panels). `t()` falls back to `COMMON_I18N` via
@@ -11,7 +12,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * 2026-09-22, caught it); the three functions now take a `Translate` and interpolate `{count}` the
  * same way `pages/rules.ts`'s column-sort labels do.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const DASHBOARD_DICT: Record<string, Record<string, string>> = {
   es: {

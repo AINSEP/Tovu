@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the SEO & Metadata screen (`/admin/seo`) — the site-wide defaults
  * form, the sitemap action, and the per-entry override panel + analyzer.
@@ -11,8 +12,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * `@jini-ai/agentic`'s own source, they compile to `data-agent-label`, internal agent-tooling
  * metadata explicitly documented as "Never live text," not user-visible or screen-reader content.
  */
-
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** The sitemap link text is a file name, so every locale shows it unchanged. */
 const SITEMAP_LINK = "sitemap.xml ↗";

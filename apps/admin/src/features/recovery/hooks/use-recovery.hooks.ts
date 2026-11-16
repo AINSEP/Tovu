@@ -7,12 +7,13 @@ import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } fr
 import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "@/lib/router";
 import { t } from "../recovery-i18n";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
 import type { RecoveryPort } from "./recovery-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Recovery SCREEN (the restore-points list + status/banner) does, so
  * `Recovery.tsx`'s exported `Recovery` component is only markup.

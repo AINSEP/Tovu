@@ -2,7 +2,7 @@ import { navigateDeploymentTab } from "./Deployment.hooks";
 import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./deployment-i18n";
 import { OverviewTab } from "./OverviewTab";
@@ -11,6 +11,7 @@ import { DockerfileTab } from "./DockerfileTab";
 import { HistoryTab } from "./HistoryTab";
 import { HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deployment-visuals";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Deployment panel (`/admin/deployment`) — four tabs: Overview, Static Site,
  * Dockerfile, History. Replaces the earlier `PlaceholderTabs` stub (Home/GitHub/AWS), which was
@@ -103,7 +104,6 @@ export function Deployment(props: DeploymentProps) {
       handleLabel: "Switch to the History tab — past builds and deploys",
     },
   ];
-
 
   return (
     <div className="page">

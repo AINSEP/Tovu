@@ -1,7 +1,7 @@
 import { AgentPluginMemoryPanel } from "./AgentPluginMemoryPanel";
 import { AgentPluginMaturity } from "./AgentPluginMaturity";
 import { useWiredAgentPluginMemory } from "./hooks/use-agent-plugin-memory.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { InspectedAgentPlugin } from "./hooks/use-agent-plugins.hooks";
 import { PackageFilesModal } from "./PackageFilesModal";
 import { AgentPluginSurfaceFrame } from "./AgentPluginSurfaceFrame";
@@ -14,6 +14,7 @@ import {
   type AgentPluginDetailsModalController,
 } from "./hooks/use-agent-plugin-details-modal.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export interface AgentPluginDetailsModalProps {
   readonly plugin: InspectedAgentPlugin;
   /** `AgentPlugins`' bound translator — the modal's title copy. */

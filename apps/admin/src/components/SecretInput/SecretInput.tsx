@@ -1,9 +1,10 @@
 import { forwardRef } from "react";
 import { SecretInput as JiniSecretInput } from "@jini-ai/ui";
 import type { SecretInputProps as JiniSecretInputProps } from "@jini-ai/ui";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { t } from "../shared-components-i18n";
 
+import { interpolate } from '@jini-ai/core/text';
 /**
  * @file The admin's one masked-input primitive: Jini's `SecretInput` (a password/token/key `<input>`
  * with an eye toggle inside its right edge), named in the admin locale. Drop-in for

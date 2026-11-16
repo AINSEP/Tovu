@@ -1,6 +1,6 @@
 import { useExternalMcpSharedChoice, type SharedView } from './ExternalMcpSharedChoice.hooks';
-import { interpolate, type Translate } from '@jini-ai/ui/panel-kit';
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /** Owner choices are loaded only when opened. Existing local sign-ins keep their original action. */
 export function ExternalMcpSharedChoice({ serverId, busy, signIn, onChanged, t }: {
   serverId: string; busy: boolean; signIn: () => void; onChanged: () => void; t: Translate;

@@ -1,8 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useT } from "@jini-ai/ui";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
-
 import { SeeMore } from "@jini-ai/ui/admin-widgets";
 
 import { useExternalMcpDriftCopy } from "./ExternalMcpSettingsPanel.hooks";
@@ -19,6 +17,7 @@ import {
 import { displayToolDescription, isToolRowLocked, toolPickerFooterLocks, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 import { useWiredExternalMcpToolPicker } from "./hooks/use-external-mcp-tool-picker.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The write-tool picker — Phase 4 of
  * `ADS-memory/reports/pipeline/external-mcp-write-tools/implementation-outline.md`, named there and

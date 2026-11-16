@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { api, ApiError } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translateThemes } from "../themes-i18n";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 import type { ThemeExplorePort } from "../hooks/theme-explore-port.hooks";
@@ -33,6 +33,7 @@ import {
 import { THEME_FILES_RESOURCE } from "../rules";
 import { publishThemePreviewRefresh, resetThemePreviewRefresh } from "../theme-preview-refresh";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `useThemeExplore` driven against the injected `ThemeExplorePort`, no `fetch` stub and no
  * `api` spy. `ThemeExplore.unit.test.tsx` covers the component's own rendering entirely through a
@@ -4301,7 +4302,6 @@ describe("useThemeExplore — save as original (owner 2026-10-08)", () => {
     expect(result.current.error).toBe("network down");
   });
 });
-
 
 describe("useThemeExplore — external file list changes (todos 323)", () => {
   const INDEX = "pages/index.html";

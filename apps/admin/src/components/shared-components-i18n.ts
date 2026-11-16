@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Dictionary for the reusable `components/` layer's own static copy — `Select`,
  * `WidgetPickerDialog`/`WidgetAddControl`, `WidgetConfigFields`, `MediaPickerDialog`, and

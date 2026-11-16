@@ -1,13 +1,14 @@
 /** Host bindings for Jini's workspace-scoped widgets API and existing refresh/router owners. */
 import { createHttpWidgetsApi, type WidgetsTransportPort } from '@jini-ai/admin/widgets/adapters/http';
 import type { AdminWidgetsPort, WidgetsEventsPort, WidgetsNavigationPort, WidgetsTranslate } from '@jini-ai/admin/widgets';
-import { interpolate } from '@jini-ai/ui/panel-kit';
+
 import { WORKSPACE_ID } from '../../lib/api';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { navigate } from '../../lib/router';
 import { t as translateWidgets } from '../../features/widgets/widgets-i18n';
 import { mediaTransport } from './media-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface WidgetsHostPorts {
   widgetsApi: AdminWidgetsPort;
   widgetsEvents?: WidgetsEventsPort;

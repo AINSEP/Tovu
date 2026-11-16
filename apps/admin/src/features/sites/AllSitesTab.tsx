@@ -1,11 +1,11 @@
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController } from "@jini-ai/ui/site-card";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
 import {
   buildSiteCardMenuItems,
@@ -24,6 +24,7 @@ import {
 import { SiteFlagIcon, StarIcon } from "./sites-visuals";
 import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The "All sites" tab — the card grid of every site folder listed under `sites/`, and the
  * empty state for when there are none.

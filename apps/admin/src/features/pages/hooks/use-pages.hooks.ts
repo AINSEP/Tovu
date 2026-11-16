@@ -5,12 +5,13 @@ import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { type Translate } from "@jini-ai/ui/panel-kit";
+
 import { t as translate } from "../pages-i18n";
 import { buildPageRowMenuHandleMap, pageAdminPath, PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Pages LIST does, so `Pages.tsx` is only markup.
  *

@@ -14,8 +14,6 @@ import {
 import { agentHandle } from "@jini-ai/agentic";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
-
 import { ExternalMcpAdmissionsBanner } from "./ExternalMcpAdmissionsBanner";
 import { ExternalMcpRemoveConfirmDialog } from "./ExternalMcpRemoveConfirmDialog";
 import { ExternalMcpToolsModal } from "./ExternalMcpToolsModal";
@@ -31,6 +29,7 @@ import { useWiredExternalMcpAdmissions } from "./hooks/use-external-mcp-admissio
 import { useExternalMcpOAuthConnect } from "./hooks/use-external-mcp-oauth-connect.hooks";
 import { isBuiltInExternalMcpSource, buildExternalMcpFieldSpecs, EXTERNAL_MCP_ADD_FORM_HANDLE, externalMcpNeedsSignIn, resolveExternalMcpEffectiveAuthMode } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
  * that feature's `useSourceConfigList().test`/`.isPending`/`.testResults` key a "test before save"

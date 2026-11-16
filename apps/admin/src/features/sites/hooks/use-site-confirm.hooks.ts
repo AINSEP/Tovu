@@ -1,9 +1,10 @@
 /** Promise-shaped confirmation for `useLocalSites`, rendered by the shared `ConfirmDialog`. */
 import { useCallback, useRef, useState } from "react";
 import type { ConfirmTone } from "@jini-ai/admin/react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { LOCAL_SITE_CONFIRM_KEYS } from "./use-local-sites.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 export type ConfirmableSiteAction = keyof typeof LOCAL_SITE_CONFIRM_KEYS;
 
 /** Title, confirm label and tone per confirmable action; the body is the controller's own message. */

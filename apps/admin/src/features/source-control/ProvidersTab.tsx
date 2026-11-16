@@ -4,8 +4,7 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AdminSourceControlProviderId } from "../../lib/api";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
@@ -15,6 +14,7 @@ import type {
   SourceControlCredentialsController,
 } from "./hooks/use-source-control-credentials.hooks";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 /**
  * @file The Providers tab — `SourceControl.tsx`'s one tab today, and this feature's actual content.
  * Three always-visible rows — GitHub, GitLab, Bitbucket, in that order (GitHub is the one that

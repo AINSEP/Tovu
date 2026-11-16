@@ -5,7 +5,7 @@ import { useShareCredentialGate, type CredentialGate } from "./use-share-credent
 import { useCallback, useEffect, useRef, useState } from "react";
 import { copyToClipboard } from "@jini-ai/ui";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { API_UNREACHABLE_CODE, ApiError, describeApiError } from "@/lib/api";
 import { requestAssistantPrompt } from "@/lib/assistant-prompt-bus";
 import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
@@ -18,6 +18,7 @@ import {
   type SiteTransferPort,
 } from "./site-transfer-dependencies.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Sites screen's Export Site and Import Site tabs (owner, 2026-10-18). Every
  * effect goes through {@link SiteTransferPort}; the tabs themselves are markup only.

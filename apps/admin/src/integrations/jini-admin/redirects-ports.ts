@@ -2,13 +2,14 @@
 import { createHttpRedirectsApi, type RedirectsTransportPort } from '@jini-ai/admin/redirects/adapters/http';
 import { REDIRECTS_RESOURCE, type AdminRedirectsPort, type RedirectsEventsPort, type RedirectsTranslate } from '@jini-ai/admin/redirects';
 import { AdminApiError } from '@jini-ai/admin/core';
-import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
+import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { ApiError, WORKSPACE_ID } from '../../lib/api';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { serverLabel } from '../../components/status-labels';
 import { actionsForRedirectLabel, createdLabel, failedItemLabel, importResultSummary, t as translateRedirects } from '../../features/redirects/redirects-i18n';
 import { mediaTransport } from './media-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface RedirectsHostPorts {
   redirectsApi: AdminRedirectsPort;
   redirectsEvents?: RedirectsEventsPort;

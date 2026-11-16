@@ -1,8 +1,7 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry, createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for the Source Control page (`/admin/source-control`). Same shape as
  * `deployment/deployment-i18n.tsx`: a flat `DICT[locale][englishKey] = translation` map, `t =

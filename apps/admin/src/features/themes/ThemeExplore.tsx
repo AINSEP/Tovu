@@ -13,8 +13,7 @@ import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreview
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
+
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import {
   canResetThemeFile,
@@ -36,6 +35,7 @@ import { useThemeExploreFullscreen } from "./ThemeExplore.hooks";
 import { useWiredThemeExploreTheme } from "./hooks/use-theme-explore-theme.hooks";
 import { useThemeExploreFileGroups, type ThemeExploreFileGroupsController } from "./hooks/use-theme-explore-file-groups.hooks";
 
+import { type Translate, splitOnPlaceholders } from '@jini-ai/core/text';
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
  *

@@ -20,8 +20,8 @@ import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "@/lib/api";
 import { isUnexpectedServerFailure } from "@/lib/server-failure";
-import { type Translate, useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+import { useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
+
 import { MediaImage } from "@/lib/media-image-extension";
 import { Media } from "@/lib/media-embed-extension";
 import { WidgetEmbed } from "@/lib/widget-embed-extension";
@@ -110,6 +110,7 @@ type SaveStatusOverride = "draft" | "published" | undefined;
 export type { PostFormState } from './post-editor-state.rules';
 import type { PostFormState } from './post-editor-state.rules';
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
  *  of the post. Named for what an author sees, not the library underneath ("Tiptap" never appears
  *  in the UI) — mirrors `features/pages/hooks/use-page-editor.hooks.ts`'s `PageEditorView`, minus

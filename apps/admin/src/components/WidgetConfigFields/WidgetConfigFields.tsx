@@ -2,8 +2,7 @@ import { MediaContentEditor } from "./MediaContentEditor";
 import { agentHandle } from "@jini-ai/agentic";
 import { isUserCollection } from "../../features/collections/rules";
 import type { AdminContentType, AdminFormDefinition, AdminMenu, AdminWidgetType, ContentTypeFieldKind } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import {
   COLLECTION_DISPLAYABLE_FIELD_KINDS,
   humanizeFieldName,
@@ -14,6 +13,7 @@ import {
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 import { asciiSlug } from "../../lib/ascii-slug";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,
  * field sets read directly off `src/widgets/registry.ts`'s five `configSchema` records (no field

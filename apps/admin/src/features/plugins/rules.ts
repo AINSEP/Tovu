@@ -1,11 +1,12 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminAgentPlugin, type AdminPlugin, type AdminPluginConflict, type AdminPluginFiles, type AdminPluginPackageFile, type AdminPluginProviderSettingField } from "../../lib/api";
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { t } from "./plugins-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AgentPluginGlyphKind } from "./agent-plugins-visuals";
 import { buildPackageFileTree, firstPackageFilePath } from "./package-file-tree";
 import type { PluginInstallPreview } from "./hooks/plugin-install-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Resource names on the existing assistant content-refresh bus. Unknown scope refreshes both. */
 export const PLUGINS_RESOURCE = "plugins";
 export const AGENT_PLUGINS_RESOURCE = "agent-plugins";

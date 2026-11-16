@@ -2,12 +2,13 @@ import { agentHandle } from "@jini-ai/agentic";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useWiredMenuEditor, type MenuEditorController } from "./hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "./MenuEditor.hooks";
 import { MenuPageLinkFields } from "./MenuPageLinkFields";
 import type { MenuPageChoice } from "./page-link-rules";
 import { useMenuTargetEditor } from "./MenuPageLinkFields.hooks";
+import { type Translate } from '@jini-ai/core/text';
 export { targetForKind } from "./page-link-rules";
 
 /**

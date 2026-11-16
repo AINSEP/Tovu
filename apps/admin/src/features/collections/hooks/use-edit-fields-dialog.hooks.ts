@@ -17,8 +17,8 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../collections-i18n";
 import { defaultEditFieldsDialogPort } from "./edit-fields-dialog-dependencies.hooks";
 import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05 — post-creation
  * field-schema editing), so the dialog in `Collections.tsx` is only markup.

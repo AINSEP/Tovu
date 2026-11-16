@@ -8,8 +8,8 @@ import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { AdminAgentPlugin } from "@/lib/api";
 import { AGENT_PLUGIN_GLYPHS, ChevronIcon, EyeIcon, LockIcon, TrashIcon } from "./agent-plugins-visuals";
 import { agentPluginCompatibilityLines, agentPluginGlyphKind, agentPluginRemoveOrEnableAriaLabel, agentPluginToggleAriaLabel, agentPluginDisplayName } from "./rules";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file One installed Agent Plugin, as a ROW rather than a card (redesign, 2026-09-09).
  *

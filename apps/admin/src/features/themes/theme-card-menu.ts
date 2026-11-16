@@ -1,9 +1,10 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { PresentationSettings } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { isActiveTheme } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The theme card's ⋮ menu (owner 2026-10-10): which items it lists and when Delete is refused.
  * Pure — `Themes.tsx` renders the list with the admin's shared `RowMenu`, and a new card action is

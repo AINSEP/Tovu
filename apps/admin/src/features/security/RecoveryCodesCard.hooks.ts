@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import type { UserFacingError } from '@jini-ai/core';
-import type { Translate } from '@jini-ai/ui/panel-kit';
+
 import { ownerRecoveryFailure, type OwnerRecoveryPort } from '../../lib/owner-recovery-api';
 
+import { type Translate } from '@jini-ai/core/text';
 /** Issue a fresh recovery kit after password proof. */
 export function useRecoveryKit({ port, t }: { port: OwnerRecoveryPort; t: Translate }, _options = {}) {
   const [password, setPassword] = useState(''), [code, setCode] = useState(''), [codes, setCodes] = useState<string[]>([]);

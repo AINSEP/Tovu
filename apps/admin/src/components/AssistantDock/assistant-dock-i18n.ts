@@ -1,9 +1,10 @@
 import { SETTINGS_DIALOG_DICTIONARIES, type Locale } from "@jini-ai/ui";
 import { SECRET_REDACTED_NOTICE, CREDENTIAL_CARD_GUIDANCE } from "@jini-ai/chat/core";
 import type { I18nAdapter } from "@jini-ai/chat/react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+
 import { COMMON_I18N } from "../../lib/i18n-common";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for the assistant dock's OWN chrome — `AssistantDock.tsx`'s pane
  * header/placeholder, plus the mobile-sheet chrome and `ChatFab`'s "assistant" label that live in

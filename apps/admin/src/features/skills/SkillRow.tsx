@@ -2,8 +2,8 @@ import { PlainTextBlocks } from "@/components/PlainTextBlocks";
 import type { SkillRowView } from "./use-skills.hooks";
 import { SkillDocumentIcon, SkillChevronIcon } from "./skills-visuals";
 import { EyeIcon, TrashIcon } from "../plugins/agent-plugins-visuals";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Same summary, metadata, switch and action zones as AgentPluginRow. */
 export function SkillRow({ row, t = key => key }: { row: SkillRowView; t?: Translate }) {
   const { skill } = row;

@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish dictionary for `Posts.tsx` (list) and `PostEditor.tsx` (shared post/page editor
  * screen — see that file's header for why one editor serves both kinds).
@@ -22,7 +23,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * `Move` therefore supplies a contextual prefix rather than a stray leading verb before the
  * sentence's subject. The parity test still excludes this key because the prefixes were once empty.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 export const POSTS_DICT: Record<string, Record<string, string>> = {
   es: {

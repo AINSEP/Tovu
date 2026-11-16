@@ -20,7 +20,7 @@ import {
   publishPreviewErrorMessage,
   publishTriggerErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   buildStaticPublishConfig,
   publishTargetById,
@@ -33,6 +33,7 @@ import {
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 const UNKNOWN_ERROR = "The publish service returned no explanation. Check publish status before trying again, and report this message if the problem continues.";
 
 /**

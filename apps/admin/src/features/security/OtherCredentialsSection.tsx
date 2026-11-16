@@ -2,13 +2,13 @@ import { forwardRef, useRef, type RefObject } from "react";
 import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { OtherCredentialStoreInfo } from "./rules";
 import { otherCredentialRemoveDialogBody, removeDialogTitle } from "./security-i18n";
 import type { OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { rowHandleBase, useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 

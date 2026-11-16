@@ -1,9 +1,9 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Workspace admin screen (`/admin/workspace`) — the rename
  * form, the read-only id/created summary, and the disabled delete-workspace notice.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const WORKSPACE_DICT: Record<string, Record<string, string>> = {
   es: {

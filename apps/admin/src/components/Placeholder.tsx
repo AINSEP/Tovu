@@ -3,8 +3,8 @@ import { getNav, type AdminNavItem } from "../nav";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Fallback screen for a section with no dedicated component yet — reached either directly
  * (`App.tsx`'s `SECTIONS` map, e.g. `newsletter`) or via the legacy `/section/:id` route's

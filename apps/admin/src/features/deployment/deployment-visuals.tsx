@@ -1,8 +1,9 @@
 import { LINE_ICON } from "../../components/line-icon";
 import { Icon } from "@jini-ai/ui";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { DeploymentCapability } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Deployment panel's own small presentational pieces — four inline icons and the
  * capability list they sit above. No hooks, no fetch, no data of its own.
@@ -22,7 +23,6 @@ import type { DeploymentCapability } from "./rules";
  */
 
 // Line-icon attributes: components/line-icon.ts.
-
 
 /** Overview — a small dashboard grid, i.e. a summary of several facts at a glance. Added for the
  *  Deployment tab row's own icon set (owner request) — the four tabs beside it already had a glyph

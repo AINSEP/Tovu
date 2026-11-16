@@ -1,6 +1,7 @@
 import type { SkillsController } from "./use-skills.hooks";
-import { ErrorNotice, type Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Mirrors PluginRemoveConfirmDialog with Skills' existing copy and busy guard. */
 export function SkillRemoveConfirmDialog({ controller, t = key => key }: { controller: SkillsController; t?: Translate }) {
   return (

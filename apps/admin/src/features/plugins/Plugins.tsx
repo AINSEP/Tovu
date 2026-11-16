@@ -4,7 +4,7 @@ import type { AdminPlugin } from "@/lib/api";
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 import { PluginRow } from "./PluginRow";
 import { PluginPackageFilesModal } from "./PluginPackageFilesModal";
@@ -17,6 +17,7 @@ import { DownloadedTabIcon, InstalledTabIcon, MarketplaceTabIcon, PluginTrashIco
 import { pluginRemoveAriaLabel, pluginRemoveBlocker, pluginToggleAriaLabel, pluginToggleControl } from "./rules";
 import { useWiredPlugins, type PluginsController } from "./hooks/use-plugins.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file `Plugins` — the admin `.tovu-plugin` list screen (SPEC-005 REQ-12..18, ui.spec.md), rebuilt
  * from a single flat `DataTable` into the row-based, tabbed shape `AgentPlugins.tsx` (a sibling

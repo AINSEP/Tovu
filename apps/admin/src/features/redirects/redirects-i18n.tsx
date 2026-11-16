@@ -1,10 +1,10 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
+
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
+import { createDictionaryTranslator, interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Redirects screen (`/admin/redirects`) — the create form, the
  * bulk-import affordance, table headers, and the delete-confirm dialog.

@@ -11,8 +11,8 @@ import { ToolGapsPanel } from "./tool-gaps-panel";
 import { QueriesPanel } from "./queries-panel";
 import { useWiredQueriesTab } from "./hooks/use-queries-tab.hooks";
 import { useObservabilityTab } from "./hooks/use-observability-tab.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 const OTEL_DOCS_URL = "https://opentelemetry.io/docs/";
 
 /**

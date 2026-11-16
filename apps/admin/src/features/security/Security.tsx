@@ -7,7 +7,7 @@ import { RecoveryCodesCard } from "./RecoveryCodesCard";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
@@ -17,6 +17,7 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
 import { useWiredSecurityPermissions } from "./hooks/use-security-permissions.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 const ACCESS_TOKENS_TAB = "access-tokens";
 
 /**
@@ -161,7 +162,6 @@ export function Security(props: SecurityProps) {
         ]
       : []),
   ];
-
 
   return (
     <div className="page">

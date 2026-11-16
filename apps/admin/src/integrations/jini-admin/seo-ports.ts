@@ -1,13 +1,14 @@
 /** Host bindings for the canonical Jini SEO API; authentication stays with mediaTransport. */
 import { createHttpSeoApi, type SeoTransportPort, type SeoSitemapTransportPort } from '@jini-ai/admin/seo/adapters/http';
 import type { AdminSeoPort, SeoEventsPort, SeoTranslator, SeoErrorFormatter } from '@jini-ai/admin/seo';
-import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
+import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { WORKSPACE_ID, describeApiError } from '../../lib/api';
 import { siteUrl } from '../../lib/site-url';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { t as translateSeo } from '../../features/seo/seo-i18n';
 import { mediaTransport } from './media-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface SeoHostPorts {
   seoApi: AdminSeoPort;
   seoEvents?: SeoEventsPort;

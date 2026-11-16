@@ -1,10 +1,11 @@
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminDockerfileSource } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { dockerfileLineCountLabel } from "./deployment-i18n";
 import { LayersIcon } from "./deployment-visuals";
 import { useWiredDockerfileSource } from "./hooks/use-dockerfile-source.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Dockerfile tab — the repo-root `Dockerfile`'s contents, fetched from and now also written to
  * `.../system/dockerfile` (`apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts`).

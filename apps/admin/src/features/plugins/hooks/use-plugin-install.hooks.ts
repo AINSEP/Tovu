@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { ApiError } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } from "./plugin-install-port.hooks";
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
 import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
 
+import { type Translate } from '@jini-ai/core/text';
 const ZIP_MAX_BYTES = 32 * 1024 * 1024;
 const TOO_LARGE = "ZIP exceeds the upload or expanded package size limit.";
 

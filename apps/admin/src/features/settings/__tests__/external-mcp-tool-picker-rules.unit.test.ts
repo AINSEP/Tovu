@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { ApiError, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { t as tExternalMcp } from "../external-mcp-i18n";
 import {
@@ -20,6 +19,7 @@ import {
   type ToolPickerRow,
 } from "../external-mcp-tool-picker-rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Binds `external-mcp-i18n.ts`'s real dictionary to one locale, the same shape
  *  `useExternalMcpDriftCopy` hands the component at runtime — used below so the translation
  *  assertions exercise the actual shipped dictionary rather than a stand-in fake. */

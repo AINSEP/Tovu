@@ -3,8 +3,8 @@ import type { QueryKey } from "@jini-ai/core/fetch";
 import { useCallback, useRef, useState } from "react";
 
 import type { ContentTypeFieldKind } from "../../lib/api";
-import { isAbortError } from "@jini-ai/ui/panel-kit";
 
+import { isAbortError } from '@jini-ai/core/text';
 /**
  * @file `WidgetConfigFields.tsx`'s data-fetching state, split out per the `@jini-ai/admin`
  * `<Name>.tsx`/`<Name>.hooks.tsx` extraction pattern (`ConfirmDialog.tsx`/`ConfirmDialog.hooks.tsx`

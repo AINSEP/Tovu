@@ -1,8 +1,8 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import type { AdminPublishRunSnapshot } from "@/lib/api";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file A static publish run's terminal detail, shared by the Deployment Static Site tab and the
  * Sites Export tab's Publish list (one copy, so both read a settled run the same way).

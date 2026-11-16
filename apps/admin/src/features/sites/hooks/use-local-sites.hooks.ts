@@ -3,10 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@/lib/visible-interval";
 import { describeApiError, type AdminLocalSiteAction, type AdminSitesSnapshot } from "@/lib/api";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { KEYS, SERVING_CHAT_WARNING_KEY, siteWriteErrorKey } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 const nativeConfirm = ({ message }: { message: string }, _optional = {}) => window.confirm(message);
 export const LOCAL_SITE_CONFIRM_KEYS = {
   trash: "Move this site to Trash? You can restore it later.",

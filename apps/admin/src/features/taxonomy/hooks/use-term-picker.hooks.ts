@@ -5,10 +5,11 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 import { KEYS, TAXONOMY_MANAGE_PERMISSION, findTermByName, splitTermNames, termPickerSubject } from "../rules";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
 import type { TermPickerPort } from "./term-picker-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file `TermPicker`'s own state and async action — the Categories & Tags box the post, page and
  * collection-entry editors all mount (`TermPicker.tsx`). One content ref (`contentType` +

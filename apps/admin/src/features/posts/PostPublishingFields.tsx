@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The editor's "Publish at" control (2026-10-05) — props and JSX only. State lives in
  * `usePostEditor` (the value is saved with the post).

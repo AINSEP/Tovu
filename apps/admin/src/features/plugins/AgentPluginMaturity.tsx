@@ -1,7 +1,8 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AdminAgentPlugin } from "@/lib/api";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Why a "Soon" plugin is locked off (owner, 2026-11-10); shared by the tag and the disabled switch. */
 export const SOON_PLUGIN_TIP = "Not ready for production use yet. You can still view its files.";
 

@@ -6,7 +6,7 @@ import { resolveThemeLayout } from "@tovu/theme-layout";
 import { ApiError } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { useDirtyGuard, type DirtyGuard, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { useDirtyGuard, type DirtyGuard, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { homeFallbackPublishReason } from "../../pages/lib/theme-page-publish-state";
 import { THEME_FILES_RESOURCE } from "../rules";
 import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
@@ -24,6 +24,7 @@ import {
   writeThemeExploreSelectionToUrl,
 } from "./theme-explore-url.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
  * `use-themes.hooks.ts` / `Themes.tsx`.

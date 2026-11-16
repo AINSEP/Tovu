@@ -4,8 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { describeApiError, type AdminWidgetType } from "../../lib/api";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { interpolate } from "@jini-ai/ui/panel-kit";
+
 import { widgetTypeLabel } from "@jini-ai/admin/widgets";
 import { t as translateWidgets } from "../../features/widgets/widgets-i18n";
 import { t as sharedComponentsT } from "../shared-components-i18n";
@@ -14,6 +13,7 @@ import { defaultWidgetPickerPort } from "./widget-picker-dependencies.hooks";
 import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file `WidgetPickerDialog`'s and `WidgetAddControl`'s state — the existing-instances fetch, the
  * dialog's own form/selection/deferred-autofocus state, and the two-step type-choice flow —

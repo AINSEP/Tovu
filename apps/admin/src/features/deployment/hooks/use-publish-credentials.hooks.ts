@@ -20,7 +20,7 @@ import {
   publishCredentialSelectErrorMessage,
   publishCredentialVerifyErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,
@@ -32,6 +32,7 @@ import {
 import { defaultPublishCredentialsPort } from "./publish-credentials-dependencies.hooks";
 import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Static Site tab's credential-management section — one always-visible row per provider,
  * each with its own token input, save action, and connected/not-connected status. See

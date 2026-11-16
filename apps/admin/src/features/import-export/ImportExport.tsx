@@ -1,5 +1,5 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import { navigate } from "../../lib/router";
 import { SiteExportTab, SiteImportTab } from "../sites";
@@ -9,6 +9,7 @@ import { useImportExportTranslate, useSitesSectionAvailable, useSiteTransferTran
 import { useWiredGitBackup } from "./hooks/use-git-backup.hooks";
 import { GitBackupCard } from "./GitBackupCard";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Operations → Import & Export (`/admin/import-export`). Three tabs (owner, 2026-10-25,
  * option A): Export and Import render the Sites screen's own Export Site / Import Site tabs as they

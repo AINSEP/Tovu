@@ -1,9 +1,10 @@
 import { useId, type ReactNode } from "react";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import { SettingsDialogShell } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 import { useSitesConfig } from "./hooks/use-sites-config.hooks";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 type SitesSettings = ReturnType<typeof useSitesConfig>;
 
 /** Jini supplies settings dialog chrome; the hook owns loading, drafts, saving and remedies.

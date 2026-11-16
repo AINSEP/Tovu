@@ -1,7 +1,8 @@
 import type { PublishReportRow } from "@tovu/publish-content-ui";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { overwriteTooltipFor, reportRowNote, reportRowPillClass, type PublishContentConfirmView } from "./hooks/use-publish-content-confirm.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /** Render one report row in either the visible or up-to-date list. */
 export function PublishContentReportRow({ row, view, t }: { row: PublishReportRow; view: PublishContentConfirmView; t: Translate }) {
   const { showOverwriteColumn } = view;

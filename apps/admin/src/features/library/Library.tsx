@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { FileDropzone, Toast } from "@jini-ai/ui";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "@/lib/api";
 import { navigate } from "@/lib/router";
@@ -19,6 +19,7 @@ import {
   formatLibraryBytes,
 } from "./rules";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file The Library screen (`/admin/library`) — markup only; state lives in
  * `hooks/use-library.hooks.ts`. Private documents for this site that the assistant can read

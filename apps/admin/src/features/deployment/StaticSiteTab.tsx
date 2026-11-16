@@ -7,8 +7,8 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import { ErrorNotice, formatTimestamp } from "@jini-ai/ui/panel-kit";
-import { interpolate, splitOnPlaceholders } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
+
 import type {
   AdminExportRunSnapshot,
   AdminPublishExecutionMode,
@@ -16,7 +16,7 @@ import type {
   AdminStaticPublishPreview,
   AdminStaticPublishTargetId,
 } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { t } from "./deployment-i18n";
 import {
   STATIC_SITE_CAPABILITIES,
@@ -40,6 +40,7 @@ import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
 import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
 
+import { formatTimestamp, interpolate, splitOnPlaceholders, type Translate } from '@jini-ai/core/text';
 function PublishFailureNotice({ controller, t: translate }: { controller: StaticPublishController; t: Translate }) {
   if (controller.publishFailure) return <ErrorNotice failure={controller.publishFailure} t={translate} className="save-error" />;
   return controller.publishError ? <p className="save-error" role="alert">{controller.publishError}</p> : null;

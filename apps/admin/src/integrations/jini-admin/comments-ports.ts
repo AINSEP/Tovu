@@ -2,7 +2,7 @@
 import { createHttpCommentsApi, createHttpCommentsSession, type CommentsTransportPort } from '@jini-ai/admin/comments/adapters/http';
 import { COMMENTS_QUEUE_RESOURCE, type AdminCommentsPort, type CommentsEventsPort, type CommentsSessionPort, type CommentsTranslator } from '@jini-ai/admin/comments';
 import type { CommentQueueScope } from '@jini-ai/admin/comments/react';
-import { hasPermission, interpolate } from '@jini-ai/ui/panel-kit';
+import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateComments } from '../../features/comments/comments-i18n';
 import { translateAdminNavLabel } from '../../lib/admin-nav-i18n';
 import { serverLabel } from '../../components/status-labels';
@@ -10,6 +10,7 @@ import { WORKSPACE_ID } from '../../lib/api';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { mediaTransport } from './media-ports';
 
+import { interpolate } from '@jini-ai/core/text';
 export interface CommentsHostPorts {
   commentsApi: AdminCommentsPort;
   commentsSession: CommentsSessionPort;

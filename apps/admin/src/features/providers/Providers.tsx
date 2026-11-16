@@ -5,7 +5,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ComingSoonPanel } from "@jini-ai/ui/admin-widgets";
 import { ExternalMcpSettingsPanel } from "../settings/ExternalMcpSettingsPanel";
@@ -16,6 +16,7 @@ import { t as tIntegrations } from "../integrations/integrations-i18n";
 import { t } from "./providers-i18n";
 import { useProviders } from "./hooks/use-providers.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Integrations page (`/admin/addons/integrations`) — every outside connection this install has,
  * in both directions, in one place.
@@ -203,7 +204,6 @@ export function Providers(props: ProvidersProps) {
       handleLabel: "Switch to the Webhooks tab — outbound webhooks this site sends when its content changes (soon)",
     },
   ];
-
 
   return (
     <I18nProvider

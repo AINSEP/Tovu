@@ -4,11 +4,12 @@ import type { CredentialGate } from "./hooks/use-share-credential-gate.hooks";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { ErrorNotice, formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
+import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import { siteShareNotices, type SiteShare, type CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 /**
  * @file The "Export Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
  * Export tab from 2026-10-25): the primary action makes a

@@ -8,7 +8,7 @@ import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import type { QueryStatus } from "@jini-ai/core/fetch";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useSitesSnapshot } from "./use-sites-snapshot.hooks";
-import { useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { t as defaultT } from "../sites-i18n";
 import { KEYS, createdTokensNoteKey, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
@@ -16,6 +16,7 @@ import type { SitesPort } from "./sites-port.hooks";
 import { useCreateSitePluginTokens, type CreateSitePluginTokensController } from "./use-create-site-plugin-tokens.hooks";
 import { resolveCreatedAdminLogin, resolveShownStarterPassword } from "../Sites.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything the Sites screen does, so `Sites.tsx` is only markup.
  *

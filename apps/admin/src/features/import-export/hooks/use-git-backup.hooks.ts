@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { describeApiError } from "@/lib/api";
 import {
   EMPTY_GIT_BACKUP_FORM,
@@ -15,6 +15,7 @@ import {
 } from "../git-backup-rules";
 import { defaultGitBackupPort, type GitBackupPlan, type GitBackupPort, type GitBackupProgress, type GitBackupPushResult } from "./git-backup-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file State for the Import & Export panel's Git backup card: idle → planning → planned → pushing →
  * done, or refused with one plain line. Every effect goes through {@link GitBackupPort}; the card is

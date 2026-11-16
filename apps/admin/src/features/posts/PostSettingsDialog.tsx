@@ -1,13 +1,14 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import "../../styles/native-domain-dialogs.css";
 
 import type { PostSettingsDialogController, PostSettingsTab } from "./hooks/use-post-editor-ui.hooks";
 import { PostAuthorFields } from "./PostAuthorFields";
 import { PostPublishAtField, type PostPublishAtFieldProps } from "./PostPublishingFields";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The post settings modal behind the gear in the action row (owner, 2026-10-10): Author and
  * Publish tabs holding the byline and publish-time controls that used to sit as two rows on the

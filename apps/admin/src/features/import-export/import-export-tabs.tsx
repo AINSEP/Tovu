@@ -1,8 +1,9 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
+
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { ExportSiteIcon, ImportSiteIcon } from "../sites";
 
+import { type Translate, resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Import & Export page's tabs (owner, 2026-10-25, option A): Export and Import moved here
  * from Sites, so they work on every host — the desktop app and a hosted install have no Sites

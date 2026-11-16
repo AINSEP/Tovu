@@ -1,10 +1,11 @@
 import { createRecoveryKitDownload, useDesktopOwnerReset, useRecoveryKit } from './RecoveryCodesCard.hooks';
-import { ErrorNotice, type Translate } from '@jini-ai/ui/panel-kit';
+import { ErrorNotice } from '@jini-ai/ui/panel-kit';
 import { useEffect, useMemo, useState } from 'react';
 import { AGENT_PRIVATE_ATTRIBUTE } from '@jini-ai/agentic';
 import { SecretInput } from '@/components/SecretInput/SecretInput';
 import { ownerRecoveryPort, ownerRecoveryFailure, type OwnerRecoveryPort, type OwnerRecoveryStatus } from '../../lib/owner-recovery-api';
 
+import { type Translate } from '@jini-ai/core/text';
 const identityTranslate: Translate = text => text;
 
 /** Existing Security page adapter. Codes live only in component memory until saved/dismissed.

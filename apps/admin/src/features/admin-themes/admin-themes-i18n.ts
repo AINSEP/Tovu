@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Dictionary for Studio → Admin UI and its Theme tab. English copy is the key (this app's convention);
  * "Admin Themes" and "Studio" reuse the sidebar's and Themes' existing wording. Same 21 locales as

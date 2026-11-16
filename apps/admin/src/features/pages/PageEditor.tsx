@@ -18,7 +18,7 @@ import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip"
 import { DEVICE_PREVIEW_WIDTHS, type DevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
 import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreviewFrame";
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -46,6 +46,7 @@ import {
   type PageSaveConflict,
 } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
  *

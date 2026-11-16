@@ -4,12 +4,13 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useId, type ReactNode } from "react";
 
 import { buildAgentListHandles } from "@jini-ai/agentic";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { PackageFilesStatus, PackageFileView } from "./rules";
 import { packageFileIconKind, type PackageFileIconKind } from "./package-file-tree";
 import { usePackageFileTree } from "./hooks/use-package-file-tree.hooks";
 import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-icons";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The read-only package-files browser BOTH plugin screens open — a VS Code-style file tree
  * (files first, chevrons, indent guides, file-type icons; since 2026-09-29) on the left, the

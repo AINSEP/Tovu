@@ -7,8 +7,7 @@ import { agentHandle, agentHandleSegment } from "@jini-ai/agentic";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { adminHref } from "../../lib/router";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AdminPublishTargetField } from "../../lib/api";
 import { fieldHelpText } from "../deployment/rules";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle, sharedKeyReplaceWarning } from "./security-i18n";
@@ -42,6 +41,7 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsO
 import { CopyKeysDialog } from "./CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 /** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
 const REMOVE_FROM_TOVU = "Remove from Tovu";
 

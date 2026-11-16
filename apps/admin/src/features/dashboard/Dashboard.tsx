@@ -1,8 +1,7 @@
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { adminHref } from "../../lib/router";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { agentHandle } from "@jini-ai/agentic";
 import { Icon } from "@jini-ai/ui";
 import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
@@ -11,6 +10,7 @@ import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from 
 import { requestPublish } from "../publish-content/hooks/publish-request.store";
 import { usePublishToLiveAvailable } from "../publish-content/hooks/publish-availability.store";
 
+import { formatTimestamp, type Translate } from '@jini-ai/core/text';
 /**
  * @file Admin landing screen — markup only.
  *

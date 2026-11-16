@@ -11,7 +11,7 @@ import "@jini-ai/ui/settings-dialog.css";
 import type { ReactElement } from "react";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { providerBackendNote } from "./authentication-i18n";
 import {
   AUTHENTICATION_PROVIDER_SCHEMAS,
@@ -20,6 +20,7 @@ import {
   type AuthenticationProviderSchema,
 } from "./model/provider-schemas";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Provider-specific credential requirements for `/admin/authentication`.
  *

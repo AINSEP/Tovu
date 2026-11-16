@@ -1,11 +1,11 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import type { AdminAgentPlugin } from "@/lib/api";
 import { navigate } from "@/lib/router";
 import { LockIcon } from "./agent-plugins-visuals";
 import { linkedLockTip } from "./hooks/use-linked-lock-tip.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The state area of an agent plugin that follows a provider plugin's switch (posthog, sentry,
  * opentelemetry; owner 2026-10-25). It replaced an honest-disabled switch that read as a white

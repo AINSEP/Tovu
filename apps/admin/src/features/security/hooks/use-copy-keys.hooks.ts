@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
-import type { Translate } from '@jini-ai/ui/panel-kit';
+
 import { api, type AdminCredentialCopySource, type AdminCredentialCopyResult } from '@/lib/api';
 import { publishContentRefresh } from '@/lib/content-refresh-bus';
 import { ACCESS_TOKENS_RESOURCE } from '../rules';
 
+import { type Translate } from '@jini-ai/core/text';
 export type CopyKeysPort = Pick<typeof api, 'listCredentialCopySources' | 'copyCredentials'>;
 const SHARED_KEYS = 'shared-keys';
 const LOAD_FAILED = "Couldn't load Shared Keys. Open Shared Keys and try again. Details: P25_KEY_PICKER_LOAD_FAILED; secret values omitted.";

@@ -3,13 +3,14 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { t } from "./source-control-i18n";
 import { ProvidersTab } from "./ProvidersTab";
 import { SourceControlIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 
+import { resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The Source Control page (`/admin/source-control`) — a CONNECTION page, not git integration.
  * See `ProvidersTab.tsx`'s own header for the scope boundary: save a personal access token per
@@ -83,7 +84,6 @@ export function SourceControl(props: SourceControlProps) {
       handleLabel: "Switch to the Providers tab — connect a plugin-provided source control host so Tovu can read (and later push to) your repositories",
     },
   ];
-
 
   return (
     <div className="page">

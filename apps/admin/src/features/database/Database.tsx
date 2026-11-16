@@ -1,6 +1,6 @@
 import { navigateDatabaseTab } from "./Database.hooks";
 import { type AdminLedgerRow } from "../../lib/api";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "@jini-ai/agentic";
@@ -11,12 +11,13 @@ import { useWiredMigrateForwardSection, type MigrateForwardSectionController } f
 import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { MigrateForwardIcon, TimelineIcon } from "./database-visuals";
 import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
+import { formatTimestamp, resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
  * read-first Timeline and the migrate-forward ceremony, behind a `TabBar` (`@jini-ai/ui/tab-strip`)
@@ -508,7 +509,6 @@ export function Database(props: DatabaseProps) {
     { id: "timeline", label: t({ locale: locale, key: "Timeline" }), icon: <TimelineIcon /> },
     { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <MigrateForwardIcon /> },
   ];
-
 
   return (
     <div className="page">

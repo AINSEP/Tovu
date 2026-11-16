@@ -1,8 +1,7 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import type { ReactNode } from "react";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
-import { interpolate, localeEntry } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator, interpolate, localeEntry } from '@jini-ai/core/text';
 /**
  * @file Spanish translation for the Integrations list (`/admin/addons/integrations`) and its
  * delivery-log sub-screen (`/admin/addons/integrations/:subscriptionId`) — form labels, table headers,

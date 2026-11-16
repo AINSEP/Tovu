@@ -1,9 +1,9 @@
 import { LINE_ICON } from "../../components/line-icon";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
-import type { Translate } from "@jini-ai/ui/panel-kit";
-import { resolveActiveTabId } from "@jini-ai/ui/panel-kit";
+
 import { navigate } from "../../lib/router";
 
+import { type Translate, resolveActiveTabId } from '@jini-ai/core/text';
 /**
  * @file The `/admin/roles` tab system's non-JSX logic, plus the two tab glyphs.
  *
@@ -39,7 +39,6 @@ import { navigate } from "../../lib/router";
  */
 
 // Line-icon attributes: components/line-icon.ts (the admin's shared layer replaced the per-feature copies this comment used to justify; App.tsx sidebar glyphs and SettingsUi.tsx tab icons remain inline SVG).
-
 
 /** Roles — a person, i.e. the thing a role is assigned TO. */
 export function RolesIcon({ size = 16 }: { size?: number }) {

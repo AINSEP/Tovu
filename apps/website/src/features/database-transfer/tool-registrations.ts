@@ -11,7 +11,7 @@ import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
-import { describeErrorForLog, forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
+import { forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
 import {
   SURFACE_DISMISSED_PARAM,
   type AssistantSurfaceDeps,
@@ -100,7 +100,7 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     catalog: deps.databaseTransferAdapters.catalog,
     partialExclusions: (name, source) => name === "content" ? countPartialExclusions(source) : [],
     captureChatSnapshot: () => deps.databaseTransferAdapters.captureChatSnapshot(deps),
-    failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)), describeError: error => describeErrorForLog({ err: error }),
+    failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)),
     schemaMismatchGuidance: "this Tovu version's Postgres layout does not match it",
     readers: { inputRecord: input => requireInputRecord({ input }), string: (input, key) => requireString({ input, key }) },
     surfaces: {

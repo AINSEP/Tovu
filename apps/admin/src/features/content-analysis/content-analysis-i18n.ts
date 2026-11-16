@@ -1,4 +1,5 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file The Content analysis card's dictionary (AW-7 Tier 2, `ContentAnalysisCard.tsx` and
  * `rules.ts`'s copy tables), in all 21 locales the admin ships. Same `DICT[locale]?.[key] ?? key`
@@ -13,7 +14,6 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  * `{placeholder}` templates are filled by `interpolate` AFTER translation (see `rules.ts`), so each
  * locale places the value where its own grammar wants it.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** Reading-time copy; every locale keeps the same short form. */
 const MINUTES_SHORT = "{minutes} min";

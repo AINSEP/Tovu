@@ -4,7 +4,7 @@ import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle } from "@jini-ai/agentic";
 import { FileDropzone } from "@jini-ai/ui";
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { formatTimestamp, interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import type { SiteImport } from "./hooks/site-transfer-dependencies.hooks";
 import { CredentialWarningList, TransferNoticeTip, credentialSummary } from "./CredentialWarnings";
 import { useWiredSiteImport, type SiteImportController } from "./hooks/use-site-transfer.hooks";
@@ -12,6 +12,7 @@ import { useWiredLiveImportSite, type LiveImportSiteController } from "./hooks/u
 import { useDesktopImport, type DesktopImportController } from "./hooks/use-desktop-import.hooks";
 import { formatTransferBytes, importOptionsTip, importSourceLabel, importStateView, liveImportMode } from "./site-transfer-rules";
 
+import { formatTimestamp, interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The "Import Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
  * Import tab from 2026-10-25). Two ways in, under one ⓘ:

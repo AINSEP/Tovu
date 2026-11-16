@@ -11,11 +11,11 @@ import {
 } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
 import { admissionRestartHelps, describeAdmissionDrift, type AdmissionDriftConnection, type SavedConnectionIntent } from "../external-mcp-admissions-rules";
 import { useExternalMcpDriftCopy } from "../ExternalMcpSettingsPanel.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The transport behind Settings → External MCP's "what is the assistant actually running"
  * banner: three reads the app already had clients for, and never called together.

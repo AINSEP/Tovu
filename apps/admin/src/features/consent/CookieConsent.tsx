@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields, type ConsentFieldProblem } from "@jini-ai/admin/consent/react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { CSSProperties } from "react";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
 import { navigate } from "@/lib/router";
@@ -9,6 +9,7 @@ import { useConsentTranslate, type ConsentTranslation } from "./consent-i18n";
 import { canResetConsentCss, CONSENT_PREVIEW_DESKTOP_WIDTH, consentStatusKey, resolveConsentTabId, type ConsentTabId } from "./rules";
 import { defaultConsentRevisionsPort, type ConsentRevisionsPort } from "./settings.hooks";
 import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness, type ConsentPageController } from "./use-consent-page.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "./consent-settings.css";
 
 /**

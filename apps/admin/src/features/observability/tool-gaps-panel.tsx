@@ -1,7 +1,7 @@
 import { useFetchQuery } from '@jini-ai/ui/fetch-query';
 import { api } from '@/lib/api';
-import type { Translate } from '@jini-ai/ui/panel-kit';
 
+import { type Translate } from '@jini-ai/core/text';
 /** The Tool gaps filter reads the server's owner-only audit projection on mount/Refresh.
  * Native inputs/outputs are never fetched; the endpoint returns redacted metadata only. */
 export function ToolGapsPanel({ t, read = api.getToolGaps }: { t: Translate; read?: typeof api.getToolGaps }) {

@@ -4,7 +4,7 @@ import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type S
 import "@jini-ai/ui/settings-dialog.css";
 
 import { buildAgentListHandles } from "@jini-ai/agentic";
-import { formatTimestamp } from "@jini-ai/ui/panel-kit";
+
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import {
   categoryLabel,
@@ -26,6 +26,7 @@ import {
   restoreDoneMessage,
 } from "./recovery-i18n";
 
+import { formatTimestamp } from '@jini-ai/core/text';
 /**
  * @file Recovery screen (design-spec.md §4, ADR-045) — the `/admin/recovery` route.
  *

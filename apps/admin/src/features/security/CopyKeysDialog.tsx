@@ -1,6 +1,7 @@
 import { Button, Dialog } from "@jini-ai/ui-kit/react";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { CopyKeysController } from "./hooks/use-copy-keys.hooks";
+import { type Translate } from '@jini-ai/core/text';
 import "../../styles/native-domain-dialogs.css";
 import "./copy-keys-dialog.css";
 

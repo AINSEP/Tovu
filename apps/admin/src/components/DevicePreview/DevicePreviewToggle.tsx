@@ -1,4 +1,4 @@
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { DEVICE_PREVIEW_ICONS } from "../device-preview-icons";
 import {
   DEVICE_PREVIEW_OPTIONS,
@@ -7,6 +7,7 @@ import {
   type DevicePreviewDevice,
 } from "./DevicePreview.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * The Desktop/Tablet/Mobile segmented control plus its "1280px" readout — the one copy
  * `PageEditor.tsx`, `ThemeExplore.tsx` and `PostEditor.tsx` all render (see `DevicePreview.hooks.ts`).

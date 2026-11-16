@@ -1,7 +1,8 @@
 import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import type { AdminPost } from "./api";
 
+import { type Translate } from '@jini-ai/core/text';
 // Historical column-sort section headers from the two former rules files:
 // ---------------------------------------------------------------------------
 // Column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own column-sort block exactly, same

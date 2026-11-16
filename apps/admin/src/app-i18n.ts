@@ -1,6 +1,6 @@
 import { COMMON_I18N } from "./lib/i18n-common";
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Translations for `App.tsx`'s own shell-level copy — currently just the "are you sure you
  * want to log out?" confirmation dialog (owner-requested, 2026-08-31: a misclick on the sidebar's

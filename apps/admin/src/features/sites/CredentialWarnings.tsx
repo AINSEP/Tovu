@@ -1,9 +1,10 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
-import { interpolate, type Translate } from "@jini-ai/ui/panel-kit";
+
 import type { CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { credentialFileCount } from "./hooks/use-share-credential-gate.hooks";
 import { SiteFlagIcon } from "./sites-visuals";
 
+import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
  * @file The credential warning copy and file list shared by the Export and Import tabs (owner,
  * 2026-11-03: credential-looking content is kept and the user is told where). Paths and kind

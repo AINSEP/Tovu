@@ -5,10 +5,11 @@ import type { AdminPlugin } from "@/lib/api";
 import { PluginChevronIcon, PluginPackageIcon } from "./plugins-visuals";
 import { EyeIcon } from "./agent-plugins-visuals";
 import { PluginMetadataLabel } from "@/components/status-labels";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { pluginRowDetailView, pluginRowFacts } from "./rules";
 import { usePluginRowFocus } from "./hooks/use-plugin-row-focus.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file One `.tovu-plugin` plugin, as a ROW — the shared shell both the Installed and Downloaded
  * tabs render through. Structurally mirrors `AgentPluginRow.tsx` (icon, name + version chip, a

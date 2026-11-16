@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { Translate } from "@jini-ai/ui/panel-kit";
 import { buildAgentListHandles } from "@jini-ai/agentic";
-import { interpolate } from "@jini-ai/ui/panel-kit";
 
 import { displayToolDescription, isToolRowLocked, type ToolPickerRow } from "./external-mcp-tool-picker-rules";
 
+import { type Translate, interpolate } from '@jini-ai/core/text';
 /**
  * @file `ExternalMcpToolPicker.tsx`'s own derived-value logic, split out per the
  * `<Name>.tsx`/`<Name>.hooks.tsx` pattern (admin TSX-logic-sweep, 2026-09-05) — this repo's rule

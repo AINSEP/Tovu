@@ -10,7 +10,7 @@ import {
   type ProviderPreset,
 } from "@jini-ai/ui";
 
-import { useSerialWrites, type Translate } from "@jini-ai/ui/panel-kit";
+import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
 import { createExecutionPort } from "@/lib/execution-settings";
 import {
@@ -33,6 +33,7 @@ import {
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file Everything `VisitorCredentialForm` does, so the component in `AiAssistant.tsx` is only
  * markup. Extracted verbatim — same state, same order, same effects, same error strings.

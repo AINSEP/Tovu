@@ -48,8 +48,8 @@ import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
-import type { Translate } from "@jini-ai/ui/panel-kit";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
  *

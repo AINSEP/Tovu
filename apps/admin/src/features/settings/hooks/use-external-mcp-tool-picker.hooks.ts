@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import {
@@ -16,6 +16,7 @@ import {
   type ToolPickerRow,
 } from "../external-mcp-tool-picker-rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The transport and draft state behind `ExternalMcpToolPicker` — the `useX(deps)` /
  * `useWiredX()` pair this app uses everywhere, so the component composes the real port and a test

@@ -1,5 +1,6 @@
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
+import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
  * @file Host dictionary for the four screens now in `@jini-ai/admin/widgets/react`:
  * `WidgetRegions.tsx` (region list),
@@ -20,7 +21,6 @@ import { mergeLocaleOverlays } from "../../lib/merge-locale-overlays";
  * literally say "recent entries" in each language), a known gap left for a real localization pass,
  * not invented English-only copy in the meantime.
  */
-import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const WIDGETS_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {

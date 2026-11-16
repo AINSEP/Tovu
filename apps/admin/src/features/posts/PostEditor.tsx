@@ -16,7 +16,7 @@ import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePrevie
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 import type { AdminPost, ThemeTier } from "../../lib/api";
-import type { Translate } from "@jini-ai/ui/panel-kit";
+
 import { siteUrl } from "../../lib/site-url";
 import type {
   StandingDraftAutosaveSnapshot,
@@ -49,6 +49,7 @@ import {
   type PostSaveConflict,
 } from "./rules";
 
+import { type Translate } from '@jini-ai/core/text';
 /**
  * @file The post/page editor screen — markup only.
  *
