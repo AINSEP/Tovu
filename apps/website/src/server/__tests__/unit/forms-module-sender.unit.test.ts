@@ -74,12 +74,17 @@ test("a delivering mailer with no sender sends nothing and the refusal is logged
   assert.match(String(warnings[0]![1]), /SenderIdentityNotConfiguredError/);
 });
 
-test("a provider's { ok: false } result is logged with its message alone", async (t) => {
+test("a provider's { ok: false } result is logged as a fixed-word line plus the provider's own error", async (t) => {
   const { mailer } = recordingMailer("smtp");
   mailer.send = async () => ({ ok: false, retryable: false, errorCode: "REJECTED_SENDER", message: "sender refused" });
   const senderIdentity = createMailSenderIdentityResolver({ mailer }, { readConfiguredSender: async () => ({ email: "forms@example.com" }) });
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   await fireSubmission({ mailer }, { senderIdentity });
-  assert.deepEqual(warnings, [["[forms:notify] mail send failed for submission 'submission-1' recipient 'ops@example.com': REJECTED_SENDER (sender refused)"]]);
+  // Why: Jini's notify subscriber now keeps the log line to fixed words and hands the original error to the host's logger as a second argument.
+  assert.equal(warnings.length, 1);
+  assert.equal(warnings[0]![0], "[forms:notify] mail send failed for submission 'submission-1' recipient 'ops@example.com'");
+  const original = warnings[0]![1] as Error & { code?: string };
+  assert.equal(original.message, "sender refused");
+  assert.equal(original.code, "REJECTED_SENDER");
 });
