@@ -21,8 +21,8 @@ import { ownerKeyHandleOnly, siteGrantedSealer } from "#src/features/project-key
 import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { sourceControlKeyBinding } from "./source-control-key-binding.js";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
-import { createProjectKeys } from "#src/features/project-keys/service";
-import { siteProviderRevisions, watchProviderRevisions } from "./provider-revision-watch.js";
+import { createProjectKeys, providerPluginOf } from "#src/features/project-keys/service";
+import { siteProviderRevisions } from "./provider-revision-watch.js";
 
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
@@ -313,7 +313,7 @@ import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
-import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
+import { deferDeclaredContentTypePorts, watchProviderRevisions } from "@jini-ai/plugins/host";
 import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
@@ -2003,8 +2003,10 @@ async function composeSiteRouteDeps(
       } }) : undefined;
   }
   onStoreClose({ registration: watchProviderRevisions({ read: () => projectStore?.providerRevisions({ siteId: projectSiteId }) ?? Promise.resolve([]),
+    pluginIdOf: providerPluginOf,
+    reapply: input => providerPlugins.reapply(input) }, {
     readSite: () => siteProviderRevisions({ kernel: kernel as unknown as StorageKernel<unknown>, workspaceId }),
-    reapply: input => providerPlugins.reapply(input) }) });
+  }) });
   const { observability, tracker, aiTraceSink } = providerPlugins;
   formCollectionProviders = () => providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});
   // Local logging reads only the current site tracing scope, through the live gated provider ports.
