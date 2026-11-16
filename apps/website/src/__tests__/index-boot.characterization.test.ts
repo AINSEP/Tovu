@@ -67,8 +67,9 @@ function bootHarness(required: {
     },
     reportSitesSyncWarning: () => { calls.push("sync-warning"); },
     defaultContentDbPath: () => "/site/content.db",
-    checkContentDbSchema: async (path: string) => {
-      assert.equal(path, "/site/content.db");
+    // why: the (required, optional) argument rule made the real call `checkContentDbSchema({ dbPath })`.
+    checkContentDbSchema: async ({ dbPath }: { dbPath: string }) => {
+      assert.equal(dbPath, "/site/content.db");
       calls.push("schema");
       return { status: required.schema ?? "allow", message: "schema refused" };
     },
