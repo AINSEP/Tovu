@@ -5,7 +5,7 @@ import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { postPublicPath } from "#src/platform/routing/index";
 import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
-import { resolveActiveTheme } from "#src/server/inbound/public-http/routes/site/pages";
+import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
 import { resolveMediaAssetMetadataForRender, resolveMediaTransformVersionsForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/media-metadata";
 import { resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages/render-context/static-menus";
