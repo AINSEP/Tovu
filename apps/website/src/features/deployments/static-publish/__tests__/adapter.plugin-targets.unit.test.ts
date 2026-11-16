@@ -92,7 +92,7 @@ test("a registry-known target is built by its plugin module, gets responseHeader
 
   const result = await publishWith(
     {
-      loadDeployTargets: async (workspaceId) => {
+      loadDeployTargets: async ({ workspaceId }) => {
         seen.workspaceId = workspaceId;
         return registryOf([loaded("netlify", module)]);
       },

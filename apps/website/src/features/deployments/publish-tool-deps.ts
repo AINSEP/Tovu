@@ -67,7 +67,7 @@ export interface StaticPublishToolDeps extends OperatorLocaleDeps {
   /** `RouteDeps.loadDeployTargets` — this workspace's deploy registry, which decides which config
    *  fields a target takes and judges them. Production composition injects the installed deploy Agent Plugin
    *  (`loadDeployTargetRegistry`); a test injects a registry read from the plugin's source. */
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Installed metadata; production binds the data contribution loader, never executable discovery. */
   readonly loadInstalledDeployTargets?: LoadInstalledDeployTargets;
   /** Post-save connection checks share the verifier's HTTP seam; fixtures never need real egress. */

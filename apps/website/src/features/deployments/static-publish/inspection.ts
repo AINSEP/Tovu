@@ -26,7 +26,7 @@ export interface StaticPublishInspection {
  * server-side; providers without inspection retain their existing non-decrypting preview behavior.
  * @complexity One registry/credential read plus the plugin's bounded inventory reads. */
 export async function inspectStaticPublish({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput }, _options = {}): Promise<StaticPublishInspection> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const plan = planStaticPublish(registry, input.config);
   if (!plan.ok) throw new ToolInputError({ message: plan.message });
   if (!plan.target.module.preview) return {};

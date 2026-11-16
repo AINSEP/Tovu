@@ -190,7 +190,7 @@ test("F1833: boot tail no longer runs the recurring legacy credential copy", asy
     assert.ok(deps.legacyPublishCredentialsReady instanceof Promise);
     let registryReads = 0;
     const original = deps.loadDeployTargets;
-    deps.loadDeployTargets = async (workspaceId) => { registryReads += 1; return original(workspaceId); };
+    deps.loadDeployTargets = async ({ workspaceId }) => { registryReads += 1; return original({ workspaceId }); };
     await deps.legacyPublishCredentialsReady;
     assert.equal(registryReads, 0, "the boot tail must not recopy legacy credentials after a deletion");
   } finally {

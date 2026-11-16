@@ -88,7 +88,7 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   /** The git-host providers `custom_credential_write_files` writes through (the installed, enabled
    *  Agent Plugins supplied by composition — the bundled `github` one today). */
   readonly loadSourceControlProviders: LoadSourceControlProviders;
-  readonly loadDeployTargets?: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  readonly loadDeployTargets?: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Plugin-declared key cards (`plugin-credential-card.ts`); absent means none can be opened. */
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly publishCredentialVerificationCache?: { delete(input: { workspaceId: string; target: string }): void };
@@ -292,7 +292,7 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
   const providers: { id: string; vendorId: string }[] = [];
   // Catalogs enrich a create-time prefill only. An unavailable plugin must not prevent saving
   // an API key or erase explicitly supplied compatibility IDs.
-  try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.(routeDeps.workspaceId))?.list() ?? []) {
+  try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.({ workspaceId: routeDeps.workspaceId }))?.list() ?? []) {
     if (descriptor.credential) providers.push({ id: descriptor.id, vendorId: descriptor.credential.vendorId });
   } } catch { /* The API key form still works without hosting plugins. */ }
   try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders(routeDeps.workspaceId)).list()) {
@@ -423,7 +423,7 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     publish: {
       loadProviders: () => loadCreateCredentialProviders({ routeDeps }),
       prepareInvalidation: async () => {
-        const registry = routeDeps.loadDeployTargets && routeDeps.publishCredentialVerificationCache ? await routeDeps.loadDeployTargets(routeDeps.workspaceId) : undefined;
+        const registry = routeDeps.loadDeployTargets && routeDeps.publishCredentialVerificationCache ? await routeDeps.loadDeployTargets({ workspaceId: routeDeps.workspaceId }) : undefined;
         return ({ after }) => {
           if (registry && routeDeps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: routeDeps.workspaceId, registry, cache: routeDeps.publishCredentialVerificationCache, after });
         };

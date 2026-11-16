@@ -306,7 +306,7 @@ test('real Tovu bindings retain the current registry/cache/repo and guard, with 
   let loads = 0;
   const deleted: { workspaceId: string; target: string }[] = [];
   const cache = { delete(input: { workspaceId: string; target: string }) { assert.equal(this, cache); deleted.push(input); } };
-  const deps = { ...base, loadDeployTargets: async (workspaceId: string) => { assert.equal(workspaceId, base.workspaceId); loads++; return registry; }, publishCredentialVerificationCache: cache };
+  const deps = { ...base, loadDeployTargets: async ({ workspaceId }: { workspaceId: string }) => { assert.equal(workspaceId, base.workspaceId); loads++; return registry; }, publishCredentialVerificationCache: cache };
   const operations = bindTovuCredentialToolOperations({ routeDeps: deps, surfaces: { surfaceExchanges: fixedExchanges('tovu-real') } });
   assert.deepEqual(await operations.publish.loadProviders({}), [{ id: 'acme-target', vendorId: 'acme-vendor' }]);
   const invalidate = await operations.publish.prepareInvalidation({});

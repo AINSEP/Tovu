@@ -124,7 +124,7 @@ function optionalCreateFields({ body }: { body: Record<string, unknown> }, _opti
 
 /** Deploy targets are loaded only when there is a publish-verification cache to invalidate. */
 async function registryForInvalidation({ deps }: { deps: Pick<AdminCustomCredentialsDeps, "workspaceId" | "loadDeployTargets" | "publishCredentialVerificationCache"> }, _optional = {}) {
-  return deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets(deps.workspaceId) : undefined;
+  return deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets({ workspaceId: deps.workspaceId }) : undefined;
 }
 
 export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {

@@ -238,7 +238,7 @@ export interface VerifyPublishCredentialDeps {
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
   /** This workspace's deploy registry: whose module checks the credential. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
   /** Injected by tests; defaults to global `fetch`. Never the DB-scoped `fetchFn` itself. */
   readonly fetchFn?: typeof fetch;
   /** Replaces the whole kit (tests); `fetchFn` is ignored when set. */
@@ -273,7 +273,7 @@ export async function verifyPublishCredential(
     return null;
   }
 
-  const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
+  const context = { registry: await deps.loadDeployTargets({ workspaceId: input.workspaceId }), kit: verificationKit(deps), clock: deps.clock };
   const result = await computeVerificationResult({ context, target: input.target, credential: toDeployTargetCredential(resolved) });
   deps.cache.set(input, result);
   return result;
@@ -286,7 +286,7 @@ export interface VerifyPublishCredentialByIdDeps {
   readonly cache: PublishCredentialVerificationCache;
   readonly clock: { nowIso(): string };
   /** This workspace's deploy registry: which saved field is the token, and whose module checks it. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
   readonly fetchFn?: typeof fetch;
   readonly hostKit?: DeployHostKit;
   readonly observability?: ObservabilityPort;
@@ -322,7 +322,7 @@ export async function verifyPublishCredentialById(
   const resolved = await resolveForPublish(deps, input);
   if (!resolved) return null;
 
-  const context = { registry: await deps.loadDeployTargets(input.workspaceId), kit: verificationKit(deps), clock: deps.clock };
+  const context = { registry: await deps.loadDeployTargets({ workspaceId: input.workspaceId }), kit: verificationKit(deps), clock: deps.clock };
   const spec = context.registry.get(resolved.providerId)?.descriptor.credential;
   const projected = spec === undefined ? undefined : projectConnectionForPublish(resolved.connection, spec);
   const result = projected?.ok
@@ -345,6 +345,6 @@ export async function verifySubmittedPublishCredential({ deps, workspaceId, targ
 }, _options = {}): Promise<PublishCredentialVerificationResult> {
   const projected = projectConnectionForPublish(connection, spec);
   if (!projected.ok) return cannotVerify({ reason: 'the submitted connection is incomplete', clock: deps.clock });
-  const registry = await deps.loadDeployTargets(workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId });
   return computeVerificationResult({ context: { registry, kit: verificationKit(deps), clock: deps.clock }, target, credential: toDeployTargetCredential(projected) });
 }

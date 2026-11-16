@@ -192,7 +192,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       assert.deepEqual(providers.refusals, []);
       assert.equal(providers.get({ providerId: "bound-git" })?.pluginId, "github");
       assert.ok(providers.get({ providerId: "bound-git" })!.module);
-      assert.equal((await deps!.loadDeployTargets(workspaceId)).get("bound-target")?.pluginId, "github");
+      assert.equal((await deps!.loadDeployTargets({ workspaceId })).get("bound-target")?.pluginId, "github");
       assert.equal((await deps!.loadDeployOps({ workspaceId })).get("bound-ops")?.pluginId, "github");
       assert.deepEqual((await loadMail()).list().map(adapter => adapter.descriptor.id), ["bound_mail"]);
       assert.deepEqual((await deps!.loadAuthSchemes({ workspaceId })).map(rule => rule.id), ["bound-scheme"]);
@@ -202,7 +202,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       const disabled = await deps!.loadSourceControlProviders(workspaceId);
       assert.deepEqual(disabled.list(), []);
       assert.equal(disabled.switchedOff?.get("bound-git"), "github");
-      assert.deepEqual((await deps!.loadDeployTargets(workspaceId)).list(), []);
+      assert.deepEqual((await deps!.loadDeployTargets({ workspaceId })).list(), []);
       assert.deepEqual((await deps!.loadDeployOps({ workspaceId })).list(), []);
       assert.deepEqual((await loadMail()).list(), []);
       // Data-only credential schemes keep digest trust but deliberately skip activation.

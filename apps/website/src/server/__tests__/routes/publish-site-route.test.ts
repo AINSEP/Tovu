@@ -722,8 +722,8 @@ test("publish-site: branch, teamId and projectName reach the provider port and a
   const deps = testRouteDeps();
   const originalLoad = deps.loadDeployTargets;
   const calls: Array<{ target: string; config: DeployTargetCreateContext["config"]; projectName: string }> = [];
-  deps.loadDeployTargets = async (workspaceId) => {
-    const registry = await originalLoad(workspaceId);
+  deps.loadDeployTargets = async ({ workspaceId }) => {
+    const registry = await originalLoad({ workspaceId });
     const targets = registry.list().map((target): LoadedDeployTarget => ({
       ...target,
       module: {
@@ -961,7 +961,7 @@ test("publish-targets: lists every registry target with its label and declared c
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { targets: { id: string; label: string; configFields: { name: string; label: string; required: boolean }[] }[] };
-  const expected = (await deps.loadDeployTargets(deps.workspaceId)).list();
+  const expected = (await deps.loadDeployTargets({ workspaceId: deps.workspaceId })).list();
   assert.deepEqual(
     body.targets.map((target) => target.id),
     expected.map((target) => target.descriptor.id),
@@ -1008,7 +1008,7 @@ test("publish-targets: a target's i18n block crosses the response exactly as its
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/publish-targets`, { headers: { cookie } });
   assert.equal(res.status, 200);
   const body = (await res.json()) as { targets: { id: string; i18n?: Record<string, Record<string, string>> }[] };
-  const declared = (await deps.loadDeployTargets(deps.workspaceId)).get("vercel")?.descriptor.i18n;
+  const declared = (await deps.loadDeployTargets({ workspaceId: deps.workspaceId })).get("vercel")?.descriptor.i18n;
   assert.ok(declared?.es, "the bundled vercel target ships Spanish translations");
   assert.deepEqual(body.targets.find((target) => target.id === "vercel")?.i18n, declared);
 });

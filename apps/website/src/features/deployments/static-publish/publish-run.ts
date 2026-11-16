@@ -170,7 +170,7 @@ async function recordHistoryIfPublished(
   try {
     // Reuse the descriptor contract, never copy raw config or the resolved credential into history.
     // A registry reload failure must not erase the pre-existing outcome-only history behavior.
-    const registry = await deps.loadDeployTargets(input.workspaceId).catch(() => {
+    const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId }).catch(() => {
       // Loader errors may embed plugin config or credentials; log only the failed operation.
       console.warn("[static-publish] destination registry reload failed; recording outcome only");
       return undefined;

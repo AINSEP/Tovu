@@ -229,7 +229,7 @@ export interface StaticPublishDeps {
   readonly pluginExportHosts?: () => Promise<import("#src/contracts/core/public-page-security-headers").DeclaredPageHosts>;
   /** This workspace's plugin-contributed deploy targets (`deploy-targets/registry.ts`): the only
    *  place a target id, its config fields and its host behavior come from. */
-  readonly loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  readonly loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Test seam: builds the `DeployTarget` in place of the resolved module's `create()`. Config
    *  checks and the base path still come from the registry. */
   readonly buildTarget?: (config: StaticPublishConfig, credential: ResolvedPublishCredential) => DeployTarget;
@@ -641,7 +641,7 @@ function finishPublishOutcome({ outcome, credential, target }: {
 async function resolvePublishPlan(deps: StaticPublishDeps, input: StaticPublishInput): Promise<StaticPublishPlan> {
   let registry: DeployTargetRegistry;
   try {
-    registry = await deps.loadDeployTargets(input.workspaceId);
+    registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   } catch (err) {
     return { ok: false, message: `publish targets could not be loaded: ${err instanceof Error ? err.message : String(err)}` };
   }

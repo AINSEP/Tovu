@@ -1668,7 +1668,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * targets, in plugin-id order; `apps/website/src/server/runtime/composition/app.ts`'s hermetic root reads every bundled plugin's source
    * directory directly (`loadBundledDeployTargetRegistry`).
    */
-  loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+  loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Data-only installed host inventory; disabled plugins remain discoverable. */
   loadInstalledDeployTargets?: import("#src/features/deployments/contracts").LoadInstalledDeployTargets;
   /** Fresh installed-plugin trust gates in production; apps/website/src/server/runtime/composition/app.ts's hermetic root reads the bundled plugins' sources. */

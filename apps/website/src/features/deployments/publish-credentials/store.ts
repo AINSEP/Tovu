@@ -111,7 +111,7 @@ function vault(deps: PublishCredentialReadDeps & Partial<PublishCredentialWriteD
 export interface PublishCredentialReadDeps {
   repo: VendorCredentialSetRepoPort;
   sealer?: SecretSealerPort;
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
 }
 
 /** The store a listed row came from: rows carry their own store's workspace id. */
@@ -169,7 +169,7 @@ async function storeInventory({ deps, workspaceId }: { deps: PublishCredentialRe
  * @complexity O(rows × hosts), one metadata inventory and one catalog load.
  */
 export async function listPublishCredentials(deps: PublishCredentialReadDeps, input: { workspaceId: UUID }): Promise<PublishCredentialSummary[]> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const rows = await inventory({ deps, workspaceId: input.workspaceId });
   const defaults = new Map<string, string>();
   for (const { descriptor } of registry.list()) {
@@ -204,7 +204,7 @@ export async function describeCredential(deps: PublishCredentialReadDeps, input:
  * An explicit id must select that authorized row; no secret is opened.
  * @complexity O(rows × compatibility IDs), one metadata inventory per store and one catalog load. */
 export async function hasDefaultForPublish(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; providerId: PublishProviderId; id?: UUID }): Promise<boolean> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const provider = providerContract({ registry, providerId: input.providerId });
   return provider !== null && selectPublishCredential({ registry, credentials: await inventory({ deps, workspaceId: input.workspaceId }), provider, id: input.id }) !== null;
 }
@@ -423,7 +423,7 @@ async function isPublishLabelConflict({ error, target, input }: { error: unknown
 /** Validate before the vault write. Jini atomically auto-defaults the first vendor credential. */
 export async function createPublishCredential(deps: PublishCredentialWriteDeps, input: CreatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const label = validateLabel({ raw: input.label });
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const validated = validateConnection({ raw: input.connection, registry });
   const isDefault = optionalBoolean({ raw: input.isDefault, field: "isDefault" });
   const { providerId, ...fields } = validated.connection;
@@ -531,7 +531,7 @@ async function updatedConnection({ deps, input, existing, registry, host }: { de
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   // Changed where it lives: this site's own row, else the project's (shared by every site).
   const located = await locateById(deps, input);
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const host = located ? registry.list().find(target => target.descriptor.credential?.vendorId === located.existing.vendorId)?.descriptor.id : undefined;
   if (!located || host === undefined) throw new PublishCredentialNotFoundError(`no publish credential '${input.id}' in this workspace`);
   const { existing } = located;
@@ -617,7 +617,7 @@ export interface PublishCredentialResolveDeps extends PublishCredentialReadDeps 
 export async function resolveForPublish(deps: PublishCredentialResolveDeps,
   input: { workspaceId: UUID; id: UUID; providerId?: PublishProviderId },
 ): Promise<{ providerId: PublishProviderId; vendorId: string; label: string; isDefault: boolean; connection: PublishConnectionInput } | null> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const rows = await inventory({ deps, workspaceId: input.workspaceId });
   return resolveFromInventory({ deps, input, registry, rows });
 }
@@ -681,7 +681,7 @@ function publishConnectionFromPayload({ providerId, spec, summary, payload }: {
 export async function resolveDefaultForPublish(deps: PublishCredentialResolveDeps,
   input: { workspaceId: UUID; providerId: PublishProviderId },
 ): Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null> {
-  const registry = await deps.loadDeployTargets(input.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
   const provider = providerContract({ registry, providerId: input.providerId });
   if (!provider) return null;
   const rows = await inventory({ deps, workspaceId: input.workspaceId });

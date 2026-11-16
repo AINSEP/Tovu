@@ -241,7 +241,7 @@ export function buildPermanentDeleteDeps(deps: Deps): PermanentDeleteToolDeps {
           return recordPlan({ toolId, id, load: async () => {
             const record = await findPublishCredentialRecord({ repo: deps.vendorCredentialSetRepo }, key);
             if (!record) return null;
-            const hosts = (await deps.loadDeployTargets(deps.workspaceId)).list().filter(host => host.descriptor.credential?.vendorId === record.vendorId).map(host => host.descriptor.id);
+            const hosts = (await deps.loadDeployTargets({ workspaceId: deps.workspaceId })).list().filter(host => host.descriptor.credential?.vendorId === record.vendorId).map(host => host.descriptor.id);
             return { ...record, affectedHosts: hosts };
           }, label: ({ record: credential }) => `${credential.label} (${credential.vendorId}); used by publish hosts: ${credential.affectedHosts.join(", ") || "none"}`,
             warning: "Deletes this vendor credential shared by its publish hosts. Another credential may become the default. Deployed sites remain; the token is not revoked at its provider.",

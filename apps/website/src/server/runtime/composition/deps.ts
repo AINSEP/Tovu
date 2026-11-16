@@ -2772,7 +2772,7 @@ async function composeSiteRouteDeps(
     // doc.
     publishOutputRootDir: resolvePublishOutputRootDir({ siteDir: resolvedSiteBinding.dir }),
     // See `routes/types.ts`'s `loadDeployTargets` doc: the installed, activated deploy Agent Plugin.
-    loadDeployTargets: (workspaceId) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadDeployTargets: ({ workspaceId }) => loadDeployTargetRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadInstalledDeployTargets: ({ workspaceId }) => loadInstalledDeployTargets({ workspaceId,
       loadContributions: agentPluginLifecycle.loadPluginContributions,
       readEnabled: async ({ workspaceId, pluginId }) => {

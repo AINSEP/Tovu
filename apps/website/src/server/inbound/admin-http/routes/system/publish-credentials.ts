@@ -233,7 +233,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  failure is logged and swallowed: it must never reach the request that triggered it. */
   async function triggerAccountLabelHeal(credentials: readonly PublishCredentialSummary[]): Promise<void> {
     try {
-      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal({ credentials, canYieldAccountLabel: (providerId) => canYieldAccountLabel(registry, providerId) }));
     } catch (err) {
       console.error("[publish-credentials] account-label heal skipped: deploy targets could not be loaded", err);
@@ -273,7 +273,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       const credential = await createPublishCredential(writeDeps, {
         workspaceId: deps.workspaceId,
         label: body.label,
@@ -300,7 +300,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       const credential = await updatePublishCredential(writeDeps, {
         workspaceId: deps.workspaceId,
@@ -345,7 +345,7 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // (not errors) for a missing row, matching this route's own documented 204-always contract.
       // A THROWN error here is a different case (e.g. the repo itself is unreachable) — not the
       // idempotent-missing-row path above, so it still needs a response, not a silent no-op.
-      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       const before = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
       await deletePublishCredential({ ...readDeps, transaction: deps.contentKernel }, { workspaceId: deps.workspaceId, id: req.params.id });
       if (before) invalidatePublishCredentialCompatibility({ workspaceId: deps.workspaceId, registry, cache: deps.publishCredentialVerificationCache, before });

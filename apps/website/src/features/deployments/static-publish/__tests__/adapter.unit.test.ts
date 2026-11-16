@@ -799,7 +799,7 @@ test("publishStaticSite: with no credentialId on the input, resolve() is called 
 
 
 test("readStaticPublishConfig drops unknown keys, validates types, and treats optional blanks according to input mode", async () => {
-  const registry = await hermeticDeployTargets("workspace-local");
+  const registry = await hermeticDeployTargets({ workspaceId: "workspace-local" });
   const target = registry.get("github-pages")!;
   assert.ok(target);
   assert.deepEqual(readStaticPublishConfig({ target, raw: { target: "vercel", owner: "octo", repo: "demo", injected: "secret", branch: " " }, options: { blankAsAbsent: true } }), { ok: true, config: { target: "github-pages", owner: "octo", repo: "demo" } });
@@ -893,7 +893,7 @@ test("publishStaticSite: a connection changed after domain review is refused bef
   const warnings: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   let exports = 0;
-  const registry = await hermeticDeployTargets(deps.workspaceId);
+  const registry = await hermeticDeployTargets({ workspaceId: deps.workspaceId });
   const result = await publishStaticSite({ loadDeployTargets: async () => ({ ...registry, refusals: ["deploy target 'ghost' was not loaded: fixture refusal"] }),
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => fakeDeployTarget({ value: null }) },

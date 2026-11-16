@@ -262,9 +262,9 @@ test("a registry reload failure logs a sanitized warning and preserves outcome-o
   t.mock.method(console, "warn", (...args: unknown[]) => { warnings.push(args); });
   let loads = 0;
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget(),
-    loadDeployTargets: async workspaceId => {
+    loadDeployTargets: async ({ workspaceId }) => {
       if (++loads > 1) throw new Error("plugin config: PRIVATE_TOKEN");
-      return routeDeps.loadDeployTargets(workspaceId);
+      return routeDeps.loadDeployTargets({ workspaceId });
     } };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
@@ -327,7 +327,7 @@ test("Publish destinations: successful Vercel-like run records replay config and
     buildTarget: () => fakeDeployTarget("https://my-site.vercel.app"),
   };
   assert.equal((await runPublishForTest(deps, input, clock, history)).ok, true);
-  const rows = await listStaticPublishDestinations({ workspaceId: input.workspaceId, historyStore: history, registry: await routeDeps.loadDeployTargets(input.workspaceId) });
+  const rows = await listStaticPublishDestinations({ workspaceId: input.workspaceId, historyStore: history, registry: await routeDeps.loadDeployTargets({ workspaceId: input.workspaceId }) });
   assert.deepEqual(rows, [{
     id: "static:vercel:my-site", kind: "static", label: "Vercel: my-site", url: "https://my-site.vercel.app",
     lastPublishedAt: clock.nowIso(),
@@ -360,7 +360,7 @@ for (const explicit of [false, true]) {
     const history = new InMemoryPublishHistoryStore();
     assert.equal((await runPublishForTest(deps, input, clock, history)).ok, true);
     const [destination] = await listStaticPublishDestinations({ workspaceId: input.workspaceId,
-      historyStore: history, registry: await routeDeps.loadDeployTargets(input.workspaceId) });
+      historyStore: history, registry: await routeDeps.loadDeployTargets({ workspaceId: input.workspaceId }) });
     assert.equal(destination!.credentialId, saved.id);
     await deletePublishCredential(writeDeps, { workspaceId: input.workspaceId, id: saved.id });
     const replacement = await createPublishCredential(writeDeps, { workspaceId: input.workspaceId, label: "Replacement",
@@ -388,8 +388,8 @@ test("a host's destinationConfig refines the recorded replay config from the pro
   const routeDeps = testRouteDeps();
   const history = new InMemoryPublishHistoryStore();
   const seen: unknown[] = [];
-  const loadDeployTargets: StaticPublishDeps["loadDeployTargets"] = async (workspaceId) => {
-    const registry = await routeDeps.loadDeployTargets(workspaceId);
+  const loadDeployTargets: StaticPublishDeps["loadDeployTargets"] = async ({ workspaceId }) => {
+    const registry = await routeDeps.loadDeployTargets({ workspaceId });
     return { ...registry, get: (id) => {
       const target = registry.get(id);
       return target && id === "vercel" ? { ...target, module: { ...target.module, destinationConfig: (input: { providerMetadata?: unknown }) => { seen.push(input.providerMetadata); return { teamId: "team-from-provider" }; } } } : target;

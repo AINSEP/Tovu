@@ -288,7 +288,7 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
 ]);
 
 /** {@link StaticPublishToolDeps.loadDeployTargets}, bound by composition to installed plugins or trusted source. */
-function deployTargetsLoader(deps: StaticPublishToolDeps): (workspaceId: string) => Promise<DeployTargetRegistry> {
+function deployTargetsLoader(deps: StaticPublishToolDeps): ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry> {
   return deps.loadDeployTargets;
 }
 
@@ -816,7 +816,7 @@ async function checkPublishReplacement({ deps, targetId, credential, connection 
   // A blank secret keeps the stored one (store.ts updatedConnection), so no working key is replaced.
   // A blank OPTIONAL secret is no reason to skip checking a replaced token.
   if (credential.fields.some(field => (field.secret === true && field.required || field.name === credential.tokenField) && !connection[field.name])) return;
-  const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+  const registry = await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId });
   if (!registry.get(targetId)?.module.verifyCredential) return;
   const verification = await verifySubmittedPublishCredential({
     deps: { loadDeployTargets: async () => registry, clock: { nowIso: () => clockNowIso({ clock: deps.clock }) }, fetchFn: deps.fetchFn, observability: deps.observability },
@@ -845,7 +845,7 @@ async function saveProposeCredential(required: {
   // now authorizes the same post-save read-only check as the admin form. Model-only reads stay probe-free.
   let connection: 'saved' | 'connected' | 'auth' | 'timeout' | 'unreachable' = 'saved';
   try {
-    const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+    const registry = await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId });
     if (saveResult.usedByThisSite && registry.get(targetId)?.module.verifyCredential) {
       const verification = await verifyPublishCredentialById({
         repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
@@ -904,7 +904,7 @@ function trackBlockedToolPublish({ deps, principalId, target, reasonClass }: { d
 export function buildPublishHostCredentialHandler({ deps, surfaces }: { deps: StaticPublishToolDeps; surfaces: AssistantSurfaceDeps }, _optional = {}): ToolHandler {
   return async (ctx, optional = {}) => {
       const raw = requireInputRecord({ input: ctx.input });
-      const { descriptor, credential } = requireCredentialTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
+      const { descriptor, credential } = requireCredentialTarget(raw, await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId }));
       const prefill = readCredentialHints(raw, descriptor);
 
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "deployments.credentials.write" }, { entityType: SITE_PUBLISH_ENTITY });
@@ -991,7 +991,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {
       const raw = requireInputRecord({ input: ctx.input });
-      const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+      const registry = await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId });
       const loaded = requireStaticPublishTarget(raw, registry);
       const target = loaded.descriptor.id;
 
@@ -1032,7 +1032,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         workspaceId: deps.workspaceId,
       });
 
-      const registry = await loadDeployTargets(deps.workspaceId);
+      const registry = await loadDeployTargets({ workspaceId: deps.workspaceId });
       const providerCapabilityContext: ProviderCapabilityContext = { deps, credentialSource, historyStore, saved };
       const inventory = deps.loadInstalledDeployTargets
         ? await deps.loadInstalledDeployTargets({ workspaceId: deps.workspaceId })
@@ -1069,7 +1069,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // any asynchronous registry or permission read; later cards and effects use only this call.
       const ctx = { ...inputCtx, input: structuredClone(inputCtx.input), principal: { ...inputCtx.principal }, run: { ...inputCtx.run } };
       const raw = requireInputRecord({ input: ctx.input });
-      const registry = await deployTargetsLoader(deps)(deps.workspaceId);
+      const registry = await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId });
       const loaded = requireStaticPublishTarget(raw, registry);
       const target = loaded.descriptor.id;
       const projectName = requireString({ input: raw, key: "projectName" });
@@ -1165,7 +1165,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      */
     deployment_generate_bucket_hosting_setup: async (ctx) => {
       const raw = requireInputRecord({ input: ctx.input });
-      const loaded = requireStaticPublishTarget(raw, await deployTargetsLoader(deps)(deps.workspaceId));
+      const loaded = requireStaticPublishTarget(raw, await deployTargetsLoader(deps)({ workspaceId: deps.workspaceId }));
       const { descriptor, module } = loaded;
       if (module.hostingSetup === undefined) throw new ToolInputError({ message: `${descriptor.id} has no hosting-setup steps: publishing to it serves the site.` });
       const fields = readCredentialHints(raw, descriptor);

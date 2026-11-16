@@ -156,7 +156,7 @@ function validOptionalCredential({ value }: { value: unknown }, _options = {}): 
  * @complexity One registry load plus O(f) declared fields.
  */
 async function readTargetConfig({ deps, targetId, raw, blankAsAbsent }: { deps: AdminPublishSiteDeps; targetId: string; raw: Record<string, unknown>; blankAsAbsent: boolean }, _optional = {}): Promise<{ ok: true; registry: DeployTargetRegistry; target: LoadedDeployTarget; config: StaticPublishConfig } | { ok: false; error: string }> {
-  const registry = await deps.loadDeployTargets(deps.workspaceId);
+  const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
   for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
   const target = registry.get(targetId);
   if (target === undefined) return { ok: false, error: unknownTargetMessage({ registry, targetId }) };
@@ -399,7 +399,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         entityType: SITE_PUBLISH_ENTITY,
       } });
       if (!authorized) return;
-      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       // Omit peer identities as well as peer rows without the additional permission.
       const trust = getPublishTrustContext(res);
       const peerAuthorization = await (trust ? publishTrustAuthorizeFor(trust) : deps.authorize)({
@@ -434,7 +434,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       } });
       if (!authorized) return;
 
-      const registry = await deps.loadDeployTargets(deps.workspaceId);
+      const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       for (const refusal of registry.refusals) console.warn(`[publish-site] ${refusal}`);
       res.status(200).json({
         targets: registry.list().map(({ descriptor }) => ({

@@ -668,7 +668,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
   test(`create catalog enrichment preserves optional plugin behavior: ${mode}`, { timeout: 5000 }, async t => {
     const { deps } = fakeRouteDeps();
     const calls: string[] = [];
-    const loadDeployTargets: CustomCredentialsToolDeps["loadDeployTargets"] = mode === "missing" ? undefined : async workspaceId => {
+    const loadDeployTargets: CustomCredentialsToolDeps["loadDeployTargets"] = mode === "missing" ? undefined : async ({ workspaceId }) => {
       assert.equal(workspaceId, WORKSPACE_ID);
       calls.push("deploy");
       if (mode === "unavailable") throw new Error("catalog unavailable");

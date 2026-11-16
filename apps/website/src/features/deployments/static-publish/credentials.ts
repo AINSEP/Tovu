@@ -122,7 +122,7 @@ type EnvCredentialResult = { readonly token: string; readonly fields: Readonly<R
 export function createEnvPublishCredentialSource(
   { workspaceId, loadDeployTargets }: {
     workspaceId: UUID;
-    loadDeployTargets: (workspaceId: string) => Promise<DeployTargetRegistry>;
+    loadDeployTargets: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   },
   { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
 ): PublishCredentialSourceWithChoice {
@@ -162,7 +162,7 @@ export function createEnvPublishCredentialSource(
         reason: `this credential source is bound to workspace '${workspaceId}' and refuses to resolve a token for workspace '${requestedWorkspaceId}'`,
       };
     }
-    const descriptor = (await loadDeployTargets(workspaceId)).get(target)?.descriptor;
+    const descriptor = (await loadDeployTargets({ workspaceId })).get(target)?.descriptor;
     if (descriptor === undefined) return { reason: unknownTargetReason(target) };
     if (descriptor.env === undefined) return { reason: noEnvFallbackReason(target) };
 
@@ -225,7 +225,7 @@ export interface DbPublishCredentialSourceDeps {
   repo: VendorCredentialSetRepoPort;
   sealer: SecretSealerPort;
   /** This workspace's deploy registry: which field of a saved connection is the token. */
-  loadDeployTargets(workspaceId: string): Promise<DeployTargetRegistry>;
+  loadDeployTargets({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>): Promise<DeployTargetRegistry>;
 }
 
 /**
@@ -243,7 +243,7 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
 
   /** Projects through the target's declared credential spec, refusing a target the registry cannot describe. */
   async function project(workspaceId: UUID, connection: PublishConnectionInput): Promise<Awaited<ReturnType<PublishCredentialSource["resolve"]>>> {
-    const spec = (await deps.loadDeployTargets(workspaceId)).get(connection.providerId)?.descriptor.credential;
+    const spec = (await deps.loadDeployTargets({ workspaceId })).get(connection.providerId)?.descriptor.credential;
     return spec === undefined ? { ok: false, reason: unknownTargetReason(connection.providerId) } : projectConnectionForPublish(connection, spec);
   }
 
