@@ -24,7 +24,8 @@ test("form definition responses clone field objects and notification recipients"
     fields: [{ id: "email", label: "Email address", type: "email", required: true, maxLength: 123, className: "wide", attributes: { placeholder: "Your email" } }],
     mode: "builder", html: undefined,
     notify: { enabled: true, recipients: ["ops@example.org", "audit@example.org"] }, status: "active",
-    createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z",
+    // The optimistic-concurrency version rides every definition response (84d9382e): the next save names it.
+    createdAt: "2026-09-01T00:00:00Z", updatedAt: "2026-09-02T00:00:00Z", version: 4,
   } });
   const list = toAdminFormDefinitionListResponse({ definitions: [definition] });
   single.data.fields[0].label = "Changed in response";
@@ -55,7 +56,7 @@ for (const mode of ["html", "builder"] as const) {
       html: '<input name="message" required>',
       fields: [{ id: "message", label: "Message", type: "text", required: true }],
       notify: { enabled: false, recipients: [] }, status: "active",
-      createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z",
+      createdAt: "2026-10-01T02:03:04Z", updatedAt: "2026-10-02T03:04:05Z", version: 1,
     };
     assert.deepEqual(toAdminFormDefinitionResponse(definition), { data: expected });
     assert.deepEqual(toAdminFormDefinitionListResponse({ definitions: [definition] }), { data: [expected] });
