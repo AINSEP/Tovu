@@ -11,11 +11,11 @@ import type { HttpRequest, HttpResponse, HttpTransportAdapter } from "../ports.j
 
 // F4.3/F7.2: an ignored allowlist or parser without lowercasing must fail.
 test("peer dev hosts normalize case and whitespace, drop empty entries and keep IPv6 literals", () => {
-  assert.deepEqual(parsePublishContentDevHosts(" , Peer.INTERNAL , , fd00::1, LOCALHOST ,"), [
+  assert.deepEqual(parsePublishContentDevHosts({ raw: " , Peer.INTERNAL , , fd00::1, LOCALHOST ," }), [
     "peer.internal", "fd00::1", "localhost",
   ]);
   for (const raw of [undefined, "", "  , ,  "]) {
-    assert.deepEqual(parsePublishContentDevHosts(raw), []);
+    assert.deepEqual(parsePublishContentDevHosts({ raw }), []);
   }
 });
 

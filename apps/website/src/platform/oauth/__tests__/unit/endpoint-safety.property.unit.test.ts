@@ -22,8 +22,8 @@ test('HTTPS private IPv4 endpoints and device links are refused, including numer
     const numeric = host.split('.').reduce((value, part) => value * 256 + Number(part), 0);
     for (const spelling of [host, String(numeric), `0x${numeric.toString(16)}`]) {
       const raw = `https://${spelling}/token`;
-      assert.throws(() => assertSafeProviderEndpoint(raw, 'token endpoint'), { code: 'OAUTH_UNSAFE_ENDPOINT' });
-      assert.throws(() => assertSafeUserFacingUrl(raw), { code: 'OAUTH_UNSAFE_ENDPOINT' });
+      assert.throws(() => assertSafeProviderEndpoint({ raw, label: 'token endpoint' }), { code: 'OAUTH_UNSAFE_ENDPOINT' });
+      assert.throws(() => assertSafeUserFacingUrl({ raw }), { code: 'OAUTH_UNSAFE_ENDPOINT' });
     }
   }), parameters);
 });
@@ -31,19 +31,19 @@ test('HTTPS private IPv4 endpoints and device links are refused, including numer
 test('HTTPS unique-local IPv6 endpoints are refused', () => {
   fc.assert(fc.property(octet, fc.integer({ min: 0, max: 65535 }), (subnet, host) => {
     const raw = `https://[fd${subnet.toString(16).padStart(2, '0')}::${host.toString(16)}]/token`;
-    assert.throws(() => assertSafeProviderEndpoint(raw, 'token endpoint'), { code: 'OAUTH_UNSAFE_ENDPOINT' });
-    assert.throws(() => assertSafeUserFacingUrl(raw), { code: 'OAUTH_UNSAFE_ENDPOINT' });
+    assert.throws(() => assertSafeProviderEndpoint({ raw, label: 'token endpoint' }), { code: 'OAUTH_UNSAFE_ENDPOINT' });
+    assert.throws(() => assertSafeUserFacingUrl({ raw }), { code: 'OAUTH_UNSAFE_ENDPOINT' });
   }), parameters);
 });
 
 test('public HTTPS endpoints normalize safely while plaintext and userinfo links are refused', () => {
   fc.assert(fc.property(fc.nat({ max: 100000 }), fc.string({ maxLength: 80 }), (id, path) => {
     const raw = `https://AUTH-${id}.example.com/token?q=${encodeURIComponent(path)}`;
-    assert.equal(assertSafeProviderEndpoint(raw, 'token endpoint').href, new URL(raw).href);
-    assert.equal(assertSafeUserFacingUrl(raw).href, new URL(raw).href);
-    assert.throws(() => assertSafeProviderEndpoint(raw.replace('https:', 'http:'), 'token endpoint'), { code: 'OAUTH_UNSAFE_ENDPOINT' });
+    assert.equal(assertSafeProviderEndpoint({ raw, label: 'token endpoint' }).href, new URL(raw).href);
+    assert.equal(assertSafeUserFacingUrl({ raw }).href, new URL(raw).href);
+    assert.throws(() => assertSafeProviderEndpoint({ raw: raw.replace('https:', 'http:'), label: 'token endpoint' }), { code: 'OAUTH_UNSAFE_ENDPOINT' });
     const withUserinfo = raw.replace('https://', `https://user-${id}:password@`);
-    assert.throws(() => assertSafeUserFacingUrl(withUserinfo), { code: 'OAUTH_UNSAFE_ENDPOINT' });
+    assert.throws(() => assertSafeUserFacingUrl({ raw: withUserinfo }), { code: 'OAUTH_UNSAFE_ENDPOINT' });
   }), parameters);
 });
 

@@ -232,7 +232,7 @@ export function buildTaxonomyRegistrations(
         // time, O(all terms) space, a = assigned terms; no assignment or revision writes.
         const { items } = await listTaxonomiesWithTerms({ taxonomies: routeDeps.taxonomyRepo, terms: routeDeps.termRepo });
         const terms = items.flatMap(({ taxonomy, terms }) => terms.filter(term => assigned.has(term.id)).map(term => ({
-          termId: term.id, name: term.name, slug: toSlug(term.name), taxonomyId: taxonomy.id, taxonomyName: taxonomy.name,
+          termId: term.id, name: term.name, slug: toSlug({ text: term.name }), taxonomyId: taxonomy.id, taxonomyName: taxonomy.name,
         })));
         terms.sort((a, b) => a.taxonomyName.localeCompare(b.taxonomyName) || a.name.localeCompare(b.name) || a.termId.localeCompare(b.termId));
         return { contentType, contentId, terms };

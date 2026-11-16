@@ -22,7 +22,7 @@ const TEXT_ALIGN_VALUES = new Set(["center", "right", "justify"]);
  * Validate a `textAlign`-shaped value against the fixed set of keywords render.ts ever means to emit
  * as an inline `text-align` declaration.
  *
- * @param value - The raw, author-controlled string (a doc node's `attrs.textAlign`/`attrs.align`).
+ * @param required.value - The raw, author-controlled string (a doc node's `attrs.textAlign`/`attrs.align`).
  * @returns The value itself, narrowed, when it is exactly one of the three keywords; `null` for
  * `"left"`, any unrecognized keyword, and any value carrying extra CSS (`"center;position:fixed"`).
  * @complexity O(1).
@@ -30,7 +30,7 @@ const TEXT_ALIGN_VALUES = new Set(["center", "right", "justify"]);
  * @example safeTextAlign("center;position:fixed"); // => null
  * @example safeTextAlign("left"); // => null (the default — the caller omits the attribute)
  */
-export function safeTextAlign(value: string): "center" | "right" | "justify" | null {
+export function safeTextAlign({ value }: { value: string }, _optional = {}): "center" | "right" | "justify" | null {
   return TEXT_ALIGN_VALUES.has(value) ? (value as "center" | "right" | "justify") : null;
 }
 
@@ -45,7 +45,7 @@ const ASPECT_RATIO_PATTERN = /^\d{1,4}(\.\d{1,4})?\s*\/\s*\d{1,4}(\.\d{1,4})?$/;
 /**
  * Validate an `aspect-ratio`-shaped value (render.ts's `mediaPlaceholder` `props.ratio`).
  *
- * @param value - The raw, author-controlled string.
+ * @param required.value - The raw, author-controlled string.
  * @returns The value unchanged when it matches {@link ASPECT_RATIO_PATTERN} in full; `null`
  * otherwise, including a value that merely starts with a valid ratio.
  * @complexity O(n) in the string length (regex match).
@@ -53,6 +53,6 @@ const ASPECT_RATIO_PATTERN = /^\d{1,4}(\.\d{1,4})?\s*\/\s*\d{1,4}(\.\d{1,4})?$/;
  * @example safeAspectRatio("1;background:url(//evil.example)"); // => null
  * @example safeAspectRatio("1/1;position:fixed"); // => null
  */
-export function safeAspectRatio(value: string): string | null {
+export function safeAspectRatio({ value }: { value: string }, _optional = {}): string | null {
   return ASPECT_RATIO_PATTERN.test(value) ? value : null;
 }

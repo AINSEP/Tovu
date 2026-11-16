@@ -20,7 +20,7 @@ export interface BuiltinCommentsDeps {
 /** Public fields only, escaped at the HTML sink. Depth is bounded even for legacy malformed rows. */
 function commentHtml({ row, maxDepth }: { row: CommentRecord; maxDepth: number }, _options = {}) {
   const depth = Math.min(Math.max(0, row.depth), maxDepth);
-  return `<li id="comment-${escapeHtml(row.id)}" data-comment-depth="${depth}"><article><header>${escapeHtml(row.authorName)}</header><p>${escapeHtml(row.bodyText)}</p></article></li>`;
+  return `<li id="comment-${escapeHtml({ text: row.id })}" data-comment-depth="${depth}"><article><header>${escapeHtml({ text: row.authorName })}</header><p>${escapeHtml({ text: row.bodyText })}</p></article></li>`;
 }
 
 /** The 303 lands on `#comment-pending` / `#comment-error`; each notice shows only while it is the URL
@@ -30,7 +30,7 @@ const NOTICE_STYLE = '<style>#comment-pending:not(:target),#comment-error:not(:t
 /** Native form: no scripts, no private values, existing website honeypot retained. */
 function submissionForm({ entryId, path }: { entryId: string; path: string }, _options = {}) {
   return `${NOTICE_STYLE}<p id="comment-pending" role="status">Submitted comments are held for review when moderation is enabled.</p><p id="comment-error" role="alert">If your comment was not accepted, check the form and try again.</p>
-<form method="post" action="/api/site/comments"><input type="hidden" name="entryId" value="${escapeHtml(entryId)}"><input type="hidden" name="returnTo" value="${escapeHtml(path)}">
+<form method="post" action="/api/site/comments"><input type="hidden" name="entryId" value="${escapeHtml({ text: entryId })}"><input type="hidden" name="returnTo" value="${escapeHtml({ text: path })}">
 <label>Name <input name="authorName" required maxlength="200" autocomplete="name"></label><label>Email (private, optional) <input name="authorEmail" type="email" maxlength="320" autocomplete="email"></label>
 <label hidden>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label><label>Comment <textarea name="body" required maxlength="10000"></textarea></label><button type="submit">Submit comment</button></form>`;
 }
@@ -95,9 +95,9 @@ export function createBuiltinCommentsProvider(deps: BuiltinCommentsDeps, _option
     const maxDepth = Math.min(20, Math.max(0, settings.maxDepth));
     const rows = page.items.filter(row => row.status === 'approved' && row.entryId === entry.id && row.workspaceId === siteId);
     const nextPath = page.nextCursor ? `${path}?commentCursor=${encodeURIComponent(page.nextCursor)}#comments` : '';
-    const more = page.nextCursor ? `<a rel="next" href="${escapeHtml(nextPath)}">More comments</a>` : '';
+    const more = page.nextCursor ? `<a rel="next" href="${escapeHtml({ text: nextPath })}">More comments</a>` : '';
     const firstPath = `${path}#comments`;
-    const first = optional.cursor === undefined ? '' : `<a href="${escapeHtml(firstPath)}">First comments</a>`;
+    const first = optional.cursor === undefined ? '' : `<a href="${escapeHtml({ text: firstPath })}">First comments</a>`;
     return { html: `<section id="comments" aria-label="Comments"><h2>Comments</h2><ol>${threadOrder({ rows }).map(row => commentHtml({ row, maxDepth })).join('')}</ol>${first}${more}${submissionForm({ entryId: entry.id, path })}</section>` };
   } };
   return { kind: 'stored', renderer,

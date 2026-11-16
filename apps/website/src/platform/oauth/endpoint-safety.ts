@@ -38,13 +38,13 @@ function createLegacySeamGuard(): OAuthUrlGuard {
 /**
  * Validates an operator-configured OAuth endpoint before Tovu sends anything to it.
  *
- * @param raw - The configured absolute URL.
- * @param label - Which endpoint, for the message (`"token endpoint"`, `"authorization endpoint"`).
+ * @param required.raw - The configured absolute URL.
+ * @param required.label - Which endpoint, for the message (`"token endpoint"`, `"authorization endpoint"`).
  * @returns The parsed URL, so the caller uses the value that was validated rather than re-parsing.
  * @throws {OAuthError} `OAUTH_UNSAFE_ENDPOINT` on a non-absolute, non-https, or internal-address URL.
  * @complexity O(n) in the URL length.
  */
-export function assertSafeProviderEndpoint(raw: string, label: string): URL {
+export function assertSafeProviderEndpoint({ raw, label }: { raw: string; label: string }, _optional = {}): URL {
   try {
     return createLegacySeamGuard().assertSafeUrl({ raw, label: "provider endpoint" });
   } catch (error) {
@@ -63,7 +63,7 @@ export function assertSafeProviderEndpoint(raw: string, label: string): URL {
  * @throws {OAuthError} `OAUTH_UNSAFE_ENDPOINT`.
  * @complexity O(n) in the URL length.
  */
-export function assertSafeUserFacingUrl(raw: string): URL {
+export function assertSafeUserFacingUrl({ raw }: { raw: string }, _optional = {}): URL {
   try {
     return assertJiniUserFacingUrl({ raw, guard: createLegacySeamGuard() });
   } catch (error) {
@@ -154,15 +154,15 @@ export function createTovuIssuerBoundDiscoveryPolicy({ guard }: { readonly guard
   return {
     assertMetadata({ issuer, document }) {
       if (document.issuer !== undefined && document.issuer !== issuer)
-        rejectDiscoveredMetadata("OAuth metadata issuer does not equal the requested issuer");
+        rejectDiscoveredMetadata({ message: "OAuth metadata issuer does not equal the requested issuer" });
       const origin = guard.assertSafeUrl({ raw: issuer, label: "authorization server issuer" }).origin;
       for (const key of ["authorization_endpoint", "token_endpoint", "registration_endpoint", "device_authorization_endpoint"]) {
         const raw = document[key];
         if (raw === undefined || raw === null) continue;
-        if (typeof raw !== "string") rejectDiscoveredMetadata(`OAuth metadata ${key} is not an absolute URL`);
+        if (typeof raw !== "string") rejectDiscoveredMetadata({ message: `OAuth metadata ${key} is not an absolute URL` });
         const endpoint = guard.assertSafeUrl({ raw, label: `discovered ${key.replace(/_/g, " ")}` });
         if (endpoint.origin !== origin || endpoint.username || endpoint.password)
-          rejectDiscoveredMetadata(`OAuth metadata ${key} does not share the issuer's origin`);
+          rejectDiscoveredMetadata({ message: `OAuth metadata ${key} does not share the issuer's origin` });
       }
     },
   };
@@ -171,7 +171,7 @@ export function createTovuIssuerBoundDiscoveryPolicy({ guard }: { readonly guard
 /** A declaration, not a const arrow, so TypeScript narrows on its `never` return without a dead
  * `continue` after each call.
  * @throws {JiniOAuthError} Always `OAUTH_UNSAFE_ENDPOINT`. */
-function rejectDiscoveredMetadata(message: string): never {
+function rejectDiscoveredMetadata({ message }: { message: string }, _optional = {}): never {
   throw new JiniOAuthError({ code: "OAUTH_UNSAFE_ENDPOINT", message,
     operatorAction: "Check the authorization server issuer and discovery endpoints before connecting." });
 }

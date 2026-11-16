@@ -95,7 +95,7 @@ startOwnParentWatchdog({
  * nothing. A no-op for `useMemory` boots (nothing on disk to guard) and for a brand-new/never-
  * migrated db (nothing to compare against yet — `openContentDb()`'s own first-boot path is correct).
  */
-async function guardContentDbSchemaOrExit(dbPath: string): Promise<void> {
+async function guardContentDbSchemaOrExit({ dbPath }: { dbPath: string }, _optional = {}): Promise<void> {
   const result = await checkContentDbSchema(dbPath);
   if (result.status !== "refuse") return;
 
@@ -112,7 +112,7 @@ async function guardContentDbSchemaOrExit(dbPath: string): Promise<void> {
  * — the same completion `bootSiteDir` runs — so this folder also starts through `tovu serve` and the
  * desktop. This boot never reads the meta, so a failure only warns.
  */
-async function completeDevSiteMetaOrWarn(dir: string): Promise<void> {
+async function completeDevSiteMetaOrWarn({ dir }: { dir: string }, _optional = {}): Promise<void> {
   try {
     await completeKeyOnlySiteMeta({ dir });
   } catch (err) {
@@ -165,7 +165,7 @@ async function prepareSiteBoot(
   if (runningLease?.attached) return runningLease;
   if (!useMemory) {
     reportSitesSyncWarning({});
-    await guardContentDbSchemaOrExit(defaultContentDbPath());
+    await guardContentDbSchemaOrExit({ dbPath: defaultContentDbPath() });
     // site-key plan §A3a: gated identically to the schema guard right above — a `:memory:` boot has
     // no site directory at all, so there is nowhere for `ensureSiteKeyForBoot` to look. Must precede
     // `createSiteRouteDeps` below, which is what actually resolves the site key this may have just
@@ -255,7 +255,7 @@ async function main(): Promise<void> {
     : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) });
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
-  if (!useMemory) await completeDevSiteMetaOrWarn(siteDir());
+  if (!useMemory) await completeDevSiteMetaOrWarn({ dir: siteDir() });
   // Boot passes the composition starts and never awaits, which read the store: the legacy
   // publish-credential tail here, `createServingApp`'s BYOK pass below. The store close waits for
   // them (bounded), or a site stopped seconds after boot closes under them (see `await-boot-work.ts`).

@@ -63,7 +63,7 @@ export function agentPluginHostToolPorts(required: { readonly agentPluginLayout:
         workspaceRoot: layout.forWorkspace({ workspaceId }).root, pluginId, guidance }),
     },
     permissions: AGENT_PLUGIN_HOST_TOOL_PERMISSIONS,
-    readFrontmatterField: ({ markdown, key }) => readFrontmatterField(markdown, key),
+    readFrontmatterField: ({ markdown, key }) => readFrontmatterField({ markdown, key }),
     metadata: toolMetadata,
     messages: AGENT_PLUGIN_HOST_TOOL_MESSAGES,
   };

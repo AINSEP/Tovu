@@ -37,13 +37,13 @@ function isSiteRelative({ href }: { href: string }, _optional = {}): boolean {
 function renderToolAttrs({ href, toolName, label }: { href: string; toolName: string; label: string }, _options = {}): string {
   const name = toolName.length <= 128 ? toolName : `${toolName.slice(0, 63)}_${createHash("sha256").update(toolName).digest("hex")}`;
   return isSiteRelative({ href })
-    ? ` data-toolname="${escapeHtml(name)}" data-tooldescription="${escapeHtml(label)}" data-tool-action="navigate"` : "";
+    ? ` data-toolname="${escapeHtml({ text: name })}" data-tooldescription="${escapeHtml({ text: label })}" data-tool-action="navigate"` : "";
 }
 
 function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): string {
-  const icon = attrs.icon ? `<span data-tovu-menu-icon="${escapeHtml(attrs.icon)}"></span>` : "";
-  const description = attrs.description ? `<span data-tovu-menu-description>${escapeHtml(attrs.description)}</span>` : "";
-  return `${icon}${escapeHtml(label)}${description}`;
+  const icon = attrs.icon ? `<span data-tovu-menu-icon="${escapeHtml({ text: attrs.icon })}"></span>` : "";
+  const description = attrs.description ? `<span data-tovu-menu-description>${escapeHtml({ text: attrs.description })}</span>` : "";
+  return `${icon}${escapeHtml({ text: label })}${description}`;
 }
 
 /**
@@ -56,7 +56,7 @@ function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): str
 export function menuLinkRelAttr({ rel, openInNewTab }: { rel?: string | undefined; openInNewTab?: boolean | undefined }, _optional = {}): string {
   const relTokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
   if (openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
-  return relTokens.size ? ` rel="${escapeHtml([...relTokens].join(" "))}"` : "";
+  return relTokens.size ? ` rel="${escapeHtml({ text: [...relTokens].join(" ") })}"` : "";
 }
 
 function renderAnchor({ item, attrs, href, toolName, label }: {
@@ -65,7 +65,7 @@ function renderAnchor({ item, attrs, href, toolName, label }: {
   const current = item.isCurrent ? ' aria-current="page"' : "";
   const target = attrs.openInNewTab ? ' target="_blank"' : "";
   const tool = renderToolAttrs({ href, toolName, label: item.label });
-  return `<a href="${escapeHtml(href)}"${current}${target}${menuLinkRelAttr({ rel: attrs.rel, openInNewTab: attrs.openInNewTab })}${tool}>${label}</a>`;
+  return `<a href="${escapeHtml({ text: href })}"${current}${target}${menuLinkRelAttr({ rel: attrs.rel, openInNewTab: attrs.openInNewTab })}${tool}>${label}</a>`;
 }
 
 function renderItem({ item, index, depth, sanitizeHref, toolPrefix }: {
@@ -95,5 +95,5 @@ export function renderHtmlMenu(
   { id, items, sanitizeHref }: { id: string; items: readonly HtmlMenuItem[]; sanitizeHref: SanitizeHref },
 ): string {
   const list = renderList({ items, depth: 0, sanitizeHref, toolPrefix: `menu_${id.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 64)}` });
-  return list === "" ? "" : `<nav data-tovu-menu="${escapeHtml(id)}">${list}</nav>`;
+  return list === "" ? "" : `<nav data-tovu-menu="${escapeHtml({ text: id })}">${list}</nav>`;
 }

@@ -196,7 +196,7 @@ function assertRawPathShape({ raw }: { raw: unknown }, _optional = {}): string {
   if (raw.includes("\\")) {
     throw new PublishedPagePathError({ message: "path must not contain a backslash — URL parsers treat '\\' as '/'." });
   }
-  if (hasControlCharacter(raw)) {
+  if (hasControlCharacter({ value: raw })) {
     throw new PublishedPagePathError({ message: "path must not contain control characters (including CR/LF)." });
   }
   // BEFORE `new URL()`, because the URL parser RESOLVES `..` away rather than reporting it:
@@ -272,7 +272,7 @@ function disallowedFormReason({ check, raw }: { check: SitePathCheck; raw: strin
  * or a path that resolves onto `/admin` or `/api`.
  */
 function assertNoDisallowedDecodedForm({ resolved, raw }: { resolved: URL; raw: string }, _optional = {}): void {
-  const reason = disallowedFormReason({ check: checkSitePathname(resolved), raw });
+  const reason = disallowedFormReason({ check: checkSitePathname({ url: resolved }), raw });
   if (reason !== null) throw new PublishedPagePathError({ message: reason });
 }
 

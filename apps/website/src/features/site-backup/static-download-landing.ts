@@ -81,11 +81,11 @@ li small{display:block;margin-top:1px;color:var(--muted);font-size:13px;overflow
 function themeCard({ theme }: { theme: LandingTheme }, _options = {}): string {
   const count = `${theme.pages.length} ${theme.pages.length === 1 ? "page" : "pages"}`;
   const home = theme.pages[0];
-  return `<article class="card${theme.active ? " active" : ""}"><div class="card-head"><h2>${escapeHtml(theme.title)}</h2>`
+  return `<article class="card${theme.active ? " active" : ""}"><div class="card-head"><h2>${escapeHtml({ text: theme.title })}</h2>`
     + (theme.active ? `<span class="badge">Active theme</span>` : "") + `</div>`
-    + `<p class="count">${count} · sites/${escapeHtml(theme.folder)}/</p>`
-    + (home ? `<a class="open" href="${escapeHtml(home.href)}">Open ${escapeHtml(home.label === "/" ? "home page" : home.title)}</a>` : "")
-    + `<ul>${theme.pages.map(page => `<li><a href="${escapeHtml(page.href)}"><span>${escapeHtml(page.title)}</span><small>${escapeHtml(page.label)}</small></a></li>`).join("")}</ul></article>`;
+    + `<p class="count">${count} · sites/${escapeHtml({ text: theme.folder })}/</p>`
+    + (home ? `<a class="open" href="${escapeHtml({ text: home.href })}">Open ${escapeHtml({ text: home.label === "/" ? "home page" : home.title })}</a>` : "")
+    + `<ul>${theme.pages.map(page => `<li><a href="${escapeHtml({ text: page.href })}"><span>${escapeHtml({ text: page.title })}</span><small>${escapeHtml({ text: page.label })}</small></a></li>`).join("")}</ul></article>`;
 }
 
 /**
@@ -95,11 +95,11 @@ function themeCard({ theme }: { theme: LandingTheme }, _options = {}): string {
  * @example staticLandingPage({ siteName: "My Site", themes });
  */
 export function staticLandingPage({ siteName, exportedWords, themes }: { siteName: string; exportedWords?: string; themes: readonly LandingTheme[] }, _options = {}): Buffer {
-  const site = escapeHtml(siteName);
+  const site = escapeHtml({ text: siteName });
   const meta = [exportedWords ? `Exported ${exportedWords}` : "", `${themes.length} ${themes.length === 1 ? "theme" : "themes"}`].filter(Boolean).join(" · ");
   return Buffer.from(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">`
     + `<title>${site} — static copy</title><style>${STYLE}</style></head><body><main>`
-    + `<header><p class="eyebrow">Static copy</p><h1>${site}</h1><p class="meta">${escapeHtml(meta)}</p>`
+    + `<header><p class="eyebrow">Static copy</p><h1>${site}</h1><p class="meta">${escapeHtml({ text: meta })}</p>`
     + `<p class="note">Quick Look can't follow links — open this file in your browser.</p></header>`
     + `<section class="themes">${themes.map(theme => themeCard({ theme })).join("")}</section></main></body></html>\n`);
 }

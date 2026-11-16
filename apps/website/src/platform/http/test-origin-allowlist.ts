@@ -66,7 +66,7 @@ function refuseUnlistedHop(
       if (!allowed.has(url.origin)) {
         const host = url.hostname.replace(/^\[|\]$/g, "");
         const schemeRefused = !policy.allowedSchemes.includes(url.protocol.slice(0, -1));
-        const addressRefused = policy.denyPrivateAddresses && !policy.devHostAllowlist.includes(host) && classifyAddress(peer.ip) !== "public";
+        const addressRefused = policy.denyPrivateAddresses && !policy.devHostAllowlist.includes(host) && classifyAddress({ ip: peer.ip }) !== "public";
         if (schemeRefused || addressRefused) {
           throw new EgressRefusedError({ message: `egress to '${url.origin}' rejected: not an allowed test origin` }, { callerSafeMessage: REFUSED_HOP_MESSAGE });
         }

@@ -43,7 +43,7 @@ function toTovuHttpClient({ client }: { client: JiniHttpClientPort }): HttpClien
 }
 
 /** Preserves the host DNS diagnostic contract; malformed addresses fail closed in Jini. */
-export function classifyAddress(ip: string): AddressClass {
+export function classifyAddress({ ip }: { ip: string }, _optional = {}): AddressClass {
   return classifyGuardedAddress({ ip });
 }
 

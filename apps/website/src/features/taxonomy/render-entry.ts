@@ -28,11 +28,11 @@ export function renderHtmlTaxonomy(
       seen.add(term.id);
       const nested = renderTerms({ rows: children.get(term.id) ?? [], depth: depth + 1 });
       // termRef has no public archive URL today. Plain labels avoid manufacturing 404 links.
-      return `<li data-tovu-term="${escapeHtml(term.id)}" data-depth="${depth}"><span data-tovu-term-label>${escapeHtml(term.name)}</span>${nested}</li>`;
+      return `<li data-tovu-term="${escapeHtml({ text: term.id })}" data-depth="${depth}"><span data-tovu-term-label>${escapeHtml({ text: term.name })}</span>${nested}</li>`;
     }).join("");
     return body === "" ? "" : `<ul data-tovu-taxonomy-list data-depth="${depth}">${body}</ul>`;
   }
   const list = renderTerms({ rows: children.get(null) ?? [], depth: 0 });
   const orphanedCycles = renderTerms({ rows: terms.filter((term) => !seen.has(term.id)), depth: 0 });
-  return `<section data-tovu-taxonomy="${escapeHtml(id)}" aria-label="${escapeHtml(name)}">${list}${orphanedCycles}</section>`;
+  return `<section data-tovu-taxonomy="${escapeHtml({ text: id })}" aria-label="${escapeHtml({ text: name })}">${list}${orphanedCycles}</section>`;
 }

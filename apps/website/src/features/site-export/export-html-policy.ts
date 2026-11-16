@@ -92,7 +92,7 @@ function publicIdentityEdit({ node, publicOrigin }: { node: Element; publicOrigi
   const value = attribute({ node, name: key }) ?? "";
   const location = node.sourceCodeLocation?.attrs?.[key];
   if (!location || !/^\/(?!\/)/.test(value)) return undefined;
-  return { ...location, text: `${key}="${escapeHtml(publicOrigin + value)}"` };
+  return { ...location, text: `${key}="${escapeHtml({ text: publicOrigin + value })}"` };
 }
 
 /** Reuse WebMCP's exact opt-out owner; leave all theme-owned data attributes alone.
@@ -132,7 +132,7 @@ function emailAlternative({ nodes }: { nodes: Element[] }, _options = {}): strin
   const href = attribute({ node: link, name: "href" });
   if (href === undefined) throw new Error("Static export email link has no address");
   const address = href.slice(7).split("?")[0];
-  return ` Email us at <a href="${escapeHtml(href)}">${escapeHtml(address)}</a> instead.`;
+  return ` Email us at <a href="${escapeHtml({ text: href })}">${escapeHtml({ text: address })}</a> instead.`;
 }
 
 /** Disable one backend-dependent form and disclose the missing server immediately after it. */
@@ -236,7 +236,7 @@ function refreshEdit({ node, rewrite }: { node: Element; rewrite: (url: string) 
   const location = node.sourceCodeLocation?.attrs?.content;
   const content = refreshContent({ content: attribute({ node, name: "content" }) ?? "", rewrite });
   if (!location || content === undefined) return undefined;
-  return { ...location, text: `content="${escapeHtml(content)}"` };
+  return { ...location, text: `content="${escapeHtml({ text: content })}"` };
 }
 
 /** Split the refresh value at its delimiters without overlapping whitespace runs or HTML matching. */

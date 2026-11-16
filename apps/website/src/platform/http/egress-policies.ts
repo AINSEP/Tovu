@@ -249,7 +249,7 @@ export function createPublishContentPeerEgressPolicy(devHostAllowlist: readonly 
  * must then resolve to a public address.
  * @complexity O(n) in the variable's length.
  */
-export function parsePublishContentDevHosts(raw: string | undefined): string[] {
+export function parsePublishContentDevHosts({ raw }: { raw: string | undefined }, _optional = {}): string[] {
   if (!raw) return [];
   return raw
     .split(",")

@@ -111,8 +111,8 @@ interface SkillFrontmatter {
  * @complexity O(n) in the frontmatter block's own length.
  */
 function parseSkillFrontmatter({ markdown }: { markdown: string }, _optional = {}): SkillFrontmatter | undefined {
-  const name = readFrontmatterField(markdown, "name");
-  const description = readFrontmatterField(markdown, "description");
+  const name = readFrontmatterField({ markdown, key: "name" });
+  const description = readFrontmatterField({ markdown, key: "description" });
   if (!name || !description) return undefined;
 
   return { name, description };

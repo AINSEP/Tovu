@@ -42,7 +42,7 @@ function visitorNavigationId({ input }: { input: Record<string, unknown> }): unk
   return entity?.id ?? input.page;
 }
 function assertVisitorPath({ path }: { path: string }): void {
-  if (checkSiteRelativeTarget(path).kind !== 'ok' || /[?#]/.test(path)) throw new Error('Reserved page');
+  if (checkSiteRelativeTarget({ raw: path }).kind !== 'ok' || /[?#]/.test(path)) throw new Error('Reserved page');
 }
 
 /** Server-issued action classes determine both eligibility and forced confirmation. */

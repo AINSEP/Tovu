@@ -59,30 +59,30 @@ export type SiteRelativeTargetCheck =
 export const RESERVED_SEGMENTS: ReadonlySet<string> = new Set<ReservedSurface>(["admin", "api"]);
 
 /** C0/C1 check delegated to the generic site-path owner.
- * @param value any string; returns whether it contains a control character.
+ * @param required.value any string; returns whether it contains a control character.
  * @complexity O(value.length).
  * @example hasControlCharacter("/ok"); // false
  */
-export function hasControlCharacter(value: string): boolean {
+export function hasControlCharacter({ value }: { value: string }, _optional = {}): boolean {
   return sharedHasControlCharacter({ value }, {});
 }
 
 /** Check an already-parsed URL against this app's reserved surfaces.
- * @param url a URL already established to be on this site's origin.
+ * @param required.url a URL already established to be on this site's origin.
  * @returns The unchanged reserved-path verdict, narrowed to Tovu's two surfaces.
  * @complexity O(url.pathname.length).
  * @example checkSitePathname(new URL("http://site.invalid/admin")); // reserved: admin
  */
-export function checkSitePathname(url: URL): SitePathCheck {
+export function checkSitePathname({ url }: { url: URL }, _optional = {}): SitePathCheck {
   return sharedCheckSitePathname({ url, reservedSegments: RESERVED_SEGMENTS }, {}) as SitePathCheck;
 }
 
 /** Check an untrusted relative target against this app's reserved surfaces.
- * @param raw a raw site-relative reference; parsing and origin tracking belong to the shared owner.
+ * @param required.raw a raw site-relative reference; parsing and origin tracking belong to the shared owner.
  * @returns The unchanged relative-target verdict, narrowed to Tovu's two surfaces.
  * @complexity O(raw.length).
  * @example checkSiteRelativeTarget("/new"); // ok
  */
-export function checkSiteRelativeTarget(raw: string): SiteRelativeTargetCheck {
+export function checkSiteRelativeTarget({ raw }: { raw: string }, _optional = {}): SiteRelativeTargetCheck {
   return sharedCheckSiteRelativeTarget({ raw, reservedSegments: RESERVED_SEGMENTS }, {}) as SiteRelativeTargetCheck;
 }

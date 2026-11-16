@@ -22,8 +22,8 @@ export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _optio
         `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
         entries
           .map((e) => {
-            const lastmod = e.lastmod ? `<lastmod>${escapeXml(e.lastmod)}</lastmod>` : "";
-            return `  <url><loc>${escapeXml(e.loc)}</loc>${lastmod}</url>`;
+            const lastmod = e.lastmod ? `<lastmod>${escapeXml({ text: e.lastmod })}</lastmod>` : "";
+            return `  <url><loc>${escapeXml({ text: e.loc })}</loc>${lastmod}</url>`;
           })
           .join("\n") +
         (entries.length > 0 ? "\n" : "") +

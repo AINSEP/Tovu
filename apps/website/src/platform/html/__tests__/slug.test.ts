@@ -36,7 +36,7 @@ const ASCII_CORPUS = [
 ];
 
 test("toSlug: every ASCII corpus string matches the old rule byte for byte", () => {
-  for (const text of ASCII_CORPUS) assert.equal(toSlug(text), oldSlug(text), JSON.stringify(text));
+  for (const text of ASCII_CORPUS) assert.equal(toSlug({ text }), oldSlug(text), JSON.stringify(text));
 });
 
 test("toSlug: 10,000 seeded random ASCII strings match the old rule byte for byte", () => {
@@ -47,18 +47,18 @@ test("toSlug: 10,000 seeded random ASCII strings match the old rule byte for byt
     const length = next() % 24;
     let text = "";
     for (let j = 0; j < length; j += 1) text += String.fromCharCode(next() % 128);
-    assert.equal(toSlug(text), oldSlug(text), JSON.stringify(text));
+    assert.equal(toSlug({ text }), oldSlug(text), JSON.stringify(text));
   }
 });
 
 test("toSlug: non-ASCII letters transliterate instead of becoming separators", () => {
-  assert.equal(toSlug("Café Münster"), "cafe-muenster");
-  assert.equal(toSlug("Привет"), "privet");
-  assert.equal(toSlug("Ελληνικά"), "ellinika");
-  assert.equal(toSlug("Łódź"), "lodz");
+  assert.equal(toSlug({ text: "Café Münster" }), "cafe-muenster");
+  assert.equal(toSlug({ text: "Привет" }), "privet");
+  assert.equal(toSlug({ text: "Ελληνικά" }), "ellinika");
+  assert.equal(toSlug({ text: "Łódź" }), "lodz");
 });
 
 test("toSlug: scripts with no transliteration still yield empty, so callers' fallbacks apply", () => {
-  assert.equal(toSlug("日本語"), "");
-  assert.equal(toSlug("עברית"), "");
+  assert.equal(toSlug({ text: "日本語" }), "");
+  assert.equal(toSlug({ text: "עברית" }), "");
 });

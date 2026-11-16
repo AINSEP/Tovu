@@ -122,7 +122,7 @@ function projectedAttributes({ node, entry }: { node: Element; entry: PublishedP
   const roles: Readonly<Record<string, string>> = { read: 'region', navigate: 'link', fill: 'field', select: 'field' };
   const role = roles[entry.action] ?? 'button';
   if (entry.label === undefined) throw new Error('Visitor publication element has no label');
-  return `${mobile} data-agent-element="${entry.handle}" data-agent-label="${escapeHtml(entry.label)}" data-agent-role="${role}"`;
+  return `${mobile} data-agent-element="${entry.handle}" data-agent-label="${escapeHtml({ text: entry.label })}" data-agent-role="${role}"`;
 }
 
 /** Bind the published submitter to its reviewed same-site form action and method. */
@@ -151,6 +151,6 @@ function targetMetadata({ node, action, pagePath }: { node: Element; action: Pub
   return target ? { target } : null;
 }
 function safeFormAction({ action }: { action: string }, _optional = {}): boolean {
-  return checkSiteRelativeTarget(action).kind === 'ok' && !/[?#]/.test(action);
+  return checkSiteRelativeTarget({ raw: action }).kind === 'ok' && !/[?#]/.test(action);
 }
 
