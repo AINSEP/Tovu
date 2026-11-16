@@ -13,7 +13,6 @@ import { resolveRenderThemeId } from "../../middleware/render-theme-override.js"
 import { resolveTemplateBranchChoice, isBarePageChoice } from "#src/features/theme/static-render";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { isStandaloneThemePage, type DiscoveredTheme } from "#src/features/theme/theme";
-import { parseListingBatchPath, parseListingPagePath } from "@jini-ai/cms/listing";
 import { comparePostsByDisplayDate } from "#src/contracts/core/scheduled-publish";
 import { postPublicPath } from "#src/platform/routing/index";
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
@@ -28,7 +27,7 @@ import { asyncRoute } from "../../../shared/async-route.js";
 import type { SiteRequestDeps, PostPreviewsAccess } from "./pages/render-context/deps.js";
 import { resolveAssignedTermsForRender } from "./pages/render-context/taxonomy.js";
 import { resolveSiteTitleForRender, resolveSiteTimeZoneForRender } from "./pages/render-context/site-title.js";
-import { recordListingBatchRequest, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError } from "./pages/listing/listing-state.js";
+import { ListingBatchNotFoundError } from "./pages/listing/listing-state.js";
 import { resolveRequestedSlug, redirectLookupPath } from "./pages/request-policy.js";
 import { withListingBatch } from "./pages/listing/listing-batch.js";
 import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePosts } from "./pages/render-context/member-access.js";
@@ -40,6 +39,7 @@ import { buildExtraHead } from "./pages/extra-head.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "./pages/response.js";
 import { finishStaticTierDocument, isStaticThemeWithIndex, serveStaticThemeIndex } from "./pages/static-tier.js";
 import { renderViaTemplate } from "./pages/template-render.js";
+import { listingBatchNotFound, registerListingRewrites } from "./pages/handlers/listing.js";
 
 /**
  * `resolveActiveThemeId`/`resolveActiveTheme` moved out of this file 2026-08-16 — both were pure
@@ -461,31 +461,6 @@ async function resolveHomePageContent({ deps, memberAccessResolver, memberContex
   return decidePostMemberAccess({ resolver: memberAccessResolver, post: found.post, context: memberContext }).allowed ? found.post : undefined;
 }
 
-/** Points a listing URL's request at its page (keeping any query) so the `/` and `/:slug` handlers
- *  render it through every one of their branches unchanged (Express 4 re-matches the rewritten `req.url`). */
-function rewriteToListingPage({ req, pagePath }: { req: Request; pagePath: string }, _optional: Record<string, never> = {}): void {
-  const queryStart = req.url.indexOf("?");
-  req.url = pagePath + (queryStart === -1 ? "" : req.url.slice(queryStart));
-}
-
-/** A batch request whose page has no such listing: restore the batch URL and fall through to the 404.
- *  A numbered page first consults its own not-found redirect rules, which the nested-path redirect
- *  fallback never saw because the rewrite had already claimed the request (A-1, 2026-10-22); a
- *  failing lookup goes to Express's error handling, as that fallback's does. */
-async function listingBatchNotFound({ req, res, next, workspaceId }: {
-  req: Request; res: Response; next: NextFunction; workspaceId: string;
-}, _optional: Record<string, never> = {}): Promise<void> {
-  const numberedPage = listingPageRequestOf({ req }) !== undefined;
-  req.url = req.originalUrl;
-  try {
-    if (numberedPage && (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId, res }))) return undefined;
-  } catch (err) {
-    return next(err);
-  }
-  next();
-  return undefined;
-}
-
 /** `GET /`'s whole response (redirects, content-owned home page, the static theme's `index.html`,
  *  or the theme's home route). Errors propagate to the route's catch. */
 async function serveHomePage({ req, res, deps }: { req: Request; res: Response; deps: SiteRequestDeps }): Promise<void> {
@@ -634,32 +609,6 @@ export async function serveVirtualPage({ req, res, deps, post }: {
   await sendPublicPage({ req, res, deps, html, perVisitor });
   return undefined;
 }
-
-/** The two listing rewrites, `/_more/…` then `/page/<n>`: they run before every page route. */
-const registerListingRewrites: RouteRegistrar = ({ app }, _options = {}) => {
-  // See-more batch URLs (`<page>/_more/<key>/<after>`): rewrite to the page itself so the `/` and
-  // `/:slug` handlers below render it through every one of their branches unchanged (Express 4
-  // re-matches the rewritten `req.url`); `finalizePublicPageHtml` then cuts out the one batch.
-  app.get(/\/_more\/[^/]+\/[^/]+\/?$/, (req, _res, next) => {
-    const listingBatch = parseListingBatchPath({ path: req.path });
-    if (listingBatch === undefined) return next();
-    recordListingBatchRequest({ req, listingBatch });
-    rewriteToListingPage({ req, pagePath: listingBatch.pagePath });
-    next();
-    return undefined;
-  });
-
-  // Numbered listing pages (`<page>/page/<n>`, Bug C): the same rewrite to the page itself; a
-  // `paged` post-previews listing then renders page `n`, and a page without one answers 404.
-  app.get(/\/page\/[^/]+\/?$/, (req, _res, next) => {
-    const listingPage = parseListingPagePath({ path: req.path });
-    if (listingPage === undefined) return next();
-    recordListingPageRequest({ req, listingPage });
-    rewriteToListingPage({ req, pagePath: listingPage.pagePath });
-    next();
-    return undefined;
-  });
-};
 
 /** `GET /`. */
 const registerHomeRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
