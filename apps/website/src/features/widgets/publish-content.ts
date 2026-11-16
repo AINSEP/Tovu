@@ -39,7 +39,7 @@ function serviceDeps(
   _optional = {}
 ) {
   const { deps, ports } = ctx;
-  const gateway = gatewayDeps(deps, entityType);
+  const gateway = gatewayDeps({ deps, entityType });
   return {
     host: buildWidgetHostPorts({}, {}),
     entryLocks: getEntryLockState({ owner: ports.entries }),
@@ -105,7 +105,7 @@ function widgetMediaReferences(
 ): PublishContentReference[] {
   const registration = findWidgetTypeRegistration({ raw: widgetType });
   if (!registration) return [];
-  const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys(text)]));
+  const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys({ text })]));
   for (const key of collectMediaConfigKeys({ config })) keys.add(key);
   return [...keys].map((key) => ({ entityType: "media", key }));
 }

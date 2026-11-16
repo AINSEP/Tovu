@@ -76,7 +76,7 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   const marker = (content: Record<string, unknown>) => `<div data-embed-config='${JSON.stringify({ type: 'widget', slug: 'photos', content })}'></div>`;
   const html = marker({ items: [{ slug: 'first' }] }) + marker({ items: [{ slug: 'second' }] });
   t.diagnostic(`phase: HTML placements (${Math.round(performance.now() - started)}ms)`);
-  const rendered = renderHtmlPageBody(html, await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } }));
+  const rendered = renderHtmlPageBody({ html, resolved: await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html } }) });
   assert.ok(rendered.includes('/m/first/'));
   assert.ok(rendered.includes('/m/second/'));
   assert.ok(!rendered.includes('/m/saved/'));
@@ -85,7 +85,7 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   const doc: JsonObject = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { placementId: 'p1', widgetEntryId: 'media-widget', content: { items: [{ slug: 'first' }] } } }, { type: 'widgetEmbed', attrs: { placementId: 'p2', widgetEntryId: 'media-widget', content: { mode: 'html', html: '<img data-media-slug="second"><img data-media-slug="missing"><script>bad()</script>' } } }] };
   t.diagnostic(`phase: TipTap placements (${Math.round(performance.now() - started)}ms)`);
   const widgets = await resolvePageWidgets({ deps: { entryRepo, bindingRepo: new InMemoryWidgetRegionBindingRepo() }, input: { workspaceId, resolvedRegions: [], pageBodyJson: doc } });
-  const docHtml = renderDocNode(doc, widgets.inlineResolved);
+  const docHtml = renderDocNode({ node: doc }, { inlineResolved: widgets.inlineResolved });
   assert.ok(docHtml.includes('/m/first/'));
   assert.ok(docHtml.includes('/m/second/'));
   assert.ok(!/missing|bad\(\)|script|\/m\/saved\//.test(docHtml));
@@ -102,13 +102,13 @@ test('found slugs, missing slugs, audio and two placement overrides resolve thro
   t.diagnostic(`phase: inline audio (${Math.round(performance.now() - started)}ms)`);
   const inlineResolved = await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html: inline } });
   assert.equal(inlineResolved.get("media")?.get("media:1")?.componentId, "media");
-  const inlineHtml = renderHtmlPageBody(inline, inlineResolved);
+  const inlineHtml = renderHtmlPageBody({ html: inline, resolved: inlineResolved });
   assert.ok(inlineHtml.includes('<audio'));
   assert.ok(inlineHtml.includes('/m/sound/original.mp3'));
   assert.ok(!inlineHtml.includes('<img'));
   assert.ok(!inlineHtml.includes('missing'));
   const rawInline = `<div data-embed-config='${JSON.stringify({ type: 'media', content: { mode: 'html', html: '<img data-media-slug="first">' } })}'></div>`;
-  const rawInlineHtml = renderHtmlPageBody(rawInline, await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html: rawInline } }));
+  const rawInlineHtml = renderHtmlPageBody({ html: rawInline, resolved: await resolveHtmlPageEmbeds({ deps, input: { workspaceId, html: rawInline } }) });
   assert.ok(rawInlineHtml.includes('/m/first/'));
   t.diagnostic(`phase: complete (${Math.round(performance.now() - started)}ms)`);
 });
@@ -170,7 +170,7 @@ test('audio shares player styling and forwarded marker attributes in widgets and
   assert.ok(html.includes('data-kui="scroll-snap-x"'));
   assert.ok(!html.includes(' controls'));
   const meta = { slug: 'sound', width: null, height: null, cssClass: 'stored', htmlAttributes: 'data-kui="stored"', contentType: 'audio/wav' };
-  const doc = renderDocNode({ type: 'media', attrs: { assetId: 'sound-id', transformName: 'public', cssClass: 'node', htmlAttributes: 'data-kui="node"' } }, new Map(), new Map(), new Map([['sound-id', meta]]));
+  const doc = renderDocNode({ node: { type: 'media', attrs: { assetId: 'sound-id', transformName: 'public', cssClass: 'node', htmlAttributes: 'data-kui="node"' } } }, { inlineResolved: new Map(), mediaTransformVersions: new Map(), mediaAssetMetadata: new Map([['sound-id', meta]]) });
   assert.ok(doc.includes('<audio src="/m/sound/original.wav" controls'));
   assert.ok(doc.includes('class="node"'));
   assert.ok(doc.includes('data-kui="node"'));

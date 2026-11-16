@@ -434,7 +434,7 @@ async function readPageTheme(
 ) {
   if (!deps.themes || !deps.resolveActiveThemeId) return null;
   if (deps.themesDir) syncThemeRoster({ themes: deps.themes, themesDir: deps.themesDir });
-  const theme = resolveActiveTheme({ themes: deps.themes }, await deps.resolveActiveThemeId());
+  const theme = resolveActiveTheme({ deps: { themes: deps.themes }, activeThemeId: await deps.resolveActiveThemeId() });
   if (theme === null || theme === NO_THEME_ID) return null;
   return { id: theme.manifest.id, tokens: theme.tokens, tokensLight: theme.tokensLight };
 }

@@ -29,31 +29,31 @@ const options = { useMemory: false, defaultContentDbPath: () => "/sites/new-site
 function recordingSteps(pending: readonly string[], applyThrows = false) {
   const calls: string[] = [];
   const steps: AgentPluginTokenBootSteps = {
-    pendingPluginIds: (siteDir) => (calls.push(`pending-ids:${siteDir}`), new Set(pending)),
-    applyPending: async (siteDir) => {
+    pendingPluginIds: ({ siteDir }) => (calls.push(`pending-ids:${siteDir}`), new Set(pending)),
+    applyPending: async ({ siteDir }) => {
       calls.push(`apply:${siteDir}`);
       if (applyThrows) throw new Error("disk went away");
     },
-    importFromEnv: async (skip) => void calls.push(`env:skip=${[...skip].sort().join(",")}`),
+    importFromEnv: async ({ skipPluginIds: skip }) => void calls.push(`env:skip=${[...skip].sort().join(",")}`),
   };
   return { calls, steps };
 }
 
 test("pending onboarding tokens are applied first, and the env import skips every plugin that had one", async () => {
   const { calls, steps } = recordingSteps(["supabase"]);
-  await importAgentPluginTokensAtBoot(deps, options, steps);
+  await importAgentPluginTokensAtBoot({ deps, options }, { steps });
   assert.deepEqual(calls, ["pending-ids:/sites/new-site", "apply:/sites/new-site", "env:skip=supabase"]);
 });
 
 test("a failed pending apply still keeps the env import off the pending plugins", async () => {
   const { calls, steps } = recordingSteps(["supabase"], true);
-  await importAgentPluginTokensAtBoot(deps, options, steps);
+  await importAgentPluginTokensAtBoot({ deps, options }, { steps });
   assert.deepEqual(calls.at(-1), "env:skip=supabase");
 });
 
 test("memory mode has no site folder: only the env import runs, skipping nothing", async () => {
   const { calls, steps } = recordingSteps(["supabase"]);
-  await importAgentPluginTokensAtBoot(deps, { ...options, useMemory: true }, steps);
+  await importAgentPluginTokensAtBoot({ deps, options: { ...options, useMemory: true } }, { steps });
   assert.deepEqual(calls, ["env:skip="]);
 });
 
@@ -94,11 +94,11 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
   } as unknown as NewsletterRouteDeps;
   const bootOptions = { useMemory: false, defaultContentDbPath: () => path.join(siteDir, "content.db") };
 
-  await importAgentPluginTokensAtBoot(realDeps, bootOptions);
+  await importAgentPluginTokensAtBoot({ deps: realDeps, options: bootOptions });
   const failedRow = await repo.findByServerId({ workspaceId: realDeps.workspaceId, serverId: "supabase" });
   assert.equal(failedRow?.sealedOAuth, null, "ambient credentials must not take over after the pending import fails");
   assert.equal(fs.existsSync(pendingFile), true, "the chosen token remains retryable");
-  await importAgentPluginTokensAtBoot(realDeps, bootOptions);
+  await importAgentPluginTokensAtBoot({ deps: realDeps, options: bootOptions });
   const saved = await repo.findByServerId({ workspaceId: realDeps.workspaceId, serverId: "supabase" });
   assert.ok(saved?.sealedOAuth);
   assert.equal((await openExternalMcpOAuthPayload(sealer, saved)).staticAccessToken, "chosen-site-key");

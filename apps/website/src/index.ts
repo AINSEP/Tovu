@@ -61,15 +61,15 @@ const useMemory = process.env.TOVU_DB === "memory";
 // interface; Docker, compose and every container host run this file). `TOVU_HOST` now lets an operator
 // narrow it, the same resolver `tovu serve` uses (`cli/commands/serve.ts`) for its own, opposite,
 // default.
-const bindHost = resolveBindHost(process.env.TOVU_HOST, undefined);
+const bindHost = resolveBindHost({ raw: process.env.TOVU_HOST, fallback: undefined });
 
 // Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — found by walking up
 // from this module's own location (`resolveCheckoutRoot`), not `process.cwd()`, per the daemon-cwd
 // trap already documented elsewhere in this codebase: a boot launched from a different working
 // directory must still find the same cert pair. A fixed `../` count was right for tsx only; the
 // compiled `dist/src/index.js` sits two levels shallower, so `npm start` silently served plain HTTP.
-const devTls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})));
-const devScheme = deriveDevScheme(devTls.active);
+const devTls = resolveDevTls(resolveDevTlsCertPaths({ repoRoot: resolveCheckoutRoot({}) }));
+const devScheme = deriveDevScheme({ tlsActive: devTls.active });
 
 // Armed as early as possible, before any of the slower boot work in `main()` below — so a parent
 // death during this process's own boot is caught too, not only once it has reached steady state.
@@ -96,7 +96,7 @@ startOwnParentWatchdog({
  * migrated db (nothing to compare against yet — `openContentDb()`'s own first-boot path is correct).
  */
 async function guardContentDbSchemaOrExit({ dbPath }: { dbPath: string }, _optional = {}): Promise<void> {
-  const result = await checkContentDbSchema(dbPath);
+  const result = await checkContentDbSchema({ dbPath });
   if (result.status !== "refuse") return;
 
   console.error(`[content-db-schema-guard] ${result.message}`);
@@ -252,7 +252,7 @@ async function main(): Promise<void> {
   const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
   const deps = useMemory
     ? createRouteDeps(memoryOptions)
-    : await createSiteRouteDeps(defaultContentDbPath(), { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) });
+    : await createSiteRouteDeps({ dbPath: defaultContentDbPath(), overrides: { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) } });
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
   if (!useMemory) await completeDevSiteMetaOrWarn({ dir: siteDir() });

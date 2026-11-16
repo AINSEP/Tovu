@@ -316,7 +316,7 @@ export function useMenuEditor({ menuId, dependencies: { port, navigate, t, clipb
   /** New-menu titles derive through the same browser-safe slug owner as pages/forms; persisted URLs stay stable. */
   function changeTitle({ next }: { next: string }, _optional = {}): void {
     setTitle(next);
-    if (isNew && !slugEdited.current) setSlug(toSlug(next));
+    if (isNew && !slugEdited.current) setSlug(toSlug({ text: next }));
   }
 
   /** Any explicit slug edit ends automatic derivation for this menu, including an intentionally empty value. */

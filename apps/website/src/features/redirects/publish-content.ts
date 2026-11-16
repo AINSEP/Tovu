@@ -141,7 +141,7 @@ export const contributeRedirectPublish = (): PublishContentContributor =>
     validate: async ({ ports, workspaceId, entity, existing }) =>
       parseRedirectNaturalKey({ key: entity.id })
         ? checkRedirectFieldsWouldWrite({ deps: ports, fields: redirectFields({ workspaceId, state: entity.state }) }, { excludeId: existing?.id })
-        : malformedKey("redirect", entity.id, "matchType:fromPattern"),
+        : malformedKey({ entityType: "redirect", id: entity.id, expectedShape: "matchType:fromPattern" }),
     write: async ({ ports, workspaceId, id, state, existing, principalId }) => {
       if (!parseRedirectNaturalKey({ key: id })) throw new Error(`publish-content: redirect.apply() received a malformed natural key '${id}'`);
       const fields = { ...redirectFields({ workspaceId, state }), actorId: principalId };

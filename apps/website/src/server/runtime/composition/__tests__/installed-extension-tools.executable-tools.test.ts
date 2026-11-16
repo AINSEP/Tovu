@@ -43,14 +43,10 @@ const surfaces = () => ({ surfaceExchanges: createSurfaceExchangeStore({ schedul
 /** Runs the real registrar with the executable-tool ports given; the other families find nothing installed. */
 async function register(extra: { agentPluginTools?: AgentPluginExecutableToolHost; surfaces?: ReturnType<typeof surfaces>; executablePluginToolRegistry?: ToolRegistry }) {
   const installed: ToolRegistration[] = [];
-  await registerInstalledExtensionTools(
-    { register: (registration: ToolRegistration) => void installed.push(registration) },
-    testSiteLayoutContext({
+  await registerInstalledExtensionTools({ registry: { register: (registration: ToolRegistration) => void installed.push(registration) }, deps: testSiteLayoutContext({
       ...layout.deps, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }), discoverPlugins: async () => [], ...extra,
-    }),
-    "[executable-tools-test]",
-  );
+    }), log: "[executable-tools-test]" });
   return installed;
 }
 
@@ -117,15 +113,11 @@ test("every family that fails is logged once with the registrar's prefix, a non-
   const installed: ToolRegistration[] = [];
   // Every layout read fails: both the agent-plugin and the skill family lose their install roots.
   const brokenLayout = new Proxy({}, { get: () => { throw new Error("layout unreadable"); } });
-  await registerInstalledExtensionTools(
-    { register: (registration: ToolRegistration) => void installed.push(registration) },
-    testSiteLayoutContext({
+  await registerInstalledExtensionTools({ registry: { register: (registration: ToolRegistration) => void installed.push(registration) }, deps: testSiteLayoutContext({
       ...layout.deps, agentPluginLayout: brokenLayout as never, skillLayout: brokenLayout as never, authorize: allowAll, workspaceId: WORKSPACE, postRepo: new InMemoryPostRepo({}, { initialRows: [] }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [] }),
       discoverPlugins: async () => { throw "discovery offline"; },
-    }),
-    "[families-test]",
-  );
+    }), log: "[families-test]" });
   const lines = warn.mock.calls.map((call) => call.arguments[0]);
   assert.ok(lines.includes("[families-test] agent-plugin tools could not be registered, continuing without them — layout unreadable"), String(lines));
   assert.ok(lines.includes("[families-test] skill tools could not be registered, continuing without them — layout unreadable"), String(lines));

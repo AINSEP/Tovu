@@ -73,7 +73,7 @@ function fixture(claimOverrides: Record<string, unknown> = {}) {
   const app = express(); app.use(express.json());
   for (const register of [registerMemberLoginProvidersRoute, registerMemberOidcStartRoute, registerMemberOidcCallbackRoute,
     registerMemberOidcVerifyEmailRoute, registerMemberUnlinkIdentityRoute]) register({ app, deps });
-  registerPublicMemberMeRoute(app, members, { login: deps });
+  registerPublicMemberMeRoute({ app, deps: members }, { login: deps });
   async function start(base: string, memberCookie = "") {
     crypto.clock.advanceMs(1);
     const response = await fetch(`${base}${OIDC}/start`, { redirect: "manual", headers: { cookie: memberCookie } });

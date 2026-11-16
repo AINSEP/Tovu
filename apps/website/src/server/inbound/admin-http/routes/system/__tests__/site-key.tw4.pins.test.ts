@@ -51,7 +51,7 @@ async function fixture({ t }: { t: TestContext }, { credentialKind = "session", 
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = credentialKind; next(); });
   const baseDeps = createRouteDeps();
   t.mock.method(baseDeps.restorePointsRepo, "save", save);
-  registerAdminSiteKeyRoutes(app, { ...baseDeps, ...ports }, writer);
+  registerAdminSiteKeyRoutes({ app, deps: { ...baseDeps, ...ports }, siteKey: writer });
   const base = await startTestServer(app, t);
   const post = async ({ verb, body = {} }: { verb: string; body?: unknown }, _options = {}) => {
     const response = await fetch(`${base}/api/admin/v1/workspaces/ws/system/site-key/${verb}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

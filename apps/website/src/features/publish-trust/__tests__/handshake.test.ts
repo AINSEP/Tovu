@@ -79,13 +79,15 @@ async function sourceKey(siteKeyHex = SOURCE_ROOT, generation = 1) {
 
 async function grantFor(publicKeyB64u: string, generation = 1) {
   const parsed = parsePublishTrustGrant({
-    version: PUBLISH_TRUST_GRANT_VERSION,
-    sourceInstallationId: SOURCE_INSTALL,
-    publicKeys: [{ publicKeyB64u, generation }],
-    workspaceId: WORKSPACE,
-    entityTypes: ["post", "media"],
-    capabilities: [...CAPABILITIES],
-    notAfter: "2099-01-01T00:00:00.000Z",
+    raw: {
+      version: PUBLISH_TRUST_GRANT_VERSION,
+      sourceInstallationId: SOURCE_INSTALL,
+      publicKeys: [{ publicKeyB64u, generation }],
+      workspaceId: WORKSPACE,
+      entityTypes: ["post", "media"],
+      capabilities: [...CAPABILITIES],
+      notAfter: "2099-01-01T00:00:00.000Z",
+    },
   });
   assert.ok(parsed.ok);
   return parsed.grant;
@@ -113,7 +115,7 @@ async function handshake(options: { clock: ReturnType<typeof movableClock>; sign
     sourceInstallationId: SOURCE_INSTALL,
     generation: key.generation,
     capabilities: [...CAPABILITIES],
-    signatureB64u: key.sign(message),
+    signatureB64u: key.sign({ message: message }),
   };
   return { store, grant, challenge, response, clock };
 }
@@ -180,7 +182,7 @@ test("a valid signature claiming another source installation is refused", async 
   const key = await sourceKey();
   const claimed = { ...response, sourceInstallationId: "another-source-install" };
   // Sign the claimed identity so signature verification cannot mask a missing grant binding.
-  claimed.signatureB64u = key.sign(buildChallengeMessage({ ...claimed, targetInstallationId: TARGET_INSTALL }));
+  claimed.signatureB64u = key.sign({ message: buildChallengeMessage({ ...claimed, targetInstallationId: TARGET_INSTALL }) });
   assert.deepEqual(
     await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response: claimed }),
     { ok: false, reason: "the response names an installation this grant is not for" }
@@ -193,7 +195,7 @@ test("a validly signed challenge requesting no capabilities is refused", async (
   const key = await sourceKey();
   const empty = { ...response, capabilities: [] };
   // An empty list is signed correctly and passes the per-capability loop vacuously.
-  empty.signatureB64u = key.sign(buildChallengeMessage({ ...empty, targetInstallationId: TARGET_INSTALL }));
+  empty.signatureB64u = key.sign({ message: buildChallengeMessage({ ...empty, targetInstallationId: TARGET_INSTALL }) });
   assert.deepEqual(
     await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response: empty }),
     { ok: false, reason: "no capabilities requested" }
@@ -208,7 +210,7 @@ test("changing a signed read request to apply invalidates the signature", async 
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
     capabilities: ["publish_content.read"], signatureB64u: "" };
-  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }));
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }) });
   const result = await verifyChallengeResponse({ store, clock }, { grant,
     targetInstallationId: TARGET_INSTALL, response: { ...response, capabilities: ["publish_content.apply"] } });
   assert.deepEqual(result, { ok: false, reason: "signature verification failed" });
@@ -222,7 +224,7 @@ test("a read-only handshake mints a read-only session", async () => {
   const challenge = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
   const response = { nonce: challenge.nonce, sourceInstallationId: SOURCE_INSTALL, generation: 1,
     capabilities: ["publish_content.read"], signatureB64u: "" };
-  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }));
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId: TARGET_INSTALL }) });
   const verified = await verifyChallengeResponse({ store, clock }, { grant, targetInstallationId: TARGET_INSTALL, response });
   assert.ok(verified.ok);
   assert.deepEqual(verified.verified.capabilities, ["publish_content.read"]);
@@ -322,9 +324,9 @@ test("issuing a later challenge sweeps unanswered expired nonces and preserves l
   const live = await issuePublishChallenge(deps);
   clock.advance(1);
   const latest = await issuePublishChallenge(deps);
-  assert.equal(await store.takeOnce(old.nonce), null);
-  assert.deepEqual(await store.takeOnce(live.nonce), live);
-  assert.deepEqual(await store.takeOnce(latest.nonce), latest);
+  assert.equal(await store.takeOnce({ nonce: old.nonce }), null);
+  assert.deepEqual(await store.takeOnce({ nonce: live.nonce }), live);
+  assert.deepEqual(await store.takeOnce({ nonce: latest.nonce }), latest);
 });
 
 test("PROOF 4 — an EXPIRED session is refused", async () => {
@@ -375,11 +377,11 @@ test("PROOF 6 — a valid publish token still cannot reach an ordinary content.w
 
   // The token is genuine and unexpired. It still cannot reach these, because the reachable set is
   // owned by `grant.ts` and is not carried in the token — nothing the holder presents can widen it.
-  assert.equal(isPublishTrustRoute("POST", `/api/admin/v1/workspaces/${WORKSPACE}/posts`), false);
-  assert.equal(isPublishTrustRoute("PUT", `/api/admin/v1/workspaces/${WORKSPACE}/posts/p-1`), false);
-  assert.equal(isPublishTrustRoute("POST", `/api/admin/v1/workspaces/${WORKSPACE}/api-keys`), false);
+  assert.equal(isPublishTrustRoute({ method: "POST", path: `/api/admin/v1/workspaces/${WORKSPACE}/posts` }), false);
+  assert.equal(isPublishTrustRoute({ method: "PUT", path: `/api/admin/v1/workspaces/${WORKSPACE}/posts/p-1` }), false);
+  assert.equal(isPublishTrustRoute({ method: "POST", path: `/api/admin/v1/workspaces/${WORKSPACE}/api-keys` }), false);
   // And what it CAN reach is exactly the publishing surface.
-  assert.equal(isPublishTrustRoute("POST", `/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles`), true);
+  assert.equal(isPublishTrustRoute({ method: "POST", path: `/api/admin/v1/workspaces/${WORKSPACE}/publish-content/bundles` }), true);
 });
 
 test("a nonce issued by another destination is refused", async () => {
@@ -388,7 +390,7 @@ test("a nonce issued by another destination is refused", async () => {
   const key = await sourceKey();
   const targetInstallationId = "someone-elses-install";
   // The signature is valid for the receiving destination; only the nonce's issuance binding differs.
-  response.signatureB64u = key.sign(buildChallengeMessage({ ...response, targetInstallationId }));
+  response.signatureB64u = key.sign({ message: buildChallengeMessage({ ...response, targetInstallationId }) });
 
   const result = await verifyChallengeResponse(
     { store, clock },
@@ -423,7 +425,7 @@ test("a capability the grant does not hold is refused, not narrowed", async () =
         sourceInstallationId: SOURCE_INSTALL,
         generation: 1,
         capabilities,
-        signatureB64u: key.sign(message),
+        signatureB64u: key.sign({ message: message }),
       },
     }
   );
@@ -448,7 +450,7 @@ test("a response claiming a generation the grant does not accept is refused", as
         sourceInstallationId: SOURCE_INSTALL,
         generation: 1,
         capabilities: [...CAPABILITIES],
-        signatureB64u: oldKey.sign("anything"),
+        signatureB64u: oldKey.sign({ message: "anything" }),
       },
     }
   );
@@ -555,7 +557,7 @@ test("an absent challenge response is refused without consuming the issued nonce
       grant, targetInstallationId: TARGET_INSTALL, response: missing as unknown as typeof response,
     }), { ok: false, reason: "no nonce supplied" });
   }
-  assert.deepEqual(await store.takeOnce(response.nonce), challenge);
+  assert.deepEqual(await store.takeOnce({ nonce: response.nonce }), challenge);
 });
 
 test("an unusable verification clock refuses and consumes an otherwise valid challenge", async () => {
@@ -564,7 +566,7 @@ test("an unusable verification clock refuses and consumes an otherwise valid cha
   assert.deepEqual(await verifyChallengeResponse({ store, clock: { nowIso: () => "invalid" } }, {
     grant, targetInstallationId: TARGET_INSTALL, response,
   }), { ok: false, reason: "nonce has expired" });
-  assert.equal(await store.takeOnce(response.nonce), null);
+  assert.equal(await store.takeOnce({ nonce: response.nonce }), null);
 });
 
 for (const expiresAtIso of ["corrupt", undefined]) {
@@ -576,7 +578,7 @@ for (const expiresAtIso of ["corrupt", undefined]) {
     assert.deepEqual(await verifyChallengeResponse({ store, clock }, {
       grant, targetInstallationId: TARGET_INSTALL, response,
     }), { ok: false, reason: "nonce has expired" });
-    assert.equal(await store.takeOnce(response.nonce), null);
+    assert.equal(await store.takeOnce({ nonce: response.nonce }), null);
   });
 
   test(`the in-memory challenge sweep removes expiry ${JSON.stringify(expiresAtIso)} and retains live records`, async () => {
@@ -586,10 +588,10 @@ for (const expiresAtIso of ["corrupt", undefined]) {
     await store.put({ ...live, nonce: "corrupt", expiresAtIso: expiresAtIso as unknown as string });
     await store.put({ ...live, nonce: "due", expiresAtIso: clock.nowIso() });
     await store.put({ ...live, nonce: "trigger" });
-    assert.equal(await store.takeOnce("corrupt"), null);
-    assert.equal(await store.takeOnce("due"), null);
-    assert.deepEqual(await store.takeOnce(live.nonce), live);
-    assert.deepEqual(await store.takeOnce("trigger"), { ...live, nonce: "trigger" });
+    assert.equal(await store.takeOnce({ nonce: "corrupt" }), null);
+    assert.equal(await store.takeOnce({ nonce: "due" }), null);
+    assert.deepEqual(await store.takeOnce({ nonce: live.nonce }), live);
+    assert.deepEqual(await store.takeOnce({ nonce: "trigger" }), { ...live, nonce: "trigger" });
   });
 }
 
@@ -601,7 +603,7 @@ for (const capabilities of [undefined, null, "publish_content.read", {}]) {
       grant, targetInstallationId: TARGET_INSTALL,
       response: { ...response, capabilities: capabilities as unknown as string[] },
     }), { ok: false, reason: "no capabilities requested" });
-    assert.equal(await store.takeOnce(response.nonce), null);
+    assert.equal(await store.takeOnce({ nonce: response.nonce }), null);
   });
 }
 

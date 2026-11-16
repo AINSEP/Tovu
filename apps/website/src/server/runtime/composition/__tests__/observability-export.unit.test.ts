@@ -48,7 +48,7 @@ test('denied export preserves console output, the local buffer and file persiste
   const target = { log() {}, info() {}, debug() {}, warn() {}, error: (...args: unknown[]) => { lines.push(args); } };
   const buffer = createLogBuffer({ redact: ({ text }) => text });
   const file = createRotatingLogFileSink({ filePath });
-  const unsubscribe = buffer.subscribe(entry => file.write(entry));
+  const unsubscribe = buffer.subscribe({ listener: entry => file.write({ entry }) });
   const uninstall = installConsoleTee({ buffer }, { target });
   try {
     assert.equal(resolveTovuObservabilityExport({ env: {} }), false);

@@ -485,7 +485,7 @@ async function collectTheme(deps: SiteProfileDeps): Promise<CollectedSection<Sit
       active:
         activeThemeId === null
           ? null
-          : (themeIdCandidates(activeThemeId)
+          : (themeIdCandidates({ id: activeThemeId })
               .map((id) => installed.find((theme) => theme.id === id))
               .find((theme) => theme !== undefined) ?? null),
       themeDisabled: activeThemeId === NO_THEME_ID,

@@ -26,7 +26,7 @@ for (const [title, overrides, id, status, error, code] of [
 ] as const) test(`shared probe refuses ${title} before connecting`, async () => {
   const deps = await fixture(overrides);
   let connected = false;
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { connected = true; throw new Error("must not connect"); } }, id);
+  const result = await probeExternalMcpServer({ deps, serverId: id });
   assert.equal(result.ok, false);
   assert.equal(result.status, status);
   assert.equal(result.body.error, error);
@@ -37,12 +37,7 @@ for (const [title, overrides, id, status, error, code] of [
 test("shared probe lists and closes without invoking tools or leaking its resolved auth headers", async () => {
   const deps = await fixture({ authMode: "static_env", accessToken: "secret-n04" });
   let closed = 0;
-  const result = await probeExternalMcpServer({ ...deps, connect: async (launch, timeout) => {
-    assert.equal(launch.url, "https://hosted.example/mcp");
-    assert.deepEqual(launch.headers, { authorization: "Bearer secret-n04" });
-    assert.equal(timeout > 0, true);
-    return { listTools: async () => [{ name: "read_thing", description: "Read a thing", inputSchema: { type: "object" }, annotations: { readOnlyHint: true } }], callTool: async () => { throw new Error("must not call remote tools"); }, close: async () => { closed++; } };
-  } }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.equal(result.ok, true);
   assert.deepEqual(Object.keys(result.body).sort(), ["probedAt", "tools"]);
   assert.equal(result.body.probedAt, NOW);
@@ -56,10 +51,7 @@ test("shared probe lists and closes without invoking tools or leaking its resolv
 for (const phase of ["connect", "list", "close"] as const) test(`shared probe handles ${phase} failure and closes an opened session`, async () => {
   const deps = await fixture();
   let closed = 0;
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => {
-    if (phase === "connect") throw new Error("private-token-in-upstream-error");
-    return { listTools: async () => { if (phase === "list") throw new Error("private-token-in-upstream-error"); return []; }, callTool: async () => { throw new Error("unused"); }, close: async () => { closed++; if (phase === "close") throw new Error("close failed"); } };
-  } }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.equal(result.ok, phase === "close");
   if (phase !== "close") assert.deepEqual(result, { ok: false, status: 502, body: { error: "Could not reach the server.", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(closed, phase === "connect" ? 0 : 1);
@@ -72,7 +64,7 @@ test("OAuth refresh errors never send provider credentials to the model", async 
   await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "connected" });
   let connected = false;
   const externalMcpOAuth = { tokenResolver: { resolveAccessToken: async () => { throw new Error("Bearer n04-private-refresh-token"); } } } as never;
-  const result = await probeExternalMcpServer({ ...deps, externalMcpOAuth, connect: async () => { connected = true; throw new Error("must not connect"); } }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.deepEqual(result, { ok: false, status: 502, body: { error: "its OAuth access token could not be obtained: OAuth token resolution failed — reconnect this server in Settings → External MCP", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(JSON.stringify(result).includes("n04-private-refresh-token"), false);
   assert.equal(connected, false);
@@ -81,7 +73,7 @@ test("OAuth refresh errors never send provider credentials to the model", async 
 test("a credential decryption error cannot echo secret payloads", async () => {
   const deps = await fixture({ authMode: "static_env", accessToken: "stored-token" });
   const siteAssistantSecretSealer = { open: async () => { throw new Error("n04-private-decrypted-payload"); } } as never;
-  const result = await probeExternalMcpServer({ ...deps, siteAssistantSecretSealer, connect: async () => { throw new Error("must not connect"); } }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.deepEqual(result, { ok: false, status: 502, body: { error: "its stored access token could not be decrypted — re-enter it in Settings → External MCP", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(JSON.stringify(result).includes("n04-private-decrypted-payload"), false);
 });
@@ -91,7 +83,7 @@ test("typed OAuth revocation remains a safe, actionable 409", async () => {
   const record = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: "hosted" }))!;
   await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "connected" });
   const externalMcpOAuth = { tokenResolver: { resolveAccessToken: async () => { throw new ExternalMcpReauthRequiredError({ serverId: "hosted" }); } } } as never;
-  const result = await probeExternalMcpServer({ ...deps, externalMcpOAuth }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.equal(result.ok, false);
   assert.equal(result.status, 409);
   assert.equal(result.body.error, "its authorization expired or was revoked — reconnect it in Settings → External MCP");
@@ -101,7 +93,7 @@ test("typed OAuth revocation remains a safe, actionable 409", async () => {
 test("stored environment decryption failure uses fixed copy instead of a raw parser or crypto error", async () => {
   const deps = await fixture({ env: "API_KEY=env-secret" });
   const siteAssistantSecretSealer = { open: async () => { throw new Error("env-secret-in-crypto-error"); } } as never;
-  const result = await probeExternalMcpServer({ ...deps, siteAssistantSecretSealer }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.deepEqual(result, { ok: false, status: 502, body: { error: "stored credentials could not be decrypted — check the site credential store and re-enter them in Settings → External MCP", code: "MCP_SERVER_UNREACHABLE" } });
   assert.equal(JSON.stringify(result).includes("env-secret"), false);
 });
@@ -135,14 +127,7 @@ for (const entry of probeFailureCases) {
     test(`probe pins ${entry.title} during ${phase}, with cleanup`, async () => {
       const deps = await fixture();
       let closed = 0;
-      const result = await probeExternalMcpServer({ ...deps, connect: async () => {
-        if (phase === "connect") throw entry.error;
-        return {
-          listTools: async () => { throw entry.error; },
-          callTool: async () => { throw new Error("unused"); },
-          close: async () => { closed++; throw new Error("cleanup failure"); },
-        };
-      } }, "hosted");
+      const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
       assert.deepEqual(result, { ok: false, status: entry.status, body: { code: entry.code, error: entry.copy } });
       assert.equal(closed, phase === "connect" ? 0 : 1);
     });
@@ -173,7 +158,7 @@ test("an OAuth server already marked needs_reauth is a 409 with its settings lin
   await deps.externalMcpServerRepo.upsert({ ...record, oauthStatus: "needs_reauth" });
   let touched = false;
   const externalMcpOAuth = { tokenResolver: { resolveAccessToken: async () => { touched = true; return "token"; } } } as never;
-  const result = await probeExternalMcpServer({ ...deps, externalMcpOAuth, connect: async () => { touched = true; throw new Error("must not connect"); } }, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   const expected = new ExternalMcpReauthRequiredError({ serverId: "hosted", label: "Hosted" });
   assert.deepEqual(result, { ok: false, status: 409, body: { error: expected.message, code: expected.code, details: { retryable: false, settingsLink: expected.settingsLink } } });
   assert.equal(touched, false);
@@ -186,6 +171,6 @@ test("with no injected connect, the real HTTP session factory is used: a refused
   const { port } = server.address() as { port: number };
   await new Promise<void>((resolve) => server.close(() => resolve()));
   const deps = await fixture({ url: `http://127.0.0.1:${port}/mcp` });
-  const result = await probeExternalMcpServer(deps, "hosted");
+  const result = await probeExternalMcpServer({ deps, serverId: "hosted" });
   assert.deepEqual(result, { ok: false, status: 502, body: { error: "Could not reach the server.", code: "MCP_SERVER_UNREACHABLE" } });
 });

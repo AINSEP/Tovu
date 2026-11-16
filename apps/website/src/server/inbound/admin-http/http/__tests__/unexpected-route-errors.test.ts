@@ -97,7 +97,7 @@ test("the recorded duplicate-skill-name refusal remains actionable while unexpec
   t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute(app, { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) });
+  registerSkillsListRoute({ app, deps: { ...site.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/workspace-local/skills");
   const body = response.body as Record<string, string>;
   assert.equal(response.status, 500);
@@ -123,11 +123,11 @@ for (const broken of ["logger", "tracker"]) {
 }
 
 for (const [name, map] of Object.entries({
-  newsletter: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => newsletterErrorToResponse(err, options),
-  widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse(err, options),
+  newsletter: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => newsletterErrorToResponse({ err }, options),
+  widgets: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => widgetErrorToResponse({ err }, options),
   publishing: importErrorResponse,
   peers: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => mappedErrorResponse({ err, table: [] }, options),
-  installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => installErrorResponse(err, options),
+  installation: ({ err }: { err: unknown }, options: Parameters<typeof importErrorResponse>[1] = {}) => installErrorResponse({ error: err }, options),
 })) {
   test(`${name}: the mapping fallback reports Error and non-Error exceptions without leaking details`, t => {
     const secret = "ghp_" + "x".repeat(36);

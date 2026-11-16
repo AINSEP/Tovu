@@ -300,7 +300,7 @@ export function checkSourceDirContainment(
   const { normalized } = resolved;
 
   const issues: ThemeValidationIssue[] = [];
-  if (isSourceDirGeneratedConflict(normalized)) {
+  if (isSourceDirGeneratedConflict({ sourceDir: normalized })) {
     issues.push({
       ruleId: "structure-sourcedir-generated-conflict",
       message: `build.sourceDir '${build.sourceDir}' must not name or contain a reserved generated directory (${GENERATED_THEME_DIRS.join(", ")})`,

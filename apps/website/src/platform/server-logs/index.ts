@@ -97,8 +97,8 @@ export function attachServerLogFile(required: { filePath: string }, optional: { 
   if (detachFile === null) {
     const sink = createRotatingLogFileSink({ filePath: required.filePath }, { fs: optional.fs });
     const buffer = getServerLogBuffer();
-    for (const entry of buffer.entries()) sink.write(entry);
-    const unsubscribe = buffer.subscribe({ listener: entry => sink.write(entry) });
+    for (const entry of buffer.entries()) sink.write({ entry });
+    const unsubscribe = buffer.subscribe({ listener: entry => sink.write({ entry }) });
     readFilePaths = [required.filePath, ...(optional.alsoRead ?? [])];
     detachFile = () => { unsubscribe(); readFilePaths = []; detachFile = null; };
   }

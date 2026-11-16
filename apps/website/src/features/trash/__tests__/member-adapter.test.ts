@@ -307,7 +307,7 @@ for (const entrypoint of ["api", "tool"] as const) test(`signin-lab: member ${en
       const registration = buildMembersRegistrations(deps as never).find(r => r.descriptor.id === "members_delete")!;
       return registration.handler({ principal: { id: "operator" }, input: { memberId } } as ToolExecutionContext);
     }
-    const app = express(); registerAdminMemberDeleteRoute(app, deps as never);
+    const app = express(); registerAdminMemberDeleteRoute({ app, deps: deps as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
     await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId, memberId } }, res);
     return { status: capture.statusCode, body: capture.jsonBody };
@@ -359,8 +359,8 @@ test("member DELETE maps stale writes and unavailable runtime, and keeps store f
   ];
   for (const entry of cases) {
     const app = express();
-    registerAdminMemberDeleteRoute(app, { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
-      removeMember: entry.remove, authorize: async () => ({ allowed: true }) } as never);
+    registerAdminMemberDeleteRoute({ app, deps: { workspaceId: WS, memberRepo: h.members, clock: { nowIso: () => AT },
+      removeMember: entry.remove, authorize: async () => ({ allowed: true }) } as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };
     await extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/members/:memberId")({ params: { workspaceId: WS, memberId: "member-1" } }, res);
     assert.equal(capture.statusCode, entry.status);

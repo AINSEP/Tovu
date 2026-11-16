@@ -129,12 +129,12 @@ test("page-body render paths keep every element and attribute (page <script> inc
     ["renderViaTemplate saved", bodyHtml => {
       const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml });
       deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
-      return renderViaTemplate(deps, theme, post, undefined);
+      return renderViaTemplate({ deps, theme, post, staticMenus: undefined });
     }],
     ["renderViaTemplate pending", bodyHtml => {
       const post = buildPostRecord({ workspaceId: deps.workspaceId, kind: "page", bodyFormat: "html", bodyHtml: "" });
       deps.postRepo = new InMemoryPostRepo({}, { initialRows: [post] });
-      return renderViaTemplate(deps, theme, post, undefined, undefined, bodyHtml);
+      return renderViaTemplate({ deps, theme, post, staticMenus: undefined }, { pendingBodyHtml: bodyHtml });
     }],
   ];
   const failures: string[] = [];

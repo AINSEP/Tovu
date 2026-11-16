@@ -101,7 +101,7 @@ for (const status of [null, 401, 403, 503]) {
 test("registering chat routes for a static export never reconciles a live turn", () => {
   const h = harness({ status: 200 });
   const deps = { chatRunLedger: h.ledger } as unknown as RouteDeps;
-  createAssistantChatsModule(deps, { finalizer: h.finalizer }).registerRoutes!(express());
+  createAssistantChatsModule(deps, { finalizer: h.finalizer }).registerRoutes!({ app: express() });
   assert.equal(h.repairs(), 0);
   assert.equal(h.message.runStatus, "running");
   assert.equal(h.finalizer.activeCount(), 0);
@@ -111,8 +111,8 @@ test("serving chat route registration starts recovery exactly once and tracks it
   const h = harness({ status: 200 });
   const work: Promise<void>[] = [];
   createAssistantChatsModule({ chatRunLedger: h.ledger } as unknown as RouteDeps, {
-    finalizer: h.finalizer, recoverInterrupted: true, onBootWork: (promise) => work.push(promise),
-  }).registerRoutes!(express());
+    finalizer: h.finalizer, recoverInterrupted: true, onBootWork: ({ work: promise }) => work.push(promise),
+  }).registerRoutes!({ app: express() });
   await Promise.all(work);
   assert.equal(work.length, 1);
   assert.equal(h.repairs(), 1);

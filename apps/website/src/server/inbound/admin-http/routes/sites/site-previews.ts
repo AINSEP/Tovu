@@ -62,8 +62,8 @@ export function registerSitePreviewRoutes({ app, deps }: { app: Express; deps: S
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       const principal = getAuthedPrincipal(res);
-      if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id,
-        permission: "system.read", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
+      if (!(await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id,
+        permission: "system.read", workspaceId: deps.workspaceId, entityType: "site-registry" } }))) return;
       const bytes = deps.sitePreviews?.read({ name: String(req.params.name ?? "") }) ?? null;
       if (bytes === null) { res.status(404).json({ code: "SITE_PREVIEW_NOT_FOUND", error: "no preview" }); return; }
       res.status(200).set({

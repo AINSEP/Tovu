@@ -14,7 +14,7 @@ test("matching validators return an empty 304; changed skills return a private 2
   t.after(fixture.cleanup);
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute(app, { ...fixture.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) });
+  registerSkillsListRoute({ app, deps: { ...fixture.deps, workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "test" }) } });
   const base = await startTestServer(app, t);
   const url = `${base}/api/admin/v1/workspaces/workspace-local/skills`;
   const first = await fetch(url);
@@ -51,7 +51,7 @@ test("matching validators cannot bypass workspace or authorization guards or rea
   };
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerSkillsListRoute(app, deps);
+  registerSkillsListRoute({ app, deps });
   const base = await startTestServer(app, t);
   const url = `${base}/api/admin/v1/workspaces/workspace-local/skills`;
   const etag = (await fetch(url)).headers.get("etag");

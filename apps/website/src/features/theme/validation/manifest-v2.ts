@@ -519,7 +519,7 @@ function checkCompiledBuildRequirements(build: Record<string, JsonValue>): Theme
   const issues: ThemeValidationIssue[] = [];
   if (typeof build.sourceDir !== "string" || build.sourceDir.length === 0) {
     issues.push({ ruleId: "v2-build-sourcedir-required", message: "theme.json: build.sourceDir is required (non-empty) when build.source is 'compiled'" });
-  } else if (isSourceDirGeneratedConflict(build.sourceDir)) {
+  } else if (isSourceDirGeneratedConflict({ sourceDir: build.sourceDir })) {
     issues.push({
       ruleId: "v2-build-sourcedir-conflict",
       message: `theme.json: build.sourceDir '${build.sourceDir}' must not name or contain a reserved generated directory`,

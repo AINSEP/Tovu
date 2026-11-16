@@ -97,7 +97,7 @@ function buildTestApp(theme: DiscoveredTheme | null): { app: express.Express; de
   }
   const app = express();
   app.use(express.json());
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

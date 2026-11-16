@@ -225,7 +225,7 @@ for (const agentId of ['claude', 'codex'] as const) test(`${agentId} launch carr
   assert.equal((system + captured.prompt).split(prefix).length - 1, 1);
   assert.equal(system.split(custom).length - 1, 1);
   assert.match(buildAssistantSubagentsOverlay({ capabilities: assistantCliPermissions({ enabled: true }).capabilities }), /plugins loaded after preflight/);
-  assert.equal(system.split(buildBaseSystemOverlay(false, { nativeToolAccess: false, messageRelayEnabled: agentId === 'codex' })).length - 1, 1);
+  assert.equal(system.split(buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: false, messageRelayEnabled: agentId === 'codex' })).length - 1, 1);
   assert.equal(system.includes(prefix), false);
   assert.equal(captured.prompt.includes(prefix), true);
 });

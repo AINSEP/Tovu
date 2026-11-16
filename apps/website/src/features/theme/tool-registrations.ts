@@ -140,10 +140,10 @@ function assertCompiledWriteBoundaryUnchanged(
   try {
     next = JSON.parse(content);
   } catch {
-    throw new ThemeFileReadOnlyError("a compiled release's write boundary is read-only and requires a valid theme.json");
+    throw new ThemeFileReadOnlyError({ message: "a compiled release's write boundary is read-only and requires a valid theme.json" });
   }
   if (next?.build?.source !== "compiled" || next.build.sourceDir !== theme.manifest.build.sourceDir) {
-    throw new ThemeFileReadOnlyError("build.source and build.sourceDir are read-only for a compiled release; rebuild the complete release instead");
+    throw new ThemeFileReadOnlyError({ message: "build.source and build.sourceDir are read-only for a compiled release; rebuild the complete release instead" });
   }
 }
 
@@ -184,10 +184,10 @@ function resetFromOriginalForTool(
 ): { wasModified: boolean; bytes: number } {
   const originalSource = originalSourceForTool(routeDeps, theme);
   if (!originalSource) {
-    throw new ThemeFileNoOriginalError(`theme '${theme.manifest.id}' has no stored original, so nothing can be reset`);
+    throw new ThemeFileNoOriginalError({ message: `theme '${theme.manifest.id}' has no stored original, so nothing can be reset` });
   }
   const refusal = themeOriginalResetRefusal({ themeDir: theme.dir, originalDir: originalSource.originalDir });
-  if (refusal) throw new ThemeOriginalLayoutMismatchError(refusal.message);
+  if (refusal) throw new ThemeOriginalLayoutMismatchError({ message: refusal.message });
   const reset = resetThemeFileToOriginal({
     themeDir: theme.dir,
     themesRoot: routeDeps.themesDir,
@@ -196,7 +196,7 @@ function resetFromOriginalForTool(
     relativePath,
   });
   if (!reset) {
-    throw new ThemeFileNoOriginalError(`'${relativePath}' is not in this theme's original, so there is nothing to reset it to`);
+    throw new ThemeFileNoOriginalError({ message: `'${relativePath}' is not in this theme's original, so there is nothing to reset it to` });
   }
   return reset;
 }
@@ -226,9 +226,7 @@ function applyThemeFileEdit(
   // whitespace-only) needs the explicit `intent: "delete"` — the one deletion a too-wide oldString
   // could do by accident, and a whole-file wipe is never what "remove this line" meant.
   if (nextContent.trim() === "" && edit.intent !== "delete") {
-    throw new ThemeFileEditMatchError(
-      `this edit would leave '${relativePath}' empty; narrow oldString to the text to remove, or pass intent: 'delete' if emptying the whole file is really intended`
-    );
+    throw new ThemeFileEditMatchError({ message: `this edit would leave '${relativePath}' empty; narrow oldString to the text to remove, or pass intent: 'delete' if emptying the whole file is really intended` });
   }
   return nextContent;
 }
@@ -239,14 +237,10 @@ function replaceThemeFileText(
 ): string {
   const occurrences = countOccurrences({ haystack: currentContent, needle: edit.oldString });
   if (occurrences === 0) {
-    throw new ThemeFileEditMatchError(
-      `oldString was not found in '${relativePath}' — read the file with theme_read_file and copy the exact text to replace, including whitespace`
-    );
+    throw new ThemeFileEditMatchError({ message: `oldString was not found in '${relativePath}' — read the file with theme_read_file and copy the exact text to replace, including whitespace` });
   }
   if (occurrences > 1 && !edit.replaceAll) {
-    throw new ThemeFileEditMatchError(
-      `oldString matches ${occurrences} times in '${relativePath}'; pass more surrounding context in oldString to make it unique, or replaceAll: true to change every occurrence`
-    );
+    throw new ThemeFileEditMatchError({ message: `oldString matches ${occurrences} times in '${relativePath}'; pass more surrounding context in oldString to make it unique, or replaceAll: true to change every occurrence` });
   }
   return edit.replaceAll
     ? currentContent.split(edit.oldString).join(edit.newString)
@@ -295,12 +289,10 @@ export function performThemeFileRename(
   if (destPath === sourcePath) return sourcePath;
 
   if (existingPaths.has(destPath)) {
-    throw new ThemePathError(`'${destPath}' already exists in this theme`);
+    throw new ThemePathError({ message: `'${destPath}' already exists in this theme` });
   }
-  if (fileExtension(sourcePath) !== fileExtension(destPath)) {
-    throw new ThemePathError(
-      `renaming '${sourcePath}' to '${name}' would change its extension, which is not allowed — a file's extension decides how it is served and must not change via rename`
-    );
+  if (fileExtension({ relativePath: sourcePath }) !== fileExtension({ relativePath: destPath })) {
+    throw new ThemePathError({ message: `renaming '${sourcePath}' to '${name}' would change its extension, which is not allowed — a file's extension decides how it is served and must not change via rename` });
   }
   // Defense-in-depth, not currently reachable: `destPath` is always built from `sourcePath`'s OWN
   // directory (`name` may not contain `/`), so its write-scope is provably identical to
@@ -308,7 +300,7 @@ export function performThemeFileRename(
   // identical comment on this exact check.
   const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: destPath });
   if (destWriteScope.kind === "generated-readonly") {
-    throw new ThemeFileReadOnlyError(`'${destPath}' is read-only: ${destWriteScope.reason}`);
+    throw new ThemeFileReadOnlyError({ message: `'${destPath}' is read-only: ${destWriteScope.reason}` });
   }
 
   renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
@@ -635,8 +627,8 @@ export function buildThemesRegistrations(
       readThemeFile({ themeDir: known.dir, themesRoot: routeDeps.themesDir, relativePath: "theme.json" });
       const theme = loadTheme({ themeDir: known.dir, id: themeId, source: known.source });
       if (theme.manifest.tier !== "static") throw new ToolInputError({ message: `theme '${themeId}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes` });
-      return { pages: Object.keys(theme.pages).sort().filter(page => isPublishableThemePageCandidate(theme, page))
-        .map(page => ({ themeId, page, published: isStandaloneThemePage(theme, page) })) };
+      return { pages: Object.keys(theme.pages).sort().filter(page => isPublishableThemePageCandidate({ theme, pageId: page }))
+        .map(page => ({ themeId, page, published: isStandaloneThemePage({ theme, pageId: page }) })) };
     },
     theme_list_files: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -644,13 +636,13 @@ export function buildThemesRegistrations(
       const includeTrash = input.includeTrash === true;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_list_files", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_list_files", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
         const files = listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir });
         // Trashed files are hidden by default (2026-08-30 soft-delete requirement: a trashed file
         // must not surface as a file-list entry) — `includeTrash: true` is the deliberate escape
         // hatch an agent needs to discover what it can restore.
-        return { themeId, files: includeTrash ? files : files.filter((path) => !isTrashedThemePath(path)) };
+        return { themeId, files: includeTrash ? files : files.filter((path) => !isTrashedThemePath({ relativePath: path })) };
       } });
     },
 
@@ -666,11 +658,11 @@ export function buildThemesRegistrations(
       const relativePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_read_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "theme_read_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
         const selection = themeReadSelection(input);
         const offset = optionalThemeReadInteger({ input, key: "offset", minimum: 0, maximum: Number.MAX_SAFE_INTEGER });
         if (selection.mode === "find" && offset !== undefined) throw new ToolInputError({ message: "theme_read_file: offset cannot be combined with find. Use a narrower find or a paged file read." });
-        const theme = findThemeOrThrow(routeDeps, themeId);
+        const theme = findThemeOrThrow({ routeDeps, themeId });
         const file = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
         const content = readThemeFile(file);
         if (selection.mode === "full") return { themeId, path: relativePath, ...pageThemeReadContent({ content, offset }) };
@@ -691,13 +683,13 @@ export function buildThemesRegistrations(
       const overwriteOversized = input.overwriteOversized === true;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
         // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal —
         // both checked BEFORE any filesystem write, so a rejected write never touches disk. See
         // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
-        assertThemeFileWritable(theme, relativePath);
+        assertThemeFileWritable({ theme, relativePath });
 
         assertCompiledWriteBoundaryUnchanged({ theme, relativePath, content });
         let previousRevision: { trashedPath: string; note: string } | undefined;
@@ -711,7 +703,7 @@ export function buildThemesRegistrations(
         // this domain's safety argument is that an agent-authored file is validated identically to a
         // human-authored one, so re-running the real loader (rather than a bespoke "check what we
         // just wrote" path) is what makes that true rather than merely claimed.
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
         // A warning, not a refusal: a hard-coded link list in a header/footer partial is a fixable
         // mistake, but plain links can be deliberate (see `hardcoded-link-lists.ts`).
         const warning = describeHardcodedLinkList({ path: relativePath, content });
@@ -738,13 +730,13 @@ export function buildThemesRegistrations(
       const replaceAll = input.replaceAll === true;
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_edit_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_edit_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
         // Same two ADR-020/`preview/` refusals `theme_write_file` checks, and for the identical
         // reason — a partial edit is still a write, and must be refused BEFORE reading the file so
         // an agent gets one clear reason rather than a read that then turns out pointless.
-        assertThemeFileWritable(theme, relativePath);
+        assertThemeFileWritable({ theme, relativePath });
 
         const currentContent = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
         const nextContent = applyThemeFileEdit({ currentContent, edit: { oldString, newString, replaceAll, ...(input.intent === "delete" ? { intent: "delete" as const } : {}) }, relativePath });
@@ -753,7 +745,7 @@ export function buildThemesRegistrations(
         assertCompiledWriteBoundaryUnchanged({ theme, relativePath, content: nextContent });
         ctx.signal.throwIfAborted();
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: nextContent });
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
         // Checked against the whole file after the edit, the same warning `theme_write_file` returns.
         const warning = describeHardcodedLinkList({ path: relativePath, content: nextContent });
 
@@ -793,20 +785,20 @@ export function buildThemesRegistrations(
       const relativePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_reset_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_reset_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
         // Same three refusals theme_write_file/theme_edit_file check — a reset is still a write, and
         // this also correctly refuses a compiled theme's generated tree (see this handler's own doc)
         // and a `.trash/...` path (restore it first with theme_restore_trashed_file).
-        assertThemeFileWritable(theme, relativePath);
+        assertThemeFileWritable({ theme, relativePath });
 
         // Byte comparison against the catalog copy, never mtime or size alone, then a byte copy only
         // when they differ.
         const { wasModified, bytes } = resetFromOriginalForTool({ routeDeps, theme, relativePath });
         // Reloaded even when nothing was written: `status`/`errors` report the theme as it is on disk
         // now, and this process's snapshot is stale whenever a different process wrote the theme.
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
 
         return {
           themeId,
@@ -829,30 +821,30 @@ export function buildThemesRegistrations(
       const name = requireString({ input: input, key: "name" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_rename_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_rename_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
         // A trashed file is restored (theme_restore_trashed_file), never renamed in place — renaming
         // inside `.trash/` would leave `theme_trash_file`'s own response (`trashedPath`) pointing at
         // nothing, with no benefit over restoring to the name the caller actually wants.
-        if (isTrashedThemePath(relativePath)) {
-          throw new ThemePathError(`'${relativePath}' is inside the trash — restore it first with theme_restore_trashed_file`);
+        if (isTrashedThemePath({ relativePath })) {
+          throw new ThemePathError({ message: `'${relativePath}' is inside the trash — restore it first with theme_restore_trashed_file` });
         }
 
         const nameError = invalidRenameTargetNameReason({ name });
-        if (nameError) throw new ThemePathError(nameError);
+        if (nameError) throw new ThemePathError({ message: nameError });
 
         // The ONE shared gate `explore.ts`'s HTTP rename route also calls — see
         // `file-identity-lock.ts`'s own header for why the decision lives there now. Refuses a
         // theme's own required files, a built theme's generated tree, and `script`/`other`-group
         // files (nothing tracks what still references a file by its old name).
         const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
-        const lock = validateFileIdentityChange(theme, relativePath, writeScope, "renamed");
-        if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+        const lock = validateFileIdentityChange({ theme, path: relativePath, writeScope, action: "renamed" });
+        if (lock) throw new ThemeFileIdentityLockedError({ message: lock.error });
 
         const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
         if (!existingPaths.has(relativePath)) {
-          throw new ThemePathError(`file '${relativePath}' does not exist in this theme`);
+          throw new ThemePathError({ message: `file '${relativePath}' does not exist in this theme` });
         }
 
         const slash = relativePath.lastIndexOf("/");
@@ -860,7 +852,7 @@ export function buildThemesRegistrations(
         ctx.signal.throwIfAborted();
         const finalPath = performThemeFileRename({ routeDeps, theme, paths: { sourcePath: relativePath, destPath, name }, existingPaths });
 
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
 
         return {
           themeId,
@@ -888,25 +880,25 @@ export function buildThemesRegistrations(
       const sourcePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_copy_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_copy_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
         // Same refusal every other write-shaped tool in this domain checks — duplicating INTO a
         // built theme's generated tree is a write, just phrased as "copy"; duplicating a file
         // currently in `.trash/...` is refused too (restore it first), tightening the one case
         // `explore.ts`'s own HTTP copy route does not itself check — see `assertThemeFileWritable`'s
         // own doc for why one shared gate is what keeps every write-shaped tool here in agreement.
-        assertThemeFileWritable(theme, sourcePath);
+        assertThemeFileWritable({ theme, relativePath: sourcePath });
 
         const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
         if (!existingPaths.has(sourcePath)) {
-          throw new ThemePathError(`file '${sourcePath}' was not found in this theme`);
+          throw new ThemePathError({ message: `file '${sourcePath}' was not found in this theme` });
         }
 
         const destPath = nextAvailableFileName({ desiredPath: sourcePath, existingPaths });
         ctx.signal.throwIfAborted();
         copyThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
 
         return {
           themeId,
@@ -926,8 +918,8 @@ export function buildThemesRegistrations(
       const relativePath = requireString({ input: input, key: "path" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
         ctx.signal.throwIfAborted();
         const { trashedPath, reloaded } = trashThemeFile({ deps: routeDeps, theme, relativePath });
@@ -954,28 +946,28 @@ export function buildThemesRegistrations(
       const explicitRestoreTo = optionalString({ input: input, key: "restoreTo" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_WRITE_PERMISSION }, { entityType: "theme", entityId: themeId });
 
-      return withSchemaOnRejection({ toolId: "theme_restore_trashed_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
-        const theme = findThemeOrThrow(routeDeps, themeId);
+      return withSchemaOnRejection({ toolId: "theme_restore_trashed_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+        const theme = findThemeOrThrow({ routeDeps, themeId });
 
-        const derivedRestoreTo = originalPathFromTrashedPath(trashedPath);
+        const derivedRestoreTo = originalPathFromTrashedPath({ trashedPath });
         if (derivedRestoreTo === null) {
-          throw new ThemePathError(`'${trashedPath}' is not a path theme_trash_file ever produced — it must look like '.trash/<number>/<original path>'`);
+          throw new ThemePathError({ message: `'${trashedPath}' is not a path theme_trash_file ever produced — it must look like '.trash/<number>/<original path>'` });
         }
         const restoreTo = explicitRestoreTo ?? derivedRestoreTo;
 
         const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
         if (!existingPaths.has(trashedPath)) {
-          throw new ThemePathError(`'${trashedPath}' does not exist in this theme's trash`);
+          throw new ThemePathError({ message: `'${trashedPath}' does not exist in this theme's trash` });
         }
         if (existingPaths.has(restoreTo)) {
-          throw new ThemePathError(`'${restoreTo}' already exists in this theme — pass a different restoreTo, or move/rename the existing file first`);
+          throw new ThemePathError({ message: `'${restoreTo}' already exists in this theme — pass a different restoreTo, or move/rename the existing file first` });
         }
 
         // The same write gate every other write path in this file runs (`theme_write_file`/
         // `theme_edit_file`): refuses a built theme's generated tree, a compiled theme's
         // non-writable sourceDir extension, and — the case the old, generated-readonly-only check
         // here missed — an explicit `restoreTo` that names a location BACK inside `.trash/` itself.
-        assertThemeFileWritable(theme, restoreTo);
+        assertThemeFileWritable({ theme, relativePath: restoreTo });
 
         // An explicit `restoreTo` that differs from the trashed file's own original location is,
         // functionally, a RENAME riding along with the restore. `theme_rename_file` refuses to touch
@@ -986,14 +978,14 @@ export function buildThemesRegistrations(
         // input `theme_rename_file` validates against for an in-place rename.
         if (restoreTo !== derivedRestoreTo) {
           const originalWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: derivedRestoreTo });
-          const lock = validateFileIdentityChange(theme, derivedRestoreTo, originalWriteScope, "renamed");
-          if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+          const lock = validateFileIdentityChange({ theme, path: derivedRestoreTo, writeScope: originalWriteScope, action: "renamed" });
+          if (lock) throw new ThemeFileIdentityLockedError({ message: lock.error });
         }
 
         ctx.signal.throwIfAborted();
         renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
         pruneRestoredThemeTrash({ themeDir: theme.dir, trashedPath });
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const reloaded = reloadThemeInPlace({ routeDeps, theme, themeId });
 
         return {
           themeId,

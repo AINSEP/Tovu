@@ -139,9 +139,9 @@ export const contributeSiteSettingPublish = (): PublishContentContributor =>
     },
     write: async ({ ports, deps, workspaceId, id, state, principalId }) => {
       // Precheck already refused these; checked again because this is the one write.
-      if (!(await publishableDefinition({ ports, workspaceId, id }))) throw new PublishContentApplyRowError("blocked", notPublishable({ id }));
-      if (id === OG_IMAGE && pointsAtThisComputer({ value: state.value })) throw new PublishContentApplyRowError("blocked", localOnly({ id }));
-      const { authorize } = gatewayDeps(deps, "site-setting");
+      if (!(await publishableDefinition({ ports, workspaceId, id }))) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: notPublishable({ id }) });
+      if (id === OG_IMAGE && pointsAtThisComputer({ value: state.value })) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: localOnly({ id }) });
+      const { authorize } = gatewayDeps({ deps, entityType: "site-setting" });
       const writeDeps = { repo: ports.settings, clock: deps.clock, ids: deps.idGen, authorize, principals: createSettingsPrincipalLookup({ repo: ports.principals }) };
       const target = { ...splitKey({ id }), scope: "workspace" as const, workspaceId, callerPrincipalId: principalId, authWorkspaceId: workspaceId };
       const { revisionSeq } =

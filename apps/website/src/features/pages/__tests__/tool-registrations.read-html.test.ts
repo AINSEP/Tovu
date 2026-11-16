@@ -128,12 +128,12 @@ test("pages_read_html gives a doc page's own text and widget back as editable HT
 });
 
 test("renderDocBodyAsPageHtml keeps managed media and widget styling as markers instead of placeholders", () => {
-  const html = renderDocBodyAsPageHtml({ type: "doc", content: [
+  const html = renderDocBodyAsPageHtml({ bodyJson: { type: "doc", content: [
     { type: "media", attrs: { assetId: "asset-1", alt: "Our shop" } },
     { type: "image", attrs: { assetId: "asset-2", transformName: "hero", alt: "Hero" } },
     { type: "widgetEmbed", attrs: { placementId: "p", widgetEntryId: "w", cssClass: "wide", content: { note: "it's" } } },
     { type: "image", attrs: { src: "https://example.com/a.png", alt: "Legacy" } },
-  ] });
+  ] } });
   assert.match(html, /<div alt="Our shop" data-embed-config='\{"type":"media","id":"asset-1"\}'><\/div>/);
   assert.match(html, /<div alt="Hero" data-embed-config='\{"type":"media","id":"asset-2"\}'><\/div>/);
   assert.match(html, /<div class="wide" data-embed-config='\{"type":"widget","id":"w","content":\{"note":"it\\u0027s"\}\}'><\/div>/);

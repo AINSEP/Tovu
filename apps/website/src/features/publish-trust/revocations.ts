@@ -232,7 +232,7 @@ export function admitPublish(input: {
   if (input.resolution.state !== "configured") return refuse("site-not-configured");
   const grant = findGrantForSource({ res: input.resolution, sourceInstallationId: input.sourceInstallationId });
   if (grant === null) return refuse("not-connected");
-  if (!isGrantActive(grant, input.nowIso)) return refuse("expired");
+  if (!isGrantActive({ grant, nowIso: input.nowIso })) return refuse("expired");
   if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) return refuse("superseded-key");
 
   return { allowed: true, grant };

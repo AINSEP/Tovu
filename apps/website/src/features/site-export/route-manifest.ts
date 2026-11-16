@@ -178,7 +178,7 @@ function buildThemePageRoutes(
   for (const pageId of Object.keys(theme.pages)) {
     // `index`/`404`/template-shell exclusion, shared with the live `GET /:slug` resolver rather
     // than respelled here — see `isStandaloneThemePage`'s own doc (`features/theme/theme.ts`).
-    if (!isStandaloneThemePage(theme, pageId)) continue;
+    if (!isStandaloneThemePage({ theme, pageId })) continue;
 
     const collidingPost = postBySlug.get(pageId);
     // An overriding post is added by the post loop instead.
@@ -300,7 +300,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
 
   const [activeThemeId, { posts }] = await Promise.all([deps.resolveActiveThemeId(), deps.listPublishedPosts()]);
 
-  const theme = resolveActiveTheme(deps, activeThemeId);
+  const theme = resolveActiveTheme({ deps, activeThemeId });
   // Slugs claimed by a theme-owned static page THIS pass are tracked inside `resolveThemeAndPostRoutes`
   // so the post loop can skip a post shadowed at its own slug (pages.ts:765-786: tri-state
   // `overridesThemePage` — post wins unless the stored value is explicitly `false`; see that

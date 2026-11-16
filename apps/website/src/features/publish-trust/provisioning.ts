@@ -115,7 +115,7 @@ export function parseGrantDocument({ text }: { text: string }, _optional = {}): 
 
   const grants: PublishTrustGrant[] = [];
   for (const entry of entries) {
-    const parsed = parsePublishTrustGrant(entry);
+    const parsed = parsePublishTrustGrant({ raw: entry });
     if (!parsed.ok) return { ok: false, reason: parsed.reason };
     if (grants.some((g) => g.sourceInstallationId === parsed.grant.sourceInstallationId)) {
       return { ok: false, reason: `grant document repeats source installation ${parsed.grant.sourceInstallationId}` };
@@ -378,7 +378,7 @@ export function describeConnection(input: {
       message: `${siteLabel} does not recognise this computer yet. Connect it and deploy once — nothing to copy, and no key to keep.`,
     };
   }
-  if (!isGrantActive(grant, nowIso)) {
+  if (!isGrantActive({ grant, nowIso })) {
     return {
       verdict: "expired",
       message: `This computer's connection to ${siteLabel} expired on ${grant.notAfter}. Reconnect and deploy to restore it.`,

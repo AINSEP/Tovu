@@ -89,8 +89,8 @@ function harness(daemon: RunDaemonClient | undefined, deps: RouteDeps = createRo
   });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
-  createAssistantChatsModule(deps, { finalizer, recoverInterrupted: true }).registerRoutes?.(app);
+  registerAuthRoutes({ app, deps });
+  createAssistantChatsModule(deps, { finalizer, recoverInterrupted: true }).registerRoutes?.({ app });
   return { app, deps, finalizer };
 }
 

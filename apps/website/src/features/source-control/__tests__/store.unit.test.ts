@@ -478,24 +478,24 @@ test("updateSourceControlCredential fails closed the same way when a NEW connect
 });
 
 test("isUniqueLabelViolation: a non-Error thrown value is never mistaken for a unique-constraint violation", () => {
-  assert.equal(isUniqueLabelViolation("just a string"), false);
-  assert.equal(isUniqueLabelViolation(null), false);
-  assert.equal(isUniqueLabelViolation({ message: "UNIQUE constraint failed" }), false, "an object merely SHAPED like an Error is not one");
+  assert.equal(isUniqueLabelViolation({ err: "just a string" }), false);
+  assert.equal(isUniqueLabelViolation({ err: null }), false);
+  assert.equal(isUniqueLabelViolation({ err: { message: "UNIQUE constraint failed" } }), false, "an object merely SHAPED like an Error is not one");
 });
 
 test("isUniqueLabelViolation: an Error with better-sqlite3's own .code is recognized, independent of its message text", () => {
   const err = new Error("some unrelated driver wording");
   (err as Error & { code: string }).code = "SQLITE_CONSTRAINT_UNIQUE";
-  assert.equal(isUniqueLabelViolation(err), true);
+  assert.equal(isUniqueLabelViolation({ err }), true);
 });
 
 test("isUniqueLabelViolation: a Postgres/PGlite UNIQUE violation (SQLSTATE 23505, Postgres wording) is recognized", () => {
   const err = Object.assign(new Error('duplicate key value violates unique constraint "source_control_credential_sets_label_idx"'), { code: "23505" });
-  assert.equal(isUniqueLabelViolation(err), true);
+  assert.equal(isUniqueLabelViolation({ err }), true);
 });
 
 test("isUniqueLabelViolation: an Error with neither a matching .code nor matching message text is NOT a unique-constraint violation", () => {
-  assert.equal(isUniqueLabelViolation(new Error("connection reset")), false);
+  assert.equal(isUniqueLabelViolation({ err: new Error("connection reset") }), false);
 });
 
 test("a non-string label (e.g. a number) is rejected the same as a blank one", async () => {

@@ -101,7 +101,7 @@ test("postpolish: public static render and editor preview share saved cover choi
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: "cover-theme", updatedAt: post.updatedAt }] });
   for (const variant of [post, { ...post, ext: { "post-presentation": { hideCoverImageInBody: false } } }, { ...post, featuredMediaId: assetId }]) {
     await repo.save(variant);
-    const publicHtml = await renderViaTemplate(deps, theme, variant, undefined);
+    const publicHtml = await renderViaTemplate({ deps, theme, post: variant, staticMenus: undefined });
     const preview = await renderPostPreview(deps, { post: variant });
     assert.equal(preview.html, publicHtml);
     assert.equal((publicHtml.match(/<img /g) ?? []).length, variant.ext || variant.featuredMediaId ? 3 : 2);
@@ -212,8 +212,8 @@ test("assigned menu links match in editor preview and the public template pipeli
   }] });
   deps.navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
   await deps.navLocationBindingRepo.upsert({ workspaceId: "w", locationKey: "primary", menuId: "assigned", boundAt: post.updatedAt });
-  const menus = await resolveStaticMenusForRender(deps, theme, "/draft-slug");
-  const publicHtml = await renderViaTemplate(deps, theme, post, menus);
+  const menus = await resolveStaticMenusForRender({ deps, theme, currentPath: "/draft-slug" });
+  const publicHtml = await renderViaTemplate({ deps, theme, post, staticMenus: menus });
   const preview = await renderPostPreview(deps, { post });
   assert.equal(preview.html, publicHtml);
   assert.match(publicHtml, /href="\/assigned-link"/);

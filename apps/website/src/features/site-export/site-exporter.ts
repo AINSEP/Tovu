@@ -582,7 +582,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     }),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({
-      pagesDir: resolveThemeLayout(theme.apiVersion as 2 | undefined).pagesDir,
+      pagesDir: resolveThemeLayout({}, { apiVersion: theme.apiVersion as 2 | undefined }).pagesDir,
       assetUrlPrefix: `/theme-assets/${theme.id}/`,
     }) },
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/", "/_consent/"],

@@ -34,9 +34,9 @@ app.use((_request, response, next) => {
   response.on('finish', () => console.log(JSON.stringify({ status: response.statusCode })));
   next();
 });
-registerAdminExternalMcpPutRoute(app, deps);
-registerAdminExternalMcpListRoute(app, deps);
-registerAdminExternalMcpProbeRoute(app, deps, createExternalMcpProbeLimiter(deps));
+registerAdminExternalMcpPutRoute({ app, deps });
+registerAdminExternalMcpListRoute({ app, deps });
+registerAdminExternalMcpProbeRoute({ app, deps, limiter: createExternalMcpProbeLimiter(deps) });
 const server = createServer(app);
 server.listen(0, '127.0.0.1', () => {
   const address = server.address();

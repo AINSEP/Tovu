@@ -109,8 +109,8 @@ function manualTimers(): { timers: MaintenanceTimers; queue: { run: () => void; 
   return {
     queue, cleared,
     timers: {
-      set: (run, ms) => { next += 1; queue.push({ run, ms, id: next }); return next; },
-      clear: handle => { cleared.push(handle); const at = queue.findIndex(item => item.id === handle); if (at >= 0) queue.splice(at, 1); },
+      set: ({ run, ms }) => { next += 1; queue.push({ run, ms, id: next }); return next; },
+      clear: ({ handle }) => { cleared.push(handle); const at = queue.findIndex(item => item.id === handle); if (at >= 0) queue.splice(at, 1); },
     },
     async fire() { queue.shift()!.run(); await settle(); },
   };

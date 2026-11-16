@@ -50,9 +50,9 @@ async function withTempPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
 function buildTestApp(baseDeps = createRouteDeps()): express.Express {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginInstallRoute(app, baseDeps);
+  registerAgentPluginInstallRoute({ app, deps: baseDeps });
   return app;
 }
 
@@ -449,9 +449,9 @@ test("AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs 
     const { pluginHost: _host, ...hostless } = deps;
     const app = express();
     app.use(express.json());
-    registerAuthRoutes(app, deps);
+    registerAuthRoutes({ app, deps });
     app.use("/api/admin", requireAdminSession(deps));
-    registerAgentPluginInstallRoute(app, hostless);
+    registerAgentPluginInstallRoute({ app, deps: hostless });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
     const response = await upload(baseUrl, cookie, archive);
@@ -573,9 +573,9 @@ test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answer
     const { snapshotAgentPluginSettings: _unbound, ...withoutSnapshot } = deps;
     const app = express();
     app.use(express.json());
-    registerAuthRoutes(app, deps);
+    registerAuthRoutes({ app, deps });
     app.use("/api/admin", requireAdminSession(deps));
-    registerAgentPluginInstallRoute(app, withoutSnapshot as typeof deps);
+    registerAgentPluginInstallRoute({ app, deps: withoutSnapshot as typeof deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
     const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });

@@ -68,7 +68,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
   });
   savedEntry = undefined;
 
-  registerAdminWidgetUpdateRoute(mockApp as any, deps);
+  registerAdminWidgetUpdateRoute({ app: mockApp as any, deps });
   assert.ok(routeHandler, "route handler was registered");
 
   function createMockRes() {

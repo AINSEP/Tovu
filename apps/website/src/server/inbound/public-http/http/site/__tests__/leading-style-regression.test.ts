@@ -29,8 +29,8 @@ const theme = {
 test('the full leading stylesheet and subsequent sections survive page and Raw HTML sanitization exactly', () => {
   assert.equal(sanitizePageHtml({ html: body }), body);
   assert.equal(renderMediaRawHtml({ html: body, media: {}, renderMedia: ({ props }) => renderWidgetIr({ componentId: 'media-image', props }) }), body);
-  assert.equal(injectFormSubmissionResultIntoHtml(body, undefined), body);
-  assert.equal(injectFormSubmissionResultIntoHtml(body, { kind: 'success', slug: 'absent' }), body);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html: body, result: undefined }), body);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html: body, result: { kind: 'success', slug: 'absent' } }), body);
 });
 
 test('page and post body rendering retains every leading stylesheet byte', async () => {
@@ -52,9 +52,9 @@ test('static content splicing retains the leading stylesheet in saved and pendin
   };
   const shell = `<main data-embed-config='{"type":"content","id":"${post.id}"}'></main>`;
   const expected = `<main>${body}</main>`;
-  const saved = await resolveHtmlFormatContentMarkers(deps, shell, 0, { remaining: MAX_CONTENT_EMBED_FETCHES });
+  const saved = await resolveHtmlFormatContentMarkers({ deps, html: shell, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } });
   assert.equal(saved, expected);
-  const pending = await resolveHtmlFormatContentMarkers(deps, shell, 0, { remaining: MAX_CONTENT_EMBED_FETCHES }, { id: post.id, slug: post.slug, bodyHtml: body });
+  const pending = await resolveHtmlFormatContentMarkers({ deps, html: shell, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: { id: post.id, slug: post.slug, bodyHtml: body } });
   assert.equal(pending, expected);
   const html = renderStaticPage({ theme, pageId: 'test', htmlOverride: `<!doctype html><html><head></head><body>${saved}</body></html>` });
   assert.equal(html?.includes(expected), true);
