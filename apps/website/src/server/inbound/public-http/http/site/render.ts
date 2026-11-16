@@ -59,38 +59,6 @@ export {
 const EMPTY_ASSIGNED_TERMS: readonly AssignedTermView[] = [];
 
 // ---------------------------------------------------------------------------
-// Templated tier (LiquidJS) — ADR-020 Tier 2.
-//
-// A "templated" theme ships `.liquid` files instead of JSON block trees. Liquid
-// gives authors loops / conditionals / filters that the fixed-component
-// declarative tier can't express — while executing NO theme JavaScript.
-//
-// Two seams bridge Liquid back into the trusted core:
-//   • {% render_block component: "tovu/site-header", tagline: "…" %} renders a
-//     component from the SAME registry the declarative tier uses (COMPONENTS).
-//   • {{ content | raw }} injects the server-rendered, pre-sanitized TipTap body.
-//     Output autoescaping is ON (outputEscape: "escape"), so a bare
-//     {{ post.title }} is escaped and only explicitly-`raw` values pass HTML.
-//
-// C6/ADR-020 §3 Tier-2 guardrails are implemented (LiquidJS pinned ≥10.26.0
-// per package.json; render isolation + fs lockdown in `liquid-worker.ts`,
-// spawned per render by `liquid-sandbox.ts`'s `renderLiquidInSandbox`; the
-// tag/filter allowlist + lint-before-publish in
-// `features/theme/liquid-allowlist.ts`, wired into `loadTheme()` and
-// defensively re-checked in the worker). The Liquid engine construction and
-// `render_block` tag registration now live in `liquid-worker.ts`, not here —
-// this file only forwards to the sandbox.
-// ---------------------------------------------------------------------------
-
-/**
- * Key under which the live `SiteRenderContext` is handed to a template engine's `render_block`
- * seam. Never part of the data a template can name: the Liquid worker puts it in the render scope
- * (where the tag reads it back with `ctx.getSync`), the Handlebars worker puts it in a private `@`
- * data frame that its own allowlist refuses to let a template address.
- */
-export const RENDER_CTX_KEY = "__siteCtx";
-
-// ---------------------------------------------------------------------------
 // Public entry
 // ---------------------------------------------------------------------------
 
@@ -290,6 +258,30 @@ async function renderStaticTierHomePage(
   const assets = await renderAssets?.({ scripts: [], static: true });
   return injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: staticHtml, extraHead: (extraHead ?? '') + (assets?.head ?? '') }), enabled: siteAssistantEnabled });
 }
+
+// ---------------------------------------------------------------------------
+// Templated tier (LiquidJS) — ADR-020 Tier 2.
+//
+// A "templated" theme ships `.liquid` files instead of JSON block trees. Liquid
+// gives authors loops / conditionals / filters that the fixed-component
+// declarative tier can't express — while executing NO theme JavaScript.
+//
+// Two seams bridge Liquid back into the trusted core:
+//   • {% render_block component: "tovu/site-header", tagline: "…" %} renders a
+//     component from the SAME registry the declarative tier uses (COMPONENTS).
+//   • {{ content | raw }} injects the server-rendered, pre-sanitized TipTap body.
+//     Output autoescaping is ON (outputEscape: "escape"), so a bare
+//     {{ post.title }} is escaped and only explicitly-`raw` values pass HTML.
+//
+// C6/ADR-020 §3 Tier-2 guardrails are implemented (LiquidJS pinned ≥10.26.0
+// per package.json; render isolation + fs lockdown in `liquid-worker.ts`,
+// spawned per render by `liquid-sandbox.ts`'s `renderLiquidInSandbox`; the
+// tag/filter allowlist + lint-before-publish in
+// `features/theme/liquid-allowlist.ts`, wired into `loadTheme()` and
+// defensively re-checked in the worker). The Liquid engine construction and
+// `render_block` tag registration now live in `liquid-worker.ts`, not here —
+// this file only forwards to the sandbox.
+// ---------------------------------------------------------------------------
 
 /** Templated (LiquidJS) tier body — resolves the route to a `.liquid` template, renders it inside its
  *  own `worker_threads` sandbox, and degrades to {@link fallbackSiteBody} on ANY failure: a syntax

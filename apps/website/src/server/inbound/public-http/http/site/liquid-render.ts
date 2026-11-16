@@ -3,7 +3,7 @@ import { Liquid, Hash, type Tag, type TagToken, type Context, type FS } from "li
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone } from "@jini-ai/cms/widgets/date-label";
 import { lintLiquidTemplate } from "#src/features/theme/liquid-allowlist";
-import { RENDER_CTX_KEY, type SiteRenderContext } from "./render.js";
+import { type SiteRenderContext } from "./render.js";
 import { renderBlockSeam } from "./render/blocks.js";
 import { buildTemplateRenderData } from "./render/template-render-data.js";
 import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox.js";
@@ -32,6 +32,14 @@ import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox.js"
  * found" — a second, redundant guarantee that holds even if the allowlist
  * had a gap.
  */
+
+/**
+ * Key under which the live `SiteRenderContext` is handed to a template engine's `render_block`
+ * seam. Never part of the data a template can name: the Liquid worker puts it in the render scope
+ * (where the tag reads it back with `ctx.getSync`), the Handlebars worker puts it in a private `@`
+ * data frame that its own allowlist refuses to let a template address.
+ */
+export const RENDER_CTX_KEY = "__siteCtx";
 
 /** Reports every path as absent; every LiquidJS `fs` read goes through this and fails closed. */
 export const NO_ACCESS_FS: FS = {
