@@ -1,25 +1,19 @@
-import { VIEW_TABS } from "./editor/view-bar/view-tabs";
-import { PostSavedPanels } from "./editor/PostSavedPanels";
-import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
-import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
-import { PostPreview } from "./editor/preview/PostPreview";
-import { PostDeleteConfirmDialog } from "./editor/PostDeleteConfirmDialog";
-import { PostEditorBody } from "./editor/PostEditorBody";
-import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
-import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
-import { PostEditorActions } from "./editor/header/PostEditorActions";
-import { PostEditorHeader } from "./editor/header/PostEditorHeader";
-import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 
-import { useDevicePreviewDevice } from "../../components/DevicePreview/DevicePreview.hooks";
-import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-
-import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
-import { usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
+import { PostEditorActions } from "./editor/header/PostEditorActions";
+import { PostEditorHeader } from "./editor/header/PostEditorHeader";
+import { PostEditorSlugCollisionWarning } from "./editor/notices/PostEditorSlugCollisionWarning";
+import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
+import { PostPreview } from "./editor/preview/PostPreview";
+import { PostEditorTemplateModalGate } from "./editor/template/PostEditorTemplateModalGate";
+import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
+import { PostDeleteConfirmDialog } from "./editor/PostDeleteConfirmDialog";
+import { PostEditorBody } from "./editor/PostEditorBody";
+import { PostSavedPanels } from "./editor/PostSavedPanels";
+import { useWiredPostEditor } from "./hooks/use-post-editor.hooks";
+import { usePostEditorScreen } from "./hooks/use-post-editor-screen.hooks";
 import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
-import { Toolbar } from "./editor/toolbar/Toolbar";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -29,7 +23,8 @@ import { Toolbar } from "./editor/toolbar/Toolbar";
  * as pure functions, where they can be driven with a fake `EditorView` instead of a real editor and
  * a real drag gesture.
  *
- * What stays: `Toolbar`, which is a genuinely inert render of editor commands, and the page markup.
+ * What stays: the root composition — the regions in their on-screen order. The hooks and the per-region
+ * prop bundles live in `hooks/use-post-editor-screen.hooks.ts`; each region is a component under `editor/`.
  *
  * Shared between posts and pages via the same `/admin/posts/{id}` route — see `Pages.tsx`'s file
  * header. `post.kind` drives the display copy and the back-link target only.
@@ -50,243 +45,57 @@ export interface PostEditorProps {
 }
 
 export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: PostEditorProps) {
-  const {
-    post,
-    editor,
-    title,
-    setTitle,
-    slug,
-    setSlug,
-    status,
-    setStatus,
-    templateChoice,
-    setTemplateChoice,
-    availableTemplates,
-    mentionablePosts,
-    activeThemeId,
-    activeThemeTier,
-    activeThemeApiVersion,
-    overridesThemePage,
-    setOverridesThemePage,
-    publishAtInput,
-    setPublishAtInput,
-    scheduled,
-    featuredMediaId,
-    setFeaturedMediaId,
-    author,
-    setAuthor,
-    showAuthor,
-    setShowAuthor,
-    hideCoverImageInBody,
-    setHideCoverImageInBody,
-    hasSlugCollision,
-    view,
-    setView,
-    previewExpanded,
-    togglePreviewExpanded,
-    message,
-    error,
-    saving,
-    confirmingDelete,
-    confirmingUnchangedSave,
-    deleting,
-    confirmLeave,
-    dirty,
-    contentDirty,
-    templatePreviewUrl,
-    bodyJson,
-    showTemplateModal,
-    previewFormRef,
-    previewFormTarget,
-    remove,
-    t,
-    onPublish,
-    onSave,
-    onDeleteClick,
-    onDeleteCancel,
-    onUnchangedSaveConfirm,
-    onUnchangedSaveCancel,
-    onViewTemplateClick,
-    onCloseTemplateModal,
-    recoverableDraft,
-    restoreRecoveredDraft,
-    discardRecoveredDraft,
-    saveConflict,
-    saveOverwritingConflict,
-    dismissSaveConflict,
-    autosaveStaleBasis,
-    pendingExternalVersion,
-    loadExternalChange,
-    dismissExternalChange,
-  } = usePostEditorHook({ postId });
-  // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
-  // lint even though this one holds no state of its own.
-  const { onKeyDown: onViewTabsKeyDown } = useTabBarKeyboard({ tabs: VIEW_TABS, activeId: view, onChange: (id) => setView(id as PostEditorView) });
-  // Preview width (2026-09-22) — pure view chrome with nothing to inject, kept out of the injected
-  // controller the same way `ThemeExplore.tsx`'s own `device` is.
-  const { device, setDevice, width: previewWidth } = useDevicePreviewDevice();
-  const settingsDialog = usePostSettingsDialog();
-
-  if (error && !post) return <div className="notice error">{error}</div>;
-  if (!post) return <div className="notice">{t("Loading editor…")}</div>;
-
-  const kindLabel = post.kind === "page" ? "page" : "post";
+  const screen = usePostEditorScreen({ postId, usePostEditorHook });
+  if (screen.status === "error") return <div className="notice error">{screen.error}</div>;
+  if (screen.status === "loading") return <div className="notice">{screen.t("Loading editor…")}</div>;
+  const { view, t } = screen;
 
   return (
     <div className="page content-editor-page">
-      <PostEditorHeader
-        kindLabel={kindLabel}
-        confirmLeave={confirmLeave}
-        title={title}
-        setTitle={setTitle}
-        slug={slug}
-        setSlug={setSlug}
-        post={post}
-        t={t}
-      />
+      <PostEditorHeader {...screen.header} />
 
-      <PostEditorNotices
-        recoverableDraft={recoverableDraft}
-        serverUpdatedAt={post.updatedAt}
-        restoreRecoveredDraft={restoreRecoveredDraft}
-        discardRecoveredDraft={discardRecoveredDraft}
-        autosaveStaleBasis={autosaveStaleBasis}
-        saveConflict={saveConflict}
-        saveOverwritingConflict={saveOverwritingConflict}
-        dismissSaveConflict={dismissSaveConflict}
-        pendingExternalVersion={pendingExternalVersion}
-        loadExternalChange={loadExternalChange}
-        dismissExternalChange={dismissExternalChange}
-        t={t}
-      />
-      <PostEditorViewBar
-        view={view}
-        setView={setView}
-        onViewTabsKeyDown={onViewTabsKeyDown}
-        device={device}
-        setDevice={setDevice}
-        bodyFormat={post.bodyFormat}
-        availableTemplates={availableTemplates}
-        templateChoice={templateChoice}
-        setTemplateChoice={setTemplateChoice}
-        onViewTemplateClick={onViewTemplateClick}
-        t={t}
-      />
+      <PostEditorNotices {...screen.notices} />
+      {/* Edit/Preview toolbar and the template picker — see `PostEditorViewBar`. */}
+      <PostEditorViewBar {...screen.viewBar} />
 
       {/* Directly under the toolbar, not in the header — see `PostEditorActions`' own doc. Placed
           ABOVE the slug-collision warning so the row keeps the position the owner asked for
           (immediately below the toolbar) whether or not that conditional notice is showing. */}
-      <PostEditorActions
-        message={message}
-        error={error}
-        status={status}
-        setStatus={setStatus}
-        saving={saving}
-        onPublish={onPublish}
-        onSave={onSave}
-        onDeleteClick={onDeleteClick}
-        onOpenSettings={settingsDialog.openDialog}
-        kindLabel={kindLabel}
-        t={t}
-      />
+      <PostEditorActions {...screen.actions} />
       {/* Author, scheduled publishing and featured image (2026-10-05) used to be two rows here; they
           moved into the gear's modal (owner, 2026-10-10). The featured image left the modal again
           for the cover slot above the title (owner, 2026-10-11). */}
-      <PostSettingsDialog
-        dialog={settingsDialog}
-        kindLabel={kindLabel}
-        author={author}
-        setAuthor={setAuthor}
-        showAuthor={showAuthor}
-        setShowAuthor={setShowAuthor}
-        publishAtInput={publishAtInput}
-        setPublishAtInput={setPublishAtInput}
-        scheduled={scheduled}
-        t={t}
-      />
+      <PostSettingsDialog {...screen.settings} />
       {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
           contract and history this extracts. */}
-      <PostEditorSlugCollisionWarning
-        hasSlugCollision={hasSlugCollision}
-        overridesThemePage={overridesThemePage}
-        setOverridesThemePage={setOverridesThemePage}
-        t={t}
-      />
+      <PostEditorSlugCollisionWarning {...screen.slugCollision} />
       {view === "preview" ? (
         // `bodyJson`/`templatePreviewUrl`/`previewFormRef`/`previewFormTarget` come straight off the
         // hook now (2026-08-14) — see `use-post-editor.hooks.ts`'s own docs on each for why they
         // moved out of this component. `editor` itself is no longer needed here (2026-09-11 — the
         // raw editor-buffer fallback that used to read `editor.getHTML()` was removed, see
         // `PostPreview`'s own doc).
-        <PostPreview
-          postId={post.id}
-          bodyJson={bodyJson}
-          slug={slug}
-          status={status}
-          scheduled={scheduled}
-          dirty={dirty}
-          contentDirty={contentDirty}
-          templatePreviewUrl={templatePreviewUrl}
-          previewFormRef={previewFormRef}
-          previewFormTarget={previewFormTarget}
-          t={t}
-          width={previewWidth}
-          expanded={previewExpanded}
-          onToggleExpanded={togglePreviewExpanded}
-        />
+        <PostPreview {...screen.preview} />
       ) : (
-        <PostEditorBody
-          editor={editor}
-          mentionablePosts={mentionablePosts}
-          currentPostId={post.id}
-          cover={
-            <PostCoverImage
-              bodyFormat={post.bodyFormat}
-              featuredMediaId={featuredMediaId}
-              setFeaturedMediaId={setFeaturedMediaId}
-              kind={kindLabel}
-              hideCoverImageInBody={hideCoverImageInBody}
-              setHideCoverImageInBody={setHideCoverImageInBody}
-              t={t}
-            />
-          }
-          t={t}
-        />
+        <PostEditorBody {...screen.body} cover={<PostCoverImage {...screen.cover} />} />
       )}
-      <PostSavedPanels post={post} title={title} bodyJson={bodyJson} />
+      <PostSavedPanels {...screen.savedPanels} />
       {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button. "Save anyway"
           still sends the content; the server writes nothing if it really is identical. */}
       <ConfirmDialog
-        open={confirmingUnchangedSave}
+        open={screen.unchangedSave.open}
         agentHandle="post-save-unchanged-confirm"
         title={t("Nothing changed")}
         body={<p>{t("Nothing has changed since the last save. Save anyway?")}</p>}
         confirmLabel={t("Save anyway")}
-        pending={saving}
-        onConfirm={onUnchangedSaveConfirm}
-        onCancel={onUnchangedSaveCancel}
+        pending={screen.unchangedSave.pending}
+        onConfirm={screen.unchangedSave.onConfirm}
+        onCancel={screen.unchangedSave.onCancel}
       />
-      <PostDeleteConfirmDialog
-        open={confirmingDelete}
-        post={post}
-        kindLabel={kindLabel}
-        t={t}
-        pending={deleting}
-        onConfirm={remove}
-        onCancel={onDeleteCancel}
-      />
+      <PostDeleteConfirmDialog {...screen.deleteDialog} />
       {/* See `PostEditorTemplateModalGate`'s own doc for why this is conditionally mounted rather
           than always-mounted-with-`open`, and why all three conditions are re-checked here. */}
-      <PostEditorTemplateModalGate
-        show={showTemplateModal}
-        templateChoice={templateChoice}
-        activeThemeId={activeThemeId}
-        activeThemeTier={activeThemeTier}
-        activeThemeApiVersion={activeThemeApiVersion}
-        onClose={onCloseTemplateModal}
-        confirmLeave={confirmLeave}
-        t={t}
-      />
+      <PostEditorTemplateModalGate {...screen.templateGate} />
     </div>
   );
 }
