@@ -8,6 +8,7 @@ import { databaseApi } from "../../features/database/api/database-api";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { fsFilesApi } from "../../features/fs-files/api/fs-files-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { mailStatusApi } from "../../features/email/api/mail-status-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { menusApi } from "../../features/menus/api/menus-api";
@@ -27,4 +28,4 @@ import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
-export const API_CLIENTS: Record<string, object> = { aiAssistantApi, analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, formsApi, fsFilesApi, integrationsApi, mediaApi, membersApi, menusApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, settingsApi, taxonomyApi, themesApi, trashApi, usersApi, widgetsApi, workspaceApi };
+export const API_CLIENTS: Record<string, object> = { aiAssistantApi, analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, formsApi, fsFilesApi, integrationsApi, mailStatusApi, mediaApi, membersApi, menusApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, settingsApi, taxonomyApi, themesApi, trashApi, usersApi, widgetsApi, workspaceApi };

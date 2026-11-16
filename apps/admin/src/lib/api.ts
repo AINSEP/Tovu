@@ -4,10 +4,6 @@ import { authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, reque
 import type { CredentialTokenHint } from "./credential-copy";
 import { querySuffix } from "./query-suffix";
 
-export type ProviderDomainVerification =
-  | { state: "verified" | "pending" | "failed" | "not_found"; domain: string; providerId: string }
-  | { state: "no_sender" | "no_provider" | "unsupported" | "unknown"; domain?: string; providerId: string | null; reason?: string };
-
 /** One required-for-production env var's presence — never its value. Mirrors
  *  `DeploymentEnvVarStatus` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`. */
 export interface AdminDeploymentEnvVarStatus {
@@ -84,23 +80,6 @@ export interface AdminServerLogsQuery {
   sinceIso?: string;
   contains?: string;
   limit?: number;
-}
-
-/** `GET /system/mail-status` (`apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts`)
- *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
-export interface AdminMailStatus {
-  /** Provider-side sender-domain verdict, independent of whether the sending key is saved. */
-  senderDomainVerification?: ProviderDomainVerification;
-  mailDeliveryAvailable: boolean;
-  /** Present when the server reports lanes (email provider contract v1); `unconfigured` shows the
-   *  admin's blocking banner. */
-  state?: "ready" | "unconfigured" | "degraded";
-  lanes?: readonly { lane: "transactional" | "bulk"; providerId: string | null; state: string }[];
-  warnings?: readonly ("sender_unverified" | "sender_unknown")[];
-  /** Installed mail providers (`MailStatusReport.providers`); `hosted: false` never leaves the machine. */
-  providers?: readonly { id: string; label: string; hosted: boolean; origin: "core" | "plugin" }[];
-  /** Plugin providers that were not loaded, and why (log-safe, English). */
-  refusals?: readonly string[];
 }
 
 /** One row of the admin Sites screen — mirrors `SiteListEntry` in
@@ -734,8 +713,6 @@ export const api = {
     const qs = params.toString();
     return request<AdminServerLogs>({ path: `/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix({ query: qs })}` });
   },
-  /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
-  getMailStatus: () => request<AdminMailStatus>({ path: `/workspaces/${WORKSPACE_ID}/system/mail-status` }),
 
   // Sites panel (`apps/website/src/server/inbound/admin-http/routes/system/sites.ts`) — list is
   // `system.read`, create/activate are `system.write` AND additionally refused with

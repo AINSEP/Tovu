@@ -4,7 +4,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SecretInput } from "@/components/SecretInput/SecretInput";
 import { agentHandle, agentHandleSegment } from "@jini-ai/core/agent-handles";
 
-import type { AdminMailStatus } from "../../lib/api";
+import type { AdminMailStatus } from "./api/mail-status-api.types";
 import { agentPluginDisplayName } from "../plugins/rules";
 import { t } from "./email-i18n";
 import type { MailProviderConfiguration, MailProviderField } from "./email-api";

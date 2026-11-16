@@ -1,11 +1,12 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { mailStatusApi } from "../../features/email/api/mail-status-api";
 
 test("getMailStatus reads whether delivery is available without sending a write", async () => {
   const fetch = vi.fn(async (_url: string, _init?: RequestInit) => okJson({ mailDeliveryAvailable: false }));
   vi.stubGlobal("fetch", fetch);
-  await expect(api.getMailStatus()).resolves.toEqual({ mailDeliveryAvailable: false });
+  await expect(mailStatusApi.getMailStatus()).resolves.toEqual({ mailDeliveryAvailable: false });
   expect(fetch.mock.calls[0]?.[0]).toBe("/api/admin/v1/workspaces/workspace-local/system/mail-status");
   expect(fetch.mock.calls[0]?.[1]?.method ?? "GET").toBe("GET");
 });

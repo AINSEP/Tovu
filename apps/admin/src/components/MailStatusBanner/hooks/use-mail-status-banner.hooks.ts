@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { AdminMailStatus } from "@/lib/api";
+import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
 
 /** The banner line (English; also the `app-i18n.ts` key). */
 export const MAIL_UNCONFIGURED_TEXT =
