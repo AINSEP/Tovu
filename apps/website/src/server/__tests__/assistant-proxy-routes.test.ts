@@ -733,6 +733,21 @@ test("GET /api/tools/:id is proxied to the daemon, including its 404 for an unkn
   assert.equal(recorded.length, 2);
 });
 
+// Tovu's router matches a path in any letter case and with one trailing slash, and the proxy builds
+// its daemon request from the path as the client sent it. So the daemon is asked with the client's
+// spelling, and whether such a request is answered depends on how the daemon matches paths.
+for (const spelling of ["/API/Tools/Search?q=posts", "/api/tools/search/?q=posts", "/api/tools/SEARCH?q=posts"]) {
+  test(`GET ${spelling} is routed like /api/tools/search and reaches the daemon spelled exactly as the client sent it`, async (t) => {
+    const { baseUrl, cookie } = await bootProxy(t);
+
+    await fetch(`${baseUrl}${spelling}`, { headers: { cookie } });
+
+    assert.equal(recorded.length, 1, "the request must be forwarded, not answered 404 by Tovu's own router");
+    assert.equal(recorded[0].method, "GET");
+    assert.equal(recorded[0].url, spelling);
+  });
+}
+
 test("the tool catalog routes are session-gated like every other route in this module — no cookie, no daemon call", async (t) => {
   const { baseUrl } = await bootProxy(t);
 
