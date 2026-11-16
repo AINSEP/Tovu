@@ -15,8 +15,9 @@ import { publishContentApi } from "../../features/publish-content/api/publish-co
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import { trashApi } from "../../features/trash/api/trash-api";
+import { usersApi } from "../../features/users/api/users-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
-export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, providersApi, publishContentApi, recoveryApi, settingsApi, trashApi, widgetsApi, workspaceApi };
+export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, providersApi, publishContentApi, recoveryApi, settingsApi, trashApi, usersApi, widgetsApi, workspaceApi };

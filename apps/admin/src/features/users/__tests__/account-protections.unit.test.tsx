@@ -4,7 +4,7 @@ import { Users } from "../UsersPanel";
 import { useUsers } from "../hooks/users-controller.hooks";
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
 import { describe, expect, it } from "vitest";
-import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { formatGrantLabel, userRowMenuItems, userAccountCapabilities, isOwnerAccount } from "@jini-ai/user-management/react";
 import { t } from "../users-i18n";
 const user: AdminIdentityUser = { principalId: "owner", workspaceId: "w", username: "admin", status: "active", createdAt: "now", roleIds: ["owner-role"], policyIds: [] };

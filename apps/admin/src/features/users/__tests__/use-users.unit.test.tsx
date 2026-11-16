@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeUsersPort, defaultUsersPort, toJiniUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";

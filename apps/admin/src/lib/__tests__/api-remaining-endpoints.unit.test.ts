@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { usersApi } from "../../features/users/api/users-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
@@ -118,7 +119,7 @@ describe("endpoints", () => {
 
   it("deletes a user by encoded principal id", async () => {
     const calls = stubFetch(() => new Response(null, { status: 204 }));
-    await api.deleteUser({ principalId: "user/1" });
+    await usersApi.deleteUser({ principalId: "user/1" });
     expect(calls).toEqual([{ url: `${W}/users/user%2F1`, method: "DELETE" }]);
   });
 

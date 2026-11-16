@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { authenticatedAdminRequest } from "@/lib/admin-http/request";
@@ -129,7 +129,7 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   savedKeysAccess: async (_required, _optional = {}) => {
     // The roster's isOwner includes wildcard policy owners. Only the bootstrap owner has
     // canRename=false (users/list.ts); match that identity, never its display name or grants.
-    const [session, users] = await Promise.all([authApi.me(), api.listUsers()]);
+    const [session, users] = await Promise.all([authApi.me(), usersApi.listUsers()]);
     const current = users.users.find(user => user.principalId === session.user.id);
     return { isOwner: current?.isOwner === true && current.canRename === false };
   },

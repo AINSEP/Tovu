@@ -1383,22 +1383,6 @@ export interface AdminWebhookDelivery {
   deadAt: string | null;
 }
 
-export interface AdminIdentityUser {
-  /** Server capability: the seeded owner cannot be renamed. */
-  canRename?: boolean;
-  isOwner?: boolean;
-  isProtectedAccount?: boolean;
-  principalId: string;
-  workspaceId: string;
-  username: string;
-  email?: string;
-  status: "active" | "disabled";
-  createdAt: string;
-  lastLoginAt?: string;
-  roleIds: string[];
-  policyIds: string[];
-}
-
 export interface AdminRole {
   id: string;
   workspaceId: string;
@@ -2056,60 +2040,6 @@ export const api = {
     request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
       { path: `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix({ query: options.offset ? "offset=" + options.offset : "" })}` },
     ),
-  listUsers: () => request<{ users: AdminIdentityUser[] }>({ path: `/workspaces/${WORKSPACE_ID}/users` }),
-  createUser: (
-    input: { username: string; password: string },
-    options: { email?: string } = {}
-  ) =>
-    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ ...input, ...options }),
-    } }),
-  // SPEC-006 0.6.0 (users/roles/policies CRUD-completion amendment).
-  updateUser: ({ principalId }: { principalId: string }, options: { email?: string; username?: string } = {}) =>
-    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}` }, { init: {
-      method: "PATCH",
-      body: JSON.stringify(options),
-    } }),
-  disableUser: ({ principalId }: { principalId: string }, _optional: Record<string, never> = {}) =>
-    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/disable` }, { init: {
-      method: "POST",
-    } }),
-  enableUser: ({ principalId }: { principalId: string }, _optional: Record<string, never> = {}) =>
-    request<{ user: AdminIdentityUser }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/enable` }, { init: {
-      method: "POST",
-    } }),
-  // Delete-user plan v2 (2026-09-24): DELETE now moves the target to the Trash (disabled, sessions
-  // revoked, restorable there for 60 days) rather than hard-deleting it — same endpoint the v1
-  // plan's `deleteUser` used, just a different server-side outcome behind the same 204.
-  deleteUser: ({ principalId }: { principalId: string }, _optional: Record<string, never> = {}) =>
-    request<void>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}` }, { init: {
-      method: "DELETE",
-    } }),
-  resetUserPassword: (
-    { principalId, password }: { principalId: string; password: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<void>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/reset-password` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    } }),
-  assignRole: (
-    { principalId, roleId }: { principalId: string; roleId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<{ assignment: unknown }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/roles` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ roleId }),
-    } }),
-  attachPolicy: (
-    { principalId, policyId }: { principalId: string; policyId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<{ attachment: unknown }>({ path: `/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/policies` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ policyId }),
-    } }),
   listRoles: () => authenticatedAdminRequest<{ roles: AdminRole[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/roles` }),
   createRole: ({ name }: { name: string }, _optional: Record<string, never> = {}) =>
     authenticatedAdminRequest<{ role: AdminRole }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/roles`, body: { name } }),

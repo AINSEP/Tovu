@@ -1,4 +1,5 @@
 import { api, type AdminMedia } from "@/lib/api";
+import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import type { LibraryPort } from "./library-port.hooks";
 
@@ -53,7 +54,7 @@ const libraryApiClient: LibraryApiClient = {
   readDocumentText: (...args) => api.readDocumentText(...args),
   mediaOriginalUrl: (...args) => api.mediaOriginalUrl(...args),
   me: (...args) => authApi.me(...args),
-  listUsers: (...args) => api.listUsers(...args),
+  listUsers: (...args) => usersApi.listUsers(...args),
 };
 
 /** The production port: the real API client, and the global `fetch` read at call time (so a

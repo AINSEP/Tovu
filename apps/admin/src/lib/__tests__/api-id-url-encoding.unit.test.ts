@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
@@ -100,22 +101,22 @@ const singleIdCases: Case[] = [
   ["updateMedia", () => api.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
   ["trashMedia", () => api.trashMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}/trash`],
   ["deleteMedia", () => api.deleteMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
-  ["updateUser", () => api.updateUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}`],
-  ["disableUser", () => api.disableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/disable`],
-  ["enableUser", () => api.enableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/enable`],
+  ["updateUser", () => usersApi.updateUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}`],
+  ["disableUser", () => usersApi.disableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/disable`],
+  ["enableUser", () => usersApi.enableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/enable`],
   [
     "resetUserPassword",
-    () => api.resetUserPassword({ principalId: SLASH_ID, password: "x" }),
+    () => usersApi.resetUserPassword({ principalId: SLASH_ID, password: "x" }),
     `${BASE_WORKSPACE}/users/${ENC}/reset-password`,
   ],
   [
     "assignRole",
-    () => api.assignRole({ principalId: SLASH_ID, roleId: "r1" }),
+    () => usersApi.assignRole({ principalId: SLASH_ID, roleId: "r1" }),
     `${BASE_WORKSPACE}/users/${ENC}/roles`,
   ],
   [
     "attachPolicy",
-    () => api.attachPolicy({ principalId: SLASH_ID, policyId: "p1" }),
+    () => usersApi.attachPolicy({ principalId: SLASH_ID, policyId: "p1" }),
     `${BASE_WORKSPACE}/users/${ENC}/policies`,
   ],
   ["updateRole", () => api.updateRole({ roleId: SLASH_ID, name: "x" }), `${BASE_WORKSPACE}/roles/${ENC}`],

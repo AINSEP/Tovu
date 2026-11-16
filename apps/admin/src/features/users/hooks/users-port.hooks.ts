@@ -1,4 +1,5 @@
-import type { AdminIdentityUser, AdminPolicy, AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminRole } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 
 /**
  * @file What `use-users.hooks.ts` needs from the outside world, as an interface rather than a

@@ -1,4 +1,5 @@
-import { api, type AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import { usersApi } from "@/features/users/api/users-api";
 import type { AdminTrashItem, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { TrashPort } from "./trash-port.hooks";
@@ -14,7 +15,7 @@ export const defaultTrashPort: TrashPort = {
   listTrash: (options) => trashApi.listTrash(options),
   restoreTrashItems: (input) => trashApi.restoreTrashItems(input),
   purgeTrashItems: (input) => trashApi.purgeTrashItems(input),
-  listUsers: () => api.listUsers(),
+  listUsers: () => usersApi.listUsers(),
 };
 
 /** Seed state for {@link createFakeTrashPort}. */

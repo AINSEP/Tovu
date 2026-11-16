@@ -1,4 +1,5 @@
 import { api, type AdminMedia } from "@/lib/api";
+import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "./media-port.hooks";
 import { asciiSlug } from "../../../lib/ascii-slug";
@@ -23,7 +24,7 @@ export const defaultMediaPort: MediaPort = {
     return { restored: report.restored === 1 };
   },
   mediaOriginalUrl: (id) => api.mediaOriginalUrl({ id }),
-  listUsers: () => api.listUsers(),
+  listUsers: () => usersApi.listUsers(),
 };
 
 /** Seed state for {@link createFakeMediaPort}. */

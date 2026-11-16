@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { menusApi } from "../../features/menus/api/menus-api";
@@ -156,34 +157,34 @@ test("uploadMedia includes alt/caption/credit when the caller passes them", asyn
 
 test("createUser omits email from the body when the caller doesn't pass one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createUser({ username: "bob", password: "pw" });
+  await usersApi.createUser({ username: "bob", password: "pw" });
   expect(body()).toEqual({ username: "bob", password: "pw" });
 });
 
 test("createUser includes email when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createUser({ username: "bob", password: "pw" }, { email: "bob@x.com" });
+  await usersApi.createUser({ username: "bob", password: "pw" }, { email: "bob@x.com" });
   expect(body()).toEqual({ username: "bob", password: "pw", email: "bob@x.com" });
 });
 
 test("updateUser sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateUser({ principalId: "p1" });
+  await usersApi.updateUser({ principalId: "p1" });
   expect(body()).toEqual({});
 });
 
 test("updateUser sends the patch fields when the caller passes options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateUser({ principalId: "p1" }, { email: "new@x.com" });
+  await usersApi.updateUser({ principalId: "p1" }, { email: "new@x.com" });
   expect(body()).toEqual({ email: "new@x.com" });
 });
 
 test("resetUserPassword sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.resetUserPassword({ principalId: "p1", password: "pw" });
+  await usersApi.resetUserPassword({ principalId: "p1", password: "pw" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.resetUserPassword({ principalId: "p1", password: "pw" }, {});
+  await usersApi.resetUserPassword({ principalId: "p1", password: "pw" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(a[0].url).toContain("/reset-password");
   for (const call of [a[0], b[0]]) {
@@ -194,20 +195,20 @@ test("resetUserPassword sends the same request whether or not the unused options
 
 test("assignRole sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.assignRole({ principalId: "p1", roleId: "r1" });
+  await usersApi.assignRole({ principalId: "p1", roleId: "r1" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.assignRole({ principalId: "p1", roleId: "r1" }, {});
+  await usersApi.assignRole({ principalId: "p1", roleId: "r1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(JSON.parse(String(a[0].init?.body))).toEqual({ roleId: "r1" });
 });
 
 test("attachPolicy sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: a } = stubFetchCapturing();
-  await api.attachPolicy({ principalId: "p1", policyId: "pol1" });
+  await usersApi.attachPolicy({ principalId: "p1", policyId: "pol1" });
   vi.unstubAllGlobals();
   const { calls: b } = stubFetchCapturing();
-  await api.attachPolicy({ principalId: "p1", policyId: "pol1" }, {});
+  await usersApi.attachPolicy({ principalId: "p1", policyId: "pol1" }, {});
   expect(b[0].init?.body).toBe(a[0].init?.body);
   expect(JSON.parse(String(a[0].init?.body))).toEqual({ policyId: "pol1" });
 });

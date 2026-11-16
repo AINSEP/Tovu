@@ -1,4 +1,4 @@
-import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import type { AdminTrashPage, AdminTrashPurgeReport, AdminTrashRestoreReport } from "@/features/trash/api/trash-api.types";
 
 /**

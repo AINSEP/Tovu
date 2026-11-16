@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, type AdminIdentityUser } from "../api";
+import type { AdminIdentityUser } from "../../features/users/api/users-api.types";
+import { usersApi } from "../../features/users/api/users-api";
 import { ApiError } from "../admin-http/request";
 
 /**
@@ -68,14 +69,14 @@ function user(overrides: Partial<AdminIdentityUser> = {}): AdminIdentityUser {
 test("listUsers GETs the workspace's user list and resolves it verbatim", async () => {
   const users = [user()];
   const { calls } = stubFetchCapturing(okJson({ users }));
-  await expect(api.listUsers()).resolves.toEqual({ users });
+  await expect(usersApi.listUsers()).resolves.toEqual({ users });
   expect(calls[0].url).toBe(`${BASE}/users`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("listUsers throws ApiError on a non-2xx response", async () => {
   stubFetchCapturing(errJson(403, "not permitted", "FORBIDDEN"));
-  const error = await api.listUsers().catch((e: unknown) => e);
+  const error = await usersApi.listUsers().catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("FORBIDDEN");
 });
@@ -85,7 +86,7 @@ test("listUsers throws ApiError on a non-2xx response", async () => {
 test("createUser POSTs to the users collection and resolves the created user", async () => {
   const created = user({ principalId: "p2" });
   const { calls } = stubFetchCapturing(okJson({ user: created }));
-  const result = await api.createUser({ username: "bob", password: "pw" });
+  const result = await usersApi.createUser({ username: "bob", password: "pw" });
   expect(calls[0].url).toBe(`${BASE}/users`);
   expect(calls[0].init?.method).toBe("POST");
   expect(result).toEqual({ user: created });
@@ -93,7 +94,7 @@ test("createUser POSTs to the users collection and resolves the created user", a
 
 test("createUser throws ApiError with code RESOURCE_CONFLICT for a username already in use", async () => {
   stubFetchCapturing(errJson(409, "that username is already in use", "RESOURCE_CONFLICT"));
-  const error = await api.createUser({ username: "bob", password: "pw" }).catch((e: unknown) => e);
+  const error = await usersApi.createUser({ username: "bob", password: "pw" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("RESOURCE_CONFLICT");
 });
@@ -103,7 +104,7 @@ test("createUser throws ApiError with code RESOURCE_CONFLICT for a username alre
 test("updateUser PATCHes /users/:principalId", async () => {
   const updated = user({ email: "new@x.com" });
   const { calls } = stubFetchCapturing(okJson({ user: updated }));
-  const result = await api.updateUser({ principalId: "p1" }, { email: "new@x.com" });
+  const result = await usersApi.updateUser({ principalId: "p1" }, { email: "new@x.com" });
   expect(calls[0].url).toBe(`${BASE}/users/p1`);
   expect(calls[0].init?.method).toBe("PATCH");
   expect(result).toEqual({ user: updated });
@@ -111,7 +112,7 @@ test("updateUser PATCHes /users/:principalId", async () => {
 
 test("updateUser throws ApiError for an unknown principalId", async () => {
   stubFetchCapturing(errJson(404, "user not found"));
-  const error = await api.updateUser({ principalId: "missing" }).catch((e: unknown) => e);
+  const error = await usersApi.updateUser({ principalId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).status).toBe(404);
 });
@@ -121,7 +122,7 @@ test("updateUser throws ApiError for an unknown principalId", async () => {
 test("disableUser POSTs to /users/:principalId/disable and resolves the disabled user", async () => {
   const disabled = user({ status: "disabled" });
   const { calls } = stubFetchCapturing(okJson({ user: disabled }));
-  const result = await api.disableUser({ principalId: "p1" });
+  const result = await usersApi.disableUser({ principalId: "p1" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/disable`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -130,14 +131,14 @@ test("disableUser POSTs to /users/:principalId/disable and resolves the disabled
 
 test("disableUser throws ApiError for an unknown principalId", async () => {
   stubFetchCapturing(errJson(404, "user not found"));
-  const error = await api.disableUser({ principalId: "missing" }).catch((e: unknown) => e);
+  const error = await usersApi.disableUser({ principalId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 
 test("enableUser POSTs to /users/:principalId/enable and resolves the enabled user", async () => {
   const enabled = user({ status: "active" });
   const { calls } = stubFetchCapturing(okJson({ user: enabled }));
-  const result = await api.enableUser({ principalId: "p1" });
+  const result = await usersApi.enableUser({ principalId: "p1" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/enable`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();
@@ -146,7 +147,7 @@ test("enableUser POSTs to /users/:principalId/enable and resolves the enabled us
 
 test("enableUser throws ApiError for an unknown principalId", async () => {
   stubFetchCapturing(errJson(404, "user not found"));
-  const error = await api.enableUser({ principalId: "missing" }).catch((e: unknown) => e);
+  const error = await usersApi.enableUser({ principalId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 
@@ -154,7 +155,7 @@ test("enableUser throws ApiError for an unknown principalId", async () => {
 
 test("resetUserPassword POSTs to /users/:principalId/reset-password with the password in the body", async () => {
   const { calls, body } = stubFetchCapturing(okJson(null));
-  const result = await api.resetUserPassword({ principalId: "p1", password: "new-pw" });
+  const result = await usersApi.resetUserPassword({ principalId: "p1", password: "new-pw" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/reset-password`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ password: "new-pw" });
@@ -163,7 +164,7 @@ test("resetUserPassword POSTs to /users/:principalId/reset-password with the pas
 
 test("resetUserPassword throws ApiError for a password that fails validation", async () => {
   stubFetchCapturing(errJson(400, "password too short", "VALIDATION_ERROR"));
-  const error = await api.resetUserPassword({ principalId: "p1", password: "x" }).catch((e: unknown) => e);
+  const error = await usersApi.resetUserPassword({ principalId: "p1", password: "x" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("VALIDATION_ERROR");
 });
@@ -172,7 +173,7 @@ test("resetUserPassword throws ApiError for a password that fails validation", a
 
 test("assignRole POSTs to /users/:principalId/roles with roleId in the body", async () => {
   const { calls, body } = stubFetchCapturing(okJson({ assignment: { principalId: "p1", roleId: "r1" } }));
-  const result = await api.assignRole({ principalId: "p1", roleId: "r1" });
+  const result = await usersApi.assignRole({ principalId: "p1", roleId: "r1" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/roles`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ roleId: "r1" });
@@ -181,7 +182,7 @@ test("assignRole POSTs to /users/:principalId/roles with roleId in the body", as
 
 test("assignRole throws ApiError for an unknown roleId", async () => {
   stubFetchCapturing(errJson(404, "role not found"));
-  const error = await api.assignRole({ principalId: "p1", roleId: "missing" }).catch((e: unknown) => e);
+  const error = await usersApi.assignRole({ principalId: "p1", roleId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 
@@ -189,7 +190,7 @@ test("assignRole throws ApiError for an unknown roleId", async () => {
 
 test("attachPolicy POSTs to /users/:principalId/policies with policyId in the body", async () => {
   const { calls, body } = stubFetchCapturing(okJson({ attachment: { principalId: "p1", policyId: "pol1" } }));
-  const result = await api.attachPolicy({ principalId: "p1", policyId: "pol1" });
+  const result = await usersApi.attachPolicy({ principalId: "p1", policyId: "pol1" });
   expect(calls[0].url).toBe(`${BASE}/users/p1/policies`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ policyId: "pol1" });
@@ -198,6 +199,6 @@ test("attachPolicy POSTs to /users/:principalId/policies with policyId in the bo
 
 test("attachPolicy throws ApiError for an unknown policyId", async () => {
   stubFetchCapturing(errJson(404, "policy not found"));
-  const error = await api.attachPolicy({ principalId: "p1", policyId: "missing" }).catch((e: unknown) => e);
+  const error = await usersApi.attachPolicy({ principalId: "p1", policyId: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });

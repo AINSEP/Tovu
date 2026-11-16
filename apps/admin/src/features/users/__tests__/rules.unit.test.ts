@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { describeUsersError as describeApiError, formatGrantLabel, userRowMenuItems } from "@jini-ai/user-management/react";
 import { t } from "../users-i18n";
