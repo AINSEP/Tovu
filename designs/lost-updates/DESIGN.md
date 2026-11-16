@@ -102,7 +102,7 @@ entry and member tiers are candidates with the same `version + 1` habit; S0 writ
 
 The audit re-run on the current trees gives 90 hits (75 Tovu, 15 Jini); 7 input rows are cleared.
 `SITES.tsv` carries both line numbers. Its `verified` column says `read` (the write, its guard and its
-callers were read) or `partial` (the row says what was not traced). 44 rows are `partial`.
+callers were read) or `partial` (the row says what was not traced). 35 rows are `partial`.
 
 Found outside the list (the audit skips a `WHERE` that names `version`):
 `SqlMemberRepo.save` (`features/members/repo.ts:199-208`) guards with
@@ -333,7 +333,7 @@ reading the code, not from a spike.
 
 | Lesson | Here |
 |---|---|
-| Inventory every site and caller | `SITES.tsv` has all 97; §6 lists callers per step. 44 rows are `partial` and say what was not traced. |
+| Inventory every site and caller | `SITES.tsv` has all 97; §6 lists callers per step. 35 rows are `partial` and say what was not traced. |
 | Migration graph, each commit green alone | §6: prerequisites S0 / S0b / migration 0043; basis optional on the wire until S10. |
 | Tests that can fail | §5: each shape states what fails today; mutation check required. |
 | Measure owner limits | Not done per function (§8 row 3) — flagged, not claimed. |
@@ -346,7 +346,7 @@ reading the code, not from a spike.
 ## 10. What I could not verify
 
 1. Nothing was run except the read-only audit script. No test was executed; "red today" is from reading code.
-2. 44 rows are `partial`. The ones that could change a verdict: plugin activations (14, callers), media
+2. 35 rows are `partial`. The ones that could change a verdict: plugin activations (14, callers), media
    providers (90, whether the save merges per provider), media metadata (69, any service-level check),
    comments settings (17, whether the N sets are one transaction and what the form sends),
    newsletter campaigns (45, whether `campaignRepo.transaction` takes a lock), `updateRole` (29, body

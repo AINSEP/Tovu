@@ -41,7 +41,7 @@ Estimate: about 13 working days without S11.
 ## Limits of this run
 
 - Only the read-only audit script was run (`development/scripts/bug-class-audit.mjs`, fresh result 90 hits; 7 input rows cleared). No test was run; "red today" is from reading code.
-- 44 of 97 rows are `partial`; each says what was not traced. `DESIGN.md` §10 lists the ones that could change a verdict.
+- 35 of 97 rows are `partial`; each says what was not traced. `DESIGN.md` §10 lists the ones that could change a verdict.
 - Function length and complexity were not measured. `untangle/DESIGN.md` and `LANES-files.tsv` were not read.
 - The lessons file holds 11 rules, not 15.
 
