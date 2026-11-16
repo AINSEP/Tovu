@@ -2,18 +2,19 @@
  * check-admin-api-routes.ts — does every URL the admin client calls resolve to a registered route?
  *
  * Boots the hermetic `createApp()` (in-memory repos, nothing persisted), walks Express's router
- * stack, and matches every `request(...)` call in `apps/admin/src/lib/api.ts` against it, method
+ * stack, and matches every `request(...)` call in the admin's feature API clients
+ * (`apps/admin/src/features/<feature>/api/*-api.ts`) and `lib/admin-http/urls.ts` against it, method
  * included. A miss means the admin calls a route no module registers — the "correct client,
  * unwired server" shape. `${...}` placeholders become a dummy segment (`${WORKSPACE_ID}` becomes
  * `workspace-local`); a placeholder that holds a whole query string or path suffix is dropped.
  *
- * Limits: only `api.ts`'s `request(...)` calls whose URL is a literal (a variable URL is skipped) (the admin's raw `fetch` callers are few and hand-
+ * Limits: only those files' `request(...)` calls whose URL is a literal (a variable URL is skipped) (the admin's raw `fetch` callers are few and hand-
  * checked); only routes the in-memory composition registers; relies on Express 4's `app._router`.
  *
  * Usage: env -u TOVU_ADMIN_PASSWORD TOVU_DB=memory node --import tsx development/scripts/check-admin-api-routes.ts
  * Exit: 0 when every call resolves, 1 otherwise.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -90,27 +91,49 @@ function concretise(body: string, helpers: ReadonlyMap<string, string>): string 
 }
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const apiFile = path.join(repoRoot, "apps/admin/src/lib/api.ts");
-const src = readFileSync(apiFile, "utf8");
+const adminSrc = path.join(repoRoot, "apps/admin/src");
 
-// Path helpers of the form `function name(...): string { return `...`; }`.
-const helpers = new Map<string, string>();
-for (const m of src.matchAll(/function (\w+)\([^)]*\): string \{\s*return `([^`]*)`;/g)) helpers.set(m[1]!, m[2]!);
+/** Every file that holds admin API calls: one client per feature, plus the transport's URL builders. */
+function clientFiles(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): string[] {
+  const features = path.join(adminSrc, "features");
+  const clients = readdirSync(features).flatMap((feature) => {
+    const dir = path.join(features, feature, "api");
+    if (!existsSync(dir)) return [];
+    return readdirSync(dir).filter((name) => name.endsWith("-api.ts")).map((name) => path.join(dir, name));
+  });
+  return [...clients, path.join(adminSrc, "lib/admin-http/urls.ts")].sort();
+}
 
 const app = createApp(createRouteDeps()) as unknown as { _router: { stack: RouterLayer[] } };
 const misses: string[] = [];
 let checked = 0;
-for (const m of src.matchAll(/\brequest(?:<[^;]*?>)?\(\s*(?=[`"])/g)) {
-  const start = m.index! + m[0].length;
-  const { body, end } = readLiteral(src, start);
-  const scope = src.slice(end, end + 600);
-  const nextCall = scope.search(/\brequest(?:<|\()/);
-  const method = /method:\s*"([A-Z]+)"/.exec(nextCall > 0 ? scope.slice(0, nextCall) : scope)?.[1] ?? "GET";
-  const url = `/api/admin/v1${concretise(body, helpers).split("?")[0]}`;
-  checked++;
-  const result = resolveRoute(app._router.stack, method, url);
-  if (result !== "ok") misses.push(`${result}\t${method} ${url}\tapi.ts:${src.slice(0, m.index).split("\n").length}`);
+
+/** Checks one file's `request(...)` calls; its path helpers are read from the same file. */
+function checkFile({ file }: { file: string }, _optional: Record<string, never> = {}): void {
+  const src = readFileSync(file, "utf8");
+  const label = path.relative(repoRoot, file);
+  // Path helpers of the form `function name(...): string { return `...`; }`.
+  const helpers = new Map<string, string>();
+  for (const m of src.matchAll(/function (\w+)\([^)]*\): string \{\s*return `([^`]*)`;/g)) helpers.set(m[1]!, m[2]!);
+  for (const m of src.matchAll(/\brequest(?:<[^;]*?>)?\(\s*(?=[`"])/g)) {
+    const start = m.index! + m[0].length;
+    const { body, end } = readLiteral(src, start);
+    const scope = src.slice(end, end + 600);
+    const nextCall = scope.search(/\brequest(?:<|\()/);
+    const method = /method:\s*"([A-Z]+)"/.exec(nextCall > 0 ? scope.slice(0, nextCall) : scope)?.[1] ?? "GET";
+    const url = `/api/admin/v1${concretise(body, helpers).split("?")[0]}`;
+    checked++;
+    const result = resolveRoute(app._router.stack, method, url);
+    if (result !== "ok") misses.push(`${result}\t${method} ${url}\t${label}:${src.slice(0, m.index).split("\n").length}`);
+  }
 }
+
+const files = clientFiles();
+if (files.length < 2) {
+  console.log(`found no admin API client files under ${path.relative(repoRoot, adminSrc)}/features/*/api — the check has nothing to read`);
+  process.exit(1);
+}
+for (const file of files) checkFile({ file });
 
 console.log(`checked ${checked} admin request() calls`);
 if (misses.length > 0) {
