@@ -33,7 +33,6 @@ import { widgetCollectionListPort } from "../../../features/entries/public-list.
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
-import { registerThemePreviewRefresh } from "../../inbound/public-http/middleware/theme-preview-refresh.js";
 import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
@@ -235,12 +234,8 @@ import { captureRouteError } from "../../inbound/shared/observability-middleware
 import { respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
-import { createCoreModule } from "./modules/core.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
 import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
-import { createContentModule } from "./modules/content.js";
-import { createPublishContentModule } from "./modules/publish-content.js";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { createFormFileStorage } from "../../../features/forms/form-file-storage.js";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
@@ -251,7 +246,6 @@ import type { ExportEngine } from "#src/features/deployments/export-run";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import { startSettingsRegistration } from "./settings-registration.js";
 import type { CreateAppOptions } from "./create-app-options.js";
-import { mountRoutes } from "./http-app/module-handles.js";
 import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
 import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
 import { applyPublicMiddleware, registerAdminSpa, registerSiteIdlePark } from "./http-app/public-middleware.js";
@@ -261,6 +255,7 @@ import { mountAssistant } from "./http-app/mount-assistant.js";
 import { mountAdminFeatures } from "./http-app/mount-admin-features.js";
 import { mountAdminSystem } from "./http-app/mount-admin-system.js";
 import { mountMembersNewsletter } from "./http-app/mount-members-newsletter.js";
+import { mountCoreContent } from "./http-app/mount-core-content.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -1655,25 +1650,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
 
-  // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
-  // login/logout/me (ungated), then the `/api/admin` session gate, all
-  // registered together in that order so login is never caught by its own
-  // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
-  // inbound/admin-http/dev-auth.ts.
-  mountRoutes(app, createCoreModule(routeDeps, { onAdminSignIn: options.onAdminSignIn }));
-  const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
-
-  // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
-  // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
-  // inline immediately below — it was never one of this module's 11 registrations.
-  mountRoutes(app, createContentModule(routeDeps));
-  registerContentPostGetRoute({ app, deps: routeDeps });
-
-  // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/
-  // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
-  // also where `installFirstPartyPublishContentTypes()` first gets a real caller (see
-  // `publish-content-manifest.ts`'s own header and `modules/publish-content.ts`'s).
-  mountRoutes(app, createPublishContentModule(routeDeps));
+  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps }, { onAdminSignIn: options.onAdminSignIn });
 
   mountMembersNewsletter({ app, routeDeps });
 

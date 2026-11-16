@@ -105,16 +105,16 @@ test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
 });
 
 /**
- * The Trash routes are mounted in exactly one place, and it is the `createApp()` both composition
- * roots go through — the hermetic one (`app.ts`'s own `createRouteDeps`) and the durable one
+ * The Trash routes are mounted in exactly one place — `mountAdminFeatures`, which the `createApp()`
+ * both composition roots go through calls (it moved out of `app.ts` with design 02 step 3) — the hermetic one (`app.ts`'s own `createRouteDeps`) and the durable one
  * (`index.ts` -> `createSiteRouteDeps()` -> `createServingApp` -> `createApp`). `RouteDeps.trash`
  * is a required field, so tsc already makes each root supply a port; what it cannot see is a SECOND
  * mount somewhere, built over a different deps bag, which is how two surfaces of the same feature
  * start disagreeing about permissions. That the single mount really answers requests is proven over
  * HTTP in `server/__tests__/admin-trash-routes.test.ts`.
  */
-test("createTrashModule is mounted by exactly one composition, and it is app.ts", () => {
-  assert.deepEqual(filesCalling(/(?<!function )\bcreateTrashModule\(/), ["server/runtime/composition/app.ts"]);
+test("createTrashModule is mounted by exactly one composition, and it is the admin-feature mount createApp calls", () => {
+  assert.deepEqual(filesCalling(/(?<!function )\bcreateTrashModule\(/), ["server/runtime/composition/http-app/mount-admin-features.ts"]);
 });
 
 /**
