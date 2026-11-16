@@ -1,22 +1,56 @@
-# One error system for Tovu + Jini (design, 2026-11-16)
+# One error system for Tovu + Jini (design, revision 2, 2026-11-16)
 
-Design only. No source file was edited. Read against Jini `integ/wave-b-r2` @ `02edbb68` and Tovu `integ/wave-b-r2` @ `80b00f5b` (worktree), planning base `plan/terra-2026-11-15` @ `9152711d`.
-Personas: software-architect (lead), programmer, security, tdd. Skills: implementation-guardrails, hexagonal-architecture, api-design, interface-design, testable-design-patterns, test-design, secure-input-handling.
+Design only. No source file was edited. Read against Jini `integ/wave-b-r2` @ `02edbb68` and Tovu `integ/wave-b-r2` @ `80b00f5b` (worktree).
+Personas: software-architect (lead), security, programmer, tdd. Skills: implementation-guardrails, hexagonal-architecture, api-design, testable-design-patterns, test-design, secure-input-handling, security-review.
+
+Revision 2 answers the Codex judge report (`CODEX-JUDGE.md`: 2 blockers, 11 majors, 1 minor). Every finding was checked in the code before it was accepted. Sections 3 to 9 are rewritten; section 2.1 to 2.5 is the verified inventory from revision 1 and is unchanged.
 
 Words used here:
 - **Refusal**: an expected "no" (bad input, not found, conflict, not allowed). The caller can act on it. No incident.
-- **Incident**: an unexpected failure. It gets an error ID, a redacted record on the server, and a tracker report.
-- **Catalog**: the list of error codes a feature declares (code, HTTP status, retryable, user-safe words).
+- **Incident**: an unexpected failure. It gets an error ID, a record on the server, and a tracker report.
+- **Sentence**: the plain words for one error code (what failed, what to do), with its HTTP status.
+- **Binding**: "in this scope, this error class means this code". A relation, not a table.
+
+## Judge response
+
+Result: **14 of 14 findings accepted** (one with a corrected premise, two wider than the judge found), **0 rebutted**. Blockers left: **0**. I looked for grounds to rebut each one and did not find any that survived a read of the code.
+
+`J` = Jini `packages/`, `T` = Tovu worktree root. "Verified" names the lines I read myself.
+
+| # | Finding | Verified at | Verdict | Fix (where) |
+|---|---|---|---|---|
+| 1 | **Blocker.** Redaction was used as if it were permission to disclose | J `core/src/user-facing-error.ts:23-25` ("Callers own disclosure policy: redaction does not make private backend facts public-safe"); J `core/src/redact.ts:14-18` (does not detect names, addresses, business secrets); T `site-share-errors.ts:74-83` (`cause: context.cause ?? "The error ID identifies the server report."`, only the export pilot passes a cause) | Accepted | No error text reaches a caller unless the owner of that operation approved it for callers authorised for that operation (§3.3). Default cause in Copy details is a fixed sentence plus a listed class/code label. The "never bodies or query strings" claim for the host record is withdrawn and replaced with what is true. Tests use ordinary private prose, not token shapes |
+| 2 | **Blocker.** Global class-first lookup cannot represent real ownership | J `cms/src/forms/delivery/errors.ts:8-10,32-47` (one class, 9 codes); T `members/tool-registrations.ts:186` and `post/tool-registrations.ts:305` (same `ForbiddenError`, two codes); T `pages/tool-registrations.ts:742` (two classes, one code); J `model-facing-tool-errors.ts:79-81` (`forbiddenRule`) | Accepted | The catalog is two relations: sentences keyed by code (one definition per code) and bindings grouped by scope (ordered, first match wins, aliases legal, optional discriminant). Lookup always names a scope. Contract cases for all three relationships (§3.1) |
+| 3 | Catalog adoption loses model-facing explanations | J `model-facing-tool-errors.ts:108-115` (`rule.message ?? err.message`); T `members/write-service.ts:98,165` (two different messages from one class); T `members/types.ts:251` (empty subclass) | Accepted | A binding states its text mode explicitly: `own-message` (today's default), `fixed` (today's `message` override) or `sentence`. Generated rules are field-for-field today's rules. E5 tests list several construction sites per class (§3.1, §4 E5) |
+| 4 | Lower-case codes contradict the reused describer | J `model-facing-tool-errors.ts:237-238` (`CONSTANT_TOKEN`), `:431-434` (`createErrorDescriber` throws on any other shape) | Accepted | Catalog codes are constant tokens, full stop. The nine kebab form-delivery codes stay a ledger vocabulary owned by cms and never enter the describer. A total `Record` maps each to a catalog code. Approval stays by listing (§3.1) |
+| 5 | E4 breaks incident-detail readers before E6; N-1 checked one direction | T `apps/admin/src/lib/admin-failure-channel.ts:26-47` and `apps/admin/src/features/sites/site-export-error.ts:25-31` (both read `details.failure`); T `site-share-errors.ts:116-123` (`field`, extra `details`) | Accepted | Tovu's flat envelope and `details.failure` are **kept**. D4 (retire the flat envelope) is withdrawn. Jini routes add the same `details.failure` key. Readers change before producers. Frozen copies of today's readers run against new responses (§3.4, §4 E4) |
+| 6 | The host catalog never reaches the route status owner | J `core/src/contracts/server/json-route.ts:149-150`; J `http-kit/src/adapter.ts:65,108,130`; J `http-kit/src/origin.ts:16`; six sites in J `daemon/src/http/` | Accepted, premise corrected | The judge names `jsonRoute` as the real owner. At this ref `jsonRoute` has **no non-test caller** (word search over both repos). The production owners are `mountJsonRoute` (83 calls in 19 daemon files, 2 in Tovu) and the daemon HTTP files. The finding holds for all of them. A typed `statusFor` goes on the existing `RouteHostContext`; every one of the 11 call sites reads it in one green step (§3.4, §4 E5a) |
+| 7 | Incident metadata never reaches chat | J `chat/src/core/run-events/entry.ts:689-693`, `assistant-client/ag-ui-transport.ts:74-80`, `transport.ts:45`; also found: J `assistant-client/transport.ts:425,476`, `durable-run-subscription.ts:47`, `embed-widget/transports/fetch-sse.ts:165`; T `assistant-ag-ui.ts:376-380` (drops `payload.error`), `:560` (sends raw `error.message` to the browser), `:661` ("assistant failed") | Accepted, wider | E8 covers both transports, the host AG-UI bridge, the failure contract, the saved status event and the notice. The ID also rides inside the words, so a consumer that rebuilds `new Error(message)` still keeps it (§3.4, §4 E8) |
+| 8 | E9 changed Electron rejection semantics; wrong sidecar branch | T `apps/desktop/src/renderer/use-app-version.hooks.ts:31-36`; 61 `ipcRenderer.invoke` forwards in `preload.mts`; J `sidecar/src/json-ipc.ts:305-324` (frame parse, uses `jsonIpcError`) and `:352-368` (handler failure, already `HANDLER_ERROR` + `requestId`) | Accepted | A failing handler still **rejects**. The wrapper records the incident and rethrows safe words with the ID. Bridge types, preload and the 16 structured `ok: false` owners are untouched. The two sidecar branches are migrated separately (§3.4, §4 E9) |
+| 9 | E1 callback unsafe and uncontained | J `model-facing-tool-errors.ts:242-244` ("approved by listing, never by shape"); J `infra/src/events/outbox/worker.ts:37-57,79-87` (existing containment), `:272` (sequential batch loop) | Accepted | The policy declares a closed list of codes; the worker stores a value only if it is on that list. A throwing policy is contained with the existing `reportPolicyFailure` and falls back to the class label. Tests: code-shaped canary, throw, unknown code, next row in the batch (§4 E1) |
+| 10 | Persisted error ID has no storage or sweep design | J `infra/src/events/outbox/ports.ts:12,27`; J `core/src/contracts/events/ports.ts:100,129-135`; T `jini-outbox-adapter.ts:18-25`; J `cms/src/forms/delivery/status.ts:44`; J `worker.ts:119-136` (no log on an ordinary failure) | Accepted | No schema change and nothing appended to `lastError`. The correlation key is what the row already stores: row ID + attempt number. The worker logs each ordinary failure once with that key (step E1). Status views show the row ID as the reference (§3.3) |
+| 11 | FP rows wrong; the parse exception cannot pass its own population; rule conflict | J `agent-runtime/src/providers/response-text.ts:13-21`; J `provider-plugins/src/payments-stripe/http.ts:46-57`; T `SharedKeys.hooks.ts:134-137`, `byok-meta-tool-result.ts:89-94`, `consent/config.ts:75-80`, `backstop-service.ts:115-116` | Accepted, wider | All 179 FP rows re-read from the complete try/catch with a syntax-tree script. **10 rows moved to real.** The exemption is redefined and was run against every row it claims (§2.6, §3.7). One precedence order for the three rules |
+| 12 | W1 cannot keep documented fallbacks | T `site-transfer-dependencies.hooks.ts:95,98,102`; T `assistant-run-finalizer.ts:430`; T `owner-store.ts:226` | Accepted | New idiom `orFallback`: any failure gives the stated fallback, unchanged. `absentWhen` (which rethrows) leaves W1 and is used only where the change is intended (W5) (§3.8) |
+| 13 | i18n wire contract and browser catalog ownership unfinished | J `protocol/src/errors.ts:32-38,81-87` (no `params`); T `post/tool-registrations.ts:299-305` (bindings import server classes) | Accepted | Parameters travel in `details.params`. Sentences live in a data-only file the browser imports; class bindings live in a separate server file. A guard rule and a bundle check prove it (§3.5) |
+| 14 | Minor. Idiom signatures and the E1 test broke owner rules | J `cms/src/forms/delivery/errors.ts:38-41` (constructor takes one object) | Accepted | Every new function takes `(required, optional = {})`. The cms test uses its own error and a fake boundary; the infra test uses a fake policy (§3.8, §4 E1) |
+
+What the judge's five recurring classes changed in the design:
+
+1. **Redaction is not permission.** Disclosure is decided by audience and by the operation owner's approval. Redaction runs after that, as a second layer.
+2. **Registrations are relations.** Sentences and bindings are separate; lookup is scoped.
+3. **Compatibility both ways.** Each wire change lists old reader × new response and new reader × old response, with a test for each.
+4. **Lint exemptions need executable examples.** `work/fp-recheck.cjs` is the exemption's prototype. It was run on all 369 current rows.
+5. **Correlation must survive a rebuilt `Error`.** The error ID is part of the words; the typed fields are an addition, not the only carrier.
 
 ## 1. Verdict
 
-**About 60% of the owner's error system already exists, in four unconnected pieces.** Nothing new needs inventing for the user-facing shape, the Copy-details block or the shared notice. What is missing is the one contract that ties codes to words, one incident path, and the host wiring.
+**About 60% of the owner's error system already exists, in four unconnected pieces.** Nothing new needs inventing for the user-facing shape, the Copy-details block or the shared notice. What is missing is one contract that ties codes to words, one incident path, the host wiring, and a disclosure rule that is stated once.
 
 The three biggest findings, each checked in code:
 
-1. **Wave B's "originals go to a host sink" has no sink in Tovu.** Tovu calls `createConsoleLogger` 17 times in 17 files and passes the `diagnostics` sink zero times. No non-test Tovu file passes `onInternalError` (0 hits; 4 hits are tests). So an unexpected failure inside a Jini route or a Jini logger call reaches Tovu's console as a class name (`Error`) and the original is dropped. Logs are safe but useless. (§2.3)
-2. **The outbox regression is real and one line.** `packages/infra/src/events/outbox/worker.ts` `recordOutcome` writes `error: describeErrorForLog({ err: error })` (commit `bc545d4d`, 2026-11-15; before it was `error.message`). `FormDeliveryError` codes are kebab-case (`rate-limited`), not in core's approved-code set, and the class is not registered, so the stored value is `Error`. `cms/src/forms/delivery/status.ts` then maps `Error` to `delivery-failed`. Every delivery failure now shows as the catch-all. (§8 step E1)
-3. **The input list is stale for Tovu and too narrow for both repos.** Of 228 Tovu input rows, 150 are no longer flagged on `integ/wave-b-r2`. And the audit's two rules see only a slice of the class: a census of every `catch` shows 1,871 handlers that never read the caught value (§2.5). The gate has to cover that class, not the 369 flagged rows.
+1. **Wave B's "originals go to a host sink" has no sink in Tovu.** Tovu calls `createConsoleLogger` 17 times in 17 files and passes the `diagnostics` sink zero times. No non-test Tovu file passes `onInternalError`. An unexpected failure inside a Jini route reaches Tovu's console as a class name and the original is dropped. (§2.3)
+2. **The outbox regression is real.** `infra/src/events/outbox/worker.ts` `recordOutcome` writes `describeErrorForLog({ err })`. `FormDeliveryError` codes are kebab-case and not in the approved set, so the stored value is `Error`, and `status.ts` maps that to `delivery-failed`. The same function never logs the original error at all. (§4 E1)
+3. **The gate has to cover a class, not a list.** 1,871 handlers never read the caught value (§2.5). After the re-check, 200 of the 369 flagged sites are real, and 7 of the sites first labelled "parse refusal" were hiding a failed read of a stream, a file, stdin or a provider.
 
 ## 2. Current state (verified)
 
@@ -40,7 +74,7 @@ The three biggest findings, each checked in code:
 | 14 | Admin transport error | Jini `admin/src/core/transport/errors.ts`: `AdminApiError`, `describeApiError`; Tovu `apps/admin/src/lib/api.ts`: `ApiError`, `describeApiError` | Panel-level fallback text | `describeApiError(` Jini 36, Tovu 174; `AdminApiError` 150 refs / 49 files |
 | 15 | Domain error classes | everywhere | `class X extends …Error` | Jini 333 / 187 files, Tovu 169 / 102 files |
 | 16 | Log-safety gate | Jini `scripts/check-log-safety.mjs` + `log-safety-debt.json` (132 entries) | Ratchet: no raw caught value in a log sink | CI |
-| 17 | IPC error shape | Jini `sidecar/src/json-ipc.ts` `jsonIpcError` → `{ code?, message }` with the raw `error.message` | Desktop/sidecar replies | Tovu desktop has 56 `ipcMain.handle` sites in 12 files and no shared error helper |
+| 17 | IPC error shape | Jini `sidecar/src/json-ipc.ts`: a bad frame answers `jsonIpcError` → `{ code?, message }` with the raw `error.message` (`:305-324`); a handler failure already answers `HANDLER_ERROR` + `requestId` with the text "internal error" (`:352-368`) | Desktop/sidecar replies | Tovu desktop has 56 `ipcMain.handle` sites in 12 files and no shared error helper |
 
 ### 2.2 Things that conflict today
 
@@ -83,300 +117,426 @@ Fresh run of `development/scripts/owner-rules-audit.mjs` on `integ/wave-b-r2`, a
 
 The census file set differs slightly from the audit's (it skips `content/` and `sites/`), so totals are within about 2% of each other, not identical. "Never reads the value" is not the same as "wrong": most `JSON.parse` fallbacks are fine. It is the population the gate must look at.
 
-### 2.6 Classification of the flagged sites
+### 2.6 Classification of the flagged sites (re-checked in revision 2)
 
 `SITES.tsv` has 525 rows: the 369 sites flagged today plus the 156 input rows that are gone.
 
 | | real | false positive | gone |
 |---|---|---|---|
-| Tovu | 10 | 69 | 150 |
-| Jini | 180 | 110 | 6 |
-| Total | **190** | **179** | 156 |
+| Tovu | 12 | 67 | 150 |
+| Jini | 188 | 102 | 6 |
+| Total | **200** | **169** | 156 |
 
-How much was checked: I read the flagged line (plus the line above, or the first lines of the catch block) for all 369 current rows, and 10 or more lines of context for 15 of them (`read_depth = context`). Seven multi-line Jini sites were not read and are marked `unclassified-swallow`. The 156 gone rows were decided by the script (same rule and file no longer flagged), not by reading. Pattern assignment is a regex pass plus 73 hand corrections (`work/classify-overrides.json`); expect some rows to move between patterns when a lane reads the full function.
+How it was checked this time: `work/fp-recheck.cjs` parses each file and reads the **whole** `try` block and `catch` block, or the receiver and handler of a `.catch(...)`. All 179 rows that revision 1 called false positive were re-read that way (`read_depth = ast`); I then read the source of every row the script could not pass (26 rows) and of every `.catch` row whose receiver was a fresh call instead of a held promise. The 190 rows revision 1 called real were run through the same script only as a cross-check: none of them passes the exemption. They keep revision 1's read depth. The 156 gone rows were decided by script.
 
-Real, by pattern: best-effort cleanup 77, failure treated as "absent" 31, user sees fixed words with no ID 13, typed error or result without the cause 22, cause dropped on purpose because it may hold secrets 8, log line with fixed text 11, dropped notification / alert / write 16, other 12.
-False positive, by pattern: parse refusal with specific words 82, promise marked as observed 29, queue tail 24, error-body parse 12, reload owned by a query 7, documented fallback 5, reporting path guarding itself 8, other 12.
+**10 rows moved from false positive to real:**
+
+| Site | Revision 1 said | What the whole try/catch does | Step |
+|---|---|---|---|
+| J `agent-runtime/src/providers/response-text.ts:19` | parse refusal | reads an async stream and checks a byte limit; any read failure becomes fixed words with no cause | W8 |
+| J `provider-plugins/src/payments-stripe/http.ts:54` | parse refusal | catches the provider HTTP send and returns an "unknown" payment outcome; the transport error is never recorded. The unknown outcome is correct and stays; the missing record is the defect | W8 |
+| J `agent-plugins/s3-compatible/targets/s3-compatible.mjs:414` | parse refusal | `JSON.parse(await resp.text())`: a failed body read is reported as "not valid JSON" | W8 |
+| J `agent-plugins/src/lifecycle/host-tools/identity.ts:55` | parse refusal | `JSON.parse(await readText(...))`: a missing or unreadable file and a bad manifest give the same words | W8 |
+| T `apps/website/src/cli/commands/agent-plugin-tokens.ts:50`, `init.ts:145` | parse refusal | `JSON.parse(await read())`: a failed stdin read is reported as bad JSON | W8 |
+| J `agent-plugins/src/lifecycle/provider-contribution.ts:97` | parse refusal | calls a plugin-supplied parser; any throw becomes "its parser failed" with no cause | W8 |
+| J `chat/src/react/hooks/useComposerHistory.hooks.ts:112` | queue tail | the `.catch` also covers `storage.write(...)`: a failed history write is dropped | W4 |
+| J `daemon/src/remote-tool-executor.ts:198` | queue tail | the `.catch` also covers `emitSurface(...)`: a failed surface emit is dropped | W4 |
+| J `daemon/src/http/frontend-request-route.ts:54` | expected refusal | any failure of the host's `resolveOwner` answers 403. Failing closed is right and stays; a storage failure is never recorded | W5 |
+
+Real, by step: W3 cleanup 89, W4 dropped notification / alert / write 18, W5 absent-vs-failed 32, W6 fixed words with no ID 13, W7 log line with fixed text 11, W8 cause dropped 37.
+False positive, by outcome: 39 observed promise, 22 queue tail, 15 fallback on any failure, 1 sync fallback (all W1, 77 rows); 65 parse refusals that pass the exemption as they are; 10 parse refusals that pass once their project validator is listed; 5 sanctioned reporting modules; 3 reporter guards that E4 removes; 5 standalone skill scripts outside the gate; 2 plugin payloads that cannot import the idioms; 2 test support.
+
+### 2.7 Facts found while verifying the judge report
+
+- **Status owners.** `statusForError` is called at 11 places and none passes anything but the error: `http-kit/src/adapter.ts:65,108,130`, `http-kit/src/origin.ts:16`, six in `daemon/src/http/`, and `json-route.ts:150`. `jsonRoute` itself has no non-test caller on this ref.
+- **Chat rebuilds the error at six places** (finding 7 row above). The existing formatter already recovers an `ERR-XXXX-XXXX-XXXX-XXXX` ID from a cause's text (`user-facing-error.ts:36`), which is what makes "ID inside the words" a working floor.
+- **Tovu's AG-UI bridge sends a raw `error.message` to the browser** at `assistant-ag-ui.ts:560`. That is a disclosure today, independent of this design.
+- **Electron already serialises only the message of a rejected `invoke`.** Any typed field on a thrown error is lost between main and renderer, so the ID must be in the text there too.
+- **Some plugin payloads import `@jini-ai/*` and some do not** (`vercel.mjs`, `s3-compatible.mjs` do; `github.mjs`, `google-workspace/lib/auth.mjs` and the web-clone skill scripts do not). The gate cannot assume the idioms are importable everywhere (decision D9).
 
 ## 3. The mechanism
 
-Three pieces in Jini core, each a pure addition, plus host wiring. Everything else is an existing owner used as it is.
+Small pure additions in Jini core, plus host wiring. Everything else is an existing owner used as it is.
 
 ```
-feature (owns codes + words)           host (owns ports)                boundary
-defineErrors([...]) ──────────► createErrorCatalog({ entries })
-                                createErrorReporter({ ids, clock,      route / tool / job / IPC
-                                  logger, tracker, versions, catalog }) ──► describe(error, step)
-                                                                           ├─ refusal  → ApiError (code, words)
-                                                                           └─ incident → log + tracker + ApiError
-                                                                                         (code, words, requestId, details)
+feature (owns words)          feature server side (owns classes)      host (owns ports + policy)
+errors.sentences.ts ─┐        errors.bindings.ts ─┐
+  defineErrorSentences│         defineErrorScope   ├─► createErrorCatalog({ sentences, scopes })
+                      └────────────────────────────┘   createErrorReporter({ ids, clock, logger, tracker, catalog, versions })
+boundary (route / tool / job / IPC / run):  reporter.describe({ error, step, scope, fallback }, { audience, approvedCause })
+   ├─ refusal  → code + sentence (+ params)                       no incident
+   └─ incident → one ID, one host record, one tracker report      caller gets words + ID (+ details only if authorised)
 client: decodeApiError → formatUserFacingError → FailureChannel → <ErrorNotice/>
 ```
 
-### 3.1 Catalog (a): codes owned by features, registered through one contract
+### 3.1 Catalog: two relations, scoped lookup
 
-New folder `core/src/errors/` (pure; allowed in core by untangle rule B2: types, constants, pure functions, factories whose state lives in the returned object).
+Folder `core/src/errors/` (pure: types, constants, pure functions, factories whose state lives in the returned object). No index file.
+
+**Relation 1: sentences, keyed by code. One definition per code.**
+
+```ts
+// core/src/errors/sentences.ts — the only module a *.sentences.ts file may import
+export interface ErrorSentence {
+  readonly status: number;            // HTTP status at a route boundary
+  readonly retryable: boolean;
+  readonly message: string;           // what failed. English source; `{name}` placeholders only
+  readonly action: string;            // what to do next
+  readonly audience: 'anyone' | 'authorized';
+}
+export interface ErrorSentenceSet { readonly domain: string; readonly codes: Readonly<Record<string, ErrorSentence>> }
+export interface ErrorSentenceOptions { /* none yet; a named interface, never Record<string, never> */ }
+export function defineErrorSentences(required: { domain: string; codes: Readonly<Record<string, ErrorSentence>> }, optional: ErrorSentenceOptions = {}): ErrorSentenceSet;
+```
+
+- A code is a constant token (`[A-Z][A-Z0-9_]{0,63}`, the describer's existing `CONSTANT_TOKEN`) and starts with its set's domain prefix. Generic protocol codes are defined only in core's own set.
+- Two sets defining the same code is an error: a conformance test that builds the full host catalog throws; at runtime the catalog warns and keeps the first (owner rule: production warns and never refuses to boot).
+- `RESOURCE_CONFLICT` and the other shared generic codes get **no** sentence from a feature. This keeps the decision recorded in `admin/src/core/transport/errors.ts` (the same generic code means different things per domain).
+
+**Relation 2: bindings, grouped by scope. Many-to-many on purpose.**
+
+```ts
+// core/src/errors/bindings.ts — server side; imports the feature's error classes
+export type ErrorText =
+  | { readonly mode: 'own-message' }                    // publish the error's own message (today's rule with no `message`)
+  | { readonly mode: 'fixed'; readonly text: string }   // publish this text instead (today's `message` override)
+  | { readonly mode: 'sentence'; readonly params?: (required: { error: Error }) => Readonly<Record<string, string | number>> };
+export type ErrorBinding =
+  | { readonly error: ErrorClass; readonly code: string; readonly text: ErrorText; readonly guidance?: string; readonly label?: string }
+  | { readonly error: ErrorClass; readonly codes: readonly string[]; readonly text: ErrorText; readonly label?: string;
+      readonly codeOf: (required: { error: Error }) => string | undefined };   // class + discriminant
+export interface ErrorScope { readonly scope: string; readonly bindings: readonly ErrorBinding[] }
+export function defineErrorScope(required: { scope: string; bindings: readonly ErrorBinding[] }, optional: ErrorScopeOptions = {}): ErrorScope;
+```
 
 ```ts
 // core/src/errors/catalog.ts
-export interface ErrorEntry {
-  /** SCREAMING_SNAKE, namespaced `<DOMAIN>_<REASON>`. Generic protocol codes are reserved for core. */
-  readonly code: string;
-  readonly status: number;                 // HTTP status at a route boundary
-  readonly retryable: boolean;
-  /** Plain words: what failed. English source sentence; `{name}` placeholders only. */
-  readonly message: string;
-  /** Plain words: what to do next. */
-  readonly action: string;
-  /** Class matched with instanceof (same shape as ModelFacingErrorRule.error). Absent: matched by `code`. */
-  readonly error?: abstract new (...args: never[]) => Error;
-  /** Reads the placeholder values from a matched error. Values are ids and counts, never free text. */
-  readonly params?: (required: { error: Error }) => Readonly<Record<string, string | number>>;
-  /** 'public' may be shown to anyone; 'signed-in' only after authentication. */
-  readonly audience: 'public' | 'signed-in';
-  /** Appended for the model only (today's ModelFacingErrorRule.guidance). */
-  readonly modelGuidance?: string;
-}
-export function defineErrors(required: { domain: string; entries: readonly ErrorEntry[] }, optional: Record<string, unknown> = {}): ErrorCatalogPart;
-export function createErrorCatalog(required: { parts: readonly ErrorCatalogPart[] }, optional: { onDuplicate?: 'throw' | 'warn' } = {}): ErrorCatalog;
 export interface ErrorCatalog {
-  find(required: { error: unknown }): ErrorEntry | undefined;      // class first (newest part first), then own `code`
-  byCode(required: { code: string }): ErrorEntry | undefined;
-  describer: ErrorDescriber;                                        // today's createErrorDescriber, fed from the entries
-  modelFacingRules(required: { domain: string }): readonly ModelFacingErrorRule[];
-  sourceSentences(): readonly string[];                             // for the i18n completeness check
+  /** Bindings of ONE scope, in order, first match wins. Never searches another scope. */
+  match(required: { error: unknown; scope: string }): ErrorMatch | undefined;
+  sentence(required: { code: string }): ErrorSentence | undefined;
+  statusFor(required: { error: { readonly code: string } }): number | undefined;
+  modelFacingRules(required: { scope: string }): readonly ModelFacingErrorRule[];
+  callerSafeRules(required: { scope: string }): readonly CallerSafeErrorRule[];
+  describerVocabulary(): ErrorDescriberVocabulary;       // input for the unchanged createErrorDescriber
+  sourceSentences(): readonly string[];                  // for the i18n completeness check
 }
+export function createErrorCatalog(required: { sentences: readonly ErrorSentenceSet[]; scopes: readonly ErrorScope[] }, optional: { onDuplicate?: 'throw' | 'warn' } = {}): ErrorCatalog;
 ```
 
-Rules:
-- A feature exports one `ErrorCatalogPart` next to its error classes (`cms/src/forms/delivery/errors.ts` exports `formDeliveryErrors`). It imports only core. The host passes all parts to `createErrorCatalog` in its composition root. This is the "registered through one Jini contract" rule and it needs no cross-package import.
-- One entry replaces three registrations: the catalog builds the describer vocabulary (label = class name given in the entry, code = `code`), the model-facing rules and the caller-safe rules. `reclassifyToolError`, `callerSafeErrorMessage` and `createErrorDescriber` keep their signatures; their rule arrays are produced by the catalog instead of written by hand.
-- `statusForError` takes the catalog: `statusForError({ error }, { catalog })`. The private table stays as the generic part. A feature code no longer falls to 500 by accident.
-- Duplicate code in two parts: `createErrorCatalog` throws in tests and CI (a conformance test builds the full host catalog) and warns at runtime (owner rule: production warns and never refuses to boot).
-- Codes with lower-case or kebab spelling that are already persisted (`rate-limited` and the other 8 form-delivery codes) are valid `code` values for matching and storage. Only the describer's built-in set keeps the strict constant-token rule.
-- No new base class. The 502 existing error classes stay; a class joins the system by being named in an entry. A new failure with no class uses `ToolInputError` or `createApiError` with a catalogued code, as today.
-- Version conflicts: core ships one part (`VERSION_CONFLICT`, `VERSION_REQUIRED`) bound to `RecordVersionConflictError` / `RecordVersionRequiredError`.
+Lookup rules, in order:
 
-### 3.2 Reporter (c): one incident path
+1. The caller always names the scope. A tool registration passes its domain (as each `withModelFacingErrors({ rules })` call is per domain today). A route pack passes its pack's scope. There is no global search, so the same `ForbiddenError` is `MEMBERS_FORBIDDEN` in scope `members` and `CONTENT_POST_FORBIDDEN` in scope `content-post`.
+2. Inside a scope, bindings are tried in the order written and the first `instanceof` match wins. This is today's rule-array rule, unchanged (subclass before superclass). `createErrorCatalog` rejects a scope in which a superclass is listed before its subclass (the later binding could never match).
+3. Two bindings in one scope may name the same code. `PageNotFoundError` and `PostNotFoundError` both map to `PAGES_NOT_FOUND` in scope `pages`. Aliases are legal; only duplicate *sentence definitions* are an error.
+4. A discriminant binding calls `codeOf` and accepts the result only if it is in the binding's own `codes` list. A throw from `codeOf`, or a value not on the list, means "no match" and the failure is an incident.
+5. An arbitrary error is **never** matched by its own `.code` property: that field is caller-writable (the describer's existing rule). Only an already-classified carrier (`ClientFacingError.apiError.code`, built by our own code) is looked up by code.
+6. No match means incident.
+
+Contract cases that ship with E2 (the three relationships the judge named, plus order):
+
+| Case | Expectation |
+|---|---|
+| `FormDeliveryError` built with each of its 9 ledger codes, scope `forms-delivery` | 9 distinct catalog codes; an unlisted ledger code gives no match |
+| one `ForbiddenError` instance, scopes `members`, `content-post`, `unknown-scope` | `MEMBERS_FORBIDDEN`, `CONTENT_POST_FORBIDDEN`, no match |
+| `PageNotFoundError` and `PostNotFoundError`, scope `pages` | both `PAGES_NOT_FOUND` |
+| `PostVersionConflictError` (subclass of `PostConflictError`), scope `content-post` | the version-conflict code, with its guidance; swapping the two bindings makes `createErrorCatalog` throw |
+| an `Error` whose `code` property is set to a real catalog code | no match |
+
+**Model-facing text survives adoption (finding 3).** `modelFacingRules({ scope })` returns, for each class→code binding, exactly `{ error, code, message?, guidance? }`: `own-message` gives no `message` (so `reclassifyToolError` publishes `err.message`, as today), `fixed` gives `message: text`. `reclassifyToolError`, `callerSafeErrorMessage` and `withModelFacingErrors` are not touched. Migration of a rule array is therefore one-to-one: a rule without `message` becomes `text: { mode: 'own-message' }`, a rule with `message` becomes `text: { mode: 'fixed', text }`. `sentence` mode is opt-in for a class that later gets structured fields; it is not needed for adoption. Discriminant bindings are not model-facing today (form delivery is not a tool) and `modelFacingRules` skips them.
+
+What a **user** sees for an `own-message` binding: the translated sentence for the code, then the server's English message as the specific reason. The reason line is not translatable. That is today's behaviour for those messages, kept, and listed as decision D11.
+
+**Lower-case codes (finding 4).** The nine kebab codes in `cms/src/forms/delivery/errors.ts` are a ledger vocabulary: they are what `lastError` stores and what `safeFormDeliveryErrorCode` validates. They stay exactly that. cms adds one total table, checked by the compiler:
+
+```ts
+const FORM_DELIVERY_CATALOG_CODE: Record<FormDeliveryErrorCode, string> = { 'rate-limited': 'FORM_DELIVERY_RATE_LIMITED', /* …all 9 */ };
+// binding: { error: FormDeliveryError, codes: Object.values(FORM_DELIVERY_CATALOG_CODE), codeOf: ({ error }) => FORM_DELIVERY_CATALOG_CODE[(error as FormDeliveryError).code], text: { mode: 'sentence' } }
+```
+
+`createErrorDescriber` is not changed and never receives a kebab value. Its vocabulary from the catalog is the constant-token codes plus the bound classes. Approval stays by listing.
+
+No new base class. The existing error classes stay; a class joins the system by being named in a binding. Version conflicts: core ships one sentence set (`VERSION_CONFLICT`, `VERSION_REQUIRED`) and each domain binds its own conflict class to it, as `versionConflictRule` does today.
+
+### 3.2 Reporter: one incident path
 
 ```ts
 // core/src/errors/reporter.ts
 export interface ErrorReporterPorts {
-  readonly ids: IdGenerator;                    // core primitive
-  readonly clock: Clock;                        // core primitive
-  readonly logger: Logger;                      // core primitive
-  /** Structurally `Pick<ObservabilityPort, 'reportError'>`; imported from core once observability M1 moves the type. */
+  readonly ids: IdGenerator; readonly clock: Clock; readonly logger: Logger;   // core primitives
+  /** Structurally Pick<ObservabilityPort, 'reportError'>; core does not import diagnostics. */
   readonly tracker: { reportError(report: { error: unknown; context: { operation: string; attributes?: Readonly<Record<string, string | number>> } }): unknown };
   readonly catalog: ErrorCatalog;
   readonly versions: { readonly app: string; readonly jini: string };
 }
 export interface ErrorReporter {
-  /** Refusal → its entry. Anything else → an incident: one ID, one log record, one tracker report. Never throws. */
-  describe(required: { error: unknown; step: string; fallback: { message: string; action: string } },
-           optional?: { errorId?: string; exactSecrets?: readonly string[]; audience?: 'public' | 'signed-in' }): DescribedFailure;
-  /** For a failure nobody will be shown (a background job, cleanup): log + tracker only. */
-  record(required: { error: unknown; step: string }, optional?: { level?: 'warning' | 'error'; exactSecrets?: readonly string[] }): { errorId: string };
+  /** Refusal → its sentence. Anything else → an incident: one ID, one host record, one tracker report. Never throws. */
+  describe(required: { error: unknown; step: string; scope: string; fallback: { message: string; action: string } },
+           optional?: { errorId?: string; audience?: 'anonymous' | 'authorized'; approvedCause?: ApprovedCause; exactSecrets?: readonly string[] }): DescribedFailure;
+  /** A failure nobody is shown (job, cleanup, IPC handler): host record + tracker only. Never throws. */
+  record(required: { error: unknown; step: string }, optional?: { errorId?: string; level?: 'warning' | 'error'; exactSecrets?: readonly string[] }): { errorId: string };
 }
-export interface DescribedFailure { readonly kind: 'refusal' | 'incident'; readonly status: number; readonly error: ApiErrorShape }
+export interface DescribedFailure { readonly kind: 'refusal' | 'incident'; readonly status: number; readonly error: ApiError; readonly failure?: UserFacingError }
 export function createErrorReporter(required: ErrorReporterPorts, optional: { redaction?: SecretRedactionOptions } = {}): ErrorReporter;
 ```
 
-- `fallback` is required at every call. There is no default sentence in the reporter, so a generic message cannot come from it. Route packs get their fallback words from `describeRequestFailure` with the host's vocabulary (what Tovu does today), or pass their own.
-- `step` is a fixed label (`forms:deliver`, `routes/taxonomy/list`), the same field Tovu calls `operation` and http-kit calls `logSource`.
-- Existing paths become callers, not copies: http-kit `reportRouteInternalError` and Tovu `reportServerFailure` / `adminFailureResponse` each shrink to one `reporter.describe(...)` call. `reportErrorOnce` (de-duplication per request) stays in diagnostics and is what the host passes as `tracker`.
-- The two port objects (`ErrorReporterPorts`, the optional `redaction`) follow the `(required, optional = {})` rule. `optional` is typed with real fields, never `Record<string, never>`.
+- `fallback` is required at every call, so the reporter has no default sentence and cannot emit a generic one.
+- `audience` defaults to `'anonymous'`. A boundary passes `'authorized'` only after its own authentication **and** its permission check for this operation have passed.
+- The reporter does not format IDs; the host's `ids` port returns them. Hosts mint the existing `ERR-XXXX-XXXX-XXXX-XXXX` format with `mintToolErrorId({ randomHex })` (`daemon/src/tool-recovery/redaction.ts:48`), which is already pure and takes its randomness as a port. It moves to core with its comment so host and daemon share one owner. The reason for one format is functional, not cosmetic: `formatUserFacingError` already finds that shape inside a cause's text, so the ID survives any consumer that keeps only a message string (decision D2).
+- The words an incident returns are `"<fallback.message> (error <ID>)"`. This is Tovu's existing convention (`site-share-errors.ts:88`).
+- Existing paths become callers: `reportRouteInternalError` (http-kit) and `reportServerFailure` / `adminFailureResponse` (Tovu) call the reporter and keep their own route-specific work. `reportErrorOnce` stays in diagnostics and is what the host passes as `tracker`.
 
-### 3.3 What goes where (c)
+### 3.3 Disclosure: who may read what
+
+The rule, stated once: **redaction removes known secret shapes; it does not decide who may read a fact.** An error message can quote a draft, a customer note or a URL with a query string, and the redactor will not see it (the judge's three canaries pass through unchanged; `redact.ts` says so itself). So no error text is shown to a caller because it was redacted. It is shown only when the owner of that operation approved it for callers who are authorised for that operation.
+
+```ts
+// core/src/errors/approved-cause.ts
+export interface ApprovedCause { readonly step: string; readonly cause: unknown }   // branded; built only by approveCause
+/** Called by the feature that owns `step`. Means: "a caller authorised for this step may read this failure's redacted cause." */
+export function approveCause(required: { step: string; cause: unknown }, optional: ApproveCauseOptions = {}): ApprovedCause;
+```
+
+The reporter puts a cause into the caller's details only when all three hold: `audience` is `'authorized'`, an `approvedCause` was passed, and its `step` equals the step being described. This is the export pilot's existing behaviour (`SiteShareExportFailure`, `shareFailureOptions`) made into the one way to do it. Redaction still runs on an approved cause, as a second layer.
 
 | Reader | Gets | Never gets |
 |---|---|---|
-| **User** (refusal) | entry `message` + `action`, `code` | — |
-| **User, signed in** (incident) | words from `fallback`, error ID, and the Copy-details block: ID, step, **redacted cause summary**, app + Jini version, time | secrets, raw payloads, stack beyond the summary |
-| **Visitor / anonymous** (incident) | words + error ID + "Report this error ID." | cause, step internals, versions (today's `discloseDetails: false` rule in Tovu, kept) |
-| **Model** (tool result) | `CODE: words. guidance` for a refusal; `Error ERR-…: <reason with secret values blanked>` for an incident (2026-09-16 decision, unchanged) | Copy-details block, stack |
-| **Library console line** (Jini code with no host) | step, error ID, class label, approved or catalogued code | message, stack |
-| **Host incident record** (log) | error ID, step, code/label, redacted message, redacted stack (30 lines), labels of up to 3 causes, versions, time | values matched by `redactSecrets` + host `exactSecrets`; request bodies, headers, cookies |
-| **Tracker** | the same redacted record through `reportErrorOnce` | same |
-| **Persisted rows** (outbox `lastError`, search index, operation rows) | catalogued code, or class label, plus error ID | any message text |
+| **User** (refusal) | sentence `message` + `action`, `code`, and the own-message reason where the binding says so | — |
+| **User, authorised for the operation** (incident) | fallback words, error ID, and Copy details: ID, step, **cause summary**, app + Jini version, time. The cause summary is the fixed sentence "The error ID identifies the server report." plus the listed label (`Error(SQLITE_BUSY)`: class label and code, both approved by listing). An approved cause replaces the fixed sentence | any error message, stack or payload text that no operation owner approved |
+| **Visitor / anonymous** (incident) | words + error ID + "Report this error ID." | details, step internals, versions, labels (today's `discloseDetails: false`, kept) |
+| **Model** (tool result) | `CODE: text. guidance` for a refusal. For an incident, today's `Error ERR-…: <reason with secret values blanked>` (owner decision 2026-09-16) | Copy details, stack |
+| **Library console line** (Jini code with no host) | step, error ID, class label, listed code | message, stack |
+| **Host incident record** (operator only) | error ID, step, code/label, message and stack (30 lines) with secret shapes and the host's exact secrets blanked, labels of up to 3 causes, versions, time | values matched by `redactSecrets` + host `exactSecrets` |
+| **Tracker** | the same record through `reportErrorOnce` (what Tovu sends today) | same |
+| **Persisted rows** (outbox `lastError`, operation rows) | a code from the owner's closed list, or the class label. Nothing else | any message text, any ID appended to the code |
 
-**The class-only question, resolved.** Keep class-only for the line a *library* prints on its own, because a library cannot know the host's secrets. Stop treating that line as the record. The record is written by the host's reporter, which applies the "hide secrets only" policy the owner approved on 2026-09-16 with the host's own redaction options. Two changes make this hold:
+Three honest limits, each with a decision:
 
-1. **The sink is required where the host composes.** `createErrorReporter` has no optional sink, and the Tovu composition root passes `diagnostics` and `onInternalError` built from it (step E3). A library default line always prints the error ID, so a line with no record is visible as such.
-2. **Catalogued errors are useful in logs by construction.** A registered class logs as `FormDeliveryError(rate-limited)` instead of `Error`, with no text involved.
+- The host incident record **can** contain private text that an error message quoted (a draft line, a query string). Revision 1 claimed it could not; that claim is withdrawn. What is true: the reporter attaches no request body, header, cookie or query string of its own, and the record is never returned to a caller. It is an operator-only store under the host's diagnostic policy.
+- The tracker is a third party in some deployments and receives that same text today. Unchanged here; decision D10.
+- The model path shows a reason with secret values blanked. That is the same class of risk and an existing owner decision. Unchanged here; decision D12.
 
-Redaction rules (security persona): redact whole fields before cutting them (already done in `formatUserFacingError`); never log request bodies, headers, cookies or query strings; attributes are fixed labels and ids, capped (existing `redactOperationAttributes`); `error.code` and `error.name` are attacker-writable, so only approved or catalogued values print (existing rule in `errorType`); placeholder values from `params` are passed through `redactSecrets` and capped at 128 characters; the cause summary shown to a signed-in user is the redacted first line of the message plus cause labels, capped at 4,096 characters as today.
+Other rules kept from revision 1: redact whole fields before cutting them; attributes are fixed labels and IDs, capped; `error.code` and `error.name` are caller-writable, so only listed values print; placeholder values from `params` are IDs and counts, passed through `redactSecrets` and capped at 128 characters.
 
-### 3.4 The shape at every boundary (b)
+**The class-only question, resolved.** Keep class-only for the line a library prints on its own, because a library cannot know the host's secrets. That line is not the record. The record is written by the host's reporter. `createErrorReporter` has no optional sink, the Tovu composition root passes `diagnostics` and `onInternalError` built from it (E3), and a bound class logs as `FormDeliveryError` with its listed code instead of `Error`.
 
-One wire block everywhere: protocol `ApiError`. An incident adds a typed `details`:
+**Persisted correlation (finding 10).** A persisted row stores no error ID. The correlation key is what the row already has: its row ID and attempt count. At each ordinary delivery failure the worker writes one log entry through its existing `report` helper with `{ outboxId, attempt, lastError }` and the original error (which the host sink receives). A status view shows the row ID as the reference in Copy details and "attempt N" in the step. No schema change, no adapter change, `lastError` stays an exact code, and legacy rows read as before.
+
+### 3.4 The shape at every boundary
+
+Two wire envelopes stay (Jini nested, Tovu admin flat). What is unified is the decoded shape (`DecodedApiError` → `UserFacingError`) and one detail key.
 
 ```ts
-// protocol/src/errors.ts (additive)
-export interface ApiIncidentDetails { kind: 'incident'; step: string; action: string; cause?: string; time: string; appVersion?: string; jiniVersion?: string }
+// protocol/src/errors.ts (additive; ApiError itself is unchanged)
+/** `details` of an incident. `failure` has the field names Tovu's flat envelope already uses. */
+export interface ApiIncidentDetails { kind: 'incident'; failure: { message: string; action: string; step: string; cause: string; errorId?: string; time?: string; appVersion?: string; jiniVersion?: string } }
+/** Interpolation values for a refusal's sentence. A sibling key, legal beside any `kind`. */
+export function readErrorParams(required: { details: unknown }, optional: ReadErrorParamsOptions = {}): Readonly<Record<string, string | number>>;
 ```
 
-`requestId` stays the wire name of the error ID (it is already in `ApiError`); the UI labels it "Error ID". `details.kind: 'validation'` keeps its meaning.
+| Boundary | Today | Design | Old reader × new response | New reader × old response |
+|---|---|---|---|---|
+| Tovu admin route JSON | flat `{ error, code, errorId, details.failure }` | **unchanged shape.** Only the inside of `reportServerFailure` / `adminFailureResponse` changes (they call the reporter) | identical bytes for the same input; pinned by characterization tests | n/a |
+| Jini route JSON | `{ error: ApiError }` + `requestId` | adds `details: ApiIncidentDetails` for an incident, only for an authorised audience | the readers found test `kind === 'validation'` before reading anything else (6 matches: 1 in Jini, 5 in Tovu) and Tovu's two `details.failure` readers get the block they already understand; pinned by a frozen-reader test | `failureFromResponse` treats a missing `details.failure` as ID-only |
+| HTTP status of a refusal | closed table; a feature code answers 500 | `RouteHostContext.statusFor?` (typed, optional); all 11 `statusForError` call sites use `routeStatus({ error }, { host })` = `host?.statusFor?.({ error }) ?? statusForError({ error })` | n/a | a host that passes nothing gets today's table |
+| AG-UI / chat run events | `RunErrorPayload { message, error? }`; several emitters send `message` only; six consumers rebuild a plain `Error` | emitters use one `runError(...)` helper that fills `error` (code, `requestId`, incident details) and puts the ID in `message`. Consumers build one typed `RunFailure` through one function. The saved status event keeps the ID and the failure fields | an old client shows `message`, which now ends in `(error ERR-…)` | a new client reading an old frame gets a `RunFailure` with no ID and shows the words |
+| Agent tool results | `ToolInputError` text, or `Error ERR-…: reason` | unchanged for the model. The tool card builds `ErrorNotice` from the existing `errorId` | n/a | n/a |
+| Outbox / background jobs | `lastError: 'Error'`; original never logged | `lastError` = a code from the policy's closed list, else the class label; one log entry per failure keyed by row ID + attempt | status view reads an exact code, as today | legacy `Error` rows map to `delivery-failed`, as today |
+| Electron IPC | a throwing handler rejects with its raw message | a throwing handler **still rejects**; the message is now the fallback words + `(error ERR-…)`; the incident is recorded in main. Bridge types, preload and the 16 `ok: false` sites (7 files) unchanged | a renderer `catch` runs exactly as before and shows safe words | n/a |
+| Sidecar JSON IPC | frame-parse reply carries the raw `SyntaxError` message; handler failure is already `HANDLER_ERROR` + `requestId` | two separate changes: the parse refusal answers a fixed `BAD_FRAME` sentence; the handler incident goes through an injected reporter port and keeps its code and `requestId` | a peer reading `{ code?, message, requestId? }` is unaffected | n/a |
+| CLI | `ValidationError` text | prints sentence words; an incident prints the error ID and where the record is | n/a | n/a |
 
-| Boundary | Today | Design |
-|---|---|---|
-| Jini route JSON | `{ error: ApiError }` + `requestId` | same, plus `details: ApiIncidentDetails` for incidents |
-| Tovu admin route JSON | flat `{ error: string, code, errorId, details.failure }` | `sendAdminFailure` answers the nested envelope. `decodeApiError` keeps reading the flat one (N-1 fixture test). One function changes on the server; 251 call sites do not |
-| AG-UI / chat run events | `RunErrorPayload { message, error?: ApiError }`; several emit sites send `message` only | every emit goes through one `runError({ reporter, error, step })` helper in daemon that fills `error` with code + `requestId`; chat renders `ErrorNotice` from it |
-| Agent tool results | `ToolInputError` text, or `Error ERR-…: reason` | unchanged for the model. The result keeps `errorId`; the tool card shows `ErrorNotice` built from it (the "later chat-side copy button" noted in `redaction.ts`) |
-| Outbox / background jobs | `lastError: 'Error'` | store `code ?? label` and the error ID; call `reporter.record` at failure time; status views turn the code into the entry's words when read |
-| Desktop IPC + sidecar | `{ code?, message: error.message }` raw | `{ ok: false, error: ApiError }` from `reporter.describe`; renderer feeds the same failure channel |
-| CLI | `ValidationError` text | prints entry words; an incident prints the error ID and the path of the incident record |
+Chat detail (finding 7). `chat/src/core/run-failure.ts` holds `class RunFailure extends Error { readonly apiError?: DecodedApiError }` and `runFailureFromPayload({ payload })`. `RunHandlers.onError` keeps its type (`(err: Error) => void`), so its 55 references compile unchanged. The six rebuild sites call the one function. The status event becomes `{ kind: 'status', label, code?, failure? }` where `failure` is the ID, step, time and versions (five short strings per failed run in the saved transcript). The clean-abort path (`RUN_ERROR` with `code: "abort"`) is pinned by a test before anything else moves. One `RUN_ERROR` event carries all of its own metadata, so correctness does not depend on how the stream is cut into network chunks.
 
-N-1: decoders accept every shape that exists today for as long as a previous admin build or desktop shell can be running against a newer server. Fixtures of today's four shapes are added in E4 before any producer changes.
+How AG-UI carries the `ApiError`: in the event's standard pass-through field `rawEvent`. **Not verified**: that the pinned AG-UI encoder and validator keep `rawEvent` on a `RUN_ERROR` (dependencies were not installed in this run). E8's first test is that round trip. If the field is stripped, the ID still arrives because it is in `message`; step, time and versions then come from a `CUSTOM` event written just before `RUN_ERROR`, held in the existing translation state and applied when `RUN_ERROR` arrives.
 
-### 3.5 i18n (d)
+Electron detail (finding 8). `handleIpc({ channel, handler, reporter, fallback })` registers `ipcMain.handle(channel, …)`, awaits the handler, and on a throw calls `reporter.record` and throws `new Error("<fallback.message> (error <ID>)")`. A handler that returns `{ ok: false, … }` is passed through. Before the 56 sites are wrapped, E9 lists every renderer `catch` (37 today) that matches on message text; any such site is migrated to a structured result first, in its own commit.
 
-Tovu's rule is `t("full English sentence")` with 21 locale blocks. The catalog fits it without a new key scheme:
+### 3.5 i18n
 
-- The entry's `message` and `action` are the English source sentences and are the translation keys.
-- The server sends the rendered English sentence (for API clients, logs and models) **and** `code` + `params`.
-- The client renders `interpolate(t(entry.message), params)`. It gets the sentence from the catalog part it imports (parts are plain data from core-only modules, so a browser bundle can import them), or falls back to the server's English text when the code is unknown to this build (older client, newer server).
-- Completeness check: `catalog.sourceSentences()` must all be present in each of the 21 locale dictionaries. This extends the existing hygiene audit (`i18n-missing-keys`), which already reports 31 high-confidence gaps in Tovu.
-- `ErrorNotice` already takes `t` for its own labels ("Show details", "Copy details").
-- The Copy-details block stays in English on purpose: it is pasted into a GitHub issue.
+Tovu's rule is `t("full English sentence")` with 21 locale blocks.
 
-Not designed here: `asPage()` in `admin-failure-channel.ts` rewrites "post" to "page" with a regex on English text. It breaks under translation. It needs a `{noun}` placeholder instead; listed as a follow-up in E10.
+- **Owner of the words.** A feature's `errors.sentences.ts` holds its sentence set and imports only `core/src/errors/sentences`. The admin bundle imports these files. Class bindings live in `errors.bindings.ts`, which imports the classes and is server-only.
+- **Proof that a sentences file is browser-safe.** Two checks, both in E5: (1) a `scripts/guard.ts` rule: a `*.sentences.ts` file has exactly one import, type-only or not (banning all others makes the rule independent of each package's `verbatimModuleSyntax` setting); (2) a build check that bundles every sentences file for the browser with Node built-ins marked as errors.
+- **Wire.** The server sends the rendered English `message` (for API clients, logs and models), the `code`, and `details.params` when the sentence has placeholders. `readErrorParams` accepts only string and number values and at most 16 keys.
+- **Client.** `interpolate(t(sentence.message), params)` when this build knows the code; otherwise the server's English text. An old client ignores `details.params` and shows the English text.
+- **Completeness.** Every string from `catalog.sourceSentences()` must be present in each of the 21 dictionaries. The check is built from the sentence files the admin bundle actually imports, not from a hand list.
+- The Copy-details block stays in English on purpose: it is pasted into an issue.
 
-### 3.6 UI (e)
+Follow-up kept from revision 1: `asPage()` in `admin-failure-channel.ts` rewrites "post" to "page" by regex on English text. It needs a `{noun}` placeholder (E10).
 
-Reuse: `ErrorNotice` and `createFailureChannel` stay where they are (`ui/panel-kit`). Additions are small:
+### 3.6 UI
+
+Reuse: `ErrorNotice` and `createFailureChannel` stay in `ui/panel-kit`.
 
 | Piece | Where | Note |
 |---|---|---|
-| `failureFromResponse({ body, status, method, route }, { vocabulary, catalog, t, versions, redaction })` | `ui/src/features/panel-kit/failure-from-response.ts` | The generic half of Tovu's `publishAdminFailure` (about 35 lines). Tovu keeps the host half: vocabulary, the signed-in check, the page/post wording |
-| `useReportFailure()` hook | admin kit, chat kit, ui kit (each kit declares the slot; the host binds one channel) | Returns `report({ error, message, action, step })`. Replaces the bare fallback string in `describeApiError` for a value that is not an API error |
-| `ErrorNotice` prop `disclosure: 'full' \| 'id-only'` | existing component | `id-only` is the visitor form: words + error ID, no details block |
-| Chat run-failure card | `chat/src/react` | The generic part of Tovu's `AgentFailureCard` (format + notice). Tovu keeps "switch agent" |
+| `failureFromResponse({ body, status, method, route }, { vocabulary, catalog, t, versions, redaction })` | `ui/src/features/panel-kit/failure-from-response.ts` | The generic half of Tovu's `publishAdminFailure`. Reads `details.failure` from either envelope. Tovu keeps the host half: vocabulary, the signed-in check, the page/post wording |
+| `useReportFailure()` | admin kit, chat kit, ui kit (each declares the slot; the host binds one channel) | Returns `report({ error, message, action, step })` |
+| `ErrorNotice` prop `disclosure: 'full' \| 'id-only'` | existing component | `id-only` is the visitor form |
+| Chat run-failure card | `chat/src/react` | Built from a `RunFailure` or a saved status event; Tovu keeps "switch agent" |
 
-Hooks surface failures in exactly two ways: a refusal becomes inline text next to the field or action (entry words); anything else goes to `report(...)` and the notice. A hook never stores a caught value's text in state. Components stay props-only; the copy logic is already in `ErrorNotice.hooks.ts`. Site pages (visitor) use `disclosure: 'id-only'` and Jini `jini-` prefixed classes.
+A hook surfaces a failure in exactly two ways: a refusal becomes inline text next to the field or action; anything else goes to `report(...)` and the notice. A hook never stores a caught value's own text in state.
 
-### 3.7 Gate (f)
+### 3.7 Gate
 
-Same pattern as `check-log-safety.mjs`: ESLint, a checked-in debt list that may only shrink, `--list` for lanes. Three rules:
+Same pattern as `check-log-safety.mjs`: ESLint, a checked-in debt list that may only shrink, `--list` for lanes. Three rules in three files (`scripts/eslint-rules/errors/*.mjs`, each under 150 lines), with one precedence order.
 
-1. **`catch-reads-error`** (needs scope analysis, so one small custom rule, about 60 lines): a `catch` clause or a `.catch(handler)` must reference the caught value, **or** be one of the named idioms (§3.8), **or** be a pure-parse refusal: the `try` body is a single statement calling `JSON.parse`, `new URL`, `decodeURIComponent` or `TextDecoder#decode`, and the catch throws or returns. A comment no longer excuses an empty catch.
-2. **`no-generic-failure-text`** (core `no-restricted-syntax` on string literals and templates): a deny-list of phrases (`unknown error`, `internal error`, `something went wrong`, `request failed`, `operation failed`, `an … error occurred`). Baseline today: 244 literals in 79 Tovu files, 76 in 54 Jini files (regex count, includes some comments-in-strings and test helpers in source folders; not hand-checked).
-3. **`failure-text-from-catalog`** (core `no-restricted-syntax`): inside a `catch`, a string literal passed to `res.status(5xx).json`, to a `set*Error`/`store.set` call, or to `new Error(...)` without `{ cause }` is an error.
+**Rule 1, `catch-reads-error`.** A `catch` clause or a `.catch(handler)` must reference the caught value, or be a call to a named idiom (§3.8), or be a **pure-parse refusal**:
 
-Where the rule file lives: Jini `scripts/eslint-rules/error-handling.mjs`, with a byte-identical copy in Tovu `development/eslint-rules/` and a hash check in Tovu CI (precedent: the meilisearch provider's checked copy; Tovu already has `development/eslint-rules/` with two local rules). Owner decision D5 if a shared lint package is preferred.
+- the `try` block has no `await`, `yield` or `for await`; and
+- every call or `new` in it is on the rule's list: the built-in parsers and decoders (`JSON.parse`, `new URL`, `decodeURIComponent`, `atob`, `TextDecoder#decode`, …), built-in string / array / regex methods by member name, bare `new Error()` used to jump to the catch, or a function on the gate's **`pureHelpers` list**; and
+- the `catch` block is not empty.
 
-Gate limits, stated so nobody over-trusts it: it cannot tell a good sentence from a vague one outside the deny-list; it does not follow a caught value through helper functions (same limit as the log-safety gate); reading the value is not handling it. Review still owns those.
+`pureHelpers` is a checked-in list of `{ name, module }` pairs. The rule resolves the identifier's import and compares the module path, so a different function with the same name does not qualify. A helper is added by review (synchronous, no I/O). The ten entries needed today: `addMoney`, `parseRequestUrl`, `redactJsonResponseBody`, `fromBase64Url`, `resolveSameOriginPath`, `redactAdminRunContextRef`, `isLoopbackHost`, `resolveBindHost`, `isLocalAdminUrl`, `readPickedFolders`. A comment no longer excuses an empty catch.
 
-### 3.8 Named idioms (what makes the legitimate patterns pass the gate)
+**Rule 2, `no-generic-failure-text`.** A deny-list of phrases in string literals and templates (`unknown error`, `internal error`, `something went wrong`, `request failed`, `operation failed`, `an … error occurred`). Baseline: 244 literals in 79 Tovu files, 76 in 54 Jini files (regex count, not hand-checked).
 
-In `core/src/errors/idioms.ts`, pure, each under 15 lines:
+**Rule 3, `failure-text-from-catalog`.** Inside a `catch`, a string literal passed to `res.status(5xx).json`, or to a `set*Error` / `store.set` call, is an error. `new X("…")` without `{ cause }` is an error **unless** the same catch hands the caught value to `reporter.record`, `reporter.describe`, a logger call or an idiom. That exception is the deliberate "record privately, throw sanitised" shape (8 real rows drop the cause on purpose because it can hold secrets).
 
-| Idiom | Replaces | Sites today |
-|---|---|---|
-| `observed(promise)` — marks a promise handled; every awaiter still gets the rejection | `void p.catch(() => {})` | 29 |
-| `afterSettled(promise)` — resolves when the promise settles and never rejects; only for a promise whose rejection another named owner already receives | queue tails (`prev.catch(() => {}).then(fn)`, `tail = run.catch(() => undefined)`), reloads a query owns, mutations that show their own error | 24 + 7 + 3 = 34 |
-| `bestEffort({ step, logger }, work)` — runs cleanup; a failure is logged (class + code + step) and never thrown | `await x.close().catch(() => undefined)` | 77 + part of the 1,871 |
-| `absentWhen({ codes, kinds }, work)` — returns `undefined` only for the listed codes (`ENOENT`) or classes (`SyntaxError` for an unparseable error body), rethrows the rest | `readFile(p).catch(() => null)`, `response.json().catch(() => null)`, documented fallbacks | 31 + 12 + 5 = 48 |
+**Precedence.** (1) A file on the sanctioned-module list (the reporter, the logger, the five reporting modules in `SITES.tsv`) is skipped by all three rules. (2) A pure-parse refusal satisfies rule 1 **and** rule 3's cause clause (the only cause is a `SyntaxError` that quotes the input, and dropping it is the safe choice); rule 2 still applies to its words. (3) Everything else gets all three.
 
-The 8 "reporting path guarding itself" rows (a logger or reporter that must not throw) stay as they are; their files go on the gate's short list of sanctioned modules, the same way `check-log-safety.mjs` lists the sanctioned console writers.
+**Executable examples (finding 11).** `work/fp-recheck.cjs` implements the pure-parse test. Run on the tree: of the 82 rows revision 1 called parse refusals, **65 pass unchanged**, 10 pass once the helper above is listed, and 7 fail because they are not parse refusals (now real). Of the 200 real rows, **0 pass**. The three sites the judge named pass (`SharedKeys.hooks.ts:137`, `byok-meta-tool-result.ts:93`, `consent/config.ts:79`), and `backstop-service.ts:116` passes rules 1 and 3 through precedence step 2. E0 copies those 75 sites and the 7 failures into the rule's fixture tests before any baseline is generated. Limits of the prototype: it lists built-in methods by member name without type information, and it does not implement rules 2 and 3; those two were checked by reading, not by running.
 
-`bestEffort` takes a `Logger`, so a cleanup failure is no longer invisible; that is the smallest change that satisfies "never swallowed" for cleanup. Cost: one closure and one promise per call, only on paths that already await I/O; none of the listed sites is in a per-row or per-token loop (checked for the daemon stream reader and outbox worker sites; not checked for all 77).
+**Scope.** The gate covers `packages/*/src` and `apps/*/src`. Standalone skill scripts (`agent-runtime/src/skills/**/scripts/**`) run in a user's project with no reporter and no core import; they are outside the gate (5 rows). Plugin payloads that cannot import core (2 rows) stay on the debt list until decision D9.
 
-## 4. Sweep plan (g)
+Where the rule files live: Jini `scripts/eslint-rules/errors/`, with byte-identical copies in Tovu `development/eslint-rules/` and a hash check in Tovu CI (decision D5).
 
-Order matters only where stated. Every step compiles and passes alone. Bug fixes are red-first: write the failing test, show it red, mutate the fix to confirm the test can fail, then fix.
+Gate limits, stated so nobody over-trusts it: it cannot tell a good sentence from a vague one outside the deny-list; it does not follow a caught value through helper functions; reading the value is not handling it; member names are not types. Review still owns those.
 
-| Step | What | Repo | Depends on | Behaviour change | Red-first test |
+### 3.8 Named idioms
+
+In `core/src/errors/idioms.ts`, pure, each under 15 lines, each `(required, optional = {})`:
+
+| Idiom | Contract | Replaces | Rows |
+|---|---|---|---|
+| `observed({ promise })` | marks a promise handled; every awaiter still gets the rejection. Returns nothing | `void p.catch(() => {})`, reloads a query owns, mutations that show their own error | 39 |
+| `afterSettled({ promise })` | resolves when the promise settles, never rejects. Only for a promise whose rejection another named owner already receives | queue tails (`prev.catch(() => {}).then(fn)`) | 22 |
+| `orFallback({ work, fallback, step }, { observe })` | runs `work`; on **any** failure returns `fallback`. `step` is a fixed label naming the optional probe. `observe`, when given, receives the error | optional probes, error-body parses, documented fallbacks: `fetch(...).catch(() => null)`, `response.json().catch(() => null)` | 15 |
+| `orFallbackSync({ work, fallback, step }, { observe })` | the same for a synchronous `work` | browser storage that may throw | 1 |
+| `bestEffort({ work, step, logger })` | runs cleanup; a failure is logged (class + code + step) and never thrown | `await x.close().catch(() => undefined)` | 89 (W3) |
+| `absentWhen({ work, codes, kinds })` | returns `undefined` only for the listed codes (`ENOENT`) or classes, **rethrows the rest** | `readFile(p).catch(() => null)` where a real failure must not look like "absent" | 32 (W5) |
+
+`orFallback` exists because of finding 12: an optional HEAD probe, a daemon status probe and a legacy-store dry run all mean "any failure is no answer", and `absentWhen` would have turned them into thrown errors. `orFallback` returns exactly what the site returns today. It is not a way back to silent swallowing: the call names its step, the gate's `--list` prints every use, and a site where a failure should be visible belongs in W5, not here.
+
+`bestEffort` takes a `Logger`, so a cleanup failure is no longer invisible. Cost: one closure and one promise per call, on paths that already await I/O.
+
+## 4. Sweep plan
+
+Every step compiles and passes alone. Bug fixes are red-first: write the failing test, show it red, mutate the fix to confirm the test can fail, then fix. Tests use fakes of interfaces from the package under test.
+
+| Step | What | Repo | Needs | Behaviour change | Tests (red-first where a bug) |
 |---|---|---|---|---|---|
-| **E0** | Gate in WARN mode + debt baselines generated from the tree (three rules) | both | — | none | fixture tests per rule: each idiom passes, each banned shape fails |
-| **E1** | Outbox regression: add optional `describeError?(required: { error }): string \| undefined` to `OutboxRetryPolicy`; worker stores `policy.describeError(...) ?? describeErrorForLog(...)` after checking the value against a bounded code shape; `formDeliveryRetryPolicy` returns the `FormDeliveryError` code; fix the stale comment in `delivery/errors.ts` | Jini infra + cms | — | yes: codes reach the user again | (1) infra: a policy returning `rate-limited` → `markFailed` gets `rate-limited`; a policy returning free text with spaces → falls back to the label. (2) cms: real worker + memory outbox + a `FormDeliveryError('rate-limited')` → `formDeliveryStatusFromOutbox` gives `rate-limited` (red today: `delivery-failed`) |
-| **E2** | `core/src/errors/` catalog, reporter, idioms + recording fakes (`core/src/errors/testing.ts`) | Jini core | — | none (additions) | contract tests: unknown error → incident with ID from the fake `IdGenerator` and time from the fake `Clock`; refusal → no tracker call; reporter never throws when logger or tracker throws; a secret-shaped value in message, stack, params and step never appears in any output |
-| **E3** | Host wiring: Tovu builds one catalog + one reporter in the composition root; one host logger factory replaces the 17 bare `createConsoleLogger` calls and passes `diagnostics`; `onInternalError` passed to every Jini route pack. Same in Jini `server` preset | Tovu, Jini server | E2 | yes: originals now reach the redacted host record | integration: a throwing Jini route under the Tovu app writes one incident record containing the (redacted) message and the same ID the response carries (red today: class only) |
-| **E4** | One incident path: `reportRouteInternalError`, `reportServerFailure`, `adminFailureResponse` call the reporter; N-1 decoder fixtures for the four envelope shapes; `sendAdminFailure` answers the nested envelope | both | E3 | wire shape of Tovu admin errors (decoder already reads both) | characterization tests first, pinning clock and IDs: status, headers, body fields, one log line, one tracker call, order of the two sinks, sink failure does not change the answer |
-| **E5** | Catalog adoption per feature (parallel, file-disjoint lanes): move each `ModelFacingErrorRule[]` / `CallerSafeErrorRule[]` / describer vocabulary into one `defineErrors`; `statusForError` reads the catalog. Order: form delivery, version conflicts, then the 18 files with rule arrays | both | E2 | status of feature codes that fell to 500 | per feature: the generated model-facing text is byte-identical to today's for every listed class (snapshot of exact strings), plus one test per code for status and retryable |
-| **E6** | UI: `failureFromResponse`, `useReportFailure`, `disclosure`, chat run-failure card; sweep **W6** (13 real sites: admin security controllers, memory connectors, form editor, visitor checkout) | Jini ui/admin/chat/commerce, Tovu admin | E2, E4 | users see ID + Copy details instead of a fixed sentence | per site: the rejected port (fake of the interface) yields a notice whose copy text contains the ID, step and redacted cause; strings compared, not DOM nodes |
-| **E7** | Pattern sweeps, one lane per pattern per package: **W1** idioms (88 false-positive rows, no behaviour change; the other 91 need no edit: the gate's parse-refusal rule passes 82, and 9 are payload scripts, test support or not error text), **W3** cleanup (89), **W5** absent-vs-failed (31), **W4** dropped notifications/alerts/writes (16), **W7** log text (11), **W8** cause kept (30) | both | E0, E2 | W1 none; W3/W7 add log lines; W4/W5/W8 turn a silent path into a reported or typed failure | W5 example: `lifecycle.get` rejecting with a storage error must not answer `NOT_FOUND` (red today in `daemon/src/http/remote-run-events.ts`). W4 example: a rejected `persistUserTurn` is reported and the user is told the message was not saved (red today in `chat/src/core/assistant-client/transport.ts`) |
-| **E8** | Chat + tools: `runError` helper for every `lifecycle.emit({ event: 'error' })` (about 10 emit sites in `daemon/src/agent-executor`); tool card notice from `errorId` | Jini daemon/chat | E2, E6 | run errors carry code + ID | each emit site: event payload has `error.code` and `error.requestId`; the "terminal state wins" ordering in `run-output.ts` is pinned first |
-| **E9** | Desktop IPC: one `handle({ channel, reporter }, fn)` wrapper for the 56 `ipcMain.handle` sites; sidecar `jsonIpcError` through the reporter | Tovu desktop, Jini sidecar | E3 | renderer gets `ApiError` instead of raw text | a throwing handler replies `{ ok: false, error }` with no raw message text and with an ID that is in the main-process record |
-| **E10** | i18n: catalog sentences in the 21 admin locale blocks; completeness check; replace `asPage()` with a `{noun}` placeholder | Tovu admin | E5 | translated refusal text | check fails on a missing sentence in any locale |
+| **E0** | Gate in WARN mode. Three rules with fixture tests built from real sites (75 passing parse refusals, 7 failing ones, one site per idiom, the `backstop-service` precedence case), then debt baselines | both | — | none | each fixture is a copied real site; the combined rule set is run on it |
+| **E1** | Outbox. (a) `OutboxRetryPolicy.failureCodes?: { codes: readonly string[]; codeOf(required: { error }): string \| undefined }`. The worker stores `codeOf(...)` only if it is in `codes`; anything else, and any throw (reported with the existing `reportPolicyFailure`), stores the class label. (b) one `report(...)` call per ordinary failure with `{ outboxId, attempt, lastError }`. (c) `formDeliveryRetryPolicy` declares the nine ledger codes. (d) correct the comment in `delivery/errors.ts` | Jini infra + cms | — | codes reach the status view again; one new log entry per failed delivery | **infra**, fake policy + memory outbox: listed code stored; code-shaped canary not on the list → label; `codeOf` throws → label, policy failure reported, **the next row in the same batch is still processed**; ordinary failure logs once with row ID and attempt. **cms**, own error + fake boundary: `new FormDeliveryError({ code: 'rate-limited', retryable: true })` → `codeOf` gives `rate-limited`; unknown code → `delivery-failed`; `formDeliveryStatusFromOutbox` on a row with `lastError: 'rate-limited'` gives `rate-limited` |
+| **E2** | `core/src/errors/`: sentences, bindings, catalog, reporter, approved cause, idioms, recording fakes (`testing.ts`); move `mintToolErrorId` to core (1 caller) | Jini core | — | none | the five catalog contract cases (§3.1); reporter: unknown error → incident with ID from the fake `IdGenerator` and time from the fake `Clock`; refusal → no tracker call; never throws when logger or tracker throws. **Disclosure**: the canaries "Private draft body: Acme merger closes Friday", "customer memo: violet-unlisted-passphrase" and a URL with a private query string, thrown as `error.message`, appear in **no** caller-visible output for `anonymous`, nor for `authorized` without an approved cause, nor with an approved cause for a different step; they appear only with a matching approved cause |
+| **E3** | Host wiring: one catalog + one reporter in the Tovu composition root; one host logger factory replaces the 17 bare `createConsoleLogger` calls and passes `diagnostics`; `onInternalError` passed to every Jini route pack. Same in Jini `server` | Tovu, Jini server | E2 | originals now reach the host record | a throwing Jini route under the Tovu app writes one incident record with the same ID the response carries (red today: class only). The 17 loggers are built at import time today; the lane moves construction into the composition root or passes the logger in |
+| **E4** | One incident path. First: characterization tests of today's Tovu responses (clock and IDs pinned): plain incident, anonymous, export pilot, `field: "message"`, extra `details`, `DatabaseDiskSpaceError`, a cause that already holds an ERR ID. Then `reportRouteInternalError`, `reportServerFailure`, `adminFailureResponse` call the reporter. Then Jini routes add `details.failure`. Remove the 3 reporter guards that the never-throws contract makes dead | both | E3, E6a | none in Tovu's wire shape; Jini incidents gain a detail block | characterization suite stays byte-identical. **Old reader × new response**: frozen copies of today's `approvedFailure`, `exportFailureFields` and Jini's `AdminApiError` reader (taken at `80b00f5b` / `02edbb68`) are fed the new responses and give the same fields as before. **New reader × old response**: fixtures of today's four shapes |
+| **E5a** | `RouteHostContext.statusFor`; `routeStatus` used at all 11 `statusForError` call sites; fakes updated | Jini core, http-kit, daemon | E2 | none until a host passes a resolver | through `mountJsonRoute` with a fake host: a handler returning a feature refusal answers that sentence's status (red today: 500); no host resolver → today's table |
+| **E5** | Catalog adoption per feature (file-disjoint lanes): each rule array becomes one scope; each feature gets `errors.sentences.ts`. Order: form delivery, version conflicts, then the 18 files with rule arrays. Guard rule + browser bundle check for sentences files | both | E2, E5a | status of feature codes that fell to 500 | per feature: for every bound class, the exact model-facing string for **each distinct construction site** found by search (`MemberValidationError`: the invalid-email and blank-name messages), compared with a snapshot taken before the lane; one test per code for status and retryable |
+| **E6a** | `failureFromResponse` reading `details.failure` from both envelopes; `useReportFailure`; `disclosure` prop | Jini ui, Tovu admin | E2 | none (readers only) | both envelopes and a response with no details give the expected notice text |
+| **E6** | Chat run-failure card; sweep **W6** (13 real sites) | Jini ui/admin/chat/commerce, Tovu admin | E6a, E4 | users see ID + Copy details instead of a fixed sentence | per site: a rejected fake port yields a notice whose copy text contains the ID and step and does **not** contain the canary text |
+| **E7** | Pattern sweeps, one lane per pattern per package: **W1** idioms (77 rows, no behaviour change), **W3** cleanup (89), **W5** absent-vs-failed (32), **W4** dropped notification / alert / write (18), **W7** log text (11), **W8** cause kept (37) | both | E0, E2 | W1 none; W3/W7 add log lines; W4/W5/W8 turn a silent path into a recorded or typed failure | W1: each migrated site's return value on rejection is asserted equal to today's. W5: `lifecycle.get` rejecting with a storage error must not answer `NOT_FOUND`. W8: a failed stdin read in `init` is not reported as "expects a JSON object". Stripe: the outcome is still `unknown` and the transport error is recorded once |
+| **E8** | Chat. Pin clean abort and "terminal state wins" first. `runError` helper for the 12 `event: 'error'` emits in daemon; `RunFailure` + `runFailureFromPayload` at the six rebuild sites; status event keeps `failure`; Tovu's AG-UI bridge forwards `payload.error` and stops sending raw `error.message` | Jini daemon/chat, Tovu website/admin | E2, E6 | run errors carry code + ID; `assistant-ag-ui.ts:560` no longer discloses a raw message | one chain test per transport: fake emitter → real encoder → real decoder → `onError` receives a `RunFailure` with the ID → status event → saved → reloaded → notice copy text has ID and step. A consumer that does `new Error(err.message)` still yields the ID |
+| **E9** | Electron: inventory of renderer catches that match on text; `handleIpc` for the 56 `ipcMain.handle` sites. Sidecar: parse refusal and handler incident, separately | Tovu desktop, Jini sidecar | E3 | renderer sees safe words + ID instead of a raw message | a throwing handler **rejects**; the rejection text has no raw message and has an ID that is in the main-process record; `getAppVersion` still resolves a string; an `ok: false` owner is passed through. Sidecar: a bad frame gets the fixed sentence and no input echo; a handler throw keeps `HANDLER_ERROR` + `requestId` |
+| **E10** | i18n: sentences in the 21 locale blocks; completeness check; `details.params`; `{noun}` placeholder instead of `asPage()` | Tovu admin, Jini protocol | E5 | translated refusal text | check fails on a missing sentence in any locale; an old client fixture ignores `details.params` |
 | **E11** | Gate to ERROR, package by package, when that package's debt rows reach 0 | both | E7 | none | — |
 
-The wider class (§2.5: 1,871 handlers) is not swept by row. It enters the debt list in E0 and shrinks when a file is touched, with the four idioms doing most of the work. A lane must not "fix" a parse fallback by adding a log line; the gate's parse-refusal rule already passes it.
+The wider class (§2.5: 1,871 handlers) is not swept by row. It enters the debt list in E0 and shrinks when a file is touched.
 
-Untangle interaction (lesson 10): E2 adds a new core folder and does not touch files owned by wave B/C lanes. E5 edits `core/src/contracts/server/api-error.ts`, in the folder lane C4 created (it is present on `integ/wave-b-r2`), and E4 edits `http-kit/src/internal-error.ts` (not in C4's listed paths, but in the same package). Both start only after wave B is merged, so they do not collide with an applier pass. E3's tracker type rides the observability design's M1 (type move to core); until M1 lands the reporter restates the one method structurally.
+Untangle interaction: E2 adds a new core folder. E5a edits `core/src/contracts/server/` (the folder lane C4 created) and `http-kit`; E4 edits `http-kit/src/internal-error.ts`. All start only after wave B is merged. Debt entries are path-keyed: a lane that moves a file moves its debt rows in the same commit.
 
 ## 5. Rough cost
 
 | Step | Design / review (Opus) | Build (Sonnet) |
 |---|---|---|
-| E0 gate | 20k | 90k |
-| E1 outbox fix | 10k | 40k |
-| E2 core errors | 60k | 150k |
+| E0 gate (3 rules, real-site fixtures) | 30k | 150k |
+| E1 outbox fix + failure log | 15k | 70k |
+| E2 core errors (two relations, reporter, disclosure tests) | 80k | 220k |
 | E3 host wiring | 30k | 120k |
-| E4 one incident path + N-1 | 40k | 150k |
-| E5 catalog adoption (about 20 lanes) | 40k | 500k |
-| E6 UI + W6 | 40k | 250k |
-| E7 pattern sweeps (265 rows) | 30k | 600k |
-| E8 chat + tools | 30k | 150k |
-| E9 desktop IPC | 20k | 200k |
-| E10 i18n | 10k | 120k |
-| **Total** | **about 330k** | **about 2.4M** |
+| E4 one incident path, both-direction fixtures | 40k | 160k |
+| E5a status resolver | 15k | 80k |
+| E5 catalog adoption (about 20 lanes, sentences + bindings) | 50k | 600k |
+| E6a + E6 UI + W6 | 40k | 260k |
+| E7 pattern sweeps (264 rows) | 30k | 600k |
+| E8 chat end to end | 40k | 280k |
+| E9 Electron + sidecar | 30k | 250k |
+| E10 i18n | 10k | 130k |
+| **Total** | **about 410k** | **about 2.9M** |
 
-Estimates are by analogy with the untangle lane costs in `LANES.md`, not measured. E1 can ship today on its own.
+By analogy with the untangle lane costs, not measured. Revision 1 said 330k + 2.4M; the difference is the work the judge showed was missing (status threading, chat consumers, both-direction fixtures, sentences/bindings split). E1 can ship on its own.
 
 ## 6. Owner practices, checked one by one
 
-| # | Practice | Status in this design |
-|---|---|---|
-| 1 | DI via typed ports from the host | Reporter takes `ids`, `clock`, `logger`, `tracker`, `catalog`, `versions`; no ambient `randomUUID`/`Date`. **Existing conflict:** `http-kit/src/internal-error.ts` imports `node:crypto` `randomUUID` directly; E4 removes it |
-| 2 | `(required, optional = {})`, never `?: Record<string, never>` | New signatures comply. **Existing conflict:** the files this design builds on use `_optional: Record<string, never> = {}` and `_optional?: Record<string, never>` (for example `ErrorDescriber`, `describeErrorForLog`, `statusForError`). The design does not copy that shape and does not fix it either (separate args sweep); flagged |
-| 3 | Functions ≤ 50, files ≤ 500, complexity ≤ 10 | Planned files: catalog ≈ 120 lines, reporter ≈ 150, idioms ≈ 60, testing ≈ 80; largest function `describe` ≈ 35 lines, split into `matchRefusal` / `buildIncident` / `deliver`. To be re-checked inside each file at build time (lesson 8) |
-| 4 | Feature slicing | Codes and words live in the feature folder next to its error classes |
-| 5 | No barrels / re-export shells / forwarders | `core/src/errors/` files are imported by path through one package subpath export; no index file re-exporting other modules. `reportRouteInternalError` and `reportServerFailure` keep real route-specific work (context fields, vocabulary); if either becomes a pure forwarder after E4, delete it and repoint callers |
-| 6 | Why-comments move with code | E1 and E4 touch heavily commented files (`worker.ts`, `site-share-errors.ts`); lanes carry the comments and correct the one that is now false (`delivery/errors.ts`: "the outbox persists `error.message` verbatim") |
-| 7 | Generic → Jini; a Jini package imports only itself + core + protocol; no vendor code in core | Catalog, reporter, idioms in core; wire type in protocol; UI in ui; no package imports another. Core restates the tracker method structurally instead of importing diagnostics. No vendor code |
-| 8 | Tests: fakes of interfaces, no `vi.mock` of another package's internals, red-first + mutate | Recording fakes for `Logger`, tracker, `IdGenerator`, `Clock` ship in `core/src/errors/testing.ts`; every behaviour-changing step lists its red test |
-| 9 | Errors never swallowed or generic | The point of the design. `fallback` is a required argument, so the reporter cannot emit a default sentence |
-| 10 | No new eslint-disable / @ts-ignore; no silent behaviour changes | The gate has a debt list, not disables. Every behaviour change is named per step in §4. **Existing conflict:** `internal-error.ts` has two `eslint-disable-next-line no-console`; they go away when the file calls the reporter |
-| 11 | Smallest change; reuse first; no abstraction with one user | No new error base class, no new UI component, no new envelope, no new sink port. New: catalog (18+ rule files and every route pack use it), reporter (2 incident paths + jobs + IPC), 4 idioms (188 flagged sites) |
-| 12 | Memory / IO cost on hot paths | Catalog lookup is O(parts × entries) on the failure path only; build a `Map` by code and keep class matching to the failure path. Reporter does one log write and one tracker call per incident. `bestEffort` adds one promise per cleanup. Nothing on the success path |
+| # | Practice | Status | Conflict flagged |
+|---|---|---|---|
+| 1 | DI via typed ports | Reporter takes `ids`, `clock`, `logger`, `tracker`, `catalog`, `versions`. `statusFor` is a typed field on the existing host context. The sidecar gets its reporter as an option | **Existing:** `http-kit/src/internal-error.ts` imports `randomUUID` directly; E4 removes it. Tovu's `reportServerFailure` defaults `errorId = randomUUID()`; E4 replaces the default with the reporter's ID port |
+| 2 | `(required, optional = {})` | Every new function, including all six idioms (revision 1's positional idioms were wrong) | **Existing:** the files built on use `_optional: Record<string, never> = {}` (`describeErrorForLog`, `statusForError`, `createErrorDescriber`, `FormDeliveryError`). Not copied, not fixed here (separate args sweep) |
+| 3 | Functions ≤ 50, files ≤ 500, complexity ≤ 10 | Planned: sentences ≈ 60 lines, bindings ≈ 70, catalog ≈ 160 (`match` split into `matchBinding` / `resolveCode` / `resolveText`), reporter ≈ 170 (`describe` split into `refusal` / `incident` / `disclose`), approved-cause ≈ 30, idioms ≈ 80, each lint rule < 150. To be re-checked inside each file at build time | **Existing:** `worker.ts` `recordOutcome` is near the limit; E1 adds a separate `failureLabel` function instead of growing it |
+| 4 | Feature slicing | Sentences and bindings live in the feature folder next to its error classes | — |
+| 5 | No barrels / shells / forwarders | `core/src/errors/` has no index file. If `reportRouteInternalError` or `reportServerFailure` becomes a pure forwarder after E4, delete it and repoint callers | **Existing:** `core/src/primitives/index.ts` is a barrel; not touched |
+| 6 | Why-comments move with code | E1 and E4 touch heavily commented files; lanes carry the comments, move the ERR-ID comment with the mint function, and correct the one that is now false (`delivery/errors.ts`: "the outbox persists `error.message` verbatim") | — |
+| 7 | Generic → Jini; a Jini package imports only itself + core + protocol | Catalog, reporter, idioms in core; wire types in protocol; UI in ui. cms mirrors the retry-policy type structurally, as it does today. Host policy (audience, vocabulary, approved causes, redaction options, versions) stays in Tovu | — |
+| 8 | Tests use fakes of interfaces; red-first + mutate | Recording fakes ship in `core/src/errors/testing.ts`. Revision 1's cms test used the real infra worker; it is replaced (E1) | — |
+| 9 | Errors never swallowed or generic | `fallback` is a required argument. `orFallback` is the one place a failure becomes a value, and it is named, labelled and listed | **Tension, flagged:** `orFallback` without `observe` discards the error by design. It is limited to optional probes; decision D8 |
+| 10 | No new eslint-disable / @ts-ignore; no silent behaviour changes | The gate has a debt list, not disables. Every behaviour change is named per step | **Existing:** `internal-error.ts` has two `eslint-disable-next-line no-console`; they go when the file calls the reporter |
+| 11 | Smallest change; reuse first | No new base class, UI component, envelope or sink port. Revision 2 **removes** a change revision 1 proposed (retiring the flat envelope) and keeps rejection semantics in Electron | — |
+| 12 | Memory / IO cost | Catalog: one `Map` by code, per-scope arrays; matching runs on the failure path only. Reporter: one log write and one tracker call per incident. E1: one log entry per failed delivery, bounded by batch size. Chat: five short strings per failed run in the saved transcript. Nothing on a success path | — |
 
-## 7. Lessons applied
+## 7. Lessons applied (all 24)
 
-`LESSONS-FOR-DESIGN-BRIEFS.md` on `plan/size-designs-2026-11-16` holds **11** numbered rules, not the 22 the brief mentions; I applied the 11.
-
-1. Real dependency graph: the catalog sits under three existing consumers (model rules, caller-safe rules, describer); the design routes them through it instead of adding a fourth list.
-2. Inventory first: §2.1 lists every owner with counts before any target file is named.
-3. Late-bound reads: the reporter is built in the composition root and passed as a port. E3 must not read it at module scope in the 17 logger files (today they build a logger at import time: `const consoleLogger = createConsoleLogger(...)` at top level). The lane has to move those to the composition root or pass the logger in, not swap one top-level call for another that needs ports that do not exist yet at import time.
-4. Inputs, outputs, state owner: the catalog is immutable after creation; the reporter holds no state; the failure channel (existing) owns the one retained failure.
-5. Migration graph: §4 gives prerequisites per step.
-6. Tests that can fail: E4's characterization tests pin clock and IDs and assert order and sink-failure behaviour.
-7. Distinct contracts kept: refusal vs incident, optional `cause`, `retryable` are separate fields; nothing is merged into a string.
-8. Limits inside each file: see practice 3; not yet proven, to be checked at build.
-9. Generic vs host: vocabulary, redaction options, versions and the signed-in check stay in Tovu.
-10. Untangle lanes: see the end of §4.
-11. Seams exist: `OutboxRetryPolicy` is already resolved per event by the host (`outbox-retry-policies.ts`); the admin kit already has an `ErrorNotice` slot; `development/eslint-rules/` already loads local rules.
+1. Dependency graph: the catalog sits under three consumers (model rules, caller-safe rules, describer); it feeds them and does not add a fourth list.
+2. Inventory first: §2.1 and §2.7 list owners and consumers with counts. E9 inventories renderer catches before wrapping.
+3. Late-bound reads: the 17 loggers are built at import time; E3 must not replace them with a reporter read at module scope.
+4. Inputs, outputs, state owner: catalog immutable after creation; reporter stateless; the failure channel owns the one retained failure.
+5. Migration graph: §4 lists prerequisites; readers (E6a) land before producers (E4).
+6. Tests that can fail: disclosure tests use private prose; E1 tests the next row in the batch; E4 pins clock and IDs.
+7. Distinct contracts: refusal, incident, optional probe (`orFallback`), absent (`absentWhen`) and uncertain payment outcome are separate and stay separate.
+8. Limits inside files: practice 3.
+9. Generic vs host: audience, approved causes and vocabulary stay in Tovu.
+10. Untangle lanes: end of §4; debt rows follow moved files.
+11. Seams exist: `RouteHostContext`, `reportPolicyFailure`, the admin kit's `ErrorNotice` slot and `development/eslint-rules/` all exist today. TypeScript for the prototype was found and used; the ESLint rule runner was not exercised.
+12. Port bindings behave, not just type-check: `failureCodes` returns a value that is checked against a list; the E1 test passes a real policy through the worker, not a structurally similar object.
+13. Security gates across the chain: `audience` is set only after authentication and the operation's permission check; the E2 tests fail if either condition is removed.
+14. Streaming lifecycle: E8 pins clean abort and terminal ordering before changing emitters.
+15. Owner constraints as acceptance criteria: the two gate scope exclusions are recorded as decision D9 and their rows are counted, not dropped.
+16. / 17. Concurrency and no-op: not in scope; E1 adds no write on the success path and no extra row write on failure.
+18. Transport write is not a consumer transaction: one `RUN_ERROR` event carries its own metadata.
+19. A shared name is not a correlation ID: persisted rows are correlated by row ID + attempt, not by code.
+20. Explicit absence checks: `statusFor` returning `undefined` means "use the table"; a status of `0` is never treated as absent.
+21. Redundant guards: the three reporter guards are removed only after the never-throws contract is tested.
+22. Import classification: the sentences guard bans all imports but one, type-only included.
+23. Configured ≠ demonstrated: the AG-UI `rawEvent` carrier is not assumed; its round trip is E8's first test, with a stated fallback.
+24. The five error-system classes: see "Judge response".
 
 ## 8. Not verified
 
-- Whether any Tovu path stores form-delivery `lastError` through a worker other than Jini's `processOutbox` (Tovu has its own `contracts/core/events/outbox-worker.ts`; I confirmed it passes `retryPolicyForEvent` but did not read the whole file).
-- No test was run and nothing was built; every claim is from reading and counting.
-- The 7 `unclassified-swallow` rows; pattern assignment for the 347 of 369 rows read at line depth only.
+- Nothing was built and no test was run. Dependencies are not installed in this checkout.
+- That the AG-UI encoder keeps `rawEvent` on `RUN_ERROR` (§3.4).
+- Rules 2 and 3 of the gate were not prototyped; only rule 1's parse exemption was run.
+- The prototype approves built-in methods by member name, without types.
+- The 190 rows revision 1 called real keep its read depth (line or 10-line context); 7 are still `unclassified-swallow`.
+- Whether each of the six daemon `statusForError` sites has the host context in reach (the http-kit sites do).
+- How many places build a `RouteHostContext` in Tovu.
+- Which renderer catches match on message text (E9's first task).
+- That every `own-message` binding's construction sites build messages from fixed text and the caller's own input. Each rule array's doc says so today; E5 lanes re-read them.
 - The deny-list baseline (244 / 76) is a regex count.
-- That browser bundles can import catalog parts without pulling server-only code: true by rule (core-only imports) but not checked per feature.
-- The exact number of `lifecycle.emit({ event: 'error' })` sites (about 10 by search).
-- The "13 classes / 4 wire codes" claim (§2.4).
-- Cost of `bestEffort` at all 77 cleanup sites.
+- The "13 classes / 4 wire codes" claim from the lost-updates design (§2.4).
+- The estimates in §5.
 
 ## 9. Owner decisions
 
 | # | Decision | Recommendation |
 |---|---|---|
-| D1 | Log policy: library line = class + code + ID; host record = message and stack with secrets blanked | Yes. It is the 2026-09-16 "hide secrets only" rule applied at the host, and it keeps wave B's safety for library defaults |
-| D2 | One error ID format | Keep both existing formats readable; mint `ERR-XXXX-XXXX-XXXX-XXXX` for all new incidents (short, easy to spot in a pasted issue). Changing existing UUID sites is optional |
-| D3 | Wire field name: keep `requestId` on the wire and show it as "Error ID", or rename to `errorId` | Keep `requestId`; a rename breaks N-1 clients for no user gain |
-| D4 | Retire Tovu's flat admin envelope in E4 | Yes, with decoder fixtures for the old shape |
-| D5 | Where the lint rule lives | One file in Jini with a hash-checked copy in Tovu; a shared lint package only if a third consumer appears |
-| D6 | What a signed-in user sees as "cause" for an incident | The redacted first line plus cause labels (Tovu shows only "The error ID identifies the server report." except in the export pilot). This widens disclosure to signed-in admins; visitors stay ID-only |
-| D7 | Ship E1 (outbox fix) alone, now | Yes |
-| D8 | Sweep the wider class (1,871 handlers) by row, or let the gate ratchet it | Ratchet; sweep only the 190 real rows and the 88 idiom rows |
+| D1 | Log policy: library line = class + listed code + ID; host record = message and stack with secrets blanked, operator-only | Yes |
+| D2 | One error ID format | Mint `ERR-XXXX-XXXX-XXXX-XXXX` for every new incident. It is the only format the formatter can recover from plain text, which the chat and Electron paths rely on. Existing UUID IDs stay readable |
+| D3 | Wire field name | Keep `requestId` (Jini) and `errorId` (Tovu flat envelope) as they are; show both as "Error ID" |
+| D4 | Retire Tovu's flat admin envelope | **Withdrawn. Keep it.** Two shipped readers depend on `details.failure` |
+| D5 | Where the lint rules live | Jini, with hash-checked copies in Tovu; a shared lint package only if a third consumer appears |
+| D6 | What an authorised user sees as "cause" | By default the fixed sentence plus the listed class/code label. Message text only where the operation's owner approved it (the export pilot today). Revision 1's "redacted first line for every signed-in user" is withdrawn |
+| D7 | Ship E1 alone, now | Yes |
+| D8 | Sweep the wider class by row, or ratchet | Ratchet. `orFallback` without `observe` is allowed for optional probes only |
+| D9 | Gate scope for code that cannot import core | Exclude standalone skill scripts (5 rows). For plugin payloads (2 rows) either allow a core import or accept permanent debt rows |
+| D10 | The tracker receives message text with secrets blanked | Keep as today; if the tracker is a third party, switch it to label + ID only |
+| D11 | Own-message reasons shown to users are English only | Accept for adoption; structured variants per domain later |
+| D12 | The model sees an incident's reason with secret values blanked (2026-09-16) | Unchanged here; same class of risk as D6, worth a second look |
