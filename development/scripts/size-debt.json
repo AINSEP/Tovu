@@ -940,13 +940,6 @@
       "value": 83
     },
     {
-      "file": "apps/site-chat/src/visitor-page-control.ts",
-      "function": "createVisitorPageControl#1",
-      "line": 11,
-      "rule": "max-lines-per-function",
-      "value": 88
-    },
-    {
       "file": "apps/website/src/assistant/byok-tool-surface.ts",
       "function": "createByokToolSurface#1",
       "line": 621,
