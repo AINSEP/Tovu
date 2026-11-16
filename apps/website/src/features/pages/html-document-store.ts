@@ -19,15 +19,15 @@ import type { PostKind, PostRepoPort, PostStatus } from "../post/contracts.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's `PagesHtmlDocumentStorePort`
- * (`read(): Promise<string>` / `write(html: string): Promise<void>`) over
+ * (`read(): Promise<string>` / `write({ html }): Promise<void>`) over
  * an `"html"`-format Page row in the shared `posts` table. One Kysely query body for every dialect
  * the storage kernel drives (storage plan §4, ADR-066); `html-document-store.sqlite.ts` keeps the
  * `PagesHtmlDocumentStore` name as the thin subclass the composition root builds from the db handle.
  *
  * Pages uses Jini's HTML scan and pure edit functions, not its `HtmlDocumentStore` or EditTarget.
- * The tool handlers keep the read → compute → write(html) flow here so another read cannot
+ * The tool handlers keep the read → compute → write({ html }) flow here so another read cannot
  * recapture a newer version between computing an edit and its compare-and-set write (CIC-1).
- * Jini's store takes `write({ html })`; this Tovu port deliberately keeps `write(html)`.
+ * Jini's store and this Tovu port both take `write({ html })`.
  *
  * Bypasses `PostRepoPort`/`SqlitePostRepo`/`createPost`/`updatePost` entirely, on purpose (ADR-056
  * Decision 4 & CIC-3): this store is the ONLY writer of `body_html`/`bodyFormat: "html"` anywhere in
