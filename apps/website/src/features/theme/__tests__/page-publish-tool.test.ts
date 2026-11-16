@@ -26,7 +26,7 @@ function makeThemes(t: TestContext, tier = "static"): { themesDir: string; dir: 
 function handlerFor(deps: Deps): (input: unknown) => Promise<unknown> {
   const registration = buildRegistrations(deps).find(r => r.descriptor.id === "theme_set_page_published");
   assert.ok(registration, "the one registration is built");
-  return input => Promise.resolve(registration.handler({ input, principal: { id: "owner" } } as ToolExecutionContext));
+  return input => Promise.resolve(registration.handler({ input, principal: { id: "owner" }, signal: new AbortController().signal } as ToolExecutionContext));
 }
 
 const allow: Deps["authorize"] = async () => ({ allowed: true, reason: "matched" }) as Awaited<ReturnType<Deps["authorize"]>>;

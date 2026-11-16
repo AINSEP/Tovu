@@ -494,7 +494,7 @@ test("planRetire() returns the live holder with the exact hash inspect() gives",
   const deps = makeDeps([holder]);
   const handler = contributePostPublish().build(deps);
 
-  const target = await handler.planRetire!({
+  const target = await handler.planRetire!({ entity: {
     entityType: "post",
     id: "post-2",
     schemaVersion: 1,
@@ -502,7 +502,7 @@ test("planRetire() returns the live holder with the exact hash inspect() gives",
     hashVersion: 1,
     requiredBlobs: [],
     state: { slug: "about" },
-  });
+  } });
 
   const inspected = await handler.inspect({ id: "post-1" });
   assert.ok(target, "a slug held by a different id must return a retire target");
@@ -517,7 +517,7 @@ test("planRetire() returns null when the incoming id already exists at the desti
   const existingHere = makePost({ id: "post-2", slug: "post-2-slug" });
   const handler = contributePostPublish().build(makeDeps([holder, existingHere]));
 
-  const target = await handler.planRetire!({
+  const target = await handler.planRetire!({ entity: {
     entityType: "post",
     id: "post-2",
     schemaVersion: 1,
@@ -525,7 +525,7 @@ test("planRetire() returns null when the incoming id already exists at the desti
     hashVersion: 1,
     requiredBlobs: [],
     state: { slug: "about" },
-  });
+  } });
 
   assert.equal(target, null);
 });
@@ -534,7 +534,7 @@ test("planRetire() returns null for the home page slug — there is no other add
   const home = makePost({ id: "home", slug: ROOT_SLUG, kind: "page" });
   const handler = contributePostPublish().build(makeDeps([home]));
 
-  const target = await handler.planRetire!({
+  const target = await handler.planRetire!({ entity: {
     entityType: "page",
     id: "post-2",
     schemaVersion: 1,
@@ -542,7 +542,7 @@ test("planRetire() returns null for the home page slug — there is no other add
     hashVersion: 1,
     requiredBlobs: [],
     state: { slug: ROOT_SLUG },
-  });
+  } });
 
   assert.equal(target, null);
 });
@@ -767,11 +767,11 @@ function packedState(state: Record<string, unknown>, id = "post-2") {
 test("references() adds the featured image once, and adds nothing for a missing or empty featuredMediaId", async () => {
   const handler = contributePostPublish().build(makeDeps([]));
   const bodyWithMedia = { type: "doc", content: [{ type: "image", attrs: { assetId: "asset-1" } }] };
-  const base = handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia }));
-  assert.deepEqual(handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "" })), base);
-  assert.deepEqual(handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "hero" })), [...base, { entityType: "media", key: "hero" }]);
+  const base = handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia }) });
+  assert.deepEqual(handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "" }) }), base);
+  assert.deepEqual(handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "hero" }) }), [...base, { entityType: "media", key: "hero" }]);
   assert.ok(base.some((ref) => ref.entityType === "media" && ref.key === "asset-1"), "the body's own image is a reference");
-  const withSameFeatured = handler.references!(packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "asset-1" }));
+  const withSameFeatured = handler.references!({ entity: packedState({ kind: "post", slug: "a", bodyJson: bodyWithMedia, featuredMediaId: "asset-1" }) });
   assert.deepEqual(withSameFeatured, base, "a featured image the body already references is not listed twice");
 });
 
@@ -788,11 +788,11 @@ test("precheck() blocks publishing over a destination row that is in the Trash, 
 test("planRetire() returns null for a free slug, a slug the entity itself holds, a missing slug, and a handler with no post repo", async () => {
   const own = makePost({ id: "post-2", slug: "mine" });
   const handler = contributePostPublish().build(makeDeps([own]));
-  assert.equal(await handler.planRetire!(packedState({ slug: "free" })), null);
-  assert.equal(await handler.planRetire!(packedState({ slug: "mine" })), null);
-  assert.equal(await handler.planRetire!(packedState({})), null);
+  assert.equal(await handler.planRetire!({ entity: packedState({ slug: "free" }) }), null);
+  assert.equal(await handler.planRetire!({ entity: packedState({ slug: "mine" }) }), null);
+  assert.equal(await handler.planRetire!({ entity: packedState({}) }), null);
   const noRepo = contributePostPublish().build({ ...makeDeps([own]), ports: {} });
-  assert.equal(await noRepo.planRetire!(packedState({ slug: "mine" }, "post-3")), null);
+  assert.equal(await noRepo.planRetire!({ entity: packedState({ slug: "mine" }, "post-3") }), null);
 });
 
 test("retire() of a target that no longer exists refuses with not-found and records nothing", async () => {

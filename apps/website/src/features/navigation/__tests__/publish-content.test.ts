@@ -391,7 +391,7 @@ test("referencesTo() finds a menu whose nested entryRef targets one of the given
   ] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
-  const holders = await handler.referencesTo!(["post-about"]);
+  const holders = await handler.referencesTo!({ ids: ["post-about"] });
 
   assert.deepEqual(holders, [{ entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about" }]);
 });
@@ -405,7 +405,7 @@ test("referencesTo() finds nothing for a menu whose only item is a url target", 
   ] });
   const handler = contributeMenusPublish().build(makePublishDeps({ menuRepo }));
 
-  const holders = await handler.referencesTo!(["post-about"]);
+  const holders = await handler.referencesTo!({ ids: ["post-about"] });
   assert.deepEqual(holders, []);
 });
 
@@ -597,7 +597,7 @@ test("repointReferences retries a single conflict from fresh state, preserving t
 
 
 test("referencesTo returns no holders without a menu port", async () => {
-  assert.deepEqual(await contributeMenusPublish().build(makePublishDeps({})).referencesTo!(["old"]), []);
+  assert.deepEqual(await contributeMenusPublish().build(makePublishDeps({})).referencesTo!({ ids: ["old"] }), []);
 });
 
 for (const missing of ["menu", "changeSets", "authorize", "outbox"] as const) {
