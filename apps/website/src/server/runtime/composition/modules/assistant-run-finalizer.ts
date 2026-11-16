@@ -580,8 +580,13 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       void response.body?.cancel().catch(() => undefined);
       return { kind: "dropped" };
     }
-    if (response.status === 404) return { kind: "gone" };
-    if (!response.ok || !response.body) return { kind: "dropped" };
+    if (response.status === 404 || !response.ok || !response.body) {
+      // This response is never read. An unread body stays open, and a run reconnects up to
+      // maxReconnects times, so release it. Not awaited: a body that never finishes cancelling
+      // must not stall the watch. A failed cancel has nothing left to release.
+      void response.body?.cancel().catch(() => undefined);
+      return { kind: response.status === 404 ? "gone" : "dropped" };
+    }
     watch.retainedEvents = [...interruptionEvents(watch)];
     watch.events = [...watch.attemptBase];
     watch.frameCarry = {};
