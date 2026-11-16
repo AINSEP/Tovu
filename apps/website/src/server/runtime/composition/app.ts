@@ -74,12 +74,11 @@ import { composeMemoryTrashAdapters } from "./memory-deps/slices/trash-adapters.
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
-import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
 import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
 import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
 import { createInMemoryRevocations } from "#src/features/publish-trust/revocations";
-import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
+import { memoryPublishContentApplyPort, memoryPublishContentPorts } from "./memory-deps/slices/publish-apply.js";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
@@ -112,7 +111,7 @@ import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/ex
 // exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { InMemorySettingsRepo, getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
-import { discoverAllBuiltInThemes, rescanThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
@@ -669,69 +668,40 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
   const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
-  const publishContentApplyPort = createPublishContentApplyPort({
+  const publishContentApplyPort = memoryPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
     baselineRepo: publishContentBaselineRepo,
     runRepo: publishContentRunRepo,
-    publishContentDeps: toPublishContentApplyDeps({
-      workspaceId: seededWorkspace.id,
-      clock,
-      idGen,
-      outbox,
-      changeSets,
-      authorize: identity.authorize,
-      // F2 — one ports bag keyed by entityType (`type-registry.ts`'s `PublishContentPorts`).
-      ports: {
-        post: {
-          repo: postRepo,
-          forgetRemoved: bindForgetRemovedEntity({
-            repo: trashRepo,
-            entityType: POST_ENTITY_TYPE
-          }),
-          // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
-          // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
-          remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-            trash: trash,
-            entityType: POST_ENTITY_TYPE
-          }) }),
-        },
-        media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
-        redirect: redirectsWriteDeps,
-        menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo },
-        ...buildContentPublishPorts({
-          workspaceId: seededWorkspace.id,
-          postRepo,
-          formDefinitionRepo,
-          contentTypeRepo,
-          contentTypeIndexProvisioner,
-          taxonomyRepo,
-          termRepo,
-          entryTermRepo,
-          taxonomyRevisionRepo,
-          stampWatermark: noopStampWatermark,
-          entryRepo,
-          entryRefsRepo,
-          widgetBindingRepo,
-          settingsRepo,
-          principalRepo: settingsPrincipals,
-          presentationRepo,
-          themes: siteThemes,
-        }),
-        "theme-files": {
-          // S19 (S-F4) — same value `routeDeps.themesDir` (below) resolves to. See
-          // `routes/types.ts`'s `themesDir` doc and `deps.ts`'s identical addition to this same
-          // apply bag.
-          themesDir: builtInThemesDir(),
-          onReplaced: () => {
-            rescanThemes({ themes: siteThemes, dir: builtInThemesDir() });
-          },
-        },
-      },
-    }),
     clock,
     idGen,
+    outbox,
+    changeSets,
+    authorize: identity.authorize,
     getSeedHash: publishContentSeedHash,
+    ports: memoryPublishContentPorts({
+      postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps,
+      menuRepo, navLocationBindingRepo, siteThemes,
+      content: {
+        workspaceId: seededWorkspace.id,
+        postRepo,
+        formDefinitionRepo,
+        contentTypeRepo,
+        contentTypeIndexProvisioner,
+        taxonomyRepo,
+        termRepo,
+        entryTermRepo,
+        taxonomyRevisionRepo,
+        stampWatermark: noopStampWatermark,
+        entryRepo,
+        entryRefsRepo,
+        widgetBindingRepo,
+        settingsRepo,
+        principalRepo: settingsPrincipals,
+        presentationRepo,
+        themes: siteThemes,
+      },
+    }),
   });
 
   // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
