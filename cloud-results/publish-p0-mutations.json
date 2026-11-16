@@ -1500,6 +1500,7 @@
   "find": "peerPrincipalId: staged.sourcePrincipalId,",
   "replace": "peerPrincipalId: input.actorId,",
   "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.baseline-principal.test.ts",
    "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
    "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
    "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
