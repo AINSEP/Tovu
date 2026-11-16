@@ -4,12 +4,12 @@ import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
 import { describeApiError, type AdminMedia } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 import {
   KEYS,
   describeMediaHtmlAttributeError,
   diffMediaMetadata,
   mediaCreatedByLabel,
-  parseMediaHtmlAttributes,
   parseOptionalPixelSize,
   type MediaMetadataPatch,
 } from "../rules";
@@ -199,7 +199,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setDraft((d) => ({ ...d, htmlAttributes: value.trim() === "" ? null : value }));
   }
 
-  const htmlAttributesParsed = parseMediaHtmlAttributes(draft.htmlAttributes ?? "");
+  const htmlAttributesParsed = parseMediaHtmlAttributes({ text: draft.htmlAttributes ?? "" });
   const htmlAttributesError = htmlAttributesParsed.error
     ? describeMediaHtmlAttributeError(htmlAttributesParsed.error, locale)
     : null;

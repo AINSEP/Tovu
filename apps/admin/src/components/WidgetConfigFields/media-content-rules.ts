@@ -1,5 +1,5 @@
 import type { AdminMedia } from "../../lib/api";
-import { parseMediaHtmlAttributes } from "../../features/media/rules";
+import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
 
 /**
  * @file Pure rules behind `MediaContentEditor` — the two-tab ("Media" / "Raw HTML") editor for a
@@ -302,7 +302,7 @@ export interface HtmlAttributeRow {
   value: string;
 }
 
-/** Same loose token shape as `features/media/rules.ts`'s `HTML_ATTRIBUTE_TOKEN` (not exported
+/** Same loose token shape as the media HTML-attribute tokenizer in `@jini-ai/cms/widgets/markers` (not exported
  *  there): `name`, or `name="value"` / `name='value'` / `name=value`. */
 const ATTRIBUTE_TOKEN = /([^\s="']+)(?:=(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;
 
@@ -362,7 +362,7 @@ export function rowsToHtmlAttributes(rows: readonly HtmlAttributeRow[]): string 
  *  off the list) — reuses the media attribute validator rather than a second allowlist. */
 export function isDroppedAttributeRow(row: HtmlAttributeRow): boolean {
   if (row.name.trim() === "") return false;
-  return parseMediaHtmlAttributes(rowsToHtmlAttributes([row])).error !== null;
+  return parseMediaHtmlAttributes({ text: rowsToHtmlAttributes([row]) }).error !== null;
 }
 
 /**
