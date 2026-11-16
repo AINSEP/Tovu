@@ -1325,18 +1325,6 @@ export interface AdminThemeSummary {
   builtIn?: boolean;
 }
 
-export interface AdminMember {
-  id: string;
-  workspaceId: string;
-  email: string;
-  name?: string;
-  status: "pending" | "active" | "disabled";
-  emailVerifiedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-  version: number;
-}
-
 export interface AdminMenuTarget {
   kind: "entryRef" | "termRef" | "url" | "route";
   entryId?: string;
@@ -2376,19 +2364,6 @@ export const api = {
       { path: `/workspaces/${WORKSPACE_ID}/presentation` },
       { init: { method: "PATCH", body: JSON.stringify({ activeThemeId }) } }
     ),
-  listMembers: () =>
-    request<{ members: AdminMember[] }>({ path: `/workspaces/${WORKSPACE_ID}/members` }),
-  getMember: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
-    request<{ member: AdminMember }>({ path: `/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}` }),
-  disableMember: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
-    request<{ member: AdminMember }>({ path: `/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}/disable` }, { init: {
-      method: "POST",
-    } }),
-  requestMemberMagicLink: ({ email }: { email: string }, options: { redirectPath?: string } = {}) =>
-    request<{ delivered: true }>({ path: `/workspaces/${WORKSPACE_ID}/members/request-magic-link` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ email, redirectPath: options.redirectPath }),
-    } }),
   listMenus: () =>
     request<{ menus: AdminMenu[] }>({ path: `/workspaces/${WORKSPACE_ID}/menus` }),
   getMenu: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>

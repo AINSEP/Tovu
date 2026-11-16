@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMember } from "@/lib/api";
+import type { AdminMember } from "@/features/members/api/members-api.types";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMembersPort } from "../hooks/members-dependencies.hooks";
 import { useMembers, useWiredMembers } from "../hooks/members-controller.hooks";

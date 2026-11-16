@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import { commentsApi } from "../../features/comments/api/comments-api";
@@ -52,14 +53,14 @@ function stubFetchCapturing(): { calls: Array<{ url: string; init?: RequestInit 
 
 test("requestMemberMagicLink omits redirectPath from the body when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.requestMemberMagicLink({ email: "a@b.com" });
+  await membersApi.requestMemberMagicLink({ email: "a@b.com" });
   expect(calls[0].url).toContain("/members/request-magic-link");
   expect(body()).toEqual({ email: "a@b.com" });
 });
 
 test("requestMemberMagicLink includes redirectPath when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.requestMemberMagicLink({ email: "a@b.com" }, { redirectPath: "/welcome" });
+  await membersApi.requestMemberMagicLink({ email: "a@b.com" }, { redirectPath: "/welcome" });
   expect(body()).toEqual({ email: "a@b.com", redirectPath: "/welcome" });
 });
 

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { membersApi } from "../../features/members/api/members-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 import { onUnauthenticated } from "../admin-http/request";
 
@@ -82,7 +83,7 @@ test("listMembers GETs the workspace members collection and resolves the parsed 
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ members: [{ id: "m1", email: "a@b.com", status: "active" }] })
   );
-  await expect(api.listMembers()).resolves.toEqual({ members: [{ id: "m1", email: "a@b.com", status: "active" }] });
+  await expect(membersApi.listMembers()).resolves.toEqual({ members: [{ id: "m1", email: "a@b.com", status: "active" }] });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/members`);
   expect(method()).toBe("GET");
 });

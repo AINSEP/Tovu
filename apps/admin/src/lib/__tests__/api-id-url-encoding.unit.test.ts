@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 
 /**
@@ -69,8 +70,8 @@ const singleIdCases: Case[] = [
   ["getPage", () => api.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
   ["updatePageHtml", () => api.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
   ["deletePage", () => api.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
-  ["getMember", () => api.getMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}`],
-  ["disableMember", () => api.disableMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}/disable`],
+  ["getMember", () => membersApi.getMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}`],
+  ["disableMember", () => membersApi.disableMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}/disable`],
   ["getMenu", () => api.getMenu({ id: SLASH_ID }), `${BASE_WORKSPACE}/menus/${ENC}`],
   [
     "updateMenuTree",

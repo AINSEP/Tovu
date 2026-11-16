@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { membersApi } from "../../features/members/api/members-api";
 import { ApiError } from "../admin-http/request";
 
 test("external MCP approvals list and revoke use separately encoded server and tool names", async () => {
@@ -500,7 +501,7 @@ test("setActiveTheme PATCHes { activeThemeId } to /presentation", async () => {
 
 test("getMember hits GET /members/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getMember({ id: "m1" });
+  await membersApi.getMember({ id: "m1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/members/m1`);
   expect(calls[0].init?.method).toBeUndefined();
 });
