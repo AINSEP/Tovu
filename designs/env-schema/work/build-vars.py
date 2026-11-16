@@ -143,6 +143,18 @@ for repo, tsv, root in (('tovu', tovu_tsv, tovu_root), ('jini', jini_tsv, jini_r
         default = f'{d} [code {dsite}]' if d else (f'{ex_default[name]} [.env.example text, not code-verified]' if name in ex_default and repo == 'tovu' else ('NOT VERIFIED (not on the read line)' if reads else ''))
         out.append([name, repo, readers, phase_of(root, reads, k), secret, default, dec, step, k, new, str(len(reads)), str(len({r['file'] for r in reads})), ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '; '.join(also), ev, note])
         counts[(repo, dec)] += 1; counts[(repo, 'kind:' + k)] += 1; counts[(repo, 'secret:' + secret)] += 1
+    # names never read in product code: script/build-only and test-only (one row each, so the schema's dev/ci slice and the test advisory have an inventory)
+    prodnames = {row[0] for row in out if row[1] == repo}
+    RW = READ | {'process.env-write', 'env-param-write'}
+    for scope_set, kind, step in ((('script', 'build'), 'script-only', 'T8' if repo == 'tovu' else 'J5'), (('test',), 'test-only', 'T8' if repo == 'tovu' else 'J5')):
+        seen = collections.defaultdict(list)
+        for r in rows:
+            if r['scope'] in scope_set and r['kind'] in RW and r['name'] not in prodnames and r['name'] not in NOT_ENV: seen[r['name']].append(r)
+        for name in sorted(seen):
+            rs = seen[name]; prodnames.add(name)
+            secret = 'yes' if SECRET.search(name) else 'no'
+            out.append([name, repo, f"{kind.split('-')[0]}s×{len(rs)}", 'script run' if kind == 'script-only' else 'test run', secret, '', 'keep', step, kind, '', '0', '0', ('yes' if name in ex else 'no') if repo == 'tovu' else 'n/a (no file)', '', f"{rs[0]['file']}:{rs[0]['line']}", 'outside the product schema; listed in the dev/ci slice' if kind == 'script-only' else 'outside the product schema; test advisory only'])
+            counts[(repo, 'kind:' + kind)] += 1; counts[(repo, 'keep')] += 1
 with open('../VARS.tsv', 'w') as fh:
     for row in out: fh.write('\t'.join(c.replace('\t', ' ') for c in row) + '\n')
 for key in sorted(counts): print(key, counts[key])

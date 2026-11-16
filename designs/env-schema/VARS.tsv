@@ -165,6 +165,169 @@ VITEST	tovu	web/server×1	boot	no	NOT VERIFIED (not on the read line)	keep	T8	te
 VITE_TOVU_SITE_URL	tovu	admin(browser)×1, web/platform×1	build+call	no	https://localhost:3000 [code apps/admin/src/lib/site-url.ts:29]	keep	T7	build		2	2	no	scripts; tests	apps/admin/src/lib/site-url.ts:29	
 WAYLAND_DISPLAY	tovu	web/features×1	call	no	NOT VERIFIED (not on the read line)	keep	T2	os-ambient		1	1	no		apps/website/src/features/fs-files/native-folder-picker.ts:74	
 XDG_CONFIG_HOME	tovu	desktop-main×1, web/platform×1	call	no	NOT VERIFIED (not on the read line)	keep	T2	os-ambient		2	2	no	tests	apps/desktop/src/desktop-user-data-dir.ts:57	
+BASE	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		.claude/skills/tovu-demo-video/scripts/make-state.mjs:4	outside the product schema; listed in the dev/ci slice
+CI	tovu	scripts×5	script run	no		keep	T8	script-only		0	0	no		development/playwright.desktop-journeys.config.ts:40	outside the product schema; listed in the dev/ci slice
+CLASSIFY_INTEGRATION_LCOV	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/classify-coverage-gaps.ts:108	outside the product schema; listed in the dev/ci slice
+CLASSIFY_UNIT_LCOV	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/classify-coverage-gaps.ts:107	outside the product schema; listed in the dev/ci slice
+COMPLEXITY_BASE_REF	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-src-complexity-drift.ts:202	outside the product schema; listed in the dev/ci slice
+DEBUG_KEEP_SCRATCH	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-jini-registry-drift.mjs:372	outside the product schema; listed in the dev/ci slice
+DRY	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		.claude/skills/tovu-demo-video/scripts/take-example.mjs:13	outside the product schema; listed in the dev/ci slice
+FIND_SHOT_DIR	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-find-in-page.ts:62	outside the product schema; listed in the dev/ci slice
+FIND_VERIFY_NATIVE_KEYS	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-find-in-page.ts:239	outside the product schema; listed in the dev/ci slice
+FIND_VERIFY_SKIP_GUEST	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-find-in-page.ts:470	outside the product schema; listed in the dev/ci slice
+FIND_VERIFY_USERDATA	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-find-in-page.ts:63	outside the product schema; listed in the dev/ci slice
+GITHUB_BASE_REF	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-route-coverage-diff.ts:94	outside the product schema; listed in the dev/ci slice
+GITHUB_EVENT_BEFORE	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-route-coverage-diff.ts:96	outside the product schema; listed in the dev/ci slice
+JINI_PACKAGES_DIR	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/link-jini.mjs:45	outside the product schema; listed in the dev/ci slice
+JINI_ROOT	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-hardwiring.mjs:11	outside the product schema; listed in the dev/ci slice
+LANG	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/measure-site-memory.mjs:422	outside the product schema; listed in the dev/ci slice
+NODE_EXTRA_CA_CERTS	tovu	scripts×2	script run	no		keep	T8	script-only		0	0	no		development/scripts/dev.mjs:731	outside the product schema; listed in the dev/ci slice
+PROBE_OUT	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/agent-run-probe.mjs:32	outside the product schema; listed in the dev/ci slice
+ROUTE_COVERAGE_DIFF_BASE	tovu	scripts×2	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-route-coverage-diff.ts:91	outside the product schema; listed in the dev/ci slice
+SEMGREP_IMAGE	tovu	scripts×2	script run	no		keep	T8	script-only		0	0	no		development/scripts/quality-semgrep.mjs:23	outside the product schema; listed in the dev/ci slice
+SITE_POWER_SHOT_DIR	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-site-power.ts:61	outside the product schema; listed in the dev/ci slice
+SITE_POWER_SITE_DIR	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-site-power.ts:65	outside the product schema; listed in the dev/ci slice
+SITE_POWER_USERDATA	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-site-power.ts:64	outside the product schema; listed in the dev/ci slice
+SIZE_BASE_REF	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/check-size-drift.ts:113	outside the product schema; listed in the dev/ci slice
+TMPDIR	tovu	scripts×2	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/verify-find-in-page.ts:63	outside the product schema; listed in the dev/ci slice
+TOVU_BASE	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/agent-run-probe.mjs:31	outside the product schema; listed in the dev/ci slice
+TOVU_BUILD_SHA	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/emit-dist-package-json.mjs:107	outside the product schema; listed in the dev/ci slice
+TOVU_DESKTOP_DISABLE_ADMIN_VITE	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/dev-desktop.mjs:527	outside the product schema; listed in the dev/ci slice
+TOVU_DESKTOP_E2E_APP	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/playwright.memory-soak.config.ts:7	outside the product schema; listed in the dev/ci slice
+TOVU_DEV_SOURCE_MAPS	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/dev-source-maps-off.mjs:3	outside the product schema; listed in the dev/ci slice
+TOVU_E2E_PACKAGED_APP	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/playwright.memory-soak.config.ts:7	outside the product schema; listed in the dev/ci slice
+TOVU_E2E_REAL_SERVICES	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/playwright.journeys.config.ts:21	outside the product schema; listed in the dev/ci slice
+TOVU_E2E_SLOWMO	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/playwright.journeys.config.ts:64	outside the product schema; listed in the dev/ci slice
+TOVU_IDLE_ADMIN_PASSWORD	tovu	scripts×1	script run	yes		keep	T8	script-only		0	0	no		development/scripts/measure-idle-cpu.mjs:141	outside the product schema; listed in the dev/ci slice
+TOVU_IDLE_ADMIN_USER	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/measure-idle-cpu.mjs:140	outside the product schema; listed in the dev/ci slice
+TOVU_JOURNEY_LANE	tovu	scripts×2	script run	no		keep	T8	script-only		0	0	no		development/playwright.journeys.config.ts:24	outside the product schema; listed in the dev/ci slice
+TOVU_JOURNEY_PORT_BASE	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/playwright.journeys.config.ts:23	outside the product schema; listed in the dev/ci slice
+TOVU_PROBE_PASSWORD	tovu	scripts×1	script run	yes		keep	T8	script-only		0	0	no		development/scripts/agent-run-probe.mjs:113	outside the product schema; listed in the dev/ci slice
+TOVU_PROBE_USER	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/agent-run-probe.mjs:112	outside the product schema; listed in the dev/ci slice
+TOVU_TSX_CACHE_PRUNE	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/prune-tsx-cache.mjs:58	outside the product schema; listed in the dev/ci slice
+TSX_TSCONFIG_PATH	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/coverage-changed.ts:465	outside the product schema; listed in the dev/ci slice
+USER	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		development/scripts/agent-plugin-activation.ts:116	outside the product schema; listed in the dev/ci slice
+WINDIR	tovu	scripts×1	script run	no		keep	T8	script-only		0	0	no		apps/desktop/scripts/smoke-native.ts:150	outside the product schema; listed in the dev/ci slice
+X	tovu	scripts×4	script run	no		keep	T8	script-only		0	0	no		development/scripts/hygiene-audit.mjs:47	outside the product schema; listed in the dev/ci slice
+npm_execpath	tovu	scripts×2	script run	no		keep	T8	script-only		0	0	no		development/scripts/build-server.mjs:9	outside the product schema; listed in the dev/ci slice
+ACCESS_TOKEN	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/credential-safety/__tests__/stores.test.ts:46	outside the product schema; test advisory only
+AGENT_ID	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:154	outside the product schema; test advisory only
+API_KEY	tovu	tests×4	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/external-mcp/__tests__/external-mcp-store.test.ts:1393	outside the product schema; test advisory only
+API_TOKEN	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/tool-registrations.external-mcp.test.ts:990	outside the product schema; test advisory only
+CHROMIUM_EXECUTABLE_PATH	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/admin-http/__tests__/owner-passkey-browser.integration.test.ts:21	outside the product schema; test advisory only
+CLAUDECODE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/support/start-journey-site.mjs:25	outside the product schema; test advisory only
+CLAUDE_CODE_ENTRYPOINT	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/support/start-journey-site.mjs:26	outside the product schema; test advisory only
+CLAUDE_CONFIG_DIR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/support/credential-card-leak-audit.ts:25	outside the product schema; test advisory only
+CLOUDFLARE_ACCOUNT_ID	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts:929	outside the product schema; test advisory only
+CLOUDFLARE_TOKEN	tovu	tests×5	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts:928	outside the product schema; test advisory only
+COMMERCE_PG_URL	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts:25	outside the product schema; test advisory only
+COST_COUNTERS_BASELINE_WRITE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts:193	outside the product schema; test advisory only
+ComSpec	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/scripts/__tests__/desktop-portable.unit.test.ts:31	outside the product schema; test advisory only
+DATABASE_TRANSFER_CARD_OUT	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts:174	outside the product schema; test advisory only
+E2E_AGENT_DAEMON_PORT	tovu	tests×7	test run	no		keep	T8	test-only		0	0	no		development/e2e/__tests__/daemon-ready.unit.test.ts:80	outside the product schema; test advisory only
+E2E_API_PORT	tovu	tests×7	test run	no		keep	T8	test-only		0	0	no		development/e2e/__tests__/daemon-ready.unit.test.ts:79	outside the product schema; test advisory only
+E2E_CAPABILITY_DISCOVERY_CONTENT_DB	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		development/e2e/journeys/assistant-live.pins.journey.ts:243	outside the product schema; test advisory only
+E2E_LIVE_PUBLISH_CONTENT_DB	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/journeys/deployment-live.pins.journey.ts:252	outside the product schema; test advisory only
+EVIL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/cli/__tests__/unit/deploy-config-command.unit.test.ts:168	outside the product schema; test advisory only
+EXTRACT_S8_G_CRED_REPLAY_DIR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts:492	outside the product schema; test advisory only
+FIXTURE_TOOL_FAILURE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/scripts/__tests__/report-churn-hotspots.test.ts:199	outside the product schema; test advisory only
+FLY_ALLOC_ID	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:113	outside the product schema; test advisory only
+FLY_APP_NAME	tovu	tests×22	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:113	outside the product schema; test advisory only
+FLY_MACHINE_ID	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:113	outside the product schema; test advisory only
+GH_PUBLISH_TOKEN	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		development/e2e/save-publish-credential.mjs:17	outside the product schema; test advisory only
+GITHUB_TOKEN	tovu	tests×5	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/server/__tests__/routes/publish-site-route.test.ts:43	outside the product schema; test advisory only
+JINI_DAEMON_URL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/assistant/__tests__/bridge-preflight-entry.unit.test.ts:24	outside the product schema; test advisory only
+JINI_DIAGNOSTIC_TOOL_IDS	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:233	outside the product schema; test advisory only
+JINI_STARTUP_TOOL_IDS	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts:209	outside the product schema; test advisory only
+KEEP	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/assistant/__tests__/bridge-preflight-entry.unit.test.ts:25	outside the product schema; test advisory only
+MAIL_SEND_GOLDEN_WRITE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/runtime/boot/__tests__/mail-send.golden.test.ts:151	outside the product schema; test advisory only
+MCP_TOKEN	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/external-mcp/__tests__/external-mcp-store.test.ts:1117	outside the product schema; test advisory only
+MOVED_TOOLS_ACCESS_TOKEN_GOLDEN_WRITE	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/moved-tools.access-token.golden.test.ts:134	outside the product schema; test advisory only
+MOVED_TOOLS_CREDENTIAL_CARDS_GOLDEN_WRITE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts:147	outside the product schema; test advisory only
+MOVED_TOOLS_GOLDEN_WRITE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/moved-tools.golden.test.ts:161	outside the product schema; test advisory only
+NODE_OPTIONS	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/desktop/src/smoke-packaged-chat-gate.test.ts:246	outside the product schema; test advisory only
+NODE_PATH	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/desktop/src/smoke-native-gate.test.ts:60	outside the product schema; test advisory only
+OPENAI_API_KEY	tovu	tests×4	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts:663	outside the product schema; test advisory only
+PATHEXT	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/desktop/src/tovu-server-failures.test.ts:167	outside the product schema; test advisory only
+PGHOST	tovu	tests×10	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:13	outside the product schema; test advisory only
+PGPORT	tovu	tests×11	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:12	outside the product schema; test advisory only
+PGUSER	tovu	tests×9	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:11	outside the product schema; test advisory only
+PLAYWRIGHT_FORCE_ASYNC_LOADER	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/desktop/src/e2e-harness-import.test.ts:20	outside the product schema; test advisory only
+PRIVATE_VALUE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/credential-safety/__tests__/stores.test.ts:158	outside the product schema; test advisory only
+PROVIDER	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/save-publish-credential.mjs:16	outside the product schema; test advisory only
+PUBLISH_PROMPT	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		development/e2e/live-publish-driver.mjs:39	outside the product schema; test advisory only
+RECORD_SEARCH_EVAL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/post/__tests__/search.dialects.test.ts:27	outside the product schema; test advisory only
+RENDER_UNKNOWN_SETTING	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:136	outside the product schema; test advisory only
+REPLICATE_API_TOKEN	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:128	outside the product schema; test advisory only
+ROUTE_URL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/agent-probe-characterization.test.ts:148	outside the product schema; test advisory only
+RUNNER_TEMP	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		content/agent-plugin-overlays/fly/__tests__/fly-overlay.test.mjs:54	outside the product schema; test advisory only
+S5_FROZEN_DB_OUT	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.test.ts:90	outside the product schema; test advisory only
+SCREENSHOT_DIR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/journeys/admin-layout.pins.journey.ts:1226	outside the product schema; test advisory only
+TEARDOWN_FAULT	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/__tests__/helper-teardown.fixture.ts:19	outside the product schema; test advisory only
+TEARDOWN_HELPER	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/__tests__/resource-teardown.fixture.ts:13	outside the product schema; test advisory only
+TEARDOWN_REAL_HTTP	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/__tests__/helper-teardown.fixture.ts:54	outside the product schema; test advisory only
+TEMP	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts:47	outside the product schema; test advisory only
+TEST_GATE_CWD	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/runtime/boot/__tests__/boot-readiness-gate.unit.test.ts:50	outside the product schema; test advisory only
+TIER2_ENV_PROBE	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/runtime/plugin-tier2/__tests__/fixtures/echo-plugin/plugin.ts:21	outside the product schema; test advisory only
+TMP	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts:47	outside the product schema; test advisory only
+TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_ID	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/api-connections/__tests__/host.unit.test.ts:129	outside the product schema; test advisory only
+TOVU_ACME_OFFICE_OAUTH_WEB_CLIENT_SECRET	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/features/api-connections/__tests__/host.unit.test.ts:90	outside the product schema; test advisory only
+TOVU_ADMIN_URL	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		development/e2e/live-publish-driver.mjs:34	outside the product schema; test advisory only
+TOVU_CHAT_TEST_POSTGRES_URL	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/persistence/__tests__/chat-dialect-matrix.ts:33	outside the product schema; test advisory only
+TOVU_COVERAGE_ENV_PROBE	tovu	tests×5	test run	no		keep	T8	test-only		0	0	no		apps/website/src/contracts/core/__tests__/unit/child-process-coverage-env.unit.test.ts:31	outside the product schema; test advisory only
+TOVU_E2E_ASSISTANT_AGENT	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		development/e2e/__tests__/journey-site-cleanup-reporter.unit.test.ts:43	outside the product schema; test advisory only
+TOVU_E2E_DESKTOP_APP	tovu	tests×5	test run	no		keep	T8	test-only		0	0	no		apps/desktop/src/e2e-harness-import.test.ts:19	outside the product schema; test advisory only
+TOVU_E2E_GITHUB_REPO	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/support/bug-pin-fixtures.ts:209	outside the product schema; test advisory only
+TOVU_E2E_GITHUB_TOKEN	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		development/e2e/support/bug-pin-fixtures.ts:133	outside the product schema; test advisory only
+TOVU_E2E_ISOLATED_JOURNEYS	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		development/e2e/support/start-journey-site.mjs:15	outside the product schema; test advisory only
+TOVU_E2E_PIN_RESET	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		development/e2e/support/bug-pin-fixtures.ts:156	outside the product schema; test advisory only
+TOVU_ENABLE_DEMO_TOOLS	tovu	tests×12	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/demo-a2ui-tool.test.ts:163	outside the product schema; test advisory only
+TOVU_ENVFIX_TEST_PRECEDENCE	tovu	tests×6	test run	no		keep	T8	test-only		0	0	no		development/scripts/__tests__/load-repo-root-env.test.mjs:57	outside the product schema; test advisory only
+TOVU_G3_REAL_EXPORT	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts:970	outside the product schema; test advisory only
+TOVU_GUIDANCE_API_KEY	tovu	tests×1	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/tool-guidance.live.test.ts:31	outside the product schema; test advisory only
+TOVU_GUIDANCE_BASE_URL	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/tool-guidance.live.test.ts:37	outside the product schema; test advisory only
+TOVU_GUIDANCE_LIVE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/tool-guidance.live.test.ts:20	outside the product schema; test advisory only
+TOVU_GUIDANCE_MODEL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/tool-guidance.live.test.ts:30	outside the product schema; test advisory only
+TOVU_GUIDANCE_PROTOCOL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/__tests__/tool-guidance.live.test.ts:29	outside the product schema; test advisory only
+TOVU_HELPER_TEARDOWN_FIXTURE_SOCKET	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/__tests__/helper-teardown.fixture.ts:21	outside the product schema; test advisory only
+TOVU_INIT_BRANCHES_UNREACHABLE_URL	tovu	tests×5	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/site-dir/__tests__/integration/init-site-branches.integration.test.ts:175	outside the product schema; test advisory only
+TOVU_MOBILE_SWEEP_DIR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/journeys/mobile-visual.visual.ts:24	outside the product schema; test advisory only
+TOVU_MOBILE_SWEEP_WIDTH	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/journeys/mobile-visual.visual.ts:25	outside the product schema; test advisory only
+TOVU_R1F2_INIT_URL	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts:44	outside the product schema; test advisory only
+TOVU_R1F2_UNSET_URL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/cli/__tests__/integration/init-storage.integration.test.ts:92	outside the product schema; test advisory only
+TOVU_R1F_BOOT_SITE_DIR_URL	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38	outside the product schema; test advisory only
+TOVU_R1F_TEST_POSTGRES_URL	tovu	tests×3	test run	no		keep	T8	test-only		0	0	no		apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts:42	outside the product schema; test advisory only
+TOVU_RUN_REAL_INSTALL_CHECK	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/agent-plugins/__tests__/unit/resolve-agent-plugin-refs.real-install.unit.test.ts:46	outside the product schema; test advisory only
+TOVU_SITE_BACKUP_REPRO_ZIP	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/site-backup/__tests__/import-bundled-packages.integration.test.ts:127	outside the product schema; test advisory only
+TOVU_SITE_EVIDENCE_BROWSER_REQUIRED	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts:110	outside the product schema; test advisory only
+TOVU_SOAK_LIMIT_PCT	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/soak/_evidence.ts:14	outside the product schema; test advisory only
+TOVU_SOAK_RECORD_ONLY	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/soak/_evidence.ts:15	outside the product schema; test advisory only
+TOVU_TEST_BOOT_PLUGIN_TOKEN	tovu	tests×4	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/server/runtime/boot/__tests__/agent-plugin-token-boot-order.unit.test.ts:64	outside the product schema; test advisory only
+TOVU_TEST_DEFINITELY_UNSET_VAR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:168	outside the product schema; test advisory only
+TOVU_TEST_FEDERATION_ENV_SENTINEL	tovu	tests×4	test run	no		keep	T8	test-only		0	0	no		apps/website/src/assistant/mcp-federation/__tests__/registrations.test.ts:677	outside the product schema; test advisory only
+TOVU_TEST_LONG_ENV_KEY	tovu	tests×42	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:327	outside the product schema; test advisory only
+TOVU_TEST_SITE_KEY	tovu	tests×12	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:45	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:73	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_AUTOGEN	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:226	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_AUTOGEN_2	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:241	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_INSPECT_1	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:320	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_INSPECT_2	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:343	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_MALFORMED_FILE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:415	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_MESSAGE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:497	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_REVEAL	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:380	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_TRAILING_NL	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:560	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VAR_ZERO_IKM	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:440	outside the product schema; test advisory only
+TOVU_TEST_UNSET_VECTOR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/webhooks/__tests__/keyring.env.test.ts:60	outside the product schema; test advisory only
+TOVU_W7_TEST_UNSET_SITE_KEY	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts:194	outside the product schema; test advisory only
+TZ	tovu	tests×21	test run	no		keep	T8	test-only		0	0	no		apps/website/src/features/database-transfer/__tests__/confirmation-ui.unit.test.ts:40	outside the product schema; test advisory only
+UNGATED	tovu	tests×2	test run	no		keep	T8	test-only		0	0	no		development/scripts/__tests__/check-hardwiring.test.mjs:16	outside the product schema; test advisory only
+UPDATE_ADMIN_SCREENS_MANIFEST	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/admin/src/lib/__tests__/admin-screens-manifest.unit.test.ts:67	outside the product schema; test advisory only
+UPDATE_DATABASE_TYPES	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/db/kernel/__tests__/database-types.test.ts:78	outside the product schema; test advisory only
+UPDATE_MIGRATION_CHECKSUMS	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/db/migrations/__tests__/checksums.test.ts:45	outside the product schema; test advisory only
+UPDATE_RAW_SQLITE_BASELINE	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts:79	outside the product schema; test advisory only
+VERCEL_TOKEN	tovu	tests×6	test run	yes		keep	T8	test-only		0	0	no		apps/website/src/server/__tests__/routes/publish-site-route.test.ts:282	outside the product schema; test advisory only
+VISUAL_PARITY_DIR	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		development/e2e/journeys/admin-layout.pins.journey.ts:682	outside the product schema; test advisory only
+XDG_DATA_HOME	tovu	tests×1	test run	no		keep	T8	test-only		0	0	no		apps/website/src/platform/site-dir/__tests__/helpers/isolated-catalog-home.ts:28	outside the product schema; test advisory only
 AIDER_MODEL	jini	pkg:agent-runtime×1	call	no	NOT VERIFIED (not on the read line)	keep	J4	vendor-passthrough		1	1	n/a (no file)		packages/agent-runtime/src/model-discovery-adapters.ts:344	
 ANTHROPIC_API_KEY	jini	pkg:agent-runtime×3	call	yes	NOT VERIFIED (not on the read line)	keep	J4	vendor-passthrough		3	2	n/a (no file)	scripts; tests	packages/agent-runtime/src/anthropic-live-models.ts:77	
 ANTHROPIC_BASE_URL	jini	pkg:agent-runtime×3	call	no	NOT VERIFIED (not on the read line)	keep	J4	vendor-passthrough		3	2	n/a (no file)		packages/agent-runtime/src/anthropic-live-models.ts:79	
@@ -269,3 +432,95 @@ XDG_CACHE_HOME	jini	pkg:agent-runtime×1	call	no	NOT VERIFIED (not on the read l
 XDG_CONFIG_HOME	jini	pkg:agent-runtime×1, pkg:platform×1	call	no	NOT VERIFIED (not on the read line)	keep	J2	os-ambient		2	2	n/a (no file)	tests; set-for-child×1	packages/agent-runtime/src/model-discovery-config.ts:51	
 XDG_DATA_HOME	jini	pkg:agent-runtime×2, pkg:platform×1	call	no	NOT VERIFIED (not on the read line)	keep	J2	os-ambient		3	2	n/a (no file)	set-for-child×1	packages/agent-runtime/src/opencode-log.ts:28	
 XDG_STATE_HOME	jini	pkg:agent-runtime×1	call	no	NOT VERIFIED (not on the read line)	keep	J2	os-ambient		1	1	n/a (no file)	set-for-child×1	packages/agent-runtime/src/defs/opencode/model-discovery.ts:12	
+AGENT_PLAYWRIGHT_PATH	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs:24	outside the product schema; listed in the dev/ci slice
+COMPLEXITY_BASE_REF	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-complexity.mjs:146	outside the product schema; listed in the dev/ci slice
+COMPLEXITY_FIRST_PUSH_COMMIT	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-complexity.mjs:146	outside the product schema; listed in the dev/ci slice
+GITHUB_STEP_SUMMARY	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/publish-pending.ts:100	outside the product schema; listed in the dev/ci slice
+INJECTION_BASE_REF	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/lib/injection-debt.ts:65	outside the product schema; listed in the dev/ci slice
+INJECTION_FIRST_PUSH_COMMIT	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/lib/injection-debt.ts:65	outside the product schema; listed in the dev/ci slice
+JINI_DECLARATION_BASELINE_DIR	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-no-cross-package.ts:274	outside the product schema; listed in the dev/ci slice
+JINI_PLAYGROUND_NO_OPEN	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/start-playground.ts:49	outside the product schema; listed in the dev/ci slice
+LOG_SAFETY_BASE_REF	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-log-safety.mjs:210	outside the product schema; listed in the dev/ci slice
+LOG_SAFETY_FIRST_PUSH_COMMIT	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-log-safety.mjs:210	outside the product schema; listed in the dev/ci slice
+SIZE_BASE_REF	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-size.mjs:138	outside the product schema; listed in the dev/ci slice
+SIZE_FIRST_PUSH_COMMIT	jini	scripts×1	script run	no		keep	J5	script-only		0	0	n/a (no file)		scripts/check-size.mjs:138	outside the product schema; listed in the dev/ci slice
+AGENT_RUNTIME_HOME	jini	tests×28	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/detection.test.ts:305	outside the product schema; test advisory only
+AGENT_RUNTIME_RESOURCE_ROOT	jini	tests×8	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/executables.test.ts:430	outside the product schema; test advisory only
+ALL_PROXY	jini	tests×2	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/__tests__/proxy-env.test.ts:78	outside the product schema; test advisory only
+AMR_CLIENT_SOURCE	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:117	outside the product schema; test advisory only
+API_KEY	jini	tests×2	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/diagnostics/src/__tests__/secrets-only.test.ts:272	outside the product schema; test advisory only
+APP_DATA_DIR	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/__tests__/diagnostic-contradictions.unit.test.ts:13	outside the product schema; test advisory only
+AUTH_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/sidecar/src/supervision/__tests__/startup-secrets.test.ts:113	outside the product schema; test advisory only
+CHROMIUM_PATH	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		examples/reference-web/e2e/chat-layout.test.mjs:18	outside the product schema; test advisory only
+CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS	jini	tests×3	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/claude-background-ceiling.test.ts:48	outside the product schema; test advisory only
+COMMERCE_OWNER_KEY	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/db/src/__tests__/kernel-session-lock.postgres.test.ts:31	outside the product schema; test advisory only
+COMMERCE_PG_URL	jini	tests×5	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/commerce/src/payments/ledger/__tests__/postgres.vitest.test.ts:25	outside the product schema; test advisory only
+CONSENT_CLIENT_SOURCE	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/cookie-consent/src/__tests__/cms-resource-release.integration.test.ts:34	outside the product schema; test advisory only
+CUSTOM_TOKEN	jini	tests×2	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/server/src/__tests__/create-local-node-daemon.test.ts:1106	outside the product schema; test advisory only
+CUSTOM_UNALLOWLISTED_VAR	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:6440	outside the product schema; test advisory only
+DATABASE_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:6386	outside the product schema; test advisory only
+DEVOPS_ENV_FIXTURE_ONLY	jini	tests×7	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/devops/src/local-dev/__tests__/local-dev.test.ts:29	outside the product schema; test advisory only
+ENABLE_TOOL_SEARCH	jini	tests×6	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:6450	outside the product schema; test advisory only
+EXAMPLE_BUNDLED_NPM_ROOT	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/federation/__tests__/mcp-federation.bundled-toolchain-spawn.test.ts:119	outside the product schema; test advisory only
+EXAMPLE_DAEMON_TOKEN	jini	tests×2	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/__tests__/run-credentials.characterization.test.ts:18	outside the product schema; test advisory only
+EXAMPLE_NODE_TOOLCHAIN_DIR	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/federation/__tests__/mcp-federation.bundled-toolchain-spawn.test.ts:118	outside the product schema; test advisory only
+EXAMPLE_TEST_FEDERATION_ENV_SENTINEL	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/federation/__tests__/mcp-federation.registrations.test.ts:613	outside the product schema; test advisory only
+EXAMPLE_TOKEN	jini	tests×2	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/__tests__/run-credentials.test.ts:36	outside the product schema; test advisory only
+FAKE_CONFIG_CONTENT	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/launch-defaults-and-staging.test.ts:167	outside the product schema; test advisory only
+FAKE_IPC_PATH	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/sidecar/src/__tests__/index.test.ts:1254	outside the product schema; test advisory only
+FAKE_KEY	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:127	outside the product schema; test advisory only
+FC_SEED	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/chat/src/core/__tests__/unit/partial-json.property.unit.test.ts:5	outside the product schema; test advisory only
+FIXTURE_RUNTIME_MODE	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/mail/__tests__/purpose-scoped-mailer.test.ts:227	outside the product schema; test advisory only
+HOST_MARKER	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/afix-runtime-contracts.unit.test.ts:24	outside the product schema; test advisory only
+HOST_SECRET	jini	tests×2	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/sidecar/src/supervision/__tests__/startup-secrets.test.ts:76	outside the product schema; test advisory only
+HTTPS_PROXY	jini	tests×5	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/__tests__/index.test.ts:448	outside the product schema; test advisory only
+HTTP_PROXY	jini	tests×15	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/__tests__/index.test.ts:433	outside the product schema; test advisory only
+JINI_CHART_HEADLESS	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/ui/src/features/charts/__tests__/packed-import.test.ts:47	outside the product schema; test advisory only
+JINI_CHAT_LONG_TRANSCRIPT	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/chat/src/react/features/chat-pane/__tests__/components/ChatPane.long-transcript.bench.test.tsx:20	outside the product schema; test advisory only
+JINI_CHAT_TEST_POSTGRES_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/chat/src/store/__tests__/pg-fixtures.ts:41	outside the product schema; test advisory only
+JINI_DAEMON_TEST_POSTGRES_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/store/agent-sessions/__tests__/postgres.postgres.test.ts:16	outside the product schema; test advisory only
+JINI_LIVE_CLAUDE_PATH	jini	tests×6	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/defs/__tests__/claude-filesystem.live.canary.ts:51	outside the product schema; test advisory only
+JINI_LIVE_CLI_TESTS	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/__tests__/integration/claude-bash-sandbox.live.test.ts:14	outside the product schema; test advisory only
+JINI_LIVE_FILESYSTEM_CANARIES	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/defs/__tests__/claude-filesystem.live.canary.ts:19	outside the product schema; test advisory only
+JINI_TEST_DAEMON_URL	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/cli/src/__tests__/daemon-url.test.ts:74	outside the product schema; test advisory only
+JINI_TEST_SECRET_TOKEN	jini	tests×1	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:6385	outside the product schema; test advisory only
+JINI_UI_TARBALL	jini	tests×2	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/ui/src/features/charts/__tests__/packed-import.test.ts:25	outside the product schema; test advisory only
+KEY	jini	tests×22	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/cms/scripts/__tests__/check-packaging.test.ts:148	outside the product schema; test advisory only
+LANG	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:6404	outside the product schema; test advisory only
+MIMOCODE_CONFIG_CONTENT	jini	tests×2	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:5774	outside the product schema; test advisory only
+MIMOCODE_DISABLE_PROJECT_CONFIG	jini	tests×3	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:31	outside the product schema; test advisory only
+MY_CUSTOM_HOME_VAR	jini	tests×2	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/executables.test.ts:215	outside the product schema; test advisory only
+MY_PROFILE	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/ports.test.ts:31	outside the product schema; test advisory only
+NAME_API_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/federation/__tests__/mcp-federation.stdio-exit-reason.test.ts:53	outside the product schema; test advisory only
+NAME_TOKEN	jini	tests×1	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/federation/__tests__/mcp-federation.stdio-exit-reason.test.ts:53	outside the product schema; test advisory only
+NODE_TEST_CONTEXT	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-plugins/__tests__/vitest-compat.test.mjs:14	outside the product schema; test advisory only
+NO_PROXY	jini	tests×7	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/__tests__/index.test.ts:434	outside the product schema; test advisory only
+OPENCODE_CONFIG_CONTENT	jini	tests×6	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/daemon/src/agent-executor/__tests__/agent-executor.test.ts:5773	outside the product schema; test advisory only
+OPENCODE_DISABLE_PROJECT_CONFIG	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:21	outside the product schema; test advisory only
+OPENCODE_PID	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:190	outside the product schema; test advisory only
+OPENCODE_RUN_ID	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:90	outside the product schema; test advisory only
+OTEL_EXPORTER_OTLP_METRICS_HEADERS	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/provider-plugins/src/__tests__/observability-metrics.test.ts:100	outside the product schema; test advisory only
+OTHER_KEY	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/devops/src/checks/__tests__/hardwiring.test.ts:57	outside the product schema; test advisory only
+PGAPPNAME	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/db/src/__tests__/transfer/psql-target.test.ts:61	outside the product schema; test advisory only
+PGHOST	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/db/src/data-modules/__tests__/public-entry.postgres.test.ts:9	outside the product schema; test advisory only
+PGPORT	jini	tests×5	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/db/src/data-modules/__tests__/public-entry.postgres.test.ts:11	outside the product schema; test advisory only
+PGUSER	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/db/src/data-modules/__tests__/public-entry.postgres.test.ts:10	outside the product schema; test advisory only
+PLATFORM_TEST_INTEGRATIONS_ROOT_KEY	jini	tests×9	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/secrets/__tests__/keyring.env.test.ts:19	outside the product schema; test advisory only
+PLATFORM_TEST_LONG_ENV_KEY	jini	tests×13	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/secrets/__tests__/keyring.env.test.ts:238	outside the product schema; test advisory only
+PLUGIN_ROOT	jini	tests×14	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-plugins/src/lifecycle/__tests__/test-support.ts:48	outside the product schema; test advisory only
+PROBE	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/__tests__/child-environment.test.ts:92	outside the product schema; test advisory only
+PROBE_MARKER	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/devops/src/local-dev/__tests__/node-runtime.test.ts:55	outside the product schema; test advisory only
+SAFE_KEY	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/devops/src/checks/__tests__/hardwiring.test.ts:59	outside the product schema; test advisory only
+SANDBOX_MARKER	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:108	outside the product schema; test advisory only
+STRICT_TOKEN	jini	tests×4	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/server/src/__tests__/create-local-node-daemon.test.ts:1149	outside the product schema; test advisory only
+TEST_DATABASE_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/db/src/__tests__/kernel-session-lock.postgres.test.ts:10	outside the product schema; test advisory only
+TEST_STRICT_TOKEN	jini	tests×5	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/http-kit/src/__tests__/api-security-middleware.test.ts:482	outside the product schema; test advisory only
+TOKEN	jini	tests×1	test run	yes		keep	J5	test-only		0	0	n/a (no file)		packages/mcp/src/federation/__tests__/mcp-federation.stdio-exit-reason.test.ts:94	outside the product schema; test advisory only
+TOVU_RUNTIME_MODE	jini	tests×10	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/cms/src/seo/__tests__/feed.test.ts:48	outside the product schema; test advisory only
+TZ	jini	tests×14	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/admin/src/react/entities/__tests__/draft-rules.test.ts:202	outside the product schema; test advisory only
+UPDATE_COMMERCE_PAYMENTS_CHECKSUMS	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/commerce/src/payments/ledger/__tests__/migrations.vitest.test.ts:69	outside the product schema; test advisory only
+V	jini	tests×3	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/cms/scripts/__tests__/check-packaging.test.ts:159	outside the product schema; test advisory only
+VELA_LINK_URL	jini	tests×1	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/env.test.ts:101	outside the product schema; test advisory only
+X	jini	tests×3	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/cms/scripts/__tests__/check-packaging.test.ts:195	outside the product schema; test advisory only
+__AGENT_RUNTIME_TEST_ENV_VAR__	jini	tests×2	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/agent-runtime/src/__tests__/models.test.ts:220	outside the product schema; test advisory only
+npm_execpath	jini	tests×4	test run	no		keep	J5	test-only		0	0	n/a (no file)		packages/platform/src/__tests__/command.test.ts:204	outside the product schema; test advisory only
