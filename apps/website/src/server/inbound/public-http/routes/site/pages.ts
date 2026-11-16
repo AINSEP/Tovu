@@ -1,5 +1,4 @@
 import { addDeclaredHostsToPolicy, REPORT_ONLY_HEADER } from "#src/contracts/core/public-page-security-headers";
-import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import { renderCommentsMarkers } from '#src/features/comments/public-markers';
@@ -79,8 +78,9 @@ import { asyncRoute } from "../../../shared/async-route.js";
 import type { ContentMarkerResolutionDeps, TemplateRenderDeps, RenderContextResolutionDeps, SiteRequestDeps, PostPreviewsAccess } from "./pages/render-context/deps.js";
 import { resolveAssignedTermsForRender, placeAfterCurrentContent } from "./pages/render-context/taxonomy.js";
 import { resolveSiteTitleForRender, siteTimeZoneDep, htmlEmbedHostDeps, resolveSiteTimeZoneForRender } from "./pages/render-context/site-title.js";
-import { type KeyedPostPreviewBatch, storeListingJsonPage, listingBatchBody, recordListingBatchRequest, listingBatchRequestOf, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError, assertListingPageServed } from "./pages/listing/listing-state.js";
+import { type KeyedPostPreviewBatch, storeListingJsonPage, listingBatchBody, recordListingBatchRequest, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError, assertListingPageServed } from "./pages/listing/listing-state.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE, resolveRequestedSlug, redirectLookupPath } from "./pages/request-policy.js";
+import { withListingBatch } from "./pages/listing/listing-batch.js";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
@@ -2215,29 +2215,6 @@ async function resolveHomePageContent({ deps, memberAccessResolver, memberContex
 function rewriteToListingPage({ req, pagePath }: { req: Request; pagePath: string }, _optional: Record<string, never> = {}): void {
   const queryStart = req.url.indexOf("?");
   req.url = pagePath + (queryStart === -1 ? "" : req.url.slice(queryStart));
-}
-
-/** One port/stylesheet collector per request, including nested template renders. */
-function pluginExportSession({ deps, req }: { deps: RouteDeps; req: Request }, _options = {}) {
-  const mode = typeof req.header === "function" && isStaticExportRequest(req) ? "static" : "live";
-  return deps.pluginExports?.forRender({ mode });
-}
-
-/** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
-function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
-  deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
-  const listingBatch = listingBatchRequestOf({ req });
-  const listingPage = listingPageRequestOf({ req })?.page;
-  const pluginExportRender = pluginExportSession({ deps, req });
-  const declaredScripts: import('@jini-ai/cookie-consent').DeclaredScript[] = [];
-  const renderAssets = req.res?.locals?.siteConsentAssets as RouteDeps['documentAssets'];
-  const documentAssets: RouteDeps['documentAssets'] = renderAssets ? ({ scripts, ...options }) => renderAssets({ scripts: [...scripts, ...declaredScripts], ...options }) : undefined;
-  const commentsCursor = typeof req.query?.commentCursor === 'string' ? req.query.commentCursor : undefined;
-  // A static export/static-publish has no `/api/site/comments` to post to, and a snapshot would keep a
-  // comment public after it is trashed: like the assistant bubble, it ships an empty comments surface.
-  // (`req.header` is absent only on the route tests' direct handler calls.)
-  if (typeof req.header === 'function' && isStaticExportRequest(req)) return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, declaredScripts, documentAssets, commentsProviders: undefined };
-  return { ...deps, pluginExportRender, listingBatch, listingPage, commentsCursor, declaredScripts, documentAssets };
 }
 
 /** A batch request whose page has no such listing: restore the batch URL and fall through to the 404.
