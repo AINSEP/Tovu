@@ -1679,5 +1679,236 @@
   "tests": [
    "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
   ]
+ },
+ {
+  "id": "RR1",
+  "what": "pack does not reset the skipped list",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "      skipped.length = 0;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR2",
+  "what": "row cap off by one (201 allowed -> 200 refused)",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "selection.length > BACKSTOP_LIMITS.rows",
+  "replace": "selection.length >= BACKSTOP_LIMITS.rows",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR3",
+  "what": "missing-row reason reworded",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "\"The selected row no longer exists.\"",
+  "replace": "\"The row is gone.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR4",
+  "what": "pack reads a covered table instead of skipping it",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "?? blockedTable({ table: selected.table });",
+  "replace": ";",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR5",
+  "what": "skipped label dropped",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "label: id, reason",
+  "replace": "label: \"\", reason",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR6",
+  "what": "inspect throws a read failure",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "try { row = await port.read(address); } catch { return null; }",
+  "replace": "row = await port.read(address);",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR7",
+  "what": "inspect no longer refuses private live columns",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "if (checkRawTable({ table: row.table, columns: row.columns.map((c) => c.name) })) return null;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR8",
+  "what": "version derived from fewer hash digits",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "rowHash(row).slice(0, 12), 16)",
+  "replace": "rowHash(row).slice(0, 11), 16)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR9",
+  "what": "gateway-not-wired message reworded",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "\"The raw row command gateway is not wired.\"",
+  "replace": "\"Gateway missing.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR10",
+  "what": "apply does not require the outbox",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "!port || !changeSets || !authorize || !outbox",
+  "replace": "!port || !changeSets || !authorize",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR11",
+  "what": "second precheck inside the transaction removed",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "const freshReason = await precheck({ entity: input.entity });",
+  "replace": "const freshReason: string | null = null as string | null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR12",
+  "what": "inverse records no prior row",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "before: prior, afterHash",
+  "replace": "before: null, afterHash",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR13",
+  "what": "OCC ignores a version mismatch on update",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "prior === null || rowVersion(prior) !== input.expectedVersion",
+  "replace": "prior === null",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR14",
+  "what": "OCC lets a create overwrite an existing row",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "input.expectedVersion === undefined ? prior !== null :",
+  "replace": "input.expectedVersion === undefined ? false :",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR15",
+  "what": "rollback of a create does not remove the row",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "else await port.removeCreated(incoming); },",
+  "replace": "},",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR16",
+  "what": "workspace_id of another workspace accepted",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "Object.hasOwn(values, \"workspace_id\") &&",
+  "replace": "false &&",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR17",
+  "what": "listSkipped hands out the live list",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "listSkipped: async () => [...skipped],",
+  "replace": "listSkipped: async () => skipped,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR18",
+  "what": "inspect reads a covered table",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "if (!address || !port || blockedTable({ table: address.table })) return null;",
+  "replace": "if (!address || !port) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR19",
+  "what": "per-run command key dropped",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "dependsOn: [], idempotencyScope: \"run\",",
+  "replace": "dependsOn: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR20",
+  "what": "handler permission changed",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "permission: \"publish.backstop\", dependsOn",
+  "replace": "permission: \"publish.other\", dependsOn",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR21",
+  "what": "first precheck of apply removed",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "      const reason = await precheck({ entity: input.entity });\n      if (reason) throw new PublishContentApplyRowError({ rowOutcome: \"blocked\", message: reason });\n      const { changeSets",
+  "replace": "      const { changeSets",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR22",
+  "what": "pack with no port does not return early",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "      if (!port) return;\n      const selection",
+  "replace": "      const selection",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR23",
+  "what": "non-refusal read failure swallowed in pack",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "        if (!(error instanceof BackstopRefusal)) throw error;\n        readReason",
+  "replace": "        readReason",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts"
+  ]
  }
 ]
