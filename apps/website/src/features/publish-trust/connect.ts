@@ -1,4 +1,4 @@
-import { isContainedDeployConfigPath } from "../deployments/index.js";
+import { isContainedDeployConfigPath } from "@jini-ai/devops/deploy";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort } from "#src/features/webhooks/index";
 
