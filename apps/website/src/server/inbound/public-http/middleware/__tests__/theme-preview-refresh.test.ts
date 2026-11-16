@@ -361,7 +361,10 @@ test("preview reload writes a fresh refresh frame, and a themes path that cannot
   const detail = entry[1] as { errorId: string; diagnostic: string };
   assert.equal(detail.errorId, body.errorId);
   assert.match(detail.diagnostic, /boom/);
-  assert.match(detail.diagnostic, /theme-preview-refresh\.test\.ts/);
+  // The native stack is kept. The handler resumes after an await, so no frame of this test file is on it any
+  // more; the failing call chain inside the product is the proof.
+  assert.match(detail.diagnostic, /at requestThemePreviewRefresh \(.*preview-refresh\.ts/);
+  assert.match(detail.diagnostic, /at handler \(.*theme-preview-refresh\.ts/);
   assert.doesNotMatch(detail.diagnostic, /SECRETSECRETSECRETSECRET/);
 });
 
