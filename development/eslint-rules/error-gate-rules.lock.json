@@ -1,0 +1,8 @@
+{
+  "source": "Jini scripts/eslint-rules/errors @ c187c983",
+  "files": {
+    "catch-reads-error.mjs": "71a726f03bc7e9d7e927a139dd9269a4fd9d30561bdafdc0a7fb47418ae27ddc",
+    "failure-text-from-catalog.mjs": "fd970e6c948a00ed0cb0fb34d286217d3819a9455d985c1cf4efd5a176383805",
+    "no-generic-failure-text.mjs": "f67ff8c0ebc2f5108ebb34142d7f994b663cbd6df454664b673f213db0ffac24"
+  }
+}

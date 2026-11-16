@@ -1,0 +1,2422 @@
+[
+  {
+    "file": "apps/admin/src/admin-themes/apply.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/App.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/components/AssistantDock/hooks/chat-package-kind.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/components/MediaPickerDialog/JiniMediaPicker.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/components/TemplateSource/use-template-source.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/analytics/hooks/use-analytics.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/auth/hooks/use-login.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/admin/src/features/collections/hooks/use-collections.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/collections/hooks/use-edit-fields-dialog.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/collections/hooks/use-json-field-control.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/collections/hooks/use-new-content-type-dialog.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/content-analysis/hooks/use-content-analysis.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/dashboard/hooks/use-dashboard.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/deployment/deployment-i18n.tsx",
+    "rule": "no-generic-failure-text",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 4
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/deployment/StaticSiteTab.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/email/email-tabs-i18n.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/email/hooks/email-load.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/admin/src/features/media/hooks/use-media-grid-size.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/media/hooks/use-media.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/admin/src/features/media/hooks/use-remote-image-import.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/media/media-providers-port.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/menus/hooks/use-menus.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/pages/hooks/use-editor-html-jump.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/pages/hooks/use-theme-pages.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/plugins/hooks/use-admin-surface-frame.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/providers/hooks/use-always-allow.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/roles/hooks/use-roles.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-copy-keys.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-site-key-recovery.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-site-key.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/security/hooks/use-site-key.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/security/security-i18n.ts",
+    "rule": "no-generic-failure-text",
+    "value": 23
+  },
+  {
+    "file": "apps/admin/src/features/security/SiteKeyTab.hooks.tsx",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/sites/sites-i18n.ts",
+    "rule": "no-generic-failure-text",
+    "value": 21
+  },
+  {
+    "file": "apps/admin/src/features/skills/skill-upload.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/skills/skill-upload.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/skills/use-skill-files.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/skills/use-skill-install.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/source-control/source-control-i18n.ts",
+    "rule": "no-generic-failure-text",
+    "value": 21
+  },
+  {
+    "file": "apps/admin/src/features/taxonomy/hooks/use-new-taxonomy-form.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/taxonomy/hooks/use-new-term-form.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/webmcp/browser-agent-settings.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/integrations/jini-admin/media-ports.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/api.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/api.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/assistant-agents-snapshot.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/assistant-daemon-activation.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/browser-stream.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/browser-telemetry.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/browser-working-directory-access.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/escape-owned-by-inner-layer.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/execution-settings.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/local-owner-signin.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/queued-daemon-start.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/server-reconnect.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/lib/settings-events.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/settings-tabs.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/app-version-ipc.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/desktop-agent-inventory.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/desktop-agent-service.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/desktop-mcp-http.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/desktop-memory-sampler.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/desktop-resources.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/external-site-stop.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/keyed-serializer.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/main/index.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/main/updates/product-telemetry-boot.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/move-to-applications.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/nested-sites-migration.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/owner-store-cli.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/desktop/src/owner-store-cli.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/owner-store-ipc.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/product-telemetry-ipc.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/product-telemetry-preference.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/project-delete-guard.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/project-ipc.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/project-ipc.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/renderer/product-telemetry.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/SharedKeys.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/site-theme-preview.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-find-in-page.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-import-website.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-live-views.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-site-list-prefs.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-site-preview.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-site-workspace.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 7
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-sites-inventory.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-sites-inventory.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/renderer/use-zoom.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/desktop/src/renderer/workspace-chat-transport.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/shared-sites.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/site-archive-import.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/desktop/src/site-config.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/site-config.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/site-dir-store.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/site-folders.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/site-name.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/site-preview-scheduler.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/site-preview-store.ts",
+    "rule": "catch-reads-error",
+    "value": 7
+  },
+  {
+    "file": "apps/desktop/src/site-process-registry.ts",
+    "rule": "catch-reads-error",
+    "value": 5
+  },
+  {
+    "file": "apps/desktop/src/site-relocation.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/site-theme-preview.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/desktop/src/smoke-bridge.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/smoke-packaged-chat.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/stage-payload-lib.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/stage-payload-run.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/tovu-server.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/desktop/src/tracked-sites.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/desktop/src/update-check-now.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/verify-package-cli.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/workspace-chat-ipc.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/site-chat/src/session-store.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/site-chat/src/site-assistant-errors.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/site-chat/src/site-assistant-transport.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/site-chat/src/site-assistant-transport.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/site-chat/src/site-chat-comparison.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/site-chat/src/tool-confirmation.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/site-chat/src/vanilla-host.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/admin-screen-link-tool.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/assistant-vault.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/cli-probe-cache.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/content-read-tool.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/external-mcp-connection-source.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/persistence/run-ledger.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/persistence/run-ledger.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/runtime-preferences.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/site/public-content.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/site/visitor-frontend-control.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/assistant/site/visitor-tool-budgets.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/tool-approval-policy.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/assistant/tool-search-keywords.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/cli/commands/agent-plugin-tokens.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/cli/commands/agent-plugin-tokens.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/deploy-config.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/import-local.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/import-local.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/init.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/init.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/owner-store.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/cli/commands/reset-owner.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/cli/commands/serve.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/contracts/core/model-facing-tool-errors.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/capability-projection.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/exports/runtime.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/exports/source.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/host-plugin-guidance.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/host-signals.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/install-upload.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/memory.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/provider-plugin-link.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/soon-lock.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/agent-plugins/supersession.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/analytics/forwarding.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/api-connections/vault-stores.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/comments/ip-hash-salt.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/comments/provider-selection.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/consent/service.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/consent/settings.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/custom-credentials/credential-recovery.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/custom-credentials/tool-registrations.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/database-transfer/destination-store.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/deployments/deploy-config-registry.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/features/deployments/deploy-ops/agent-tools.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/deployments/deploy-ops/registry.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/deployments/deploy-targets/host-kit.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/deployments/deploy-targets/host-kit.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/deployments/publish-agent-tools.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/deployments/publish-credentials/store.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/deployments/publish-credentials/store.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/deployments/static-publish/adapter.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/deployments/static-publish/domain-publish-tool.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/deployments/static-publish/inspection.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/deployments/static-publish/publish-run.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/deployments/static-publish/verify.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/email-templates/operations.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/email-templates/operations.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/external-mcp/tool-registrations.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/form-destinations/deliver.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/form-destinations/deliver.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/form-destinations/port.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/forms/protect-existing-files.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/forms/submission-ip-expiry-sweep.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/fs-files/custom-root-store.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/fs-files/site-file-request.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/identity/api-key-secret.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/identity/default-credential-exposure.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/identity/delete-user-service.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/identity/tool-registrations.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/mail-status/feedback-setup.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/mail-status/provider-operations.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/mail-status/test-send.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/mail-status/use-readiness.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/mail/retention.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/media-generation/media-provider-registry.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/media/analytics.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/media/chat-preview.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/media/content-type-resolution.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/media/read-chat-attachment.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/media/verify-published-media.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/media/view-image-tool.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/member-login/credentials.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/member-login/link-service.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/member-login/oidc-login.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/members/repo.memory.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/members/write-service.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/members/write-service.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/newsletter/launch-gate.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/newsletter/tool-registrations.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/plugin-runtime/install-source.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/plugin-runtime/install-source.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/plugin-runtime/lower-tool-access.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/post/go-live.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/post/preview-tool.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/presentation/set-active-theme.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/project-keys/attached-vault.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/apply-loop.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/composite-blob-source.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/connect-destination.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/publish-content/disconnect-tool.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/peer-transport.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/peers.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/peers.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/features/publish-content/publish-tool.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/publish-content/seed-hash.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/publish-content/ui/publish-order.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-trust/keys.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/publish-trust/publish-trust-revocations.ts",
+    "rule": "no-generic-failure-text",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/seo/cover-image.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/settings/operator-locale.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/settings/site-title-write.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/settings/visitor-tools-write.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/archive-media.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/archive-paths.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/backup-service.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/bundled-export-file-policy.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/import-restore-placement.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-backend.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-hosting.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-preparation-steps.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-registry.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-service.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-service.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/share-zip.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-backup/sources.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/site-backup/static-download-layout.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/site-backup/static-export-selection.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-export/export-html-policy.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-export/media-original-urls.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-export/public-origin-policy.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-guide/facts.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-inspection/live-url.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-inspection/published-page.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/site-inspection/published-page.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/sites/site-admin.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/sites/site-preview/site-preview-store.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/skills/layout.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/skills/layout.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/source-control/commit-site.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/source-control/provider-registry.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/source-control/store.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/source-control/store.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/source-control/tool-registrations.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/duplicate-theme.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/duplicate-theme.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/preview-refresh.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/publish-content.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/features/theme/set-active-theme-tool.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/theme-files.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/theme-files.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/features/theme/theme-preview-image.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/theme-roster-sync.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/theme/validation/validate-theme-package.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/trash/adapters/directory.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/vendor-credentials/vault-adapter.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/features/webhooks/secret-scan-guard.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/webhooks/site-key-ensure.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/features/webhooks/site-key-sources.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/db/journal-kernel.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/db/kernel/stopped-database.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/db/key-dependent-data.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/db/repos/media-repo.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/db/sqlite/content-db.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts",
+    "rule": "catch-reads-error",
+    "value": 8
+  },
+  {
+    "file": "apps/website/src/platform/db/vault-credential-inventory.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/platform/markdown/frontmatter.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/server-logs/console-tee.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/platform/server-logs/index.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/server-logs/log-buffer.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/server-logs/log-file.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/boot-site-dir.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/duplicate-content-db.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/duplicate-pglite-store.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/duplicate-site.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/init-site.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/init-site.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/key-only-site-meta.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/local-admin-bundle.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/local-site-child.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/local-site-supervisor.ts",
+    "rule": "catch-reads-error",
+    "value": 5
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/nested-sites-root.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/read-template.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/repair-site.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/repair-site.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/resolve-install-dir-target.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/site-key-dependent-data.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/site-registry.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/platform/site-dir/site-trash.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/admin-static.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/local-admin-request.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts",
+    "rule": "no-generic-failure-text",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/media/byte-size.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/media/put-providers.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/apply-report.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/settings/events.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/system/observability-status.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/system/site-key.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/create-term.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts",
+    "rule": "no-generic-failure-text",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/users/create.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/sea-runtime.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-idle-park.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/durable-run-routes.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/federation-reload-route.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/http/site/form-render.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/http/site/member-auth-script.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/http/site/page-head.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/published-webmcp.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/site-consent.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+    "rule": "catch-reads-error",
+    "value": 12
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/theme-static-assets.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/files.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/mail-feedback.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/members/complete-sign-in.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/members/me.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/members/sign-in.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/members/unlink-identity.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site-share.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/analytics-ingest.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/feed.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/feed.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/llms.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/llms.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts",
+    "rule": "no-generic-failure-text",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-confirm.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/newsletter-unsubscribe.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/product-checkout.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/robots.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/search.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/search.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/sitemap.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/sitemap.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/visitor-analytics.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/inbound/shared/async-route.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/boot/boot-readiness-warnings.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/boot/local-owner-signin.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/boot/mail-provider-catalog.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/boot/process-error-guards.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/runtime/boot/production-readiness-gate.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/boot/site-key-boot-notice.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/analytics-providers.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/app.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/browser-analytics-http.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/browser-analytics.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/build-release.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/commerce.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/deps.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/domain-dns-adapters.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant-chats.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
+    "rule": "catch-reads-error",
+    "value": 6
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant-tool-access-lowering.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/core.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/site-search.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/move-site-storage.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/other-site-keys.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/peer-site-reads.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/pending-agent-plugin-tokens.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/plugin-credential-cards.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/product-telemetry.ts",
+    "rule": "catch-reads-error",
+    "value": 5
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/project-store.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/provider-config-source.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/provider-plugins.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/publish-trust-grants.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/publish-trust-revocations.ts",
+    "rule": "no-generic-failure-text",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/registered-sites.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/site-consent.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/site-cookie-consent.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/site-key-recovery.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/storage-secret.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/storage-secret.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/tool-catalog-manifest.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/trash-user-tool-port.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/vault-boot.ts",
+    "rule": "catch-reads-error",
+    "value": 7
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/vault-boot.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 7
+  },
+  {
+    "file": "apps/website/src/server/runtime/lifecycle/boot-lifecycle.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts",
+    "rule": "catch-reads-error",
+    "value": 3
+  },
+  {
+    "file": "apps/website/src/server/runtime/lifecycle/local-site-process.ts",
+    "rule": "catch-reads-error",
+    "value": 4
+  },
+  {
+    "file": "apps/website/src/server/runtime/lifecycle/site-idle-park.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/services/external-mcp-probe.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  }
+]

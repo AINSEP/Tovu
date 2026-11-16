@@ -1,0 +1,379 @@
+[
+ {
+  "site": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1832",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    parsed = new URL(url);\n  } catch {\n    throw new Error(\"This link is not a valid https:// address, so it was not opened.\");\n  }"
+ },
+ {
+  "site": "apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts:36",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    new URL(url);\n  } catch {\n    return \"Enter an HTTP or HTTPS URL.\";\n  }"
+ },
+ {
+  "site": "apps/desktop/src/renderer/SharedKeys.hooks.ts:137",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 4,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n      secrets = JSON.parse(input.value);\n      if (!secrets || Array.isArray(secrets) || typeof secrets !== 'object' || !Object.values(secrets).every(value => typeof value === 'string')) throw new Error();\n    } catch { input.setCustomValidity('Enter a JSON object with secret field names and their new text values.'); input.reportValidity(); return; }"
+ },
+ {
+  "site": "apps/website/src/assistant/byok-meta-tool-result.ts:93",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 5,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    const parsed: unknown = JSON.parse(trimmed);\n    if (isRecord(parsed)) return { ok: true, input: parsed };\n    return { ok: false, message: \"'input' parsed as JSON but is not an object \u2014 send a JSON object of the tool's input fields.\" };\n  } catch {\n    return { ok: false, message: \"'input' must be a JSON object of the tool's input fields, not a plain string.\" };\n  }"
+ },
+ {
+  "site": "apps/website/src/assistant/credential-chat-intake.ts:7",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 1,
+  "findings": [],
+  "imports": [],
+  "code": "try { envelope = JSON.parse(contextRef); } catch { throw new Error(\"The run context must be a JSON object.\"); }"
+ },
+ {
+  "site": "apps/website/src/cli/commands/agent-plugin-tokens.ts:50",
+  "kind": "not-a-parse-refusal",
+  "note": "read-and-parse-in-one-try (stdin read failure reported as bad JSON)",
+  "expect": "flagged",
+  "catchLine": 3,
+  "findings": [
+   "3:catch-reads-error",
+   "4:failure-text-from-catalog"
+  ],
+  "imports": [],
+  "code": "try {\n    raw = JSON.parse(await read());\n  } catch {\n    throw new ValidationError({ message: \"init: --agent-plugin-tokens-stdin expects a JSON object on stdin\" });\n  }"
+ },
+ {
+  "site": "apps/website/src/cli/commands/import-local.ts:137",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 4,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    raw = JSON.parse(text) as typeof raw;\n    if (!raw || typeof raw !== \"object\" || Array.isArray(raw)) throw new Error(\"shape\");\n  } catch { throw new ValidationError({ message: \"import-local: stdin must contain one JSON request object.\" }); }"
+ },
+ {
+  "site": "apps/website/src/cli/commands/import-site.ts:32",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 1,
+  "findings": [],
+  "imports": [],
+  "code": "try { server = new URL(value); } catch { throw new ValidationError({ message: \"import: --server must be an admin server origin.\" }); }"
+ },
+ {
+  "site": "apps/website/src/cli/commands/import-site.ts:51",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 6,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    // `readPromptFromFlags` with `prompt-file: \"-\"` always yields the stdin text; a missing value\n    // would stringify to non-JSON or `null` and fail the shape check below, never parse as a request.\n    raw = JSON.parse(String(text)) as Record<string, unknown>;\n    if (!raw || typeof raw !== \"object\" || Array.isArray(raw)) throw new Error(\"shape\");\n  } catch { throw new ValidationError({ message: \"import: stdin must contain one JSON request object.\" }); }"
+ },
+ {
+  "site": "apps/website/src/cli/commands/init.ts:145",
+  "kind": "not-a-parse-refusal",
+  "note": "read-and-parse-in-one-try (stdin read failure reported as bad JSON)",
+  "expect": "flagged",
+  "catchLine": 3,
+  "findings": [
+   "3:catch-reads-error",
+   "4:failure-text-from-catalog"
+  ],
+  "imports": [],
+  "code": "try {\n    raw = JSON.parse(await readInput());\n  } catch {\n    throw new ValidationError({ message: \"init: --create-input-stdin expects a JSON object on stdin\" });\n  }"
+ },
+ {
+  "site": "apps/website/src/features/agent-plugins/analytics-provider-registry.ts:64",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    value = JSON.parse(required.raw);\n  } catch {\n    return { ok: false, reason: \"not valid JSON\" };\n  }"
+ },
+ {
+  "site": "apps/website/src/features/consent/config.ts:79",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 5,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    const parsed = new URL(url);\n    if (parsed.protocol !== 'https:') return 'Use a page on this site, like /privacy, or an https:// address.';\n    return parsed.username || parsed.password ? 'Remove the user name or password from the link.' : null;\n  } catch {\n    return 'Use a page on this site, like /privacy, or an https:// address.';\n  }"
+ },
+ {
+  "site": "apps/website/src/features/consent/readiness.ts:16",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 2,
+  "findings": [],
+  "imports": [],
+  "code": "try { const url = new URL(value, 'https://site.invalid'); return `${url.origin === 'https://site.invalid' ? '' : url.origin}${url.pathname}`.slice(0, 500); }\n  catch { return '[invalid resource URL]'; }"
+ },
+ {
+  "site": "apps/website/src/features/consent/request.ts:25",
+  "kind": "parse-refusal",
+  "note": "needs a reviewed pure helper",
+  "expect": "passes",
+  "catchLine": 2,
+  "findings": [],
+  "imports": [
+   "import { ToolInputError } from \"@jini-ai/core\";",
+   "import { resolveSameOriginPath } from \"#src/features/site-inspection/published-page\";"
+  ],
+  "code": "try { return resolveSameOriginPath({ raw: path, base: 'http://127.0.0.1' }); }\n  catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }"
+ },
+ {
+  "site": "apps/website/src/features/media-generation/media-provider-registry.ts:125",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    value = JSON.parse(raw);\n  } catch {\n    return { ok: false, reason: \"not valid JSON\" };\n  }"
+ },
+ {
+  "site": "apps/website/src/features/newsletter/unsubscribe.ts:78",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    return JSON.parse(Buffer.from(encoded, \"base64url\").toString(\"utf8\")) as UnsubscribeTokenClaims;\n  } catch {\n    throw new NewsletterUnsubscribeTokenInvalidError({ message: \"malformed unsubscribe token\", reason: \"signature_invalid\" });\n  }"
+ },
+ {
+  "site": "apps/website/src/features/publish-content/backstop-service.ts:116",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 2,
+  "findings": [],
+  "imports": [],
+  "code": "try { if (new URL(`https://${destinationHost}`).host !== destinationHost) throw new Error(); }\n  catch { throw new Error(\"This send has an invalid destination address.\"); }"
+ },
+ {
+  "site": "apps/website/src/features/publish-content/peer-url.ts:97",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    url = new URL(trimmed);\n  } catch {\n    return { error: \"baseUrl is not a parseable URL\" };\n  }"
+ },
+ {
+  "site": "apps/website/src/features/publish-trust/session.ts:146",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    payload = JSON.parse(Buffer.from(encoded, \"base64url\").toString(\"utf8\")) as PublishSessionPayload;\n  } catch {\n    return \"session token payload is not JSON\";\n  }"
+ },
+ {
+  "site": "apps/website/src/features/site-backup/import-backend-steps.ts:59",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 1,
+  "findings": [],
+  "imports": [],
+  "code": "try { url = new URL(required.url); } catch { refusal({ code: \"INVALID_INPUT\", message: \"url must be an HTTPS share URL.\" }); }"
+ },
+ {
+  "site": "apps/website/src/features/site-inspection/live-url.ts:36",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 1,
+  "findings": [],
+  "imports": [],
+  "code": "try { url = new URL(raw); } catch { throw new ToolInputError({ message: \"fetch_live_url: a saved live address is invalid. Correct the publishing address and retry.\" }); }"
+ },
+ {
+  "site": "apps/website/src/features/site-inspection/live-url.ts:98",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 2,
+  "findings": [],
+  "imports": [],
+  "code": "try { next = new URL(location, current); }\n  catch { throw new ToolInputError({ message: \"fetch_live_url: the live site returned an invalid redirect address. Check the hosting service before retrying.\" }); }"
+ },
+ {
+  "site": "apps/website/src/features/theme/tool-registrations.ts:142",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n    next = JSON.parse(content);\n  } catch {\n    throw new ThemeFileReadOnlyError({ message: \"a compiled release's write boundary is read-only and requires a valid theme.json\" });\n  }"
+ },
+ {
+  "site": "apps/website/src/features/web-screenshot/web-screenshot.ts:142",
+  "kind": "parse-refusal",
+  "expect": "passes",
+  "catchLine": 1,
+  "findings": [],
+  "imports": [],
+  "code": "try { url = new URL(raw); } catch { throw refusal({ message: \"url must be an absolute http(s) URL, e.g. https://example.com/about.\" }); }"
+ },
+ {
+  "site": "apps/website/src/server/inbound/assistant/durable-run-routes.ts:19",
+  "kind": "validator-reads-filesystem",
+  "note": "the design lists this validator as a pure helper; it reaches existsSync and statSync, so it is not on the reviewed list",
+  "expect": "flagged",
+  "catchLine": 2,
+  "findings": [
+   "2:catch-reads-error"
+  ],
+  "imports": [
+   "import { redactAdminRunContextRef, UNKNOWN_MUTATION_ERROR, RUN_PRINCIPAL_HEADER, } from \"#src/assistant/session-services\";"
+  ],
+  "code": "try { body.contextRef = redactAdminRunContextRef({ contextRef: body.contextRef }, {}); }\n      catch { res.status(400).json({ error: \"The run context must be a JSON object.\", code: \"VALIDATION_ERROR\" }); return; }"
+ },
+ {
+  "site": "apps/website/src/server/runtime/boot/local-owner-signin.ts:81",
+  "kind": "parse-refusal",
+  "note": "needs a reviewed pure helper",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [],
+  "imports": [
+   "import { isLoopbackHost, resolveBindHost } from \"./bind-host.js\";"
+  ],
+  "code": "try {\n    if (!isLoopbackHost({ host: resolveBindHost({ raw: env.TOVU_HOST, fallback: undefined }) })) return \"listener is not loopback-only\";\n  } catch { return \"listener address is invalid\"; }"
+ },
+ {
+  "site": "apps/website/src/server/runtime/boot/local-owner-signin.ts:90",
+  "kind": "parse-refusal",
+  "note": "needs a reviewed pure helper",
+  "expect": "passes",
+  "catchLine": 4,
+  "findings": [],
+  "imports": [],
+  "code": "try {\n      const url = new URL(env.TOVU_PUBLIC_URL);\n      if (!isLocalAdminUrl({ url })) return \"public origin is not loopback\";\n    } catch { return \"public origin is invalid\"; }"
+ },
+ {
+  "site": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts:427",
+  "kind": "validator-reads-filesystem",
+  "note": "the design lists this validator as a pure helper; it reaches existsSync and statSync, so it is not on the reviewed list",
+  "expect": "flagged",
+  "catchLine": 2,
+  "findings": [
+   "2:catch-reads-error"
+  ],
+  "imports": [
+   "import { readPickedFolders, readRunPageContext, withPageContextBlock } from \"#src/assistant/run-page-context\";"
+  ],
+  "code": "try { folders = readPickedFolders({ value: body.folders }, {}); }\n  catch { res.status(400).json({ error: \"Invalid picked folders\", code: \"VALIDATION_ERROR\" }); return null; }"
+ },
+ {
+  "site": "apps/website/src/server/runtime/composition/modules/assistant-chats.ts:251",
+  "kind": "validator-reads-filesystem",
+  "note": "the design lists this validator as a pure helper; it reaches existsSync and statSync, so it is not on the reviewed list",
+  "expect": "flagged",
+  "catchLine": 2,
+  "findings": [
+   "2:catch-reads-error"
+  ],
+  "imports": [
+   "import { readPickedFolders } from \"#src/assistant/run-page-context\";"
+  ],
+  "code": "try { readPickedFolders({ value: body.folders }, {}); }\n        catch { res.status(400).json({ error: \"Invalid picked folders\", code: \"VALIDATION_ERROR\" }); return; }"
+ },
+ {
+  "site": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:166",
+  "kind": "idiom-site",
+  "note": "idiom site: observed",
+  "expect": "flagged",
+  "catchLine": 1,
+  "findings": [
+   "1:catch-reads-error"
+  ],
+  "imports": [],
+  "code": "await loader.load().catch(() => {});"
+ },
+ {
+  "site": "apps/admin/src/integrations/jini-admin/media-ports.ts:131",
+  "kind": "idiom-site",
+  "note": "idiom site: afterSettled",
+  "expect": "flagged",
+  "catchLine": 1,
+  "findings": [
+   "1:catch-reads-error"
+  ],
+  "imports": [],
+  "code": "writes = operation.catch(() => undefined);"
+ },
+ {
+  "site": "apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:102",
+  "kind": "idiom-site",
+  "note": "idiom site: orFallback",
+  "expect": "flagged",
+  "catchLine": 1,
+  "findings": [
+   "1:catch-reads-error"
+  ],
+  "imports": [],
+  "code": "const body = (await response?.json().catch(() => null) ?? {}) as { code?: unknown; message?: unknown; credentialWarnings?: unknown };"
+ },
+ {
+  "site": "apps/desktop/src/renderer/workspace-chat-transport.ts:396",
+  "kind": "idiom-site",
+  "note": "idiom site: bestEffort",
+  "expect": "flagged",
+  "catchLine": 1,
+  "findings": [
+   "1:catch-reads-error"
+  ],
+  "imports": [],
+  "code": "if (alreadyDetached) void bridge.chatDetach({ subscriptionId }).catch(() => {});"
+ },
+ {
+  "site": "apps/website/src/server/inbound/admin-http/routes/consent/routes.ts:34",
+  "kind": "failure-text",
+  "note": "fixed words in a 5xx answer",
+  "expect": "passes",
+  "catchLine": 5,
+  "findings": [
+   "9:no-generic-failure-text",
+   "10:failure-text-from-catalog"
+  ],
+  "imports": [],
+  "code": "try {\n        const principal = getAuthedPrincipal(res);\n        if (!await authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: principal.id, workspaceId: deps.workspaceId, permission: write ? 'settings.workspace.write' : 'settings.read', entityType: 'site-consent' } })) return;\n        res.json(await run({ req, principalId: principal.id }));\n      } catch (error) {\n        if (error instanceof ToolInputError) { res.status(400).json({ code: 'CONSENT_VALIDATION_FAILED', error: error.message }); return; }\n        if (error instanceof SiteConsentConflict) { res.status(409).json({ code: 'CONSENT_REVISION_CONFLICT', error: error.message }); return; }\n        if (error instanceof ForbiddenError) { res.status(403).json({ code: 'FORBIDDEN', error: 'Permission to access cookie consent was denied.' }); return; }\n        console.error('[consent-admin] operation failed');\n        res.status(503).json({ code: 'CONSENT_UNAVAILABLE', error: 'Cookie consent settings are unavailable. Published enforcement remains in place.' });\n      }"
+ },
+ {
+  "site": "apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts:92",
+  "kind": "failure-text",
+  "note": "fixed words in a 5xx answer",
+  "expect": "passes",
+  "catchLine": 3,
+  "findings": [
+   "5:failure-text-from-catalog"
+  ],
+  "imports": [],
+  "code": "try {\n    if (!fs.statSync(directory).isDirectory()) throw new DirectoryUserConfigRefusal({ message: \"Sites folder must be a directory.\" });\n  } catch (error) {\n    if ((error as NodeJS.ErrnoException).code !== \"ENOENT\") throw error;\n    if (required || !fs.existsSync(path.dirname(directory))) throw new DirectoryUserConfigRefusal({ message: `Sites folder is unavailable: ${directory}. Mount it or choose an existing local folder.` });\n  }"
+ },
+ {
+  "site": "apps/admin/src/features/auth/hooks/use-login.hooks.ts:63",
+  "kind": "failure-text",
+  "note": "fixed words put into state",
+  "expect": "passes",
+  "catchLine": 2,
+  "findings": [
+   "4:failure-text-from-catalog"
+  ],
+  "imports": [],
+  "code": "try { return await execute(); }\n    catch (err) {\n      setFailure(loginFailure({ err, secrets }));\n      throw err instanceof Error ? err : new Error(\"Sign-in could not finish. Try signing in again.\");\n    }"
+ }
+]
