@@ -13,8 +13,8 @@ import {
   buildSkillToolRegistrations,
   loadInstalledSkillToolSources,
   registerInstalledSkillTools,
-  skillToolDerivedRisk,
 } from "../../tool-registrations.js";
+import { skillToolDerivedRisk } from "@jini-ai/agentic/skills/tools";
 
 /**
  * @file The tool-registration path for standalone Agent Skills — registers each installed skill
@@ -282,7 +282,7 @@ test("skillToolDerivedRisk classifies every source as 'none' — a pure local re
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const risk = skillToolDerivedRisk(sources);
+    const risk = skillToolDerivedRisk({ sources });
     assert.equal(risk.get("skill_code_review"), "none");
   });
 });
