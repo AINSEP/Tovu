@@ -6,7 +6,7 @@ import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { RouteDeps } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
-import { serveVirtualPage } from "./pages.js";
+import { serveVirtualPage } from "./pages/handlers/virtual-page.js";
 
 const CODE_REQUEST_VIEW = "code-request";
 
