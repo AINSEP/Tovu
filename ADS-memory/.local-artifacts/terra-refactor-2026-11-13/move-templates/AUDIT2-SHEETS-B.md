@@ -14,6 +14,7 @@ Written against Tovu `integ/wave-b` 10378809 and Jini `integ/wave-b` ab8711ed by
 | B26 | SPLIT | `split-B26-plugin-host-helpers.md` | S1 module importer, S2 access lowering, S3 widget partials (independent) | Sonnet (S1 + Opus read of containment) | Tovu edits after R-BARRELS (host-binding.ts, pages.ts, plugin-runtime.ts, host-tool-binding.ts); Jini side startable now | READY (Tovu after R-BARRELS); S2/S3 low ROI, skippable | S1 70k, S2 35k, S3 40k |
 | B31 | SPLIT | `split-B31-artifact-provider-selection.md` | 1 (2 commits: Jini, Tovu) | Sonnet | Jini now; Tovu after R-BARRELS + C3 + C4 (`deps.ts:3028`, `index.ts:4`) | READY (Tovu after those lanes) | 40k |
 | B33 | SPLIT | `split-B33-skills-install-handler.md` | 1 (2 commits: Jini, Tovu) | Sonnet | Jini now; Tovu after R-BARRELS + C3 (`install-tool.ts` in both); row 63 sheet must not move the handler | READY (Tovu after those lanes) | 60k |
+| B28 | SPLIT | `split-B28-schema-identity-comparators.md` | 1 (2 commits: Jini, Tovu) | Sonnet | Jini now; Tovu after C3 (`database-introspection-adapter.sqlite.ts` in C3t) | READY (Tovu after C3) | 50k |
 | B09 | SPLIT | `split-B09-root-key-provisioning.md` | S1-S3 | S1 Sonnet; S2 Opus | row 57 keyring/sealer parity (no sheet yet), ports | PARTIAL: S1 specified, S2/S3 design | S1 50k, S2 200k, S3 60k |
 | B12 | HARDEN | `harden-B12-form-delivery-source-gone.md` | 1 (2 commits) | Sonnet | after wave B merge (C3 touches `form-delivery.ts`); red-first test written in the sheet | READY (after wave B merge) | 45k |
 
