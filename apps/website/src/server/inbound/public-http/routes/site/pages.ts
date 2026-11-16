@@ -41,27 +41,7 @@ import { isStandaloneThemePage, type DiscoveredTheme } from "#src/features/theme
 import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "#src/features/theme/entry-list-render";
 import { expandPartials } from "../../../../../contracts/core/expand-partials.js";
 import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import {
-  assignListingKeys,
-  extractListingBatch,
-  extractListingCardTemplate,
-  injectListingScript,
-  listingBatchPath,
-  listingKeyOfAttributes,
-  parseListingBatchPath,
-  parseListingPagePath,
-  readListingBatch,
-  readListingPage,
-  renderListingPageNav,
-  renderListingBatchDocument,
-  renderListingMore,
-  type ListingBatchRequest,
-  type ListingPageRequest,
-  type ListingJsonPage,
-  type ListingSource,
-} from "@jini-ai/cms/listing";
-import { postAuthorForDisplay } from "#src/contracts/core/post-author";
-import { extractPlainTextFromHtml } from "#src/features/post/rendering";
+import { assignListingKeys, extractListingCardTemplate, injectListingScript, listingBatchPath, listingKeyOfAttributes, parseListingBatchPath, parseListingPagePath, readListingBatch, readListingPage, renderListingPageNav, renderListingMore, type ListingSource } from "@jini-ai/cms/listing";
 import { comparePostsByDisplayDate, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
@@ -72,12 +52,11 @@ import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import { type RouteTarget } from '@jini-ai/cms/routing';
-import { deriveExcerpt, resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
+import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { findBoundMenu, resolveMenuDoc } from "@jini-ai/cms/navigation";
 import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "@jini-ai/cms/navigation";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/bootstrap";
-import type { AssignedTermView } from "#src/features/taxonomy/contracts";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
 import { renderSite } from "../../http/site/render-site.js";
 import { decodeFormSubmissionResultFromQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, mergeFormFlashIntoResult, FORM_FLASH_COOKIE_NAME, type FormSubmissionRedirectResult } from "../../http/site/form-render.js";
@@ -100,6 +79,7 @@ import { asyncRoute } from "../../../shared/async-route.js";
 import type { ContentMarkerResolutionDeps, TemplateRenderDeps, RenderContextResolutionDeps, SiteRequestDeps, PostPreviewsAccess } from "./pages/render-context/deps.js";
 import { resolveAssignedTermsForRender, placeAfterCurrentContent } from "./pages/render-context/taxonomy.js";
 import { resolveSiteTitleForRender, siteTimeZoneDep, htmlEmbedHostDeps, resolveSiteTimeZoneForRender } from "./pages/render-context/site-title.js";
+import { type KeyedPostPreviewBatch, storeListingJsonPage, listingBatchBody, recordListingBatchRequest, listingBatchRequestOf, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError, assertListingPageServed } from "./pages/listing/listing-state.js";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
@@ -2158,10 +2138,6 @@ async function readPagedPostPreviews({ deps, markers, source, isVisible, pagePat
   return { posts: page.items, nav: renderListingPageNav({ page }) };
 }
 
-/** One see-more listing's visible posts, the cursor of its next batch (`null` when none), and that
- *  batch's URL. */
-interface KeyedPostPreviewBatch { posts: readonly PostRecord[]; next: number | null; nextHref?: string }
-
 /** The widest batch size among plain (non-see-more, non-paged) post-previews markers; `0` when every
  *  marker is a see-more or paged listing. @complexity O(m) over markers. */
 function widestPlainPostPreviewsLimit(markers: readonly EmbedMarker[]): number {
@@ -2203,51 +2179,6 @@ function toKeyedPostPreviewBatch({ batch, marker, key, pagePath }: {
   if (!batch.hasMore) return { posts: batch.items, next: null };
   const format = extractListingCardTemplate({ html: marker.inner }) === undefined ? {} : { format: "json" as const };
   return { posts: batch.items, next: batch.next, nextHref: listingBatchPath({ pagePath, key, after: batch.next, ...format }) };
-}
-
-/** For a `.json` see-more request, records that listing's batch as JSON items for
- *  `finalizePublicPageHtml` to send; a no-op for every other request. */
-async function storeListingJsonPage({ deps, keyed, toPreview }: {
-  deps: Pick<RouteDeps, "workspaceId" | "entryTermReadRepo"> & Pick<TemplateRenderDeps, "listingBatch">;
-  keyed: ReadonlyMap<number, KeyedPostPreviewBatch>;
-  toPreview: (post: PostRecord) => StaticPostPreview;
-}): Promise<void> {
-  const jsonRequest = deps.listingBatch?.format === "json" ? deps.listingBatch : undefined;
-  const jsonBatch = jsonRequest && keyed.get(jsonRequest.key);
-  if (!jsonRequest || !jsonBatch) return;
-  const items = await Promise.all(jsonBatch.posts.map(async (post) => toListingJsonItem({ post, preview: toPreview(post), terms: await resolveAssignedTermsForRender(deps, post) })));
-  listingJsonPages.set(jsonRequest, { items, nextCursor: jsonBatch.next });
-}
-
-/** One post as a see-more JSON batch item: public fields only, the same ones its card shows plus the
- *  excerpt, term names and a byline the post shows. */
-interface ListingJsonItem {
-  readonly title: string;
-  readonly href: string;
-  readonly date: string;
-  readonly dateLabel: string;
-  readonly excerpt?: string;
-  readonly cover: StaticFeaturedImage | null;
-  readonly terms: readonly string[];
-  readonly author?: string;
-}
-
-function toListingJsonItem(
-  { post, preview, terms }: { post: PostRecord; preview: StaticPostPreview; terms: readonly AssignedTermView[] },
-  _optional: Record<string, never> = {}
-): ListingJsonItem {
-  const excerpt = deriveExcerpt({ post, postRepo: { extractPlainText: ({ html }) => extractPlainTextFromHtml({ html }) } });
-  const author = postAuthorForDisplay({ post });
-  return {
-    title: preview.title,
-    href: preview.href,
-    date: preview.dateIso,
-    dateLabel: preview.dateLabel,
-    ...(excerpt !== undefined ? { excerpt } : {}),
-    cover: preview.featuredImage ?? null,
-    terms: terms.map((term) => term.termName),
-    ...(author !== null ? { author } : {}),
-  };
 }
 
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
@@ -2370,27 +2301,6 @@ async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Re
   } }, {}), workspaceId: deps.workspaceId });
 }
 
-/** The body for a see-more batch request, or undefined when this is an ordinary page request.
- * @throws ListingBatchNotFoundError when the requested batch is not on this page.
- */
-function listingBatchBody({ req, html }: { req: Request; html: string }, _optional: Record<string, never> = {}): string | undefined {
-  // A see-more batch URL answers with just that listing's next items, not the page around them.
-  const listingBatch = listingBatchRequests.get(req);
-  if (listingBatch?.format === "json") {
-    const page = listingJsonPages.get(listingBatch);
-    if (page === undefined) throw new ListingBatchNotFoundError();
-    // Every caller has already typed the response as html; the JSON form answers as JSON.
-    req.res?.type("json");
-    return JSON.stringify(page);
-  }
-  if (listingBatch !== undefined) {
-    const batch = extractListingBatch({ html, key: listingBatch.key });
-    if (batch === undefined) throw new ListingBatchNotFoundError();
-    return renderListingBatchDocument({ key: listingBatch.key, ...batch });
-  }
-  return undefined;
-}
-
 /**
  * Content-owned homepage (SPEC-0XX) — looks up the published row currently claiming the reserved
  * `"/"` slug (`post.ts`'s `ROOT_SLUG`), the mechanism that lets `GET /` render a real, authored Page
@@ -2421,51 +2331,11 @@ async function resolveHomePageContent({ deps, memberAccessResolver, memberContex
   return decidePostMemberAccess({ resolver: memberAccessResolver, post: found.post, context: memberContext }).allowed ? found.post : undefined;
 }
 
-/** See-more batch requests by request, set by the `/_more/` rewrite in {@link registerSiteRoutes}. */
-const listingBatchRequests = new WeakMap<Request, ListingBatchRequest>();
-
-/** A `.json` batch request's page, recorded by the post-previews resolver for that request's key. */
-const listingJsonPages = new WeakMap<ListingBatchRequest, ListingJsonPage<ListingJsonItem>>();
-
-/** Numbered listing page requests by request, set by the `/page/<n>` rewrite in {@link registerSiteRoutes}.
- *  `requestPath` is the path as requested, before the rewrite pointed `req.url` at its page. */
-const listingPageRequests = new WeakMap<Request, ListingPageRequest & { requestPath: string }>();
-
-/** Records `req` as a see-more batch request (the `/_more/` rewrite). */
-function recordListingBatchRequest({ req, listingBatch }: { req: Request; listingBatch: ListingBatchRequest }, _optional: Record<string, never> = {}): void {
-  listingBatchRequests.set(req, listingBatch);
-}
-
-/** The see-more batch request recorded for `req`, if any. */
-function listingBatchRequestOf({ req }: { req: Request }, _optional: Record<string, never> = {}): ListingBatchRequest | undefined {
-  return listingBatchRequests.get(req);
-}
-
-/** Records `req` as a numbered listing page request, with the path as requested (the `/page/<n>` rewrite). */
-function recordListingPageRequest({ req, listingPage }: { req: Request; listingPage: ListingPageRequest }, _optional: Record<string, never> = {}): void {
-  listingPageRequests.set(req, { ...listingPage, requestPath: req.path });
-}
-
-/** The numbered listing page request recorded for `req`, if any. */
-function listingPageRequestOf({ req }: { req: Request }, _optional: Record<string, never> = {}): (ListingPageRequest & { requestPath: string }) | undefined {
-  return listingPageRequests.get(req);
-}
-
 /** The path redirect rules are matched against: a `/page/<n>` request's own URL, never the page its
  *  rewrite points at (A-1, 2026-10-22). Matching the rewritten path made a rule on `/old/page/3` (a
  *  WordPress import's numbered archive) never fire, and a rule on `/old` catch every `/old/page/<n>`. */
 function redirectLookupPath({ req }: { req: Request }, _optional: Record<string, never> = {}): string {
   return listingPageRequestOf({ req })?.requestPath ?? req.path;
-}
-
-/** The page behind a batch URL has no see-more listing with that key, or the page behind a
- *  `/page/<n>` URL has no paged listing reaching page `n`: answered as a 404. */
-class ListingBatchNotFoundError extends Error {}
-
-/** A `/page/<n>` request whose page rendered no paged listing nav (n ≥ 2 always has one) would
- *  otherwise answer as a duplicate of the page itself: it is a 404 instead. @complexity O(html). */
-function assertListingPageServed({ req, html }: { req: Request; html: string }, _optional: Record<string, never> = {}): void {
-  if (listingPageRequests.has(req) && !html.includes('class="jini-pagination"')) throw new ListingBatchNotFoundError();
 }
 
 /** Points a listing URL's request at its page (keeping any query) so the `/` and `/:slug` handlers
