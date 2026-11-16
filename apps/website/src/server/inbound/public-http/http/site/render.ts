@@ -42,13 +42,13 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { postAuthorForContentHeader } from "#src/features/theme/static-render";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
-import { safeHref, safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url";
+import { safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url";
 import { safeLanguageClass } from "#src/platform/html/style-values";
 import { resolveEmbedHtmlAttributes, omitKey, formatHtmlAttributes, NO_MARKER_ATTRIBUTES } from "./render/doc/html-attributes.js";
 import { renderImageTag, renderVideoTag } from "./render/doc/media-tags.js";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
-import { isObject, str, arr, obj } from "./render/value-readers.js";
+import { isObject, str } from "./render/value-readers.js";
 import { renderMarks } from "./render/doc/marks.js";
 import { headingAnchorId, dedupeHeadingIds, styleForAlign, alignStyleAttr, tableCellAlignAttr, tableSpanAttrs } from "./render/doc/text-layout.js";
 import { WIDGET_PLACEHOLDER_IR, renderWidgetPlaceholder } from "./render/widgets/placeholder.js";
@@ -57,6 +57,7 @@ import { renderWidgetMenu } from "./render/widgets/menu.js";
 import { renderWidgetContactForm } from "./render/contact-form-widget.js";
 import { mediaPlaceholder } from "./render/media-placeholder.js";
 import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
+import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -825,17 +826,6 @@ export function renderDocBodyAsPageHtml({ bodyJson }: { bodyJson: unknown }, _op
 
 type Component = (ctx: SiteRenderContext, props: JsonObject) => string;
 
-function siteHeader(ctx: SiteRenderContext, props: JsonObject): string {
-  const compact = props.compact === true;
-  const tagline = !compact && typeof props.tagline === "string"
-    ? `<p class="tagline">${escapeHtml({ text: props.tagline })}</p>`
-    : "";
-  // No admin link: under no-theme this header is the site's primary, public-facing output — every
-  // visitor sees it — so advertising the admin panel's URL here would hand it to anyone who looks.
-  // An operator who deliberately turned the theme off already knows where their own admin lives.
-  return `<header class="site-header"><div class="wrap"><a class="wordmark" href="/">${escapeHtml({ text: ctx.siteTitle })}</a>${tagline}<nav class="site-nav"><a href="/">Home</a></nav></div></header>`;
-}
-
 function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   const layout = typeof props.layout === "string" ? props.layout : "index";
   // Home pages its already-visible posts as see-more listing 1; numbering continues from `after`.
@@ -1188,84 +1178,6 @@ function entryContent(ctx: SiteRenderContext): string {
   const bylineSeparator = date ? " · " : "";
   const byline = author ? `${bylineSeparator}<span class="post-author">By ${escapeHtml({ text: author })}</span>` : "";
   return `<div class="wrap"><a class="back" href="/">← ${escapeHtml({ text: ctx.siteTitle })}</a><article class="entry"><h1 class="entry-title">${escapeHtml({ text: ctx.post.title })}</h1><p class="entry-meta">${escapeHtml({ text: date })}${byline}</p><div class="prose">${renderPostBody({ ctx, post: ctx.post })}</div></article></div>`;
-}
-
-/**
- * The footer's "theme: <name>" badge, or nothing at all when the operator turned the theme off.
- *
- * Shared by BOTH footers deliberately. `siteFooter` and `richSiteFooter` each carried their own
- * copy of this span, so suppressing the badge in only the one that is easy to find would have left
- * a themeless site emitting `<span class="theme-badge">theme: </span>` — an empty badge — from the
- * other. One helper makes "both footers agree" structural instead of a thing two edits have to
- * preserve.
- */
-function themeBadge(ctx: SiteRenderContext): string {
-  if (ctx.themeName === null) return "";
-  return `<span class="theme-badge">theme: ${escapeHtml({ text: ctx.themeName })}</span>`;
-}
-
-function siteFooter(ctx: SiteRenderContext): string {
-  return `<footer class="site-footer"><div class="wrap"><span>${escapeHtml({ text: ctx.siteTitle })} — powered by Tovu</span>${themeBadge(ctx)}</div></footer>`;
-}
-
-/** Sticky nav bar with CSS-only hover dropdowns + a checkbox-driven mobile drawer (no JS). */
-function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
-  const brand = escapeHtml({ text: str({ value: props.brand }) || ctx.siteTitle });
-  const caret = '<svg class="caret" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
-  const items = arr({ value: props.items })
-    .map((it) => {
-      const o = obj({ value: it });
-      if (!o) return "";
-      const label = escapeHtml({ text: str({ value: o.label }) });
-      const href = escapeHtml({ text: safeHref({ value: o.href }) });
-      const children = arr({ value: o.children });
-      if (children.length) {
-        const sub = children
-          .map((c) => {
-            const co = obj({ value: c });
-            if (!co) return "";
-            return `<li><a href="${escapeHtml({ text: safeHref({ value: co.href }) })}">${escapeHtml({ text: str({ value: co.label }) })}</a></li>`;
-          })
-          .join("");
-        return `<li class="nav-item has-children"><a class="nav-link" href="${href}">${label}${caret}</a><ul class="nav-dropdown">${sub}</ul></li>`;
-      }
-      return `<li class="nav-item"><a class="nav-link" href="${href}">${label}</a></li>`;
-    })
-    .join("");
-  const cta = obj({ value: props.cta });
-  const ctaHtml = cta
-    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml({ text: safeHref({ value: cta.href }) })}">${escapeHtml({ text: str({ value: cta.label }, { fallback: "Get started" }) })}</a>`
-    : "";
-  return `<header class="site-header"><div class="wrap nav"><a class="brand" href="/">${brand}</a><input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu"/><label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label><nav class="nav-menu"><ul class="nav-list">${items}</ul>${ctaHtml}</nav></div></header>`;
-}
-
-/** Multi-column footer: brand blurb + socials, link columns, legal row. */
-function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
-  const brand = escapeHtml({ text: str({ value: props.brand }) || ctx.siteTitle });
-  const blurb = str({ value: props.blurb }) ? `<p class="footer__blurb">${escapeHtml({ text: str({ value: props.blurb }) })}</p>` : "";
-  const socials = arr({ value: props.social })
-    .map((s) => {
-      const o = obj({ value: s });
-      if (!o) return "";
-      return `<a class="footer__social" href="${escapeHtml({ text: safeHref({ value: o.href }) })}">${escapeHtml({ text: str({ value: o.label }) })}</a>`;
-    })
-    .join("");
-  const cols = arr({ value: props.columns })
-    .map((c) => {
-      const o = obj({ value: c });
-      if (!o) return "";
-      const links = arr({ value: o.links })
-        .map((l) => {
-          const lo = obj({ value: l });
-          if (!lo) return "";
-          return `<li><a href="${escapeHtml({ text: safeHref({ value: lo.href }) })}">${escapeHtml({ text: str({ value: lo.label }) })}</a></li>`;
-        })
-        .join("");
-      return `<div class="footer__col"><h4>${escapeHtml({ text: str({ value: o.title }) })}</h4><ul>${links}</ul></div>`;
-    })
-    .join("");
-  const legal = escapeHtml({ text: str({ value: props.legal }) || `© ${new Date().getFullYear()} ${str({ value: props.brand }) || ctx.siteTitle}` });
-  return `<footer class="site-footer site-footer--rich"><div class="wrap footer__top"><div class="footer__brandcol"><a class="brand" href="/">${brand}</a>${blurb}<div class="footer__socials">${socials}</div></div><div class="footer__cols">${cols}</div></div><div class="wrap footer__bottom"><span>${legal}</span>${themeBadge(ctx)}</div></footer>`;
 }
 
 /** Exported for `liquid-worker.ts`: the `render_block` Liquid tag (registered on the isolated worker's own engine) resolves against this same registry, so a Liquid theme and a declarative theme render identical output for the same component id. */
