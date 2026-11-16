@@ -1604,14 +1604,6 @@ export interface AdminPolicyPermission {
   constraintJson?: string | null;
 }
 
-/** SPEC-044 (Workspace Administration) — mirrors `apps/website/src/server/inbound/admin-http/http/workspace.ts`'s DTO. */
-export interface AdminWorkspace {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: string;
-}
-
 /**
  * Collections (ADR-022/ADR-043) — mirrors `Jini packages/cms/src/content-types/types.ts` +
  * `Jini packages/cms/src/entries/types.ts`. The 18 routes these types back were wired in the
@@ -2775,13 +2767,6 @@ export const api = {
     authenticatedAdminRequest<{ policyPermissions: AdminPolicyPermission[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions` }),
   removePolicyPermission: ({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }) =>
     authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}` }),
-
-  // SPEC-044 (Workspace Administration). Note the path shape here differs from every call above:
-  // `workspaces` IS the resource (no `/workspaces/${WORKSPACE_ID}/<sub-resource>` nesting) —
-  // `/workspaces` (list/create) and `/workspaces/:id` (get/update/delete), matching api.spec.md.
-  getWorkspace: () => authenticatedAdminRequest<{ workspace: AdminWorkspace }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}` }),
-  updateWorkspace: (options: { name?: string; slug?: string } = {}) =>
-    authenticatedAdminRequest<{ workspace: AdminWorkspace }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}`, body: options }),
 
   // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
   getSettingsEffective: ({ namespace }: { namespace: string }, options: { principalId?: string } = {}) => {

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { workspaceApi } from "../../features/workspace/api/workspace-api";
 import { onUnauthenticated } from "../admin-http/request";
 
 /**
@@ -97,7 +98,7 @@ test("getWorkspace GETs /workspaces/:id (workspace IS the resource, no sub-resou
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ workspace: { id: "workspace-local", name: "Tovu" } })
   );
-  await expect(api.getWorkspace()).resolves.toEqual({ workspace: { id: "workspace-local", name: "Tovu" } });
+  await expect(workspaceApi.getWorkspace()).resolves.toEqual({ workspace: { id: "workspace-local", name: "Tovu" } });
   expect(calls[0].url).toBe(BASE_WORKSPACE);
   expect(method()).toBe("GET");
 });
@@ -106,7 +107,7 @@ test("updateWorkspace PATCHes /workspaces/:id with the given options and resolve
   const { calls, method, body } = stubFetchCapturing(() =>
     jsonResponse({ workspace: { id: "workspace-local", name: "New Name" } })
   );
-  await expect(api.updateWorkspace({ name: "New Name" })).resolves.toEqual({
+  await expect(workspaceApi.updateWorkspace({ name: "New Name" })).resolves.toEqual({
     workspace: { id: "workspace-local", name: "New Name" },
   });
   expect(calls[0].url).toBe(BASE_WORKSPACE);
@@ -116,7 +117,7 @@ test("updateWorkspace PATCHes /workspaces/:id with the given options and resolve
 
 test("updateWorkspace sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateWorkspace();
+  await workspaceApi.updateWorkspace();
   expect(body()).toEqual({});
 });
 
@@ -151,11 +152,11 @@ test("a real 401 carrying code: UNAUTHENTICATED notifies every registered listen
   const unsubscribe = onUnauthenticated(listener);
   const unsubscribeSecond = onUnauthenticated(second);
   try {
-    await api.getWorkspace().catch(() => {});
+    await workspaceApi.getWorkspace().catch(() => {});
     expect(listener).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);
     unsubscribe();
-    await api.getWorkspace().catch(() => {});
+    await workspaceApi.getWorkspace().catch(() => {});
     expect(listener).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(2);
   } finally {
@@ -169,7 +170,7 @@ test("a 401 that does NOT carry code: UNAUTHENTICATED (e.g. a relayed third-part
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   try {
-    await api.getWorkspace().catch(() => {});
+    await workspaceApi.getWorkspace().catch(() => {});
     expect(listener).not.toHaveBeenCalled();
   } finally {
     unsubscribe();
@@ -181,6 +182,6 @@ test("onUnauthenticated's returned unsubscribe function stops further notificati
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   unsubscribe();
-  await api.getWorkspace().catch(() => {});
+  await workspaceApi.getWorkspace().catch(() => {});
   expect(listener).not.toHaveBeenCalled();
 });

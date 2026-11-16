@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Workspace } from "../Workspace";
 import type { WorkspaceController } from "../hooks/use-workspace.hooks";
 
-import type { AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 
 import { formatTimestamp } from '@jini-ai/core/text';
 import { VIEWER_TIME_ZONE } from "../../../lib/viewer-time-zone";

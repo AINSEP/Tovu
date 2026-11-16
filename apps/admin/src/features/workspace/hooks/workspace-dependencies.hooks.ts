@@ -1,4 +1,5 @@
-import { api, type AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
+import { workspaceApi } from "@/features/workspace/api/workspace-api";
 import type { WorkspacePort } from "./workspace-port.hooks";
 
 /**
@@ -8,8 +9,8 @@ import type { WorkspacePort } from "./workspace-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultWorkspacePort: WorkspacePort = {
-  getWorkspace: () => api.getWorkspace(),
-  updateWorkspace: ({ patch }, _options = {}) => api.updateWorkspace(patch),
+  getWorkspace: () => workspaceApi.getWorkspace(),
+  updateWorkspace: ({ patch }, _options = {}) => workspaceApi.updateWorkspace(patch),
 };
 
 /** Seed state for {@link createFakeWorkspacePort}. */

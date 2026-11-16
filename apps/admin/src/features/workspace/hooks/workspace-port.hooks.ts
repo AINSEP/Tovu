@@ -1,4 +1,4 @@
-import type { AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 
 /**
  * @file What `use-workspace.hooks.ts` needs from the outside world, as an interface rather than a

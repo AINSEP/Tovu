@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { useQueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
 import { createFakeWorkspacePort } from "../hooks/workspace-dependencies.hooks";
 import { useWiredWorkspace, useWorkspace } from "../hooks/use-workspace.hooks";
 
