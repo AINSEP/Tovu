@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { CSSProperties } from "react";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import { afterEach, expect, it } from "vitest";
 import { ChatPane, registerMidRunUserMessageRenderer, type ChatTransport } from "@jini-ai/chat/react";
 import { CLASSIC_ROOT, effectiveDeclarationsFor } from "../../__tests__/unit/css-declarations.test-helper";

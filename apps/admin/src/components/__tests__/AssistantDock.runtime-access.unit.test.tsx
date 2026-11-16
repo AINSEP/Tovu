@@ -1,4 +1,5 @@
-import { act, render as renderWithoutProvider } from "@testing-library/react";
+import { act } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import type { ComponentProps, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

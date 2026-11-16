@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { ChatPane } from "@jini-ai/chat/react";
 import type { ChatAttachment, ChatTransport } from "@jini-ai/chat/core";

@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { NativeToolPolicyInput } from "@jini-ai/agent-runtime/native-tool-policy";

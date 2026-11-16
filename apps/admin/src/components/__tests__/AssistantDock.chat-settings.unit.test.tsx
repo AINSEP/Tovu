@@ -1,4 +1,5 @@
-import { render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import userEvent from "@testing-library/user-event";
 import { useState, type ComponentProps, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

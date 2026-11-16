@@ -1,4 +1,5 @@
-import { act, fireEvent, render as renderWithoutProvider, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import { renderHook } from "@/__tests__/chat-surfaces-render";
 import userEvent from "@testing-library/user-event";
 import { isValidElement, StrictMode, type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

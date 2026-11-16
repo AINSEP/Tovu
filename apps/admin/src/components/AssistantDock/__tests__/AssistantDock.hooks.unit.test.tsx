@@ -1,5 +1,6 @@
 import { runInNewContext } from "node:vm";
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
+import { render, renderHook } from "@/__tests__/chat-surfaces-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useChatPaneRuntimeInventory, type ChatPaneAgent } from "@jini-ai/chat/react";
 

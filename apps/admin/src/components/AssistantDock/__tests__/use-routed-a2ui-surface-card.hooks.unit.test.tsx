@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { act } from "@testing-library/react";
+import { renderHook } from "@/__tests__/chat-surfaces-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render as renderWithoutProvider, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { encodePublishCriteriaToQuery } from "@tovu/publish-content-ui";

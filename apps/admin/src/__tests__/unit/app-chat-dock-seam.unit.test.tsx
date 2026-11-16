@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render as renderWithoutProvider, waitFor } from "@testing-library/react";
+import { fireEvent, waitFor } from "@testing-library/react";
+import { render as renderWithoutProvider } from "@/__tests__/chat-surfaces-render";
 import { useState, type ReactElement } from "react";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import type { DragEvent } from "react";

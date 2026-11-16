@@ -1,5 +1,6 @@
 /** Chart plan step 6: real A2UI validation/rendering use the same capability-resolved entry. */
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, waitFor } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it } from "vitest";
 import { createLabCatalog } from "@jini-ai/protocol/a2ui";

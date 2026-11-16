@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
+import { renderHook } from "@/__tests__/chat-surfaces-render";
 import { StrictMode, type ReactNode, type SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";

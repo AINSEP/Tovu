@@ -1,4 +1,5 @@
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, waitFor } from "@testing-library/react";
+import { render } from "@/__tests__/chat-surfaces-render";
 import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it, vi } from "vitest";
 import { createLabCatalog } from "@jini-ai/protocol/a2ui";
