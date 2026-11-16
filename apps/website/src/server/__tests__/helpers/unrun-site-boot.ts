@@ -97,7 +97,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   try {
     await initSite({ dir: siteDir, name: `Unrun ${dialect} site`, storage: { kind: dialect } });
     boot = await bootSiteDir({ dir: siteDir });
-    deps = await createSiteRouteDeps({ dbPath: resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, overrides: {
+    deps = await createSiteRouteDeps({}, { dbPath: resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, overrides: {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,

@@ -45,7 +45,7 @@ test("L005: composition discovers the bound site's key and passes its directory 
   const { createSiteRouteDeps } = await import("../deps.js");
   let close: (() => Promise<void>) | undefined;
   try {
-    const deps = await createSiteRouteDeps({ dbPath: path.join(root, "relocated", "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(root, "relocated", "content.db"), overrides: {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },

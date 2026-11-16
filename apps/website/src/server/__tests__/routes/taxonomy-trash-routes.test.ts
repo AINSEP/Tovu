@@ -20,7 +20,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * @file T6 (trash parallel plan §2, owner decision 5) — `delete-term`/`delete-taxonomy` now move
  * rows to the Trash (`trashTerm`/`trashTaxonomy`, `features/taxonomy/trash-term.ts`) instead of
  * Jini's guarded hard delete. Against the REAL SQLite composition
- * (`createSiteRouteDeps({ dbPath: ":memory:" })`, same pattern as `newsletter-routes.test.ts`/
+ * (`createSiteRouteDeps({}, { dbPath: ":memory:" })`, same pattern as `newsletter-routes.test.ts`/
  * `settings-principal-check.test.ts`), not the hermetic one `taxonomy-routes.test.ts` uses: the
  * hermetic in-memory taxonomy/term repos have no `findForTrash` implementation yet (T6b handoff
  * item 4, a separate dispatch — `composition/app.ts` binds an inert always-not-found stub there
@@ -31,7 +31,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * never reach `findForTrash`, so the hermetic composition still proves them validly.
  */
 async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }> {
-  const deps = await createSiteRouteDeps({ dbPath: ":memory:" });
+  const deps = await createSiteRouteDeps({}, { dbPath: ":memory:" });
   const app = express();
   app.use(express.json());
   registerAuthRoutes({ app, deps });

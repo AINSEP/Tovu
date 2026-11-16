@@ -43,7 +43,7 @@ export const TOKEN_STYLESHEET_SENTINEL_V2 = '<link rel="stylesheet" href="../css
  * `ADS-memory/reports/continuity/theme-v2-validator-build/progress-ledger.md`) for why this couldn't
  * be a global rename of the one constant instead.
  */
-export function tokenStylesheetSentinel(_required: Record<string, never>, { apiVersion }: { apiVersion?: 2 } = {}): string {
+export function tokenStylesheetSentinel(_required: Record<string, never> = {}, { apiVersion }: { apiVersion?: 2 } = {}): string {
   return apiVersion === 2 ? TOKEN_STYLESHEET_SENTINEL_V2 : TOKEN_STYLESHEET_SENTINEL;
 }
 

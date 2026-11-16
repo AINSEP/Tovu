@@ -78,7 +78,7 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 /** The API process (store owner), booted as `tovu serve <dir>` does. */
 async function bootOwner(t: TestContext) {
   const boot = await bootSiteDir({ dir: siteDir });
-  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     store: boot.store,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(siteDir, "uploads"),
@@ -266,7 +266,7 @@ test("a site composition client started before the owner serves waits for the so
   // A server composition client retains its existing readiness wait. The lean daemon starts only
   // after the site listens and uses the leaf client exercised above; it never boots site services.
   const opened: { client?: SiteStore } = {};
-  const clientDeps = createSiteRouteDeps({ dbPath, overrides: { storeRole: "client", onStoreOpened: ({ store }, _optional = {}) => (opened.client = store) } });
+  const clientDeps = createSiteRouteDeps({}, { dbPath, overrides: { storeRole: "client", onStoreOpened: ({ store }, _optional = {}) => (opened.client = store) } });
   const openedClient = (): SiteStore | undefined => opened.client;
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.equal(openedClient(), undefined, "the client is still waiting: nobody serves the socket yet");

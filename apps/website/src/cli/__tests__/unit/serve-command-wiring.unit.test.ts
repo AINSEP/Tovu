@@ -194,11 +194,11 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
     },
   });
   module("../../../server/runtime/composition/deps.ts", {
-    createSiteRouteDeps: async (dbPath: string, options: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void; siteBinding: { dir: string } }) => {
+    createSiteRouteDeps: async (_required: Record<string, never>, { dbPath, overrides }: { dbPath: string; overrides: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void; siteBinding: { dir: string } } }) => {
       // The site's resolved placement (data.nosync on a sites-home site since 1cffdf3cf), not a fixed root file.
       assert.equal(dbPath, resolveSiteDatabasePaths({ dir: process.env.TOVU_SITE_DIR! }).contentDbPath);
-      assert.equal(options.siteBinding.dir, process.env.TOVU_SITE_DIR);
-      options.onStoreOpened({ store: composedStore });
+      assert.equal(overrides.siteBinding.dir, process.env.TOVU_SITE_DIR);
+      overrides.onStoreOpened({ store: composedStore });
       return deps;
     },
   });

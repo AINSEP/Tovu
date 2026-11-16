@@ -161,7 +161,7 @@ test("a database disconnect refuses the next real publish request even with its 
   try {
     const key = await sourceKey();
     process.env[PUBLISH_TRUST_ENV_VAR] = grantDocument(key.publicKeyB64u);
-    deps = await createSiteRouteDeps({ dbPath: join(dir, "content.db"), overrides: { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") } });
+    deps = await createSiteRouteDeps({}, { dbPath: join(dir, "content.db"), overrides: { db, workspaceId: WORKSPACE, themesDir: join(dir, "themes") } });
     deps.siteAssistantSecretKeyring = testKeyring(SOURCE_ROOT);
     assert.ok(deps.publishTrustRevocations instanceof SqlPublishTrustRevocationStore);
 

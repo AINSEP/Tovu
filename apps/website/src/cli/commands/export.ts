@@ -144,7 +144,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
   try {
     const paths = resolveSiteDatabasePaths({ dir: target });
     const dbPath = paths.contentDbPath;
-    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)({ dbPath, overrides: {
+    const routeDeps = await (optional.createSiteRouteDeps ?? createSiteRouteDeps)({}, { dbPath, overrides: {
         db: bootResult.db,
         chatDbPath: paths.chatDbPath,
         store: bootResult.store,

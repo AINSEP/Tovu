@@ -94,7 +94,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     for (const name of layoutEnv) delete process.env[name];
     plantSitePlugin(path.join(siteA, "plugins"), probePluginId);
     // No uploadsDir/themesDir overrides: their defaults are under test too.
-    deps = await createSiteRouteDeps({ dbPath: path.join(siteA, "content.db"), overrides: {
+    deps = await createSiteRouteDeps({}, { dbPath: path.join(siteA, "content.db"), overrides: {
       siteBinding: bindingFor(siteA),
       onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
     } });
@@ -267,7 +267,7 @@ test("stock seed: blob hydration and the publish-content seed hash read the SERV
   let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
-      createSiteRouteDeps({ dbPath: path.join(siteA, "content.db"), overrides: {
+      createSiteRouteDeps({}, { dbPath: path.join(siteA, "content.db"), overrides: {
         db: liveDb,
         workspaceId,
         onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
@@ -308,7 +308,7 @@ test("stock seed: a first boot with no content.db hydrates it from the SERVED si
   let closeStore: (() => Promise<void>) | undefined;
   try {
     deps = await withStockSeedRoot(stockRoot, () =>
-      createSiteRouteDeps({ dbPath: path.join(siteA, "content.db"), overrides: {
+      createSiteRouteDeps({}, { dbPath: path.join(siteA, "content.db"), overrides: {
         onStoreOpened: ({ store }, _optional = {}) => { closeStore = () => store.close(); },
         siteBinding: bindingFor(siteA),
         uploadsDir: path.join(siteA, "uploads"),

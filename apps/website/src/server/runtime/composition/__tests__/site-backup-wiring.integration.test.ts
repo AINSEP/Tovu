@@ -86,7 +86,7 @@ test("createSiteRouteDeps gives site backup the directories the site is served f
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-backup-wiring-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const siteBinding = tempSiteBinding(dir);
-  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: { siteBinding } });
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: { siteBinding } });
   await deps.identityReady;
 
   const sources = deps.siteBackupSources;
@@ -132,7 +132,7 @@ test("caller-supplied site, uploads and themes directories are the exact folders
   fs.writeFileSync(path.join(uploadsDir, "originals", "override-only.bin"), "uploads-override-bytes", "utf8");
   fs.writeFileSync(path.join(themesDir, "static", "override-only", "marker.css"), "/* themes-override */", "utf8");
 
-  const deps = await createSiteRouteDeps({ dbPath: path.join(root, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(root, "content.db"), overrides: {
     uploadsDir,
     themesDir,
     siteBinding: { dir: siteDir, name: "site-override", dirOverridden: true, switcherCompatible: false },
@@ -166,7 +166,7 @@ test("media moved to a remote provider by the SITE SETTING is noted by the backu
   const uploadsDir = path.join(root, "uploads");
   fs.mkdirSync(path.join(uploadsDir, "originals"), { recursive: true });
   fs.writeFileSync(path.join(uploadsDir, "originals", "stale-local.bin"), "left behind before the switch", "utf8");
-  const deps = await createSiteRouteDeps({ dbPath: path.join(root, "content.db"), overrides: { uploadsDir, siteBinding: tempSiteBinding(root) } });
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(root, "content.db"), overrides: { uploadsDir, siteBinding: tempSiteBinding(root) } });
   await Promise.all([deps.identityReady, deps.siteTitleReady]);
   const sources = deps.siteBackupSources;
   assert.ok(sources);
@@ -218,7 +218,7 @@ test("the composed plan and push back up THIS site: a credential sealed by the c
   fs.writeFileSync(path.join(siteDir, "config.json"), '{"name":"Wiring Site"}', "utf8");
   fs.writeFileSync(path.join(themesDir, "static", "wired", "theme.css"), "/* wired theme */", "utf8");
 
-  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     uploadsDir,
     themesDir,
     siteBinding: { dir: siteDir, name: "demo-site", dirOverridden: true, switcherCompatible: false },

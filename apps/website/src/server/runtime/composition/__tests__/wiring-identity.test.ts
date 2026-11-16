@@ -58,7 +58,7 @@ before(async () => {
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Wiring Identity Site" });
   const boot = await bootSiteDir({ dir });
-  deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+  deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => { composed = store as unknown as ComposedStore; },

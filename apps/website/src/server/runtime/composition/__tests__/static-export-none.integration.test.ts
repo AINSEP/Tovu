@@ -13,7 +13,7 @@ test('production composition preserves the none sentinel and legacy unstyled sta
   await mkdir(themesDir);
   await mkdir(uploadsDir);
   let close: (() => Promise<void>) | undefined;
-  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, 'data.nosync', 'content.db'), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, 'data.nosync', 'content.db'), overrides: {
     themesDir, uploadsDir,
     siteBinding: { dir: siteDir, name: 'site', dirOverridden: true, switcherCompatible: false },
     onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },

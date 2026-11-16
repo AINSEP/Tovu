@@ -11,7 +11,7 @@ import { bootProviderPlugins } from '../provider-plugins.js';
 test('site activation refreshes the existing provider host after the plugin runtime accepts enable', async t => {
   const dir = await mkdtemp(path.join(tmpdir(), 'provider-enable-'));
   const applied: string[] = [];
-  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, 'content.db'), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, 'content.db'), overrides: {
     bootProviderPlugins: async (...args) => {
       const ports = await bootProviderPlugins(...args);
       return { ...ports, reapply: async input => { applied.push(input.pluginId); return ports.reapply(input); } };

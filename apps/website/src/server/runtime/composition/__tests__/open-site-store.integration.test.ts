@@ -231,7 +231,7 @@ test("the API process's composition starts the guest-chat expiry sweep on chat.d
   try {
     const chatDbPath = path.join(dir, "chat.db");
     seedGuestChats(chatDbPath);
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db") });
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db") });
     await waitFor(() => !chatIds(chatDbPath).includes("expired"), "the expired guest chat to be swept");
     assert.deepEqual(chatIds(chatDbPath), ["fresh"], "only the expired chat goes");
     await deps.commentsReady; // the last boot write; the folder is removed after it
@@ -252,7 +252,7 @@ test("the API process's sweep re-runs on its interval: a chat that expires after
       passes++;
       return clock;
     };
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       chatExpirySweep: { intervalMs: 20, now },
       onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
     } });
@@ -282,7 +282,7 @@ test("closing the API process's store waits for the sweep pass in flight before 
       if (armed && closing === undefined) queueMicrotask(() => (closing = store?.close()));
       return clock;
     };
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       chatExpirySweep: { intervalMs: 20, now },
       onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
     } });
@@ -309,7 +309,7 @@ test("the agent daemon's composition (client) never starts the sweep", async () 
       passes++;
       return Date.now();
     };
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       storeRole: "client",
       chatExpirySweep: { intervalMs: 20, now },
       onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),

@@ -74,7 +74,7 @@ async function serve(siteDir: string): Promise<Running> {
     }
   };
   try {
-    deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+    deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
       db: boot.db,
       store: boot.store,
       workspaceId: boot.workspaceId,

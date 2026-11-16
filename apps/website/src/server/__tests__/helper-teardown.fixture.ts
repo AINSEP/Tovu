@@ -34,8 +34,8 @@ const bindings = {
   defaultPgliteSocketDir: () => socketDir,
   initSite: async () => { if (fault === "init") throw new Error("init failed"); },
   bootSiteDir: async () => { if (fault === "boot") throw new Error("boot failed"); return { workspaceId: "ws" }; },
-  createSiteRouteDeps: async (_file: string, options: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void }) => {
-    options.onStoreOpened({ store: { marker: "composed" } });
+  createSiteRouteDeps: async (_required: Record<string, never>, { overrides }: { overrides: { onStoreOpened(required: { store: unknown }, optional?: Record<string, never>): void } }) => {
+    overrides.onStoreOpened({ store: { marker: "composed" } });
     if (fault === "compose") throw new Error("compose failed");
     return { workspaceId: "ws" };
   },

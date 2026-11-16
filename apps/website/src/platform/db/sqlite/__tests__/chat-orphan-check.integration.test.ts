@@ -301,7 +301,7 @@ test("createSiteRouteDeps emits the orphan warning with this isolated site's cou
     try { seedChatRows(legacy, 2, "boot-orphan"); } finally { legacy.close(); }
     const chat = openChatDb(chatDbPath);
     try { seedChatRows(chat, 5, "already-in-chat"); } finally { chat.close(); }
-    const deps = await createSiteRouteDeps({ dbPath: contentDbPath, overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: contentDbPath, overrides: {
       db, workspaceId: "ws-1", themesDir: path.join(tmpDir, "themes"), uploadsDir: path.join(tmpDir, "uploads"),
       siteBinding: { dir: tmpDir, name: "Orphan Test", dirOverridden: true, switcherCompatible: false },
       storeRole: "client", onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },

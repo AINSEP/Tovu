@@ -92,7 +92,7 @@ async function bootSqliteSite(t: TestContext) {
 
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
-  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => { composed = store; },

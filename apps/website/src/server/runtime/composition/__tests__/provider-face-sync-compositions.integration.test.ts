@@ -82,7 +82,7 @@ test("SQLite composition: the provider switch moves its linked face", async (t) 
   await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "uuid-face-sync" }));
   let close = async () => {};
   t.after(() => close());
-  const routeDeps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+  const routeDeps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
     onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
   } });

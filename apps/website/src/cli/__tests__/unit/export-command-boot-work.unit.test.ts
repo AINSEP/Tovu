@@ -41,7 +41,7 @@ test("export: a failed export closes the store only after the legacy tail and cr
       assert.equal(store, composedStore);
       order.push("close");
     },
-    createSiteRouteDeps: async ({ overrides }) => {
+    createSiteRouteDeps: async (_required, { overrides } = {}) => {
       overrides?.onStoreOpened?.({ store: composedStore as unknown as SiteStore });
       return routeDeps as unknown as ExportRouteDeps;
     },

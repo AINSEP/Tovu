@@ -30,7 +30,7 @@ async function openSite(t: TestContext) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-registrations-close-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   let store: SiteStore | undefined;
-  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     onStoreOpened: ({ store: opened }, _optional = {}) => (store = opened),
   } });
   await bootSettled(deps);

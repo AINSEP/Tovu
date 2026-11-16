@@ -22,7 +22,7 @@ for (const work of ["none", "legacy", "app", "both"] as const) {
     const effects: RunExportCommandOptional = {
       registerPluginSdkResolver: () => { order.push("resolver"); },
       bootSiteDir: async () => { order.push("boot"); return boot; },
-      createSiteRouteDeps: async ({ overrides }) => { overrides?.onStoreOpened?.({ store: store }); return deps; },
+      createSiteRouteDeps: async (_required, { overrides } = {}) => { overrides?.onStoreOpened?.({ store: store }); return deps; },
       reconcileInterruptedMigrationOnBoot: async () => ({ blocked: false }),
       exportSite: async input => {
         assert.equal(input.outputDir, "/tmp/export"); assert.equal(input.clean, false);
@@ -46,7 +46,7 @@ test("export closes the boot and partially composed store when composition fails
   let closed = false;
   await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
     registerPluginSdkResolver: () => {}, bootSiteDir: async () => boot,
-    createSiteRouteDeps: async ({ overrides }) => { overrides?.onStoreOpened?.({ store: store }); throw failure; },
+    createSiteRouteDeps: async (_required, { overrides } = {}) => { overrides?.onStoreOpened?.({ store: store }); throw failure; },
     closeSiteDirBoot: async (actualBoot, actualStore) => { assert.equal(actualBoot, boot); assert.equal(actualStore, store); closed = true; },
   }), error => error === failure);
   assert.equal(closed, true);
@@ -61,7 +61,7 @@ test("export composes against the site's own content database with the booted st
   const failure = new Error("stop after composition");
   await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
     registerPluginSdkResolver: () => {}, bootSiteDir: async () => boot,
-    createSiteRouteDeps: async ({ dbPath, overrides }) => { Object.assign(seen, { dbPath, overrides }); throw failure; },
+    createSiteRouteDeps: async (_required, { dbPath, overrides } = {}) => { Object.assign(seen, { dbPath, overrides }); throw failure; },
     closeSiteDirBoot: async () => {},
   }), error => error === failure);
   assert.match(String(seen.dbPath), /^\/tmp\/site\//);

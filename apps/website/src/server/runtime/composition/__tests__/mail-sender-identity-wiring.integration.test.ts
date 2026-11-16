@@ -25,7 +25,7 @@ test("deps.ts: the composed mailSenderIdentity reads the site's core.mail sender
   const dir = path.join(parent, "site");
   await initSite({ dir, name: "Mail Sender Wiring Site" });
   const boot = await bootSiteDir({ dir });
-  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     uploadsDir: path.join(dir, "uploads"),

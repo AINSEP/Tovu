@@ -111,7 +111,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   t.after(async () => {
     if (!closed) await closeSiteDirBoot(boot, composed).catch(() => undefined);
   });
-  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     store: boot.store,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => (composed = store),

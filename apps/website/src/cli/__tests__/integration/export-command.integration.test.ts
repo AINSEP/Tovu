@@ -69,7 +69,7 @@ async function enableSiteConsent({ dir }: { dir: string }): Promise<void> {
   const boot = await bootSiteDir({ dir });
   let composed: SiteStore | undefined;
   try {
-    const deps = await createSiteRouteDeps({ dbPath: resolveSiteDatabasePaths({ dir }).contentDbPath, overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: resolveSiteDatabasePaths({ dir }).contentDbPath, overrides: {
       db: boot.db, store: boot.store, workspaceId: boot.workspaceId,
       uploadsDir: path.join(dir, "uploads"), themesDir: path.join(dir, "themes"),
       siteBinding: { dir, name: path.basename(dir), dirOverridden: true, switcherCompatible: false },

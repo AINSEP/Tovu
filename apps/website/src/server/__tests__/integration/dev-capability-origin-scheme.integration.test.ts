@@ -45,7 +45,7 @@ for (const hasCerts of [true, false]) {
     process.env.TOVU_RUNTIME_MODE = "local";
     process.env.PORT = "3000";
     try {
-      const deps = await createSiteRouteDeps({ dbPath });
+      const deps = await createSiteRouteDeps({}, { dbPath });
       const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
       assert.equal(origin.scheme, hasCerts ? "https" : "http");
       assert.equal(origin.host, "localhost");
@@ -84,7 +84,7 @@ test("REGRESSION: the dev-capability origin's scheme is http, not hardcoded http
   const originalDisableFlag = process.env.TOVU_DISABLE_DEV_TLS;
   process.env.TOVU_DISABLE_DEV_TLS = "1";
   try {
-    const deps = await createSiteRouteDeps({ dbPath });
+    const deps = await createSiteRouteDeps({}, { dbPath });
     const origin = await deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId });
     assert.equal(origin.scheme, "http");
     assert.equal(origin.host, "localhost");
@@ -107,11 +107,11 @@ test("signin-lab: a restart follows the pinned https:3001 listener after the ini
   delete process.env.TOVU_PUBLIC_URL; process.env.TOVU_RUNTIME_MODE = "local";
   process.env.TOVU_DISABLE_DEV_TLS = "1"; process.env.PORT = "3000";
   process.env.TOVU_SITE_LISTENER_ORIGIN = "http://localhost:3000";
-  const first = await createSiteRouteDeps({ dbPath });
+  const first = await createSiteRouteDeps({}, { dbPath });
   await Promise.all(Object.values(first).filter(value => value instanceof Promise));
   assert.equal((await first.originRegistry.canonicalOrigin({ workspaceId: first.workspaceId })).scheme, "http");
   process.env.TOVU_SITE_LISTENER_ORIGIN = "https://localhost:3001";
-  const second = await createSiteRouteDeps({ dbPath });
+  const second = await createSiteRouteDeps({}, { dbPath });
   await Promise.all(Object.values(second).filter(value => value instanceof Promise));
   const origin = await second.originRegistry.canonicalOrigin({ workspaceId: second.workspaceId });
   assert.equal(origin.scheme, "https"); assert.equal(origin.port, 3001);

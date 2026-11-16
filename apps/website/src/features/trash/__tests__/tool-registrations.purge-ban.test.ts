@@ -37,7 +37,7 @@ async function productionDeps(t: TestContext) {
     await store?.close();
     await rm(dir, { recursive: true, force: true });
   });
-  deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+  deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     siteBinding: { dir, name: "delete-catalog", dirOverridden: true, switcherCompatible: false },
     onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
   } });

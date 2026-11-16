@@ -23,7 +23,7 @@ test("bad private share storage logs and disables only sharing", async t => {
   await writeFile(path.join(blockedDbDir, "ops", "shares"), "not a directory");
   for (const dbDir of [blockedDbDir, path.join(themesDir, "public-db")]) {
     let close: (() => Promise<void>) | undefined;
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dbDir, "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dbDir, "content.db"), overrides: {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
@@ -49,7 +49,7 @@ test("boot refuses a content database not named content.db and names the fix", a
   const namesFix = /own folder, named content\.db/;
   assert.throws(() => defaultContentDbPath(), namesFix);
   await assert.rejects(createSiteRouteDeps(), namesFix);
-  await assert.rejects(createSiteRouteDeps({ dbPath: path.join(directory, "b.db") }), namesFix);
+  await assert.rejects(createSiteRouteDeps({}, { dbPath: path.join(directory, "b.db") }), namesFix);
   assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
 });
 
@@ -70,7 +70,7 @@ test("boot refuses SQLite URI paths, which the driver opens as plain files", asy
   for (const uri of ["file:a.db?mode=memory", "file:b.db?mode=memory"]) {
     process.env.TOVU_CONTENT_DB = uri;
     assert.throws(() => defaultContentDbPath(), namesFix, uri);
-    await assert.rejects(createSiteRouteDeps({ dbPath: uri }), namesFix, uri);
+    await assert.rejects(createSiteRouteDeps({}, { dbPath: uri }), namesFix, uri);
   }
   assert.deepEqual(await readdir(directory), [], "nothing is created or opened");
 });
@@ -99,7 +99,7 @@ test("content.db reached through a symlinked folder keeps the same share catalog
   const directories: string[] = [];
   for (const dir of [siteDir, path.join(directory, "link")]) {
     let close: (() => Promise<void>) | undefined;
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible: false },
       onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
@@ -125,7 +125,7 @@ test("default share catalog is the private ops/shares beside the site's database
     await mkdir(uploadsDir, { recursive: true });
     await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "site-meta-id" }));
     let close: (() => Promise<void>) | undefined;
-    const deps = await createSiteRouteDeps({ dbPath: path.join(dbDir, "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(dbDir, "content.db"), overrides: {
       themesDir, uploadsDir,
       siteBinding: { dir: siteDir, name: "site", dirOverridden: true, switcherCompatible },
       onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
@@ -155,7 +155,7 @@ test("two sites with different databases but the same workspace id and copied me
     await mkdir(path.join(siteDir, "uploads"), { recursive: true });
     await writeFile(path.join(siteDir, ".site-meta.json"), JSON.stringify({ siteId: "copied-meta-id" }));
     let close: (() => Promise<void>) | undefined;
-    const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "data.nosync", "content.db"), overrides: {
+    const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "data.nosync", "content.db"), overrides: {
       themesDir: path.join(siteDir, "themes"), uploadsDir: path.join(siteDir, "uploads"),
       siteBinding: { dir: siteDir, name: `site-${name}`, dirOverridden: true, switcherCompatible: true },
       onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },

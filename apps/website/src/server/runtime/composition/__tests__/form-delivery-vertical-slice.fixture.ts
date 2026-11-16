@@ -157,7 +157,7 @@ export interface FixtureSite {
 /** Composes the site at `dir` (fresh or reopened) and waits for every boot step to settle. */
 export async function bootSite(required: { dir: string }): Promise<FixtureSite> {
   let store: SiteStore | undefined;
-  const deps = await createSiteRouteDeps({ dbPath: path.join(required.dir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(required.dir, "content.db"), overrides: {
     siteBinding: { dir: required.dir, name: path.basename(required.dir), dirOverridden: true, switcherCompatible: false },
     onStoreOpened: ({ store: opened }, _optional = {}) => { store = opened; },
   } });

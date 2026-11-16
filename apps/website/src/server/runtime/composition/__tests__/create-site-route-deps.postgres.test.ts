@@ -86,7 +86,7 @@ async function drainBootReadiness(deps: NewsletterRouteDeps): Promise<void> {
 
 /** Boots the composition over the site folder and closes its pool when the test ends. */
 async function bootPostgresSite(t: TestContext) {
-  const deps = await createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
     uploadsDir: path.join(siteDir, "uploads"),
     themesDir: path.join(siteDir, "themes"),
     siteBinding: { dir: siteDir, name: SITE_NAME, dirOverridden: true, switcherCompatible: false },
@@ -255,7 +255,7 @@ await t.test("a sealed secret that does not open with the site key refuses to bo
   process.env.TOVU_SITE_KEY = randomBytes(32).toString("hex");
   try {
     await assert.rejects(
-      createSiteRouteDeps({ dbPath: path.join(siteDir, "content.db"), overrides: {
+      createSiteRouteDeps({}, { dbPath: path.join(siteDir, "content.db"), overrides: {
         uploadsDir: path.join(siteDir, "uploads"),
         themesDir: path.join(siteDir, "themes"),
         siteBinding: { dir: siteDir, name: SITE_NAME, dirOverridden: true, switcherCompatible: false },

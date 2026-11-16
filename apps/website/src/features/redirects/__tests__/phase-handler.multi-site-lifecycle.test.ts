@@ -105,7 +105,7 @@ async function bootSite(t: TestContext, name: string): Promise<BootedSite> {
 
   const boot = await bootSiteDir({ dir });
   let composed: { close(): Promise<void> } | undefined;
-  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath: path.join(dir, "content.db"), overrides: {
     db: boot.db,
     workspaceId: boot.workspaceId,
     onStoreOpened: ({ store }, _optional = {}) => { composed = store; },

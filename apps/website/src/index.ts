@@ -252,7 +252,7 @@ async function main(): Promise<void> {
   const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
   const deps = useMemory
     ? createRouteDeps(memoryOptions)
-    : await createSiteRouteDeps({ dbPath: defaultContentDbPath(), overrides: { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) } });
+    : await createSiteRouteDeps({}, { dbPath: defaultContentDbPath(), overrides: { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) } });
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
   if (!useMemory) await completeDevSiteMetaOrWarn({ dir: siteDir() });

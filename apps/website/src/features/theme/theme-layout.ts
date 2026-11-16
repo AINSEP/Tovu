@@ -93,7 +93,7 @@ const V2_LAYOUT: ThemeLayout = {
  *
  * @complexity O(1) — returns one of two frozen constants, no allocation.
  */
-export function resolveThemeLayout(_required: Record<string, never>, { apiVersion }: { apiVersion?: 2 } = {}): ThemeLayout {
+export function resolveThemeLayout(_required: Record<string, never> = {}, { apiVersion }: { apiVersion?: 2 } = {}): ThemeLayout {
   return apiVersion === 2 ? V2_LAYOUT : V1_LAYOUT;
 }
 

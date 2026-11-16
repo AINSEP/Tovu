@@ -494,7 +494,10 @@ export function pluginsInstallDir(required: { siteDir: string }, optional: SiteP
  * content.db>/ops/database-journal.db`; overridable independently via `TOVU_DATABASE_JOURNAL_DB`
  * for deployments that relocate the sidecar journal on its own.
  */
-export function defaultDatabaseJournalDbPath({ contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}): string {
+export function defaultDatabaseJournalDbPath(
+  _required: Record<string, never> = {},
+  { contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}
+): string {
   return process.env.TOVU_DATABASE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "database-journal.db");
 }
 
@@ -504,7 +507,10 @@ export function defaultDatabaseJournalDbPath({ contentDbPath = defaultContentDbP
  * whole-file restore/duplicate of `content.db` must never carry (or erase) conversation history.
  * Defaults to `<dirname of content.db>/chat.db`; overridable independently via `TOVU_CHAT_DB`.
  */
-export function defaultChatDbPath({ contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}): string {
+export function defaultChatDbPath(
+  _required: Record<string, never> = {},
+  { contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}
+): string {
   if (process.env.TOVU_CHAT_DB !== undefined) return process.env.TOVU_CHAT_DB;
   if (isInMemoryDbPath({ dbPath: contentDbPath })) return join(dirname(contentDbPath), "chat.db");
   const root = resolveSiteDirForDatabase({ dbPath: contentDbPath });
@@ -857,7 +863,7 @@ function resolveChatDbPath(
   { dbPath }: { dbPath: string },
   { overrides = {} }: { overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): string {
-  return overrides.chatDbPath ?? defaultChatDbPath({ contentDbPath: dbPath });
+  return overrides.chatDbPath ?? defaultChatDbPath({}, { contentDbPath: dbPath });
 }
 
 /**
@@ -957,6 +963,7 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
  * boot never leaves a PGlite owner lock/socket or a Postgres pool behind.
  */
 export async function createSiteRouteDeps(
+  _required: Record<string, never> = {},
   { dbPath = defaultContentDbPath(), overrides }: { dbPath?: string; overrides?: Partial<CreateSiteRouteDepsOverrides> } = {}
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   assertOverridesPairedOrAbsent(overrides);
@@ -1707,7 +1714,7 @@ async function composeSiteRouteDeps(
   // ADR-041 §2 — opens the sidecar ops journal alongside content.db. `mkdirSync` (recursive) is
   // required first: unlike `openContentDb`'s target (the process cwd, which already exists),
   // `ops/` is a new subdirectory better-sqlite3 will not create for us.
-  const databaseJournalDbPath = defaultDatabaseJournalDbPath({ contentDbPath: dbPath });
+  const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });
   mkdirSync(dirname(databaseJournalDbPath), { recursive: true });
   const databaseJournalDb = openDatabaseJournalDb({ filePath: databaseJournalDbPath });
   // The ops journal owns a separate SQLite connection on every content dialect.
@@ -3128,17 +3135,17 @@ export async function createSiteRouteDepsForWorkspace(
 ): Promise<NewsletterRouteDeps & ByokToolSurfaceDeps> {
   // Before the workspace check below opens, migrates and seeds the file.
   assertContentDbFileName({ dbPath });
-  if (workspaceIdOverride === undefined) return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, storeRole } });
+  if (workspaceIdOverride === undefined) return await createSiteRouteDeps({}, { dbPath, overrides: { onStoreOpened, storeRole } });
   // Postgres/PGlite: no SQLite handle to pair the id with; the composition validates it against the
   // store it opens.
   if (!isInMemoryDbPath({ dbPath }) && resolveSiteStorage({ siteDir: resolveSiteDirForDatabase({ dbPath }) }).kind !== "sqlite") {
-    return await createSiteRouteDeps({ dbPath, overrides: { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole } });
+    return await createSiteRouteDeps({}, { dbPath, overrides: { onStoreOpened, requestedWorkspaceId: workspaceIdOverride, storeRole } });
   }
 
   const db = await openSiteContentDb({ dbPath });
   try {
     const workspace = await resolveWorkspace({ kernel: contentKernel({ store: db }) }, { workspaceId: workspaceIdOverride });
-    return await createSiteRouteDeps({ dbPath, overrides: { db, workspaceId: workspace.id, storeRole,
+    return await createSiteRouteDeps({}, { dbPath, overrides: { db, workspaceId: workspace.id, storeRole,
       onStoreOpened: ({ store }, _optional = {}) => onStoreOpened?.({ store: {
         ...store,
         close: async () => {

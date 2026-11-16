@@ -296,7 +296,7 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
   reportSitesSyncWarning({});
   const paths = resolveSiteDatabasePaths({ dir: target });
   const dbPath = paths.contentDbPath;
-  const deps = await createSiteRouteDeps({ dbPath, overrides: {
+  const deps = await createSiteRouteDeps({}, { dbPath, overrides: {
     db: bootResult.db,
     chatDbPath: paths.chatDbPath,
     store: bootResult.store,
