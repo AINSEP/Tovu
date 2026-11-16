@@ -3,7 +3,13 @@
 Status 2026-11-15, rev 6 (after review `review-d5r4`), DRAFT until the coordinator's re-review. Code on Jini
 clone `jini-terra-d5` branch `design-d5` (rev 4: 76801d6ed, 74867d4cc, 3c06a063f, 9a2bcb954; rev 5: 5fcbb3ca1,
 62fcaf2e0, f5a070fa4, 877b2624d, a4472d838; rev 6: 372ccda02, 62f16f7df, ddaedbf80, e12c5184a, 732244667,
-2d04400a9).
+2d04400a9; review d5r6 fixes: 40e0046dd, 14303978f, 779ef3298, 691642d85, f9c7d010f, 3de14a578).
+
+**Review d5r6 fixes.** The core defaults test now pins that a meta with its own top-level `message` collapses to
+`{ meta: 'object' }`. The gate also sees `.message`/`.stack` assigned to a stored field (`entry.error =
+error.message`; web-clone network-capture:74 and sourcemap-hunt:86 go to lane L4) and reports `console-logger`: a
+`logger`-named holder typed `Console` or defaulting to `console` (4 declarations, kept as debt). Part B's diagnostic
+sink pre-slices the meta to 3,024 characters before it redacts and caps (section 3).
 
 **Rev 6 (review d5r4 findings 1-6).** (1) Core `describeLogMeta` treats any object with its own `message` or
 `stack` as a thrown value and prints its class label, so a plain thrown object's text never reaches a default
@@ -50,7 +56,8 @@ by hand:
   nothing; the coordinator regenerates the debt list once at the end, and the gate passes with the shrunk list.
 - **Rows the gate cannot see stay explicit:** five helpers (webhook tick line, pglite socket, connections warn,
   OTel `errorType`, `describeTelemetryFailure`), json-ipc trace, diagnostics manifest, form notification,
-  remaining web-clone rows, and the route packs (CN: one incident owner each, operation-specific message,
+  remaining web-clone rows, agent-runtime `anthropic-live-models.ts:138` logging `result.detail` that
+  `model-catalog.ts:297` fills from `(err as Error).message` (later lane), and the route packs (CN: one incident owner each, operation-specific message,
   `runId`/`taskId`/`toolId` carried to the host, xAI hands the ORIGINAL error to the host, no `redactError`).
 Cost: a log alone no longer shows the message; the host record (section 3) does, under the same ID.
 Known limit: a second loaded copy of core does not see another copy's registrations (built-in label; detail
@@ -65,8 +72,8 @@ lost, nothing added). The gate does not trace data flow through variables; jobs 
   `ownerRef, recoveryMessage` (stored only). Console: one redacted summary with the same ID and the fixed ID keys
   only. Each step contained; never throws.
 - `logJiniDiagnostic(record)`: the `diagnostics` sink for Jini's default loggers; stores message, meta and
-  error under Tovu's redaction (meta: `JSON.stringify`, redacted, THEN capped at 2,000 characters, so a cut can
-  never leave a token fragment too short to match); no console.
+  error under Tovu's redaction (meta: `JSON.stringify`, pre-sliced to 3,024 characters to bound the redaction
+  cost, redacted, THEN capped at 2,000, so a cut can never leave a token fragment too short to match); no console.
 - Wired at every `onInternalError` Tovu passes Jini (12 places) plus 4 new: the outbox logger's `diagnostics`, the
   visitor frontend `session` AND `adapter` sinks, the bind-error callback through T1 (keeping
   `lostFrontendBindings.noteBindError`, dropping its raw console line), and the commerce worker adapter
@@ -85,12 +92,12 @@ a token cut at the 2,000-character cap is still redacted; `ownerRef`/`recoveryMe
   comment-only drops (C), object-first error constructors (R-API, D7), chat's protocol dependency (D6), T4/T6.
 
 ## 5. Release order
-1. On Jini `refactor/terra` (d4bfc6ceb) merge `design-d5` (2d04400a9). It conflicts in 3 files: take
+1. On Jini `refactor/terra` (d4bfc6ceb) merge `design-d5` (3de14a578). It conflicts in 3 files: take
    design-d5's side, but keep refactor/terra's doc-comment line in `packages/daemon/src/http/model-proxy.ts` (~:61,
    citing `` `f0a771d88^:packages/deploy/source-map.md`'s precedent ``).
 2. Cloud gate red -> green on the pairs (section 6); Part A waits for every record (prompt P3).
 3. Gate adoption on the merged base: `LOG_SAFETY_BASE_REF=d4bfc6ceb node scripts/check-log-safety.mjs --update`
-   must print `Log-safety ratchet passed: 370 raw log paths in 237 file/rule entries.`; commit the debt list. CI
+   must print `Log-safety ratchet passed: 379 raw log paths in 243 file/rule entries.`; commit the debt list. CI
    step `log safety (blocking ratchet)` right after `size (blocking ratchet)`, env `LOG_SAFETY_BASE_REF` /
    `LOG_SAFETY_FIRST_PUSH_COMMIT` set like the `SIZE_*` pair, runs `pnpm check:log-safety` (wired on
    refactor/terra's ci.yml, not d5's). Then `--list` -> per-lane work lists.
@@ -118,6 +125,9 @@ args `(requiredObj, optionalObj = {})`; jobs skip rather than improvise.
 | 372ccda02 | 62f16f7df | core `primitives/__tests__/defaults` (plain thrown objects); desktop-host `src/__tests__/logging`; http-kit `verified-origin-configured`, `verified-origin-branches`, `verified-origin.hostile` (refused value not echoed); root `scripts/__tests__/check-log-safety.test.ts` (member/sink/bag shapes) |
 | ddaedbf80 | e12c5184a | root `scripts/__tests__/check-log-safety.test.ts` (`createConsoleLogger(...)` call is a Logger port) |
 | 732244667 | 2d04400a9 | root `scripts/__tests__/check-log-safety.test.ts` (describer arguments and `required`/`deps` ports are not raw bags) |
+| 14303978f | 779ef3298 | root `scripts/__tests__/check-log-safety.test.ts` (assignment stores) |
+| 691642d85 | f9c7d010f | root `scripts/__tests__/check-log-safety.test.ts` (`console-logger`) |
+| none (test fixes) | 40e0046dd, 3de14a578 | core `primitives/defaults` (wrong expectation, review d5r6 #1); core `describe-error-for-log` (tsc only) |
 Plus no-emit tsc of core, desktop-host, http-kit, daemon, commerce, mcp. Unverified by any run: model-proxy
 `reportRouteInternalError` inference + adapter sink assignability, `exactOptionalPropertyTypes` on optional
 sinks, the gate test's relative filenames, esquery `:nth-child` argument positions.

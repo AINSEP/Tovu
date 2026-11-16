@@ -2,26 +2,21 @@
 
 # Terra prompt: Jini errors rev 6, burn down the log-safety debt list
 
-STATUS: DRAFT rev 6 (2026-11-15), NOT READY until the coordinator's re-review (review d5r4 findings 1-6). Self-contained.
-**Part A** = Jini monorepo, five batch jobs (A1-A5, section 6); each job runs ONE batch, named in its dispatch.
+STATUS: DRAFT rev 6 + review d5r6 fixes (2026-11-15), NOT READY until the coordinator's re-review. Self-contained.
+**Part A** = Jini monorepo, five Sonnet lane recipes (L1-L5, section 6); each job runs ONE lane, named in its dispatch.
 **Part B** = Tovu (section 8), run only after Part A is reviewed and Jini is released; it lands in the SAME
 commit as Tovu's `@jini-ai/*` bump. Paths were read on Jini `design-d5` (head a4472d838) and Tovu 5ea85d833;
 if a line moved, find the quoted text in the same file.
 
-**What changed in rev 6 (review d5r4).** Plain thrown objects are described, not printed (core `describeLogMeta`
-treats any object with its own `message`/`stack` as a thrown value); the gate also sees member interpolation,
-`String(ctx.error)`, stored `ctx.error.message`, a bare `report(...)` sink, process stdio writes and raw nested bags
-outside a named `Logger` port; the configured-origin warning no longer echoes the refused value; new helpers take
-`(requiredObj, optionalObj = {})`. Part B's diagnostic sink redacts BEFORE it caps, and the console summary carries
-fixed ID fields only (section 8). Package manifests and the lockfile are the coordinator's (section 1). Part A runs
-as five Sonnet lane recipes (L1-L5, the coordinator's local artifacts) built from this prompt and the P4 work list;
-where a lane recipe and section 6 disagree, the lane recipe (made on the merged tree) wins.
-
-**What changed in rev 5.** The shared pieces are safe by construction (rev 4) and now also project nested
-metadata (`describeLogMeta`, desktop-host `projectForLog`), so no default sink can print a caught value's text.
-Raw paths are found by a gate instead of a hand-made list: `scripts/check-log-safety.mjs` (ESLint core rules)
-and its checked-in debt list `scripts/log-safety-debt.json` (229 file/rule entries, 368 paths, 130 files), which
-may only shrink. Part A clears that list file by file. Rows the gate cannot see stay explicit (section 5).
+**What changed (rev 6 + review d5r6; earlier revisions are in git).** Raw log paths are found by a gate,
+`scripts/check-log-safety.mjs` (ESLint core rules), against a checked-in debt list that may only shrink; the shared
+pieces (`describeErrorForLog`, `describeLogMeta`, desktop-host `projectForLog`) are safe by construction, plain
+thrown objects included. Review d5r6 added two gate rules: `.message`/`.stack` ASSIGNED to a stored field
+(`entry.error = error.message`) is `stored-error-text`, and `console-logger` reports a `logger`-named holder typed
+`Console` or defaulting to `console` (the `Logger` error-bag exemption trusts the receiver's name). Part B's
+diagnostic sink pre-slices, redacts, then caps (section 8); the console summary carries fixed ID fields only.
+Package manifests and the lockfile are the coordinator's (section 1). Part A runs as five Sonnet lane recipes
+(L1-L5, the coordinator's local artifacts) built from this prompt and the P4 work list; the lane recipe wins.
 
 ## 0. Preconditions (check first; if one fails, STOP and report which)
 - **P1 safe describer.** `grep -n "registerLoggableErrors" packages/core/src/model-facing-tool-errors.ts` matches;
@@ -34,17 +29,16 @@ may only shrink. Part A clears that list file by file. Rows the gate cannot see 
 - **P3 red, then green, recorded** for every pair in `jini-errors.md` section 6 (the cloud gate's records; ask
   for them, do not run anything).
 - **P4 gate adopted on the merged base** (coordinator, before dispatch): on `refactor/terra` (tip d4bfc6ceb when
-  rev 6 was written) merge `design-d5` (2d04400a9). The merge conflicts in 3 files: take design-d5's side in each,
+  rev 6 was written) merge `design-d5` (3de14a578). The merge conflicts in 3 files: take design-d5's side in each,
   but keep refactor/terra's doc-comment line in `packages/daemon/src/http/model-proxy.ts` (~:61, the line citing
   `` `f0a771d88^:packages/deploy/source-map.md`'s precedent ``). Then
   `LOG_SAFETY_BASE_REF=d4bfc6ceb node scripts/check-log-safety.mjs --update`, expected output
-  `Log-safety ratchet passed: 370 raw log paths in 237 file/rule entries.`; commit `scripts/log-safety-debt.json`.
+  `Log-safety ratchet passed: 379 raw log paths in 243 file/rule entries.`; commit `scripts/log-safety-debt.json`.
   CI: step `log safety (blocking ratchet)` right after `size (blocking ratchet)` in refactor/terra's ci.yml, env
   `LOG_SAFETY_BASE_REF` / `LOG_SAFETY_FIRST_PUSH_COMMIT` set exactly like the `SIZE_*` pair, running
   `pnpm check:log-safety`. A different count: STOP and regenerate the work lists before dispatch.
 - **P5 work list.** The dispatch carries the `node scripts/check-log-safety.mjs --list` lines (with line numbers)
-  for this batch's files, generated on the P4 base. If they differ from section 6, the dispatch's list wins. No
-  list attached: use section 6 and find each entry by reading the file for its rule's pattern (section 3).
+  for this lane's files, generated on the P4 base; the lane recipe carries them.
 
 ## 1. Ground rules
 - **No tests, tsc, builds, installs, ESLint or gate runs in the job**, no `node_modules` changes. The cloud gate
@@ -97,6 +91,7 @@ Why: a caught error's text can quote untrusted input or a credential no redactio
 | `stored-error-text` | UI state shown to a person, an API/tool answer to the caller or model, a thrown error's message/body/cause, an expected refusal's own text | **not this lane**: entry stays (U/R lanes) |
 | `console` | plain words and IDs only, no caught value (operator CLI output, warnings) | **KEEP**: entry stays |
 | any | a false positive (`record.message` of a log record, a `reason` holding fixed words) | **KEEP**, reported "false positive: why" |
+| `console-logger` | a `logger` declared as `Console` / `Pick<Console, ...>` or defaulting to `console` | **KEEP** (debt; the rule keeps a `Logger`-bag call off it) |
 
 - **LOG-TEXT**: replace the WHOLE expression that formats the caught value (`inspect(x)`, `formatErrorForLog({ error: x })`,
   `x instanceof Error ? x.message : String(x)`, `errorMessage(x)`, a bare `x` argument or `${x}`) with
@@ -124,7 +119,7 @@ Why: a caught error's text can quote untrusted input or a credential no redactio
 - CLI labels: `agent-runtime/src/skills/web-clone/scripts/lib/diagnostic-labels.mjs`, `mirror-site.mjs`,
   `asset-harvest.mjs`, tests `scripts/__tests__/{diagnostic-labels.unit,mirror-site.unit,asset-harvest}.test.mjs`.
 
-## 5. Explicit rows the gate cannot see (do them in the batch that owns the file)
+## 5. Explicit rows the gate cannot see (the lane that owns the file does them; A1-A5 = the old batch names)
 ### 5a. Helpers (A2, A3, A4)
 - A2 `integrations/src/webhooks/worker.ts:92-101` `describeWebhookTickError`: return
   `` `${WEBHOOK_DELIVERY_FAILED_LINE}: ${describeErrorForLog({ err: error })}` `` (drop the URL/word scan, the cap
@@ -165,6 +160,11 @@ quote file contents), `:262`; `lib/main-guard.mjs:55`: `errorClassLabel`. Raw UR
 `hostLabel`. (mirror-site and asset-harvest URL rows are done.) Test in the nearest script test: a failing
 parse prints `Error` and no `boom`; a usage error still prints its text.
 
+### 5e. Data flow through a result field (later lane, not in L4's recipe)
+`agent-runtime/src/anthropic-live-models.ts:138` logs `result.detail`, which `model-catalog.ts:297` fills with
+`(err as Error).message`: a caught value's text reaches a log through a field the gate does not trace. Fix in a
+later lane: `detail` gets `describeErrorForLog({ err })` where it is filled, or the log line drops it.
+
 ### 5d. CN: one incident owner per route pack (A1)
 Route each pack through `reportRouteInternalError({ report, logSource, message }, { onInternalError: deps.onInternalError })`:
 - KEEP each exported `XInternalErrorContext` type (fields may be ADDED), its `onInternalError` dep and all
@@ -196,79 +196,12 @@ them) + the original error (`toBe`, never a wrapper); with no sink the default l
 `internal error (<logSource>, correlationId=<id>) Error` with no `boom`, stack or `SECRETSECRET`. Update tests
 pinning `'an internal error occurred'` (e.g. `src/http/__tests__/remote-run-events.test.ts:483`).
 
-## 6. Batches (one job each; packages are disjoint, so jobs may run in parallel)
-Entries are `file rule:count` under `packages/`. Do every entry of your batch plus its section 5 rows.
-- **A1 route packs (16 files, 51 paths) + 5d.** `daemon/src/http/`: `attachment-lookup-routes.ts stored-error-text:1`
-  (refusal answer: not this lane), `attachments.ts`, `connectors.ts`, `db-ops.ts`, `frontend-control.ts`
-  (`:140 defaultBindErrorSink` LOG-TEXT), `remote-run-events.ts`, `research.ts`, `runs.ts`, `terminals.ts`, `xai.ts`
-  (each `console:1 error-format:1 error-helper:1`), `delegated-tools.ts console:2 error-format:2 error-helper:2 stored-error-text:1`,
-  `frontend-sessions.ts console:2 error-format:2 error-helper:2`, `host-tools.ts stored-error-text:2`,
-  `media.ts console:1 error-format:1 error-helper:1 stored-error-text:1`; `http-kit/src/adapter.ts console:1 error-format:1 error-helper:1`,
-  `http-kit/src/verified-origin/configured-origin.ts raw-error:1`.
-- **A2 daemon runtime, core, hosts (21 files + otel.ts, delivery.ts; 68 paths) + 5a A2 rows.**
-  `daemon/src/agent-executor/`: `event-translation.ts stored-error-text:1`, `events.ts console:2 error-helper:1`,
-  `http-mcp.ts console:3`, `launch.ts console:3`, `run-output.ts console:1 error-format:1 error-text:1`;
-  `daemon/src/legacy-data-migration.ts console:1`; `daemon/src/routines/scheduler.ts console:2 error-format:2 error-helper:2`
-  (`:185` formats `scheduledRunFailureDetail(error)`); `daemon/src/run-lifecycle.ts console:6 error-format:6 error-helper:6`
-  (its `onInternalError` sink keeps `{ source, runId, error }`; pinned tests `src/__tests__/run-lifecycle-event-drop.test.ts:70`,
-  `run-lifecycle-slow-run-watchdog.test.ts:274`); `core/src/approval.ts stored-error-text:2`;
-  `core/src/primitives/logger.ts error-text:1` (`:116 record.message`: false positive); `core/src/settings/express/stream.ts console:1 error-format:1 error-helper:1`;
-  `server/src/create-local-node-daemon.ts console:1 error-format:1 error-helper:1`; `server/src/host-bootstrap.ts error-format:1 error-helper:1`;
-  `sidecar/src/json-ipc.ts console:2`; `desktop-host/src/electron/updates/auto-update-controller.ts error-helper:6`;
-  `infra/src/events/outbox/worker.ts error-text:1 stored-error-text:1`; `integrations/src/webhooks/worker.ts console:1`;
-  `commerce/src/payments/ingest/worker.ts stored-error-text:1`; `diagnostics/src/observability/tracker.ts console:1`;
-  `diagnostics/src/sources.ts stored-error-text:2`; `diagnostics/src/web-evidence/playwright-runtime.ts stored-error-text:4`.
-- **A3 data, platform, plugins host (27 files, 73 paths) + 5a A3 row.** `db/src/data-modules/data-module.ts console:1 stored-error-text:2`,
-  `db/src/kernel/postgres/driver.ts console:2 error-format:1 error-helper:1`, `db/src/pglite/socket-server.ts error-text:1`,
-  `db/src/tools/transfer-tools.ts error-helper:3`; `mcp/src/core/config.ts`, `mcp/src/core/tokens.ts` (each
-  `console:1 error-format:1 error-helper:1`), `mcp/src/federation/bootstrap.ts error-format:2 error-helper:2` (LOG-PORT:
-  the `— ${...}` tail leaves the message), `mcp/src/federation/stdio/default-connect.ts console:1`;
-  `platform/src/fs/directory-user-config.ts console:1`, `platform/src/fs/durable-json.ts console:1 error-format:1`,
-  `platform/src/fs/workspace-directory.ts console:1`, `platform/src/mail/builtin-providers.ts console:1`,
-  `platform/src/mail/delivery-wrapper.ts console:1`, `platform/src/mail/resolve-mailer.ts console:1 stored-error-text:2`;
-  `devops/src/agent-jobs/jobs.ts stored-error-text:4`, `devops/src/deploy/ops-runner.ts console:1`;
-  `plugins/src/host/capability-tools.ts console:1 error-format:1 error-text:1 stored-error-text:2`,
-  `plugins/src/host/contributions.ts console:1 error-format:1`, `plugins/src/host/node/install.ts console:2`,
-  `plugins/src/host/node/runtime-core.ts console:7 error-format:6 error-text:3 raw-error:1` (`:646` keeps its redacted
-  plugin-id label; `:736` provider-load exception), `plugins/src/host/tools/management.ts console:2 error-text:2`,
-  `plugins/src/host/worker/run-call.ts stored-error-text:2`; `agentic/src/core/dom/dom-page-driver.ts console:1`;
-  `analytics/src/product/index.ts console:1`; `user-management/src/admin/controllers/auth.controller.ts stored-error-text:1`;
-  `ui-kit/src/react/confirm/ConfirmDialog.hooks.ts console:1`, `ui-kit/src/react/context.ts console:1`.
-- **A4 agent plugins + runtime (31 files + `lib/main-guard.mjs`; 92 paths, about 40 plain CLI `console` KEEP) + 5a A4, 5c.**
-  `agent-plugins/src/`: `admin-surfaces/connections/connections.ts console:1 error-helper:1`,
-  `connect/apply-tool-renames.ts error-format:2 error-text:2`, `connect/credential-cards.ts console:2`,
-  `connect/federate-mcp.ts stored-error-text:2`, `connect/grant-signed-in-defaults.ts error-format:1 error-text:1`,
-  `connect/import-access-token.ts error-format:1 error-text:1`, `connect/plugin-credential-card.ts console:1`,
-  `lifecycle/credential-card-metadata.ts console:1 stored-error-text:1`, `lifecycle/host-tools/identity.ts console:2`,
-  `lifecycle/host-tools/search-tool.ts console:2 error-format:2 error-text:2`, `lifecycle/host-tools/skill-tool.ts console:2 error-format:1 error-text:1`,
-  `lifecycle/retire-bundled.ts stored-error-text:2`, `lifecycle/seed-bundled.ts stored-error-text:2`.
-  `agent-runtime/src/`: `agent-protocol/pi-rpc/session.ts console:1`, `anthropic-live-models.ts console:1`,
-  `providers/oauth-callback-server.ts console:1 error-format:1 error-helper:1`, `providers/oauth-tokens.ts console:2 error-format:2 error-helper:2`,
-  `terminal-launch.ts stored-error-text:4`; `skills/web-clone/scripts/`: `asset-harvest.mjs console:3 error-text:1`,
-  `audit-clone.mjs console:2 error-text:1`, `compare-recon.mjs console:2 error-text:1`, `dna-scaffold.mjs console:3 error-text:2`,
-  `init-clone.mjs console:2 error-text:1`, `interaction-probe.mjs console:3 stored-error-text:1`, `route-crawl.mjs console:3 stored-error-text:1`,
-  and `console:3` each in `mirror-site.mjs`, `network-capture.mjs`, `od-preview-rewrite.mjs`, `recon-site.mjs`,
-  `sourcemap-hunt.mjs`, `visual-diff.mjs` (scripts use `errorClassLabel`, never core).
-- **A5 chat, UI, admin, CMS (35 files, 84 paths) + 5b.** `chat/src/`: `core/assistant-client/ag-ui-transport.ts stored-error-text:1`,
-  `embed-widget/vanilla/state.ts stored-error-text:1` (visitor bundle: no core import, no console), `console:1 error-format:1` each in
-  `react/components/{Composer,ConversationList,ConversationTitleEditor,ExtEventErrorBoundary,ToolCard}.tsx`,
-  `react/hooks/{useConversation,useRunStream}.ts`, `react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts console:2 error-format:2`,
-  `store/runtime/chat-expiry-sweep.ts console:1 error-format:1 error-helper:1`.
-  `ui/src/features/`: `asset-grid/react/hooks/useAssetGridLiveUpdates.ts console:1`, `connectors/hooks/useConnectorCatalog.ts console:2`,
-  `html-editor/editor-serialization.ts console:1 raw-error:1`, `lexical-rich-text-editor/react/components/RichTextInput.tsx console:1 error-format:1`,
-  `panel-kit/helpers/standing-draft-local-backup.ts console:1`, `panel-kit/hooks/use-settings-slice.hooks.ts console:1`,
-  `panel-kit/hooks/use-standing-draft-autosave.hooks.ts console:1`, `sketch-editor/react/hooks/useSketchSaveWorkflow.ts console:1 error-format:1`;
-  `ui/src/react/components/RemixIcon.stylesheet.ts console:1`.
-  `admin/src/`: `core/transport/errors.ts console:1`, `core/transport/http.ts stored-error-text:3`, `media/controllers/edit-media.controller.ts stored-error-text:1`,
-  `media/controllers/library.controller.ts stored-error-text:3`, `seo/controllers/sitemap.controller.ts stored-error-text:1`,
-  `widgets/react/hooks/use-widget-regions.hooks.ts stored-error-text:1`, `widgets/react/hooks/use-widgets-library.hooks.ts stored-error-text:1`
-  (admin `stored-error-text` is mostly UI state or an error body: not this lane unless it is a log/report).
-  `cms/src/`: `comments/express/submit-handler.ts console:1 error-format:1 error-helper:1`,
-  `forms/express/handler.ts console:1 error-format:1 error-helper:1 stored-error-text:6`, `forms/notify-subscriber.ts error-format:2 error-text:1 raw-error:2`,
-  `forms/submit-service.ts error-format:2` (LOG-PORT: `{ error: cleanupError }` / `{ error }`), `media/tool-registrations.ts stored-error-text:1`,
-  `widgets/html/resolve-html-page-embeds.ts console:1`, `widgets/read-service.ts console:1`, `widgets/resolver-service.ts console:15`.
+## 6. Lanes
+Part A runs as five Sonnet lane recipes on the P4 tree (L1 daemon, L2 core/hosts, L3 data/platform/plugins, L4
+agent, L5 UI/chat/CMS; file-disjoint, in parallel). Each recipe lists its gate entries (from the P4 `--list`), its
+files and every edit. The old per-batch entry lists (A1-A5) are superseded; they are in git (Tovu bd5891144).
 
-**End state (coordinator, after all five batches are committed):** one cloud run of
+**End state (coordinator, after all five lanes are committed):** one cloud run of
 `node scripts/check-log-safety.mjs --update`, committed; the base comparison refuses any growth, and every entry a
 job reported "fixed" must be gone. The gate then passes with the shrunk list; the remaining entries are KEEP,
 not-this-lane or skipped, each with a reason in a job report.
@@ -299,9 +232,12 @@ now `warn({ message }, { error })`. Same ground rules (no runs). Test input
     5. Return `id`. Assignable to every one-argument `onInternalError` port.
   - `logJiniDiagnostic(record: LogDiagnosticRecord, { buffer, source }: same optional = {}): void` (the type from
     `@jini-ai/core`): stores `[jini ${record.level}] ${record.message}`, the meta as guarded `JSON.stringify`
-    (failure -> `[meta unreadable]`), REDACTED FIRST and capped second:
-    `redactSecretShapes({ text: json }).text.slice(0, 2_000)` (a cap before redaction can leave 1-19 characters of
-    a `tovu_ak_<id>.<secret>` secret part, shorter than the 20 the pattern needs), and, when `record.error !== undefined`,
+    (failure -> `[meta unreadable]`), PRE-SLICED, REDACTED, then capped:
+    `redactSecretShapes({ text: json.slice(0, 3_024) }).text.slice(0, 2_000)`. Redacting before the 2,000 cap
+    matters (a cap first can leave 1-19 characters of a `tovu_ak_<id>.<secret>` secret part, shorter than the 20
+    the pattern needs). The 3,024 pre-slice (2,000 + 1,024) bounds the redaction cost on a large meta, and stays
+    safe: a fragment it cuts starts past 2,000 whenever a rule's shortest match is under 1,024 characters (Tovu's
+    key shape: 21 + 20), so the final cap drops it. And, when `record.error !== undefined`,
     `formatErrorForLog` under Tovu's options; `level` = the record's level; no console (the default logger already
     printed the metadata line).
 - **Wiring** `onInternalError: incident => { logJiniIncident(incident); }` at: `server/inbound/assistant/agent-daemon-scope.ts`
