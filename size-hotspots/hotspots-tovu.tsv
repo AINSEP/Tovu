@@ -1,0 +1,322 @@
+rank	kind	file	function	line	lines	fn_over_80	fn_over_100	churn90	churn365	days90	authors365	score	candidate	suggested_reason	exempt_reason
+1	file	apps/website/src/server/runtime/composition/deps.ts		1	1913			317	317	57	4	606421	wiring	62% of lines are imports / identifier-or-call entries (registration or composition list)	
+2	file	apps/admin/src/lib/api.ts		1	2530			194	234	64	4	490820			
+3	file	apps/website/src/server/runtime/composition/app.ts		1	1698			254	254	56	4	431292	wiring	64% of lines are imports / identifier-or-call entries (registration or composition list)	
+4	function	apps/website/src/server/runtime/composition/deps.ts	composeSiteRouteDeps	1047	1187	yes	yes	317	317	57	4	376279	wiring	61% of lines are imports / identifier-or-call entries (registration or composition list)	
+5	function	apps/website/src/server/runtime/composition/app.ts	createRouteDeps	466	873	yes	yes	254	254	56	4	221742	wiring	60% of lines are imports / identifier-or-call entries (registration or composition list)	
+6	file	apps/admin/src/features/plugins/plugins-i18n.ts		1	4360			41	44	15	3	178760	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+7	file	apps/website/src/server/inbound/public-http/routes/site/pages.ts		1	1482			95	95	39	4	140790			
+8	file	apps/website/src/server/inbound/public-http/http/site/render.ts		1	1663			83	83	34	4	138029			
+9	file	apps/admin/src/features/posts/PostEditor.tsx		1	1589			65	100	26	2	103285			
+10	file	apps/website/src/server/routes/types.ts		1	519			176	176	51	4	91344			
+11	file	apps/admin/src/features/posts/posts-i18n.ts		1	3205			25	27	12	3	80125	i18n	locale dictionary (102 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+12	file	apps/admin/src/features/security/security-i18n.ts		1	2238			35	35	22	2	78330	i18n	locale dictionary (98 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+13	file	apps/admin/src/features/themes/themes-i18n.ts		1	3646			20	22	13	2	72920	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+14	file	apps/admin/src/features/deployment/deployment-i18n.tsx		1	2395			30	30	16	3	71850	i18n	locale dictionary (148 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+15	file	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx		1	1018			66	66	44	4	67188			
+16	file	apps/admin/src/features/media/Media.tsx		1	1151			57	65	29	4	65607			
+17	function	apps/website/src/server/runtime/composition/app.ts	createApp	2030	247	yes	yes	254	254	56	4	62738			
+18	file	apps/website/src/features/post/post.ts		1	1120			55	55	32	3	61600			
+19	file	apps/admin/src/features/pages/PageEditor.tsx		1	1017			55	67	25	2	55935			
+20	file	apps/admin/src/components/AssistantDock/assistant-dock-i18n.ts		1	2109			26	28	13	2	54834	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+21	file	apps/website/src/platform/db/schema.postgres.ts		1	1143			47	47	24	3	53721	generated	header says generated / do-not-edit; size follows the generator, not hand-written code	Generated from schema.sqlite.ts by generate-postgres-schema.ts; CI drift-checks it.
+22	file	apps/admin/src/features/media/media-i18n.ts		1	1791			27	30	17	3	48357	i18n	locale dictionary (153 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+23	file	apps/admin/src/panels.tsx		1	726			66	79	33	3	47916			
+24	file	apps/admin/src/components/shared-components-i18n.ts		1	3344			14	14	9	3	46816	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+25	file	apps/website/src/features/deployments/publish-agent-tools.ts		1	754			62	62	28	4	46748			
+26	file	apps/website/src/platform/db/schema.sqlite.ts		1	1370			34	34	17	3	46580	data-table	DB schema declaration, one line per column; splitting scatters one table set	DB schema declaration, one line per column; splitting it scatters one table set.
+27	file	apps/admin/src/features/deployment/StaticSiteTab.tsx		1	942			49	49	21	3	46158			
+28	file	apps/desktop/src/project-ipc.ts		1	1069			43	43	22	4	45967			
+29	file	apps/admin/src/features/ai-assistant/ai-assistant-i18n.ts		1	2807			15	17	12	1	42105	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+30	file	apps/admin/src/features/themes/ThemeExplore.tsx		1	1021			37	53	29	4	37777			
+31	file	apps/admin/src/features/security/AccessTokensTab.tsx		1	847			44	44	26	4	37268			
+32	file	apps/website/src/features/post/tool-registrations.ts		1	793			46	46	32	3	36478			
+33	file	apps/admin/src/features/dashboard/dashboard-i18n.ts		1	2085			17	19	10	1	35445	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+34	file	apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts		1	672			52	62	29	3	34944			
+35	file	apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts		1	911			38	49	24	3	34618			
+36	file	apps/admin/src/App.tsx		1	554			61	88	34	4	33794			
+37	file	apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts		1	631			46	71	29	3	29026			
+38	file	apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts		1	840			33	33	14	3	27720			
+39	file	apps/website/src/features/theme/tool-registrations.ts		1	621			40	40	27	3	24840			
+40	file	apps/website/src/platform/db/content-database.generated.ts		1	1017			24	24	12	3	24408	generated	header says generated / do-not-edit; size follows the generator, not hand-written code	Generated code: regenerate it, don't edit or split it by hand.
+41	file	apps/website/src/features/post/agent-tools.ts		1	704			34	34	25	3	23936			
+42	file	apps/desktop/src/tovu-server.ts		1	503			47	47	25	3	23641			
+43	file	apps/admin/src/features/ai-assistant/AiAssistant.tsx		1	655			35	45	19	3	22925			
+44	function	apps/admin/src/features/posts/PostEditor.tsx	Toolbar	205	345	yes	yes	65	100	26	2	22425			
+45	file	apps/website/src/features/publish-content/apply-loop.ts		1	710			31	31	12	2	22010			
+46	function	apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	installFirstPartyToolContributors	347	251	yes	yes	87	87	42	4	21837			
+47	file	apps/website/src/features/theme/static-render.ts		1	512			41	41	20	3	20992			
+48	file	apps/admin/src/features/forms/forms-i18n.ts		1	1360			15	17	7	1	20400	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+49	function	apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts	useThemeExplore	907	520	yes	yes	38	49	24	3	19760			
+50	function	apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts	usePageEditor	676	379	yes	yes	52	62	29	3	19708			
+51	file	apps/admin/src/features/security/rules.ts		1	516			38	38	22	2	19608			
+52	file	apps/admin/src/features/widgets/widgets-i18n.ts		1	1411			13	15	7	2	18343	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+53	function	apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts	usePostEditor	576	396	yes	yes	46	71	29	3	18216			
+54	file	apps/desktop/src/main/index.ts		1	664			27	27	8	4	17928			
+55	file	apps/website/src/features/theme/theme-files.ts		1	595			30	30	20	3	17850			
+56	file	apps/admin/src/lib/admin-nav-i18n.ts		1	1360			13	17	9	2	17680	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+57	function	apps/admin/src/features/posts/PostEditor.tsx	PostEditor	1511	271	yes	yes	65	100	26	2	17615			
+58	file	apps/admin/src/features/consent/consent-dictionary.ts		1	1937			9	9	7	3	17433	data-table	100% of lines are literal data rows (catalog/table/fixture); logic-free	Data table: literal copy rows, no logic.
+59	file	apps/desktop/src/renderer/SiteGrid.tsx		1	514			33	33	19	3	16962			
+60	file	apps/admin/src/features/trash/trash-i18n.ts		1	1202			14	14	9	2	16828	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+61	file	apps/admin/src/features/users/users-i18n.ts		1	1370			12	15	9	2	16440	i18n	locale dictionary (86 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+62	file	apps/admin/src/features/pages/pages-i18n.ts		1	1433			11	13	9	2	15763	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+63	file	apps/admin/src/features/seo/seo-i18n.ts		1	1567			10	13	6	1	15670	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+64	file	apps/admin/src/features/settings/external-mcp-i18n.ts		1	1031			15	15	11	2	15465	i18n	locale dictionary (68 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+65	file	apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts		1	584			26	26	21	2	15184			
+66	function	apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts	usePublishContentConfirm	522	452	yes	yes	33	33	14	3	14916			
+67	file	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts		1	570			26	26	14	3	14820			
+68	file	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts		1	926			16	16	4	3	14816			
+69	file	apps/admin/src/App.hooks.ts		1	548			27	27	16	4	14796			
+70	file	apps/admin/src/features/taxonomy/Taxonomy.tsx		1	690			21	29	14	2	14490			
+71	file	apps/admin/src/features/collections/collections-i18n.ts		1	1252			11	14	6	1	13772	i18n	locale dictionary (105 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+72	file	apps/admin/src/features/observability/observability-i18n.ts		1	1144			12	12	10	2	13728	i18n	locale dictionary (18 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+73	file	apps/website/src/server/inbound/admin-http/routes/themes/explore.ts		1	635			21	21	13	2	13335			
+74	function	apps/admin/src/features/settings/SettingsUi.tsx	SettingsUi	289	309	yes	yes	43	53	23	2	13287			
+75	function	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	createSiteScope	186	810	yes	yes	16	16	4	3	12960			
+76	function	apps/website/src/features/post/tool-registrations.ts	buildPostRegistrations	903	275	yes	yes	46	46	32	3	12650			
+77	file	apps/admin/src/features/menus/menus-i18n.ts		1	1252			10	12	6	1	12520	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+78	function	apps/website/src/server/runtime/composition/modules/assistant-byok.ts	createAssistantByokModule	510	227	yes	yes	55	55	29	4	12485			
+79	file	apps/admin/src/features/taxonomy/taxonomy-i18n.ts		1	1242			10	12	7	1	12420	i18n	locale dictionary (68 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+80	function	apps/desktop/src/renderer/App.tsx	App	93	182	yes	yes	68	68	29	4	12376			
+81	function	apps/admin/src/App.tsx	AdminShell	578	200	yes	yes	61	88	34	4	12200			
+82	function	apps/admin/src/features/pages/PageEditor.tsx	PageEditor	728	220	yes	yes	55	67	25	2	12100			
+83	function	apps/admin/src/components/AssistantDock/AssistantDock.tsx	AssistantDock	317	154	yes	yes	78	84	43	4	12012			
+84	file	apps/website/src/features/publish-content/peer-transport.ts		1	538			22	22	10	3	11836			
+85	function	apps/website/src/features/theme/tool-registrations.ts	buildThemesRegistrations	562	291	yes	yes	40	40	27	3	11640			
+86	function	apps/admin/src/features/media/Media.tsx	EditMediaPanel	360	197	yes	yes	57	65	29	4	11229			
+87	file	apps/admin/src/features/roles/roles-i18n.ts		1	1337			8	11	7	2	10696	i18n	locale dictionary (106 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+88	function	apps/admin/src/features/themes/ThemeExplore.tsx	ThemeExploreContent	1163	287	yes	yes	37	53	29	4	10619			
+89	file	apps/website/src/features/theme/theme.ts		1	619			17	17	14	3	10523			
+90	function	apps/website/src/features/publish-content/apply-loop.ts	createPublishContentApplyPort	500	338	yes	yes	31	31	12	2	10478			
+91	function	apps/desktop/src/project-ipc.ts	registerSiteIpcHandlers	1572	229	yes	yes	43	43	22	4	9847			
+92	file	apps/admin/src/features/database/database-i18n.tsx		1	1207			8	11	7	1	9656	i18n	locale dictionary (35 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+93	function	apps/website/src/features/deployments/publish-agent-tools.ts	buildStaticPublishRegistrations	972	155	yes	yes	62	62	28	4	9610			
+94	function	apps/website/src/features/publish-content/apply-loop.ts	applyReport	531	306	yes	yes	31	31	12	2	9486			
+95	file	apps/admin/src/features/recovery/recovery-i18n.tsx		1	1341			7	10	5	1	9387	i18n	locale dictionary (107 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+96	file	apps/admin/src/lib/i18n-common.ts		1	661			14	17	8	1	9254	i18n	locale dictionary (85 locale keys, 17 languages); one entry per string, size grows with languages	Shared locale dictionary: one entry per string, and the size grows with each language.
+97	file	apps/admin/src/features/collections/Collections.tsx		1	556			16	24	10	1	8896			
+98	function	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx	useExecutionConfig	164	134	yes	yes	66	66	44	4	8844			
+99	file	apps/admin/src/features/roles/Roles.tsx		1	679			13	19	11	2	8827			
+100	function	apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts	useAccessTokens	389	336	yes	yes	26	26	21	2	8736			
+101	function	apps/website/src/server/inbound/public-http/routes/site/pages.ts	registerSiteRoutes	2979	88	yes	no	95	95	39	4	8360			
+102	function	apps/admin/src/App.tsx	AssistantChrome	346	137	yes	yes	61	88	34	4	8357			
+103	function	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts	createAssistantRunFinalizer	366	318	yes	yes	26	26	14	3	8268			
+104	function	apps/admin/src/features/posts/PostEditor.tsx	PostEditorActions	941	116	yes	yes	65	100	26	2	7540			
+105	function	apps/admin/src/features/posts/PostEditor.tsx	PostEditorHeader	649	112	yes	yes	65	100	26	2	7280			
+106	function	apps/admin/src/features/media/Media.tsx	MediaLibraryPanel	1179	126	yes	yes	57	65	29	4	7182			
+107	file	apps/website/src/features/theme/publish-content.ts		1	508			14	14	7	1	7112			
+108	function	apps/admin/src/features/pages/PageEditor.tsx	PageEditorPane	986	125	yes	yes	55	67	25	2	6875			
+109	function	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	onStarted	668	429	yes	yes	16	16	4	3	6864			
+110	file	apps/admin/src/features/source-control/source-control-i18n.ts		1	566			12	12	6	2	6792	i18n	locale dictionary (36 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+111	function	apps/website/src/platform/db/sqlite/fresh-content-db.ts	bootstrapFreshContentDb	54	185	yes	yes	35	35	13	4	6475			
+112	function	apps/website/src/features/custom-credentials/tool-registrations.ts	bindTovuCredentialToolOperations	390	95	yes	no	68	68	30	4	6460			
+113	function	apps/website/src/server/runtime/composition/provider-plugins.ts	bootProviderPlugins	329	147	yes	yes	43	43	7	4	6321			
+114	function	apps/website/src/cli/commands/serve.ts	serveBootedSite	269	100	yes	no	62	62	31	4	6200			
+115	file	apps/admin/src/features/redirects/redirects-i18n.tsx		1	869			7	10	5	2	6083	i18n	locale dictionary (142 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+116	function	apps/website/src/cli/program.ts	createProgram	47	196	yes	yes	31	31	25	3	6076			
+117	file	apps/website/src/features/newsletter/repo.ts		1	548			11	11	4	2	6028			
+118	function	apps/website/src/features/publish-content/apply-loop.ts	applyOneRow	262	194	yes	yes	31	31	12	2	6014			
+119	file	apps/admin/src/features/integrations/integrations-i18n.tsx		1	824			7	10	6	1	5768	i18n	locale dictionary (53 locale keys, 18 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+120	function	apps/website/src/assistant/byok-tool-surface.ts	createByokToolSurface	621	133	yes	yes	42	42	27	4	5586			
+121	function	apps/desktop/src/tovu-server.ts	startTovuServer	977	118	yes	yes	47	47	25	3	5546			
+122	function	apps/admin/src/features/posts/PostEditor.tsx	PostPreview	1870	83	yes	no	65	100	26	2	5395			
+123	function	apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts	registerAdminPublishSiteRoutes	232	182	yes	yes	29	29	14	4	5278			
+124	function	apps/admin/src/features/security/AccessTokensTab.tsx	AddCustomCredentialDialog	945	119	yes	yes	44	44	26	4	5236			
+125	function	apps/admin/src/features/pages/PageEditor.tsx	PageEditorActions	225	94	yes	no	55	67	25	2	5170			
+126	function	apps/admin/src/features/publish-content/PublishContentDialog.tsx	PublishContentReport	280	161	yes	yes	32	32	12	2	5152			
+127	function	apps/admin/src/features/security/AccessTokensTab.tsx	TokenInputFields	494	114	yes	yes	44	44	26	4	5016			
+128	function	apps/admin/src/features/media/Media.tsx	MediaEditRenderOverrideFields	562	87	yes	no	57	65	29	4	4959			
+129	function	apps/website/src/server/inbound/admin-http/dev-auth.ts	registerAuthRoutes	589	185	yes	yes	26	26	16	3	4810			
+130	function	apps/admin/src/features/media/Media.tsx	MediaToolbar	801	84	yes	no	57	65	29	4	4788			
+131	function	apps/admin/src/features/pages/PageEditor.tsx	PageEditorHeader	113	85	yes	no	55	67	25	2	4675			
+132	function	apps/website/src/server/runtime/composition/modules/assistant-byok.ts	handleTurn	693	85	yes	no	55	55	29	4	4675			
+133	function	apps/website/src/server/runtime/composition/modules/site-assistant.ts	createSiteAssistantModule	570	185	yes	yes	25	25	15	3	4625			
+134	function	apps/website/src/server/inbound/admin-http/routes/system/sites.ts	registerAdminSitesRoutes	305	139	yes	yes	30	30	19	2	4170			
+135	function	apps/admin/src/features/ai-assistant/AiAssistant.tsx	AiAssistant	897	118	yes	yes	35	45	19	3	4130			
+136	function	apps/admin/src/features/pages/Pages.tsx	Pages	105	172	yes	yes	24	33	14	2	4128			
+137	function	apps/website/src/features/post/tool-registrations.ts	content_post_update	1080	88	yes	no	46	46	32	3	4048	wiring	60% of lines are imports / identifier-or-call entries (registration or composition list)	Registration list: tool wiring entries.
+138	function	apps/website/src/features/widgets/tool-registrations.ts	buildWidgetsRegistrations	226	212	yes	yes	19	19	15	1	4028			
+139	function	apps/website/src/features/publish-content/tool-registrations.ts	buildPublishContentRegistrations	181	165	yes	yes	24	24	14	3	3960			
+140	function	apps/website/src/features/post/tool-registrations.ts	fn	1082	85	yes	no	46	46	32	3	3910	wiring	61% of lines are imports / identifier-or-call entries (registration or composition list)	Registration list: tool wiring entries (inner handler of content_post_update).
+141	function	apps/website/src/features/post/tool-registrations.ts	duplicatePostOrPage	1374	83	yes	no	46	46	32	3	3818			
+142	function	apps/website/src/features/pages/tool-registrations.ts	buildPagesRegistrations	525	152	yes	yes	25	25	21	2	3800			
+143	function	apps/admin/src/features/ai-assistant/AiAssistant.tsx	VisitorCredentialForm	725	108	yes	yes	35	45	19	3	3780			
+144	function	apps/website/src/features/forms/tool-registrations.ts	buildFormsRegistrations	319	163	yes	yes	23	23	15	3	3749			
+145	file	apps/admin/src/features/email/email-i18n.ts		1	744			5	5	3	2	3720	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+146	function	apps/admin/src/features/publish-content/PublishContentDialog.tsx	PublishContentDialog	99	115	yes	yes	32	32	12	2	3680			
+147	function	apps/website/src/server/runtime/composition/modules/site-assistant.ts	registerRoutes	615	147	yes	yes	25	25	15	3	3675			
+148	function	apps/desktop/src/renderer/SiteGrid.tsx	SiteCard	181	110	yes	yes	33	33	19	3	3630			
+149	function	apps/admin/src/features/themes/ThemeExplore.tsx	ThemeExploreFileRow	312	94	yes	no	37	53	29	4	3478			
+150	function	apps/website/src/features/publish-content/repo-handler.ts	createRepoPublishHandler	154	176	yes	yes	19	19	7	1	3344			
+151	function	apps/admin/src/features/roles/hooks/use-roles.hooks.ts	useRoles	208	278	yes	yes	12	17	8	1	3336			
+152	function	apps/website/src/server/runtime/composition/modules/assistant-chats.ts	createAssistantChatsModule	95	145	yes	yes	23	23	14	3	3335			
+153	function	apps/website/src/server/inbound/assistant/assistant-system-overlay.ts	buildBaseSystemOverlay	194	92	yes	no	36	36	22	4	3312			
+154	function	apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts	registerAdminPublishCredentialsRoutes	162	134	yes	yes	24	24	16	3	3216			
+155	file	apps/website/src/features/site-backup/backup-service.ts		1	533			6	6	5	2	3198			
+156	function	apps/admin/src/features/plugins/AgentPlugins.tsx	AgentPlugins	394	122	yes	yes	26	29	14	3	3172			
+157	function	apps/admin/src/features/taxonomy/Taxonomy.tsx	namespaceList	707	146	yes	yes	21	29	14	2	3066			
+158	function	apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts	registerPublishContentImportRoutes	91	170	yes	yes	18	18	9	3	3060			
+159	function	apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts	useMenuEditor	191	179	yes	yes	17	23	13	2	3043			
+160	function	apps/admin/src/features/plugins/AgentPluginRow.tsx	AgentPluginRow	212	138	yes	yes	22	22	13	4	3036			
+161	function	apps/website/src/server/runtime/composition/modules/assistant-chats.ts	registerRoutes	106	132	yes	yes	23	23	14	3	3036			
+162	function	apps/website/src/server/runtime/composition/commerce.ts	composeCommerce	65	262	yes	yes	11	11	2	1	2882			
+163	function	apps/website/src/features/source-control/tool-registrations.ts	buildSourceControlRegistrations	390	97	yes	no	29	29	20	2	2813			
+164	function	apps/website/src/features/theme/agent-tools.ts	getThemesAgentToolCatalog	348	111	yes	yes	25	25	18	3	2775	wiring	72% of lines are imports / identifier-or-call entries (registration or composition list)	Registration list: agent tool catalog entries.
+165	function	apps/admin/src/features/posts/Posts.tsx	Posts	61	132	yes	yes	21	28	12	2	2772			
+166	function	apps/website/src/server/runtime/boot/bootstrap.ts	buildBootModules	237	105	yes	yes	26	26	19	4	2730			
+167	function	apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	usePublishCredentials	247	151	yes	yes	18	18	12	3	2718			
+168	function	apps/website/src/features/publish-content/repo-handler.ts	build	192	142	yes	yes	19	19	7	1	2698			
+169	function	apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts	useVisitorCredentialForm	409	139	yes	yes	19	24	14	2	2641			
+170	function	apps/website/src/features/taxonomy/tool-registrations.ts	buildTaxonomyRegistrations	183	220	yes	yes	12	12	10	1	2640			
+171	function	apps/website/src/server/runtime/composition/modules/site-assistant.ts	handleChat	661	105	yes	yes	25	25	15	3	2625			
+172	function	apps/admin/src/App.hooks.ts	useAdminSession	102	96	yes	no	27	27	16	4	2592			
+173	function	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts	createHttpRunDaemonClient	141	99	yes	no	26	26	14	3	2574			
+174	function	apps/website/src/server/runtime/composition/peer-site-reads.ts	createPeerSiteReads	323	128	yes	yes	20	20	11	4	2560			
+175	function	apps/website/src/features/agent-plugins/lifecycle.ts	createTovuAgentPluginLifecycle	101	111	yes	yes	23	23	16	4	2553			
+176	function	apps/website/src/features/post/publish-content.ts	postRetireMethods	424	88	yes	no	29	29	12	1	2552			
+177	function	apps/admin/src/features/collections/Collections.tsx	Collections	492	156	yes	yes	16	24	10	1	2496			
+178	function	apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts	registerPublishContentPeerTransportRoutes	243	86	yes	no	29	29	12	4	2494			
+179	file	apps/website/src/features/identity/repo.ts		1	616			4	4	4	2	2464			
+180	function	apps/admin/src/features/dashboard/Dashboard.tsx	Dashboard	216	106	yes	yes	23	28	16	1	2438			
+181	function	apps/website/src/features/media-import/tool-registrations.ts	buildMediaImportRegistrations	277	114	yes	yes	21	21	18	2	2394			
+182	function	apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	useStaticPublish	154	147	yes	yes	16	16	12	2	2352			
+183	function	apps/admin/src/features/taxonomy/Taxonomy.tsx	<arg of taxonomies.map>	751	111	yes	yes	21	29	14	2	2331			
+184	function	apps/website/src/features/trash/table-adapter.ts	createTableTrashAdapter	76	189	yes	yes	12	12	10	1	2268			
+185	function	apps/website/src/features/comments/tool-registrations.ts	buildCommentsRegistrations	218	126	yes	yes	18	18	13	4	2268			
+186	function	apps/admin/src/features/themes/Themes.tsx	ThemeGrid	388	90	yes	no	25	33	19	4	2250			
+187	function	apps/admin/src/features/providers/Providers.tsx	Providers	135	132	yes	yes	17	17	9	1	2244			
+188	function	apps/website/src/platform/site-dir/local-site-supervisor.ts	createLocalSiteSupervisor	61	221	yes	yes	10	10	8	3	2210			
+189	function	apps/website/src/server/inbound/admin-http/routes/posts/update.ts	registerAdminPostUpdateRoute	133	100	yes	no	22	22	16	3	2200			
+190	function	apps/admin/src/features/themes/hooks/use-themes.hooks.ts	useThemes	112	122	yes	yes	18	23	18	3	2196			
+191	function	apps/website/src/features/theme/publish-content.ts	buildHandler	603	152	yes	yes	14	14	7	1	2128			
+192	function	apps/website/src/features/site-backup/import-backend.ts	createSiteImportBackend	42	141	yes	yes	15	15	9	3	2115			
+193	function	apps/website/src/features/trash/registry.ts	buildTrashRegistry	164	162	yes	yes	13	13	9	2	2106	data-table	98% of lines are literal data rows (catalog/table/fixture); logic-free	Data table: one literal row per trashable type.
+194	function	apps/website/src/server/inbound/admin-http/routes/posts/update.ts	<arg of app.put>	137	94	yes	no	22	22	16	3	2068			
+195	file	apps/admin/src/features/content-analysis/content-analysis-i18n.ts		1	684			3	3	3	1	2052	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+196	function	apps/admin/src/features/integrations/Integrations.tsx	Integrations	134	156	yes	yes	13	19	10	1	2028			
+197	function	apps/admin/src/features/media/hooks/use-media.hooks.ts	useMedia	134	156	yes	yes	13	18	13	2	2028			
+198	function	apps/admin/src/features/settings/ExternalMcpSettingsPanel.tsx	ExternalMcpSettingsPanel	488	88	yes	no	23	23	17	3	2024			
+199	function	apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts	useSiteImport	367	118	yes	yes	17	17	10	3	2006			
+200	function	apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts	useCollectionEntryEditor	103	199	yes	yes	10	16	8	2	1990			
+201	function	apps/website/src/features/identity/tool-registrations.ts	buildGatedIdentityRegistrations	96	150	yes	yes	13	13	9	2	1950			
+202	function	apps/admin/src/features/sites/hooks/use-sites.hooks.ts	useSites	114	118	yes	yes	16	16	13	2	1888			
+203	function	apps/website/src/server/inbound/admin-http/routes/pages/update.ts	registerAdminPageUpdateRoute	129	94	yes	no	20	20	11	3	1880			
+204	file	apps/admin/src/features/ai-assistant/ai-assistant-layout-i18n.ts		1	621			3	3	2	1	1863	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+205	function	apps/website/src/features/agent-plugins/automatic-agent-plugins.ts	createAutomaticPluginRuns	47	137	yes	yes	13	13	6	4	1781			
+206	function	apps/website/src/server/runtime/composition/peer-site-reads.ts	composePeer	201	89	yes	no	20	20	11	4	1780	wiring	64% of lines are imports / identifier-or-call entries (registration or composition list)	Registration list: peer-site read wiring.
+207	file	apps/admin/src/features/members/members-i18n.ts		1	593			3	6	3	1	1779	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+208	function	apps/website/src/server/inbound/admin-http/routes/pages/update.ts	<arg of app.put>	133	88	yes	no	20	20	11	3	1760			
+209	function	apps/admin/src/features/taxonomy/Taxonomy.tsx	Taxonomy	597	83	yes	no	21	29	14	2	1743			
+210	function	apps/admin/src/features/menus/MenuEditor.tsx	MenuEditor	429	102	yes	yes	17	27	13	2	1734			
+211	function	apps/website/src/features/consent/service.ts	createSiteConsentService	82	96	yes	no	18	18	9	4	1728			
+212	file	apps/admin/src/features/comments/comments-i18n.ts		1	858			2	6	2	1	1716	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+213	function	apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts	useExternalMcp	265	94	yes	no	18	20	15	1	1692			
+214	file	apps/admin/src/features/settings/settings-memory-i18n.ts		1	844			2	2	2	1	1688	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+215	file	apps/website/src/contracts/core/credential-copy.ts		1	552			3	3	3	1	1656	data-table	95% of lines are literal data rows (catalog/table/fixture); logic-free	Data table: literal copy rows, no logic.
+216	function	apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts	registerAdminSourceControlCredentialsRoutes	87	103	yes	yes	16	16	11	2	1648			
+217	function	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	CreateWebsiteOnboarding	216	136	yes	yes	12	12	10	2	1632			
+218	function	apps/admin/src/features/sites/hooks/use-site-transfer.hooks.ts	useSiteExport	159	95	yes	no	17	17	10	3	1615			
+219	function	apps/website/src/server/runtime/lifecycle/local-site-process.ts	createLocalSiteProcessPort	134	112	yes	yes	14	14	12	3	1568			
+220	function	apps/admin/src/features/collections/Collections.tsx	NewContentTypeDialog	158	98	yes	no	16	24	10	1	1568			
+221	function	apps/desktop/src/renderer/use-find-in-page.hooks.ts	useFindInPage	427	171	yes	yes	9	9	6	2	1539			
+222	function	apps/website/src/features/newsletter/tool-registrations.ts	buildNewsletterRegistrations	334	171	yes	yes	9	9	7	2	1539			
+223	function	apps/website/src/features/source-control/credential-setup.ts	proposeSourceControlCredential	56	89	yes	no	17	17	12	2	1513			
+224	function	apps/website/src/features/site-backup/share-backend.ts	createSiteShareBackend	137	100	yes	no	15	15	9	3	1500			
+225	function	apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts	registerAdminCustomCredentialsRoutes	122	99	yes	no	15	15	11	2	1485			
+226	function	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts	usePlugins	142	87	yes	no	17	20	12	2	1479			
+227	function	apps/website/src/features/webhooks/tool-registrations.ts	buildWebhooksRegistrations	191	123	yes	yes	12	12	10	1	1476			
+228	function	apps/admin/src/features/plugins/hooks/plugins-dependencies.hooks.ts	createFakePluginsPort	44	86	yes	no	17	18	9	2	1462			
+229	function	apps/website/src/features/redirects/tool-registrations.ts	buildRedirectsRegistrations	127	120	yes	yes	12	12	10	2	1440	wiring	63% of lines are imports / identifier-or-call entries (registration or composition list)	Registration list: tool wiring entries.
+230	function	apps/website/src/features/recovery/tool-registrations.ts	buildRecoveryRegistrations	183	178	yes	yes	8	8	8	1	1424			
+231	function	apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts	createFakePostEditorPort	110	100	yes	no	14	17	11	2	1400			
+232	function	apps/desktop/src/desktop-agent.ts	createDesktopAgentRuntime	333	100	yes	no	14	14	9	4	1400			
+233	function	apps/admin/src/features/menus/MenuEditor.tsx	ItemRow	227	82	yes	no	17	27	13	2	1394			
+234	function	apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts	createFakePageEditorPort	64	99	yes	no	14	15	11	2	1386			
+235	function	apps/website/src/features/publish-content/gated-hooks.ts	buildPublishContentImportHooks	211	104	yes	yes	13	13	7	1	1352			
+236	function	apps/website/src/features/theme/publish-content.ts	apply	696	96	yes	no	14	14	7	1	1344			
+237	function	apps/admin/src/features/collections/CollectionEntryEditor.tsx	CollectionEntryEditor	400	103	yes	yes	13	20	10	1	1339			
+238	function	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	<arg of customInstructionsCache     .refresh()  >	856	82	yes	no	16	16	4	3	1312			
+239	function	apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts	useEditMediaPanel	143	130	yes	yes	10	16	7	1	1300			
+240	function	apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx	WidgetPickerDialog	91	100	yes	no	13	14	11	3	1300			
+241	function	apps/admin/src/features/roles/Roles.tsx	RolesSection	123	98	yes	no	13	19	11	2	1274			
+242	function	apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts	registerAdminSiteImportRoutes	29	105	yes	yes	12	12	8	3	1260			
+243	function	apps/admin/src/features/pages/hooks/use-pages.hooks.ts	usePages	102	81	yes	no	15	19	12	2	1215			
+244	function	apps/admin/src/features/deployment/DockerfileTab.tsx	DockerfileEditorCard	210	132	yes	yes	9	9	4	1	1188			
+245	function	apps/admin/src/features/taxonomy/TermPicker.tsx	TermPicker	27	132	yes	yes	9	9	7	2	1188			
+246	function	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	DatabasePicker	65	95	yes	no	12	12	10	2	1140			
+247	function	apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts	registerAdminRecoveryRestoreRoutes	61	162	yes	yes	7	7	6	3	1134			
+248	function	apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts	registerAdminSiteShareRoutes	41	102	yes	yes	11	11	9	3	1122			
+249	function	apps/desktop/src/renderer/workspace-chat-transport.ts	createWorkspaceChatTransport	322	101	yes	yes	11	11	8	2	1111			
+250	file	apps/admin/src/features/sites/sites-settings-i18n.ts		1	550			2	2	2	1	1100	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages	Locale dictionaries: one entry per string, and the size grows with each language.
+251	function	apps/website/src/server/inbound/admin-http/routes/pages/delete.ts	registerAdminPageDeleteRoute	33	88	yes	no	12	12	7	3	1056			
+252	function	apps/website/src/server/inbound/admin-http/routes/pages/delete.ts	<arg of app.delete>	34	86	yes	no	12	12	7	3	1032			
+253	function	apps/desktop/src/desktop-agent-service.ts	createDesktopAgentService	99	170	yes	yes	6	6	3	2	1020			
+254	function	apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts	useTermPicker	132	164	yes	yes	6	6	5	2	984			
+255	function	apps/website/src/features/navigation/publish-content.ts	menuReferenceMethods	168	98	yes	no	10	10	6	1	980			
+256	function	apps/website/src/assistant/external-mcp-federation-runtime.ts	createFederationRuntime	110	86	yes	no	11	11	5	2	946			
+257	function	apps/website/src/features/seo/tool-registrations.ts	buildSeoRegistrations	135	85	yes	no	11	11	10	1	935			
+258	function	apps/website/src/features/entries/publish-content.ts	contributeCollectionEntryPublish	53	100	yes	no	9	9	4	1	900			
+259	function	apps/admin/src/features/collections/CollectionEntries.tsx	CollectionEntries	25	86	yes	no	10	15	9	1	860			
+260	function	apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts	registerPublishContentDestinationRoutes	128	135	yes	yes	6	6	5	3	810			
+261	function	apps/admin/src/features/pages/ThemePagesTab.tsx	ThemePagesTab	291	90	yes	no	9	9	9	3	810			
+262	function	apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSource	138	88	yes	no	9	9	6	2	792			
+263	function	apps/site-chat/src/site-assistant-transport.ts	createSiteAssistantTransport	190	98	yes	no	8	11	8	3	784			
+264	function	apps/admin/src/features/plugins/hooks/use-agent-plugin-install.hooks.ts	useAgentPluginInstall	94	86	yes	no	9	9	4	3	774			
+265	function	apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx	EmbedInsertControl	198	85	yes	no	9	11	8	1	765			
+266	function	apps/website/src/features/publish-content/raw-file-contributor.ts	contributeRawFilePublish	18	147	yes	yes	5	5	5	2	735			
+267	function	apps/website/src/server/inbound/admin-http/routes/settings/events.ts	runChangeFeed	219	81	yes	no	9	9	6	2	729			
+268	function	apps/website/src/features/database/tool-registrations.ts	buildDatabaseRegistrations	129	104	yes	yes	7	7	7	1	728			
+269	function	apps/website/src/features/publish-content/raw-file-contributor.ts	build	19	145	yes	yes	5	5	5	2	725			
+270	function	apps/admin/src/features/trash/hooks/use-trash.hooks.ts	useTrash	97	143	yes	yes	5	5	4	1	715			
+271	function	apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts	useTaxonomy	163	102	yes	yes	7	16	6	1	714			
+272	function	apps/admin/src/features/workspace/Workspace.tsx	Workspace	76	95	yes	no	7	14	6	1	665			
+273	function	apps/site-chat/src/site-assistant-transport.ts	startRun	194	83	yes	no	8	11	8	3	664			
+274	function	apps/website/src/features/publish-content/raw-row-contributor.ts	buildRawRowHandler	50	131	yes	yes	5	5	5	2	655			
+275	function	apps/website/src/features/trash/adapters/user.ts	createUserTrashAdapter	90	103	yes	yes	6	6	6	1	618			
+276	function	apps/website/src/features/publish-content/publish-tool.ts	publishContentFromTool	57	97	yes	no	6	6	6	3	582			
+277	function	content/themes/__original-themes__/static/tovu-theme/scripts/main.js	<anonymous>	1	193	yes	yes	3	3	3	2	579			
+278	function	content/themes/static/tovu-theme/scripts/main.js	<anonymous>	1	193	yes	yes	3	3	3	2	579			
+279	function	apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx	useRecentEntriesConfig	200	90	yes	no	6	7	5	1	540			
+280	function	apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts	registerPublishTrustHandshakeRoutes	127	90	yes	no	6	6	6	1	540			
+281	function	apps/admin/src/features/skills/use-skills.hooks.ts	useSkills	54	102	yes	yes	5	5	5	2	510			
+282	function	apps/website/src/assistant/demo-a2ui-tool.ts	buildDemoA2uiRegistrations	170	102	yes	yes	5	5	5	2	510			
+283	function	apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useTimelineSection	120	84	yes	no	6	10	4	1	504			
+284	function	apps/admin/src/features/library/hooks/use-library.hooks.ts	useLibrary	215	100	yes	no	5	5	3	1	500			
+285	function	apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts	registerAdminCommentsModerateRoutes	68	83	yes	no	6	6	5	3	498			
+286	function	apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts	usePushToTalk	105	82	yes	no	6	6	5	2	492			
+287	function	apps/desktop/src/renderer/app/SiteWorkspace.tsx	SiteWorkspace	103	121	yes	yes	4	4	3	2	484			
+288	function	apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts	registerAdminTaxonomyMergeTermRoutes	38	117	yes	yes	4	4	3	2	468			
+289	function	apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts	registerAdminDatabaseMigrateForwardRoutes	37	115	yes	yes	4	4	3	2	460			
+290	function	apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useRestoreFlow	69	92	yes	no	5	9	4	1	460			
+291	function	apps/admin/src/features/email/EmailTemplatesTab.tsx	EmailTemplatesTab	14	91	yes	no	5	5	2	2	455			
+292	function	apps/website/src/assistant/demo-a2ui-tool.ts	[DEMO_A2UI_TOOL_ID]	175	88	yes	no	5	5	5	2	440			
+293	function	apps/website/src/server/inbound/assistant/agent-daemon-site-tools.ts	createDaemonSiteTools	34	107	yes	yes	4	4	2	2	428			
+294	function	apps/desktop/src/main/boot/site-backend.ts	createSiteBackend	99	85	yes	no	5	5	2	1	425			
+295	function	apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts	createFakeRolesPort	80	106	yes	yes	4	4	4	2	424			
+296	function	apps/admin/src/features/taxonomy/TaxonomyRowMenu.hooks.ts	useTaxonomyRowMenu	12	102	yes	yes	4	4	4	1	408			
+297	function	apps/website/src/features/newsletter/campaign-write-service.ts	saveCampaign	91	81	yes	no	5	5	5	1	405			
+298	function	content/themes/__original-themes__/static/tovu-starter/scripts/main.js	<anonymous>	1	193	yes	yes	2	2	2	2	386			
+299	function	content/themes/static/tovu-starter/scripts/main.js	<anonymous>	1	193	yes	yes	2	2	2	2	386			
+300	function	apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts	useIntegrations	83	90	yes	no	4	8	4	1	360			
+301	function	apps/admin/src/features/taxonomy/hooks/use-merge-term-section.hooks.ts	useMergeTermSection	53	88	yes	no	4	8	4	1	352			
+302	function	apps/website/src/features/newsletter/delivery/tool-registrations.ts	buildNewsletterDeliveryRegistrations	105	88	yes	no	4	4	4	2	352			
+303	function	apps/admin/src/hooks/use-external-entry-refresh.hooks.ts	useExternalEntryRefresh	59	85	yes	no	4	4	2	1	340			
+304	function	apps/admin/src/features/email/hooks/use-email-template-editor.hooks.ts	useEmailTemplateEditor	62	81	yes	no	4	4	3	1	324			
+305	function	apps/website/src/features/web-screenshot/playwright-page-capture.ts	createPlaywrightPageCapture	102	81	yes	no	4	4	4	2	324			
+306	function	apps/admin/src/lib/browser-stream.ts	startBrowserStream	48	104	yes	yes	3	3	2	2	312			
+307	function	apps/website/src/features/api-connections/shared-api.ts	createSharedApiConnections	21	99	yes	no	3	3	1	1	297			
+308	function	apps/website/src/features/webmcp/generated/annotated-actions-script.ts	createAnnotatedActionsScript	9	147	yes	yes	2	2	2	2	294	embedded-text	93% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+309	function	apps/desktop/src/main/updates/desktop-updater.ts	createDesktopUpdater	81	83	yes	no	3	3	2	1	249			
+310	function	apps/website/src/server/runtime/composition/other-site-keys.ts	createOtherSiteKeys	77	116	yes	yes	2	2	1	1	232			
+311	function	apps/website/src/features/publish-content/publish-backstop-file.ts	createRawFileSitePort	45	102	yes	yes	2	2	2	2	204			
+312	function	apps/site-chat/src/visitor-page-control.ts	createVisitorPageControl	10	88	yes	no	2	2	2	1	176			
+313	function	apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts	createDaemonCoreClient	32	87	yes	no	2	2	2	2	174			
+314	function	apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts	registerAdminDockerfileSourceRoute	78	81	yes	no	2	2	2	2	162			
+315	function	content/themes/__original-themes__/static/tovu-starter/scripts/docs-toc.js	<anonymous>	16	125	yes	yes	1	1	1	1	125			
+316	function	content/themes/__original-themes__/static/tovu-theme/scripts/docs-toc.js	<anonymous>	16	125	yes	yes	1	1	1	1	125			
+317	function	content/themes/static/tovu-starter/scripts/docs-toc.js	<anonymous>	16	125	yes	yes	1	1	1	1	125			
+318	function	content/themes/static/tovu-theme/scripts/docs-toc.js	<anonymous>	16	125	yes	yes	1	1	1	1	125			
+319	function	apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts	useMediaContentEditor	142	110	yes	yes	1	1	1	1	110			
+320	function	apps/desktop/src/renderer/WorkspaceChatPane.tsx	WorkspaceChatPane	21	94	yes	no	1	1	1	1	94			
+321	function	apps/admin/src/features/content-analysis/ContentAnalysisCard.tsx	ContentAnalysisCard	13	85	yes	no	1	1	1	1	85			

@@ -1,0 +1,282 @@
+rank	kind	file	function	line	lines	fn_over_80	fn_over_100	churn90	churn365	days90	authors365	score	candidate	suggested_reason	exempt_reason
+1	file	packages/chat/src/react/features/chat-pane/styles.ts		1	2034			52	55	24	3	105768	embedded-text	100% of lines are CSS in a template string; a stylesheet, not logic	Stylesheet: CSS in one template string, no logic.
+2	file	packages/daemon/src/agent-executor/launch.ts		1	1012			42	42	21	4	42504			
+3	file	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts		1	864			39	40	24	4	33696			
+4	file	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx		1	759			37	40	26	4	28083			
+5	file	packages/daemon/src/agent-executor/events.ts		1	929			27	27	20	3	25083			
+6	function	packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts	useChatPane	403	614	yes	yes	39	40	24	4	23946			
+7	function	packages/daemon/src/agent-executor/launch.ts	createAgentExecutor	971	422	yes	yes	42	42	21	4	17724			
+8	file	packages/core/src/redact.ts		1	601			21	22	12	3	12621			
+9	file	packages/chat/src/react/components/ToolCard.tsx		1	516			24	26	14	4	12384			
+10	file	packages/chat/src/react/components/Composer.tsx		1	555			22	29	17	3	12210			
+11	file	packages/daemon/src/http/attachments.ts		1	871			14	14	10	3	12194			
+12	file	packages/agent-runtime/src/json-event-stream.ts		1	819			14	19	13	4	11466			
+13	file	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx		1	516			20	21	13	4	10320			
+14	file	packages/agent-runtime/src/agent-protocol/acp/session.ts		1	1236			8	11	8	4	9888			
+15	file	packages/daemon/src/run-lifecycle.ts		1	690			14	24	11	3	9660			
+16	function	packages/daemon/src/agent-executor/events.ts	wireChildLifecycle	467	336	yes	yes	27	27	20	3	9072			
+17	file	packages/agent-runtime/src/claude-stream.ts		1	685			11	17	11	4	7535			
+18	file	packages/user-management/src/react/users/Users.tsx		1	748			10	10	8	3	7480			
+19	file	packages/commerce/src/payments/ledger/rows.ts		1	726			10	10	3	3	7260			
+20	file	packages/cms/src/taxonomy/write-service.ts		1	712			10	13	8	3	7120			
+21	file	packages/cms/src/widgets/resolver-service.ts		1	701			10	10	8	3	7010			
+22	file	packages/admin/src/seo/react/pages/SeoPage.tsx		1	608			11	11	6	3	6688			
+23	function	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	ChatPane	746	176	yes	yes	37	40	26	4	6512			
+24	file	packages/server/src/builtin-features.ts		1	566			11	16	10	4	6226			
+25	function	packages/daemon/src/tool-executor.ts	createToolExecutor	254	338	yes	yes	18	26	13	4	6084			
+26	function	packages/chat/src/react/components/Composer.tsx	Composer	166	270	yes	yes	22	29	17	3	5940			
+27	function	packages/chat/src/react/components/MessageRow.tsx	AssistantMessageRow	338	159	yes	yes	35	38	24	4	5565			
+28	function	packages/daemon/src/run-lifecycle.ts	createRunLifecycle	571	393	yes	yes	14	24	11	3	5502			
+29	function	packages/daemon/src/agent-executor/launch.ts	run	1391	131	yes	yes	42	42	21	4	5502			
+30	file	packages/mcp/src/federation/hosted/store.ts		1	988			5	5	1	2	4940			
+31	function	packages/chat/src/core/assistant-client/transport.ts	createAssistantTransportClient	125	400	yes	yes	12	12	10	4	4800			
+32	function	packages/server/src/builtin-features.ts	createBuiltInFeatures	231	426	yes	yes	11	16	10	4	4686			
+33	function	packages/agent-runtime/src/claude-stream.ts	createClaudeStreamHandler	472	373	yes	yes	11	17	11	4	4103			
+34	file	packages/platform/src/download.ts		1	981			4	7	4	3	3924			
+35	file	packages/core/src/settings/write-service.ts		1	777			5	5	5	3	3885			
+36	function	packages/agent-runtime/src/agent-protocol/acp/session.ts	attachAcpSession	1007	482	yes	yes	8	11	8	4	3856			
+37	function	packages/ui/src/features/mcp-ui/surfaces/form.ts	formScript	109	251	yes	yes	14	18	9	4	3514	embedded-text	98% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+38	function	packages/agent-plugins/src/lifecycle/install.ts	buildModule	170	303	yes	yes	11	11	9	4	3333			
+39	function	packages/agent-plugins/src/lifecycle/automatic-use.ts	createAutomaticAgentPluginUse	97	134	yes	yes	23	23	8	4	3082			
+40	file	packages/daemon/src/http/xai.ts		1	510			6	6	6	3	3060			
+41	function	packages/chat/src/react/hooks/useComposer.ts	useComposer	239	208	yes	yes	14	17	11	3	2912			
+42	function	packages/chat/src/store/sql/store.ts	createSqlChatStore	232	317	yes	yes	9	9	9	3	2853			
+43	function	packages/daemon/src/http/attachments.ts	createDiskAttachmentStore	1098	189	yes	yes	14	14	10	3	2646			
+44	file	packages/agent-runtime/src/providers/openai-chat.ts		1	528			5	14	4	3	2640			
+45	function	packages/chat/src/react/hooks/useConversation.ts	useConversation	136	145	yes	yes	18	22	14	3	2610			
+46	function	packages/ui/src/features/mcp-ui/surfaces/confirmation.ts	confirmationScript	279	151	yes	yes	17	19	11	4	2567	embedded-text	93% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+47	function	packages/platform/src/fs/guarded-reader.ts	createGuardedFileReader	49	329	yes	yes	7	7	5	3	2303			
+48	function	packages/chat/src/store/runtime/durable-run-store.ts	createDurableRunStore	182	280	yes	yes	8	8	7	3	2240			
+49	function	packages/agent-plugins/src/lifecycle/activation.ts	buildModule	175	314	yes	yes	7	7	6	2	2198			
+50	function	packages/agent-plugins/src/lifecycle/resolve-agent-plugin-refs.ts	buildModule	94	154	yes	yes	14	14	10	4	2156			
+51	file	packages/cms/src/redirects/redirects.ts		1	518			4	4	4	2	2072			
+52	function	packages/agentic/src/core/dom/dom-page-driver.ts	createDomPageDriver	457	171	yes	yes	11	13	8	3	1881			
+53	file	packages/integrations/src/api-connections/hosted-mcp/sign-in.ts		1	602			3	3	1	2	1806			
+54	file	packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts		1	880			2	3	2	2	1760			
+55	function	packages/chat/src/server/durable-runs/recover.ts	createDurableRecovery	140	122	yes	yes	14	14	10	3	1708			
+56	file	packages/plugins/src/host/node/runtime-core.ts		1	564			3	3	2	1	1692			
+57	function	packages/cms/src/media/tool-registrations.ts	buildMediaRegistrations	209	141	yes	yes	12	13	10	4	1692			
+58	function	packages/chat/src/react/components/ConversationList.tsx	ConversationList	141	209	yes	yes	8	10	7	4	1672			
+59	file	packages/memory/src/note-store.ts		1	522			3	9	3	3	1566			
+60	file	packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx		1	520			3	10	3	3	1560			
+61	function	packages/admin/src/seo/react/pages/SeoPage.tsx	SeoDefaultsTab	526	136	yes	yes	11	11	6	3	1496			
+62	function	packages/chat/src/store/runtime/run-ledger.ts	createChatRunLedger	126	186	yes	yes	8	8	7	3	1488			
+63	function	packages/user-management/src/react/users/hooks/use-users.hooks.ts	useUsers	300	296	yes	yes	5	5	4	2	1480			
+64	function	packages/ui/src/renderers/annotation-canvas/react/hooks/useAnnotationCanvas.ts	useAnnotationCanvas	179	739	yes	yes	2	3	2	2	1478			
+65	function	packages/agent-plugins/src/lifecycle/uninstall.ts	buildModule	188	180	yes	yes	8	8	7	3	1440			
+66	function	packages/plugins/src/host/node/source-drafts.ts	createPluginSourceService	153	180	yes	yes	8	8	6	4	1440			
+67	function	packages/search/src/indexer.ts	createSearchIndexer	93	239	yes	yes	6	6	2	2	1434			
+68	function	packages/agent-plugins/src/lifecycle/tools/projection.ts	createAgentPluginToolProjection	225	87	yes	no	16	16	4	3	1392			
+69	function	packages/sandbox/src/e2b/wrap-e2b-sandbox.ts	wrapE2bSandbox	170	197	yes	yes	7	7	6	2	1379			
+70	function	packages/agent-plugins/src/lifecycle/bundled-source-archive.ts	buildModule	102	224	yes	yes	6	6	4	2	1344			
+71	function	packages/mcp/src/server/tool-server.ts	createMcpToolServer	287	103	yes	yes	13	18	11	3	1339			
+72	function	packages/user-management/src/admin/controllers/roles.controller.ts	createRolesController	15	327	yes	yes	4	4	4	3	1308			
+73	function	packages/chat/src/embed-widget/vanilla/index.ts	mountVanillaChat	55	256	yes	yes	5	5	5	3	1280			
+74	function	packages/user-management/src/react/users/Users.tsx	Users	833	127	yes	yes	10	10	8	3	1270			
+75	function	packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts	useInteractiveHtmlEditor	272	121	yes	yes	10	11	7	3	1210			
+76	function	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	useFormEditor	133	151	yes	yes	8	8	5	3	1208			
+77	function	packages/plugins/src/host/node/runtime-core.ts	createPluginRuntimeCore	387	397	yes	yes	3	3	2	1	1191			
+78	function	packages/integrations/src/media-providers/dispatch/async-operation-store.ts	createInMemoryAsyncOperationStore	400	106	yes	yes	11	11	6	3	1166			
+79	function	packages/diagnostics/src/observability/otel.ts	createOtelObservabilityPort	105	96	yes	no	12	12	7	3	1152			
+80	function	packages/chat/src/react/hooks/assistant-chats.ts	createAssistantChatsClient	10	382	yes	yes	3	3	3	3	1146			
+81	function	packages/agent-plugins/src/lifecycle/index.ts	createAgentPluginLifecycle	61	81	yes	no	14	14	10	3	1134			
+82	function	packages/server/src/create-local-node-daemon.ts	createLocalNodeDaemon	353	113	yes	yes	10	12	9	2	1130			
+83	function	packages/platform/src/asset-cache.ts	createAssetCache	191	123	yes	yes	9	11	9	3	1107			
+84	function	packages/devops/src/checks/hardwiring.ts	createHardwiringInspector	56	276	yes	yes	4	4	4	3	1104			
+85	function	packages/memory/src/note-store.ts	createNoteStore	296	367	yes	yes	3	9	3	3	1101			
+86	function	packages/ui/src/features/asset-grid/react/components/AssetGrid.tsx	AssetGrid	77	210	yes	yes	5	10	4	3	1050			
+87	function	packages/ui/src/features/html-editor/react/hooks/useInteractiveHtmlEditor.ts	<arg of useEffect>	288	105	yes	yes	10	11	7	3	1050			
+88	function	packages/integrations/src/credentialed-http/tools/tool-registrations.ts	createCredentialToolRegistrations	731	106	yes	yes	9	9	1	1	954			
+89	function	packages/chat/src/react/features/chat-pane/hooks/useChatPaneRuntimeInventory.hooks.ts	useChatPaneRuntimeInventory	59	134	yes	yes	7	9	7	3	938			
+90	function	packages/provider-plugins/src/analytics-posthog/browser.ts	postHogBrowserContribution	15	133	yes	yes	7	7	3	1	931	embedded-text	83% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+91	function	packages/plugins/src/host/capability-tools.ts	createPluginCapabilityTools	388	186	yes	yes	5	5	2	1	930			
+92	function	packages/user-management/src/server/agent-tool-registrations.ts	buildIdentityRegistrations	338	186	yes	yes	5	5	4	3	930			
+93	function	packages/oauth/src/refresh.ts	createTokenRefresher	36	130	yes	yes	7	7	5	4	910			
+94	function	packages/ui/src/react/components/CustomSelect.tsx	CustomSelect	504	101	yes	yes	9	15	5	4	909			
+95	function	packages/integrations/src/api-connections/token-store/vault-token-store.ts	createVaultOAuthTokenStore	64	147	yes	yes	6	6	2	1	882			
+96	function	packages/platform/src/fs/directory-user-config.ts	createDirectoryUserConfig	46	146	yes	yes	6	6	6	2	876			
+97	function	packages/agent-runtime/src/model-discovery.ts	createAgentModelDiscovery	137	87	yes	no	10	10	8	4	870			
+98	function	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	createFrontendSessionBridge	199	216	yes	yes	4	4	4	2	864			
+99	function	packages/platform/src/fs/directory-workspace.ts	createNodeDirectoryWorkspace	22	172	yes	yes	5	5	5	3	860			
+100	function	packages/chat/src/react/hooks/assistant-chats.ts	useAssistantChats	311	279	yes	yes	3	3	3	3	837			
+101	function	packages/ui/src/features/admin-widgets/components/Select/Select.tsx	SelectPanel	91	92	yes	no	9	9	5	3	828			
+102	function	packages/agent-plugins/src/lifecycle/seed-bundled.ts	buildModule	148	118	yes	yes	7	7	7	2	826			
+103	function	packages/agent-plugins/src/lifecycle/update.ts	createUpdateModule	74	204	yes	yes	4	4	2	3	816			
+104	function	packages/core/src/settings/tool-registrations.ts	buildSettingsRegistrations	213	115	yes	yes	7	7	6	4	805			
+105	function	packages/plugins/src/host/provider-host.ts	createPluginProviderHost	114	134	yes	yes	6	6	3	1	804			
+106	function	packages/cookie-consent/src/client/runtime.ts	createCookieConsent	26	133	yes	yes	6	6	1	1	798			
+107	function	packages/ui/src/react/components/CustomSelect.tsx	useCustomSelect	261	88	yes	no	9	15	5	4	792			
+108	function	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs	collectSignals	115	260	yes	yes	3	4	2	2	780			
+109	function	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs	<arg of page.evaluate>	116	258	yes	yes	3	4	2	2	774			
+110	function	packages/ui/src/features/admin-widgets/components/Select/Select.tsx	Select	207	86	yes	no	9	9	5	3	774			
+111	function	packages/agentic/src/core/a2ui/interpreter.ts	createA2uiInterpreter	193	192	yes	yes	4	5	4	2	768			
+112	function	packages/agent-runtime/src/ai-trace/recorder.ts	createAiTraceRecorder	95	191	yes	yes	4	4	3	2	764			
+113	function	packages/ui/src/features/memory/react/hooks/useMemoryEntries.hooks.ts	useMemoryEntries	79	254	yes	yes	3	8	3	3	762			
+114	function	packages/vibecoding/src/node/store.ts	createProjectStore	178	246	yes	yes	3	3	3	1	738			
+115	function	packages/admin/src/comments/controllers/comment-queue.controller.ts	createCommentQueueController	15	146	yes	yes	5	5	5	3	730			
+116	function	packages/integrations/src/media-providers/dispatch/sqlite-async-operation-store.ts	createSqliteAsyncOperationStore	131	145	yes	yes	5	5	5	2	725			
+117	function	packages/admin/src/media/controllers/library.controller.ts	createLibraryController	16	169	yes	yes	4	4	4	3	676			
+118	file	packages/ui/src/react/components/Icon.tsx		1	675			1	5	1	1	675			
+119	function	packages/ui/src/features/media-providers/react/hooks/useMediaProvidersTab.ts	useMediaProvidersTab	119	168	yes	yes	4	9	3	3	672			
+120	function	packages/user-management/src/admin/controllers/users.controller.ts	createUsersController	18	165	yes	yes	4	4	4	3	660			
+121	function	packages/cms/src/trash/write-service.ts	createTrashService	120	132	yes	yes	5	5	4	2	660			
+122	function	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts	useMemoryConnectors	216	327	yes	yes	2	6	2	3	654			
+123	function	packages/integrations/src/api-connections/host.ts	createApiConnectionHost	120	163	yes	yes	4	4	2	2	652			
+124	function	packages/integrations/src/api-connections/hosted-mcp/sign-in.ts	createHostedMcpSignInService	773	216	yes	yes	3	3	1	2	648			
+125	function	packages/agent-runtime/src/agent-protocol/acp/models.ts	detectAcpModels	253	108	yes	yes	6	7	6	4	648			
+126	function	packages/ui/src/features/mcp-ui/surfaces/bridge.ts	renderBridgeScript	82	127	yes	yes	5	7	5	2	635	embedded-text	95% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+127	function	packages/agent-plugins/src/lifecycle/bundled-digests.ts	buildModule	92	126	yes	yes	5	5	5	2	630			
+128	function	packages/sidecar/src/json-ipc.ts	createJsonIpcServer	187	157	yes	yes	4	9	4	3	628			
+129	function	packages/ui/src/react/components/TooltipLayer.tsx	useTooltipLayer	116	208	yes	yes	3	6	3	2	624			
+130	function	packages/agent-plugins/src/lifecycle/installed-package-index.ts	createInstalledPackageIndex	18	89	yes	no	7	7	7	4	623			
+131	function	packages/chat/src/core/assistant-client/durable-run-subscription.ts	followDurableRun	21	103	yes	yes	6	6	6	2	618			
+132	function	packages/agent-plugins/src/admin-surfaces/surface-client.ts	createAdminSurfaceClient	163	101	yes	yes	6	6	3	2	606			
+133	function	packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts	attachPiRpcSession	306	119	yes	yes	5	7	5	4	595			
+134	function	packages/chat/src/react/hooks/useRunStream.ts	useRunStream	83	117	yes	yes	5	10	5	2	585			
+135	function	packages/commerce/src/browser/checkout.ts	installCommerceCheckout	17	117	yes	yes	5	5	2	1	585			
+136	function	packages/daemon/src/surface-exchanges.ts	createSurfaceExchangeStore	127	116	yes	yes	5	5	5	3	580			
+137	function	packages/commerce/src/browser/checkout.ts	<arg of required.document.querySelectorAll<HTMLF>	18	115	yes	yes	5	5	2	1	575			
+138	function	packages/chat/src/core/assistant-client/ag-ui-transport.ts	createAgUiRunClient	54	113	yes	yes	5	5	5	3	565			
+139	function	packages/cms/src/routing/routing.ts	createRouting	143	188	yes	yes	3	3	3	2	564			
+140	function	packages/integrations/src/media-providers/sqlite-task-store.ts	createSqliteMediaTaskStore	130	140	yes	yes	4	5	4	3	560			
+141	function	packages/agent-runtime/src/agent-protocol/acp/models.ts	<anonymous>	268	92	yes	no	6	7	6	4	552			
+142	function	packages/diagnostics/src/web-evidence/page-structure-script.ts	collectPageStructure	56	275	yes	yes	2	2	2	2	550			
+143	function	packages/ui/src/features/admin-widgets/components/InfoTip.hooks.tsx	useInfoTip	68	91	yes	no	6	6	6	2	546			
+144	function	packages/user-management/src/react/members/hooks/use-members.hooks.ts	useMembers	92	109	yes	yes	5	5	4	2	545			
+145	function	packages/vibecoding/src/node/project.ts	assembleProject	139	181	yes	yes	3	3	3	1	543			
+146	function	packages/chat/src/server/run-finalizer/entry.ts	createAssistantRunFinalizer	77	132	yes	yes	4	4	4	3	528			
+147	function	packages/sidecar/src/json-ipc.ts	<arg of createNetServer>	200	132	yes	yes	4	9	4	3	528			
+148	function	packages/admin/src/media/react/hooks/LibraryTab.hooks.ts	useLibraryTab	114	88	yes	no	6	6	6	3	528			
+149	function	packages/sidecar/src/json-ipc.ts	requestJsonIpc	398	129	yes	yes	4	9	4	3	516			
+150	function	packages/cms/src/navigation/tool-registrations.ts	buildMenusRegistrations	159	86	yes	no	6	8	5	1	516			
+151	function	packages/chat/src/react/features/chat-pane/hooks/useAgentRuntimePicker.hooks.ts	useAgentRuntimePicker	227	103	yes	yes	5	6	4	2	515			
+152	function	packages/integrations/src/api-connections/hosted-mcp/shared-sign-in.ts	createSharedExternalMcpOAuth	78	257	yes	yes	2	2	1	2	514			
+153	function	packages/daemon/src/terminal-session.ts	createTerminalSessionManager	208	101	yes	yes	5	9	4	3	505			
+154	function	packages/ui/src/features/connectors/ConnectorsBrowser.tsx	ConnectorsBrowser	117	126	yes	yes	4	11	4	3	504			
+155	function	packages/sidecar/src/json-ipc.ts	<anonymous>	402	124	yes	yes	4	9	4	3	496			
+156	function	packages/ui/src/features/asset-grid/react/hooks/useAssetGridLiveUpdates.ts	useAssetGridLiveUpdates	47	99	yes	no	5	8	3	3	495			
+157	function	packages/cms/src/widgets/embed-service.ts	writePostHostBody	377	98	yes	no	5	5	4	3	490			
+158	function	packages/chat/src/react/features/chat-pane/create-daemon-attachment-uploader.ts	createDaemonAttachmentUploader	195	96	yes	no	5	6	5	3	480			
+159	function	packages/ui/src/features/charts/browser.ts	mountChart	33	96	yes	no	5	5	4	2	480			
+160	function	packages/platform/src/terminal.ts	createTerminalService	255	239	yes	yes	2	3	2	3	478			
+161	function	packages/agent-plugins/src/connect/credential-save-tool.ts	createCredentialSaveTools	27	119	yes	yes	4	4	1	1	476			
+162	function	packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts	useVersionManager	91	236	yes	yes	2	3	2	2	472			
+163	function	packages/ui/src/features/execution/react/hooks/useExecutionTab.ts	useExecutionTab	69	155	yes	yes	3	5	3	2	465			
+164	function	packages/ui/src/features/memory/react/components/MemoryConnectedPanel.tsx	MemoryConnectedPanel	396	153	yes	yes	3	10	3	3	459			
+165	function	packages/ui/src/features/skills/react/components/SkillRow.tsx	SkillRow	73	112	yes	yes	4	7	4	3	448			
+166	function	packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	FieldAttributesDialog	21	149	yes	yes	3	3	3	1	447			
+167	function	packages/ui/src/features/connectors/hooks/useConnectorAuthorization.ts	useConnectorAuthorization	159	149	yes	yes	3	9	3	3	447			
+168	function	packages/agent-plugins/src/lifecycle/retire-bundled.ts	buildModule	106	89	yes	no	5	5	5	2	445			
+169	function	packages/agentic/src/core/annotated-actions-script.ts	createAnnotatedActionsScript	8	147	yes	yes	3	3	3	2	441	embedded-text	93% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+170	function	packages/admin/src/react/components/RowMenu/RowMenu.hooks.tsx	useRowMenu	115	87	yes	no	5	6	5	2	435			
+171	function	packages/core/src/settings/write-service.ts	renameDefinition	693	86	yes	no	5	5	5	3	430			
+172	function	packages/agent-plugins/src/connect/plugin-host/index.ts	createPluginHost	176	107	yes	yes	4	4	2	1	428			
+173	function	packages/user-management/src/react/testing.ts	createFakeRolesPort	199	107	yes	yes	4	4	3	2	428			
+174	function	packages/daemon/src/store/event-log/sqlite.ts	bindSqliteEventLog	94	106	yes	yes	4	4	4	2	424			
+175	function	packages/ui/src/features/execution/react/components/LocalCliAgentSettings.tsx	LocalCliAgentModelControls	51	82	yes	no	5	5	5	3	410			
+176	function	packages/admin/src/forms/react/components/FormFieldsEditor.tsx	FormFieldsEditor	16	204	yes	yes	2	2	2	1	408			
+177	function	packages/daemon/src/surface-exchanges.ts	open	137	81	yes	no	5	5	5	3	405			
+178	function	packages/ui/src/features/asset-grid/react/hooks/useAssetGridLiveUpdates.ts	<arg of useEffect>	70	81	yes	no	5	8	3	3	405			
+179	function	packages/admin/src/forms/react/pages/FormEditor.tsx	FormEditor	24	101	yes	yes	4	4	4	2	404			
+180	function	packages/ui/src/features/notifications/react/components/NotificationsTab.tsx	NotificationsTab	66	134	yes	yes	3	5	3	2	402			
+181	function	packages/search/src/testkit/memory-provider.ts	createInMemorySearchProvider	167	100	yes	no	4	4	1	1	400			
+182	function	packages/plugins/src/host/hook-registry.ts	createHookRegistry	233	99	yes	no	4	4	4	3	396			
+183	function	packages/user-management/src/admin/adapters/memory.ts	createMemoryRolesApi	32	99	yes	no	4	4	4	3	396			
+184	function	packages/daemon/src/frontend-session-registry.ts	createFrontendSessionRegistry	241	131	yes	yes	3	13	2	2	393			
+185	function	packages/chat/src/react/features/chat-pane/hooks/useRuntimeDropUp.hooks.ts	useRuntimeDropUp	75	98	yes	no	4	4	3	2	392			
+186	function	packages/chat/src/react/components/A2uiSurfaceCard.tsx	A2uiSurfaceCard	235	130	yes	yes	3	7	3	1	390			
+187	function	packages/chat/src/react/components/ComposerDiscovery.tsx	ComposerDiscoveryMenu	34	97	yes	no	4	6	3	2	388			
+188	function	packages/user-management/src/react/members/Members.tsx	Members	161	96	yes	no	4	4	3	1	384			
+189	function	packages/cms/src/content-types/tool-registrations.ts	buildContentTypesRegistrations	174	94	yes	no	4	6	4	3	376			
+190	function	packages/ui/src/features/panel-kit/hooks/use-settings-slice.hooks.ts	useSettingsSlice	212	125	yes	yes	3	3	3	2	375			
+191	function	packages/sidecar/src/json-ipc.ts	<arg of socket.on>	271	92	yes	no	4	9	4	3	368			
+192	function	packages/user-management/src/admin/controllers/members.controller.ts	createMembersController	8	120	yes	yes	3	3	3	3	360			
+193	function	packages/devops/src/packaging/electron/typescript.ts	runtimeImportReferences	6	89	yes	no	4	4	4	2	356			
+194	function	packages/ui/src/features/resource-dashboard/react/hooks/useResourceBoard.ts	useResourceBoard	90	176	yes	yes	2	5	2	3	352			
+195	function	packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx	WidgetRegionEditor	29	117	yes	yes	3	3	2	2	351			
+196	function	packages/ui/src/features/panel-kit/hooks/use-standing-draft-autosave.hooks.ts	useStandingDraftAutosave	169	175	yes	yes	2	2	2	2	350			
+197	function	packages/cookie-consent/src/node/index.ts	createNodeConsentFiles	47	87	yes	no	4	4	4	1	348			
+198	function	packages/user-management/src/admin/adapters/memory.ts	createMemoryUsersApi	153	87	yes	no	4	4	4	3	348			
+199	function	packages/chat/src/react/hooks/fab-position.ts	useFabPosition	204	115	yes	yes	3	3	3	2	345			
+200	function	packages/agentic/src/skills/install/install-service.ts	createSkillInstaller	67	86	yes	no	4	4	4	2	344			
+201	function	packages/core/src/settings/express/http.ts	registerSettingsRoutes	48	112	yes	yes	3	3	3	3	336			
+202	function	packages/admin/src/media/react/hooks/EditMediaPanel.hooks.ts	useEditMediaPanel	21	84	yes	no	4	4	4	2	336			
+203	function	packages/analytics/src/product/browser.ts	renderBrowserAnalytics	32	84	yes	no	4	4	2	1	336	embedded-text	85% of lines are one multi-line string/template (prompt, HTML, CSS)	Inline browser script in one template string.
+204	function	packages/admin/src/redirects/react/pages/RedirectsPage.tsx	RedirectsPage	22	111	yes	yes	3	3	2	1	333			
+205	function	packages/agent-runtime/src/providers/oauth-callback-server.ts	startOAuthCallbackListener	55	111	yes	yes	3	4	3	3	333			
+206	function	packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx	WidgetInstanceEditor	32	108	yes	yes	3	3	3	3	324			
+207	function	packages/cms/src/seo/sitemap.ts	createSitemapService	160	81	yes	no	4	4	4	3	324			
+208	function	packages/chat/src/react/features/chat-pane/hooks/useChatPaneWorkingDirectory.hooks.ts	useChatPaneWorkingDirectory	43	160	yes	yes	2	3	2	2	320			
+209	function	packages/ui/src/features/memory/dependencies.ts	createMemoryHttpPorts	67	105	yes	yes	3	6	3	2	315			
+210	function	packages/chat/src/react/components/A2uiSurfaceCard.tsx	RenderComponent	61	99	yes	no	3	7	3	1	297			
+211	function	packages/ui/src/features/connectors/components/ConnectorDetailDrawer.tsx	ConnectorDetailDrawer	358	99	yes	no	3	10	3	2	297			
+212	function	packages/admin/src/media/adapters/memory.ts	createMemoryMediaApi	21	98	yes	no	3	3	3	3	294			
+213	function	packages/mcp/src/server/stdio-hosting.ts	createStdioHosting	73	97	yes	no	3	3	2	1	291			
+214	function	packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx	MemorySettingsPanel	49	94	yes	no	3	4	3	2	282			
+215	function	packages/ui/src/features/memory/react/components/MemoryList.tsx	MemoryList	190	91	yes	no	3	7	3	2	273			
+216	function	packages/ui/src/features/lexical-rich-text-editor/react/components/RichTextInput.tsx	EditorSurface	83	136	yes	yes	2	3	2	2	272			
+217	function	packages/plugins/src/host/declarative-content-types.ts	createDeclarativeContentTypes	336	131	yes	yes	2	2	1	1	262			
+218	function	packages/http-kit/src/sse.ts	createSseChannel	136	87	yes	no	3	4	3	2	261			
+219	function	packages/ui/src/react/components/TooltipLayer.tsx	<arg of useEffect>	250	87	yes	no	3	6	3	2	261			
+220	function	packages/ui/src/features/memory/react/hooks/useMemoryConfig.hooks.ts	useMemoryConfig	119	130	yes	yes	2	5	2	3	260			
+221	function	packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx	WidgetsLibrary	34	129	yes	yes	2	2	2	2	258			
+222	function	packages/vibecoding/src/html/regions.ts	createHtmlRegionTarget	186	86	yes	no	3	4	3	2	258			
+223	function	packages/chat/src/core/util/parser.ts	createArtifactParser	156	83	yes	no	3	5	3	3	249			
+224	function	packages/ui/src/renderers/annotation-canvas/react/components/AnnotationCanvas.tsx	AnnotationDock	200	83	yes	no	3	4	3	3	249			
+225	function	packages/admin/src/react/components/RowMenu/RowMenu.tsx	RowMenu	121	81	yes	no	3	5	3	2	243			
+226	function	packages/ui/src/features/appearance/react/components/AppearanceTab.tsx	AppearanceTab	46	81	yes	no	3	5	3	1	243			
+227	function	packages/ui/src/features/project-locations/react/hooks/useProjectLocationsTab.ts	useProjectLocationsTab	76	119	yes	yes	2	4	2	3	238			
+228	function	packages/memory/src/extraction-log.ts	createExtractionLog	75	118	yes	yes	2	3	2	3	236			
+229	function	packages/desktop-host/src/electron/updates/auto-update-controller.ts	createAutoUpdateController	155	116	yes	yes	2	2	2	2	232			
+230	function	packages/admin/src/forms/react/components/FormFieldsEditor.tsx	<arg of rows.map>	90	110	yes	yes	2	2	2	1	220			
+231	function	packages/ui/src/features/html-editor/css.ts	prettifyCss	22	110	yes	yes	2	3	2	2	220			
+232	function	packages/ui/src/features/tab-launcher-menu/react/hooks/useTabLauncherMenu.ts	useTabLauncherMenu	61	108	yes	yes	2	3	2	3	216			
+233	function	packages/admin/src/forms/react/pages/FormsList.tsx	FormsList	43	107	yes	yes	2	2	1	1	214			
+234	function	packages/ui/src/react/hooks/useResizableSplitPane.ts	useResizableSplitPane	111	209	yes	yes	1	2	1	2	209			
+235	function	packages/daemon/src/event-log.ts	createInMemoryEventLog	130	104	yes	yes	2	7	2	2	208			
+236	function	packages/ui/src/features/viewer-shell/react/components/CommentSidePanel.tsx	CommentSidePanel	66	104	yes	yes	2	5	2	3	208			
+237	function	packages/commerce/src/react/Payments.tsx	Payments	26	103	yes	yes	2	2	2	2	206			
+238	function	packages/ui/src/features/project-locations/react/components/ProjectLocationsTab.tsx	ProjectLocationsTab	69	103	yes	yes	2	4	2	2	206			
+239	function	packages/ui/src/react/components/OnboardingDropdown.tsx	useOnboardingDropdown	259	102	yes	yes	2	5	2	3	204			
+240	function	packages/sidecar/src/supervision/supervisor.ts	createDaemonSupervisor	89	201	yes	yes	1	1	1	1	201			
+241	function	packages/ui/src/features/memory/react/components/MemoryManualEditor.tsx	MemoryManualEditor	13	200	yes	yes	1	5	1	2	200			
+242	function	packages/daemon/src/agent-executor/live-session-state.ts	createLiveSessionState	35	100	yes	no	2	2	2	1	200			
+243	function	packages/vibecoding/src/core/history.ts	createEditHistory	165	94	yes	no	2	4	2	2	188			
+244	function	packages/ui/src/features/viewer-shell/react/components/CommentSidePanel.tsx	CommentSideItem	317	93	yes	no	2	5	2	3	186			
+245	function	packages/chat/src/react/hooks/useComposerHistory.hooks.ts	useComposerHistory	23	90	yes	no	2	2	2	2	180			
+246	function	packages/ui/src/features/memory/react/components/MemoryAdvancedModal.tsx	MemoryAdvancedModal	10	172	yes	yes	1	5	1	2	172			
+247	function	packages/db/src/tools/database-catalog.ts	getDatabaseAgentToolCatalog	86	86	yes	no	2	2	2	2	172	wiring	85% of lines are imports / identifier-or-call entries (registration or composition list)	Registration list: agent tool catalog entries.
+248	function	packages/ui/src/features/viewer-shell/react/components/MarkdownSplitPane.tsx	MarkdownSplitPane	56	83	yes	no	2	4	1	2	166			
+249	function	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.store.ts	createExtractionHistoryStore	171	144	yes	yes	1	4	1	2	144			
+250	function	packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts	usePreviewModalShell	49	141	yes	yes	1	2	1	1	141			
+251	function	packages/ui/src/features/asset-tree-browser/react/components/AssetTreeFileRow.tsx	AssetTreeFileRow	36	140	yes	yes	1	2	1	2	140			
+252	function	packages/ui/src/features/version-manager/react/components/VersionManagerModal.tsx	VersionManagerModal	38	137	yes	yes	1	3	1	3	137			
+253	function	packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts	useExecutionCredential	199	130	yes	yes	1	1	1	1	130			
+254	function	packages/ui/src/features/viewer-shell/react/hooks/useMarkdownScrollSync.ts	useMarkdownScrollSync	40	126	yes	yes	1	3	1	2	126			
+255	function	packages/vibecoding/src/core/session.ts	createVibecodingSession	111	126	yes	yes	1	1	1	1	126			
+256	function	packages/ui/src/react/mcp-ui/useMcpUiHost.ts	useMcpUiHost	164	116	yes	yes	1	2	1	1	116			
+257	function	packages/admin/src/comments/react/components/SettingsSection.tsx	SettingsSection	17	114	yes	yes	1	1	1	1	114			
+258	function	packages/ui/src/features/memory/react/hooks/useMemoryExtractions.hooks.ts	useMemoryExtractions	41	114	yes	yes	1	5	1	2	114			
+259	function	packages/ui/src/features/sketch-editor/react/components/SketchEditor.tsx	SketchEditor	107	109	yes	yes	1	6	1	2	109			
+260	function	packages/admin/src/widgets/react/pages/WidgetRegions.tsx	WidgetRegions	25	107	yes	yes	1	1	1	1	107			
+261	function	packages/mcp/src/server/http-tool-server.adapter.ts	startMcpHttpToolServer	57	104	yes	yes	1	1	1	1	104			
+262	function	packages/core/src/settings/purge-service.ts	purgeTenantSettings	58	100	yes	no	1	1	1	1	100			
+263	function	packages/ui/src/features/mention-autocomplete/react/hooks/useMentionAutocomplete.ts	useMentionAutocomplete	75	100	yes	no	1	2	1	2	100			
+264	function	packages/ui/src/features/version-manager/react/components/VersionSidebar.tsx	VersionSidebar	23	96	yes	no	1	2	1	2	96			
+265	function	packages/ui/src/features/file-dropzone/react/hooks/useFileDropzone.ts	useFileDropzone	59	95	yes	no	1	2	1	2	95			
+266	function	packages/ui/src/features/asset-grid/react/components/AssetCard.tsx	AssetCard	48	94	yes	no	1	3	1	3	94			
+267	function	packages/ui/src/features/resource-dashboard/react/components/ResourceBoardToolbar.tsx	ResourceBoardToolbar	91	92	yes	no	1	2	1	2	92			
+268	function	packages/ui/src/features/tab-launcher-menu/react/components/TabLauncherMenu.tsx	TabLauncherMenu	65	92	yes	no	1	3	1	3	92			
+269	function	packages/agent-plugins/src/admin-surfaces/connections/connections.ts	createAdminSurfaceConnections	74	87	yes	no	1	1	1	1	87			
+270	function	packages/ui/src/features/asset-grid/react/hooks/useRubberBandDrag.ts	useRubberBandDrag	33	86	yes	no	1	3	1	3	86			
+271	function	packages/ui/src/features/list-detail-panel/react/components/ListDetailPanel.tsx	ListDetailPanel	45	85	yes	no	1	2	1	2	85			
+272	function	packages/ui/src/features/sketch-editor/react/hooks/useSketchSaveWorkflow.ts	useSketchSaveWorkflow	53	85	yes	no	1	3	1	2	85			
+273	function	packages/admin/src/media/conformance/media-api.conformance.ts	runMediaApiConformance	5	84	yes	no	1	1	1	1	84			
+274	function	packages/cms/src/entries/tool-registrations.ts	buildEntriesRegistrations	130	84	yes	no	1	3	1	2	84			
+275	function	packages/ui/src/features/resource-dashboard/react/components/ResourceBoard.tsx	ResourceBoard	45	83	yes	no	1	5	1	2	83			
+276	function	packages/core/src/settings/purge-service.ts	<arg of deps.repo.transaction>	76	81	yes	no	1	1	1	1	81			
+277	function	packages/ui/src/features/skills/react/hooks/useSkillsTab.ts	useSkillsTab	98	260	yes	yes	0	2	0	1	0			
+278	function	packages/ui/src/features/tab-strip/react/hooks/useTabStripDragReorder.ts	useTabStripDragReorder	73	125	yes	yes	0	1	0	1	0			
+279	function	packages/ui/src/features/source-config-list/react/hooks/useSourceConfigList.ts	useSourceConfigList	77	119	yes	yes	0	6	0	2	0			
+280	function	packages/ui/src/features/asset-grid/react/components/AssetGridToolbar.tsx	AssetGridToolbar	27	96	yes	no	0	2	0	2	0			
+281	function	packages/ui/src/features/resource-dashboard/react/hooks/useResourceRowList.ts	useResourceRowList	51	91	yes	no	0	3	0	2	0			

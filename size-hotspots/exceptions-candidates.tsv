@@ -1,0 +1,61 @@
+repo	kind	file	function	line	lines	category	suggested_reason
+tovu	file	apps/website/src/server/runtime/composition/deps.ts		1	1913	wiring	62% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	file	apps/website/src/server/runtime/composition/app.ts		1	1698	wiring	64% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	function	apps/website/src/server/runtime/composition/deps.ts	composeSiteRouteDeps	1047	1187	wiring	61% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	function	apps/website/src/server/runtime/composition/app.ts	createRouteDeps	466	873	wiring	60% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	file	apps/admin/src/features/plugins/plugins-i18n.ts		1	4360	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/posts/posts-i18n.ts		1	3205	i18n	locale dictionary (102 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/security/security-i18n.ts		1	2238	i18n	locale dictionary (98 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/themes/themes-i18n.ts		1	3646	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/deployment/deployment-i18n.tsx		1	2395	i18n	locale dictionary (148 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/components/AssistantDock/assistant-dock-i18n.ts		1	2109	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/website/src/platform/db/schema.postgres.ts		1	1143	generated	header says generated / do-not-edit; size follows the generator, not hand-written code
+tovu	file	apps/admin/src/features/media/media-i18n.ts		1	1791	i18n	locale dictionary (153 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/components/shared-components-i18n.ts		1	3344	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/website/src/platform/db/schema.sqlite.ts		1	1370	data-table	DB schema declaration, one line per column; splitting scatters one table set
+tovu	file	apps/admin/src/features/ai-assistant/ai-assistant-i18n.ts		1	2807	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/dashboard/dashboard-i18n.ts		1	2085	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/website/src/platform/db/content-database.generated.ts		1	1017	generated	header says generated / do-not-edit; size follows the generator, not hand-written code
+tovu	file	apps/admin/src/features/forms/forms-i18n.ts		1	1360	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/widgets/widgets-i18n.ts		1	1411	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/lib/admin-nav-i18n.ts		1	1360	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/consent/consent-dictionary.ts		1	1937	data-table	100% of lines are literal data rows (catalog/table/fixture); logic-free
+tovu	file	apps/admin/src/features/trash/trash-i18n.ts		1	1202	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/users/users-i18n.ts		1	1370	i18n	locale dictionary (86 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/pages/pages-i18n.ts		1	1433	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/seo/seo-i18n.ts		1	1567	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/settings/external-mcp-i18n.ts		1	1031	i18n	locale dictionary (68 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/collections/collections-i18n.ts		1	1252	i18n	locale dictionary (105 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/observability/observability-i18n.ts		1	1144	i18n	locale dictionary (18 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/menus/menus-i18n.ts		1	1252	i18n	locale dictionary (34 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/taxonomy/taxonomy-i18n.ts		1	1242	i18n	locale dictionary (68 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/roles/roles-i18n.ts		1	1337	i18n	locale dictionary (106 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/database/database-i18n.tsx		1	1207	i18n	locale dictionary (35 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/recovery/recovery-i18n.tsx		1	1341	i18n	locale dictionary (107 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/lib/i18n-common.ts		1	661	i18n	locale dictionary (85 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/source-control/source-control-i18n.ts		1	566	i18n	locale dictionary (36 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/redirects/redirects-i18n.tsx		1	869	i18n	locale dictionary (142 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/integrations/integrations-i18n.tsx		1	824	i18n	locale dictionary (53 locale keys, 18 languages); one entry per string, size grows with languages
+tovu	function	apps/website/src/features/post/tool-registrations.ts	content_post_update	1080	88	wiring	60% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	function	apps/website/src/features/post/tool-registrations.ts	fn	1082	85	wiring	61% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	file	apps/admin/src/features/email/email-i18n.ts		1	744	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	function	apps/website/src/features/theme/agent-tools.ts	getThemesAgentToolCatalog	348	111	wiring	72% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	function	apps/website/src/features/trash/registry.ts	buildTrashRegistry	164	162	data-table	98% of lines are literal data rows (catalog/table/fixture); logic-free
+tovu	file	apps/admin/src/features/content-analysis/content-analysis-i18n.ts		1	684	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/ai-assistant/ai-assistant-layout-i18n.ts		1	621	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	function	apps/website/src/server/runtime/composition/peer-site-reads.ts	composePeer	201	89	wiring	64% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	file	apps/admin/src/features/members/members-i18n.ts		1	593	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/comments/comments-i18n.ts		1	858	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/admin/src/features/settings/settings-memory-i18n.ts		1	844	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	file	apps/website/src/contracts/core/credential-copy.ts		1	552	data-table	95% of lines are literal data rows (catalog/table/fixture); logic-free
+tovu	function	apps/website/src/features/redirects/tool-registrations.ts	buildRedirectsRegistrations	127	120	wiring	63% of lines are imports / identifier-or-call entries (registration or composition list)
+tovu	file	apps/admin/src/features/sites/sites-settings-i18n.ts		1	550	i18n	locale dictionary (17 locale keys, 17 languages); one entry per string, size grows with languages
+tovu	function	apps/website/src/features/webmcp/generated/annotated-actions-script.ts	createAnnotatedActionsScript	9	147	embedded-text	93% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	file	packages/chat/src/react/features/chat-pane/styles.ts		1	2034	embedded-text	100% of lines are CSS in a template string; a stylesheet, not logic
+jini	function	packages/ui/src/features/mcp-ui/surfaces/form.ts	formScript	109	251	embedded-text	98% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	function	packages/ui/src/features/mcp-ui/surfaces/confirmation.ts	confirmationScript	279	151	embedded-text	93% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	function	packages/provider-plugins/src/analytics-posthog/browser.ts	postHogBrowserContribution	15	133	embedded-text	83% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	function	packages/ui/src/features/mcp-ui/surfaces/bridge.ts	renderBridgeScript	82	127	embedded-text	95% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	function	packages/agentic/src/core/annotated-actions-script.ts	createAnnotatedActionsScript	8	147	embedded-text	93% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	function	packages/analytics/src/product/browser.ts	renderBrowserAnalytics	32	84	embedded-text	85% of lines are one multi-line string/template (prompt, HTML, CSS)
+jini	function	packages/db/src/tools/database-catalog.ts	getDatabaseAgentToolCatalog	86	86	wiring	85% of lines are imports / identifier-or-call entries (registration or composition list)
