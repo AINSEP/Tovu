@@ -17,7 +17,7 @@ Planning only; nothing executed. Sheets written from Tovu `b28d38c6` / Jini `b76
 | 39 | website/features/asset-transfer | `sheets/split-asset-transfer.md` | SPLIT, contract needed | 0 now | Opus | no | **BLOCKED** Q-AT + W3 (theme, media-import) | 0 (~50k later) |
 | 40 | admin/features/themes | `sheets/ui-admin-themes.md` | UI: DEDUPE + HARDEN + Opus SPLIT; visuals STAY | 3 | Sonnet / Sonnet / Opus | yes (C2:257-260; slice 2 **execute after wave B merge**) | **PARTIAL** (triage only) | ~30k + 35k + ~3×60k |
 
-READY now: 9 executor jobs (members 1, sites 4, users 1, database slice 2, jini-admin 1, media 1), plus media-generation slice 1 and consent slice 1 = 11 jobs, ~545k Sonnet.
+READY now: 9 executor jobs (members 1, sites 4, users 1, database slice 2, jini-admin 1, media 1), plus media-generation slice 1 and consent slice 1 = 11 jobs, ~475k Sonnet.
 
 ## Owner questions
 - **Q-WH** (analytics, database slice 1; members/users side-stepped): the survey says "inline" the `*-port.hooks.ts` / `*-dependencies.hooks.ts` files, but `development/docs/architecture/wired-hooks-convention.md` requires that three-file split, and nothing moves to Jini. Which wins? Recommendation: keep the convention and mark these files STAY.
