@@ -1,4 +1,5 @@
 import { PostAutosaveRecoveryBanner } from "./editor/notices/PostAutosaveRecoveryBanner";
+import { PostVersionConflictBanner } from "./editor/notices/PostVersionConflictBanner";
 import { PostAutosaveStaleBanner } from "./editor/notices/PostAutosaveStaleBanner";
 import { PostEditorActions } from "./editor/header/PostEditorActions";
 import { PostEditorHeader } from "./editor/header/PostEditorHeader";
@@ -34,7 +35,7 @@ import { PostUrlDialog } from "./PostUrlDialog";
 import { Toolbar } from "./editor/toolbar/Toolbar";
 import { BubbleFormattingMenu } from "./editor/bubble-menu/BubbleFormattingMenu";
 import { usePostUrlDialog } from "./hooks/use-post-url-dialog.hooks";
-import { overridesThemePageFromSelectValue, overridesThemePageSelectValue, resolvePostPreviewBranches, postVersionConflictMessage, type PostSaveConflict } from "./rules";
+import { overridesThemePageFromSelectValue, overridesThemePageSelectValue, resolvePostPreviewBranches, type PostSaveConflict } from "./rules";
 
 import { type Translate } from '@jini-ai/core/text';
 /**
@@ -74,66 +75,6 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string;
  *  the `.segmented` pill row is a different visual control, only the keyboard contract is shared.
  *  Spread, not rebuilt, so nothing in the JSX below has to change which field it reads. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/**
- * Optimistic concurrency (2026-09-06) — the "someone else saved while you were editing" banner.
- * Rendered only after a save was actually rejected with `409 VERSION_CONFLICT`; never on load, and
- * never for the slug-uniqueness 409 the same route can also return (see `rules.ts`'s
- * `readVersionConflict` for the distinction the server's `code` makes possible).
- *
- * Deliberately does NOT show the other operator's content, offer a diff, or replace anything in the
- * editor: the operator's own typed work is still on screen untouched, which is the single most
- * important property of this whole path. `postVersionConflictMessage` (`rules.ts`) owns the wording
- * so this component stays markup only, same split `PostAutosaveRecoveryBanner` above already uses.
- *
- * "Save anyway" is the only way past the conflict, and that is on purpose: the plain Save button
- * keeps failing until the operator explicitly chooses to replace the other version.
- */
-function PostVersionConflictBanner({
-  saveConflict,
-  onSaveAnyway,
-  onDismiss,
-  t,
-}: {
-  saveConflict: PostSaveConflict;
-  onSaveAnyway: () => void;
-  onDismiss: () => void;
-  t: Translate;
-}) {
-  return (
-    <div
-      className="notice error"
-      {...agentHandle({ handle: "post-version-conflict" }, {
-        role: "region",
-        label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
-      })}
-    >
-      <p>{postVersionConflictMessage(saveConflict)}</p>
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={onSaveAnyway}
-        {...agentHandle({ handle: "post-version-conflict-overwrite" }, {
-          role: "button",
-          label: "Save these changes anyway, replacing the version the other operator saved",
-        })}
-      >
-        {t("Save anyway")}
-      </button>
-      <button
-        type="button"
-        className="btn-secondary"
-        onClick={onDismiss}
-        {...agentHandle({ handle: "post-version-conflict-dismiss" }, {
-          role: "button",
-          label: "Hide this notice and keep editing without saving",
-        })}
-      >
-        {t("Keep editing")}
-      </button>
-    </div>
-  );
-}
 
 /**
  * The toolbar's right-hand group: the preview reload (Preview tab only) followed by the
