@@ -1,0 +1,526 @@
+repo	site	rule	status	class	pattern	fix_step	read_depth
+jini	packages/admin/src/browser/telemetry.ts:61	swallowed-error	current	real	best-effort-side-task	W3	line
+jini	packages/agent-plugins/core/persistent-state.js:150	swallowed-error	current	real	best-effort-cleanup (plugin/skill payload)	W3	line
+jini	packages/agent-plugins/src/lifecycle/activation.ts:895	swallowed-error	current	real	best-effort-cleanup	W3	context
+jini	packages/agent-plugins/src/lifecycle/fetch-archive.ts:255	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/src/lifecycle/install.ts:503	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/src/lifecycle/skill-file-reader.ts:109	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/src/lifecycle/uninstall.ts:366	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/src/lifecycle/uninstall.ts:385	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/src/lifecycle/uninstall.ts:481	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/src/lifecycle/uninstall.ts:490	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-plugins/vercel/targets/vercel.mjs:350	swallowed-error	current	real	best-effort-cleanup (plugin/skill payload)	W3	line
+jini	packages/agent-plugins/vercel/targets/vercel.mjs:433	swallowed-error	current	real	best-effort-cleanup (plugin/skill payload)	W3	line
+jini	packages/agent-plugins/vercel/targets/vercel.mjs:437	swallowed-error	current	real	best-effort-cleanup (plugin/skill payload)	W3	line
+jini	packages/agent-runtime/src/agent-protocol/acp/models.ts:419	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-runtime/src/model-discovery-adapters.ts:272	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/agent-runtime/src/skills/web-clone/scripts/mirror-site.mjs:139	swallowed-error	current	real	empty-catch (plugin/skill payload)	W3	line
+jini	packages/analytics/src/product/index.ts:156	swallowed-error	current	real	best-effort-side-task	W3	line
+jini	packages/chat/src/core/run-events/entry.ts:440	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts:510	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/chat/src/embed-widget/transports/fetch-sse.ts:60	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts:225	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/chat/src/server/durable-runs/recover.ts:156	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/chat/src/server/durable-runs/recover.ts:196	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/chat/src/server/run-finalizer/entry.ts:150	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/cms/src/media/plugins/document-text/unpdf.ts:48	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/cookie-consent/src/server/receipt.ts:75	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/daemon/src/http/attachments.ts:1045	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/daemon/src/http/attachments.ts:1269	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/daemon/src/http/attachments.ts:1565	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/daemon/src/http/cancel-owned-runs.ts:45	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/daemon/src/http/frontend-control.ts:215	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/daemon/src/routines/scheduler.ts:416	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/db/src/data-modules/snapshot.ts:104	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/db/src/pglite/owner.ts:469	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/db/src/pglite/owner.ts:470	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/db/src/pglite/socket-server.ts:289	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/db/src/sqlite/db-ops.ts:78	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/db/src/tools/transfer-tools.ts:102	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/desktop-host/src/electron/electron-url-capture.ts:159	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/desktop-host/src/electron/navigation-policy/window-navigation-policy.ts:166	swallowed-error	current	real	empty-catch	W3	line
+jini	packages/desktop-host/src/sidecar.ts:191	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/public-page.ts:176	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/public-page.ts:243	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/render-page.ts:144	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/render-page.ts:158	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/render-page.ts:168	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/render-page.ts:311	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/render-page.ts:320	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/request-guard.ts:275	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/request-guard.ts:283	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/request-guard.ts:304	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/diagnostics/src/web-evidence/request-guard.ts:361	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/mcp/src/federation/adapter.http.ts:213	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/mcp/src/federation/adapter.http.ts:469	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/mcp/src/federation/bootstrap.ts:322	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/mcp/src/federation/stdio/adapter.stdio.ts:362	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/mcp/src/server/tool-server.ts:387	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/memory/src/llm-provider.ts:246	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/memory/src/note-store.ts:410	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/oauth/src/bounded-json.ts:33	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/oauth/src/discovery.ts:50	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/oauth/src/endpoint-safety.ts:93	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/oauth/src/refresh.ts:139	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/platform/src/download.ts:1024	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:1112	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:1151	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:389	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:685	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:717	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:783	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:789	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:849	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:893	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:904	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:907	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/platform/src/download.ts:987	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/platform/src/fs.ts:114	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/sidecar/src/supervision/supervisor-node.ts:253	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts:266	swallowed-error	current	real	unclassified-swallow (multi-line call, not read)	W3	none
+jini	packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts:202	swallowed-error	current	real	best-effort-cleanup	W3	line
+jini	packages/chat/src/core/assistant-client/durable-run-subscription.ts:140	swallowed-error	current	real	background-task-swallow	W4	line
+jini	packages/chat/src/core/assistant-client/durable-run-subscription.ts:77	swallowed-error	current	real	background-task-swallow	W4	line
+jini	packages/chat/src/core/assistant-client/durable-run-subscription.ts:88	swallowed-error	current	real	background-task-swallow	W4	line
+jini	packages/chat/src/core/assistant-client/transport.ts:844	swallowed-error	current	real	dropped-write	W4	context
+jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts:349	swallowed-error	current	real	dropped-notification	W4	line
+jini	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts:353	swallowed-error	current	real	dropped-notification	W4	line
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts:214	swallowed-error	current	real	dropped-notification	W4	line
+jini	packages/commerce/src/payments/accounting/apply-evidence.ts:193	swallowed-error	current	real	dropped-alert	W4	line
+jini	packages/commerce/src/payments/ingest/worker.ts:241	swallowed-error	current	real	dropped-alert	W4	context
+jini	packages/commerce/src/payments/ops/common.ts:170	swallowed-error	current	real	dropped-alert	W4	line
+jini	packages/daemon/src/agent-executor/launch.ts:1073	swallowed-error	current	real	dropped-notification	W4	line
+jini	packages/daemon/src/agent-executor/run-output.ts:88	swallowed-error	current	real	dropped-notification	W4	context
+jini	packages/daemon/src/tool-access-lowering.ts:29	swallowed-error	current	real	dropped-notification	W4	line
+jini	packages/integrations/src/media-providers/dispatch/operation-runtime.ts:192	swallowed-error	current	real	dropped-write	W4	line
+jini	packages/platform/src/download.ts:745	swallowed-error	current	real	dropped-write	W4	line
+jini	packages/ui/src/features/mcp-ui/sign-in-card.ts:91	swallowed-error	current	real	dropped-notification	W4	line
+jini	packages/agent-plugins/src/connect/connect-tool.ts:421	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/agent-plugins/src/lifecycle/bundled-file-policy.ts:20	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/agent-plugins/src/lifecycle/capability-projection.ts:59	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/agent-plugins/src/lifecycle/skill-file-reader.ts:106	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/agent-runtime/src/claude-code-models.ts:233	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/agent-runtime/src/model-discovery-adapters.ts:367	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/chat/src/core/assistant-client/transport.ts:781	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/chat/src/react/hooks/assistant-chats.ts:493	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/chat/src/react/hooks/assistant-chats.ts:980	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/cookie-consent/src/client/bridges.ts:34	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/cookie-consent/src/client/runtime.ts:106	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/daemon/src/agent-executor/claude/mcp-config.ts:21	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/daemon/src/http/attachments.ts:1036	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/daemon/src/http/remote-run-events.ts:216	swallowed-error	current	real	probe-as-absent	W5	context
+jini	packages/platform/src/download.ts:1042	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/download.ts:1111	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/download.ts:1122	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/download.ts:1150	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/download.ts:820	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/download.ts:902	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/domain-read.ts:25	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/resolve-mailer.ts:279	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/sender-domain-verification.ts:35	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/sender-domain-verification.ts:43	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/sender-domain-verification.ts:47	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/sender-domain-verification.ts:68	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/platform/src/mail/sender-domain-verification.ts:70	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/plugins/src/host/node/loader.ts:144	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/plugins/src/host/tools/management.ts:321	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/provider-plugins/src/analytics-posthog/consent-adapter.ts:60	swallowed-error	current	real	probe-as-absent	W5	line
+jini	packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts:185	swallowed-error	current	real	probe-as-absent	W5	context
+jini	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts:223	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/access-tokens.controller.ts:22	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/access-tokens.controller.ts:24	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/other-credentials.controller.ts:10	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/other-credentials.controller.ts:34	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/root-key.controller.ts:21	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/root-key.controller.ts:28	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/security/controllers/root-key.controller.ts:48	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/source-control/controllers/source-control.controller.ts:30	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/admin/src/widgets/controllers/region-editor.controller.ts:32	swallowed-error	current	real	ui-action-swallow	W6	line
+jini	packages/commerce/src/browser/checkout.ts:107	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/commerce/src/browser/checkout.ts:47	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts:307	generic-error-catch	current	real	ui-fixed-message	W6	line
+jini	packages/agent-plugins/cloudflare/worker/forms-receiver.mjs:105	generic-error-catch	current	real	log-fixed-text (plugin/skill payload)	W7	line
+jini	packages/agent-plugins/src/connect/plugin-credential-card.ts:67	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/cms/src/forms/submit-service.ts:272	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/cms/src/widgets/read-service.ts:117	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/commerce/src/catalog/plugin-server.ts:136	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/daemon/src/agent-executor/http-mcp.ts:87	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/platform/src/mail/delivery-wrapper.ts:62	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/plugins/src/host/node/install.ts:222	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/ui/src/features/connectors/hooks/useConnectorCatalog.ts:45	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/ui/src/features/connectors/hooks/useConnectorCatalog.ts:73	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/ui/src/features/panel-kit/helpers/standing-draft-local-backup.ts:56	generic-error-catch	current	real	log-fixed-text	W7	line
+jini	packages/agent-plugins/github/source-control/commit-site.mjs:359	generic-error-catch	current	real	fixed-result-without-cause (plugin/skill payload)	W8	line
+jini	packages/agent-plugins/src/admin-surfaces/external-links.ts:74	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/agent-plugins/src/lifecycle/capability-projection.ts:34	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/agent-plugins/src/lifecycle/fetch-archive.ts:167	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/agent-plugins/src/lifecycle/install.ts:214	generic-error-catch	current	real	rethrow-without-cause	W8	line
+jini	packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts:214	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/agent-runtime/src/model-discovery.ts:232	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/agent-runtime/src/providers/connection-guard.ts:161	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/analytics/src/forwarding.ts:250	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/cms/src/media/video-frames.ffmpeg.ts:330	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/commerce/src/browser/checkout.ts:81	generic-error-catch	current	real	rethrow-without-cause	W8	line
+jini	packages/commerce/src/catalog-tools.ts:53	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/daemon/src/agent-executor/launch.ts:1141	generic-error-catch	current	real	fixed-result-without-cause (user-visible run error)	W8	line
+jini	packages/daemon/src/agent-executor/launch.ts:1182	generic-error-catch	current	real	fixed-result-without-cause (user-visible run error)	W8	line
+jini	packages/daemon/src/agent-executor/launch.ts:898	generic-error-catch	current	real	fixed-result-without-cause (user-visible run error)	W8	line
+jini	packages/daemon/src/tool-access-lowering.ts:52	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/desktop-host/src/electron/electron-url-capture.ts:77	generic-error-catch	current	real	rethrow-without-cause	W8	line
+jini	packages/devops/src/deploy/ops-runner.ts:220	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/devops/src/dns/delegation.ts:29	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/devops/src/dns/node/resolver.ts:141	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/devops/src/packaging/electron/archive.ts:75	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/mcp/src/federation/hosted/store.ts:1362	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/oauth/src/authorization-code.ts:62	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/oauth/src/discovery.ts:74	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/oauth/src/oidc.ts:63	generic-error-catch	current	real	deliberate-cause-drop (cause may carry secrets; original reaches nobody)	W8	line
+jini	packages/platform/src/child-environment.ts:93	generic-error-catch	current	real	rethrow-without-cause	W8	line
+jini	packages/search/src/indexer.ts:58	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts:326	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts:409	generic-error-catch	current	real	fixed-result-without-cause	W8	line
+jini	packages/admin/src/media/controllers/library.controller.ts:140	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/admin/src/redirects/controllers/redirects.controller.ts:28	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1	context
+jini	packages/admin/src/redirects/controllers/redirects.controller.ts:40	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1	context
+jini	packages/agent-plugins/github-pages/targets/github-pages.mjs:515	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/agent-plugins/google-workspace/lib/auth.mjs:58	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/agent-plugins/src/connect/executable/register.ts:124	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts:281	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/agent-plugins/vercel/targets/vercel.mjs:634	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/agent-runtime/src/diagnostics.ts:26	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+jini	packages/agent-runtime/src/providers/oauth-tokens.ts:98	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/agentic/src/skills/install/install-service.ts:78	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/chat/src/embed-widget/transports/fetch-sse.ts:193	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts:38	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts:46	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts:284	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/chat/src/react/hooks/useComposerHistory.hooks.ts:112	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/cms/src/forms/repo.memory.ts:190	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/commerce/src/payments/ledger/repo.memory.ts:490	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/cookie-consent/src/client/runtime.ts:107	swallowed-error	current	FP	error-body-parse	W1	line
+jini	packages/cookie-consent/src/node/index.ts:54	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/core/src/fetch/cache.ts:188	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/daemon/src/core/tool-audit.ts:53	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+jini	packages/daemon/src/remote-tool-executor.ts:198	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/daemon/src/terminal-session.ts:192	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/db/src/kernel/pglite/driver.ts:48	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/db/src/kernel/pglite/driver.ts:63	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/desktop-host/src/electron/electron-url-capture.ts:172	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/desktop-host/src/sidecar.ts:201	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+jini	packages/diagnostics/src/observability/report-error.ts:97	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+jini	packages/diagnostics/src/web-evidence/page-work-budget.ts:55	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/infra/src/events/outbox/worker.ts:332	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/integrations/src/media-providers/dispatch/operation-runtime.ts:229	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/mcp/src/core/config.ts:269	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/mcp/src/core/tokens.ts:177	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/mcp/src/federation/hosted/store.memory.ts:57	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/mcp/src/federation/reload.ts:180	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/mcp/src/server/http-tool-server.adapter.ts:167	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/oauth/src/file-registration-cache.ts:44	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/oauth/src/loopback-receiver.ts:144	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/oauth/src/registration-cache.ts:77	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/plugins/src/host/node/module-snapshot.ts:190	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/plugins/src/host/node/runtime-core.ts:703	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/plugins/src/host/provider-host.ts:141	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+jini	packages/ui/src/features/panel-kit/fetch-query/adapter.react.tsx:118	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:184	swallowed-error	current	FP	mark-observed	W1	line
+jini	packages/ui/src/features/resource-dashboard/react/components/ResourceRowList.tsx:94	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1	context
+jini	packages/user-management/src/react/members/hooks/use-members.hooks.ts:167	swallowed-error	current	FP	query-owned-reload	W1	line
+jini	packages/vibecoding/src/node/project.ts:168	swallowed-error	current	FP	queue-tail	W1	line
+jini	packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs:56	generic-error-catch	current-not-in-input	FP	cause-preserved (outer variable carries it)	none	line
+jini	packages/commerce/src/browser/checkout.ts:115	generic-error-catch	current	FP	not-an-error-message (button label)	none	line
+jini	packages/daemon/src/http/frontend-request-route.ts:54	generic-error-catch	current	FP	expected-refusal (auth check)	none	line
+jini	packages/infra/src/events/outbox/fenced-conformance.ts:132	swallowed-error	current	FP	test-support (conformance suite helper)	none	line
+jini	packages/infra/src/events/outbox/fenced-conformance.ts:51	swallowed-error	current	FP	test-support (conformance suite helper)	none	line
+jini	packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs:214	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
+jini	packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs:119	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
+jini	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs:418	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
+jini	packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs:170	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
+jini	packages/admin/src/redirects/rules.ts:151	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/admin/src/security/rules.ts:45	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/github/deployments/github.mjs:178	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/github/deployments/github.mjs:242	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/github/deployments/github.mjs:367	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/github/source-control/commit-site.mjs:203	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/resend/lib/domains.mjs:75	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/resend/lib/feedback.mjs:101	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/s3-compatible/targets/s3-compatible.mjs:414	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/admin-surfaces/descriptor.ts:97	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/connect/plugin-credential-card.ts:41	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/lifecycle/host-tools/identity.ts:55	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts:85	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/lifecycle/provider-contribution.ts:97	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/lifecycle/skill-file-reader.ts:44	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-plugins/src/lifecycle/tools/manifest.ts:81	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agent-runtime/src/providers/response-text.ts:19	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/agentic/src/core/site-guide/topic-schema.ts:51	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/cms/src/forms/destination-descriptors.ts:38	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/cms/src/media/document-ingress.ts:221	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/cms/src/media/document-ingress.ts:42	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/cms/src/media/provenance.ts:42	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/cms/src/media/provenance.ts:8	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/cms/src/media/sanitize-svg.ts:58	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/commerce/src/browser/checkout.ts:67	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/commerce/src/catalog/checkout.ts:120	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/core/src/list-page.ts:69	generic-error-catch	current-not-in-input	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/core/src/records.ts:34	generic-error-catch	current-not-in-input	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/core/src/tool-input-envelope.ts:15	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/daemon/src/http/connectors.ts:414	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/db/src/transfer/postgres-target.ts:48	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/desktop-host/src/render-bridge.ts:131	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/devops/src/deploy/config-descriptors.ts:52	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/devops/src/deploy/ops-descriptors.ts:15	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/devops/src/deploy/ops-runner.ts:55	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/devops/src/deploy/target-descriptors.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/devops/src/source-control/registry.ts:66	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/devops/src/static-export/transforms.ts:197	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/integrations/src/credentialed-http/auth-schemes.ts:44	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/integrations/src/credentialed-http/credentialed-request.ts:330	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/integrations/src/credentialed-http/credentialed-request.ts:573	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/integrations/src/credentialed-http/credentialed-request.ts:71	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/integrations/src/credentialed-http/sets/store.ts:199	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/mcp/src/federation/hosted/access.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/memory/src/llm-provider.ts:429	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/oauth/src/discovery.ts:106	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/oauth/src/endpoint-safety.ts:38	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/oauth/src/resource.ts:16	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/platform/src/object-store/descriptors.ts:38	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/platform/src/web/web-page.ts:163	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/provider-plugins/src/analytics-posthog/consent.ts:37	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/provider-plugins/src/payments-stripe/http.ts:54	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/provider-plugins/src/payments-stripe/provider.ts:33	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/admin/src/media/controllers/providers.controller.ts:35	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+jini	packages/admin/src/media/controllers/providers.controller.ts:49	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+jini	packages/commerce/src/payments/ingest/settlement-worker.ts:35	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+jini	packages/commerce/src/payments/ingest/settlement-worker.ts:48	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+jini	packages/commerce/src/payments/ingest/settlement-worker.ts:62	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+jini	packages/daemon/src/http/tool-execution-routes.ts:207	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts:325	swallowed-error	current	real	best-effort-side-task	W3	line
+tovu	apps/desktop/src/renderer/workspace-chat-transport.ts:396	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/boot/process-error-guards.ts:131	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/composition/commerce.ts:345	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts:611	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:202	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:580	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant.ts:122	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/services/external-mcp-probe.ts:185	swallowed-error	current	real	best-effort-cleanup	W3	line
+tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:69	generic-error-catch	current	real	fixed-result-without-cause	W8	context
+tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1313	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
+tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:166	swallowed-error	current	FP	query-owned-reload	W1	line
+tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:182	swallowed-error	current	FP	query-owned-reload	W1	line
+tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:203	swallowed-error	current	FP	query-owned-reload	W1	line
+tovu	apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts:123	swallowed-error	current	FP	query-owned-reload	W1	line
+tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:102	swallowed-error	current	FP	error-body-parse	W1	line
+tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:95	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
+tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:98	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
+tovu	apps/admin/src/features/skills/use-skills.hooks.ts:105	swallowed-error	current	FP	query-owned-reload	W1	line
+tovu	apps/admin/src/features/skills/use-skills.hooks.ts:86	swallowed-error	current	FP	query-owned-reload	W1	line
+tovu	apps/admin/src/integrations/jini-admin/media-ports.ts:131	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/admin/src/lib/assistant-daemon-activation.ts:19	swallowed-error	current	FP	error-body-parse	W1	line
+tovu	apps/admin/src/lib/queued-daemon-start.ts:16	swallowed-error	current	FP	error-body-parse	W1	line
+tovu	apps/desktop/src/keyed-serializer.ts:39	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/site-chat/src/site-assistant-transport.ts:271	swallowed-error	current	FP	error-body-parse	W1	line
+tovu	apps/website/src/assistant/site/visitor-tool-budgets.ts:52	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/website/src/cli/commands/owner-store.ts:226	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
+tovu	apps/website/src/features/comments/provider-selection.ts:83	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/features/consent/settings.ts:42	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/features/identity/delete-user-service.ts:353	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/website/src/features/members/repo.memory.ts:62	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/website/src/features/web-screenshot/playwright-page-capture.ts:174	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/platform/db/journal-kernel.ts:112	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/platform/db/journal-kernel.ts:86	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts:78	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts:41	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts:46	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:247	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:258	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:330	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:368	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:412	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:417	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/runtime/composition/app.ts:554	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/runtime/composition/deps.ts:1315	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:430	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
+tovu	apps/website/src/server/runtime/composition/modules/assistant.ts:213	swallowed-error	current	FP	error-body-parse	W1	line
+tovu	apps/website/src/server/runtime/composition/modules/core.ts:47	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/runtime/composition/modules/site-search.ts:264	swallowed-error	current	FP	mark-observed	W1	line
+tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts:463	swallowed-error	current	FP	queue-tail	W1	line
+tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1832	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/desktop/src/renderer/SharedKeys.hooks.ts:137	generic-error-catch	current-not-in-input	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/assistant/byok-meta-tool-result.ts:93	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/assistant/credential-chat-intake.ts:7	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/cli/commands/agent-plugin-tokens.ts:50	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/cli/commands/import-local.ts:137	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/cli/commands/import-site.ts:32	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/cli/commands/import-site.ts:51	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/cli/commands/init.ts:145	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/agent-plugins/analytics-provider-registry.ts:64	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/consent/config.ts:79	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/consent/readiness.ts:16	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/consent/request.ts:25	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/media-generation/media-provider-registry.ts:125	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/newsletter/unsubscribe.ts:78	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/publish-content/backstop-service.ts:116	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/publish-content/peer-url.ts:97	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/publish-trust/session.ts:146	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/site-backup/import-backend-steps.ts:59	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/site-inspection/live-url.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/site-inspection/live-url.ts:98	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/theme/tool-registrations.ts:142	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/features/web-screenshot/web-screenshot.ts:142	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/server/inbound/assistant/durable-run-routes.ts:19	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:81	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:90	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts:427	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts:251	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/admin/src/App.hooks.ts:142	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/App.hooks.ts:239	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/App.hooks.ts:249	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts:349	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts:320	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts:52	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts:68	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts:155	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts:252	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/sites/hooks/use-sites.hooks.ts:211	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/sites/hooks/use-sites.hooks.ts:237	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/taxonomy/hooks/use-taxonomy-html-embed.hooks.ts:15	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts:130	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/voice-input/hooks/use-push-to-talk.hooks.ts:166	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/features/workspace/hooks/use-workspace.hooks.ts:90	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/lib/acceptance-cancellation.ts:11	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/lib/acceptance-cancellation.ts:4	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/admin/src/lib/execution-settings.ts:499	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/contracts/site-theme-preview-bridge.ts:16	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/contracts/site-theme-preview-bridge.ts:20	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/desktop-agent-service.ts:265	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/desktop-agent.ts:423	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/desktop-agent.ts:424	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/main/boot/site-backend.ts:162	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/main/windows/site-window.ts:116	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/nested-sites-migration.ts:79	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/owner-store-ipc.ts:193	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/product-memory-telemetry.ts:77	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/product-telemetry.ts:26	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/project-ipc.ts:1089	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/project-ipc.ts:552	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/project-ipc.ts:778	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/SharedKeys.tsx:144	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/site-theme-preview.hooks.ts:40	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts:88	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/use-live-views.hooks.ts:194	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/use-resources.hooks.ts:65	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/use-site-workspace.hooks.ts:285	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/use-site-workspace.hooks.ts:289	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/workspace-chat-transport.ts:319	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/renderer/workspace-chat-transport.ts:394	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/shared-sites.ts:173	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/shared-sites.ts:218	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/site-directory-identity.ts:37	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/site-folders.ts:141	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/smoke-packaged-chat-gate.ts:273	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/desktop/src/smoke-packaged-chat.ts:98	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/site-chat/src/visitor-page-control.ts:33	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/agent-plugins/automatic-agent-plugins.ts:163	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/analytics/forwarding.ts:92	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/consent/region-plugins.ts:55	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/consent/region-plugins.ts:72	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/consent/service.ts:132	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/consent/service.ts:166	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/consent/service.ts:190	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/database-transfer/destination-exchange.ts:37	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/deployments/deploy-ops/registry.ts:96	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/deployments/static-publish/adapter.ts:549	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/deployments/static-publish/adapter.ts:591	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/deployments/static-publish/inspection.ts:73	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/deployments/static-publish/publish-run.ts:179	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/forms/protect-existing-files.ts:31	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/mail-status/provider-tool-registrations.ts:49	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/mail-status/tool-registrations.ts:116	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/newsletter/delivery/tool-registrations.ts:180	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/newsletter/send-pipeline.ts:386	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/newsletter/tool-registrations.ts:326	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/post/publish-content.ts:398	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/project-keys/attached-vault.ts:19	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/project-keys/attached-vault.ts:46	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/publish-content/backstop-preview.ts:39	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/publish-content/peer-transport.ts:658	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/import-backend-steps.ts:155	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/package-file-inventory.ts:30	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/share-service.ts:111	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/share-service.ts:123	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/sources.ts:490	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/sources.ts:548	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/sources.ts:568	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/site-backup/sources.ts:666	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/sites/site-preview/playwright-site-preview-capture.ts:132	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/source-control/commit-site.ts:497	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/source-control/provider-registry.ts:124	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/theme/publish-content.ts:541	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/trash/adapters/directory.ts:170	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/features/web-screenshot/playwright-page-capture.ts:177	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/index.ts:347	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/platform/db/key-dependent-data.ts:103	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/platform/db/sqlite/database-journal-repo.ts:327	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/platform/dev-supervisor/dev-restart.ts:75	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/platform/dev-supervisor/dev-restart.ts:82	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts:116	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/publish-trust-auth.ts:238	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/publish-trust-auth.ts:248	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/routes/agent-plugins/memory.ts:40	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts:35	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/routes/posts/delete.ts:83	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/routes/posts/update.ts:152	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/admin-http/routes/themes/preview.ts:59	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts:80	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:1056	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:1647	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:1648	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:673	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:746	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/early-run-session.ts:40	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/assistant/tool-access-lowering-route.ts:26	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:308	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:340	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:403	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/middleware/theme-page-preview.ts:253	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/middleware/theme-preview-refresh.ts:107	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/routes/mail-feedback.ts:35	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts:148	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts:100	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/routes/site/products.ts:122	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/inbound/public-http/routes/site/products.ts:89	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/boot/site-key-boot-notice.ts:87	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/agent-daemon-core-deps.ts:93	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce-http.ts:53	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce.ts:232	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce.ts:271	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce.ts:294	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce.ts:326	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce.ts:332	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/commerce.ts:78	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts:464	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts:670	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts:272	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:765	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/modules/assistant-server-federation.ts:46	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts:171	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts:346	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts:455	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/plugin-credential-cards.ts:51	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/composition/provider-config-source.ts:163	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts:598	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/lifecycle/local-site-host.ts:59	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts:216	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts:245	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/lifecycle/local-site-process.ts:246	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	apps/website/src/server/runtime/services/external-mcp-admissions.ts:35	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/__original-themes__/static/tovu-starter/scripts/theme-toggle.js:11	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/__original-themes__/static/tovu-starter/scripts/theme-toggle.js:27	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/__original-themes__/static/tovu-theme/scripts/theme-toggle.js:11	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/__original-themes__/static/tovu-theme/scripts/theme-toggle.js:27	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/static/tovu-starter/scripts/theme-toggle.js:20	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/static/tovu-starter/scripts/theme-toggle.js:38	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/static/tovu-theme/scripts/theme-toggle.js:11	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
+tovu	content/themes/static/tovu-theme/scripts/theme-toggle.js:27	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
