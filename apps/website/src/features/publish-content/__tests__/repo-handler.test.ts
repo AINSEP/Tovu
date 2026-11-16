@@ -543,8 +543,8 @@ test("type-specific permissions, references and extension methods reach the hand
   const handler = buildHandler(baseConfig({ alsoAuthorizes: ["items.create"], references: () => references,
     extend: () => extensions }), makeDeps({ repo }));
   assert.deepEqual(handler.alsoAuthorizes, ["items.create"]);
-  assert.deepEqual(handler.references!(entity), references);
-  assert.deepEqual(await handler.planRetire!(entity), target);
+  assert.deepEqual(handler.references!({ entity }), references);
+  assert.deepEqual(await handler.planRetire!({ entity }), target);
   assert.equal((await handler.retire!({ target, principalId: "op-1", idempotencyKey: "retire" })).changeSetId, "retired-1");
   assert.deepEqual(await handler.verifyApplied!({ entities: [entity] }), ["missing blob"]);
   assert.deepEqual(await handler.listSkipped!(), skipped);
