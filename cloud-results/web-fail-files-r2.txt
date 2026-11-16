@@ -1,0 +1,49 @@
+KNOWN	contracts/core/__tests__/unit/describe-error-for-log.unit.test.ts	1	[describeErrorForLog format] AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+KNOWN	contracts/core/events/__tests__/forms-notification-restart.integration.test.ts	4	[Jini outbox lastError loses FormDeliveryError codes] AssertionError [ERR_ASSERTION]: The input did not match the regular expression /outcome is unknown/. Input:
+KNOWN	features/media-import/__tests__/import-local-file-search.test.ts	1	[media BM25 tie] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/inbound/admin-http/routes/forms/__tests__/l244-characterization.unit.test.ts	4	[L244 no-op patch bumps version 1->2] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/runtime/boot/__tests__/fatal-boot-failure.unit.test.ts	1	[describeErrorForLog format] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/runtime/boot/__tests__/process-error-guards.unit.test.ts	1	[describeErrorForLog format] AssertionError [ERR_ASSERTION]: the diagnostic must include the rejected error's reason
+KNOWN	server/runtime/composition/__tests__/app-federation-reload.observability.test.ts	1	[app-federation-reload listener] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/runtime/composition/__tests__/form-delivery-oauth.integration.test.ts	2	[Jini outbox lastError loses FormDeliveryError codes] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts	2	[Jini outbox lastError loses FormDeliveryError codes] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/runtime/composition/__tests__/form-delivery.security.test.ts	2	[Jini outbox lastError loses FormDeliveryError codes] AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+KNOWN	server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts	3	[charts-recharts 0.7.0 pin vs Jini 0.7.1] AssertionError [ERR_ASSERTION]: @jini-ai/provider-plugins must ship plugins/charts-recharts/0.7.0
+KNOWN	server/runtime/composition/__tests__/webhook-delivery-worker.shutdown.test.ts	1	[webhook-delivery-worker describeErrorForLog format] AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+KNOWN	server/runtime/composition/modules/__tests__/agent-daemon-core-rpc.integration.test.ts	1	[agent-daemon-core-rpc in-memory agentSessions] AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	__tests__/index-boot.characterization.test.ts	5	AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+NEW	cli/__tests__/integration/introspect-command.integration.test.ts	1	AssertionError: introspect must list the real registered commands (nested subcommands flattened...)
+NEW	cli/__tests__/integration/serve-command.integration.test.ts	1	AssertionError: the injected seed failure must actually occur (identity re-seed failure logged while serve continues)
+NEW	contracts/core/__tests__/unit/model-facing-tool-errors.caller-safe.unit.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	features/api-connections/__tests__/vendor-neutrality.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts	1	AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+NEW	features/deployments/static-publish/__tests__/publish-run.unit.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	features/theme/__tests__/shipped-theme-original-drift.canary.test.ts	1	AssertionError [ERR_ASSERTION]: content/themes/__original-themes__/static/tovu-starter no longer matches what 'tovu theme sync-originals' generates from content/themes/static/tovu-starter.
+NEW	platform/db/__tests__/pg-fixture.unit.test.ts	4	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts	1	AssertionError [ERR_ASSERTION]: New raw SQLite outside platform/db/kernel. Use the storage kernel (run/transaction + Drizzle, dialect.ts helpers) instead.
+NEW	platform/site-dir/__tests__/integration/boot-site-dir.integration.test.ts	1	Error [SqliteError]: table workspaces has no column named version
+NEW	platform/site-dir/__tests__/unit/read-template.unit.test.ts	2	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	platform/site-dir/__tests__/unit/resolve-workspace.dialects.test.ts	2	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/__tests__/admin-local-boot-session-route.test.ts	1	AssertionError [ERR_ASSERTION]: timed out waiting for the failed pull's log line
+NEW	server/__tests__/routes/settings-events-resume.test.ts	5	AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+NEW	server/inbound/admin-http/http/__tests__/forms-response.test.ts	3	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled.integration.test.ts	2	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/inbound/admin-http/routes/plugins/__tests__/integration/browser-provider.integration.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	server/inbound/admin-http/routes/posts/__tests__/unit/h4-autosave.unit.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/inbound/admin-http/routes/system/__tests__/site-key-state.unit.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts	1	AssertionError [ERR_ASSERTION]: the daemon statically loads 1 forbidden module(s) out of 220; first chains:
+NEW	server/inbound/assistant/__tests__/agent-daemon-site-tools.unit.test.ts	1	Error [ZodError]: [
+NEW	server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts	1	TypeError [Error]: res.status is not a function
+NEW	server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts	1	AssertionError [ERR_ASSERTION]: expected the daemon to start listening, but it exited:
+NEW	server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts	4	AssertionError [ERR_ASSERTION]: handlebars-worker.ts names @jini-ai root barrels; use narrow export subpaths:
+NEW	server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	1	AssertionError [ERR_ASSERTION]: The input did not match the regular expression /theme-preview-refresh\.test\.ts/. Input:
+NEW	server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts	2	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/inbound/public-http/routes/site/__tests__/integration/site-title-preservation.integration.test.ts	1	Error: Express request did not finish
+NEW	server/inbound/shared/__tests__/observability-middleware.test.ts	5	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/runtime/boot/__tests__/mail-send.golden.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+NEW	server/runtime/composition/__tests__/browser-provider.integration.test.ts	2	AssertionError [ERR_ASSERTION]: the reviewed bundled provider initializes without integrity warnings
+NEW	server/runtime/composition/__tests__/commerce-attention.unit.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	server/runtime/composition/__tests__/deps-provider-plugin-boot.integration.test.ts	1	AssertionError [ERR_ASSERTION]
+NEW	server/runtime/composition/__tests__/product-telemetry.unit.test.ts	1	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+NEW	server/runtime/composition/__tests__/storage-secret.unit.test.ts	1	AssertionError [ERR_ASSERTION]: /home/user/Tovu/apps/website/src/features/webhooks/keyring.env.ts:149
+NEW	server/runtime/composition/modules/__tests__/assistant-daemon-client.unit.test.ts	2	Error: agent daemon origin requested before ensure() resolved a self-allocated port — call ensure() before createApp()
