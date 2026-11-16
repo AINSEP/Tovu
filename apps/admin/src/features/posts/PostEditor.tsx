@@ -1,4 +1,5 @@
 import { VIEW_TABS } from "./editor/view-bar/view-tabs";
+import { PostSavedPanels } from "./editor/PostSavedPanels";
 import { PostEditorViewBar } from "./editor/view-bar/PostEditorViewBar";
 import { PostEditorNotices } from "./editor/notices/PostEditorNotices";
 import { PostPreview } from "./editor/preview/PostPreview";
@@ -16,8 +17,6 @@ import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { usePostSettingsDialog } from "./hooks/use-post-editor-ui.hooks";
-import { TermPicker } from "../taxonomy/TermPicker";
-import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
 import { Toolbar } from "./editor/toolbar/Toolbar";
@@ -254,15 +253,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           t={t}
         />
       )}
-      {/* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
-          enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`
-          so a save's freshly stored analysis replaces it. */}
-      {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
-          button, separately from the post's Save/Publish. Both panels need a saved identity. */}
-      {post.id ? <>
-        <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
-        <TermPicker contentType={post.kind} contentId={post.id} />
-      </> : null}
+      <PostSavedPanels post={post} title={title} bodyJson={bodyJson} />
       {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button. "Save anyway"
           still sends the content; the server writes nothing if it really is identical. */}
       <ConfirmDialog
