@@ -8,7 +8,7 @@ import path from "node:path";
 import { initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
 import { runPluginInstallCommand } from "../../commands/plugin/install.js";
-import { runPluginIntegrityCommand } from "../../commands/plugin/integrity.js";
+import { runPluginIntegrityCommand } from "@jini-ai/plugins/host/node";
 
 /**
  * @file `tovu plugin install` against a real, freshly initialised site folder: the default opener
