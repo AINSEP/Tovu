@@ -1,3 +1,5 @@
+> **Revision 2:** read `## Revision 2` at the end first; it overrides the sections above where they differ.
+
 # 08 — Jini `packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts`
 
 Measured at Jini `origin/integ/wave-b-fixed`: 1,239 lines (946 code). `useChatPane` is 404-1138 (**618** code lines). Hooks are exempt from the 50-line target, not from the 80-line error. Listed NOT REACHED / deferred on `refactor/size-jini-chat-runtime`.
@@ -92,3 +94,64 @@ Risk: **high** for its size — the most closure-coupled of the ten.
 ## 7. Estimate
 
 ≈14 commits. Sonnet executor **≈300k tokens**.
+
+
+## Revision 2 (2026-11-16, after the Codex judgment)
+
+Re-verified at Jini `integ/wave-b-r2` (02edbb68): `packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts` 1,239 lines; `useChatPane` (404) is **618 code lines**; **26 module-level functions, 21 `useRef` sites, 11 effects, 25 `useCallback`s** (revision 1 said 9 helpers and 12 refs). Judge: "needs rework" (2 blockers, 3 majors). **5 accepted, 0 rebutted.** The hook body was read as an outline with exact line anchors for every hook call and effect, not statement by statement — step 0b closes that gap before any move.
+
+### R1. Hook graph (replaces §2's `useChatPaneRefs`-first order)
+
+Source order is already acyclic; revision 1's grouping created the cycles. Measured anchors: refs 405-440 · working directory 444 · selection memos 451-457 · `useConversation` 463 · `useComposer` 482 · queue projection 495-515 · `composer.setAgent` sync 536-560 · latest refs 575-579 · `enqueueTurn` 805 · typed answer uses it at 839/848 · `sendIntoRunningTurn` 903 (uses `enqueueTurn` 897-899) · submit 947-963 · release effect 1051 (uses `sendIntoRunningTurn` 1077). Effects in order: E1 474, E2 502, E3 513, E4 517, E5 521, E6 525, E7 537, E8 587, E9 592, E10 605, E11 1051.
+
+| call order | hook (new file under `hooks/use-chat-pane/`) | source | owns effects | needs |
+|---|---|---|---|---|
+| 1 | `useChatPaneCells` | 405-440 | none (allocation only: all 21 refs incl. delivery locks, answer/conversation generations, upload controllers, batch ownership) | `options` |
+| 2 | `useChatPaneSession` | 444-491 | E1 | cells → working directory, **selection resolution**, conversation, composer |
+| 3 | `useQueuedInputsProjection` | 495-515 | E2, E3 | session |
+| 4 | `useChatPaneSync` | 517-616 | E4-E10 (incl. selection→composer sync E7, attachment-error clearing E8, answer generation E9, batch adoption E10), `setSelection`, latest refs | cells, session, projection |
+| 5 | `useTurnDelivery` | 618-1049 | none | cells, session, sync. Internally, in dependency order: uploads → `enqueueTurn` (queue **mutation**) → typed-answer delivery → `sendIntoRunningTurn` → submit; split into ≤5 files along those five groups |
+| 6 | `useQueueRelease` | 1051-1082 | E11 | `sendIntoRunningTurn` from 5 (queue **release**) |
+| 7 | root `useChatPane` | result assembly | none | all |
+
+Rules: (a) the root calls 1→7 in this order; (b) **a sub-hook owns only a contiguous run of effects**, so React's effect order is E1…E11 by construction — if a cut would put two non-adjacent effects in one hook, the hook is split instead; revision 1's "reordering is allowed unless the port log differs" is deleted; (c) no hook receives a value produced by a later hook — step 0c proves it by typechecking an empty skeleton of the seven hooks with their real parameter and result types before any body moves. If the skeleton cannot typecheck in this order the executor stops and reports.
+
+### R2. Types and the public entry
+
+`UseChatPaneOptions` / `UseChatPaneResult` move to `hooks/useChatPane.types.ts`. The same commit repoints `chat-pane/index.ts:54-58` (it re-exports both types from the hook file today) and `components/ChatPane.tsx:24`. Published names unchanged; no type re-export is left in the hook file.
+
+### R3. Callbacks: captured vs live (replaces the `ctx` recipe)
+
+No context object. A callback body that becomes a module function takes its inputs as explicit arguments in two groups: **captured values** (were read from the render closure: listed in the `useCallback` dependency array, unchanged) and **live refs** (passed as ref objects, read `.current` after awaits, as today at 743-776 and 823-848). The dependency array of every `useCallback` is byte-identical before and after; a diff in any array is a review stop.
+
+### R4. Inventory (step 0b, before any move)
+
+`work/use-chat-pane-symbols.tsv`: all 26 module functions (incl. `recordConsumedInputs` 194, `awaitingRunReceipts` 204, the delivery exception guards 264/280, `turnFolders` 1157, `attachQueuedInput` 1237) classified pure rule / effect / id creation; all 21 refs with writer(s) and reader(s); the 11 effects with what they write; the 25 callbacks with captured and live inputs. Module functions go to `use-chat-pane/rules/` (pure) and `use-chat-pane/delivery/` (effects); no file over 500, no function over 50 (hooks exempt from 50 only).
+
+### R5. Tests (step 0a) — must fail on the named risk
+
+`npm --prefix packages/chat run test`. Transition tests with fake `ChatTransport`: conversation switch during an upload (late completion is dropped: batch/generation refs); receipt projection (E2/E3) after a queued turn is consumed; typed answer delivered after the conversation changed is rejected by the generation guard; **stale callback**: keep the `send` callback from render N, change draft and conversation, call the old one — it must use the values it captured and the live refs; queue release fires once per transition to idle. Effect-order log pinned for E1-E11 on mount and on conversation change. Identity table of the result's callbacks across a no-op rerender.
+
+### R6. Boundaries and ordering
+
+The file imports only `@jini-ai/core`, `@jini-ai/chat` types and local modules (lines 2, 33, 35) — no `@jini-ai/ui` — so no injection-debt entry is involved and new files must keep it that way. `scripts/injection-debt.json` is path-keyed: nothing is re-keyed. `pnpm guard` and `pnpm typecheck` per commit. Runs before design 09.
+
+### R7. Owner practices check
+
+1 DI: transport and ports arrive through `options`; no new import of a concrete package · 2: sub-hooks and module functions `(required, optional = {})` · 3: hooks exempt from 50; module functions ≤50; complexity ≤10 checked on every new file · 4: one phase per hook file · 5: `index.ts` keeps exporting from the real files; no shell at the old type path · 6: comments move · 7: imports stay inside chat + core/protocol · 8: fake transport via the package's `/testing` kit if present, else an interface fake in the test; no `vi.mock` of package internals · 9: delivery errors keep their guards and text · 10: no dependency array is edited, so no `exhaustive-deps` disable is added · 11: seven hooks, no context object · 12: no new state subscription; queue projection still derives from stored inputs per render (existing cost, O(queued inputs)).
+
+### R8. Estimate
+
+≈20 commits, Sonnet **≈420k tokens** (was 300k). Risk: **high**. Opus review of the step-0 sheets and skeleton before any body moves.
+
+## Judge response
+
+| # | sev | verdict | what changed / evidence |
+|---|---|---|---|
+| 1 | blocker | accepted | Anchors measured (R1). The cycles came from the grouping, not the source: `enqueueTurn` 805 → typed answer 839 → `sendIntoRunningTurn` 903 → release 1077 is one direction. New 7-hook order separates allocation / sync / mutation / release, with a skeleton typecheck gate |
+| 2 | blocker | accepted | `index.ts:54-58` and `ChatPane.tsx:24` import the types from the hook file. R2 |
+| 3 | major | accepted | 26 functions, 21 refs measured. R4; estimate raised |
+| 4 | major | accepted | 11 effects listed; structural rule R1(b) replaces the port-log experiment; transition tests R5 |
+| 5 | major | accepted | `ctx` recipe removed. R3 + stale-callback test |
+
+Accepted 5 · rebutted 0 · blockers left 0 (both resolved in the design; R1(c) is the executable check).
