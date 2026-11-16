@@ -171,15 +171,24 @@ Lane-owned paths come from each sheet's files section and its TSV's MANUAL/C-lan
   - C4 owns `http-kit/src/index.ts`, and C5's row there is applied after C4 in pass B1.
 - **C10 vs step 2:** C10 runs after C9-ui (ui `package.json`, ui kit) and C2 (the 4 C2-owned files are guarded by C2's expected content).
 
-### Wave C (after the wave-B cloud run)
+### Wave C (after the wave-B cloud run) — revised 2026-11-16 (plan/wave-c)
 
-| Lane | Sheet | Sonnet | Notes |
-|---|---|---|---|
-| **C6** | `C6.md` (§11–§13; ruling (c) done, ruling (e) `ProviderModelsQuery` folded in §13) | 100k (+15k Opus copy-order already done) | `C6.repoint.tsv` (254) |
-| **C11b** | `C11.md` §4 | 90k | after C4's `jsonRoute`; produce `C11b.repoint.tsv` at dispatch |
-| **P-ZOD** | `handoffs/sheets-fix.md` item 6 | 40k | protocol root 18 `*Schema` + 18 `z.infer`, a2ui 33 aliases → parse functions + written types; before R11; configs `scripts/census/{protocol-zod,a2ui-zod}.json` |
-| **R-BARRELS** | to write (ruling (d)) | ~150k | One scripted Tovu lane. 211 Tovu non-test files carry 382 `export … from "@jini-ai/…"` statements (`contracts/core/*`, `features/settings/index.ts`, `packages/sdk/src/index.ts`, …). Census = `repoint-census.cjs` with each barrel's Jini re-exports as "moves" to their Jini spec; applier repoints importers to the Jini spec, then the re-export lines are DROPped. Owner question on `packages/sdk` below. |
-| C9b, C9c | `C9a.md` pattern (KIT P3b/c) | ~160k | unchanged |
+Serial applier rule as in wave B: lanes may run in parallel where files are disjoint, but their applier passes run **one at a time in this order**. Dry runs below: `apply-repoint.mjs --phase all --dry-run` on Jini `refactor/terra` + a local `-X ours` integration view of the 11 wave-B lanes (all merged) and Tovu `refactor/terra`; re-guard and re-dry-run on the real merged wave-B tip before dispatch.
+
+| Order | Lane | Sheet | TSV (rows) | Dry run (apply / keep / manual / stale / error) | Needs | Sonnet |
+|---|---|---|---|---|---|---|
+| 1 | **C6** | `C6.md` (§11–§13; ruling (c) done, ruling (e) `ProviderModelsQuery` folded in §13) | `C6.repoint.tsv` (254) | 248 / 0 / 1 / 0 / 0 (+5 already; 182 files) | wave B | 100k (+15k Opus copy-order already done) |
+| 2 | **C11b** | `C11.md` §4 + "C11b dispatch fill (2026-11-16)" | `C11b.repoint.tsv` (19: 2 scripted, 2 KEEP, 3 MANUAL, 12 C-lane test moves) | all: 14 / 2 / 3 / 0 / 0; wave: 2 / 2 / 3 / 0 / 0 (12 other-phase) | C4 (`ServerRoute`, `createSseStream`) | ~90k. Census: `registerSettingsRoutes` has no production caller; Tovu reads only helpers/types via `routes/settings/shared.ts`. Routes are plain core `ServerRoute`s, not `jsonRoute` (its error envelope differs) |
+| 3 | **P-ZOD** | `P-ZOD.md` | `P-ZOD.repoint.tsv` (6: 3 scripted, 1 KEEP, 2 MANUAL) | 3 / 1 / 2 / 0 / 0 | Part A: wave B. **Part B (a2ui): C10 + pass B2** | ~40k (A 25k, B 15k). Before R11 and before any protocol release |
+| 4 | **C12-OBS** | `C12-OBS.md` (O/DESIGN M1) | `C12-OBS.repoint.tsv` (165: 151 scripted, 1 KEEP, 2 DROP, 13 MANUAL, 1 C-lane) | 151 / 1 / 13 / 0 / 0 (126 files) | C8 + its B1 rows | ~90k. Types + `createNoopObservabilityPort`/`isNoop…` (frozen singleton for L6) to `core/contracts/observability`; daemon/http-kit/OTel restatements deleted; `/testing` deferred to M2 (no fake exists to move) |
+| 5 | C9b, C9c | `C9a.md` pattern (KIT P3b/c) | at dispatch | — | C9a | ~160k |
+| last | **R-BARRELS** | `R-BARRELS.md` (ruling (d)) | `R-BARRELS.repoint.tsv` (2225) + `R-BARRELS.hand.tsv` (hand list, not applier format) | 2224 / 0 / 1 / 0 / 0 (1430 files) on the pre-wave-C tree; re-census after C12-OBS | every other wave-C lane (its census must see their final specs; C11b and C12-OBS each add Tovu barrel lines it then drops) | ~150k. Owner question on `packages/sdk` below |
+
+**Wave C total: ~0.63M Sonnet** (C6 100k + C11b 90k + P-ZOD 40k + C12-OBS 90k + C9b/c 160k + R-BARRELS 150k), plus the applier passes (~20k each for C11b/P-ZOD, ~30k for C12-OBS).
+
+Coordinator-only lines added by these sheets: core `exports`/`jini.entries` `./contracts/observability` (C12-OBS), `./settings/express` → `./settings/routes` + isolation/forbidden map + express devDeps (C11b), cms `./settings/express` export removal and the boundary-script exemption (C11b), provider-plugins devDep `@jini-ai/core` (C12-OBS), `injection-debt.json` removals (C11b: 5 L6 keys; C12-OBS: provider payload keys that vanish).
+
+Inputs not found in this pass: `handoffs/sheets-fix3.md` (named by the dispatch; not in the plan branch). The "Wave B final" section above was used as its record.
 
 ### Re-census (sheets-fix3)
 Every lane not yet re-censused was re-run with the `#src/`-fixed census (`scripts/recensus/run.sh`, `diff.py`; raws in `scripts/recensus/`):
