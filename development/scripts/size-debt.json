@@ -802,16 +802,9 @@
     {
       "file": "apps/desktop/src/project-ipc.ts",
       "function": "<file>",
-      "line": 812,
+      "line": 844,
       "rule": "max-lines",
-      "value": 1092
-    },
-    {
-      "file": "apps/desktop/src/project-ipc.ts",
-      "function": "registerSiteIpcHandlers#1",
-      "line": 1599,
-      "rule": "max-lines-per-function",
-      "value": 230
+      "value": 895
     },
     {
       "file": "apps/desktop/src/renderer/App.tsx",
