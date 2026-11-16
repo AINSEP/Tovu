@@ -5,7 +5,7 @@ import type { ContentEntryDraft, ExtPatch, HookContext, PluginSdk } from "@tovu/
 
 import { analyzeContent } from "../../analyze-content.js";
 import contentAnalyzerPlugin, { buildContentAnalyzerPatch, readMetaDescription } from "../../plugin.js";
-import { summarizeReport } from "../../summary.js";
+import { summarizeReport } from "@jini-ai/cms/seo/content-analysis";
 import { tiptapToBlocks } from "../../tiptap-blocks.js";
 
 /**

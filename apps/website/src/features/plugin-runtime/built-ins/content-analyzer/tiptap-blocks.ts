@@ -23,7 +23,7 @@
  * boundary, so non-object nodes, non-array `content` and non-string `text` are skipped, and the walk
  * stops at `MAX_DEPTH` so a cyclic or absurdly deep tree cannot overflow the stack. Never throws.
  */
-import type { ContentBlock, HeadingLevel } from "./analyze-content.js";
+import type { ContentBlock, HeadingLevel } from "@jini-ai/cms/seo/content-analysis";
 
 /** Far deeper than any real document (nested lists inside quotes inside tables), far shallower
  * than the stack. Anything below it is ignored. */
