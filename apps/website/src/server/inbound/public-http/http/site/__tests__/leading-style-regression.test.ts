@@ -10,7 +10,8 @@ import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from '
 import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/index';
 import { renderStaticPage } from '#src/features/theme/static-render';
 import type { DiscoveredTheme } from '#src/features/theme/index';
-import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers, type ContentMarkerResolutionDeps } from '#src/server/inbound/public-http/routes/site/pages';
+import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "#src/server/inbound/public-http/routes/site/pages";
+import type { ContentMarkerResolutionDeps } from "#src/server/inbound/public-http/routes/site/pages/render-context/deps";
 import { renderWidgetPreview } from '#src/server/inbound/admin-http/routes/widgets/preview-render';
 import { createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
 import { renderSite } from '../render-site.js';
