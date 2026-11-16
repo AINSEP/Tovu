@@ -4,6 +4,10 @@ import { test } from "node:test";
 import { createSqliteAgentSessionStore } from "../agent-session-store.js";
 import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 import { seedChat } from "./chat-seed.js";
+import type { Clock } from "@jini-ai/core/primitives";
+
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
 
 /**
  * @file The agent-session store's one Kysely body on SQLite and PGlite (storage plan §4): every
@@ -12,7 +16,7 @@ import { seedChat } from "./chat-seed.js";
 
 describeEachChatDialect(
   "agent session store",
-  (kernel) => ({ kernel, store: createSqliteAgentSessionStore({ store: kernel }) }),
+  (kernel) => ({ kernel, store: createSqliteAgentSessionStore({ store: kernel, clock: testClock }) }),
   (make, dialect) => {
     test("get is null until set; set round-trips and overwrites; clear removes", async () => {
       const { kernel, store } = make();

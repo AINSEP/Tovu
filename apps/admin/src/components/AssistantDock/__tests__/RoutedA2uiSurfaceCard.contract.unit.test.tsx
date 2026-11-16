@@ -1,9 +1,13 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it, vi } from "vitest";
 import { createLabCatalog } from "@jini-ai/agentic/a2ui";
 
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@/lib/playground-render-target-bus";
+
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
 
 afterEach(() => {
   cleanup();
@@ -16,7 +20,7 @@ it.each(["shadcn", "native"])("renders the real %s table with its styling frame 
   setPlaygroundRenderTarget({ node: target });
   try {
     const { container } = render(<RoutedA2uiSurfaceCard
-      name="a2ui" runId="run-table" runStreaming={false} runSucceeded={true}
+      name="a2ui" clock={testClock} runId="run-table" runStreaming={false} runSucceeded={true}
       events={[{
         version: "v1.0",
         createSurface: {
@@ -45,6 +49,7 @@ it("routes a real A2uiSurfaceCard catalog refusal inline and relays its error.su
   try {
     const { container } = render(<RoutedA2uiSurfaceCard
       name="a2ui"
+      clock={testClock}
       runId="run-contract"
       runStreaming={false}
       runSucceeded={true}

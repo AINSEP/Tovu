@@ -7,13 +7,17 @@ import { createSqliteAgentSessionStore } from "../agent-session-store.js";
 import { createChatRunLedger } from "../run-ledger.js";
 import { createTenantScopedChatStore } from "../tenant-scope.js";
 import { describeEachChatDialect, freshSqliteChatKernel } from "./chat-dialect-matrix.js";
+import type { Clock } from "@jini-ai/core/primitives";
+
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
 
 const SCOPE = { scopeId: "ws", ownerKind: "user", ownerId: "alice" } as const;
 const RUN = { conversationId: "c", messageId: "m", runId: "r" };
 
 describeEachChatDialect("package adapter composition", kernel => ({
   kernel, history: createChatHistoryStore({ kernel: kernel, scope: SCOPE }, { now: () => 1_790_000_000_000 }),
-  sessions: createSqliteAgentSessionStore({ store: kernel }), ledger: createChatRunLedger({ store: kernel }),
+  sessions: createSqliteAgentSessionStore({ store: kernel, clock: testClock }), ledger: createChatRunLedger({ store: kernel }),
 }), make => {
   test("bounded reads use the adopted history adapter and retain owner isolation", async () => {
     const { kernel, history } = make();

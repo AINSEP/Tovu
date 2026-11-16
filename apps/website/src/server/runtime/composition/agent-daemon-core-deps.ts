@@ -21,6 +21,7 @@ import { createInMemoryConversationToolApprovalStore } from "#src/assistant/exte
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import { createDaemonCoreClient, type DaemonCoreClient } from "../../inbound/assistant/agent-daemon-core-client.js";
 import { resolvePostgresConnectionString } from "./storage-secret.js";
+import { createSystemClock } from "@jini-ai/platform/system";
 
 export interface AgentDaemonResource { close(): Promise<void> }
 interface RetainedRepositories {
@@ -108,7 +109,7 @@ function assertSnapshotMatchesEnv({ env, snapshot }: { env: NodeJS.ProcessEnv; s
 function retainedRepositories({ client }: { client?: SiteDbClient }, _options = {}): RetainedRepositories {
   if (!client) return { settingsRepo: new InMemorySettingsRepo(), agentSessions: createInMemoryAgentSessionStore(),
     conversationToolApprovals: createInMemoryConversationToolApprovalStore(), toolAttemptAuditSink: createInMemoryToolAttemptAuditSink({}) };
-  return { settingsRepo: new SqlSettingsRepo(client.content), agentSessions: createSqliteAgentSessionStore({ store: client.chat }),
+  return { settingsRepo: new SqlSettingsRepo(client.content), agentSessions: createSqliteAgentSessionStore({ store: client.chat, clock: createSystemClock() }),
     conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: client.chat }), toolAttemptAuditSink: new SqlToolAttemptAuditSink(client.content) };
 }
 

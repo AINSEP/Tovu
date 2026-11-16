@@ -9,6 +9,7 @@ import {
   midRunUserMessageSlotKey,
   type ExtEventRendererRegistry,
 } from "@jini-ai/chat/react";
+import { createSystemClock } from "@jini-ai/platform/system";
 import { createA2uiActionPoster } from "../../../lib/a2ui-action-poster";
 import { AgentFailureCard } from "../AgentFailureCard";
 import { hasAgentFailureNotice } from "../AgentFailureCard.hooks";
@@ -65,6 +66,8 @@ const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/
 const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl({ hostOrigin: globalThis.location.origin });
 /** The A2UI agent-action relay; see the `"a2ui"` registration below. Module scope like the two above. */
 const postA2uiAction = createA2uiActionPoster({ baseUrl: "" }, { path: "/api/admin/v1/a2ui/actions" });
+/** Tovu is the host, so the dock owns the system clock handed to every A2UI card. */
+const dockClock = createSystemClock();
 
 /**
  * Registers the dock's cards on `registry` and returns one disposer for all of them. Each disposer
@@ -144,7 +147,7 @@ function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistr
      * straight through to `A2uiSurfaceCard` unchanged. See `RoutedA2uiSurfaceCard.tsx`'s own doc for
      * the full routing decision and `lib/playground-render-target-bus.ts` for the seam it reads.
      */
-    registry.register({ name: "a2ui", renderer: (props) => createElement(RoutedA2uiSurfaceCard, { ...props, onAgentAction: postA2uiAction }) }),
+    registry.register({ name: "a2ui", renderer: (props) => createElement(RoutedA2uiSurfaceCard, { ...props, clock: dockClock, onAgentAction: postA2uiAction }) }),
     // The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run
     // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
     // existing (unrendered) `'status'` kind" reasoning.

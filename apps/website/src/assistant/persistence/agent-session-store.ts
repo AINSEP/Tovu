@@ -11,6 +11,7 @@ export type { AgentSessionStore } from "@jini-ai/daemon/store/agent-sessions";
 
 import { type ChatKernel, chatKernel } from "#src/platform/db/chat-kernel";
 import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
+import type { Clock } from "@jini-ai/core/primitives";
 
 /**
  * @file Durable store for `assistant_agent_sessions` (migration `0051`) — the
@@ -31,13 +32,13 @@ import type { SqliteConnectionSource } from "@jini-ai/db/kernel/sqlite";
  * by the borrowed kernel's transport; never calls the rich legacy agent_sessions API.
  * Uses assistant_agent_sessions, with its existing FK cascade and overwrite/clear semantics.
  */
-export function createSqliteAgentSessionStore({ store }: { store: ChatKernel | SqliteConnectionSource }, _optional = {}): AgentSessionStore {
+export function createSqliteAgentSessionStore({ store, clock }: { store: ChatKernel | SqliteConnectionSource; clock: Clock }, _optional = {}): AgentSessionStore {
   const kernel = chatKernel(store);
   switch (kernel.transport) {
-    case "better-sqlite3": return createSqliteSessions({ kernel });
+    case "better-sqlite3": return createSqliteSessions({ kernel, clock });
     case "pglite":
-    case "pglite-socket": return createPgliteAgentSessionStore({ kernel });
-    default: return createPostgresAgentSessionStore({ kernel });
+    case "pglite-socket": return createPgliteAgentSessionStore({ kernel, clock });
+    default: return createPostgresAgentSessionStore({ kernel, clock });
   }
 }
 

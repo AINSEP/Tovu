@@ -2329,7 +2329,7 @@ async function composeSiteRouteDeps(
     chatRunLedger: createChatRunLedger({ store: chat }, { tracker }),
     // Migration `0051`'s table, over the same sidecar handle immediately above — see
     // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
-    agentSessions: createSqliteAgentSessionStore({ store: chat }),
+    agentSessions: createSqliteAgentSessionStore({ store: chat, clock }),
     // G3 "Allow for this chat": with the conversation, over the same sidecar handle.
     conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: chat }),
     ...compositionApprovalOverrides({ overrides }),

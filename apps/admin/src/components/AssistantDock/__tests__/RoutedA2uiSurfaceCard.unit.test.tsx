@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
+import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -38,8 +39,12 @@ import {
   setPlaygroundRenderTarget,
 } from "@/lib/playground-render-target-bus";
 
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
+
 const baseProps = {
   name: "a2ui",
+  clock: testClock,
   events: [{ createSurface: { surfaceId: "surface-1" } }],
   runStreaming: false,
   runSucceeded: true,

@@ -7,6 +7,10 @@ import type { ChatKernel } from "#src/platform/db/chat-kernel";
 import { createChatHistoryStore } from "../chat-history-store.js";
 import { createSqliteAgentSessionStore } from "../agent-session-store.js";
 import { emptiedPgChatKernel } from "./chat-dialect-matrix.js";
+import type { Clock } from "@jini-ai/core/primitives";
+
+// A test supplies its own clock port; the system clock lives in the platform package.
+const testClock: Clock = { nowMs: () => Date.now() };
 
 /**
  * @file Session-store selection by kernel transport. A PGlite over a socket and a real Postgres
@@ -24,7 +28,7 @@ for (const transport of ["pglite-socket", "node-postgres"] as const) {
     const kernel = emptiedPgChatKernel();
     shared = kernel;
     await createChatHistoryStore({ kernel: kernel, scope: ADMIN }, { now: () => 1_790_000_000_000 }).create({ id: `chat-${transport}` });
-    const sessions = createSqliteAgentSessionStore({ store: { ...kernel, transport } as ChatKernel });
+    const sessions = createSqliteAgentSessionStore({ store: { ...kernel, transport } as ChatKernel, clock: testClock });
     await sessions.setSessionId({ conversationId: `chat-${transport}`, agentId: "claude", sessionId: "sess-1" });
     assert.equal(await sessions.getSessionId({ conversationId: `chat-${transport}`, agentId: "claude" }), "sess-1");
   });
