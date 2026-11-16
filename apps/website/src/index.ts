@@ -265,40 +265,6 @@ async function runBootModulesOrExit(deps: Awaited<ReturnType<typeof openSiteDeps
   }
 }
 
-/** Logs the bound listener, resumes local sites and starts the assistant daemon once the socket is listening. */
-function onSiteListening(
-  required: {
-    server: ReturnType<typeof createBootHttpServer>;
-    deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"];
-    opened: Awaited<ReturnType<typeof openSiteDeps>>["opened"];
-    daemonCallback: Awaited<ReturnType<typeof startSiteDaemonListener>>;
-    storeOwnsShutdown: boolean;
-  },
-  _optional = {}
-): void {
-  const { server, deps, opened, daemonCallback, storeOwnsShutdown } = required;
-  const address = server.address();
-  if (address === null || typeof address === "string") throw new Error("the site listener has no TCP address");
-  const siteApiOrigin = pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port: address.port });
-  const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
-  console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
-  // Watch restarts keep dev.mjs's session; boot must not wait for a Sites request to recover.
-  const cancelSiteResume = resumeLocalSitesForHost({ binding: deps.siteBinding });
-  server.once("close", cancelSiteResume);
-
-  // Cold registration retains readiness before spawn: listening says nothing about whether the
-  // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity
-  // and `core.execution.mode` rows). The list and the full why live in
-  // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
-  startAssistantDaemon(
-    { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: opened.store?.pgliteSocketPath, siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
-    { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
-      await awaitSiteBootReadiness({ deps });
-      if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
-    } }
-  );
-}
-
 async function main(): Promise<void> {
   const runningLease = await prepareSiteBoot({ useMemory }, {});
   if (runningLease?.attached) return;
@@ -411,6 +377,40 @@ async function main(): Promise<void> {
   registerAdminDevProxyUpgrade(server);
   onSiteListening({ server, deps, opened, daemonCallback, storeOwnsShutdown });
 
+}
+
+/** Logs the bound listener, resumes local sites and starts the assistant daemon once the socket is listening. */
+function onSiteListening(
+  required: {
+    server: ReturnType<typeof createBootHttpServer>;
+    deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"];
+    opened: Awaited<ReturnType<typeof openSiteDeps>>["opened"];
+    daemonCallback: Awaited<ReturnType<typeof startSiteDaemonListener>>;
+    storeOwnsShutdown: boolean;
+  },
+  _optional = {}
+): void {
+  const { server, deps, opened, daemonCallback, storeOwnsShutdown } = required;
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("the site listener has no TCP address");
+  const siteApiOrigin = pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port: address.port });
+  const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
+  console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
+  // Watch restarts keep dev.mjs's session; boot must not wait for a Sites request to recover.
+  const cancelSiteResume = resumeLocalSitesForHost({ binding: deps.siteBinding });
+  server.once("close", cancelSiteResume);
+
+  // Cold registration retains readiness before spawn: listening says nothing about whether the
+  // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity
+  // and `core.execution.mode` rows). The list and the full why live in
+  // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
+  startAssistantDaemon(
+    { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: opened.store?.pgliteSocketPath, siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
+    { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
+      await awaitSiteBootReadiness({ deps });
+      if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
+    } }
+  );
 }
 
 // ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives
