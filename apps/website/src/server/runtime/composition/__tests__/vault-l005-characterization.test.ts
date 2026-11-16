@@ -88,5 +88,5 @@ test('L005: custom usernames, publish discriminators and MCP token hints retain 
   assert.equal(normalize({ row: record, plaintext: '{}' }, { injected: { ...policy, tokenField: () => undefined } }).hintToken, undefined);
   assert.deepEqual(normalize({ row: record, plaintext: '{"providerId":"old","apiToken":"plain"}' }, { context: { ...legacy, table: 'publish_credential_sets', provider: 'host' } }),
     { payload: { vendorId: 'target', apiToken: 'plain' }, meta: {}, provider: 'target', hintToken: 'plain' });
-  assert.throws(() => normalize({ row: record, plaintext: '{}' }, { context: { ...legacy, table: 'publish_credential_sets' }, injected: { ...policy, legacyPublishCredential: () => undefined } }), /VAULT_CATALOG_UNAVAILABLE/);
+  assert.throws(() => normalize({ row: record, plaintext: '{}' }, { context: { ...legacy, table: 'publish_credential_sets', provider: 'host' }, injected: { ...policy, legacyPublishCredential: () => undefined } }), /VAULT_CATALOG_UNAVAILABLE/);
 });

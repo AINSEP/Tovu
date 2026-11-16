@@ -327,7 +327,8 @@ test('MCP provisioning logs each server and reason while preserving activation s
   assert.deepEqual(warnings, ["Plugin 'github': MCP provisioning for server 'repository' failed — connection id is owned by another plugin"]);
   const unavailable = createTovuPluginHost({ deps: ctx.deps }, { warn: message => warnings.push(message), resolveMcpServers: async () => { throw new Error('manifest unavailable'); } });
   await unavailable.getHostCapability({ capability: 'agent-plugin-lifecycle' })!.provisionMcp({ pluginId: 'github', principalId: 'operator' });
-  assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — manifest unavailable");
+  // Why: Jini's lifecycle names only the error class in its warning (fixed words, never the thrown message).
+  assert.equal(warnings[1], "Plugin 'github': MCP provisioning could not run — Error");
 });
 
 for (const separatelyConfigured of [false, true]) test(`a signed-in connection receives the reviewed plugin defaults: operator source ${separatelyConfigured}`, async t => {
