@@ -48,30 +48,30 @@ test("OFF BY DEFAULT (2026-08-30 owner correction, retroactive): no publishedPag
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   assert.equal(theme.manifest.publishedPages, undefined);
-  assert.equal(isStandaloneThemePage(theme, "about"), false);
-  assert.equal(isStandaloneThemePage(theme, "pricing"), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "about" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "pricing" }), false);
   // Unaffected by the absent publishedPages list — these were never routable in the first place,
   // and stay live regardless of any recorded decision.
-  assert.equal(isStandaloneThemePage(theme, "index"), false);
-  assert.equal(isStandaloneThemePage(theme, "404"), false);
-  assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
-  assert.equal(isStandaloneThemePage(theme, "page-shell"), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "index" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "404" }), false);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "404" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "page-shell" }), false);
 });
 
 test("publishedPages present: a page NOT in the list is off by default", () => {
   const dir = makeStaticThemeDir(PAGES, { templates: ["page-shell.html"], publishedPages: ["about"] });
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
-  assert.equal(isStandaloneThemePage(theme, "about"), true);
-  assert.equal(isStandaloneThemePage(theme, "pricing"), false, "off by default once the theme has opted in");
+  assert.equal(isStandaloneThemePage({ theme, pageId: "about" }), true);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "pricing" }), false, "off by default once the theme has opted in");
 });
 
 test("publishedPages present but empty: every page is off", () => {
   const dir = makeStaticThemeDir(PAGES, { publishedPages: [] });
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
-  assert.equal(isStandaloneThemePage(theme, "about"), false);
-  assert.equal(isStandaloneThemePage(theme, "pricing"), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "about" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "pricing" }), false);
 });
 
 test("publishedPages can never resurrect index, 404, or a declared template shell", () => {
@@ -81,11 +81,11 @@ test("publishedPages can never resurrect index, 404, or a declared template shel
   });
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
-  assert.equal(isStandaloneThemePage(theme, "index"), false);
-  assert.equal(isStandaloneThemePage(theme, "404"), false);
-  assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
-  assert.equal(isStandaloneThemePage(theme, "page-shell"), false);
-  assert.equal(isStandaloneThemePage(theme, "about"), true);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "index" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "404" }), false);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "404" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "page-shell" }), false);
+  assert.equal(isStandaloneThemePage({ theme, pageId: "about" }), true);
 });
 
 test("isPublishableThemePageCandidate: eligibility is independent of the recorded decision", () => {
@@ -93,13 +93,13 @@ test("isPublishableThemePageCandidate: eligibility is independent of the recorde
   const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
 
   // Eligible candidates — true regardless of whether publishedPages currently lists them.
-  assert.equal(isPublishableThemePageCandidate(theme, "about"), true);
-  assert.equal(isPublishableThemePageCandidate(theme, "pricing"), true);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "about" }), true);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "pricing" }), true);
   // Never eligible at all, decision or not.
-  assert.equal(isPublishableThemePageCandidate(theme, "index"), false);
-  assert.equal(isPublishableThemePageCandidate(theme, "404"), false);
-  assert.equal(isPublishableThemePageCandidate(theme, "page-shell"), false);
-  assert.equal(isPublishableThemePageCandidate(theme, "does-not-exist"), false);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "index" }), false);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "404" }), false);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "page-shell" }), false);
+  assert.equal(isPublishableThemePageCandidate({ theme, pageId: "does-not-exist" }), false);
 });
 
 test("reserved theme page ids cannot be published or routed, even when the manifest lists them", () => {
@@ -108,8 +108,8 @@ test("reserved theme page ids cannot be published or routed, even when the manif
     const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
     const manifestBefore = fs.readFileSync(path.join(dir, "theme.json"), "utf8");
     for (const page of ["admin", "API"]) {
-      assert.equal(isPublishableThemePageCandidate(theme, page), false);
-      assert.equal(isStandaloneThemePage(theme, page), false);
+      assert.equal(isPublishableThemePageCandidate({ theme, pageId: page }), false);
+      assert.equal(isStandaloneThemePage({ theme, pageId: page }), false);
       assert.throws(() => setThemePagePublished({ themes: [theme], themesDir: dir }, { themeId: "t", page, published: true }), error => {
         assert.ok(error instanceof ThemePagePublicationError);
         assert.equal(error.message, `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a reserved route/a declared template shell`);
@@ -117,7 +117,7 @@ test("reserved theme page ids cannot be published or routed, even when the manif
       });
     }
     assert.equal(fs.readFileSync(path.join(dir, "theme.json"), "utf8"), manifestBefore);
-    assert.equal(isStandaloneThemePage(theme, "apiary"), true);
+    assert.equal(isStandaloneThemePage({ theme, pageId: "apiary" }), true);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

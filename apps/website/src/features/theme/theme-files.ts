@@ -67,7 +67,7 @@ import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./them
 /** Thrown for any path that fails containment. Distinct class so the tool layer can map it to a
  * shape rejection (worth publishing the schema back to the model) rather than an internal error. */
 export class ThemePathError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemePathError";
   }
@@ -156,8 +156,8 @@ export const GENERATED_THEME_ROOT_FILES: readonly string[] = ["index.html"];
  * @complexity Space: O(k) for the normalized copy.
  * @overallScore 100/100
  */
-export function isGeneratedThemePath(relativePath: string): boolean {
-  const normalized = normalizeThemeRelativePath(relativePath);
+export function isGeneratedThemePath({ relativePath }: { relativePath: string }, _optional = {}): boolean {
+  const normalized = normalizeThemeRelativePath({ relativePath });
   if (GENERATED_THEME_ROOT_FILES.includes(normalized)) return true;
   return GENERATED_THEME_DIRS.some((dir) => normalized === dir || normalized.startsWith(`${dir}/`));
 }
@@ -194,8 +194,8 @@ export function isGeneratedThemePath(relativePath: string): boolean {
  * @throws Never. Pure: no filesystem access, no side effects.
  * @complexity Time: O(d·k), d = `GENERATED_THEME_DIRS.length`, k = path length. Space: O(k).
  */
-export function isSourceDirGeneratedConflict(sourceDir: string): boolean {
-  const normalizedSource = normalizeThemeRelativePath(sourceDir);
+export function isSourceDirGeneratedConflict({ sourceDir }: { sourceDir: string }, _optional = {}): boolean {
+  const normalizedSource = normalizeThemeRelativePath({ relativePath: sourceDir });
   // The root sourceDir case: no per-entry comparison can express "is an ancestor of every entry"
   // via a single startsWith check the way the nested-inside direction can, so it is handled directly.
   if (normalizedSource === "") return true;
@@ -216,7 +216,7 @@ export function isSourceDirGeneratedConflict(sourceDir: string): boolean {
  * on today, which would make the split a no-op for a `\`-separated string instead of normalizing it,
  * silently defeating the cross-platform guarantee these functions' doc comments make.
  */
-function normalizeThemeRelativePath(relativePath: string): string {
+function normalizeThemeRelativePath({ relativePath }: { relativePath: string }, _optional = {}): string {
   const segments: string[] = [];
   for (const segment of relativePath.split(/[\\/]/)) {
     if (segment === "" || segment === ".") continue;
@@ -258,7 +258,7 @@ export function isRecognizedThemeRoot(
 
 /** Lexical containment: is `target` at or beneath `base`? Uses `path.relative`, which — unlike a
  * prefix match — cannot be satisfied by a sibling whose name merely extends the base's. */
-function isWithin(base: string, target: string): boolean {
+function isWithin({ base, target }: { base: string; target: string }, _optional = {}): boolean {
   if (base === target) return true;
   const rel = relative(base, target);
   return rel !== "" && !rel.startsWith(`..${sep}`) && rel !== ".." && !isAbsolute(rel);
@@ -272,7 +272,7 @@ function isWithin(base: string, target: string): boolean {
  * Split out of {@link resolveThemeFilePath} as one unit — the walk-up loop and its containment
  * re-check are one symlink-escape probe, not two independent decisions.
  */
-function assertNoSymlinkEscape(base: string, path: string, relativePathForError: string): void {
+function assertNoSymlinkEscape({ base, path, relativePathForError }: { base: string; path: string; relativePathForError: string }, _optional = {}): void {
   let probe = path;
   for (let i = 0; i < MAX_WALK_DEPTH * 4 && !existsSync(probe); i += 1) {
     const parent = dirname(probe);
@@ -281,8 +281,8 @@ function assertNoSymlinkEscape(base: string, path: string, relativePathForError:
   }
   if (!existsSync(probe)) return;
   const realProbe = realpathSync(probe);
-  if (!isWithin(base, realProbe)) {
-    throw new ThemePathError(`path '${relativePathForError}' resolves outside the theme folder through a symbolic link`);
+  if (!isWithin({ base, target: realProbe })) {
+    throw new ThemePathError({ message: `path '${relativePathForError}' resolves outside the theme folder through a symbolic link` });
   }
 }
 
@@ -311,18 +311,16 @@ export function resolveThemeFilePath(
   const { themeDir, themesRoot, relativePath } = required;
 
   if (!isRecognizedThemeRoot({ themeDir, themesRoot })) {
-    throw new ThemePathError(
-      `theme folder '${themeDir}' is not under a recognized theme root (${themesRoot} or one of its ${ENGINE_SUBFOLDERS.join("/")} subfolders)`
-    );
+    throw new ThemePathError({ message: `theme folder '${themeDir}' is not under a recognized theme root (${themesRoot} or one of its ${ENGINE_SUBFOLDERS.join("/")} subfolders)` });
   }
   if (relativePath.length === 0) {
-    throw new ThemePathError("path is required");
+    throw new ThemePathError({ message: "path is required" });
   }
   if (relativePath.includes("\0")) {
-    throw new ThemePathError("path must not contain a NUL byte");
+    throw new ThemePathError({ message: "path must not contain a NUL byte" });
   }
   if (isAbsolute(relativePath)) {
-    throw new ThemePathError(`path '${relativePath}' must be relative to the theme folder, not absolute`);
+    throw new ThemePathError({ message: `path '${relativePath}' must be relative to the theme folder, not absolute` });
   }
 
   // `realpath` the base so a themes root reached through a symlink (a container
@@ -331,13 +329,13 @@ export function resolveThemeFilePath(
   const base = existsSync(themeDir) ? realpathSync(themeDir) : resolve(themeDir);
   const target = resolve(base, relativePath);
 
-  if (!isWithin(base, target)) {
-    throw new ThemePathError(`path '${relativePath}' resolves outside the theme folder`);
+  if (!isWithin({ base, target })) {
+    throw new ThemePathError({ message: `path '${relativePath}' resolves outside the theme folder` });
   }
 
   // Symlink-aware re-check — the target may not exist (a write creating a new file). See
   // `assertNoSymlinkEscape`'s own doc for what it walks and why.
-  assertNoSymlinkEscape(base, target, relativePath);
+  assertNoSymlinkEscape({ base, path: target, relativePathForError: relativePath });
 
   return target;
 }
@@ -348,7 +346,7 @@ export function resolveThemeFilePath(
  * neither enumerate nor leak anything beyond it), recurse into real subdirectories, and record real
  * files (`found` is mutated in place, the shared accumulator for one `listThemeFiles` call).
  */
-function visitThemeDirEntry(dir: string, name: string, depth: number, base: string, found: string[]): void {
+function visitThemeDirEntry({ dir, name, depth, base, found }: { dir: string; name: string; depth: number; base: string; found: string[] }, _optional = {}): void {
   const full = join(dir, name);
   // lstatSync, NEVER statSync — statSync follows the link, so a circular symlink (a -> b -> a) made
   // it throw ELOOP straight out of `listThemeFiles`' own "throws only ThemePathError" contract (this
@@ -359,7 +357,7 @@ function visitThemeDirEntry(dir: string, name: string, depth: number, base: stri
   const stat = lstatSync(full, { throwIfNoEntry: false });
   if (!stat) return;
   if (stat.isSymbolicLink()) return;
-  if (stat.isDirectory()) walkThemeDir(full, depth + 1, base, found);
+  if (stat.isDirectory()) walkThemeDir({ dir: full, depth: depth + 1, base, found });
   else if (stat.isFile()) found.push(relative(base, full).split(sep).join("/"));
   else {
     // Special entries are outside the theme file walk.
@@ -371,13 +369,13 @@ function visitThemeDirEntry(dir: string, name: string, depth: number, base: stri
  * (mutated in place), bounded by {@link MAX_WALK_DEPTH} and {@link MAX_LISTED_FILES}. Split from
  * {@link visitThemeDirEntry} so the loop itself carries none of the per-entry branching.
  */
-function walkThemeDir(dir: string, depth: number, base: string, found: string[]): void {
+function walkThemeDir({ dir, depth, base, found }: { dir: string; depth: number; base: string; found: string[] }, _optional = {}): void {
   if (depth > MAX_WALK_DEPTH || found.length >= MAX_LISTED_FILES) return;
   const names = readdirSync(dir);
   // render/ goes first: a media folder can hold more files than the cap, and must not hide the theme's own pages.
   for (const name of depth === 0 ? [...names.filter(entry => entry === "render"), ...names.filter(entry => entry !== "render")] : names) {
     if (found.length >= MAX_LISTED_FILES) return;
-    visitThemeDirEntry(dir, name, depth, base, found);
+    visitThemeDirEntry({ dir, name, depth, base, found });
   }
 }
 
@@ -401,13 +399,13 @@ export function listThemeFiles(
 ): string[] {
   const { themeDir, themesRoot } = required;
   if (!isRecognizedThemeRoot({ themeDir, themesRoot })) {
-    throw new ThemePathError(`theme folder '${themeDir}' is not under a recognized theme root`);
+    throw new ThemePathError({ message: `theme folder '${themeDir}' is not under a recognized theme root` });
   }
   if (!existsSync(themeDir)) return [];
 
   const base = realpathSync(themeDir);
   const found: string[] = [];
-  walkThemeDir(base, 0, base, found);
+  walkThemeDir({ dir: base, depth: 0, base, found });
 
   return found.sort();
 }
@@ -432,12 +430,12 @@ export function listThemeFiles(
  * occur at runtime.
  * @complexity O(1) time and space, with one filesystem stat.
  */
-function statOrThemePathError(target: string, relativePath: string, stat: typeof statSync = statSync): Stats | undefined {
+function statOrThemePathError({ target, relativePath }: { target: string; relativePath: string }, { stat = statSync }: { stat?: typeof statSync } = {}): Stats | undefined {
   try {
     return stat(target, { throwIfNoEntry: false });
   } catch (err) {
     if ((err as NodeJS.ErrnoException | null)?.code !== "ELOOP") throw err;
-    throw new ThemePathError(`path '${relativePath}' could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    throw new ThemePathError({ message: `path '${relativePath}' could not be read: ${err instanceof Error ? err.message : String(err)}` });
   }
 }
 
@@ -453,11 +451,11 @@ export function readThemeFile(
   _optional: Record<string, never> = {}
 ): string {
   const target = resolveThemeFilePath(required);
-  const stat = statOrThemePathError(target, required.relativePath);
-  if (!stat) throw new ThemePathError(`file '${required.relativePath}' does not exist in this theme`);
-  if (!stat.isFile()) throw new ThemePathError(`path '${required.relativePath}' is not a regular file`);
+  const stat = statOrThemePathError({ target, relativePath: required.relativePath });
+  if (!stat) throw new ThemePathError({ message: `file '${required.relativePath}' does not exist in this theme` });
+  if (!stat.isFile()) throw new ThemePathError({ message: `path '${required.relativePath}' is not a regular file` });
   if (stat.size > MAX_THEME_FILE_BYTES) {
-    throw new ThemePathError(`file '${required.relativePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit`);
+    throw new ThemePathError({ message: `file '${required.relativePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit` });
   }
   return readFileSync(target, "utf8");
 }
@@ -468,7 +466,7 @@ const COMPARE_CHUNK_BYTES = 64 * 1024;
 
 /** Fills `buffer` from `fd` starting at `position`, looping over short reads. Returns the byte count
  *  that landed, which is below `buffer.length` only at end of file. */
-function readFullChunk(fd: number, buffer: Buffer, position: number): number {
+function readFullChunk({ fd, buffer, position }: { fd: number; buffer: Buffer; position: number }, _optional = {}): number {
   let filled = 0;
   while (filled < buffer.length) {
     const bytesRead = readSync(fd, buffer, filled, buffer.length - filled, position + filled);
@@ -484,7 +482,7 @@ function readFullChunk(fd: number, buffer: Buffer, position: number): number {
  *
  * @complexity O(s) time in the file size, O(1) space (two {@link COMPARE_CHUNK_BYTES} buffers).
  */
-function filesHaveSameBytes(pathA: string, pathB: string): boolean {
+function filesHaveSameBytes({ pathA, pathB }: { pathA: string; pathB: string }, _optional = {}): boolean {
   const fdA = openSync(pathA, "r");
   try {
     const fdB = openSync(pathB, "r");
@@ -507,8 +505,8 @@ function compareOpenThemeFiles({ fdA, fdB }: { fdA: number; fdB: number }, _opti
   let position = 0;
   let readA: number;
   do {
-    readA = readFullChunk(fdA, chunkA, position);
-    const readB = readFullChunk(fdB, chunkB, position);
+    readA = readFullChunk({ fd: fdA, buffer: chunkA, position });
+    const readB = readFullChunk({ fd: fdB, buffer: chunkB, position });
     if (readA !== readB || !chunkA.subarray(0, readA).equals(chunkB.subarray(0, readB))) return false;
     position += COMPARE_CHUNK_BYTES;
   } while (readA === COMPARE_CHUNK_BYTES);
@@ -533,7 +531,7 @@ function originalRegularFile(required: {
       themesRoot: required.originalsRoot,
       relativePath: required.relativePath,
     });
-    const stat = statOrThemePathError(path, required.relativePath);
+    const stat = statOrThemePathError({ target: path, relativePath: required.relativePath });
     return stat?.isFile() ? { path, size: stat.size } : null;
   } catch (err) {
     if (err instanceof ThemePathError) return null;
@@ -570,9 +568,9 @@ export function themeFileDiffersFromOriginal(
   const livePath = resolveThemeFilePath({ themeDir, themesRoot, relativePath });
   const original = originalRegularFile(required);
   if (!original) return null;
-  const live = statOrThemePathError(livePath, relativePath);
+  const live = statOrThemePathError({ target: livePath, relativePath });
   if (!live?.isFile() || live.size !== original.size) return true;
-  return !filesHaveSameBytes(livePath, original.path);
+  return !filesHaveSameBytes({ pathA: livePath, pathB: original.path });
 }
 
 /**
@@ -606,8 +604,7 @@ export function themeFileDiffersFromOriginal(
  * so a failed write leaves no artifact behind in the theme folder.
  * @complexity O(s + r log r + r*d) time and O(r + d) space for s written/copied bytes, r revisions and path depth d.
  */
-function writeFileAtomically(target: string, relativePathForError: string, fillTemp: (tempPath: string) => void, stat: typeof statSync = statSync,
-  revisionFile?: ThemeRevisionFile, options: { now?: () => number } = {}): string | undefined {
+function writeFileAtomically({ target, relativePathForError, fillTemp }: { target: string; relativePathForError: string; fillTemp: (tempPath: string) => void }, { stat = statSync, revisionFile, options = {} }: { stat?: typeof statSync; revisionFile?: ThemeRevisionFile; options?: { now?: () => number } } = {}): string | undefined {
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
   // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
   // both callers (`writeThemeFile`, `resetThemeFileToOriginal`) already run an identical stat on the
@@ -616,7 +613,7 @@ function writeFileAtomically(target: string, relativePathForError: string, fillT
   // process replacing `target` with a symlink cycle between the two calls) and any future caller
   // that skips that earlier check. Still follows a symlink pointing at a real file inside the theme,
   // matching `renameSync` below, which replaces that symlink's own directory entry.
-  const existing = statOrThemePathError(target, relativePathForError, stat);
+  const existing = statOrThemePathError({ target, relativePath: relativePathForError }, { stat });
   if (existing) {
     accessSync(target, fsConstants.W_OK);
   }
@@ -676,7 +673,7 @@ function assertReviewedThemeFileCurrent({ target }: { target: string }, _options
   if (!prepared) return;
   const current = readThemeFileVersion(prepared.file);
   if (target !== prepared.target || current.target !== prepared.target || current.version !== prepared.version) {
-    throw new ThemePathError('The theme file changed during review. Read it again and retry; this file was not replaced.');
+    throw new ThemePathError({ message: 'The theme file changed during review. Read it again and retry; this file was not replaced.' });
   }
 }
 
@@ -686,9 +683,9 @@ function assertReviewedThemeFileCurrent({ target }: { target: string }, _options
  * @complexity O(file bytes) time, O(64 KiB) space through Jini's shared digest reader. */
 export function readThemeFileVersion(required: { themeDir: string; themesRoot: string; relativePath: string }, _options = {}): { target: string; version: string | null } {
   const target = resolveThemeFilePath(required);
-  const existing = statOrThemePathError(target, required.relativePath);
+  const existing = statOrThemePathError({ target, relativePath: required.relativePath });
   if (!existing) return { target, version: null };
-  if (!existing.isFile()) throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
+  if (!existing.isFile()) throw new ThemePathError({ message: `path '${required.relativePath}' exists and is not a regular file` });
   return { target, version: fileDigest({ path: target }).toString('hex') };
 }
 
@@ -736,7 +733,7 @@ function saveThemeFileRevision(
  * @complexity O(timestamp collisions) time, O(1) space. */
 function createThemeRevisionDirectory({ root, next }: { root: string; next: number }, _options = {}): { directory: string; sequence: number } {
   for (;;) {
-    if (!Number.isSafeInteger(next)) throw new ThemePathError('theme revision sequence is exhausted');
+    if (!Number.isSafeInteger(next)) throw new ThemePathError({ message: 'theme revision sequence is exhausted' });
     const directory = join(root, String(next));
     try { mkdirSync(directory); return { directory, sequence: next }; }
     catch (error) {
@@ -799,15 +796,13 @@ function removeEmptyRevisionParents({ directory, root }: { directory: string; ro
  * @throws {ThemePathError} On either refusal.
  * @complexity O(1).
  */
-function assertOverwritableTarget(existing: Stats | undefined, relativePath: string, overwriteOversized: boolean): void {
+function assertOverwritableTarget({ existing, relativePath, overwriteOversized }: { existing: Stats | undefined; relativePath: string; overwriteOversized: boolean }, _optional = {}): void {
   if (!existing) return;
   if (!existing.isFile()) {
-    throw new ThemePathError(`path '${relativePath}' exists and is not a regular file`);
+    throw new ThemePathError({ message: `path '${relativePath}' exists and is not a regular file` });
   }
   if (existing.size > MAX_THEME_FILE_BYTES && !overwriteOversized) {
-    throw new ThemePathError(
-      `file '${relativePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit; overwriting it requires overwriteOversized: true`
-    );
+    throw new ThemePathError({ message: `file '${relativePath}' exceeds the ${MAX_THEME_FILE_BYTES}-byte readable limit; overwriting it requires overwriteOversized: true` });
   }
 }
 
@@ -831,7 +826,7 @@ export function validateThemeFileWrite(
 ): string {
   const target = resolveThemeFilePath(required);
   if (Buffer.byteLength(required.content, "utf8") > MAX_THEME_FILE_BYTES) {
-    throw new ThemePathError(`content exceeds the ${MAX_THEME_FILE_BYTES}-byte per-file limit`);
+    throw new ThemePathError({ message: `content exceeds the ${MAX_THEME_FILE_BYTES}-byte per-file limit` });
   }
   // statOrThemePathError, NEVER a bare statSync — same circular-symlink (a -> b -> a) ELOOP escape
   // `readThemeFile` was fixed for (see that wrapper's own doc): `resolveThemeFilePath` does not
@@ -839,8 +834,8 @@ export function validateThemeFileWrite(
   // observe the cycle. Following the link (rather than `lstat`ing it) is deliberate here too: a
   // symlink pointing to a real file inside the theme is meant to be overwritten through, exactly like
   // any other existing target.
-  const existing = statOrThemePathError(target, required.relativePath, optional.stat);
-  assertOverwritableTarget(existing, required.relativePath, optional.overwriteOversized === true);
+  const existing = statOrThemePathError({ target, relativePath: required.relativePath }, { stat: optional.stat });
+  assertOverwritableTarget({ existing, relativePath: required.relativePath, overwriteOversized: optional.overwriteOversized === true });
   return target;
 }
 
@@ -857,7 +852,7 @@ export function writeThemeFile(
 ): string {
   const target = validateThemeFileWrite(required, optional);
   mkdirSync(dirname(target), { recursive: true });
-  const revision = writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.content, "utf8"), optional.stat, required, optional);
+  const revision = writeFileAtomically({ target, relativePathForError: required.relativePath, fillTemp: (tempPath) => writeFileSync(tempPath, required.content, "utf8") }, { stat: optional.stat, revisionFile: required, options: optional });
   if (revision) {
     // Revision paths returned to tools must use that same canonical base, not a symlink spelling.
     const base = realpathSync(required.themeDir);
@@ -883,10 +878,10 @@ export function writeThemeBinaryFile(
   _optional: Record<string, never> = {}
 ): string {
   const target = resolveThemeFilePath(required);
-  const existing = statOrThemePathError(target, required.relativePath, undefined);
-  assertOverwritableTarget(existing, required.relativePath, true);
+  const existing = statOrThemePathError({ target, relativePath: required.relativePath }, { stat: undefined });
+  assertOverwritableTarget({ existing, relativePath: required.relativePath, overwriteOversized: true });
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.relativePath, (tempPath) => writeFileSync(tempPath, required.bytes), undefined, required);
+  writeFileAtomically({ target, relativePathForError: required.relativePath, fillTemp: (tempPath) => writeFileSync(tempPath, required.bytes) }, { stat: undefined, revisionFile: required });
   return target;
 }
 
@@ -928,15 +923,15 @@ export function resetThemeFileToOriginal(
   const original = originalRegularFile(required);
   if (!original) return null;
   const target = resolveThemeFilePath({ themeDir, themesRoot, relativePath });
-  const live = statOrThemePathError(target, relativePath);
+  const live = statOrThemePathError({ target, relativePath });
   if (live && !live.isFile()) {
-    throw new ThemePathError(`path '${relativePath}' exists and is not a regular file`);
+    throw new ThemePathError({ message: `path '${relativePath}' exists and is not a regular file` });
   }
-  if (live?.size === original.size && filesHaveSameBytes(target, original.path)) {
+  if (live?.size === original.size && filesHaveSameBytes({ pathA: target, pathB: original.path })) {
     return { wasModified: false, bytes: original.size };
   }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, relativePath, (tempPath) => copyFileSync(original.path, tempPath), undefined, required);
+  writeFileAtomically({ target, relativePathForError: relativePath, fillTemp: (tempPath) => copyFileSync(original.path, tempPath) }, { stat: undefined, revisionFile: required });
   return { wasModified: true, bytes: original.size };
 }
 
@@ -1055,7 +1050,7 @@ const ORIGINAL_LAYOUT_MISMATCH_REFUSAL: ThemeOriginalResetRefusal = Object.freez
  *
  * @complexity O(s) in the manifest size, bounded by {@link MAX_THEME_FILE_BYTES}.
  */
-function manifestApiVersionOnDisk(themeDir: string): 2 | undefined | null {
+function manifestApiVersionOnDisk({ themeDir }: { themeDir: string }, _optional = {}): 2 | undefined | null {
   const manifestPath = join(themeDir, "theme.json");
   try {
     const stat = statSync(manifestPath);
@@ -1095,10 +1090,10 @@ export function themeOriginalResetRefusal(
   required: { themeDir: string; originalDir: string },
   _optional: Record<string, never> = {}
 ): ThemeOriginalResetRefusal | null {
-  const original = manifestApiVersionOnDisk(required.originalDir);
+  const original = manifestApiVersionOnDisk({ themeDir: required.originalDir });
   if (original !== null) {
-    const live = manifestApiVersionOnDisk(required.themeDir);
-    if (live === null || resolveThemeLayout(live) === resolveThemeLayout(original)) return null;
+    const live = manifestApiVersionOnDisk({ themeDir: required.themeDir });
+    if (live === null || resolveThemeLayout({}, { apiVersion: live }) === resolveThemeLayout({}, { apiVersion: original })) return null;
   }
   return ORIGINAL_LAYOUT_MISMATCH_REFUSAL;
 }
@@ -1127,13 +1122,13 @@ function resolveCopyOrRenameTargets(
   // this is the first call that can observe the cycle. Still follows a symlink pointing at a real
   // file inside the theme — `copyFileSync`/`renameSync` below already read/move through such a link
   // the same way `open()` does, so this check must match that, not refuse it.
-  const sourceStat = statOrThemePathError(source, sourcePath);
-  if (!sourceStat) throw new ThemePathError(`file '${sourcePath}' does not exist in this theme`);
-  if (!sourceStat.isFile()) throw new ThemePathError(`path '${sourcePath}' is not a regular file`);
+  const sourceStat = statOrThemePathError({ target: source, relativePath: sourcePath });
+  if (!sourceStat) throw new ThemePathError({ message: `file '${sourcePath}' does not exist in this theme` });
+  if (!sourceStat.isFile()) throw new ThemePathError({ message: `path '${sourcePath}' is not a regular file` });
 
   const dest = resolveThemeFilePath({ themeDir, themesRoot, relativePath: destPath });
   if (existsSync(dest)) {
-    throw new ThemePathError(`path '${destPath}' already exists in this theme`);
+    throw new ThemePathError({ message: `path '${destPath}' already exists in this theme` });
   }
 
   return { source, dest };
@@ -1169,7 +1164,7 @@ export function copyThemeFile(
     copyFile(source, dest, fsConstants.COPYFILE_EXCL);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-      throw new ThemePathError(`path '${required.destPath}' already exists in this theme`);
+      throw new ThemePathError({ message: `path '${required.destPath}' already exists in this theme` });
     }
     throw err;
   }
@@ -1274,7 +1269,7 @@ export function resolveThemeFileWriteScope(
   // path as spelled let `src/../pages/index.html` match the `sourceDir` prefix and resolve "editable",
   // handing back write permission on a built theme's GENERATED tree, which is the ADR-020 §5 refusal
   // this function exists to make.
-  const normalized = normalizeThemeRelativePath(relativePath);
+  const normalized = normalizeThemeRelativePath({ relativePath });
   if (normalized === "theme.json") return { kind: "editable" };
 
   const sourceDir = manifest.build.sourceDir;
@@ -1319,22 +1314,22 @@ export function restoreBuiltThemeGeneratedTree(
 ): { restoredFiles: string[] } {
   const { themeDir, themesRoot, manifest } = required;
   if (manifest.build?.source !== "compiled") {
-    throw new ThemePathError("this theme is not a built release; there is no generated tree to restore");
+    throw new ThemePathError({ message: "this theme is not a built release; there is no generated tree to restore" });
   }
 
   const catalogDir = join(themesRoot, THEME_CATALOG_DIR, manifest.tier, manifest.id);
   if (!existsSync(catalogDir)) {
-    throw new ThemePathError(`theme '${manifest.id}' has no stored original, so its generated tree cannot be restored`);
+    throw new ThemePathError({ message: `theme '${manifest.id}' has no stored original, so its generated tree cannot be restored` });
   }
 
-  const isGenerated = (relativePath: string): boolean =>
+  const isGenerated = ({ relativePath }: { relativePath: string }, _optional = {}): boolean =>
     resolveThemeFileWriteScope({ manifest, relativePath }).kind === "generated-readonly";
 
   // Enumerate both sides fully before touching disk, so a read failure on either side aborts before
   // any file is removed.
-  const liveGenerated = listThemeFiles({ themeDir, themesRoot }).filter(isGenerated);
+  const liveGenerated = listThemeFiles({ themeDir, themesRoot }).filter((relativePath) => isGenerated({ relativePath }));
   const catalogRoot = join(themesRoot, THEME_CATALOG_DIR);
-  const catalogGenerated = listThemeFiles({ themeDir: catalogDir, themesRoot: catalogRoot }).filter(isGenerated);
+  const catalogGenerated = listThemeFiles({ themeDir: catalogDir, themesRoot: catalogRoot }).filter((relativePath) => isGenerated({ relativePath }));
 
   for (const relativePath of liveGenerated) {
     rmSync(join(themeDir, relativePath), { force: true });

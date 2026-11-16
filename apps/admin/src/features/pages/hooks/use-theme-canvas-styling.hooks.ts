@@ -40,7 +40,7 @@ function themeAssetUrl({ themeId, relativePath }: { themeId: string; relativePat
  *  (`css/theme.css` for v2, `css/styles.css` for v1) — resolved through `@tovu/theme-layout`, the
  *  same resolver the server render uses, rather than a second independently-spelled literal. */
 export function themeStylesheetUrl({ themeId, apiVersion }: { themeId: string; apiVersion: 2 | undefined }, _options = {}): string {
-  return themeAssetUrl({ themeId, relativePath: resolveThemeLayout(apiVersion).stylesheetPath });
+  return themeAssetUrl({ themeId, relativePath: resolveThemeLayout({}, { apiVersion }).stylesheetPath });
 }
 
 /** The theme's default-mode token file. Required — `theme.ts` treats its absence as a load failure
@@ -63,7 +63,7 @@ export function themeLightTokensUrl({ themeId }: { themeId: string }, _options =
  *  it is one filename, never a path, so `encodeURIComponent` cannot legitimately need to leave
  *  anything in it unencoded the way `themeAssetUrl`'s `relativePath` sometimes does. */
 export function templateMarkupUrl({ themeId, apiVersion, templateChoice }: { themeId: string; apiVersion: 2 | undefined; templateChoice: string }, _options = {}): string {
-  return themeAssetUrl({ themeId, relativePath: `${resolveThemeLayout(apiVersion).pagesDir}/${encodeURIComponent(templateChoice)}` });
+  return themeAssetUrl({ themeId, relativePath: `${resolveThemeLayout({}, { apiVersion }).pagesDir}/${encodeURIComponent(templateChoice)}` });
 }
 
 /** The Tovu-owned canonical document-shell filename(s) a `static`-tier theme ships for a

@@ -18,7 +18,7 @@ const IMAGE: StaticFeaturedImage = { url: "/m/launch-cover/public.v3/image.jpg",
 
 test("a featured-image marker becomes the image, keeping the authored wrapper and dropping the marker", () => {
   const html = `<main><figure class="post-featured" data-embed-config='{"type":"featured-image"}'></figure><p>body</p></main>`;
-  const out = injectFeaturedImage(html, IMAGE);
+  const out = injectFeaturedImage({ html, image: IMAGE });
   assert.equal(
     out,
     `<main><figure class="post-featured"><img src="/m/launch-cover/public.v3/image.jpg" alt="Launch &lt;notes&gt;" width="1200" height="630" decoding="async" fetchpriority="high"></figure><p>body</p></main>`
@@ -26,20 +26,20 @@ test("a featured-image marker becomes the image, keeping the authored wrapper an
 });
 
 test("unknown dimensions are omitted rather than written as empty attributes", () => {
-  const out = injectFeaturedImage(`<figure data-embed-config='{"type":"featured-image"}'></figure>`, { ...IMAGE, width: null, height: null });
+  const out = injectFeaturedImage({ html: `<figure data-embed-config='{"type":"featured-image"}'></figure>`, image: { ...IMAGE, width: null, height: null } });
   assert.ok(!out.includes("width="), out);
   assert.ok(!out.includes("height="), out);
 });
 
 test("no featured image removes the whole marker element, fallback included", () => {
   const html = `<main><figure class="post-featured" data-embed-config='{"type":"featured-image"}'><span>fallback</span></figure><p>body</p></main>`;
-  assert.equal(injectFeaturedImage(html, null), "<main><p>body</p></main>");
+  assert.equal(injectFeaturedImage({ html, image: null }), "<main><p>body</p></main>");
 });
 
 test("other markers are left alone", () => {
   const html = `<div data-embed-config='{"type":"content"}'></div>`;
-  assert.equal(injectFeaturedImage(html, IMAGE), html);
-  assert.equal(injectFeaturedImage(html, null), html);
+  assert.equal(injectFeaturedImage({ html, image: IMAGE }), html);
+  assert.equal(injectFeaturedImage({ html, image: null }), html);
 });
 
 const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../../../../content/themes/static");
@@ -55,8 +55,8 @@ for (const themeId of ["tovu-theme", "tovu-starter"]) test(`canary: every ${them
     const featuredAt = html.indexOf(`'{"type":"${FEATURED_IMAGE_MARKER_TYPE}"}'`);
     const contentAt = html.indexOf(`'{"type":"content"}'`);
     assert.ok(featuredAt !== -1 && featuredAt < contentAt, `${name}: the featured image must sit above the post body`);
-    const rendered = injectFeaturedImage(html, IMAGE);
+    const rendered = injectFeaturedImage({ html, image: IMAGE });
     assert.ok(rendered.includes(`<img src="${IMAGE.url}"`), `${name} must render the image`);
-    assert.equal(markersOfType({ html: injectFeaturedImage(html, null), type: FEATURED_IMAGE_MARKER_TYPE }).length, 0, `${name}: no image must leave no marker`);
+    assert.equal(markersOfType({ html: injectFeaturedImage({ html, image: null }), type: FEATURED_IMAGE_MARKER_TYPE }).length, 0, `${name}: no image must leave no marker`);
   }
 });

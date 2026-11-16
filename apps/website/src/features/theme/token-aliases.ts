@@ -42,10 +42,10 @@ const TOKEN_ALIASES: ReadonlyArray<readonly [alias: string, targets: readonly st
  * @complexity O(a · t) over the fixed alias table — constant per call.
  */
 export function themeTokenAliasDeclarations(required: { tokens: ThemeTokens; tokensLight?: ThemeTokens }): Array<[string, string]> {
-  const defined = (name: string): boolean => name in required.tokens || (required.tokensLight !== undefined && name in required.tokensLight);
+  const defined = ({ name }: { name: string }, _optional = {}): boolean => name in required.tokens || (required.tokensLight !== undefined && name in required.tokensLight);
   const declarations: Array<[string, string]> = [];
   for (const [alias, targets] of TOKEN_ALIASES) {
-    if (defined(alias)) continue;
+    if (defined({ name: alias })) continue;
     const target = targets.find((candidate) => candidate in required.tokens);
     if (target !== undefined) declarations.push([alias, `var(${target})`]);
   }

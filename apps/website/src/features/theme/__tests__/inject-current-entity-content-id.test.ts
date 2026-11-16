@@ -19,14 +19,14 @@ import { injectCurrentEntityContentId } from "../static-render.js";
 
 test("fills the current entity's id into a bare content marker, preserving the wrapper tag/attrs", () => {
   const template = '<main data-embed-config=\'{"type":"content"}\'></main>';
-  const out = injectCurrentEntityContentId(template, "post-123");
+  const out = injectCurrentEntityContentId({ html: template, entityId: "post-123" });
   assert.equal(out, '<main data-embed-config=\'{"type":"content","id":"post-123"}\'></main>');
 });
 
 test("preserves the marker element's own authored attributes and fallback content", () => {
   const template =
     '<main class="page-body" aria-label="Page content" data-embed-config=\'{"type":"content"}\'>placeholder</main>';
-  const out = injectCurrentEntityContentId(template, "post-123");
+  const out = injectCurrentEntityContentId({ html: template, entityId: "post-123" });
   assert.ok(out.startsWith('<main class="page-body" aria-label="Page content" data-embed-config='));
   assert.ok(out.includes('"id":"post-123"'));
   assert.ok(out.includes("placeholder"), "authored fallback content is untouched — this function never resolves it");
@@ -37,7 +37,7 @@ test("every bare content marker in the template receives the same id", () => {
   const template =
     '<header data-embed-config=\'{"type":"content"}\'></header>' +
     '<main data-embed-config=\'{"type":"content"}\'></main>';
-  const out = injectCurrentEntityContentId(template, "post-123");
+  const out = injectCurrentEntityContentId({ html: template, entityId: "post-123" });
   const occurrences = out.split('"id":"post-123"').length - 1;
   assert.equal(occurrences, 2);
   assert.equal(out, '<header data-embed-config=\'{"type":"content","id":"post-123"}\'></header>' +
@@ -49,7 +49,7 @@ test("leaves markers of every OTHER type untouched, for a later stage to resolve
     '<nav data-embed-config=\'{"type":"menu","id":"main"}\'>fallback nav</nav>' +
     '<main data-embed-config=\'{"type":"content"}\'></main>' +
     '<div data-embed-config=\'{"type":"partial","id":"footer"}\'></div>';
-  const out = injectCurrentEntityContentId(template, "post-123");
+  const out = injectCurrentEntityContentId({ html: template, entityId: "post-123" });
   assert.ok(out.includes('<nav data-embed-config=\'{"type":"menu","id":"main"}\'>fallback nav</nav>'));
   assert.ok(out.includes('<div data-embed-config=\'{"type":"partial","id":"footer"}\'></div>'));
   assert.ok(out.includes('"id":"post-123"'));
@@ -59,17 +59,17 @@ test("REGRESSION GUARD: a content marker that already carries an id is left comp
   // The core contract: an author's explicit reference to some OTHER entity must never be overwritten
   // by the current entity's id — that would silently redirect an authored cross-reference.
   const template = '<div data-embed-config=\'{"type":"content","id":"other-entity"}\'></div>';
-  assert.equal(injectCurrentEntityContentId(template, "post-123"), template);
+  assert.equal(injectCurrentEntityContentId({ html: template, entityId: "post-123" }), template);
 });
 
 test("REGRESSION GUARD: a template with no content marker is returned unchanged", () => {
   const template = "<html><body><p>No slot here</p></body></html>";
-  assert.equal(injectCurrentEntityContentId(template, "post-123"), template);
+  assert.equal(injectCurrentEntityContentId({ html: template, entityId: "post-123" }), template);
 });
 
 test("a marker carrying extra config keys keeps them, alongside the added id", () => {
   const template = '<main data-embed-config=\'{"type":"content","variant":"card"}\'></main>';
-  const out = injectCurrentEntityContentId(template, "post-123");
+  const out = injectCurrentEntityContentId({ html: template, entityId: "post-123" });
   assert.ok(out.includes('"variant":"card"'));
   assert.ok(out.includes('"id":"post-123"'));
 });
@@ -81,7 +81,7 @@ test("a marker carrying extra config keys keeps them, alongside the added id", (
 // avoid — this is that same guard's slug-shaped twin.
 test("REGRESSION GUARD: a slug-only content marker is left completely untouched — it names another entity, not an empty slot", () => {
   const template = '<div data-embed-config=\'{"type":"content","slug":"some-other-entity"}\'></div>';
-  assert.equal(injectCurrentEntityContentId(template, "post-123"), template);
+  assert.equal(injectCurrentEntityContentId({ html: template, entityId: "post-123" }), template);
 });
 
 // Review of S3 (2026-09-23): an EMPTY slug names no entity — every resolver stage treats `""` as
@@ -89,5 +89,5 @@ test("REGRESSION GUARD: a slug-only content marker is left completely untouched 
 // (which filled the current entity before S3) now renders the unresolved placeholder.
 test("a content marker with an EMPTY slug is still an empty slot and gets the current entity's id", () => {
   const template = '<main data-embed-config=\'{"type":"content","slug":""}\'></main>';
-  assert.ok(injectCurrentEntityContentId(template, "post-123").includes('"id":"post-123"'));
+  assert.ok(injectCurrentEntityContentId({ html: template, entityId: "post-123" }).includes('"id":"post-123"'));
 });

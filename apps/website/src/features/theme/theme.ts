@@ -99,12 +99,12 @@ function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readJson(path: string): JsonValue {
+function readJson({ path }: { path: string }, _optional = {}): JsonValue {
   return JSON.parse(readFileSync(path, "utf8")) as JsonValue;
 }
 
 /** Default an absent/empty `theme.json.tier`; reject a present value this build cannot render. */
-function parseTier(value: JsonValue | undefined): ThemeTier {
+function parseTier({ value }: { value: JsonValue | undefined }, _optional = {}): ThemeTier {
   if (value === undefined || value === "") return "declarative";
   if (typeof value === "string" && (THEME_TIERS as readonly string[]).includes(value)) {
     return value as ThemeTier;
@@ -115,13 +115,13 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
 /** `typeof value === "string" ? value : undefined` — the shape every plain optional-string
  * `theme.json` field shares (`author`, `description`, `defaultMode`, `build.builderVersion`,
  * `build.lockfileHash`, …); factored out once rather than repeated at each call site. */
-function parseOptionalString(value: JsonValue | undefined): string | undefined {
+function parseOptionalString({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
 /** `Array.isArray(value) ? value.map(String) : undefined` — the shape every plain optional
  * string-array `theme.json` field shares (`fonts`, `regions`, `templates`, `modes`). */
-function parseOptionalStringArray(value: JsonValue | undefined): string[] | undefined {
+function parseOptionalStringArray({ value }: { value: JsonValue | undefined }, _optional = {}): string[] | undefined {
   return Array.isArray(value) ? value.map(String) : undefined;
 }
 
@@ -137,21 +137,21 @@ function pickTruthy<T extends Record<string, unknown>>(obj: T): Partial<T> {
 /** `build.framework` — one of the three known values, or `undefined` for anything else
  * (including an unrecognized framework string, e.g. a theme built with a tool this doesn't
  * name yet — dropped rather than failing the parse, matching every other optional field here). */
-function parseBuildFramework(value: JsonValue | undefined): ThemeBuildInfo["framework"] {
+function parseBuildFramework({ value }: { value: JsonValue | undefined }, _optional = {}): ThemeBuildInfo["framework"] {
   return value === "react" || value === "vue" || value === "angular" ? value : undefined;
 }
 
 /** `build.sourceDir` — a non-empty string, or `undefined` (absent, wrong type, or `""`). Presence
  * is enforced separately, at {@link loadTheme}'s call site, once {@link ThemeBuildInfo.source} is
  * known to be `"compiled"` — see this field's own doc for why that check lives there. */
-function parseBuildSourceDir(value: JsonValue | undefined): string | undefined {
+function parseBuildSourceDir({ value }: { value: JsonValue | undefined }, _optional = {}): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 /** `build.artifactHashes` — every entry whose value isn't a string is dropped rather than failing
  * the parse (a build tool emitting one malformed hash shouldn't sink the whole manifest); emptiness
  * after filtering is a {@link loadTheme} call-site concern, matching `sourceDir`'s split above. */
-function parseBuildArtifactHashes(value: JsonValue | undefined): Record<string, string> | undefined {
+function parseBuildArtifactHashes({ value }: { value: JsonValue | undefined }, _optional = {}): Record<string, string> | undefined {
   if (!isObject(value)) return undefined;
   return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 }
@@ -166,14 +166,14 @@ function parseBuildArtifactHashes(value: JsonValue | undefined): Record<string, 
  * compiled" errors, matching how `defaultMode`'s cross-field check already lives at the call site
  * rather than inside its own field's parser.
  */
-function parseThemeBuildInfo(value: JsonValue | undefined): ThemeBuildInfo | undefined {
+function parseThemeBuildInfo({ value }: { value: JsonValue | undefined }, _optional = {}): ThemeBuildInfo | undefined {
   if (!isObject(value)) return undefined;
   const source = value.source === "compiled" ? "compiled" : "authored";
-  const framework = parseBuildFramework(value.framework);
-  const sourceDir = parseBuildSourceDir(value.sourceDir);
-  const builderVersion = parseOptionalString(value.builderVersion);
-  const lockfileHash = parseOptionalString(value.lockfileHash);
-  const artifactHashes = parseBuildArtifactHashes(value.artifactHashes);
+  const framework = parseBuildFramework({ value: value.framework });
+  const sourceDir = parseBuildSourceDir({ value: value.sourceDir });
+  const builderVersion = parseOptionalString({ value: value.builderVersion });
+  const lockfileHash = parseOptionalString({ value: value.lockfileHash });
+  const artifactHashes = parseBuildArtifactHashes({ value: value.artifactHashes });
 
   return {
     source,
@@ -211,7 +211,7 @@ function parseSlotVariants(raw: Readonly<Record<string, unknown>>): Record<strin
  * `activeAttr` must keep wiring `aria-current` exactly as it does today; this normalizes either
  * spelling onto the one field every downstream reader sees.
  */
-function parseSlots(value: JsonValue | undefined): Record<string, ThemeSlotDescriptor> | undefined {
+function parseSlots({ value }: { value: JsonValue | undefined }, _optional = {}): Record<string, ThemeSlotDescriptor> | undefined {
   if (!isObject(value)) return undefined;
   const slots: Record<string, ThemeSlotDescriptor> = {};
   for (const [key, raw] of Object.entries(value)) {
@@ -257,7 +257,7 @@ function readLightTokens(
   const path = join(themeDir, "tokens.light.json");
   if (!existsSync(path)) return {};
   try {
-    const raw = readJson(path);
+    const raw = readJson({ path });
     if (!isObject(raw)) throw new Error("tokens.light.json is not an object");
     return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
   } catch (err) {
@@ -380,7 +380,7 @@ const NON_ROUTABLE_THEME_PAGE_IDS: ReadonlySet<string> = new Set(["index", "404"
  *
  * @complexity O(t) over `manifest.templates`' length — 0–3 entries on every real theme on disk.
  */
-export function isPublishableThemePageCandidate(theme: DiscoveredTheme, pageId: string): boolean {
+export function isPublishableThemePageCandidate({ theme, pageId }: { theme: DiscoveredTheme; pageId: string }, _optional = {}): boolean {
   if (theme.pages[pageId] === undefined) return false;
   if (NON_ROUTABLE_THEME_PAGE_IDS.has(pageId) || RESERVED_SEGMENTS.has(pageId.toLowerCase())) return false;
   return !(theme.manifest.templates ?? []).some((entry) => entry.replace(/\.html$/, "") === pageId);
@@ -421,8 +421,8 @@ export function isPublishableThemePageCandidate(theme: DiscoveredTheme, pageId: 
  *
  * @complexity O(t) over `manifest.templates`' length — 0–3 entries on every real theme on disk.
  */
-export function isStandaloneThemePage(theme: DiscoveredTheme, pageId: string): boolean {
-  if (!isPublishableThemePageCandidate(theme, pageId)) return false;
+export function isStandaloneThemePage({ theme, pageId }: { theme: DiscoveredTheme; pageId: string }, _optional = {}): boolean {
+  if (!isPublishableThemePageCandidate({ theme, pageId })) return false;
   const { publishedPages } = theme.manifest;
   // No recorded decision on this theme at all — off by default (2026-08-30 owner correction,
   // applied retroactively to every theme, not only ones touched after this date). See
@@ -466,7 +466,7 @@ function loadStaticTierAssets(
   // actually show, not a route id a templating engine would fill in. `resolveThemeLayout` is the one
   // apiVersion-aware source of truth for this folder name — v2 nests it one level deeper
   // (`render/pages/`, theme-authoring-guide-v2.md §3) — v1 keeps `pages/` at the theme root.
-  const layout = resolveThemeLayout(apiVersion);
+  const layout = resolveThemeLayout({}, { apiVersion });
   const pagesDirName = layout.pagesDir;
   const pages: Record<string, string> = {};
   const pagesDir = join(themeDir, pagesDirName);
@@ -543,7 +543,7 @@ function inheritBundledTemplates(
   });
   return {
     inheritedTemplateSources: Object.fromEntries(inheritedPages.map(({ name, html }) => [
-      `${resolveThemeLayout(manifest.apiVersion).pagesDir}/${name}`, html,
+      `${resolveThemeLayout({}, { apiVersion: manifest.apiVersion }).pagesDir}/${name}`, html,
     ])),
     manifest: { ...manifest, templates: [...(manifest.templates ?? []), ...added], templateFor: { ...templateFor, ...manifest.templateFor } },
     pages: { ...Object.fromEntries(inheritedPages.map(({ id, html }) => [id, html])), ...pages },
@@ -556,23 +556,23 @@ function inheritBundledTemplates(
  * for the checks that read more than one field at a time, and {@link parseThemeManifest} for the
  * try/catch this sits inside).
  */
-function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeManifest {
+function parseRawManifestFields({ raw, id }: { raw: Readonly<JsonObject>; id: string }, _optional = {}): ThemeManifest {
   const resolvedId = String(raw.id ?? id);
-  const templates = parseOptionalStringArray(raw.templates);
+  const templates = parseOptionalStringArray({ value: raw.templates });
   return {
     id: resolvedId,
     name: String(raw.name ?? id),
     version: String(raw.version ?? "0.0.0"),
     apiVersion: raw.apiVersion === 2 ? 2 : undefined,
-    tier: parseTier(raw.tier),
+    tier: parseTier({ value: raw.tier }),
     engine: typeof raw.engine === "number" ? raw.engine : 1,
-    author: parseOptionalString(raw.author),
-    build: parseThemeBuildInfo(raw.build),
-    description: parseOptionalString(raw.description),
-    fonts: parseOptionalStringArray(raw.fonts),
-    fontStylesheets: parseOptionalStringArray(raw.fontStylesheets),
+    author: parseOptionalString({ value: raw.author }),
+    build: parseThemeBuildInfo({ value: raw.build }),
+    description: parseOptionalString({ value: raw.description }),
+    fonts: parseOptionalStringArray({ value: raw.fonts }),
+    fontStylesheets: parseOptionalStringArray({ value: raw.fontStylesheets }),
     scripts: resolveThemeScripts({ manifest: { id: resolvedId, scripts: validateScripts({ scripts: raw.scripts }).scripts } }),
-    regions: parseOptionalStringArray(raw.regions),
+    regions: parseOptionalStringArray({ value: raw.regions }),
     // Publisher-authored flags must never disable template lint: the allowlist is the boundary
     // between authored templates and the worker. Liquid and Handlebars both enforce it;
     // Handlebars raw output, partials and decorators also expose XSS/compiler-object seams.
@@ -582,10 +582,10 @@ function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeMan
     // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
     templates,
     templateFor: parseTemplateFor({ value: raw.templateFor, templates }),
-    publishedPages: parseOptionalStringArray(raw.publishedPages),
-    modes: parseOptionalStringArray(raw.modes),
-    defaultMode: parseOptionalString(raw.defaultMode),
-    slots: parseSlots(raw.slots),
+    publishedPages: parseOptionalStringArray({ value: raw.publishedPages }),
+    modes: parseOptionalStringArray({ value: raw.modes }),
+    defaultMode: parseOptionalString({ value: raw.defaultMode }),
+    slots: parseSlots({ value: raw.slots }),
   };
 }
 
@@ -604,7 +604,7 @@ function validateCompiledBuildManifest(build: ThemeBuildInfo, tier: ThemeTier): 
   }
   if (!build.sourceDir) {
     errors.push("theme.json build.sourceDir is required when build.source is 'compiled'");
-  } else if (isSourceDirGeneratedConflict(build.sourceDir)) {
+  } else if (isSourceDirGeneratedConflict({ sourceDir: build.sourceDir })) {
     // The deeper fix promised in `explore.ts`'s PUT handler comment (2026-08-13): a manifest is
     // refused HERE, at install time, rather than relying only on each write route's own
     // `isGeneratedThemePath` call-site refusal. That refusal (explore.ts) stays —
@@ -628,7 +628,7 @@ function validateCompiledBuildManifest(build: ThemeBuildInfo, tier: ThemeTier): 
  * inside {@link parseRawManifestFields} or a single field's own parser (matching how
  * {@link parseThemeBuildInfo}'s own doc already draws this line for `build`).
  */
-function validateManifestCrossFields(manifest: ThemeManifest, id: string): string[] {
+function validateManifestCrossFields({ manifest, id }: { manifest: ThemeManifest; id: string }, _optional = {}): string[] {
   const errors: string[] = [];
   if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
   // A `defaultMode` the theme ships no tokens for would silently render the base `:root` block
@@ -648,7 +648,7 @@ function validateManifestCrossFields(manifest: ThemeManifest, id: string): strin
 /** A manifest that never parsed at all — {@link parseThemeManifest}'s fallback when `theme.json`
  * is missing, unreadable, or not an object. Every field falls back to what `loadTheme` used
  * before any of these fields existed. */
-function emptyThemeManifest(id: string): ThemeManifest {
+function emptyThemeManifest({ id }: { id: string }, _optional = {}): ThemeManifest {
   return { id, name: id, version: "0.0.0", tier: "declarative", engine: 1 };
 }
 
@@ -657,22 +657,22 @@ function emptyThemeManifest(id: string): ThemeManifest {
  * {@link emptyThemeManifest} plus one error, matching {@link loadTheme}'s "one bad theme never
  * breaks discovery" contract (SPEC-004 REQ-10 spirit).
  */
-function parseThemeManifest(themeDir: string, id: string): { manifest: ThemeManifest; errors: string[] } {
+function parseThemeManifest({ themeDir, id }: { themeDir: string; id: string }, _optional = {}): { manifest: ThemeManifest; errors: string[] } {
   try {
-    const raw = readJson(join(themeDir, "theme.json"));
+    const raw = readJson({ path: join(themeDir, "theme.json") });
     if (!isObject(raw)) throw new Error("theme.json is not an object");
-    const manifest = parseRawManifestFields(raw, id);
-    return { manifest, errors: [...validateManifestCrossFields(manifest, id), ...validateScripts({ scripts: raw.scripts }).problems] };
+    const manifest = parseRawManifestFields({ raw, id });
+    return { manifest, errors: [...validateManifestCrossFields({ manifest, id }), ...validateScripts({ scripts: raw.scripts }).problems] };
   } catch (err) {
-    return { manifest: emptyThemeManifest(id), errors: [`theme.json: ${(err as Error).message}`] };
+    return { manifest: emptyThemeManifest({ id }), errors: [`theme.json: ${(err as Error).message}`] };
   }
 }
 
 /** Read `tokens.json`. Never throws — a read/parse failure degrades to an empty token map plus
  * one error, the same REQ-10 contract {@link parseThemeManifest} follows for `theme.json`. */
-function loadThemeTokens(themeDir: string): { tokens: ThemeTokens; errors: string[] } {
+function loadThemeTokens({ themeDir }: { themeDir: string }, _optional = {}): { tokens: ThemeTokens; errors: string[] } {
   try {
-    const raw = readJson(join(themeDir, "tokens.json"));
+    const raw = readJson({ path: join(themeDir, "tokens.json") });
     if (!isObject(raw)) throw new Error("tokens.json is not an object");
     return { tokens: Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)])), errors: [] };
   } catch (err) {
@@ -687,12 +687,7 @@ function loadThemeTokens(themeDir: string): { tokens: ThemeTokens; errors: strin
  * {@link loadStaticTierAssets} — see `build-conformance.ts`'s own header for what it checks and
  * why a hard failure here, not a runtime warning, is the point.
  */
-function checkCompiledBuildConformance(
-  manifest: ThemeManifest,
-  themeDir: string,
-  pages: Readonly<Record<string, string>>,
-  partials: Readonly<Record<string, string>>
-): string[] {
+function checkCompiledBuildConformance({ manifest, themeDir, pages, partials }: { manifest: ThemeManifest; themeDir: string; pages: Readonly<Record<string, string>>; partials: Readonly<Record<string, string>> }, _optional = {}): string[] {
   if (manifest.build?.source !== "compiled") return [];
   return checkBuiltThemeConformance({
     themeId: manifest.id,
@@ -708,7 +703,7 @@ function checkCompiledBuildConformance(
 /** Which of the three template source families a `templates/` (or v2 `render/pages/`) directory
  * entry belongs to, by extension — `"unknown"` for anything {@link loadTemplateSources} ignores
  * (same as the original silent no-op for a non-matching file). */
-function classifyTemplateFile(file: string): "json" | "liquid" | "handlebars" | "unknown" {
+function classifyTemplateFile({ file }: { file: string }, _optional = {}): "json" | "liquid" | "handlebars" | "unknown" {
   if (file.endsWith(".json")) return "json";
   if (file.endsWith(".liquid")) return "liquid";
   if (file.endsWith(".hbs") || file.endsWith(".handlebars")) return "handlebars";
@@ -716,15 +711,10 @@ function classifyTemplateFile(file: string): "json" | "liquid" | "handlebars" | 
 }
 
 /** Declarative tier: one block-tree template per `.json` file. */
-function loadJsonTemplateFile(
-  templatesDir: string,
-  templatesDirName: string,
-  file: string,
-  target: { templates: Record<string, TemplateNode>; errors: string[] }
-): void {
+function loadJsonTemplateFile({ templatesDir, templatesDirName, file, target }: { templatesDir: string; templatesDirName: string; file: string; target: { templates: Record<string, TemplateNode>; errors: string[] } }, _optional = {}): void {
   const templateId = file.slice(0, -".json".length);
   try {
-    target.templates[templateId] = readJson(join(templatesDir, file));
+    target.templates[templateId] = readJson({ path: join(templatesDir, file) });
   } catch (err) {
     target.errors.push(`${templatesDirName}/${file}: ${(err as Error).message}`);
   }
@@ -736,12 +726,7 @@ function loadJsonTemplateFile(
  * can load as valid. Worker isolation, filesystem lockdown and memory/render/parse limits
  * remain independent safeguards; none substitutes for this unconditional lint.
  */
-function loadLiquidTemplateFile(
-  templatesDir: string,
-  templatesDirName: string,
-  file: string,
-  target: { liquidTemplates: Record<string, string>; errors: string[] }
-): void {
+function loadLiquidTemplateFile({ templatesDir, templatesDirName, file, target }: { templatesDir: string; templatesDirName: string; file: string; target: { liquidTemplates: Record<string, string>; errors: string[] } }, _optional = {}): void {
   const templateId = file.slice(0, -".liquid".length);
   const source = readFileSync(join(templatesDir, file), "utf8");
   const violations = lintLiquidTemplate(source);
@@ -762,12 +747,7 @@ function loadLiquidTemplateFile(
  * `home.hbs` and `home.handlebars` are the same template id — the last one `readdirSync` yields
  * wins, which is why a theme should ship one or the other, not both.
  */
-function loadHandlebarsTemplateFile(
-  templatesDir: string,
-  templatesDirName: string,
-  file: string,
-  target: { handlebarsTemplates: Record<string, string>; errors: string[] }
-): void {
+function loadHandlebarsTemplateFile({ templatesDir, templatesDirName, file, target }: { templatesDir: string; templatesDirName: string; file: string; target: { handlebarsTemplates: Record<string, string>; errors: string[] } }, _optional = {}): void {
   const ext = file.endsWith(".hbs") ? ".hbs" : ".handlebars";
   const templateId = file.slice(0, -ext.length);
   const source = readFileSync(join(templatesDir, file), "utf8");
@@ -787,10 +767,7 @@ function loadHandlebarsTemplateFile(
  * entry template" into one, the same REQ-10 fault-isolation split {@link loadStaticTierAssets}
  * already draws between "nothing found" and "what's required".
  */
-function loadTemplateSources(
-  themeDir: string,
-  manifest: ThemeManifest
-): {
+function loadTemplateSources({ themeDir, manifest }: { themeDir: string; manifest: ThemeManifest }, _optional = {}): {
   templatesDirName: string;
   templates: Record<string, TemplateNode>;
   liquidTemplates: Record<string, string>;
@@ -812,16 +789,16 @@ function loadTemplateSources(
   }
 
   for (const file of readdirSync(templatesDir)) {
-    const kind = classifyTemplateFile(file);
+    const kind = classifyTemplateFile({ file });
     if (kind === "json") {
-      loadJsonTemplateFile(templatesDir, templatesDirName, file, { templates, errors });
+      loadJsonTemplateFile({ templatesDir, templatesDirName, file, target: { templates, errors } });
     } else if (kind === "liquid") {
-      loadLiquidTemplateFile(templatesDir, templatesDirName, file, {
+      loadLiquidTemplateFile({ templatesDir, templatesDirName, file, target: {
         liquidTemplates,
         errors,
-      });
+      } });
     } else if (kind === "handlebars") {
-      loadHandlebarsTemplateFile(templatesDir, templatesDirName, file, { handlebarsTemplates, errors });
+      loadHandlebarsTemplateFile({ templatesDir, templatesDirName, file, target: { handlebarsTemplates, errors } });
     } else {
       // Other file kinds do not declare a supported template.
     }
@@ -833,12 +810,7 @@ function loadTemplateSources(
 /** Which template-id map is authoritative for a tier's required home/entry check, and the file
  * extension its error messages should name — templated themes ship `.liquid`, handlebars themes
  * ship `.hbs`, every other (non-static) tier ships plain `.json`. */
-function requiredTemplatesForTier(
-  tier: ThemeTier,
-  templates: Readonly<Record<string, TemplateNode>>,
-  liquidTemplates: Readonly<Record<string, string>>,
-  handlebarsTemplates: Readonly<Record<string, string>>
-): { ext: string; required: Readonly<Record<string, unknown>> } {
+function requiredTemplatesForTier({ tier, templates, liquidTemplates, handlebarsTemplates }: { tier: ThemeTier; templates: Readonly<Record<string, TemplateNode>>; liquidTemplates: Readonly<Record<string, string>>; handlebarsTemplates: Readonly<Record<string, string>> }, _optional = {}): { ext: string; required: Readonly<Record<string, unknown>> } {
   if (tier === "templated") return { ext: "liquid", required: liquidTemplates };
   if (tier === "handlebars") return { ext: "hbs", required: handlebarsTemplates };
   return { ext: "json", required: templates };
@@ -850,15 +822,9 @@ function requiredTemplatesForTier(
  * route-map folder at all — its required-file check is {@link loadStaticTierAssets}'s job, not
  * this one's.
  */
-function validateRequiredTemplates(
-  manifest: ThemeManifest,
-  templatesDirName: string,
-  templates: Readonly<Record<string, TemplateNode>>,
-  liquidTemplates: Readonly<Record<string, string>>,
-  handlebarsTemplates: Readonly<Record<string, string>>
-): string[] {
+function validateRequiredTemplates({ manifest, templatesDirName, templates, liquidTemplates, handlebarsTemplates }: { manifest: ThemeManifest; templatesDirName: string; templates: Readonly<Record<string, TemplateNode>>; liquidTemplates: Readonly<Record<string, string>>; handlebarsTemplates: Readonly<Record<string, string>> }, _optional = {}): string[] {
   if (manifest.tier === "static") return [];
-  const { ext, required } = requiredTemplatesForTier(manifest.tier, templates, liquidTemplates, handlebarsTemplates);
+  const { ext, required } = requiredTemplatesForTier({ tier: manifest.tier, templates, liquidTemplates, handlebarsTemplates });
   const errors: string[] = [];
   if (!required.home) errors.push(`${templatesDirName}/home.${ext} is required`);
   if (!required.entry) errors.push(`${templatesDirName}/entry.${ext} is required`);
@@ -872,7 +838,7 @@ function validateRequiredTemplates(
  * (theme-authoring-guide-v2.md §3) — same folder name static already used, new filename, and now
  * every tier gets the `css/` folder rather than just static.
  */
-function loadThemeCss(themeDir: string, manifest: ThemeManifest): string {
+function loadThemeCss({ themeDir, manifest }: { themeDir: string; manifest: ThemeManifest }, _optional = {}): string {
   let cssFile = "css/theme.css";
   if (manifest.apiVersion !== 2) cssFile = manifest.tier === "static" ? "css/styles.css" : "styles.css";
   const cssPath = join(themeDir, cssFile);
@@ -893,10 +859,10 @@ export function loadTheme(
   const { themeDir, id, source } = required;
   const errors: string[] = [];
 
-  const { manifest: siteManifest, errors: manifestErrors } = parseThemeManifest(themeDir, id);
+  const { manifest: siteManifest, errors: manifestErrors } = parseThemeManifest({ themeDir, id });
   errors.push(...manifestErrors);
 
-  const { tokens, errors: tokenErrors } = loadThemeTokens(themeDir);
+  const { tokens, errors: tokenErrors } = loadThemeTokens({ themeDir });
   errors.push(...tokenErrors);
 
   // The static tier's whole on-disk layout — light tokens, pages/, root partials — loaded in one
@@ -916,19 +882,19 @@ export function loadTheme(
     bundled: readBundledTemplateFallback({ manifest: siteManifest, packageThemesDir }),
   });
   if (manifest.tier === "static") {
-    errors.push(...validateTemplateDeclarations({ templates: manifest.templates, pages, pagesDirName: resolveThemeLayout(manifest.apiVersion).pagesDir }));
+    errors.push(...validateTemplateDeclarations({ templates: manifest.templates, pages, pagesDirName: resolveThemeLayout({}, { apiVersion: manifest.apiVersion }).pagesDir }));
   }
 
-  errors.push(...checkCompiledBuildConformance(manifest, themeDir, pages, partials));
+  errors.push(...checkCompiledBuildConformance({ manifest, themeDir, pages, partials }));
 
   const { templatesDirName, templates, liquidTemplates, handlebarsTemplates, errors: templateErrors } =
-    loadTemplateSources(themeDir, manifest);
+    loadTemplateSources({ themeDir, manifest });
   errors.push(...templateErrors);
   errors.push(
-    ...validateRequiredTemplates(manifest, templatesDirName, templates, liquidTemplates, handlebarsTemplates)
+    ...validateRequiredTemplates({ manifest, templatesDirName, templates, liquidTemplates, handlebarsTemplates })
   );
 
-  const css = loadThemeCss(themeDir, manifest);
+  const css = loadThemeCss({ themeDir, manifest });
 
   return {
     manifest,
@@ -1070,15 +1036,15 @@ export function nextAvailableThemeId(
   optional: { alsoTaken?: (id: string) => boolean } = {}
 ): string {
   const { desiredId, themesRoot, tier } = required;
-  const isTaken = (id: string): boolean =>
+  const isTaken = ({ id }: { id: string }, _optional = {}): boolean =>
     existsSync(join(themesRoot, tier, id)) ||
     existsSync(join(themesRoot, THEME_CATALOG_DIR, tier, id)) ||
     optional.alsoTaken?.(id) === true;
 
-  if (!isTaken(desiredId)) return desiredId;
+  if (!isTaken({ id: desiredId })) return desiredId;
 
   let suffix = 1;
-  while (isTaken(`${desiredId}-${suffix}`)) suffix += 1;
+  while (isTaken({ id: `${desiredId}-${suffix}` })) suffix += 1;
   return `${desiredId}-${suffix}`;
 }
 
@@ -1132,7 +1098,7 @@ export function rescanThemes(
  * assigning a unique id when the theme is created (a download/copy appends `-1`, `-2`, …). This is
  * what lets the admin say so instead of rendering the wrong theme quietly.
  */
-export function duplicateThemeIds(themes: DiscoveredTheme[]): string[] {
+export function duplicateThemeIds({ themes }: { themes: DiscoveredTheme[] }, _optional = {}): string[] {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
   for (const theme of themes) {
@@ -1143,7 +1109,7 @@ export function duplicateThemeIds(themes: DiscoveredTheme[]): string[] {
 }
 
 /** Ids of discovered themes that passed validation. */
-export function validThemeIds(themes: DiscoveredTheme[]): string[] {
+export function validThemeIds({ themes }: { themes: DiscoveredTheme[] }, _optional = {}): string[] {
   return themes.filter((t) => t.status === "valid").map((t) => t.manifest.id);
 }
 
@@ -1159,11 +1125,11 @@ export function findTheme(
 /**
  * {@link findTheme} for a STORED id (the active-theme setting), which may name a renamed theme by
  * its retired id or name the current id on a site that still only has the retired folder. Tries
- * `themeIdCandidates(id)` in order (current name first). Explicit per-theme admin routes keep using
+ * `themeIdCandidates({ id })` in order (current name first). Explicit per-theme admin routes keep using
  * the exact {@link findTheme}: they address a theme the listing just showed, by its real id.
  */
 export function findStoredTheme(required: { themes: DiscoveredTheme[]; id: string }): DiscoveredTheme | undefined {
-  for (const candidate of themeIdCandidates(required.id)) {
+  for (const candidate of themeIdCandidates({ id: required.id })) {
     const theme = findTheme({ themes: required.themes, id: candidate });
     if (theme) return theme;
   }

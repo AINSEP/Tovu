@@ -10,7 +10,7 @@ export function keepStructureFile({ relativePath }: { relativePath: string }, _o
 }
 
 /** Neutral placeholders preserve token names without carrying the source theme's appearance. */
-function neutralToken(key: string): string {
+function neutralToken({ key }: { key: string }, _optional = {}): string {
   if (key.includes("font-mono")) return "ui-monospace, monospace";
   if (key.includes("font")) return "system-ui, sans-serif";
   if (key.includes("container")) return "100%";
@@ -42,11 +42,11 @@ export function prepareStructureTheme(
   }
   const tokenPath = join(stagingDir, "tokens.json");
   const tokens = JSON.parse(readFileSync(tokenPath, "utf8")) as Record<string, string>;
-  const neutral = Object.fromEntries(Object.keys(tokens).map(key => [key, neutralToken(key)]));
+  const neutral = Object.fromEntries(Object.keys(tokens).map(key => [key, neutralToken({ key })]));
   writeFileSync(tokenPath, `${JSON.stringify(neutral, null, 2)}\n`, "utf8");
   if (files.some(f => f.relativePath === "tokens.light.json")) {
     const light = JSON.parse(readFileSync(join(stagingDir, "tokens.light.json"), "utf8")) as Record<string, string>;
-    const lightNeutral = Object.fromEntries(Object.keys({ ...tokens, ...light }).map(key => [key, neutralToken(key)]));
+    const lightNeutral = Object.fromEntries(Object.keys({ ...tokens, ...light }).map(key => [key, neutralToken({ key })]));
     writeFileSync(join(stagingDir, "tokens.light.json"), `${JSON.stringify(lightNeutral, null, 2)}\n`, "utf8");
   }
   mkdirSync(join(stagingDir, "css"), { recursive: true });

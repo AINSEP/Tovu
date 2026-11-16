@@ -259,7 +259,7 @@ test("cross-process: the admin Themes API sees a new theme without a manual resc
   writeDeclarativeTheme(fs, path.join(themesDir, "static", "editorial-rose"), "editorial-rose");
 
   await request("/api/admin/v1/workspaces/ws/presentation");
-  assert.deepEqual(validThemeIds(themes).sort(), ["editorial-rose", "tovu-starter"]);
+  assert.deepEqual(validThemeIds({ themes }).sort(), ["editorial-rose", "tovu-starter"]);
 });
 
 test("cross-process: a theme another process trashed drops out of the server's roster", async (t) => {

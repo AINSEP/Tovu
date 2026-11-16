@@ -46,7 +46,7 @@ export function themeRosterFingerprint(
   _optional: Record<string, never> = {}
 ): string {
   const { themesDir } = required;
-  const mtimeOf = (sub: string | null): number | null => {
+  const mtimeOf = ({ sub }: { sub: string | null }, _optional = {}): number | null => {
     try {
       return statSync(sub === null ? themesDir : join(themesDir, sub)).mtimeMs;
     } catch {
@@ -54,7 +54,7 @@ export function themeRosterFingerprint(
     }
   };
   const revision = readThemePreviewRefresh({ themesDir })?.revision ?? null;
-  return JSON.stringify([revision, mtimeOf(null), ...ENGINE_SUBFOLDERS.map(mtimeOf)]);
+  return JSON.stringify([revision, mtimeOf({ sub: null }), ...ENGINE_SUBFOLDERS.map(mtimeOf)]);
 }
 
 /**

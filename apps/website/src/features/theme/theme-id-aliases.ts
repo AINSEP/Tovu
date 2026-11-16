@@ -26,7 +26,7 @@ export const RENAMED_THEME_IDS: Readonly<Record<string, string>> = { basic: "tov
  *
  * @complexity O(r) over {@link RENAMED_THEME_IDS}.
  */
-export function themeIdCandidates(id: string): string[] {
+export function themeIdCandidates({ id }: { id: string }, _optional = {}): string[] {
   for (const [retired, current] of Object.entries(RENAMED_THEME_IDS)) {
     if (id === retired || id === current) return [current, retired];
   }

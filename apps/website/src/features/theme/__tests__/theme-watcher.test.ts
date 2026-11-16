@@ -41,9 +41,9 @@ function fixture(t: test.TestContext) {
   const watcher = start();
   t.after(async () => { await watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
   return { root, themesDir, themes, writeTheme, frames, feed, errors, watcher, start,
-    change: (filename: string | null) => callbacks.onChange(filename),
+    change: (filename: string | null) => callbacks.onChange({ filename }),
     currentChange: () => callbacks.onChange,
-    fail: (error: unknown) => callbacks.onError(error),
+    fail: (error: unknown) => callbacks.onError({ error }),
     closes: () => closes,
   };
 }

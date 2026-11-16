@@ -90,7 +90,7 @@ interface ThemeTreeLocation {
 }
 
 /** @complexity O(1). */
-function isMissing(err: unknown): boolean {
+function isMissing({ err }: { err: unknown }, _optional = {}): boolean {
   return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "ENOENT";
 }
 
@@ -100,7 +100,7 @@ async function readDirIfPresent({ absDir }: { absDir: string }): Promise<Dirent[
   try {
     return await readdir(absDir, { withFileTypes: true });
   } catch (err) {
-    if (isMissing(err)) return [];
+    if (isMissing({ err })) return [];
     throw err;
   }
 }
@@ -110,7 +110,7 @@ async function lstatIfPresent({ absPath }: { absPath: string }): Promise<Stats |
   try {
     return await lstat(absPath);
   } catch (err) {
-    if (isMissing(err)) return null;
+    if (isMissing({ err })) return null;
     throw err;
   }
 }
@@ -120,7 +120,7 @@ async function realpathIfPresent({ absPath }: { absPath: string }): Promise<stri
   try {
     return await realpath(absPath);
   } catch (err) {
-    if (isMissing(err)) return null;
+    if (isMissing({ err })) return null;
     throw err;
   }
 }
@@ -149,7 +149,7 @@ function compareTreeLocations(a: ThemeTreeLocation, b: ThemeTreeLocation): numbe
  *
  * @complexity O(entries under each tier folder), 3 `readdir` calls.
  */
-async function discoverThemeTreeDirs(themesDir: string): Promise<readonly ThemeTreeLocation[]> {
+async function discoverThemeTreeDirs({ themesDir }: { themesDir: string }, _optional = {}): Promise<readonly ThemeTreeLocation[]> {
   const found: ThemeTreeLocation[] = [];
   for (const tier of THEME_FILE_TREE_TIERS) {
     const tierDir = path.join(themesDir, tier);
@@ -189,7 +189,7 @@ function walkStep({ entry, relPath }: { entry: Dirent; relPath: string }): "skip
   if (isIgnoredTreeFileName({ name: entry.name })) return "skip";
   if (entry.isDirectory()) return "descend";
   if (!entry.isFile()) return "skip"; // a socket, fifo, or other non-regular entry — never a theme file.
-  if (isGeneratedThemePath(relPath)) return "skip"; // regenerated on every build; never real source.
+  if (isGeneratedThemePath({ relativePath: relPath })) return "skip"; // regenerated on every build; never real source.
   return "read";
 }
 
@@ -220,22 +220,22 @@ async function readWalkedFile({ absPath, relPath }: { absPath: string; relPath: 
  * @complexity O(entries under `absTreeDir`) filesystem calls plus O(bytes) to hash/read each
  *   surviving file; recursion depth is the tree's own folder depth.
  */
-async function walkThemeTree(absTreeDir: string): Promise<readonly WalkedThemeFile[]> {
+async function walkThemeTree({ absTreeDir }: { absTreeDir: string }, _optional = {}): Promise<readonly WalkedThemeFile[]> {
   const files: WalkedThemeFile[] = [];
 
-  async function recurse(absDir: string, relDir: string): Promise<void> {
+  async function recurse({ absDir, relDir }: { absDir: string; relDir: string }, _optional = {}): Promise<void> {
     for (const entry of await readDirIfPresent({ absDir })) {
       const absPath = path.join(absDir, entry.name);
       const relPath = childRelPath({ relDir, name: entry.name });
       const step = walkStep({ entry, relPath });
-      if (step === "descend") await recurse(absPath, relPath);
+      if (step === "descend") await recurse({ absDir: absPath, relDir: relPath });
       if (step !== "read") continue;
       const file = await readWalkedFile({ absPath, relPath });
       if (file) files.push(file);
     }
   }
 
-  await recurse(absTreeDir, "");
+  await recurse({ absDir: absTreeDir, relDir: "" });
   return files;
 }
 
@@ -249,7 +249,7 @@ export interface SkippedThemeTree {
 }
 
 /** @complexity O(1). */
-function treeTitle(treeKey: string): string {
+function treeTitle({ treeKey }: { treeKey: string }, _optional = {}): string {
   return `Theme: ${treeKey}`;
 }
 
@@ -284,12 +284,9 @@ function sortByPath<T extends { readonly path: string }>(files: readonly T[]): T
  *
  * @complexity O(files).
  */
-function buildTreeState(
-  treeKey: string,
-  sortedFiles: readonly { readonly path: string; readonly sha256: string; readonly size: number; readonly mode: number }[]
-): Record<string, unknown> {
+function buildTreeState({ treeKey, sortedFiles }: { treeKey: string; sortedFiles: readonly { readonly path: string; readonly sha256: string; readonly size: number; readonly mode: number }[] }, _optional = {}): Record<string, unknown> {
   const files = sortedFiles.map((file) => ({ path: file.path, sha256: file.sha256, size: file.size, mode: file.mode }));
-  return { title: treeTitle(treeKey), kind: THEME_FILES_KIND, treeKey, files };
+  return { title: treeTitle({ treeKey }), kind: THEME_FILES_KIND, treeKey, files };
 }
 
 /**
@@ -311,13 +308,13 @@ async function packOneThemeTree(input: {
   readonly fileBlobIndex?: FileBlobIndexPort;
 }): Promise<{ entity: PackedEntity } | { skippedTree: SkippedThemeTree }> {
   const treeKey = `${input.tier}/${input.id}`;
-  const title = treeTitle(treeKey);
+  const title = treeTitle({ treeKey });
 
   if (resolveTreeRelativePath(THEME_FILES_KIND, [input.tier, input.id]) === null) {
     return { skippedTree: { treeKey, reason: `${title} was not published: '${treeKey}' is not a valid theme tree address` } };
   }
 
-  const walked = await walkThemeTree(input.absDir);
+  const walked = await walkThemeTree({ absTreeDir: input.absDir });
   const label = await themeDisplayName(walked);
   const policyInputs: FileTreeFileInput[] = walked.map((file) => ({
     path: file.path,
@@ -331,7 +328,7 @@ async function packOneThemeTree(input: {
   }
 
   const sortedFiles = sortByPath(walked);
-  const state = buildTreeState(treeKey, sortedFiles);
+  const state = buildTreeState({ treeKey, sortedFiles });
 
   for (const file of sortedFiles) {
     input.fileBlobIndex?.set({ sha256: file.sha256, entry: { absPath: file.absPath, size: file.size } });
@@ -363,7 +360,7 @@ export async function packThemeFilesEntities(input: {
   readonly themesDir: string;
   readonly fileBlobIndex?: FileBlobIndexPort;
 }): Promise<{ entities: readonly PackedEntity[]; skipped: readonly SkippedThemeTree[] }> {
-  const trees = await discoverThemeTreeDirs(input.themesDir);
+  const trees = await discoverThemeTreeDirs({ themesDir: input.themesDir });
   const entities: PackedEntity[] = [];
   const skipped: SkippedThemeTree[] = [];
   for (const tree of trees) {
@@ -398,7 +395,7 @@ interface ThemeTreeAddress {
  *
  * @complexity O(id length).
  */
-function parseTreeAddress(id: string): ThemeTreeAddress | null {
+function parseTreeAddress({ id }: { id: string }, _optional = {}): ThemeTreeAddress | null {
   const segments = id.split("/");
   if (segments.length !== 2) return null;
   const [tier, themeId] = segments;
@@ -414,11 +411,11 @@ function parseTreeAddress(id: string): ThemeTreeAddress | null {
  *
  * @complexity O(files under `absDir`) reads + hashes.
  */
-async function hashTreeAt(absDir: string, treeKey: string): Promise<string | null> {
+async function hashTreeAt({ absDir, treeKey }: { absDir: string; treeKey: string }, _optional = {}): Promise<string | null> {
   const info = await lstatIfPresent({ absPath: absDir });
   if (!info?.isDirectory()) return null;
-  const walked = await walkThemeTree(absDir);
-  return contentHash({ entityType: THEME_FILES_KIND, state: buildTreeState(treeKey, sortByPath(walked)) });
+  const walked = await walkThemeTree({ absTreeDir: absDir });
+  return contentHash({ entityType: THEME_FILES_KIND, state: buildTreeState({ treeKey, sortedFiles: sortByPath(walked) }) });
 }
 
 /**
@@ -429,7 +426,7 @@ async function hashTreeAt(absDir: string, treeKey: string): Promise<string | nul
  *
  * @complexity O(1) — at most 5 `lstat`/`stat` calls.
  */
-async function checkDestinationLinks(themesDir: string, address: ThemeTreeAddress): Promise<string | null> {
+async function checkDestinationLinks({ themesDir, address }: { themesDir: string; address: ThemeTreeAddress }, _optional = {}): Promise<string | null> {
   const rootReal = await realpathIfPresent({ absPath: themesDir });
   if (rootReal === null) return null;
   if (rootReal !== path.resolve(themesDir)) return LINK_REASON;
@@ -524,7 +521,7 @@ function sha256Of(bytes: Uint8Array): string {
  *
  * @complexity O(previous key folders) `stat` calls.
  */
-async function prunePreviousCopies(themesDir: string, address: ThemeTreeAddress): Promise<void> {
+async function prunePreviousCopies({ themesDir, address }: { themesDir: string; address: ThemeTreeAddress }, _optional = {}): Promise<void> {
   const previousRoot = path.join(themesDir, PUBLISH_PREVIOUS_DIR);
   try {
     const copies: { keyDir: string; mtimeNs: bigint }[] = [];
@@ -637,23 +634,23 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   async function listSkipped(): Promise<readonly SkippedPackEntity[]> {
     if (!themePort) return [];
     const { skipped } = await packThemeFilesEntities({ themesDir: themePort.themesDir });
-    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: tree.label ?? treeTitle(tree.treeKey), reason: tree.reason }));
+    return skipped.map((tree) => ({ entityType, id: tree.treeKey, label: tree.label ?? treeTitle({ treeKey: tree.treeKey }), reason: tree.reason }));
   }
 
   /** The destination's tree, hashed like `pack()` hashes it. `version` is always 0 (plan §3): the
    *  apply loop re-inspects and compares hashes before every write. */
   async function inspect({ id }: { id: string }, _optional = {}): Promise<{ version: number; hash: string } | null> {
-    const address = parseTreeAddress(id);
+    const address = parseTreeAddress({ id });
     if (!themePort || !address) return null;
-    const hash = await hashTreeAt(path.join(themePort.themesDir, address.tier, address.themeId), address.treeKey);
+    const hash = await hashTreeAt({ absDir: path.join(themePort.themesDir, address.tier, address.themeId), treeKey: address.treeKey });
     return hash === null ? null : { version: 0, hash };
   }
 
   /** What this destination was seeded with: its own `__original-themes__/<tier>/<id>` copy (plan §4). */
   async function seedHash({ id }: { id: string }, _optional = {}): Promise<string | null> {
-    const address = parseTreeAddress(id);
+    const address = parseTreeAddress({ id });
     if (!themePort || !address) return null;
-    return hashTreeAt(path.join(themePort.themesDir, THEME_CATALOG_DIR, address.tier, address.themeId), address.treeKey);
+    return hashTreeAt({ absDir: path.join(themePort.themesDir, THEME_CATALOG_DIR, address.tier, address.themeId), treeKey: address.treeKey });
   }
 
   /**
@@ -671,14 +668,14 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   /** {@link precheck}'s whole pass, returning the validated files on success so `apply()` stages
    *  exactly what was checked. */
   async function precheckIncoming(entity: PackedEntity): Promise<{ reason: string } | { files: readonly IncomingThemeFile[] }> {
-    const title = treeTitle(entity.id);
-    const address = parseTreeAddress(entity.id);
+    const title = treeTitle({ treeKey: entity.id });
+    const address = parseTreeAddress({ id: entity.id });
     if (!address) return { reason: `${title} was not published: '${entity.id}' is not a valid theme tree address` };
     if (!themePort) return { reason: `${title} was not published: this site has no themes folder` };
     const incoming = readIncomingFiles(entity);
     if ("reason" in incoming) return { reason: `${title} was not published: ${incoming.reason}` };
 
-    const linkReason = await checkDestinationLinks(themePort.themesDir, address);
+    const linkReason = await checkDestinationLinks({ themesDir: themePort.themesDir, address });
     if (linkReason) return { reason: linkReason };
 
     const policy = await incomingPolicyInputs({ deps, files: incoming.files });
@@ -707,15 +704,15 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
   }): Promise<{ changeSetId: string }> {
     const { changeSets, authorize, outbox, themesDir } = requireApplyWiring({ deps });
     const { entity } = input;
-    const title = treeTitle(entity.id);
-    const address = parseTreeAddress(entity.id);
+    const title = treeTitle({ treeKey: entity.id });
+    const address = parseTreeAddress({ id: entity.id });
     const keyHash = createHash("sha256").update(input.idempotencyKey).digest("hex").slice(0, 32);
     const stagingRoot = path.join(themesDir, PUBLISH_STAGING_DIR);
     const stagingDir = path.join(stagingRoot, keyHash);
     const { target, previousPath } = swapPaths({ themesDir, address, keyHash });
     let swapped: { previous: string | null } | null = null;
 
-    const blocked = (reason: string): never => {
+    const blocked = ({ reason }: { reason: string }, _optional = {}): never => {
       throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
     };
 
@@ -725,8 +722,8 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
       await mkdir(stagingDir);
       for (const file of files) {
         const bytes = await readBlob({ deps, sha256: file.sha256 });
-        if (!bytes) return blocked(`${title} was not published: the bytes for "${file.path}" never reached this site`);
-        if (sha256Of(bytes) !== file.sha256) blocked(`${title} was not published: the bytes for "${file.path}" do not match their checksum`);
+        if (!bytes) return blocked({ reason: `${title} was not published: the bytes for "${file.path}" never reached this site` });
+        if (sha256Of(bytes) !== file.sha256) blocked({ reason: `${title} was not published: the bytes for "${file.path}" do not match their checksum` });
         const abs = path.join(stagingDir, ...file.path.split("/"));
         await mkdir(path.dirname(abs), { recursive: true });
         const handle = await open(abs, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY | fsConstants.O_NOFOLLOW, file.mode);
@@ -737,8 +734,8 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         }
         await chmod(abs, file.mode); // `open`'s mode is masked by the process umask.
       }
-      if ((await hashTreeAt(stagingDir, entity.id)) !== entity.contentHash) {
-        blocked(`${title} was not published: the copy written on this site does not match what was sent`);
+      if ((await hashTreeAt({ absDir: stagingDir, treeKey: entity.id })) !== entity.contentHash) {
+        blocked({ reason: `${title} was not published: the copy written on this site does not match what was sent` });
       }
     }
 
@@ -777,8 +774,8 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
         execute: async (): Promise<{ previous: string | null }> => {
           // Authoritative re-check inside the gateway, after `authorize` (same order as media).
           const incoming = await precheckIncoming(entity);
-          if ("reason" in incoming) return blocked(incoming.reason);
-          if (!address) return blocked(`${title} was not published: '${entity.id}' is not a valid theme tree address`);
+          if ("reason" in incoming) return blocked({ reason: incoming.reason });
+          if (!address) return blocked({ reason: `${title} was not published: '${entity.id}' is not a valid theme tree address` });
           try {
             await stageFiles(incoming.files);
             swapped = await swapIntoPlace();
@@ -786,7 +783,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
             await rm(stagingDir, { recursive: true, force: true });
             throw err;
           }
-          await prunePreviousCopies(themesDir, address);
+          await prunePreviousCopies({ themesDir, address });
           // The renderer serves partials/pages from memory, not disk — re-read them now.
           await themePort?.onReplaced?.();
           return swapped;

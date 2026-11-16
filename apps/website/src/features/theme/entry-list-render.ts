@@ -127,7 +127,7 @@ function renderFieldRow(field: EntryListFieldValue): string {
 /** The title element shared by cards and list items: linked only when `href` is non-null (D1). */
 function renderTitle(item: EntryListItem, tag: "h3"): string {
   const title = escapeHtml(item.title);
-  const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref(item.href))}">${title}</a>`;
+  const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref({ value: item.href }))}">${title}</a>`;
   return `<${tag} class="entry-card__title">${inner}</${tag}>`;
 }
 
@@ -239,7 +239,7 @@ function escapeForUnquotedAttribute(raw: string): string {
  */
 function renderUrlAttributeValue(value: string, item: EntryListItem, escapeValue: PlaceholderEscape): string {
   const composed = substitutePlaceholders(value, item, (raw) => raw);
-  if (safeHref(composed) !== composed.trim()) return "#";
+  if (safeHref({ value: composed }) !== composed.trim()) return "#";
   return substitutePlaceholders(value, item, escapeValue);
 }
 

@@ -63,8 +63,8 @@ test("relativeFilePaths: sorted, `/`-separated, [] for a folder that does not ex
   mkdirSync(join(root, "a"), { recursive: true });
   writeFileSync(join(root, "a", "one.txt"), "1");
 
-  assert.deepEqual(relativeFilePaths(root), ["a/one.txt", "b/two.txt"]);
-  assert.deepEqual(relativeFilePaths(join(root, "does-not-exist")), []);
+  assert.deepEqual(relativeFilePaths({ dir: root }), ["a/one.txt", "b/two.txt"]);
+  assert.deepEqual(relativeFilePaths({ dir: join(root, "does-not-exist") }), []);
 });
 
 test("diffThemeFolders: reports added/removed/changed independently", () => {
@@ -80,7 +80,7 @@ test("diffThemeFolders: reports added/removed/changed independently", () => {
   writeFileSync(join(aDir, "changed.txt"), "new bytes");
   writeFileSync(join(bDir, "changed.txt"), "old bytes");
 
-  assert.deepEqual(diffThemeFolders(aDir, bDir), {
+  assert.deepEqual(diffThemeFolders({ aDir, bDir }), {
     added: ["only-in-a.txt"],
     removed: ["only-in-b.txt"],
     changed: ["changed.txt"],
@@ -97,7 +97,7 @@ test("writeGeneratedThemeOriginal: mirrors the live folder, excluding generated 
   assert.equal(readFileSync(join(targetDir, "css", "theme.css"), "utf8"), "body{color:live}");
   assert.equal(existsSync(join(targetDir, "preview")), false);
   assert.equal(existsSync(join(targetDir, "index.html")), false);
-  assert.deepEqual(diffThemeFolders(targetDir, liveDir), {
+  assert.deepEqual(diffThemeFolders({ aDir: targetDir, bDir: liveDir }), {
     added: [],
     removed: ["index.html", "preview/dark/index.html"],
     changed: [],
@@ -153,7 +153,7 @@ test("writeGeneratedThemeOriginal: a failed source copy preserves the complete e
   const binary = Buffer.from([0, 255, 128, 10]);
   writeFileSync(join(targetDir, "nested", "asset.bin"), binary);
   assert.throws(() => writeGeneratedThemeOriginal({ liveDir: join(root, "missing-source"), targetDir }), { code: "ENOENT" });
-  assert.deepEqual(relativeFilePaths(targetDir), ["nested/asset.bin", "theme.json"]);
+  assert.deepEqual(relativeFilePaths({ dir: targetDir }), ["nested/asset.bin", "theme.json"]);
   assert.deepEqual(readFileSync(join(targetDir, "nested", "asset.bin")), binary);
   assert.equal(readFileSync(join(targetDir, "theme.json"), "utf8"), '{"id":"existing"}');
 });
@@ -191,12 +191,12 @@ test("syncThemeOriginals: is idempotent — a second run over an unchanged tree 
 
   syncThemeOriginals({ themesRoot: root });
   const originalDir = join(root, THEME_CATALOG_DIR, "static", "theme-a");
-  const firstRunFiles = relativeFilePaths(originalDir);
+  const firstRunFiles = relativeFilePaths({ dir: originalDir });
 
   syncThemeOriginals({ themesRoot: root });
 
-  assert.deepEqual(relativeFilePaths(originalDir), firstRunFiles);
-  assert.deepEqual(diffThemeFolders(originalDir, join(root, "static", "theme-a")), {
+  assert.deepEqual(relativeFilePaths({ dir: originalDir }), firstRunFiles);
+  assert.deepEqual(diffThemeFolders({ aDir: originalDir, bDir: join(root, "static", "theme-a") }), {
     added: [],
     removed: ["index.html", "preview/dark/index.html"],
     changed: [],

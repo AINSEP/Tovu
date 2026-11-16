@@ -35,7 +35,7 @@ test("an older site's assistant discovers, saves and renders the blank landing t
     writeFileSync(join(dir, "theme.json"), JSON.stringify(manifest));
     writeFileSync(join(dir, "css/theme.css"), "/* owner's custom CSS */ body{color:purple}");
   }
-  const snapshot = () => relativeFilePaths(root).map((file) => [file, readFileSync(join(root, file)).toString("base64")]);
+  const snapshot = () => relativeFilePaths({ dir: root }).map((file) => [file, readFileSync(join(root, file)).toString("base64")]);
   const before = snapshot();
   const themes = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
   const theme = themes.find((item) => item.manifest.id === "tovu-starter")!;

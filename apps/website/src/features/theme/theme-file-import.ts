@@ -101,10 +101,8 @@ type ThemeImportDestination = { themeDir: string; themesRoot: string; relativePa
 function validateThemeImportDestination(required: ThemeImportDestination, _optional: Record<string, never> = {}): void {
   resolveThemeFilePath(required);
   if (!IMPORTABLE_EXTENSIONS.has(fileExtension(required.relativePath))) {
-    throw new ThemePathError(
-      `path '${required.relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
-        "SVG and other text files: read as text and write with theme_write_file."
-    );
+    throw new ThemePathError({ message: `path '${required.relativePath}' must end in a font or image extension (${[...IMPORTABLE_EXTENSIONS].join(", ")}). ` +
+        "SVG and other text files: read as text and write with theme_write_file." });
   }
 }
 

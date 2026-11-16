@@ -199,7 +199,7 @@ export function resolveActiveTheme(deps: ActiveThemeResolutionDeps, activeThemeI
  *
  * **This is the WRITE allowlist, and it is NOT the same list as the admin PATCH route's `get.ts`
  * sibling.** Those two call sites used to be character-for-character identical —
- * `availableThemeIds: validThemeIds(deps.themes)`, same expression, same field name, same import,
+ * `availableThemeIds: validThemeIds({ themes: deps.themes })`, same expression, same field name, same import,
  * sibling files in one directory — while meaning two different things. `get.ts`'s copy is echoed to
  * the admin as `AdminPresentation.availableThemeIds` and feeds the theme picker, where the sentinel
  * would render as a blank card. Naming this value (rather than inlining the spread at each call site)

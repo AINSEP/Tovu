@@ -155,7 +155,7 @@ export function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: st
   if (writeScope.kind === "generated-readonly") {
     throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
   }
-  if (isGeneratedThemePath(relativePath)) {
+  if (isGeneratedThemePath({ relativePath })) {
     throw new ThemeFileReadOnlyError(
       `'${relativePath}' is read-only: this file is generated output (build-preview.mjs's own preview tree); it is not real theme source and is silently overwritten on the next preview build — edit the file it derives from instead`
     );
@@ -212,7 +212,7 @@ export function trashThemeFile(
 ): { trashedPath: string; reloaded: DiscoveredTheme } {
   const themeId = theme.manifest.id;
   if (isTrashedThemePath(relativePath)) {
-    throw new ThemePathError(`'${relativePath}' was moved to the theme's trash; restore with theme_restore_trashed_file using themeId '${themeId}' and trashedPath '${relativePath}'`);
+    throw new ThemePathError({ message: `'${relativePath}' was moved to the theme's trash; restore with theme_restore_trashed_file using themeId '${themeId}' and trashedPath '${relativePath}'` });
   }
 
   // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own

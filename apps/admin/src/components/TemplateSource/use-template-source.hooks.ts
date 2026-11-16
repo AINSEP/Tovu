@@ -37,13 +37,13 @@ export type TemplateSourceFetchState =
 /** `/theme-assets/{themeId}/{pagesDir}/{templateFilename}` — the exact route
  *  `theme-static-assets.ts` serves a static-tier theme's page templates under (verified live,
  *  2026-08-10: `GET /theme-assets/basic/render/pages/blog-sidebar-template.html` → 200 with the raw
- *  HTML). `pagesDir` comes from `resolveThemeLayout(apiVersion)` — `pages` for a v1 theme,
+ *  HTML). `pagesDir` comes from `resolveThemeLayout({}, { apiVersion })` — `pages` for a v1 theme,
  *  `render/pages` for `apiVersion: 2`. `encodeURIComponent` on the theme id and filename segments: a
  *  theme id or filename with a space/`#`/`?` would otherwise either 404 against the exact static path
  *  or get parsed as a query string; `pagesDir`'s own `/` is intentionally left unencoded, matching a
  *  real static path segment. */
 export function templateAssetUrl({ themeId, templateFilename, apiVersion }: { themeId: string; templateFilename: string; apiVersion: 2 | undefined }, _options: Record<string, never> = {}): string {
-  const { pagesDir } = resolveThemeLayout(apiVersion);
+  const { pagesDir } = resolveThemeLayout({}, { apiVersion });
   return `/theme-assets/${encodeURIComponent(themeId)}/${pagesDir}/${encodeURIComponent(templateFilename)}`;
 }
 

@@ -44,7 +44,7 @@ type Ports = PublishContentPorts["active-theme"];
 
 /** @complexity O(themes). */
 function installedTheme(ports: Ports, themeId: string): DiscoveredTheme | undefined {
-  return ports.themes.find((t) => t.status === "valid" && themeIdCandidates(themeId).includes(t.manifest.id));
+  return ports.themes.find((t) => t.status === "valid" && themeIdCandidates({ id: themeId }).includes(t.manifest.id));
 }
 
 /** @complexity O(1). */
@@ -95,7 +95,7 @@ export const contributeActiveThemePublish = (): PublishContentContributor =>
         throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: `principal '${principalId}' is not authorized for 'theme.set' (${auth.reason})` });
       }
       const available = writableThemeIds({ themes: [...ports.themes] });
-      const activeThemeId = themeIdCandidates(themeId).find((candidate) => available.includes(candidate));
+      const activeThemeId = themeIdCandidates({ id: themeId }).find((candidate) => available.includes(candidate));
       if (!activeThemeId) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: notInstalled(themeId) });
       const { settings } = await setActiveTheme({
         deps: { repo: ports.presentation, clock: deps.clock, availableThemeIds: available },

@@ -383,23 +383,23 @@ test("an oversized write is refused", () => {
  * `preview` segment or a path nested under it.
  */
 test("the generated directory itself is matched", () => {
-  assert.equal(isGeneratedThemePath("preview"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview" }), true);
 });
 
 test("a file nested inside the generated directory is matched", () => {
-  assert.equal(isGeneratedThemePath("preview/dark/js/main.js"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview/dark/js/main.js" }), true);
 });
 
 test("a sibling directory merely PREFIXED with the generated dir's name is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("preview-notes/todo.md"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview-notes/todo.md" }), false);
 });
 
 test("a backslash-separated (Windows-shaped) relative path is normalized before matching", () => {
-  assert.equal(isGeneratedThemePath("preview\\dark\\index.html"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "preview\\dark\\index.html" }), true);
 });
 
 test("an ordinary theme file is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("pages/about.html"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "pages/about.html" }), false);
 });
 
 /**
@@ -409,15 +409,15 @@ test("an ordinary theme file is NOT matched", () => {
  * since it is a NEW branch in `isGeneratedThemePath`, not a data-only addition to the existing one.
  */
 test("the generated root file itself is matched", () => {
-  assert.equal(isGeneratedThemePath("index.html"), true);
+  assert.equal(isGeneratedThemePath({ relativePath: "index.html" }), true);
 });
 
 test("a similarly-named sibling file is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("index-notes.html"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "index-notes.html" }), false);
 });
 
 test("the authored source page the generated root file is derived from is NOT matched", () => {
-  assert.equal(isGeneratedThemePath("render/pages/index.html"), false);
+  assert.equal(isGeneratedThemePath({ relativePath: "render/pages/index.html" }), false);
 });
 
 /**
@@ -427,27 +427,27 @@ test("the authored source page the generated root file is derived from is NOT ma
  * ever reached. See its own doc for why the three shapes below are the ones that matter.
  */
 test("sourceDir naming a generated directory exactly is a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview"), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview" }), true);
 });
 
 test("sourceDir nested inside a generated directory is a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview/src"), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview/src" }), true);
 });
 
 test("sourceDir naming the theme root ('.') is a conflict — it would contain every generated directory", () => {
-  assert.equal(isSourceDirGeneratedConflict("."), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "." }), true);
 });
 
 test("sourceDir merely PREFIXED with a generated dir's name is NOT a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview-notes"), false);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview-notes" }), false);
 });
 
 test("an ordinary sourceDir unrelated to any generated directory is NOT a conflict", () => {
-  assert.equal(isSourceDirGeneratedConflict("src"), false);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "src" }), false);
 });
 
 test("a backslash-separated (Windows-shaped) sourceDir is normalized before matching", () => {
-  assert.equal(isSourceDirGeneratedConflict("preview\\src"), true);
+  assert.equal(isSourceDirGeneratedConflict({ sourceDir: "preview\\src" }), true);
 });
 
 /**

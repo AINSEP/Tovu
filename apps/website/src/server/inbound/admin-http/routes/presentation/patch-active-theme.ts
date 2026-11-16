@@ -87,7 +87,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ app
       res.json(
         toAdminPresentationResponse({
           settings: result.settings,
-          // `validThemeIds(deps.themes)`, NOT `result.availableThemeIds` — this ONE request carries
+          // `validThemeIds({ themes: deps.themes })`, NOT `result.availableThemeIds` — this ONE request carries
           // both lists, and they are not the same list. `result.availableThemeIds` is the write
           // allowlist echoed back by `setActiveTheme` (the caller-supplied set it validated
           // against), so it contains `NO_THEME_ID`; this field is the READ CATALOGUE the admin's
@@ -95,7 +95,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ app
           // allowlist through would have put a blank card in the picker on the very request that
           // turns the theme off — i.e. only in the state where it is least likely to be noticed as
           // this route's doing. See `writableThemeIds`'s own doc (`features/theme/active-theme.ts`).
-          availableThemeIds: validThemeIds(deps.themes),
+          availableThemeIds: validThemeIds({ themes: deps.themes }),
           availableThemes,
           activeThemeTemplates,
           activeThemeStaticPageIds,

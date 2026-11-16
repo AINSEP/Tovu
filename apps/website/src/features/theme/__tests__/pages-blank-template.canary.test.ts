@@ -34,7 +34,7 @@ for (const id of ["tovu-starter", "tovu-theme"]) {
     const resolution = resolveTemplate({ theme, templateChoice: "pages-blank.html" });
     assert.equal(resolution.kind, "template");
     if (resolution.kind !== "template") return;
-    const html = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: injectPageTitle(resolution.html, "Nimbus — Sleep Headphones"), menus: {} }) ?? "";
+    const html = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: injectPageTitle({ html: resolution.html, title: "Nimbus — Sleep Headphones" }), menus: {} }) ?? "";
     assert.match(html, /<title>Nimbus — Sleep Headphones<\/title>/);
     assert.match(html, /data-embed-config='\{"type":"content"\}'/);
     assert.doesNotMatch(html, /class="site-header"|<footer/);

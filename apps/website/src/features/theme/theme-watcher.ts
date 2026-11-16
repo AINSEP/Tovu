@@ -8,15 +8,15 @@ import type { DiscoveredTheme } from "./theme.js";
 export interface ThemeWatchPort {
   open(input: {
     themesDir: string;
-    onChange: (filename: string | null) => void;
-    onError: (error: unknown) => void;
+    onChange: (required: { filename: string | null }, optional?: Record<string, never>) => void;
+    onError: (required: { error: unknown }, optional?: Record<string, never>) => void;
   }, options?: Record<string, never>): { close(): void };
 }
 
 const nativeThemeWatch: ThemeWatchPort = {
   open({ themesDir, onChange, onError }) {
-    const watcher = watch(themesDir, { recursive: true, persistent: false }, (_event, filename) => onChange(filename));
-    watcher.on("error", onError);
+    const watcher = watch(themesDir, { recursive: true, persistent: false }, (_event, filename) => onChange({ filename }));
+    watcher.on("error", (error) => onError({ error }));
     return watcher;
   },
 };
@@ -26,7 +26,7 @@ const nativeThemeWatch: ThemeWatchPort = {
 let stopActiveWatcher: (() => void) | undefined;
 
 /** Ignore metadata, dependency trees and editor scratch files, including nested path components. */
-function ignoredThemeWatchPath(filename: string | null): boolean {
+function ignoredThemeWatchPath({ filename }: { filename: string | null }, _optional = {}): boolean {
   if (filename === null) return false; // Node can report a change without its filename: rescan safely.
   return filename.split(/[\\/]/).some((part) =>
     part.startsWith(".") || part === "node_modules" || part.startsWith("#") ||
@@ -84,13 +84,13 @@ export function startThemeWatcher(
   try {
     watcher = watchPort.open({
       themesDir: required.themesDir,
-      onChange: (filename) => {
-        if (closed || ignoredThemeWatchPath(filename)) return;
+      onChange: ({ filename }, _optional = {}) => {
+        if (closed || ignoredThemeWatchPath({ filename })) return;
         clearTimeout(pending);
         pending = setTimeout(refresh, settleMs);
         pending.unref();
       },
-      onError: (error) => { stop(); onError({ error }); },
+      onError: ({ error }, _optional = {}) => { stop(); onError({ error }); },
     });
   } catch (error) { stop(); onError({ error }); }
   return { stop: async () => stop() };

@@ -133,8 +133,8 @@ function renderThroughTemplate(
   assert.equal(resolution.kind, "template", "the real theme must offer a usable template");
   if (resolution.kind !== "template") throw new Error("unreachable");
 
-  const withTitle = injectPageTitle(resolution.html, title);
-  const withId = injectCurrentEntityContentId(withTitle, ENTITY_ID);
+  const withTitle = injectPageTitle({ html: resolution.html, title });
+  const withId = injectCurrentEntityContentId({ html: withTitle, entityId: ENTITY_ID });
   const resolved = new Map([["content", new Map([[ENTITY_ID, { componentId: "post-content", props: ENTITY_PROPS }]])]]);
   const bodyResolved = renderHtmlPageBody(withId, resolved as never);
   return renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: bodyResolved, menus }) ?? "";
@@ -163,7 +163,7 @@ test("canary: the page-embed stage leaves theme-owned markers untouched", () => 
   // The whole bug in one assertion: `partial` and `menu` belong to a LATER stage. Substituting
   // anything over them here — placeholder included — deletes the nav, sidebar, and footer.
   const theme = tovuTheme();
-  const template = injectCurrentEntityContentId(pageFor(theme, "sidebar"), ENTITY_ID);
+  const template = injectCurrentEntityContentId({ html: pageFor(theme, "sidebar"), entityId: ENTITY_ID });
   const out = renderHtmlPageBody(template, undefined);
 
   assert.ok(out.includes(`'{"type":"partial","id":"nav"`), "the nav partial marker must survive this stage");
@@ -179,7 +179,7 @@ test("canary: an OWNED marker with nothing resolved still degrades to the REQ-28
   // The other half of the ownership rule. `content` IS this stage's, so an unresolvable one must not
   // be left as raw marker markup for a visitor to see — the two halves fail in opposite directions
   // and a check for only one of them would pass against a stage that substitutes nothing at all.
-  const out = renderHtmlPageBody(injectCurrentEntityContentId(pageFor(tovuTheme(), "post"), ENTITY_ID), undefined);
+  const out = renderHtmlPageBody(injectCurrentEntityContentId({ html: pageFor(tovuTheme(), "post"), entityId: ENTITY_ID }), undefined);
   assert.ok(out.includes("widget-placeholder"), "an unresolved content embed must degrade to the placeholder");
   assert.ok(!out.includes('"type":"content"'), "and must not leave its own marker markup in the output");
 });

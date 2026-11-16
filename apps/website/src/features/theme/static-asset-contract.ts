@@ -43,7 +43,7 @@ export const TOKEN_STYLESHEET_SENTINEL_V2 = '<link rel="stylesheet" href="../css
  * `ADS-memory/reports/continuity/theme-v2-validator-build/progress-ledger.md`) for why this couldn't
  * be a global rename of the one constant instead.
  */
-export function tokenStylesheetSentinel(apiVersion?: 2): string {
+export function tokenStylesheetSentinel(_required: Record<string, never>, { apiVersion }: { apiVersion?: 2 } = {}): string {
   return apiVersion === 2 ? TOKEN_STYLESHEET_SENTINEL_V2 : TOKEN_STYLESHEET_SENTINEL;
 }
 
@@ -71,7 +71,7 @@ export function tokenStylesheetSentinel(apiVersion?: 2): string {
  * silently-unrewritten asset path is exactly the bug class this whole function exists to close, so
  * leaving a residual case undetectable would just relocate it rather than fix it.
  */
-export function rewriteAssetPaths(html: string, themeId: string, apiVersion?: 2): string {
+export function rewriteAssetPaths({ html, themeId }: { html: string; themeId: string }, { apiVersion }: { apiVersion?: 2 } = {}): string {
   const cssRewritten = html.replace(
     /href=(["'])\.\.\/css\//g,
     (_match, quote: string) => `href=${quote}/theme-assets/${themeId}/css/`
@@ -109,7 +109,7 @@ const UNREWRITTEN_ASSET_PATTERN_V2 = /(?:href|src)\s*=\s*(['"]?)\.\.\/(?:css|scr
  *
  * @complexity O(n) over `html`'s length — one regex scan.
  */
-export function findUnrewrittenAssetPaths(html: string, apiVersion?: 2): string[] {
+export function findUnrewrittenAssetPaths({ html }: { html: string }, { apiVersion }: { apiVersion?: 2 } = {}): string[] {
   const pattern = apiVersion === 2 ? UNREWRITTEN_ASSET_PATTERN_V2 : UNREWRITTEN_ASSET_PATTERN_V1;
   return Array.from(html.matchAll(pattern), (m) => m[0]);
 }

@@ -82,7 +82,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = ({ app, 
       // did not change: a reader reducing duplication in this directory sees two identical calls in
       // sibling files and no reason not to merge them. There is one, and it is this.
       const result = await getPresentationSettings({
-        deps: { repo: deps.presentationRepo, availableThemeIds: validThemeIds(deps.themes) },
+        deps: { repo: deps.presentationRepo, availableThemeIds: validThemeIds({ themes: deps.themes }) },
         input: { workspaceId: deps.workspaceId },
       });
 

@@ -73,11 +73,11 @@ export function fileExtension(relativePath: string): string {
  * per-group reasoning; unchanged here, just relocated.
  */
 export function fileGroup(relativePath: string, apiVersion: 2 | undefined): ThemeFileGroup {
-  if (isPageFilePath(relativePath, apiVersion)) return "page";
+  if (isPageFilePath({ relativePath }, { apiVersion })) return "page";
   if (relativePath.endsWith(".css")) return "style";
   if (/\.[mc]?js$/.test(relativePath)) return "script";
   if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
-  if (isPartialFilePath(relativePath, apiVersion)) return "partial";
+  if (isPartialFilePath({ relativePath }, { apiVersion })) return "partial";
   if (isAssetExtension(relativePath)) return "asset";
   return "other";
 }
@@ -125,7 +125,7 @@ export function isSourceDirWritableExtension(relativePath: string): boolean {
  * re-spelling the same path a second time.
  */
 export function requiredThemeFiles(apiVersion: 2 | undefined): readonly string[] {
-  return resolveThemeLayout(apiVersion).requiredFiles;
+  return resolveThemeLayout({}, { apiVersion }).requiredFiles;
 }
 
 /**
@@ -224,7 +224,7 @@ function isFileIdentityChangeAllowed(
   writeScope: ThemeFileWriteScope
 ): boolean {
   return (
-    !isGeneratedThemePath(path) &&
+    !isGeneratedThemePath({ relativePath: path }) &&
     (isInsideCompiledSourceDir(theme, path, writeScope)
       ? isSourceDirWritableExtension(path)
       : !IDENTITY_LOCKED_GROUPS.has(fileGroup(path, theme.manifest.apiVersion)))

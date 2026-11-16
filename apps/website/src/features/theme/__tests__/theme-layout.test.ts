@@ -11,7 +11,7 @@ import { isPageFilePath, isPartialFilePath, resolveThemeLayout } from "../theme-
  */
 
 test("resolveThemeLayout: v1 (apiVersion absent) resolves the flat layout", () => {
-  const layout = resolveThemeLayout(undefined);
+  const layout = resolveThemeLayout({}, { apiVersion: undefined });
   assert.equal(layout.pagesDir, "pages");
   assert.equal(layout.partialsDir, "");
   assert.equal(layout.scriptsDir, "js");
@@ -23,7 +23,7 @@ test("resolveThemeLayout: v1 (apiVersion absent) resolves the flat layout", () =
 });
 
 test("resolveThemeLayout: v2 (apiVersion: 2) resolves the nested layout", () => {
-  const layout = resolveThemeLayout(2);
+  const layout = resolveThemeLayout({}, { apiVersion: 2 });
   assert.equal(layout.pagesDir, "render/pages");
   assert.equal(layout.partialsDir, "render/partials");
   assert.equal(layout.scriptsDir, "scripts");
@@ -35,29 +35,29 @@ test("resolveThemeLayout: v2 (apiVersion: 2) resolves the nested layout", () => 
 });
 
 test("isPageFilePath: v1 matches pages/ prefix, not render/pages/", () => {
-  assert.equal(isPageFilePath("pages/about.html", undefined), true);
-  assert.equal(isPageFilePath("pages/index.html", undefined), true);
-  assert.equal(isPageFilePath("render/pages/about.html", undefined), false);
-  assert.equal(isPageFilePath("css/pages/x.css", undefined), false);
+  assert.equal(isPageFilePath({ relativePath: "pages/about.html" }, { apiVersion: undefined }), true);
+  assert.equal(isPageFilePath({ relativePath: "pages/index.html" }, { apiVersion: undefined }), true);
+  assert.equal(isPageFilePath({ relativePath: "render/pages/about.html" }, { apiVersion: undefined }), false);
+  assert.equal(isPageFilePath({ relativePath: "css/pages/x.css" }, { apiVersion: undefined }), false);
 });
 
 test("isPageFilePath: v2 matches render/pages/ prefix, not bare pages/", () => {
-  assert.equal(isPageFilePath("render/pages/about.html", 2), true);
-  assert.equal(isPageFilePath("render/pages/index.html", 2), true);
-  assert.equal(isPageFilePath("pages/about.html", 2), false);
+  assert.equal(isPageFilePath({ relativePath: "render/pages/about.html" }, { apiVersion: 2 }), true);
+  assert.equal(isPageFilePath({ relativePath: "render/pages/index.html" }, { apiVersion: 2 }), true);
+  assert.equal(isPageFilePath({ relativePath: "pages/about.html" }, { apiVersion: 2 }), false);
 });
 
 test("isPartialFilePath: v1 matches a root .html file with no slash, not a nested one", () => {
-  assert.equal(isPartialFilePath("nav.html", undefined), true);
-  assert.equal(isPartialFilePath("footer-minimal.html", undefined), true);
-  assert.equal(isPartialFilePath("render/partials/nav.html", undefined), false);
-  assert.equal(isPartialFilePath("pages/index.html", undefined), false);
-  assert.equal(isPartialFilePath("nav.json", undefined), false);
+  assert.equal(isPartialFilePath({ relativePath: "nav.html" }, { apiVersion: undefined }), true);
+  assert.equal(isPartialFilePath({ relativePath: "footer-minimal.html" }, { apiVersion: undefined }), true);
+  assert.equal(isPartialFilePath({ relativePath: "render/partials/nav.html" }, { apiVersion: undefined }), false);
+  assert.equal(isPartialFilePath({ relativePath: "pages/index.html" }, { apiVersion: undefined }), false);
+  assert.equal(isPartialFilePath({ relativePath: "nav.json" }, { apiVersion: undefined }), false);
 });
 
 test("isPartialFilePath: v2 matches render/partials/*.html, not a bare root .html file", () => {
-  assert.equal(isPartialFilePath("render/partials/nav.html", 2), true);
-  assert.equal(isPartialFilePath("render/partials/footer-minimal.html", 2), true);
-  assert.equal(isPartialFilePath("nav.html", 2), false);
-  assert.equal(isPartialFilePath("render/pages/index.html", 2), false);
+  assert.equal(isPartialFilePath({ relativePath: "render/partials/nav.html" }, { apiVersion: 2 }), true);
+  assert.equal(isPartialFilePath({ relativePath: "render/partials/footer-minimal.html" }, { apiVersion: 2 }), true);
+  assert.equal(isPartialFilePath({ relativePath: "nav.html" }, { apiVersion: 2 }), false);
+  assert.equal(isPartialFilePath({ relativePath: "render/pages/index.html" }, { apiVersion: 2 }), false);
 });

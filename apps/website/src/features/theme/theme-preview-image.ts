@@ -84,7 +84,7 @@ function visitThemeContentEntry(required: {
 }): void {
   const { walk, absolute, relative, depth, entry } = required;
   const child = relative ? `${relative}/${entry.name}` : entry.name;
-  if (child === "screenshots" || isGeneratedThemePath(child)) return;
+  if (child === "screenshots" || isGeneratedThemePath({ relativePath: child })) return;
   if (entry.isDirectory()) {
     walkThemeContent({ walk, absolute: join(absolute, entry.name), relative: child, depth: depth + 1 });
     return;

@@ -61,7 +61,7 @@ export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = ({ app, d
         theme: { id: result.id, name: result.name, tier: result.tier, status: theme?.status ?? "invalid", errors: theme?.errors ?? [] },
         sourceThemeId: result.sourceThemeId,
         files: result.files,
-        availableThemeIds: validThemeIds(deps.themes),
+        availableThemeIds: validThemeIds({ themes: deps.themes }),
       });
     } catch (err) {
       if (err instanceof DuplicateThemeError) {

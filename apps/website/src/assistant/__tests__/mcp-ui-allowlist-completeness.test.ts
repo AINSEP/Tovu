@@ -98,13 +98,13 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   // c387a9b3e added the native theme watcher. Keep the full call reviewed, like the sealers below.
   ["features/theme/theme-watcher.ts", new Set([`watchPort.open({
       themesDir: required.themesDir,
-      onChange: (filename) => {
-        if (closed || ignoredThemeWatchPath(filename)) return;
+      onChange: ({ filename }, _optional = {}) => {
+        if (closed || ignoredThemeWatchPath({ filename })) return;
         clearTimeout(pending);
         pending = setTimeout(refresh, settleMs);
         pending.unref();
       },
-      onError: (error) => { stop(); onError({ error }); },
+      onError: ({ error }, _optional = {}) => { stop(); onError({ error }); },
     })`])],
   // 9abe6503d: the Tovu sealer opens through a per-call Jini sealer that wraps its keyring.
   ["features/webhooks/secret-sealer.aesgcm.ts", new Set(["new JiniSecretSealer({ keyring }).open(input, optional)"])],

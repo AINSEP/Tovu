@@ -31,7 +31,7 @@ import { ENGINE_SUBFOLDERS, findTheme, rescanThemes, THEME_CATALOG_DIR, type Dis
 
 /** Raised when a theme id cannot be addressed as a folder of the site's own themes directory. */
 export class ThemeTrashLocationError extends Error {
-  constructor(message: string) {
+  constructor({ message }: { message: string }) {
     super(message);
     this.name = "ThemeTrashLocationError";
   }
@@ -42,9 +42,9 @@ export function themeTrashRoot(required: { themesDir: string }): string {
   return `${resolve(required.themesDir)}-trash`;
 }
 
-function assertThemeIdSegment(themeId: string): void {
+function assertThemeIdSegment({ themeId }: { themeId: string }, _optional = {}): void {
   if (["", ".", ".."].includes(themeId) || basename(themeId) !== themeId || themeId.includes("\\")) {
-    throw new ThemeTrashLocationError(`'${themeId}' is not a theme folder name`);
+    throw new ThemeTrashLocationError({ message: `'${themeId}' is not a theme folder name` });
   }
 }
 
@@ -61,7 +61,7 @@ function assertThemeIdSegment(themeId: string): void {
  */
 export function locateThemeFolder(required: { themes: readonly DiscoveredTheme[]; themesDir: string; themeId: string }): DirectoryTrashLocation {
   const { themes, themeId } = required;
-  assertThemeIdSegment(themeId);
+  assertThemeIdSegment({ themeId });
   const root = resolve(required.themesDir);
   const trashRoot = themeTrashRoot({ themesDir: root });
   const live = findTheme({ themes: [...themes], id: themeId });
@@ -75,13 +75,13 @@ export function locateThemeFolder(required: { themes: readonly DiscoveredTheme[]
   const liveDir = resolve(live.dir);
   const sub = relative(root, dirname(liveDir));
   if (basename(liveDir) !== themeId || !(sub === "" || (ENGINE_SUBFOLDERS as readonly string[]).includes(sub))) {
-    throw new ThemeTrashLocationError(`theme '${themeId}' is not a folder of this site's themes directory, so it cannot be moved to the Trash`);
+    throw new ThemeTrashLocationError({ message: `theme '${themeId}' is not a folder of this site's themes directory, so it cannot be moved to the Trash` });
   }
   return { liveParent: dirname(liveDir), liveNames: [themeId], parkedDir: join(trashRoot, sub, themeId) };
 }
 
 /** The tier folders directly under `dir`, or none when it does not exist. @complexity O(entries). */
-function tierDirs(dir: string): string[] {
+function tierDirs({ dir }: { dir: string }, _optional = {}): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 }
@@ -99,18 +99,18 @@ function tierDirs(dir: string): string[] {
  */
 export function locateThemeOriginal(required: { themes: readonly DiscoveredTheme[]; themesDir: string; themeId: string }): DirectoryTrashLocation {
   const { themes, themeId } = required;
-  assertThemeIdSegment(themeId);
+  assertThemeIdSegment({ themeId });
   const liveRoot = join(resolve(required.themesDir), THEME_CATALOG_DIR);
   const parkedRoot = join(themeTrashRoot({ themesDir: required.themesDir }), THEME_CATALOG_DIR);
-  const at = (tier: string): DirectoryTrashLocation => {
+  const at = ({ tier }: { tier: string }, _optional = {}): DirectoryTrashLocation => {
     const liveParent = join(liveRoot, tier);
     return { liveParent, liveNames: existsSync(join(liveParent, themeId)) ? [themeId] : [], parkedDir: join(parkedRoot, tier, themeId) };
   };
 
-  const parkedTier = tierDirs(parkedRoot).find((tier) => existsSync(join(parkedRoot, tier, themeId)));
-  if (parkedTier !== undefined) return at(parkedTier);
-  const liveTier = findTheme({ themes: [...themes], id: themeId })?.manifest.tier ?? tierDirs(liveRoot).find((tier) => existsSync(join(liveRoot, tier, themeId)));
-  return liveTier === undefined ? { liveParent: liveRoot, liveNames: [], parkedDir: join(parkedRoot, themeId) } : at(liveTier);
+  const parkedTier = tierDirs({ dir: parkedRoot }).find((tier) => existsSync(join(parkedRoot, tier, themeId)));
+  if (parkedTier !== undefined) return at({ tier: parkedTier });
+  const liveTier = findTheme({ themes: [...themes], id: themeId })?.manifest.tier ?? tierDirs({ dir: liveRoot }).find((tier) => existsSync(join(liveRoot, tier, themeId)));
+  return liveTier === undefined ? { liveParent: liveRoot, liveNames: [], parkedDir: join(parkedRoot, themeId) } : at({ tier: liveTier });
 }
 
 /**

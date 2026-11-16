@@ -391,7 +391,7 @@ for (const themeId of STATIC_THEME_IDS) {
       if (resolution.kind !== "template") return;
 
       const entityId = "22222222-2222-4222-8222-222222222222";
-      const withRealId = injectCurrentEntityContentId(resolution.html, entityId);
+      const withRealId = injectCurrentEntityContentId({ html: resolution.html, entityId });
       const entityProps = {
         title: "Sweep Sentinel Post",
         updatedAt: "2026-08-10T00:00:00.000Z",

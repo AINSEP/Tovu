@@ -142,7 +142,7 @@ export interface ThemeExploreDetail {
  * so the two cannot drift apart again.
  */
 function lockedIdentityPaths({ apiVersion }: { apiVersion: 2 | undefined }, _options = {}): readonly string[] {
-  return resolveThemeLayout(apiVersion).requiredFiles;
+  return resolveThemeLayout({}, { apiVersion }).requiredFiles;
 }
 
 /**
@@ -193,7 +193,7 @@ function lockedIdentityChangeReason(
   _options = {},
 ): string {
   const copy = LOCKED_IDENTITY_COPY[action];
-  if (path === resolveThemeLayout(apiVersion).indexPagePath) return translateWith({ t, key: copy.page, token: "file", value: path });
+  if (path === resolveThemeLayout({}, { apiVersion }).indexPagePath) return translateWith({ t, key: copy.page, token: "file", value: path });
   if (lockedIdentityPaths({ apiVersion }).includes(path)) return translateWith({ t, key: copy.file, token: "file", value: path });
   return translateWith({ t, key: copy.group, token: "file", value: path });
 }
@@ -833,7 +833,7 @@ export interface ThemeExploreOptions {
  * @complexity Time O(n) in `files.length` — at most three independent scans, no nesting.
  */
 function defaultSelectedPath({ files, apiVersion }: { files: ThemeExploreFile[]; apiVersion: 2 | undefined }, _options = {}): string | null {
-  const indexPagePath = resolveThemeLayout(apiVersion).indexPagePath;
+  const indexPagePath = resolveThemeLayout({}, { apiVersion }).indexPagePath;
   return (
     files.find((f) => f.path === indexPagePath)?.path ??
     files.find((f) => f.kind === "page")?.path ??

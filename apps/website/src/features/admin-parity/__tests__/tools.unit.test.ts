@@ -158,13 +158,13 @@ test("page publish: first toggle only publishes selected page, refreshes runtime
   const f = themeFixture(t);
   const r = await registration("theme_set_page_published", { ...auth().deps, ...f });
   assert.deepEqual(await call(r, { themeId: "plain", page: "about", published: true }), { page: "about", published: true, publishedPages: ["about"] });
-  assert.equal(isStandaloneThemePage(f.themes[0], "about"), true);
-  assert.equal(isStandaloneThemePage(f.themes[0], "pricing"), false);
+  assert.equal(isStandaloneThemePage({ theme: f.themes[0], pageId: "about" }), true);
+  assert.equal(isStandaloneThemePage({ theme: f.themes[0], pageId: "pricing" }), false);
   fs.writeFileSync(f.manifestPath, JSON.stringify({ ...f.manifest, name: "Fresh name", publishedPages: ["pricing"] }));
   assert.deepEqual(await call(r, { themeId: "plain", page: "about", published: true }), { page: "about", published: true, publishedPages: ["about", "pricing"] });
   assert.equal(JSON.parse(fs.readFileSync(f.manifestPath, "utf8")).name, "Fresh name");
   assert.deepEqual(await call(r, { themeId: "plain", page: "about", published: false }), { page: "about", published: false, publishedPages: ["pricing"] });
-  assert.equal(isStandaloneThemePage(f.themes[0], "about"), false);
+  assert.equal(isStandaloneThemePage({ theme: f.themes[0], pageId: "about" }), false);
 });
 test("page publish: wrong types, missing themes, non-static tiers, shells and traversal refuse before writing", async (t) => {
   const f = themeFixture(t);

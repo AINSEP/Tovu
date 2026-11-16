@@ -125,7 +125,7 @@ for (const { tier, id } of SHIPPED) {
       const generatedDir = path.join(tmpRoot, tier, id);
       writeGeneratedThemeOriginal({ liveDir, targetDir: generatedDir });
 
-      const diff = diffThemeFolders(generatedDir, committedOriginalDir);
+      const diff = diffThemeFolders({ aDir: generatedDir, bDir: committedOriginalDir });
       assert.deepEqual(
         diff,
         { added: [], removed: [], changed: [] },

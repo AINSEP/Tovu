@@ -38,11 +38,11 @@ export const registerAdminThemeRescanRoute: ContentRouteRegistrar = ({ app, deps
         added: changed.added,
         removed: changed.removed,
         total: changed.total,
-        availableThemeIds: validThemeIds(deps.themes),
+        availableThemeIds: validThemeIds({ themes: deps.themes }),
         // Two themes can claim the same id (ids are unique per folder, not globally), in which case
         // the site silently renders whichever sorts first. Reported here rather than swallowed,
         // because a rescan is exactly when a colliding theme most likely just arrived.
-        duplicateIds: duplicateThemeIds(deps.themes),
+        duplicateIds: duplicateThemeIds({ themes: deps.themes }),
       });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/presentation/rescan-themes", code: "INTERNAL_ERROR" });

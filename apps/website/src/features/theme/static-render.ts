@@ -58,7 +58,7 @@ function tokensToRootCss(tokens: ThemeTokens, tokensLight: ThemeTokens): string 
  * and the already-rewritten `../css/`/`../js/` asset paths are untouched — this only matches a bare
  * `<name>.html` href, never one containing `/`.
  */
-function rewritePageLinks(html: string): string {
+function rewritePageLinks({ html }: { html: string }, _optional = {}): string {
   return html.replace(/href="([a-z0-9-]+)\.html"/g, (_m, name: string) => (name === "index" ? 'href="/"' : `href="/${name}"`));
 }
 
@@ -106,7 +106,7 @@ function hasAuthoredSlug(marker: EmbedMarker): boolean {
  * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass, the same cost
  * shape every other marker-substitution call in this codebase already pays.
  */
-export function injectCurrentEntityContentId(html: string, entityId: string): string {
+export function injectCurrentEntityContentId({ html, entityId }: { html: string; entityId: string }, _optional = {}): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== "content" || marker.id !== undefined || hasAuthoredSlug(marker)) return undefined;
     return withAddedId({ marker: marker, id: entityId });
@@ -137,7 +137,7 @@ export function injectCurrentEntityContentId(html: string, entityId: string): st
  *
  * @complexity O(n) over `html`'s length — one string search-and-replace.
  */
-export function injectPageTitle(html: string, title: string): string {
+export function injectPageTitle({ html, title }: { html: string; title: string }, _optional = {}): string {
   return html.replace(/<title>\{\{title\}\}<\/title>/, () => `<title>${escapeHtml(title)}</title>`);
 }
 
@@ -196,7 +196,7 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
   // offers both, so a flat header/footer silently ignoring them was a render-path divergence.
   return items
     .filter((item) => item.available && item.href !== null)
-    .map((item) => `<a href="${escapeHtml(safeHref(item.href as string))}"${menuItemLinkAttrs(item)}>${escapeHtml(item.label)}</a>`)
+    .map((item) => `<a href="${escapeHtml(safeHref({ value: item.href as string }))}"${menuItemLinkAttrs(item)}>${escapeHtml(item.label)}</a>`)
     .join("");
 }
 
@@ -229,7 +229,7 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
  */
 /** The `<li>` class list: structural hooks first, then the item's own authored `cssClass`. Raw —
  *  the caller escapes it, since authored `cssClass` is admin-controlled attribute text. */
-function menuItemClasses(item: StaticMenuItem, depth: number): string {
+function menuItemClasses({ item, depth }: { item: StaticMenuItem; depth: number }, _optional = {}): string {
   return [
     "menu-item",
     `depth-${depth}`,
@@ -269,10 +269,10 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
  * `icon`/`description` render as child spans so a theme can style or ignore them without this
  * renderer having to know an icon set.
  */
-function menuItemBody(item: StaticMenuItem, linkable: boolean): string {
+function menuItemBody({ item, linkable }: { item: StaticMenuItem; linkable: boolean }, _optional = {}): string {
   const inner = menuItemInnerHtml(item);
   if (!linkable) return `<span class="menu-item-label" data-toolname="menu_${agentHandleSegment({ value: item.label })}" data-tooldescription="${escapeHtml(item.label)}" data-tool-action="read">${inner}</span>`;
-  return `<a href="${escapeHtml(safeHref(item.href as string))}"${menuItemLinkAttrs(item)}>${inner}</a>`;
+  return `<a href="${escapeHtml(safeHref({ value: item.href as string }))}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
 /** Set for `{"variant":"dropdown"}` menus: hands out the child-`<ul>` ids the toggles point at. */
@@ -284,31 +284,40 @@ type MenuDropdown = { nextId(): string };
  * is the child `<ul>`'s id: after the `<a>` (split button), or in place of the label when the parent
  * has no real link (unresolved, or exactly `"#"`). Leaves render exactly as the tree variant.
  */
-function renderMenuItem(item: StaticMenuItem, depth: number, dropdown?: MenuDropdown): string {
+function renderMenuItem({ item, depth }: { item: StaticMenuItem; depth: number }, { dropdown }: { dropdown?: MenuDropdown } = {}): string {
   const linkable = item.available && item.href !== null;
-  const lis = item.children.length > 0 ? renderMenuItems(item.children, depth + 1, dropdown) : "";
+  const lis = item.children.length > 0 ? renderMenuItems({ items: item.children, depth: depth + 1 }, { dropdown }) : "";
   if (!linkable && lis === "") return "";
-  const classes = escapeHtml(menuItemClasses(item, depth));
+  const classes = escapeHtml(menuItemClasses({ item, depth }));
   if (dropdown === undefined || lis === "") {
     const children = lis === "" ? "" : `<ul class="menu-list depth-${depth + 1}">${lis}</ul>`;
-    return `<li class="${classes}">${menuItemBody(item, linkable)}${children}</li>`;
+    return `<li class="${classes}">${menuItemBody({ item, linkable })}${children}</li>`;
   }
+  return renderDropdownBranch({ item, linkable, classes, depth, lis, dropdown });
+}
+
+/** The dropdown half of {@link renderMenuItem}: a branch with children gets its toggle (split button
+ *  after the `<a>`, or in place of the label for a parent with no real link). */
+function renderDropdownBranch(
+  { item, linkable, classes, depth, lis, dropdown }: { item: StaticMenuItem; linkable: boolean; classes: string; depth: number; lis: string; dropdown: MenuDropdown },
+  _optional = {},
+): string {
   const controlsId = dropdown.nextId();
   const body = linkable && item.href !== "#"
-    ? menuItemBody(item, true) + renderVisitorMenuToggle({ controlsId, label: item.label })
+    ? menuItemBody({ item, linkable: true }) + renderVisitorMenuToggle({ controlsId, label: item.label })
     : renderVisitorMenuToggle({ controlsId, label: item.label }, { asLabel: true });
   return `<li class="${classes}">${body}<ul class="menu-list depth-${depth + 1}" id="${escapeHtml(controlsId)}">${lis}</ul></li>`;
 }
 
-function renderMenuItems(items: readonly StaticMenuItem[], depth: number, dropdown?: MenuDropdown): string {
+function renderMenuItems({ items, depth }: { items: readonly StaticMenuItem[]; depth: number }, { dropdown }: { dropdown?: MenuDropdown } = {}): string {
   return items
-    .map((item) => renderMenuItem(item, depth, dropdown))
+    .map((item) => renderMenuItem({ item, depth }, { dropdown }))
     .filter((li) => li !== "")
     .join("");
 }
 
 function renderMenuTree(items: readonly StaticMenuItem[], dropdown?: MenuDropdown): string {
-  const rendered = renderMenuItems(items, 0, dropdown);
+  const rendered = renderMenuItems({ items, depth: 0 }, { dropdown });
   if (rendered === "") return "";
   return `<ul class="menu-list depth-0"${dropdown === undefined ? "" : " data-jini-dropdown"}>${rendered}</ul>`;
 }
@@ -326,10 +335,7 @@ function renderMenuTree(items: readonly StaticMenuItem[], dropdown?: MenuDropdow
  * inside. That split is the point of the 2026-08-10 unification — four scanners with four regexes
  * became one.
  */
-function injectMenuEmbeds(
-  html: string,
-  menus: Readonly<Record<string, StaticMenuContent>>
-): string {
+function injectMenuEmbeds({ html, menus }: { html: string; menus: Readonly<Record<string, StaticMenuContent>> }, _optional = {}): string {
   // One counter per page, so two dropdown markers never mint the same submenu id.
   let submenuCount = 0;
   const dropdown: MenuDropdown = { nextId: () => {
@@ -340,9 +346,9 @@ function injectMenuEmbeds(
     if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
     if (items === undefined) return undefined;
-    if (!Array.isArray(items)) return injectAuthoredMenuHtml(marker, (items as StaticHtmlMenu).html);
+    if (!Array.isArray(items)) return injectAuthoredMenuHtml({ marker, html: (items as StaticHtmlMenu).html });
     if (marker.config.mode === "html") {
-      const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: safeHref });
+      const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: (value) => safeHref({ value }) });
       // Match forms: a bare marker disappears; explicitly authored wrapper attributes survive.
       return plain === "" ? undefined : withElementKeptIfAttributed({ marker: marker, inner: plain });
     }
@@ -363,7 +369,7 @@ function injectMenuEmbeds(
  * embed" marker disappears, the same rule the generated `mode: "html"` menu above follows. Empty
  * markup leaves the authored fallback, like an empty item tree.
  */
-function injectAuthoredMenuHtml(marker: EmbedMarker, html: string): string | undefined {
+function injectAuthoredMenuHtml({ marker, html }: { marker: EmbedMarker; html: string }, _optional = {}): string | undefined {
   if (html.trim() === "") return undefined;
   return marker.config.mode === "html"
     ? withElementKeptIfAttributed({ marker: marker, inner: html })
@@ -484,12 +490,7 @@ function renderPostPreviewCard(preview: StaticPostPreview): string {
  * @complexity O(n) over `html`'s length for the marker scan/splice, plus O(m) over the small, fixed
  * number of post-previews markers a real page carries.
  */
-function injectPostPreviewsEmbeds(
-  html: string,
-  previews: readonly StaticPostPreview[],
-  batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>>,
-  page?: StaticPostPreviewsPage
-): string {
+function injectPostPreviewsEmbeds({ html, previews, batches }: { html: string; previews: readonly StaticPostPreview[]; batches: ReadonlyMap<number, StaticListingBatch<StaticPostPreview>> }, { page }: { page?: StaticPostPreviewsPage } = {}): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== POST_PREVIEWS_MARKER_TYPE) return undefined;
     if (page !== undefined && isPagedPostPreviewsMarker(marker)) return renderPagedPostPreviews({ marker, page });
@@ -560,7 +561,7 @@ export interface StaticCollectionList {
  * the surrounding document.
  */
 export function collectionMarkerKey(marker: EmbedMarker): string {
-  const { template } = splitCollectionMarkerInner(marker.inner);
+  const { template } = splitCollectionMarkerInner({ inner: marker.inner });
   const key = template === undefined ? JSON.stringify(marker.config) : JSON.stringify([marker.config, template]);
   // A see-more listing renders its own key's batch, so it never shares an entry with another marker.
   const listingKey = listingKeyOfAttributes({ attrs: marker.attrs });
@@ -577,7 +578,7 @@ export function collectionMarkerKey(marker: EmbedMarker): string {
  *
  * @complexity O(n) over `inner`'s length for the two substring scans plus the slice/concat.
  */
-export function splitCollectionMarkerInner(inner: string): { template?: string; fallback: string } {
+export function splitCollectionMarkerInner({ inner }: { inner: string }, _optional = {}): { template?: string; fallback: string } {
   const openTag = "<template>";
   const closeTag = "</template>";
   const start = inner.indexOf(openTag);
@@ -603,7 +604,7 @@ export function splitCollectionMarkerInner(inner: string): { template?: string; 
  * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass, plus O(1)
  * per collection marker for the map lookup.
  */
-function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string | undefined>): string {
+function injectCollectionEmbeds({ html, lists }: { html: string; lists: ReadonlyMap<string, string | undefined> }, _optional = {}): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== COLLECTION_MARKER_TYPE) return undefined;
     const rendered = lists.get(collectionMarkerKey(marker));
@@ -612,7 +613,7 @@ function injectCollectionEmbeds(html: string, lists: ReadonlyMap<string, string 
     const html = withInnerContentFinal({ marker: marker, inner: rendered });
     // A built-in layout's own wrapper is the see-more container, so the marker element gives up the
     // key; in template mode the items sit directly in the marker element, which keeps it.
-    return listingKey === undefined || splitCollectionMarkerInner(marker.inner).template !== undefined
+    return listingKey === undefined || splitCollectionMarkerInner({ inner: marker.inner }).template !== undefined
       ? html
       : html.replace(` data-jini-listing="${listingKey}"`, "");
   } });
@@ -654,7 +655,7 @@ export function renderCoverImageTag({ image }: { image: StaticFeaturedImage }, o
  *
  * @complexity O(n) over `html`'s length — one `substituteMarkers` scan-and-splice pass.
  */
-export function injectFeaturedImage(html: string, image: StaticFeaturedImage | null | undefined): string {
+export function injectFeaturedImage({ html, image }: { html: string; image: StaticFeaturedImage | null | undefined }, _optional = {}): string {
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== FEATURED_IMAGE_MARKER_TYPE) return undefined;
     return image ? withInnerContentFinal({ marker: marker, inner: renderCoverImageTag({ image }) }) : "";
@@ -724,7 +725,7 @@ export function postAuthorForContentHeader(
  * user-switchable ships its own toggle script against `document.documentElement.dataset.theme`; this
  * only establishes the server-rendered starting value.
  */
-function injectColorMode(html: string, defaultMode: string | undefined): string {
+function injectColorMode({ html, defaultMode }: { html: string; defaultMode: string | undefined }, _optional = {}): string {
   if (defaultMode === undefined) return html;
   return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, (_match, attributes: string) => `<html${attributes} data-theme="${escapeHtml(defaultMode)}">`);
 }
@@ -737,7 +738,7 @@ function injectColorMode(html: string, defaultMode: string | undefined): string 
  */
 function injectTokenStylesheet(required: { html: string; theme: DiscoveredTheme; pageId: string }): string {
   const { html, theme, pageId } = required;
-  const sentinel = tokenStylesheetSentinel(theme.manifest.apiVersion);
+  const sentinel = tokenStylesheetSentinel({}, { apiVersion: theme.manifest.apiVersion });
   if (!html.includes(sentinel)) {
     console.warn(
       `[theme] static page '${theme.manifest.id}/${pageId}' is missing the exact token stylesheet sentinel; design tokens were not injected`
@@ -758,7 +759,7 @@ function injectTokenStylesheet(required: { html: string; theme: DiscoveredTheme;
 function warnUnrewrittenAssetPaths(required: { html: string; theme: DiscoveredTheme; pageId: string }): void {
   const { html, theme, pageId } = required;
   const apiVersion = theme.manifest.apiVersion;
-  const unrewrittenAssetPaths = findUnrewrittenAssetPaths(html, apiVersion);
+  const unrewrittenAssetPaths = findUnrewrittenAssetPaths({ html }, { apiVersion });
   if (unrewrittenAssetPaths.length === 0) return;
   const assetFolders = apiVersion === 2 ? "../css//../scripts/" : "../css//../js/";
   console.warn(
@@ -824,17 +825,17 @@ export function renderStaticPage(
   if (source === undefined) return null;
 
   let html = injectTokenStylesheet({ html: source, theme, pageId });
-  html = rewriteAssetPaths(html, theme.manifest.id, theme.manifest.apiVersion);
+  html = rewriteAssetPaths({ html, themeId: theme.manifest.id }, { apiVersion: theme.manifest.apiVersion });
   warnUnrewrittenAssetPaths({ html, theme, pageId });
-  html = injectColorMode(html, theme.manifest.defaultMode);
+  html = injectColorMode({ html, defaultMode: theme.manifest.defaultMode });
   html = expandPartials({ html: html, theme: theme });
-  html = injectMenuEmbeds(html, menus ?? {});
-  html = injectPostPreviewsEmbeds(html, postPreviews ?? [], postPreviewBatches ?? new Map(), postPreviewsPage);
-  html = injectCollectionEmbeds(html, collectionLists ?? new Map());
-  html = injectFeaturedImage(html, featuredImage);
+  html = injectMenuEmbeds({ html, menus: menus ?? {} });
+  html = injectPostPreviewsEmbeds({ html, previews: postPreviews ?? [], batches: postPreviewBatches ?? new Map() }, { page: postPreviewsPage });
+  html = injectCollectionEmbeds({ html, lists: collectionLists ?? new Map() });
+  html = injectFeaturedImage({ html, image: featuredImage });
   html = injectPostAuthor({ html, post: postAuthor });
   html = withEntryListStyleOnce(html);
-  html = rewritePageLinks(html);
+  html = rewritePageLinks({ html });
   return injectMenuDropdownScript({ html: injectListingScript({ html }) });
 }
 
@@ -846,13 +847,13 @@ export function renderStaticPage(
  * stylesheet through the SAME code path a real page uses, for either schema version, no second
  * "inject styles into a fragment" mechanism to keep in sync with the first.
  */
-function wrapPartialInHostDocument(partialHtml: string, apiVersion?: 2): string {
+function wrapPartialInHostDocument({ partialHtml }: { partialHtml: string }, { apiVersion }: { apiVersion?: 2 } = {}): string {
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
 <title>Partial preview</title>
-${tokenStylesheetSentinel(apiVersion)}
+${tokenStylesheetSentinel({}, { apiVersion })}
 </head>
 <body>
 ${partialHtml}
@@ -897,7 +898,7 @@ export function renderStaticFragment(
   const rendered = renderStaticPage({
     theme,
     pageId: label,
-    htmlOverride: wrapPartialInHostDocument(html, theme.manifest.apiVersion),
+    htmlOverride: wrapPartialInHostDocument({ partialHtml: html }, { apiVersion: theme.manifest.apiVersion }),
   });
   // htmlOverride is always supplied, so renderStaticPage's missing-source branch cannot run.
   if (rendered === null) throw new Error("Static theme fragment has no rendered page");
@@ -1018,7 +1019,7 @@ export function resolveTemplate(
   const { theme, templateChoice } = required;
   if (templateChoice === "") return { kind: "diagnostic" };
 
-  const resolveAgainstTheme = (choice: string | undefined): PostTemplateResolution | undefined => {
+  const resolveAgainstTheme = ({ choice }: { choice: string | undefined }, _optional = {}): PostTemplateResolution | undefined => {
     if (choice === undefined || choice === "") return undefined;
     const requestedId = choice.replace(/\.html$/, "");
     const pageId = theme.pages[requestedId] !== undefined ? requestedId : (LEGACY_TEMPLATE_FILENAME_ALIASES[requestedId] ?? requestedId);
@@ -1035,8 +1036,8 @@ export function resolveTemplate(
   };
 
   return (
-    resolveAgainstTheme(templateChoice ?? undefined) ??
-    resolveAgainstTheme(theme.manifest.templates?.[0]) ?? { kind: "diagnostic" }
+    resolveAgainstTheme({ choice: templateChoice ?? undefined }) ??
+    resolveAgainstTheme({ choice: theme.manifest.templates?.[0] }) ?? { kind: "diagnostic" }
   );
 }
 
@@ -1234,7 +1235,7 @@ const warnedPageShellFallbackMisses = new Set<string>();
  * @returns Nothing. Side effect: one `console.warn`, only on the first call for this message.
  * @complexity O(1) — one `Set` lookup plus at most one insert.
  */
-function warnPageShellFallbackMissOnce(message: string): void {
+function warnPageShellFallbackMissOnce({ message }: { message: string }, _optional = {}): void {
   if (warnedPageShellFallbackMisses.has(message)) return;
   warnedPageShellFallbackMisses.add(message);
   console.warn(message);
@@ -1270,7 +1271,7 @@ function findPageShellCandidate(theme: DiscoveredTheme): PageShellCandidateOutco
 /** The `[theme] …` miss diagnostic for {@link resolveStaticTierPageShellFallback}'s two non-`"usable"`
  *  {@link PageShellCandidateOutcome}s — split out purely to keep that function's own branch count
  *  down; has no side effect of its own, {@link warnPageShellFallbackMissOnce} still owns emitting it. */
-function pageShellMissMessage(themeId: string, candidate: { kind: "slotless"; id: string } | { kind: "none" }): string {
+function pageShellMissMessage({ themeId, candidate }: { themeId: string; candidate: { kind: "slotless"; id: string } | { kind: "none" } }, _optional = {}): string {
   const candidateFilenames = STATIC_TIER_PAGE_SHELL_IDS.map((id) => `${id}.html`);
   const named =
     candidate.kind === "slotless"
@@ -1301,7 +1302,7 @@ export function resolveStaticTierPageShellFallback(
   const candidate = findPageShellCandidate(theme);
   if (candidate.kind === "usable") return `${candidate.id}.html`;
 
-  warnPageShellFallbackMissOnce(pageShellMissMessage(theme.manifest.id, candidate));
+  warnPageShellFallbackMissOnce({ message: pageShellMissMessage({ themeId: theme.manifest.id, candidate }) });
   return undefined;
 }
 

@@ -85,7 +85,7 @@ function countOccurrences(haystack: string, needle: string): number {
  * first occurrence and leaves the rest bare.
  */
 function checkStylesheetSentinel(pageId: string, html: string, apiVersion?: 2): ConformanceIssue[] {
-  const sentinel = tokenStylesheetSentinel(apiVersion);
+  const sentinel = tokenStylesheetSentinel({}, { apiVersion });
   const count = countOccurrences(html, sentinel);
   if (count === 1) return [];
   return [
@@ -120,8 +120,8 @@ function checkStylesheetSentinel(pageId: string, html: string, apiVersion?: 2): 
  * assets were never actually verified, rather than reading silence as a clean bill of health.
  */
 function checkAssetPaths(pageId: string, html: string, themeId: string, apiVersion?: 2): ConformanceIssue[] {
-  const totalReferences = findUnrewrittenAssetPaths(html, apiVersion).length; // count BEFORE rewriting -- rewritable or not
-  const unrewritten = findUnrewrittenAssetPaths(rewriteAssetPaths(html, themeId, apiVersion), apiVersion);
+  const totalReferences = findUnrewrittenAssetPaths({ html }, { apiVersion }).length; // count BEFORE rewriting -- rewritable or not
+  const unrewritten = findUnrewrittenAssetPaths({ html: rewriteAssetPaths({ html, themeId }, { apiVersion }) }, { apiVersion });
   const issues: ConformanceIssue[] = unrewritten.map((reference) => ({
     page: pageId,
     rule: "asset-path",

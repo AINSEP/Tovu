@@ -93,7 +93,7 @@ const V2_LAYOUT: ThemeLayout = {
  *
  * @complexity O(1) — returns one of two frozen constants, no allocation.
  */
-export function resolveThemeLayout(apiVersion?: 2): ThemeLayout {
+export function resolveThemeLayout(_required: Record<string, never>, { apiVersion }: { apiVersion?: 2 } = {}): ThemeLayout {
   return apiVersion === 2 ? V2_LAYOUT : V1_LAYOUT;
 }
 
@@ -105,8 +105,8 @@ export function resolveThemeLayout(apiVersion?: 2): ThemeLayout {
  *
  * @complexity O(k) in `relativePath`'s length (one `startsWith` check).
  */
-export function isPageFilePath(relativePath: string, apiVersion?: 2): boolean {
-  return relativePath.startsWith(`${resolveThemeLayout(apiVersion).pagesDir}/`);
+export function isPageFilePath({ relativePath }: { relativePath: string }, { apiVersion }: { apiVersion?: 2 } = {}): boolean {
+  return relativePath.startsWith(`${resolveThemeLayout({}, { apiVersion }).pagesDir}/`);
 }
 
 /**
@@ -117,9 +117,9 @@ export function isPageFilePath(relativePath: string, apiVersion?: 2): boolean {
  *
  * @complexity O(k) in `relativePath`'s length.
  */
-export function isPartialFilePath(relativePath: string, apiVersion?: 2): boolean {
+export function isPartialFilePath({ relativePath }: { relativePath: string }, { apiVersion }: { apiVersion?: 2 } = {}): boolean {
   if (!relativePath.endsWith(".html")) return false;
-  const { partialsDir } = resolveThemeLayout(apiVersion);
+  const { partialsDir } = resolveThemeLayout({}, { apiVersion });
   return partialsDir === "" ? !relativePath.includes("/") : relativePath.startsWith(`${partialsDir}/`);
 }
 

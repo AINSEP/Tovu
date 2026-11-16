@@ -36,7 +36,7 @@ test("release stock matches the tracked site reference, without promoting local 
     .filter((file) => file !== SITE_ONLY_DRAFT).sort();
   assert.ok(referenceFiles.includes("theme.json"), "the tracked reference must exist; do not skip a missing site");
   assert.ok(!fs.existsSync(path.join(STOCK_DIR, SITE_ONLY_DRAFT)), "the site-only draft must not be promoted into release stock");
-  assert.deepEqual(relativeFilePaths(STOCK_DIR), referenceFiles,
+  assert.deepEqual(relativeFilePaths({ dir: STOCK_DIR }), referenceFiles,
     "stock/reference file sets drifted: reconcile added, deleted or renamed files before releasing");
 
   for (const file of referenceFiles) {
