@@ -4,7 +4,8 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
 import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { checkSitePathname, hasControlCharacter } from "#src/platform/routing/index";
+import { hasControlCharacter } from "@jini-ai/http-kit/verified-origin";
+import { checkSitePathname } from "#src/platform/routing/index";
 import type { SitePathCheck } from "#src/platform/routing/index";
 
 /**

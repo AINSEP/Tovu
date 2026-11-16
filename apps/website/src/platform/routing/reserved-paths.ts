@@ -22,34 +22,22 @@
  */
 
 import {
-  hasControlCharacter as sharedHasControlCharacter,
   checkSitePathname as sharedCheckSitePathname,
   checkSiteRelativeTarget as sharedCheckSiteRelativeTarget,
+  type SitePathCheck as SharedSitePathCheck,
+  type SiteRelativeTargetCheck as SharedSiteRelativeTargetCheck,
 } from "@jini-ai/http-kit/verified-origin";
 
 /** A path that lands on the admin application instead of the public site. */
 export type ReservedSurface = "admin" | "api";
 
-/** {@link checkSitePathname}'s verdict. Every arm is a refusal except `ok`. */
-export type SitePathCheck =
-  | { kind: "ok" }
-  /** `decodeURIComponent` threw — a stray or truncated `%` sequence. */
-  | { kind: "malformed-encoding" }
-  /** Decodes to a backslash (a `/` to URL parsers) or a C0/C1 control character (CR/LF splitting). */
-  | { kind: "disallowed-character" }
-  | { kind: "reserved"; surface: ReservedSurface };
+/** {@link checkSitePathname}'s verdict: the shared verdict, its `reserved` arm narrowed to this app's
+ *  surfaces. Every arm is a refusal except `ok`; each arm is documented on the shared type. */
+export type SitePathCheck = Exclude<SharedSitePathCheck, { kind: "reserved" }> | { kind: "reserved"; surface: ReservedSurface };
 
-/** {@link checkSiteRelativeTarget}'s verdict — {@link SitePathCheck} plus the two structural arms
- *  that only apply when the input is still a raw, unparsed reference. */
-export type SiteRelativeTargetCheck =
-  | SitePathCheck
-  /** `new URL()` could not parse it at all. */
-  | { kind: "unparseable" }
-  /** Parses, but resolves to a DIFFERENT host — e.g. `/\evil.example`, which starts with a single
-   *  slash yet is `//evil.example` to a URL parser, so a `startsWith("//")` test never sees it. */
-  | { kind: "off-origin" };
-
-
+/** {@link checkSiteRelativeTarget}'s verdict: the shared verdict, its `reserved` arm narrowed to this
+ *  app's surfaces. */
+export type SiteRelativeTargetCheck = Exclude<SharedSiteRelativeTargetCheck, { kind: "reserved" }> | { kind: "reserved"; surface: ReservedSurface };
 
 /**
  * The segment names the admin application owns. Compared case-folded, one segment deep.
@@ -57,15 +45,6 @@ export type SiteRelativeTargetCheck =
  * skip them through the normal collision suffix search (BR-02).
  */
 export const RESERVED_SEGMENTS: ReadonlySet<string> = new Set<ReservedSurface>(["admin", "api"]);
-
-/** C0/C1 check delegated to the generic site-path owner.
- * @param required.value any string; returns whether it contains a control character.
- * @complexity O(value.length).
- * @example hasControlCharacter("/ok"); // false
- */
-export function hasControlCharacter({ value }: { value: string }, _optional = {}): boolean {
-  return sharedHasControlCharacter({ value }, {});
-}
 
 /** Check an already-parsed URL against this app's reserved surfaces.
  * @param required.url a URL already established to be on this site's origin.

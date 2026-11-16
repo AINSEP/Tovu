@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkSitePathname, checkSiteRelativeTarget, hasControlCharacter } from "../reserved-paths.js";
+import { checkSitePathname, checkSiteRelativeTarget } from "../reserved-paths.js";
 import { resolveSameOriginPath } from "#src/features/site-inspection/published-page";
 
 /**
@@ -138,18 +138,6 @@ test("checkSiteRelativeTarget still applies the reserved-surface rule after pars
 
 test("checkSiteRelativeTarget reports an unparseable reference", () => {
   assert.deepEqual(checkSiteRelativeTarget({ raw: "http://[" }), { kind: "unparseable" });
-});
-
-test("hasControlCharacter finds C0 and C1 but not printable ASCII", () => {
-  for (const [code, expected] of [
-    [0x00, true], [0x1f, true], [0x20, false], [0x7e, false],
-    [0x7f, true], [0x80, true], [0x9f, true], [0xa0, false],
-  ] as const) {
-    assert.equal(hasControlCharacter({ value: `/ok${String.fromCharCode(code)}` }), expected, `U+${code.toString(16)}`);
-  }
-  assert.equal(hasControlCharacter({ value: "/ok" }), false);
-  assert.equal(hasControlCharacter({ value: "/ok\n" }), true);
-  assert.equal(hasControlCharacter({ value: "/ok" }), true);
 });
 
 // ---------------------------------------------------------------------------
