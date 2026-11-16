@@ -1,0 +1,1321 @@
+[
+ {
+  "id": "K1a",
+  "what": "installation-id purpose string changed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "const INSTALLATION_ID_PURPOSE = \"publish-trust-installation-id\";",
+  "replace": "const INSTALLATION_ID_PURPOSE = \"publish-trust-installation-idX\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2a",
+  "what": "signing-key purpose string changed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "const SIGNING_KEY_PURPOSE = \"publish-trust-signing-key\";",
+  "replace": "const SIGNING_KEY_PURPOSE = \"publish-trust-signing-keyX\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2b",
+  "what": "target origin dropped from the signing-key derivation input",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "info: `${input.sourceInstallationId}:${input.targetOrigin}:v${input.generation}`,",
+  "replace": "info: `${input.sourceInstallationId}:v${input.generation}`,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2c",
+  "what": "generation dropped from the signing-key derivation input",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "info: `${input.sourceInstallationId}:${input.targetOrigin}:v${input.generation}`,",
+  "replace": "info: `${input.sourceInstallationId}:${input.targetOrigin}`,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2d",
+  "what": "signature verifier fails open on a crypto throw",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "  } catch {\n    return false;\n  }\n}",
+  "replace": "  } catch {\n    return true;\n  }\n}",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/keys-fail-closed-guard.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K2e",
+  "what": "malformed key/signature length guard removed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "if (!rawPublicKey || !signature) return false;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/keys-fail-closed-guard.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K3a",
+  "what": "challenge domain tag renamed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "const CHALLENGE_MESSAGE_VERSION = \"tovu-publish-challenge-v1\";",
+  "replace": "const CHALLENGE_MESSAGE_VERSION = \"publish-challenge-v1\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K3b",
+  "what": "challenge message field order swapped (target/source)",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "    input.targetInstallationId,\n    input.sourceInstallationId,\n    String(input.generation),",
+  "replace": "    input.sourceInstallationId,\n    input.targetInstallationId,\n    String(input.generation),",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K3c",
+  "what": "capabilities dropped from the signed message",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "    [...input.capabilities].sort().join(\",\"),\n  ].join(\"\\n\");",
+  "replace": "  ].join(\"\\n\");",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a1",
+  "what": "identity required-field check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "replace": "if (!isNonEmptyString(installationId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a2",
+  "what": "identity installationId check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "replace": "if (!isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a3",
+  "what": "challenge nonce check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw",
+  "replace": "if (!isNonEmptyString(targetInstallationId)) throw",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a4",
+  "what": "challenge targetInstallationId check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw",
+  "replace": "if (!isNonEmptyString(nonce)) throw",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a5",
+  "what": "session token check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(token)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4b1",
+  "what": "identity origin fallback changed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "origin: typeof origin === \"string\" ? origin : input.baseUrl };",
+  "replace": "origin: typeof origin === \"string\" ? origin : \"\" };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4b2",
+  "what": "session expiresAt fallback changed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "expiresAt: typeof minted.expiresAt === \"string\" ? minted.expiresAt : \"\",",
+  "replace": "expiresAt: typeof minted.expiresAt === \"string\" ? minted.expiresAt : \"never\",",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4b3",
+  "what": "session capabilities fallback changed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "      : requested,",
+  "replace": "      : [],",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4c",
+  "what": "handshake timeout removed from the request",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "      timeoutMs: HANDSHAKE_TIMEOUT_MS,\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K5",
+  "what": "destination workspace re-check removed",
+  "file": "apps/website/src/features/publish-content/destination-credential.ts",
+  "find": "if (session.identity.workspaceId !== record.remoteWorkspaceId) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/destination-credential.test.ts"
+  ]
+ },
+ {
+  "id": "D1a",
+  "what": "nonce not consumed (replay allowed)",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (record) this.records.delete(nonce);",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D1b",
+  "what": "nonce expiry check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (isChallengeExpired({ record: issued, now })) return \"nonce has expired\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D1c",
+  "what": "unknown nonce accepted",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!issued) return refuse({ reason: \"nonce is unknown or was already used\" });",
+  "replace": "if (!issued) return { ok: true, verified: { sourceInstallationId: response.sourceInstallationId, targetInstallationId: input.targetInstallationId, generation: response.generation, capabilities: [] } };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D1d",
+  "what": "nonce audience check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (issued.targetInstallationId !== targetInstallationId) return \"nonce was issued for another destination\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2a",
+  "what": "grant-active check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!isGrantActive({ grant, nowIso })) return \"the publishing grant has expired or been revoked\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2b",
+  "what": "source-matches-grant check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (response.sourceInstallationId !== grant.sourceInstallationId) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2c",
+  "what": "capability-within-grant check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!grantAllowsCapability({ grant, capability })) return `'${String(capability)}' is outside this grant`;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2d",
+  "what": "signature check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: response.signatureB64u })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2e",
+  "what": "key looked up without the claimed generation",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "grant.publicKeys.find((candidate) => candidate.generation === response.generation);",
+  "replace": "grant.publicKeys[0];",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2f",
+  "what": "empty capability list accepted",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!Array.isArray(capabilities) || capabilities.length === 0) return \"no capabilities requested\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D3a",
+  "what": "unreadable revocations no longer refuse",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (input.revocations === null) return refuse(\"revocations-unreadable\");\n  if (isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse(\"disconnected\");",
+  "replace": "if (input.revocations !== null && isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse(\"disconnected\");",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3b",
+  "what": "revoked check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse(\"disconnected\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3c",
+  "what": "site-configured check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (input.resolution.state !== \"configured\") return refuse(\"site-not-configured\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3d",
+  "what": "grant-active (expiry) check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (!isGrantActive({ grant, nowIso: input.nowIso })) return refuse(\"expired\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3e",
+  "what": "superseded-key check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) return refuse(\"superseded-key\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D4a1",
+  "what": "MAC check always passes",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "return presented.length === expected.length && timingSafeEqual(presented, expected);",
+  "replace": "return true;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a2",
+  "what": "expiry claim check removed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "if (now >= Date.parse(payload.expiresAtIso)) return \"session token has expired\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a3",
+  "what": "audience claim check removed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "if (payload.targetInstallationId !== expectedAudience) return \"session token was minted for another destination\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a4",
+  "what": "workspace claim check removed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "if (payload.workspaceId !== workspaceId) return \"session token was minted for another workspace\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a5",
+  "what": "session key derived without the workspace",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "workspaceId: deps.workspaceId as never,\n    purpose: SESSION_KEY_PURPOSE,",
+  "replace": "workspaceId: \"fixed\" as never,\n    purpose: SESSION_KEY_PURPOSE,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a6",
+  "what": "session key purpose string changed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "const SESSION_KEY_PURPOSE = \"publish-trust-session-key\";",
+  "replace": "const SESSION_KEY_PURPOSE = \"publish-trust-session-keyX\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4b",
+  "what": "payload parsed before the MAC is checked",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n\n  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n",
+  "replace": "  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K1b",
+  "what": "installation-id length 16 -> 15 bytes",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "const INSTALLATION_ID_BYTES = 16;",
+  "replace": "const INSTALLATION_ID_BYTES = 15;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/trust-key-pins.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D4c",
+  "what": "MAC compared with a plain string compare instead of timingSafeEqual",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "return presented.length === expected.length && timingSafeEqual(presented, expected);",
+  "replace": "return presentedMac === expectedMac;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/trust-key-pins.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D4b2",
+  "what": "payload parsed before the MAC is checked (outcome pin)",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n\n  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n",
+  "replace": "  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/trust-key-pins.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D3f",
+  "what": "grant-not-found check replaced by first grant",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (grant === null) return refuse(\"not-connected\");",
+  "replace": "if (grant === null) return { allowed: true, grant: (input.resolution as { grants: readonly never[] }).grants[0] };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D5a",
+  "what": "grant version check removed",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "if (doc.version !== PUBLISH_TRUST_GRANT_VERSION) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-parse.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/grant.test.ts"
+  ]
+ },
+ {
+  "id": "D5b",
+  "what": "grant notAfter validation removed",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "if (!isBoundedString(notAfter) || Number.isNaN(Date.parse(notAfter))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-parse.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/grant.test.ts"
+  ]
+ },
+ {
+  "id": "D5c",
+  "what": "grant expiry boundary: active at exactly notAfter",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "return now < notAfter;",
+  "replace": "return now <= notAfter;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-parse.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/grant.test.ts"
+  ]
+ },
+ {
+  "id": "D5d",
+  "what": "provisioned grant count bound raised",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "export const MAX_PROVISIONED_GRANTS = 8;",
+  "replace": "export const MAX_PROVISIONED_GRANTS = 9;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts"
+  ]
+ },
+ {
+  "id": "D5e",
+  "what": "provisioning document byte bound raised",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "const MAX_DOCUMENT_BYTES = 16_384;",
+  "replace": "const MAX_DOCUMENT_BYTES = 16_385_000;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts"
+  ]
+ },
+ {
+  "id": "D5f",
+  "what": "grant lifetime changed",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "export const GRANT_LIFETIME_DAYS = 365;",
+  "replace": "export const GRANT_LIFETIME_DAYS = 3650;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts"
+  ]
+ },
+ {
+  "id": "D6a",
+  "what": "a route added to the trusted list",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "  { method: \"POST\", path: \"/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute\" },\n",
+  "replace": "  { method: \"POST\", path: \"/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute\" },\n  { method: \"POST\", path: \"/api/admin/v1/workspaces/:workspaceId/publish-content/peers\" },\n",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "D6b",
+  "what": "dot-segment guard removed from the route matcher",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "value.length > 0 && value !== \".\" && value !== \"..\"",
+  "replace": "value.length > 0",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "D6c",
+  "what": "method no longer compared by the route matcher",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "if (route.method !== wanted) return false;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F1",
+  "what": "vault scope owner key renamed",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "ownerKey: \"tovu\", principalId: null, provider: null };",
+  "replace": "ownerKey: \"host\", principalId: null, provider: null };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F2",
+  "what": "history row kind renamed",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "kind: \"tovu-peer\",",
+  "replace": "kind: \"peer\",",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F3",
+  "what": "handshake base path renamed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "\"/api/publish-trust/v1\"",
+  "replace": "\"/api/trust/v1\"",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F4",
+  "what": "failure code renamed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "Check the address.`, failure: \"not-a-tovu-site\" });",
+  "replace": "Check the address.`, failure: \"not-a-peer-site\" as never });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F5",
+  "what": "principal id prefix renamed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "PUBLISH_PRINCIPAL_ID_PREFIX = \"pub:\"",
+  "replace": "PUBLISH_PRINCIPAL_ID_PREFIX = \"publisher:\"",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F6",
+  "what": "provisioning env var renamed",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "\"TOVU_PUBLISH_TRUST\"",
+  "replace": "\"PUBLISH_TRUST\"",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F7",
+  "what": "public URL deploy key renamed",
+  "file": "apps/website/src/features/publish-trust/connect.ts",
+  "find": "const PUBLIC_URL_KEY = \"TOVU_PUBLIC_URL\";",
+  "replace": "const PUBLIC_URL_KEY = \"PUBLIC_URL\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "K6a",
+  "what": "summary reports a credential for every row",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "hasCredential: record.sealed !== null,",
+  "replace": "hasCredential: true,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts"
+  ]
+ },
+ {
+  "id": "K6b",
+  "what": "missing-credential refusal removed from the one decrypting function",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "  if (!record.sealed) {\n    throw new PublishContentPeerCredentialMissingError(",
+  "replace": "  if (false) {\n    throw new PublishContentPeerCredentialMissingError(",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts",
+   "apps/website/src/features/publish-content/__tests__/destination-credential.test.ts"
+  ]
+ },
+ {
+  "id": "K6c",
+  "what": "vault context check on write/read authorize removed",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "if (context.kind !== peerScope.kind || context.ownerKey !== peerScope.ownerKey || context.principalId !== null) throw new VaultError({ code: \"context\" });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.l061.test.ts"
+  ]
+ },
+ {
+  "id": "K6d",
+  "what": "record kind/owner check on read removed",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "if (wrongKind || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: \"context\" });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.l061.test.ts"
+  ]
+ },
+ {
+  "id": "K6e",
+  "what": "a connected destination with a saved key is treated as connected (sealed row candidate)",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "    if (row.sealed !== null) continue;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts"
+  ]
+ },
+ {
+  "id": "K7a",
+  "what": "transport error message no longer redacted",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "super(redactSecretShapes({ text: message }).text);",
+  "replace": "super(message);",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.l061.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts"
+  ]
+ },
+ {
+  "id": "K7b",
+  "what": "bearer credential header dropped",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "        authorization: `Bearer ${apiKey}`,\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts"
+  ]
+ },
+ {
+  "id": "K7c",
+  "what": "egress refusal no longer turned into the owner sentence",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "if (err instanceof EgressRefusedError) return describePeerEgressRefusal({ err, baseUrl });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peer-transport.l061.test.ts"
+  ]
+ },
+ {
+  "id": "K9a",
+  "what": "pulled blob hash check removed",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport-blob-pull.test.ts"
+  ]
+ },
+ {
+  "id": "K9b",
+  "what": "peer may ask for a blob outside the selected manifest",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "if (missing.some(sha256 => !selectedHashes.has(sha256))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peer-transport-blob-pull.test.ts"
+  ]
+ },
+ {
+  "id": "K9c",
+  "what": "pull cap raised",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "export const PUBLISH_CONTENT_PULL_MAX_BLOBS = 2000;",
+  "replace": "export const PUBLISH_CONTENT_PULL_MAX_BLOBS = 2001;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D8",
+  "what": "publish-type stamp spread first (caller can override)",
+  "file": "apps/website/src/features/publish-content/type-registry.ts",
+  "find": "authorize({ ...params, publishType } as Parameters<AuthorizeFn>[0]);",
+  "replace": "authorize({ publishType, ...params } as Parameters<AuthorizeFn>[0]);",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/type-registry.test.ts"
+  ]
+ },
+ {
+  "id": "D9a",
+  "what": "staged bundle readable from another workspace",
+  "file": "apps/website/src/features/publish-content/bundle-staging.ts",
+  "find": "if (!record || record.workspaceId !== input.workspaceId) return null;",
+  "replace": "if (!record) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/bundle-staging.test.ts"
+  ]
+ },
+ {
+  "id": "D9b",
+  "what": "expired bundle still loads",
+  "file": "apps/website/src/features/publish-content/bundle-staging.ts",
+  "find": "return isBundleActive({ record, now }) ? record : null;",
+  "replace": "return record;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/bundle-staging.test.ts"
+  ]
+ },
+ {
+  "id": "D9c",
+  "what": "bundle body cap raised",
+  "file": "apps/website/src/features/publish-content/bundle-staging.ts",
+  "find": "PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES = 20 * 1024 * 1024;",
+  "replace": "PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES = 21 * 1024 * 1024;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D10a",
+  "what": "plan hash no longer binds the report",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "return { planHash: planHashOf({ details: report }), details: report };",
+  "replace": "return { planHash: planHashOf({ details: {} }), details: report };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts"
+  ]
+ },
+ {
+  "id": "D10b",
+  "what": "restore point no longer attributed to the actor",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "        createdBy: input.actorId,\n",
+  "replace": "        createdBy: \"someone\",\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts"
+  ]
+ },
+ {
+  "id": "D11a",
+  "what": "a forbidden write is no longer downgraded to a blocked row",
+  "file": "apps/website/src/features/publish-content/apply-loop.ts",
+  "find": "  if (error instanceof ForbiddenError) {\n    return { outcome: \"blocked\", reason: error.message };\n  }\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "D12a",
+  "what": "who-may-use-backstop always true",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "return actorId === ownerId || (await roles.list()).some((role) => role.isBuiltin && (role.name === \"admin\" || role.name === \"owner\"));",
+  "replace": "return true;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts"
+  ]
+ },
+ {
+  "id": "D12b",
+  "what": "denied core tables no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase()) || BACKSTOP_DENIED_TABLE_PATTERNS",
+  "replace": "if (BACKSTOP_DENIED_TABLE_PATTERNS",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D12c",
+  "what": "denied table patterns no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase()) || BACKSTOP_DENIED_TABLE_PATTERNS.some((pattern) => pattern.test(table))) {",
+  "replace": "if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase())) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D12d",
+  "what": "denied column pattern no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_COLUMN_PATTERN.test(column)) return",
+  "replace": "if (false) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D12e",
+  "what": "denied file roots no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith(\"restore-point-\")) return true;",
+  "replace": "if (lower.startsWith(\"restore-point-\")) return true;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts"
+  ]
+ },
+ {
+  "id": "D12f",
+  "what": "secret scan of raw values removed",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (hit) return `Value '${column}' looks like it holds a key (${hit.patternName}); it was not sent.`;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts"
+  ]
+ },
+ {
+  "id": "D12g",
+  "what": "audit-storage-ready check removed",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "if (!(await audit.ready())) throw new Error(\"Send by hand needs its audit storage installed before it can send anything.\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D12h",
+  "what": "pending audit record no longer written before the work",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "  await audit.save({ record: { ...record, result: \"pending\" } });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D12i",
+  "what": "typed-host confirmation removed",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "if (b.typedHost !== destinationHost) return { error: `Type ${destinationHost} to confirm where this send will go.` };",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts"
+  ]
+ },
+ {
+  "id": "D12j",
+  "what": "raw grant capability check: apply capability no longer required",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "return grant !== null && grant.capabilities.includes(\"publish_content.apply\") &&\n    grant.capabilities.includes(\"publish_content.backstop\") && grant.entityTypes.includes(entityType);",
+  "replace": "return grant !== null && grant.entityTypes.includes(entityType);",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-backstop.test.ts"
+  ]
+ },
+ {
+  "id": "D12k",
+  "what": "mixed raw/normal bundle no longer refused",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "if (raw.length !== entities.length) throw new Error(\"Send by hand cannot include normally published items.\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop.l061.test.ts",
+   "apps/website/src/features/publish-content/__tests__/planner-hash-upgrade.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "D13a",
+  "what": "parent-directory segment allowed in a tree path",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (segment === \".\" || segment === \"..\") return",
+  "replace": "if (false) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts"
+  ]
+ },
+ {
+  "id": "D13b",
+  "what": "absolute path allowed",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (relPath.startsWith(\"/\")) return",
+  "replace": "if (false) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts"
+  ]
+ },
+ {
+  "id": "D13c",
+  "what": "environment file name allowed",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (base === \".env\" || base.startsWith(\".env.\")) return \"looks like an environment file\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D13d",
+  "what": "secret scan hit ignored",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "      return `\"${file.path}\" looks like it holds a key (${hit.patternName})`;",
+  "replace": "      continue;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts"
+  ]
+ },
+ {
+  "id": "D13e",
+  "what": "missing text sample for the secret scan accepted",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (file.textSample === undefined) return `\"${file.path}\" is missing the text required for its secret scan`;",
+  "replace": "if (file.textSample === undefined) continue;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts"
+  ]
+ },
+ {
+  "id": "D13f",
+  "what": "private key file extension allowed",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (/\\.(?:pem|key|p12|pfx)$/.test(base)) return \"looks like a private key or certificate file\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts"
+  ]
+ },
+ {
+  "id": "C1",
+  "what": "connect: grant not reversed when recording the connection fails",
+  "file": "apps/website/src/features/publish-content/connect-destination.ts",
+  "find": "    try {\n      await deps.reverseGrant();\n    } catch {\n      /* the original failure below is the one worth reporting */\n    }\n    throw err;\n  }\n\n  return { site, grant };",
+  "replace": "    throw err;\n  }\n\n  return { site, grant };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/connect-destination.compensation.test.ts"
+  ]
+ },
+ {
+  "id": "C1b",
+  "what": "connect: a failed reversal replaces the primary error",
+  "file": "apps/website/src/features/publish-content/connect-destination.ts",
+  "find": "    try {\n      await deps.reverseGrant();\n    } catch {\n      /* the original failure below is the one worth reporting */\n    }\n    throw err;\n  }\n\n  return { site, grant };",
+  "replace": "    await deps.reverseGrant();\n    throw err;\n  }\n\n  return { site, grant };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/connect-destination.compensation.test.ts"
+  ]
+ },
+ {
+  "id": "C2",
+  "what": "disconnect: row not restored when the grant reversal fails",
+  "file": "apps/website/src/features/publish-content/connect-destination.ts",
+  "find": "    if (row) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/connect-destination.compensation.test.ts"
+  ]
+ },
+ {
+  "id": "H1a",
+  "what": "a token that does not verify is answered 401 instead of falling through",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (verified === null || !verified.ok) {\n      next();\n      return;\n    }",
+  "replace": "    if (verified === null || !verified.ok) {\n      res.status(401).json(UNAUTHENTICATED_BODY);\n      return;\n    }",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts",
+   "apps/website/src/server/inbound/admin-http/__tests__/publish-trust-keyless.unit.test.ts"
+  ]
+ },
+ {
+  "id": "H1b",
+  "what": "an unverified token is given a publishing context",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (verified === null || !verified.ok) {\n      next();\n      return;\n    }",
+  "replace": "    if (verified === null || !verified.ok) {\n      res.locals.publishTrust = { sourceInstallationId: \"x\", capabilities: [\"publish_content.apply\", \"publish_content.read\"], entityTypes: [\"post\"], generation: 1 };\n      next();\n      return;\n    }",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H2",
+  "what": "trusted-route check removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "if (!isPublishTrustRoute({ method: req.method, path: req.originalUrl })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H3a",
+  "what": "unreadable revocations treated as an empty list",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "revocations: revocations.ok ? revocations.revocations : null,",
+  "replace": "revocations: revocations.ok ? revocations.revocations : [],",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H3b",
+  "what": "a rejecting revocation/grant source no longer refuses",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "      // Preserve the same fail-closed refusal if a source rejects instead of returning its contract.\n      res.status(401).json(UNAUTHENTICATED_BODY);\n      return;",
+  "replace": "      revocations = { ok: true, revocations: [] } as RevocationRead;\n      resolution = await deps.grants();",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H4",
+  "what": "admission refusal ignored when a grant exists (revoked source admitted)",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "revocations: revocations.ok ? revocations.revocations : null,",
+  "replace": "revocations: [],",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H5",
+  "what": "accepted key looked up without the claimed generation",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "grant?.publicKeys.find((key) => key.generation === generation)?.publicKeyB64u ?? \"\";",
+  "replace": "grant?.publicKeys[0]?.publicKeyB64u ?? \"\";",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H6a",
+  "what": "token capabilities no longer intersected with the grant",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "verified.payload.capabilities.filter((capability) =>\n      grantAllowsCapability({ grant, capability })\n    );",
+  "replace": "verified.payload.capabilities.filter(() => true);",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H6b",
+  "what": "empty capability intersection no longer refused",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (capabilities.length === 0) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H7a",
+  "what": "principal no longer rewritten to the system kind",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "      kind: \"system\",",
+  "replace": "      kind: \"user\",",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H7b",
+  "what": "credential kind no longer set to publish_key",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    res.locals.authCredentialKind = \"publish_key\";\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H7c",
+  "what": "principal id no longer the pub: id of the source",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "id: publishPrincipalIdFor({ sourceInstallationId: context.sourceInstallationId }),",
+  "replace": "id: context.sourceInstallationId,",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H8",
+  "what": "authorize allows a permission outside the context capabilities",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "const allowed = context.capabilities.includes(params.permission as PublishingCapability);",
+  "replace": "const allowed = true;",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-shared-permission.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H9a",
+  "what": "per-type permission map check removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (!permissions?.includes(permission)) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9b",
+  "what": "apply capability conjunct removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "context.capabilities.includes(\"publish_content.apply\") && context.entityTypes.includes(publishType) &&",
+  "replace": "context.entityTypes.includes(publishType) &&",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9c",
+  "what": "entity-type-in-grant conjunct removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "context.capabilities.includes(\"publish_content.apply\") && context.entityTypes.includes(publishType) &&",
+  "replace": "context.capabilities.includes(\"publish_content.apply\") &&",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9d",
+  "what": "raw-grant conjunct removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "(!isBackstopEntityType({ entityType: publishType }) || backstopGrantAllows({ grant: context, entityType: publishType }));",
+  "replace": "true;",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9e",
+  "what": "unregistered publish type passes when the permission map lacks it",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (!permissions?.includes(permission)) {",
+  "replace": "    if (permissions && !permissions.includes(permission)) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H10a",
+  "what": "bundle staging accepts a raw type without the raw grant",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts",
+  "find": "if (entities.some(({ entityType }) => isBackstopEntityType({ entityType }) && !backstopGrantAllows({ grant: publishTrust, entityType }))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/bundle-create.routes.pins.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts"
+  ]
+ },
+ {
+  "id": "H10b",
+  "what": "bundle staging accepts an entity type outside the grant",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts",
+  "find": "if (publishTrust && entities.some(({ entityType }) => !publishTrust.entityTypes.includes(entityType))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/bundle-create.routes.pins.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H11",
+  "what": "raw values disclosed without publish.backstop for every type",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts",
+  "find": "      if (!allowed.allowed) return false;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop-import-ui.routes.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts"
+  ]
+ },
+ {
+  "id": "H12a",
+  "what": "handshake session route: grant-active check removed",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "if (!grant || !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {",
+  "replace": "if (!grant) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H12b",
+  "what": "handshake session route: failed verification still mints",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "    if (!verification.ok) {\n      res.status(401).json(HANDSHAKE_REFUSAL);\n      return;\n    }",
+  "replace": "    if (!verification.ok) {\n      res.json({ token: \"x\" });\n      return;\n    }",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake.test.ts",
+   "apps/website/src/server/inbound/public-http/routes/publish-trust/__tests__/handshake-keyless.unit.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H12c",
+  "what": "handshake rate limit removed",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "    if (result.allowed) return true;",
+  "replace": "    return true;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake.test.ts",
+   "apps/website/src/server/inbound/public-http/routes/publish-trust/__tests__/handshake-keyless.unit.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H12d",
+  "what": "handshake without a site key no longer answers 503",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "if (id === null) res.status(503).json(NO_SITE_KEY);",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake.test.ts",
+   "apps/website/src/server/inbound/public-http/routes/publish-trust/__tests__/handshake-keyless.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K8a",
+  "what": "peer URL refusal reason ignored",
+  "file": "apps/website/src/features/publish-content/peer-url.ts",
+  "find": "if (reason) return { error: `baseUrl was refused because ${reason}` };",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-url.test.ts"
+  ]
+ },
+ {
+  "id": "K8b",
+  "what": "forbidden raw URL character check removed",
+  "file": "apps/website/src/features/publish-content/peer-url.ts",
+  "find": "if (hasForbiddenRawUrlCharacter({ raw: trimmed })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-url.test.ts"
+  ]
+ },
+ {
+  "id": "H12e",
+  "what": "handshake session route: unknown source no longer refused before the nonce is taken",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "if (!grant || !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {",
+  "replace": "if (grant && !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ }
+]
