@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui";
+import type { AgUiEvent } from "@jini-ai/chat/core/ag-ui";
+import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui/reduction";
 import { EventType } from "@ag-ui/core";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
@@ -10,7 +11,6 @@ import {
   AG_UI_RUN_PATH,
   agUiRunClient,
   isAgUiTransportEnabled,
-  type AgUiEvent,
 } from "../assistant-transport-ag-ui";
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
