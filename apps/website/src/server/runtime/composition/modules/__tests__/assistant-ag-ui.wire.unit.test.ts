@@ -3,18 +3,13 @@ import test from "node:test";
 
 import { translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 
-import { resolveAgUiMessages, terminalReasonNotice } from "../assistant-ag-ui.js";
+import { terminalReasonNotice } from "../assistant-ag-ui.js";
 
 const reduce = (payload: RunAgentPayload) => translateRunAgentPayload({ payload });
 
-/** AG-UI request/stream shaping: history is validated fail-soft, wire payload fields are coerced to
- * strings (missing -> "", structured -> JSON), and unknown payload types pass through as extensions. */
-
-test("AG-UI history keeps only non-empty user/assistant string turns; a non-array is empty", () => {
-  assert.deepEqual(resolveAgUiMessages({ raw: [null, 3, { role: "tool", content: "x" }, { role: "assistant", content: "" }, { role: "user", content: ["x"] }, { role: "user", content: "hi" }] }),
-    [{ role: "user", content: "hi" }]);
-  assert.deepEqual(resolveAgUiMessages({ raw: "hi" }), []);
-});
+/** AG-UI stream shaping: wire payload fields are coerced to strings (missing -> "", structured ->
+ * JSON), and unknown payload types pass through as extensions. Request parsing is Jini's
+ * `@jini-ai/chat/server/ag-ui/run-input`, tested there. */
 
 test("wire payload fields coerce: absent is empty, structured is JSON, and a status detail is optional", () => {
   assert.deepEqual(reduce({ type: "status", label: { step: 1 } }), { kind: "status", label: '{"step":1}' });

@@ -39,7 +39,7 @@ import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/
  * Tovu's agent-selector value arrives as `body.forwardedProps.agentId`, not a top-level
  * `body.agentId` — a real `RunAgentInput` (what the client's `HttpAgent` actually sends) has no
  * top-level `agentId` field; `forwardedProps` is that schema's own documented passthrough
- * extension point. See {@link resolveForwardedAgentId}.
+ * extension point. Jini's `resolveAgUiRunInput` (`@jini-ai/chat/server/ag-ui/run-input`) reads it.
  */
 import { randomUUID } from "node:crypto";
 
@@ -50,6 +50,7 @@ import { EventEncoder } from "@ag-ui/encoder";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
 import { translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
+import { resolveAgUiRunInput, type AgUiChatMessage, type AgUiRunBody, type AgUiRunInput } from "@jini-ai/chat/server/ag-ui/run-input";
 import {
   createAgUiTranslationState as createJiniAgUiTranslationState,
   translateAgentEventToAgUi as translateJiniAgentEventToAgUi,
@@ -73,40 +74,6 @@ export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
  *  reasoning: each turn re-sends its whole history, so an unbounded one makes every later message
  *  in a long chat more expensive than the last. */
 const MAX_HISTORY_MESSAGES = 40;
-
-interface AgUiChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-function isPlainMessage(value: unknown): value is { role: unknown; content: unknown } {
-  return typeof value === "object" && value !== null;
-}
-
-/** Validates one raw history entry, same fail-soft posture as `resolveAgUiMessages`'s own doc:
- *  `null` for anything malformed rather than throwing, since history is passive background context,
- *  not something the caller just authored this instant. Split out of `resolveAgUiMessages` so the
- *  per-entry branching is scored in this function's own complexity budget, not the loop's. */
-function parseAgUiMessage({ entry }: { entry: unknown }, _optional = {}): AgUiChatMessage | null {
-  if (!isPlainMessage(entry)) return null;
-  const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
-  const content = typeof entry.content === "string" ? entry.content : null;
-  if (role === null || content === null || content.length === 0) return null;
-  return { role, content };
-}
-
-/** Validates and bounds the client-supplied `messages` array — same fail-soft-on-malformed-entries
- *  posture as `assistant-byok.ts`'s `resolveMessages` (history is passive background context, not
- *  something the caller just authored this instant). */
-export function resolveAgUiMessages({ raw }: { raw: unknown }, _optional = {}): AgUiChatMessage[] {
-  if (!Array.isArray(raw)) return [];
-  const messages: AgUiChatMessage[] = [];
-  for (const entry of raw) {
-    const message = parseAgUiMessage({ entry });
-    if (message) messages.push(message);
-  }
-  return messages.slice(-MAX_HISTORY_MESSAGES);
-}
 
 /**
  * Flattens an AG-UI message history into the single prompt string the daemon's `contextRef.prompt`
@@ -359,68 +326,6 @@ function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): AgentRunS
   return null;
 }
 
-interface AgUiRunRequest {
-  frontendBindToken?: string;
-  frontendTabId?: string;
-  threadId: string;
-  runId: string;
-  requestId: string;
-  agentId?: string;
-  messages: AgUiChatMessage[];
-  secretRedacted: boolean;
-}
-
-/** `value` when it's a non-empty string, else `undefined` — the shared shape behind `threadId`,
- *  `runId`, and `agentId`'s "caller-supplied or minted" resolution below. */
-function resolveNonEmptyString({ value }: { value: unknown }, _optional = {}): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-/** `RunAgentInput.forwardedProps` has no declared shape of its own (`z.ZodAny` in `@ag-ui/core`) —
- *  it's the schema's documented passthrough extension point, and Tovu's agent-selector value rides
- *  there as `forwardedProps.agentId` (there is no top-level `agentId` field on a real
- *  `RunAgentInput`; that's a separate, unrelated `AgentConfig`-level concept in `@ag-ui/client`). */
-function resolveForwardedAgentId({ forwardedProps }: { forwardedProps: unknown }, _optional = {}): string | undefined {
-  if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
-  return resolveNonEmptyString({ value: (forwardedProps as { agentId?: unknown }).agentId });
-}
-
-/** Read only the bounded attachment identity fields, never a surface id or tool handler. The
- * daemon's registry verifies the token against the authenticated principal and originating tab.
- * @complexity O(1) time and space.
- * @overallScore 100 */
-function resolveForwardedBindingField({ forwardedProps, field }: { forwardedProps: unknown; field: "frontendBindToken" | "frontendTabId" }, _options = {}): string | undefined {
-  if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
-  const value = (forwardedProps as Record<string, unknown>)[field];
-  return typeof value === "string" && value.length > 0 && value.length <= 256 ? value : undefined;
-}
-
-/** Validates and normalizes one AG-UI run request body, or `null` when it fails the one hard
- *  requirement: a non-empty `messages` array ending in a user turn. Split out of `handleAgUiRun` so
- *  that function's own body is just the request's control flow, not this parsing.
- * @complexity O(h) time and space in the supplied history; attachment fields are constant work.
- * @overallScore 100 */
-function resolveAgUiRunRequest(body: {
-  threadId?: unknown;
-  runId?: unknown;
-  messages?: unknown;
-  forwardedProps?: unknown;
-}): AgUiRunRequest | null {
-  const messages = resolveAgUiMessages({ raw: body.messages });
-  if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") return null;
-  return {
-    threadId: resolveNonEmptyString({ value: body.threadId }) ?? randomUUID(),
-    runId: resolveNonEmptyString({ value: body.runId }) ?? randomUUID(),
-    requestId: randomUUID(),
-    agentId: resolveForwardedAgentId({ forwardedProps: body.forwardedProps }),
-    frontendBindToken: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendBindToken" }),
-    frontendTabId: resolveForwardedBindingField({ forwardedProps: body.forwardedProps, field: "frontendTabId" }),
-    secretRedacted: typeof body.forwardedProps === "object" && body.forwardedProps !== null
-      && (body.forwardedProps as { secretRedacted?: unknown }).secretRedacted === true,
-    messages,
-  };
-}
-
 /** Starts the real daemon run for one AG-UI request — the identical `POST /api/runs` shape
  *  `assistant.ts`'s `proxyRunStart` uses. Split out of `handleAgUiRun` so its own two failure shapes
  *  (transport-level via `fetchAgentDaemon`, and a non-ok daemon status) don't add to that function's
@@ -431,7 +336,7 @@ function resolveAgUiRunRequest(body: {
 async function startDaemonRun(
   req: Request,
   res: Response,
-  run: AgUiRunRequest,
+  run: AgUiRunInput,
   principalId: string,
   daemon: DaemonCallOptions,
 ): Promise<{ ok: true; daemonRunId: string } | { ok: false }> {
@@ -507,8 +412,8 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
 const UNSTARTED_RUN: TrackerSpan<AgentRunTrackingOutcome> = { setOutcome() {} };
 
 async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, "tracker" | "observability">): Promise<void> {
-  const body = (req.body ?? {}) as { threadId?: unknown; runId?: unknown; messages?: unknown; forwardedProps?: unknown };
-  const run = resolveAgUiRunRequest(body);
+  const body = (req.body ?? {}) as AgUiRunBody;
+  const run = resolveAgUiRunInput({ body, maxHistoryMessages: MAX_HISTORY_MESSAGES, ids: { newId: randomUUID } });
   if (!run) {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
     return undefined;
