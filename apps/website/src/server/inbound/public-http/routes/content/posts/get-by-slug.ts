@@ -56,7 +56,7 @@ export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _opti
       // a gated post is indistinguishable from one that doesn't exist -- no separate 403/teaser
       // response that would itself leak "a post exists at this slug, but you can't read it."
       const decision = memberAccessResolver.decide({
-        access: resolvePostMemberAccess(post.memberAccessJson),
+        access: resolvePostMemberAccess({ raw: post.memberAccessJson }),
         context: memberContext,
       });
       if (!decision.allowed) {

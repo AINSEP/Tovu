@@ -226,7 +226,7 @@ async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean>
  * @complexity O(1) — one read, at most one atomic write.
  */
 function stampSiteKeyFingerprint({ siteDir, fingerprint }: { siteDir: string; fingerprint: string }, _optional = {}): void {
-  const meta = readSiteMetaJson(siteDir);
+  const meta = readSiteMetaJson({ siteDir });
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
   writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint }, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
@@ -431,7 +431,7 @@ async function generateSiteKey(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter
   const hasData = (): Promise<boolean> => siteHasKeyDependentData(deps);
   const mode = resolveRuntimeMode();
   // Refuse before the shared writer derives metadata, which re-reads an existing corrupt file.
-  if (mode !== "production" && existsSync(join(deps.siteBinding.dir, ".site-meta.json")) && readSiteMetaJson(deps.siteBinding.dir) === undefined) {
+  if (mode !== "production" && existsSync(join(deps.siteBinding.dir, ".site-meta.json")) && readSiteMetaJson({ siteDir: deps.siteBinding.dir }) === undefined) {
     return refusal({ code: "SITE_META_UNREADABLE" });
   }
   const ensured = await siteKey.ensureSiteKeyForSite({ siteDir: deps.siteBinding.dir, findSiteKeyDependentData: hasData });
@@ -524,10 +524,10 @@ async function resealForImport(required: {
  * @complexity one sealed-value scan, plus one re-seal pass when another key is in place.
  */
 async function importSiteKey({ deps, siteKey, input }: { deps: AdminSiteKeyDeps; siteKey: SiteKeyKeyWriter; input: { siteKey: unknown; actorId: string } }, _optional = {}): Promise<RouteResult> {
-  const parsed = parseSiteKeyHex(typeof input.siteKey === "string" ? input.siteKey : "");
+  const parsed = parseSiteKeyHex({ raw: typeof input.siteKey === "string" ? input.siteKey : "" });
   if (!parsed.ok) return refusal({ code: "SITE_KEY_INVALID" }, { status: 400 });
   const siteDir = deps.siteBinding.dir;
-  const fingerprint = fingerprintSiteKeyHex(parsed.hex);
+  const fingerprint = fingerprintSiteKeyHex({ hex: parsed.hex });
   const current = revealSiteKeyMaterial({ sources: resolveSiteKeySources(deps).sources });
   if (current.source === "env" && current.fingerprint !== fingerprint) return refusal({ code: "ENV_KEY_SET" });
   const store = { siteDir, contentKernel: deps.contentKernel, hex: parsed.hex };
@@ -565,7 +565,7 @@ async function planStartFresh(deps: AdminSiteKeyDeps, siteKey: SiteKeyKeyWriter)
   const hex = current.hex ?? siteKey.mintSiteKeyHex();
   const check = await siteKey.checkKey({ siteDir: deps.siteBinding.dir, contentKernel: deps.contentKernel, hex });
   if (check.storageSecret === "locked") return refusal({ code: "STORAGE_SECRET_LOCKED" });
-  const keepsSecrets = resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) === fingerprintSiteKeyHex(hex);
+  const keepsSecrets = resolveSiteKeyFingerprint({ siteDir: deps.siteBinding.dir }) === fingerprintSiteKeyHex({ hex });
   const webhooks = keepsSecrets ? [] : await deps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: deps.workspaceId as UUID });
   return { hex, check, affectedWebhooks: webhooks.map((webhook) => ({ label: webhook.label, targetUrl: webhook.targetUrl })) };
 }

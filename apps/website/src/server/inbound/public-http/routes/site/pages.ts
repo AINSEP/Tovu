@@ -163,7 +163,7 @@ async function buildExtraHead({ deps, route, siteTitle, post }: { deps: RouteDep
     siteTitle: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
   });
   const elements = await foldPageHead(ctx, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
-  return serializeHeadElements(elements);
+  return serializeHeadElements({ elements });
 }
 
 /**
@@ -218,7 +218,7 @@ export async function resolveSiteTitleForRender(
   if (options.preserveAuthoredFallback) {
     // Read the marker before the value: a pin can land between reads, never disappear between them.
     // A failed marker read delegates to the render resolver's legacy-safe error policy.
-    const pending = await deps.siteTitlePreservationStore.isPending(deps.workspaceId).catch(() => true);
+    const pending = await deps.siteTitlePreservationStore.isPending({ workspaceId: deps.workspaceId }).catch(() => true);
     if (!pending) return deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId });
   }
   return resolveSiteTitle(
@@ -837,7 +837,7 @@ export async function finishStaticTierDocument(
   });
   // See-more listings get their keys here, on the one assembled document every resolver below and
   // the batch extractor (`finalizePublicPageHtml`) number the same way.
-  const assembled = assignListingKeys({ html: renderHtmlPageBody(expanded, resolved, { postAuthor }) });
+  const assembled = assignListingKeys({ html: renderHtmlPageBody({ html: expanded, resolved }, { postAuthor }) });
 
   const knownMenuIds = new Set(Object.keys(staticMenus ?? {}));
   const missingMenuIds = Array.from(
@@ -861,8 +861,7 @@ export async function finishStaticTierDocument(
   // only one hand-authored directly into a theme file.
   const collectionLists = await resolveCollectionListsForRender({ deps, html: assembled, pagePath: currentPath });
 
-  return injectExtraHeadIntoStaticPage(
-    renderStaticPage({
+  return injectExtraHeadIntoStaticPage({ html: renderStaticPage({
       theme,
       pageId,
       htmlOverride: assembled,
@@ -873,9 +872,7 @@ export async function finishStaticTierDocument(
       collectionLists,
       featuredImage,
       postAuthor,
-    }) ?? "",
-    (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
-  );
+    }) ?? "", extraHead: (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head });
 }
 
 /** Static pages and diagnostic templates share the theme's declared-script defaults. */
@@ -1019,7 +1016,7 @@ async function resolveOneCollectionMarker({ deps, marker, pagePath }: { deps: Pi
   const batch = await readCollectionBatch({ deps, query: parsed.query, listingKey });
   const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
   const items = batch.items.map((row) => toCollectionEntryListItem({ row, fields: parsed.display.fields, timeZone }));
-  const { template } = splitCollectionMarkerInner(marker.inner);
+  const { template } = splitCollectionMarkerInner({ inner: marker.inner });
   const { columns, layout, structuredData } = parsed.display;
   const list = renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) });
   if (list === undefined || listingKey === undefined || !batch.hasMore) return list;
@@ -1106,7 +1103,7 @@ function buildMissingTemplateHtml({ apiVersion }: { apiVersion: 2 | undefined },
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
     "<title>Template not configured</title>",
-    tokenStylesheetSentinel(apiVersion),
+    tokenStylesheetSentinel({}, { apiVersion }),
     "</head>",
     "<body>",
     // Authored in the same marker vocabulary a theme file uses, because `renderStaticPage` resolves
@@ -1377,7 +1374,7 @@ export async function resolveHtmlFormatContentMarkers({ deps, html, depth, budge
         },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
-      replacements.set(ref.key, renderHtmlPageBody(nestedHtml, nestedResolved));
+      replacements.set(ref.key, renderHtmlPageBody({ html: nestedHtml, resolved: nestedResolved }));
     })
   );
   if (replacements.size === 0) return html;
@@ -1517,8 +1514,8 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
   const { pageId, html: rawTemplate } = resolution;
 
   // Expand before content resolution so a partial's own byline suppresses the core header too.
-  const withTitle = injectPageTitle(expandPartials({ html: rawTemplate, theme: theme }), post.title);
-  const withCurrentId = injectCurrentEntityContentId(withTitle, post.id);
+  const withTitle = injectPageTitle({ html: expandPartials({ html: rawTemplate, theme: theme }), title: post.title });
+  const withCurrentId = injectCurrentEntityContentId({ html: withTitle, entityId: post.id });
   // Taxonomy render-surface gap fix (2026-09-02): assigned terms are metadata ABOUT the entry, not
   // part of its authored body, so they go in the conventional "filed under" position: right after
   // the entry's own content element, inside the template's `<article>`. Placed BEFORE the content
@@ -1546,7 +1543,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
     },
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
   });
-  const bodyWithTerms = renderHtmlPageBody(withNestedContent, resolved, { postAuthor: post, postPresentation: post });
+  const bodyWithTerms = renderHtmlPageBody({ html: withNestedContent, resolved }, { postAuthor: post, postPresentation: post });
   // D2's single static-tier pipeline (E3, 2026-09-23) — `finishStaticTierDocument` runs the SAME
   // expand-partials / resolve-embeds / resolve-post-previews / render sequence every other
   // static-tier surface now runs. Called on `bodyWithTerms`, not the raw, unassembled template: the
@@ -1569,7 +1566,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
     featuredImage: await resolveFeaturedImageForRender(deps, pendingBodyJson !== undefined ? { ...post, bodyJson: pendingBodyJson } : post),
     postAuthor: post,
   });
-  return renderCommentsMarkers({ html: injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled),
+  return renderCommentsMarkers({ html: injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }), enabled: siteAssistantEnabled }),
     providers: deps.commentsProviders, siteId: deps.workspaceId,
     entry: { id: post.id, slug: post.slug, title: post.title, status: post.status, canonicalUrl: postPublicPath({ slug: post.slug }) },
   }, { cursor: deps.commentsCursor });
@@ -1588,15 +1585,12 @@ async function renderMissingTemplatePage({ deps, theme, staticMenus }: { deps: T
   // dead code by construction, not merely untested — proper fix is narrowing `renderStaticPage`'s
   // own return type via an overload keyed on a required `htmlOverride`, which lives outside this
   // file (static-render.ts) and is out of this pass's scope.
-  return injectExtraHeadIntoStaticPage(
-    renderStaticPage({
+  return injectExtraHeadIntoStaticPage({ html: renderStaticPage({
       theme,
       pageId: "template-missing",
       htmlOverride: buildMissingTemplateHtml({ apiVersion: theme.manifest.apiVersion }),
       menus: staticMenus,
-    }) ?? "",
-    (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head
-  );
+    }) ?? "", extraHead: (await deps.documentAssets?.({ scripts: staticThemeScripts({ theme }), static: true }))?.head });
 }
 
 /**
@@ -1870,7 +1864,7 @@ function resolveRequestedSlug(req: Request, next: NextFunction): string | undefi
 // here, which is what let this route serve `/blog-post` and `/404` as 200s while the exporter
 // correctly omitted both.
 function isMarketingPageSlug({ theme, slug }: { theme: DiscoveredTheme; slug: string }, _optional = {}): boolean {
-  return theme.manifest.tier === "static" && isStandaloneThemePage(theme, slug);
+  return theme.manifest.tier === "static" && isStandaloneThemePage({ theme, pageId: slug });
 }
 
 /** {@link resolveMarketingPageOrOverride}'s outcome — `"responded"` means the caller must send
@@ -1956,7 +1950,7 @@ export async function resolveMarketingPageOrOverride({ deps, theme, slug, static
   // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
   // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
   // the widget even with the setting on, because `pageShell`'s own injection never ran here.
-  const html = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead, { preserveThemeTitle }), siteAssistantEnabled);
+  const html = injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: staticHtml, extraHead }, { preserveThemeTitle }), enabled: siteAssistantEnabled });
   return { kind: "responded", html };
 }
 
@@ -2220,7 +2214,7 @@ async function resolveMemberContextForRequest({ req, deps, resolver }: { req: Re
  * `{visibility: "public"}`, so an ungated post behaves exactly as it does today.
  */
 function decidePostMemberAccess({ resolver, post, context }: { resolver: MemberAccessResolver; post: PostRecord; context: MemberContext }, _optional = {}): MemberAccessDecision {
-  return resolver.decide({ access: resolvePostMemberAccess(post.memberAccessJson), context });
+  return resolver.decide({ access: resolvePostMemberAccess({ raw: post.memberAccessJson }), context });
 }
 
 /**
@@ -2467,9 +2461,9 @@ interface PerVisitorResponse {
  */
 function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorResponse {
   const queryResult = decodeFormSubmissionResultFromQuery(req.query);
-  const flash = decodeFormFlashCookieValue(readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }));
+  const flash = decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) });
   if (flash) clearFormFlashCookie(req, res);
-  const result = mergeFormFlashIntoResult(queryResult, flash);
+  const result = mergeFormFlashIntoResult({ result: queryResult, flash });
   // Both arms matter, and neither implies the other. `result` covers a PRG landing whose body gets
   // rewritten. `flash` covers the case where the merge dropped it (no `form_*` params, or a
   // different form's slug) yet a read-once cookie was still consumed and cleared ON THIS RESPONSE —
@@ -2525,11 +2519,11 @@ async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Re
   const batchBody = listingBatchBody({ req, html });
   if (batchBody !== undefined) return batchBody;
   assertListingPageServed({ req, html });
-  html = injectExtraHeadIntoStaticPage(html, deps.pluginExportRender?.headHtml({}));
+  html = injectExtraHeadIntoStaticPage({ html, extraHead: deps.pluginExportRender?.headHtml({}) });
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
-  const finished = injectFormSubmissionResultIntoHtml(markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), formResult);
+  const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult });
   // Member sign-in needs this server's API, which an exported file never has: its header keeps the
   // theme's plain "Sign in" link.
   if (isStaticExportRequest(req)) return finished;
@@ -2707,7 +2701,7 @@ async function serveHomePage({ req, res, deps }: { req: Request; res: Response; 
   // Newest display date first, the order every post listing uses (it was insertion order).
   const visiblePosts = filterVisiblePosts({ resolver: memberAccessResolver, posts, context: memberContext }).sort(comparePostsByDisplayDate);
 
-  const resolved = resolveActiveTheme(deps, activeThemeId);
+  const resolved = resolveActiveTheme({ deps, activeThemeId });
   if (resolved === null) {
     sendNoThemesInstalled(res);
     return;
@@ -2825,7 +2819,7 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
     staticMenus,
     postPreviewsAccess: access,
   });
-  const homeHtml = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead, { preserveThemeTitle }), siteAssistantEnabled);
+  const homeHtml = injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }, { preserveThemeTitle }), enabled: siteAssistantEnabled });
   await sendPublicPage({ req, res, deps, html: homeHtml, perVisitor: resolvePerVisitorResponse(req, res) });
 }
 
@@ -2844,7 +2838,7 @@ export async function serveVirtualPage({ req, res, deps, post }: {
     resolveRenderThemeId(res, deps),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),
   ]);
-  const resolved = resolveActiveTheme(deps, activeThemeId);
+  const resolved = resolveActiveTheme({ deps, activeThemeId });
   if (resolved === null) return sendNoThemesInstalled(res);
   const theme = resolved === NO_THEME_ID ? null : resolved;
   const branch = theme ? resolveTemplateBranchChoice({ theme, post }) : { kind: "ineligible" as const };
@@ -2901,7 +2895,7 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
   // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
   // nested paths so single-segment slug eligibility stays unchanged; admin/API misses stay theirs.
   app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
-    if (checkSiteRelativeTarget(req.path).kind !== "ok") return next();
+    if (checkSiteRelativeTarget({ raw: req.path }).kind !== "ok") return next();
     try {
       if (await tryRedirectPhase({ phase: "pre_content", path: req.path, workspaceId: appDeps.workspaceId, res })) return undefined;
       if (await tryRedirectPhase({ phase: "post_content", path: req.path, workspaceId: appDeps.workspaceId, res })) return undefined;
@@ -2935,7 +2929,7 @@ export const registerSiteRoutes: RouteRegistrar = ({ app, deps: appDeps }, _opti
       // the home grid does.
       const visiblePosts = filterVisiblePosts({ resolver: memberAccessResolver, posts, context: memberContext });
 
-      const resolved = resolveActiveTheme(deps, activeThemeId);
+      const resolved = resolveActiveTheme({ deps, activeThemeId });
       if (resolved === null) {
         sendNoThemesInstalled(res);
         return;

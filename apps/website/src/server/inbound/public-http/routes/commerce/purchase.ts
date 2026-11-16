@@ -76,11 +76,11 @@ async function admit(context: RequestContext): Promise<{ memberId: string; comme
 /** A host theme wraps escaped buyer content; minimal hosts still receive a complete HTML page. O(n) body bytes. */
 async function buyerPage({ req, res, deps }: Pick<RequestContext, "req" | "res" | "deps">,
   { status, title, message, order }: { status: number; title: string; message: string; order?: { id: string; status: string } }): Promise<void> {
-  const orderMarkup = order ? `<p>Order <span>${escapeHtml(order.id)}</span></p>` : "";
-  const state = order ? ` data-order-status="${escapeHtml(order.status)}"` : "";
-  const body = `<section class="wrap commerce-order"${state}><h1>${escapeHtml(title)}</h1><p role="status">${escapeHtml(message)}</p>${orderMarkup}<p><a class="button" href="/products">Back to shop</a></p></section>`;
+  const orderMarkup = order ? `<p>Order <span>${escapeHtml({ text: order.id })}</span></p>` : "";
+  const state = order ? ` data-order-status="${escapeHtml({ text: order.status })}"` : "";
+  const body = `<section class="wrap commerce-order"${state}><h1>${escapeHtml({ text: title })}</h1><p role="status">${escapeHtml({ text: message })}</p>${orderMarkup}<p><a class="button" href="/products">Back to shop</a></p></section>`;
   const html = deps.renderCommercePage ? await deps.renderCommercePage({ req, res, title, body })
-    : `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title></head><body><main>${body}</main></body></html>`;
+    : `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml({ text: title })}</title></head><body><main>${body}</main></body></html>`;
   res.status(status).set("Cache-Control", "no-store").type("html").send(html);
 }
 

@@ -26,7 +26,7 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = ({ app, deps }, _op
         res.status(404).json({ error: "Skill was not found or is disabled.", code: "NOT_FOUND" });
         return;
       }
-      const containerDir = deps.skillLayout.forWorkspace(deps.workspaceId).root;
+      const containerDir = deps.skillLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;
       // The directory comes from discovery, never request text. The shared reader enforces
       // realpath containment, no symlink following, and the same count/byte caps as Plugins.
       const { files, truncated } = await readPluginPackageFiles({

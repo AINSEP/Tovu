@@ -24,7 +24,7 @@ import { themeIdCandidates } from "#src/features/theme/theme-id-aliases";
  */
 export function resolveThemeDirs(required: { roots: readonly string[]; themeId: string | undefined }, _optional: {}): string[] {
   const themeId = String(required.themeId ?? "");
-  return themeIdCandidates(themeId)
+  return themeIdCandidates({ id: themeId })
     .map((id) => resolveThemeDir({ roots: required.roots, themeId: id }))
     .filter((dir): dir is string => dir !== null);
 }

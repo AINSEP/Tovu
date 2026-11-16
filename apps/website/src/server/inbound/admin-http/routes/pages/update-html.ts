@@ -184,12 +184,12 @@ export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = ({ app, d
         await deps.pluginExports?.validateHtml({ workspaceId: deps.workspaceId, html });
         // Idempotent: a no-op once the page is already html-format, so both the first write and
         // every later one take this identical path.
-        await store.ensureHtmlFormat(DEFAULT_PAGE_SKELETON);
+        await store.ensureHtmlFormat({ seedHtml: DEFAULT_PAGE_SKELETON });
         // `read()` is what captures the version `write()` conditions its compare-and-set on — not a
         // wasted round trip. Dropping it would turn the write into the unconditional overwrite
         // CIC-1 exists to prevent.
         await store.read();
-        await store.write(html);
+        await store.write({ html });
 
         const updated = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: pageId });
         if (!updated) {

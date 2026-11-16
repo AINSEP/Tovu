@@ -223,12 +223,12 @@ export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishT
     const targetInstallationId = await installationIdOrRefuse(res);
     if (targetInstallationId === null) return;
 
-    const grant = findGrantForSource(await deps.grants(), response.sourceInstallationId);
+    const grant = findGrantForSource({ res: await deps.grants(), sourceInstallationId: response.sourceInstallationId });
     // An absent grant is the ordinary state of a site nobody has paired with, not an error. It is
     // answered with the same refusal as a bad signature so this route cannot be used to ask
     // "has anyone provisioned publishing here yet?" — nor, by naming installation ids one at a
     // time, "is THIS publisher allowed here?".
-    if (!grant || !isGrantActive(grant, deps.clock.nowIso())) {
+    if (!grant || !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {
       res.status(401).json(HANDSHAKE_REFUSAL);
       return;
     }

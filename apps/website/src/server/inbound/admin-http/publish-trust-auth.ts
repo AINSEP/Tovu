@@ -189,7 +189,7 @@ const REFUSAL_SITE_LABEL = "this site";
  * @complexity O(n) in the grant's key count, bounded at 4 by `grant.ts`.
  */
 function acceptedKeyFor({ resolution, sourceInstallationId, generation }: { resolution: PublishTrustResolution; sourceInstallationId: string; generation: number }, _optional = {}): string {
-  const grant = findGrantForSource(resolution, sourceInstallationId);
+  const grant = findGrantForSource({ res: resolution, sourceInstallationId });
   return grant?.publicKeys.find((key) => key.generation === generation)?.publicKeyB64u ?? "";
 }
 
@@ -263,7 +263,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
 
     // `req.originalUrl` and not `req.url`: inside an `app.use("/api/admin", ...)` mount Express has
     // already stripped the prefix from `req.url`, and `PUBLISH_TRUST_ROUTES` holds full paths.
-    if (!isPublishTrustRoute(req.method, req.originalUrl)) {
+    if (!isPublishTrustRoute({ method: req.method, path: req.originalUrl })) {
       res.status(401).json(UNAUTHENTICATED_BODY);
       return;
     }
@@ -307,7 +307,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
 
     // Intersection, not the token's own list — see this file's "Why the grant is re-read" note.
     const capabilities = verified.payload.capabilities.filter((capability) =>
-      grantAllowsCapability(grant, capability)
+      grantAllowsCapability({ grant, capability })
     );
     if (capabilities.length === 0) {
       res.status(401).json(UNAUTHENTICATED_BODY);
@@ -328,7 +328,7 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
     // inheriting somebody's permissions. `kind: "system"` is the identity library's nearest honest
     // member — the actor is neither a human, an assistant, nor an issued API key.
     res.locals.principal = {
-      id: publishPrincipalIdFor(context.sourceInstallationId),
+      id: publishPrincipalIdFor({ sourceInstallationId: context.sourceInstallationId }),
       workspaceId: deps.workspaceId,
       kind: "system",
       displayName: `publishing installation ${context.sourceInstallationId}`,

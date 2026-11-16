@@ -31,7 +31,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAdminFormsListSubmissionsRoute({ app, deps });
   registerAdminFormsGetSubmissionRoute({ app, deps });
   registerAdminFormsDeleteSubmissionRoute({ app, deps });
-  createTrashModule(deps).registerRoutes?.(app);
+  createTrashModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }
 

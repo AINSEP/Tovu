@@ -75,7 +75,7 @@ export function isFullHtmlDocument({ html }: { html: string }, _optional = {}): 
 function wrapBareFragment(required: { title: string; extraHead: string | undefined; body: string; documentAssets?: DocumentAssets }): string {
   const assets = required.documentAssets ?? { head: "", body: "" };
   const foldHasTitle = required.extraHead?.includes("<title>") ?? false;
-  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml(required.title)}</title>`;
+  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml({ text: required.title })}</title>`;
   return (
     `<!doctype html><html lang="en"><head><meta charset="utf-8"/>` +
     `<meta name="viewport" content="width=device-width, initial-scale=1"/>${titleTag}${required.extraHead ?? ""}${assets.head}` +
@@ -135,15 +135,17 @@ export function renderBareEntryDocument(required: RenderBareEntryDocumentRequire
   const title = `${post.title} — ${required.siteTitle}`;
   if (post.bodyFormat === "html") {
     const rawBodyHtml = post.bodyHtml ?? "";
-    const resolvedBody = renderHtmlPageBody(rawBodyHtml, required.pageHtmlEmbeds);
+    const resolvedBody = renderHtmlPageBody({ html: rawBodyHtml, resolved: required.pageHtmlEmbeds });
     if (isFullHtmlDocument({ html: rawBodyHtml })) return resolvedBody;
     return wrapBareFragment({ title, extraHead: required.extraHead, body: resolvedBody, documentAssets: required.documentAssets });
   }
   const body = renderDocNode(
-    post.bodyJson,
-    required.widgetInlineResolved ?? EMPTY_INLINE_RESOLVED,
-    required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
-    required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA
+    { node: post.bodyJson },
+    {
+      inlineResolved: required.widgetInlineResolved ?? EMPTY_INLINE_RESOLVED,
+      mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
+      mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
+    },
   );
   return wrapBareFragment({ title, extraHead: required.extraHead, body, documentAssets: required.documentAssets });
 }

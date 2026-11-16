@@ -30,7 +30,7 @@ export function toWebhookSubscriptionDeps(deps: IntegrationsRouteDeps): WebhookS
     clock: deps.clock,
     repo: deps.webhookSubscriptionRepo,
     idGenerator: deps.idGen,
-    isAllowedTarget: (url: string) =>
+    isAllowedTarget: ({ url }: { url: string }, _optional = {}) =>
       deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
   };
 }

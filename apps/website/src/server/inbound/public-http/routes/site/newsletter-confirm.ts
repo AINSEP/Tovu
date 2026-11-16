@@ -45,10 +45,10 @@ export function registerPublicNewsletterConfirmRoute(app: Express, deps: Newslet
 function renderPage({ title, message }: { title: string; message: string }, _optional = {}): string {
   return `<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head>
+<head><meta charset="utf-8"><title>${escapeHtml({ text: title })}</title></head>
 <body>
-  <h1>${escapeHtml(title)}</h1>
-  <p>${escapeHtml(message)}</p>
+  <h1>${escapeHtml({ text: title })}</h1>
+  <p>${escapeHtml({ text: message })}</p>
 </body>
 </html>`;
 }

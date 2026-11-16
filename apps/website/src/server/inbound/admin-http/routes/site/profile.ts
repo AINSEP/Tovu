@@ -185,7 +185,7 @@ export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfi
 
       // No blanket authorize() — see this file's header. Every section is authorized inside
       // `buildSiteProfile` against its own domain's permission, as THIS principal.
-      const profile = await buildSiteProfile(toSiteProfileDeps(deps), { principalId: principal.id }, { sections, pageLimit });
+      const profile = await buildSiteProfile({ deps: toSiteProfileDeps(deps), input: { principalId: principal.id } }, { sections, pageLimit });
       res.status(200).json(profile);
     } catch (err) {
       sendAdminFailure({ res, error: err }, { operation: "routes/site/profile", code: "INTERNAL_ERROR" });

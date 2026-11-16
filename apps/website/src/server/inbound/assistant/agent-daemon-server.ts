@@ -38,7 +38,7 @@ async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): P
   if (daemonExiting) return;
   daemonExiting = true;
   stopIdleMonitor();
-  await closeWithinBound(async () => {
+  await closeWithinBound({ close: async () => {
     await stopDaemonServing();
     // Before the store closes, which flushes and disposes the provider plugins' sinks.
     await Promise.allSettled([...scopes.values()].map(scope => scope.then(value => value.dispose({}, {}))));
@@ -53,7 +53,7 @@ async function exitDaemon({ exitCode }: { exitCode: number }, _optional = {}): P
     // The retained client owns content/chat; process.exit alone leaves WALs. The site server
     // alone owns its ops journal and providers. Drain this daemon before closing its client.
 
-  }, { label: "the agent daemon store" });
+  }, label: "the agent daemon store" });
   process.exit(exitCode);
 }
 

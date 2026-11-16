@@ -340,7 +340,7 @@ function mountContext({ app, consent }: { app: Express; consent: SiteCookieConse
 function mountStaticThemeLoader({ app, deps }: { app: Express; deps: RouteDeps }): void {
   app.get(CONSENT_LOADER_SRC, async (req, res) => {
     try {
-    const theme = deps.resolveActiveThemeId ? resolveActiveTheme(deps, await deps.resolveActiveThemeId()) : null;
+    const theme = deps.resolveActiveThemeId ? resolveActiveTheme({ deps, activeThemeId: await deps.resolveActiveThemeId() }) : null;
     const scripts = theme && theme !== NO_THEME_ID ? theme.manifest.scripts ?? [] : [];
     const assets = await siteConsentDocumentAssets({ deps, request: req, scripts });
     const markup = JSON.stringify(assets.head + assets.body);

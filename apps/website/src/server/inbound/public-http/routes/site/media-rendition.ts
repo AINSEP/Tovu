@@ -136,7 +136,7 @@ const READABLE_BODY_FORMATS: ReadonlySet<string> = new Set(["doc", "html"]);
  *  and opaque-body classification) share one definition of "gated" instead of three inline
  *  `resolvePostMemberAccess(...).visibility` reads that could drift apart. */
 function isGatedEntry(entry: Pick<PostRecord, "memberAccessJson">): boolean {
-  return resolvePostMemberAccess(entry.memberAccessJson).visibility !== "public";
+  return resolvePostMemberAccess({ raw: entry.memberAccessJson }).visibility !== "public";
 }
 
 /**
@@ -466,7 +466,7 @@ async function resolveMediaAccessDecision({ deps, req, assetId }: { deps: MediaR
     nowIso: new Date().toISOString(),
   });
   const allowed = gating.some(
-    (entry) => resolver.decide({ access: resolvePostMemberAccess(entry.memberAccessJson), context }).allowed
+    (entry) => resolver.decide({ access: resolvePostMemberAccess({ raw: entry.memberAccessJson }), context }).allowed
   );
   return { gated: true, allowed, record: media };
 }

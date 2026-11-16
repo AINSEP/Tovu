@@ -89,7 +89,7 @@ function mergeRelTokens({ existingRel, add }: { existingRel: string | undefined;
  *  closing `>` (or `/>` for a self-closed anchor, though real markup never writes one) when the
  *  attribute is absent. @complexity O(tag length). */
 function withAttr({ tag, name, value, options }: { tag: string; name: string; value: string; options: { replaceIfPresent: boolean } }, _optional = {}): string {
-  const escaped = escapeHtml(value);
+  const escaped = escapeHtml({ text: value });
   if (options.replaceIfPresent && readAttrValue({ tag, attrName: name }) !== undefined) {
     return tag.replace(new RegExp(`([\\s"'])(${name})\\s*=\\s*("[^"]*"|'[^']*')`, "i"), (_match, leading: string, attribute: string) => `${leading}${attribute}="${escaped}"`);
   }

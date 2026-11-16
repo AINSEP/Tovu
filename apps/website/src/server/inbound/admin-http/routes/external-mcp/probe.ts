@@ -80,7 +80,7 @@ export function registerAdminExternalMcpProbeRoute({ app, deps, limiter }: { app
       if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
       const serverId = String(req.params.serverId ?? "");
 
-      const outcome = await probeExternalMcpServer(deps, serverId);
+      const outcome = await probeExternalMcpServer({ deps, serverId });
       res.status(outcome.ok ? 200 : outcome.status).json(outcome.body);
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/external-mcp/probe", code: "INTERNAL_ERROR" });

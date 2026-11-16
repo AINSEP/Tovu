@@ -272,9 +272,9 @@ function isThemeFileWritable({ relativePath, apiVersion }: { relativePath: strin
   return (
     // v2's render/pages grouping must not turn the read-only Liquid preview into an edit surface.
     !relativePath.toLowerCase().endsWith(".liquid") &&
-    !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup(relativePath, apiVersion)) &&
-    !isGeneratedThemePath(relativePath) &&
-    !isTrashedThemePath(relativePath)
+    !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup({ relativePath, apiVersion })) &&
+    !isGeneratedThemePath({ relativePath }) &&
+    !isTrashedThemePath({ relativePath })
   );
 }
 
@@ -440,7 +440,7 @@ function describeThemeFile({ relativePath, options }: { relativePath: string; op
   collidingContent: ThemeFileContentCollision | null;
   inherited?: boolean;
 } {
-  const group = fileGroup(relativePath, options.apiVersion);
+  const group = fileGroup({ relativePath, apiVersion: options.apiVersion });
   const pageId = group === "page" ? pageIdForPagePath({ relativePath }) : null;
   const modified = fileModifiedFromOriginal({ relativePath, options });
   return {
@@ -454,8 +454,8 @@ function describeThemeFile({ relativePath, options }: { relativePath: string; op
     resettable: modified !== null,
     modified,
     published:
-      pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
-        ? isStandaloneThemePage(options.theme, pageId)
+      pageId !== null && isPublishableThemePageCandidate({ theme: options.theme, pageId })
+        ? isStandaloneThemePage({ theme: options.theme, pageId })
         : null,
     collidingContent: themePageCollidingContent({ theme: options.theme, pageId, contentBySlug: options.contentBySlug }),
   };
@@ -476,7 +476,7 @@ function describeThemeFile({ relativePath, options }: { relativePath: string; op
  */
 function themePageCollidingContent({ theme, pageId, contentBySlug }: { theme: DiscoveredTheme; pageId: string | null; contentBySlug: ReadonlyMap<string, ThemeFileContentCollision> }, _optional = {}): ThemeFileContentCollision | null {
   if (pageId === "index") return contentBySlug.get(ROOT_SLUG) ?? null;
-  if (pageId === null || !isPublishableThemePageCandidate(theme, pageId)) return null;
+  if (pageId === null || !isPublishableThemePageCandidate({ theme, pageId })) return null;
   return contentBySlug.get(pageId) ?? null;
 }
 
@@ -523,7 +523,7 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = ({ app, deps
       // `theme_trash_file` must not surface as a file-list entry here either — trash is trash for a
       // human operator too, not only for the agent that put it there.
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
-        .filter((path) => !isGeneratedThemePath(path) && !isTrashedThemePath(path))
+        .filter((path) => !isGeneratedThemePath({ relativePath: path }) && !isTrashedThemePath({ relativePath: path }))
         .map((path) =>
           describeThemeFile({ relativePath: path, options: {
             originalSource,
@@ -627,9 +627,9 @@ function parseThemeFilePutBody(
  */
 function isPutWritable({ theme, path, writeScope }: { theme: DiscoveredTheme; path: string; writeScope: ThemeFileWriteScope }, _optional = {}): boolean {
   return (
-    !isGeneratedThemePath(path) &&
-    (isInsideCompiledSourceDir(theme, path, writeScope)
-      ? isSourceDirWritableExtension(path)
+    !isGeneratedThemePath({ relativePath: path }) &&
+    (isInsideCompiledSourceDir({ theme, relativePath: path, writeScope })
+      ? isSourceDirWritableExtension({ relativePath: path })
       : isThemeFileWritable({ relativePath: path, apiVersion: theme.manifest.apiVersion }))
   );
 }
@@ -832,7 +832,7 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = ({ app, d
       // read the theme's own catalog snapshot and write it straight back into `preview/`, unchecked —
       // not attacker-content injection, but still a write outside the "only `build-preview.mjs`
       // regenerates this folder" invariant every other write route here now honors.
-      if (isGeneratedThemePath(path)) {
+      if (isGeneratedThemePath({ relativePath: path })) {
         res.status(409).json({
           error: `'${path}' is generated output and cannot be reset here`,
           code: "READ_ONLY_FILE",
@@ -930,7 +930,7 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = ({ app, de
       // conflated here, so copy never refused `preview/` the way PUT and rename already do. Since the
       // destination is always the SAME folder as `sourcePath` (see the comment above), checking the
       // source alone is sufficient, matching the rename route's own `sourceRenamable` check.
-      if (isGeneratedThemePath(sourcePath)) {
+      if (isGeneratedThemePath({ relativePath: sourcePath })) {
         res.status(409).json({
           error: `'${sourcePath}' is generated output and cannot be copied`,
           code: "READ_ONLY_FILE",
@@ -1035,7 +1035,7 @@ export function renameThemeFileIfChanged({ deps, theme, paths, existingPaths, re
   // check against `destPath` would NOT have closed it, since `.html`/`.svg` are themselves
   // ordinarily-writable extensions elsewhere in a theme; the bytes staying unvetted-as-that-extension
   // is the real invariant, not the extension's mere presence on an allowlist.
-  if (fileExtension(sourcePath) !== fileExtension(destPath)) {
+  if (fileExtension({ relativePath: sourcePath }) !== fileExtension({ relativePath: destPath })) {
     res.status(400).json({
       error: `renaming '${sourcePath}' to '${name}' would change its extension, which Explore does not allow — a file's extension decides how it is served and must not change via rename`,
       code: "EXTENSION_CHANGE_NOT_ALLOWED",
@@ -1092,7 +1092,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = ({ app, 
       const name = bodyStringField({ body: req.body, field: "name" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
-      const sourceError = validateFileIdentityChange(theme, sourcePath, writeScope, "renamed");
+      const sourceError = validateFileIdentityChange({ theme, path: sourcePath, writeScope, action: "renamed" });
       if (sourceError) {
         res.status(sourceError.status).json({ error: sourceError.error, code: sourceError.code });
         return;
@@ -1159,7 +1159,7 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = ({ app, 
       const path = bodyStringField({ body: req.body, field: "path" });
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
-      const lockError = validateFileIdentityChange(theme, path, writeScope, "deleted");
+      const lockError = validateFileIdentityChange({ theme, path, writeScope, action: "deleted" });
       if (lockError) {
         res.status(lockError.status).json({ error: lockError.error, code: lockError.code });
         return;

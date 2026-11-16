@@ -21,7 +21,7 @@ test("the composed skills module installs, lists, loads, disables and removes an
     app.use(express.json({ limit: "15mb" }));
     registerAuthRoutes({ app, deps });
     app.use("/api/admin", requireAdminSession(deps));
-    createSkillsModule(deps).registerRoutes!(app);
+    createSkillsModule(deps).registerRoutes!({ app });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/skills`;
     const headers = { cookie, "Content-Type": "application/json" };
