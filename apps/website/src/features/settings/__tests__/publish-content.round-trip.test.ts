@@ -152,7 +152,7 @@ test("only allowlisted, non-secret workspace values pack; secrets, user values, 
   assert.deepEqual(packed.find((e) => e.id === "core.site:title")!.state, { label: "Site title", value: "Tovu" });
 
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("site-setting")!;
-  assert.deepEqual(handler.references!(packed.find((e) => e.id === "site.seo:default_og_image")!), [{ entityType: "media", key: MEDIA_ID }]);
+  assert.deepEqual(handler.references!({ entity: packed.find((e) => e.id === "site.seo:default_og_image")! }), [{ entityType: "media", key: MEDIA_ID }]);
 });
 
 test("a share image URL on this computer does not pack, and a hand-made one is refused", async () => {
@@ -269,7 +269,7 @@ test("active theme: a missing theme folder is refused; once it is there the swit
   // Packed under its current name, with the folder a scoped publish carries.
   assert.deepEqual(entities[0]!.state, { label: "tovu-theme", themeId: "tovu-theme", tree: "static/basic" });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
-  assert.deepEqual(handler.references!(entities[0]!), [{ entityType: "theme-files", key: "static/basic" }]);
+  assert.deepEqual(handler.references!({ entity: entities[0]! }), [{ entityType: "theme-files", key: "static/basic" }]);
 
   const forced = await plan(entities, destinationDeps, ["active-theme:site"]);
   assert.equal(forced.rows[0]!.outcome, "forced");
@@ -329,7 +329,7 @@ test("active theme: a blank theme.json name is no display name, and an invalid t
   const [invalid] = await packAll(sourceDeps);
   assert.deepEqual(invalid!.state, { label: "paper", themeId: "paper", tree: null });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
-  assert.deepEqual(handler.references!(invalid!), [], "no installed folder, so no theme-files dependency");
+  assert.deepEqual(handler.references!({ entity: invalid! }), [], "no installed folder, so no theme-files dependency");
 });
 
 test("active theme: only the 'site' row exists, and an unparsable updatedAt inspects as version 0", async () => {
@@ -338,8 +338,8 @@ test("active theme: only the 'site' row exists, and an unparsable updatedAt insp
   await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: "not-a-timestamp" });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
 
-  assert.equal(await handler.inspect!("some-other-row"), null);
-  const inspected = await handler.inspect!("site");
+  assert.equal(await handler.inspect!({ id: "some-other-row" }), null);
+  const inspected = await handler.inspect!({ id: "site" });
   assert.equal(inspected?.version, 0);
   assert.equal(typeof inspected?.hash, "string");
 });
@@ -409,9 +409,9 @@ test("share-image references carry only UUID media identities, and other setting
   const [title] = await packAll(sourceDeps);
   assert.ok(title);
   const handler = contributeSiteSettingPublish().build(sourceDeps);
-  assert.deepEqual(handler.references!(title), []);
+  assert.deepEqual(handler.references!({ entity: title }), []);
   for (const value of [null, 7, "", "slug:public", "https://cdn.example.com/image.png"]) {
-    assert.deepEqual(handler.references!({ ...title, id: "site.seo:default_og_image", state: { value } }), [], String(value));
+    assert.deepEqual(handler.references!({ entity: { ...title, id: "site.seo:default_og_image", state: { value } } }), [], String(value));
   }
 });
 

@@ -104,7 +104,7 @@ test("createSeoPostPort: every port method calls through the host repo with its 
     tag: "repo",
     async findById(this: { tag: string }, input: unknown) { calls.push(`${this.tag}:findById:${JSON.stringify(input)}`); return null; },
     async list(this: { tag: string }, input: unknown) { calls.push(`${this.tag}:list:${JSON.stringify(input)}`); return []; },
-    async transaction(this: { tag: string }, fn: () => Promise<string>) { calls.push(`${this.tag}:transaction`); return fn(); },
+    async transaction(this: { tag: string }, { fn }: { fn: () => Promise<string> }) { calls.push(`${this.tag}:transaction`); return fn(); },
     async saveIfVersion(this: { tag: string }, input: { ifVersion: number }) { calls.push(`${this.tag}:saveIfVersion:${input.ifVersion}`); return true; },
     async appendRevision(this: { tag: string }, input: { stateJson: { id: string } }) { calls.push(`${this.tag}:appendRevision:${input.stateJson.id}`); },
   };
