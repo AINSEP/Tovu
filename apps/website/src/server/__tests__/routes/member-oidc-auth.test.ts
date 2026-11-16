@@ -163,7 +163,7 @@ for (const override of [{ iss: "https://attacker.example" }, { aud: "wrong" }, {
     const f = fixture(override), base = await startTestServer(f.app, t), start = await f.start(base);
     const response = await callback(base, start.params, start.binding);
     refusedTo(response);
-    assert.deepEqual(await f.members.memberRepo.list({ workspaceId: "ws" }), []);
+    assert.deepEqual((await f.members.memberRepo.list({ workspaceId: "ws" })).items, []);
   });
 }
 
@@ -256,7 +256,7 @@ for (const mode of ["missing", "wrong", "duplicate", "tamper", "expire", "disabl
     assert.ok(!cookie(response, "tovu_member_session"));
     const challenge = await f.members.magicLinkRepo.findById({ workspaceId: "ws", id: proof.body.challengeId });
     assert.equal(challenge?.failedAttempts, 0); assert.ok(!challenge?.consumedAt);
-    assert.deepEqual(await f.members.memberRepo.list({ workspaceId: "ws" }), []);
+    assert.deepEqual((await f.members.memberRepo.list({ workspaceId: "ws" })).items, []);
   });
 }
 
