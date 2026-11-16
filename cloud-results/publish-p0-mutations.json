@@ -2547,7 +2547,7 @@
   "id": "PP5",
   "what": "ticked overwrite keys not sent to the peer",
   "file": "apps/website/src/features/publish-content/push-plan.ts",
-  "find": "{ bundle, ...(input.overwriteEntityKeys == null ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }) }",
+  "find": "{ bundle, ...(overwriteEntityKeys == null ? {} : { overwriteEntityKeys }) }",
   "replace": "{ bundle }",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
@@ -2679,8 +2679,8 @@
   "id": "PP17",
   "what": "skipped units read from the selected bundle (equivalent: selectBundleEntities and includeReferencedEntities both keep the scoped list, so the two reads are the same value)",
   "file": "apps/website/src/features/publish-content/push-plan.ts",
-  "find": "      scoped.skipped\n",
-  "replace": "      bundle.skipped\n",
+  "find": "    scoped.skipped\n",
+  "replace": "    bundle.skipped\n",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
    "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
@@ -2690,8 +2690,8 @@
   "id": "PP18",
   "what": "carried-along rows never filtered",
   "file": "apps/website/src/features/publish-content/push-plan.ts",
-  "find": "        includedFor\n      ),",
-  "replace": "        new Map<string, readonly string[]>()\n      ),",
+  "find": "      includedFor\n    ),\n    scoped.skipped",
+  "replace": "      new Map<string, readonly string[]>()\n    ),\n    scoped.skipped",
   "tests": [
    "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
    "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
