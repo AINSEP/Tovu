@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
-import { type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";

@@ -1,4 +1,4 @@
-import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/lib/api";
+import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What `useAlwaysAllow` needs from the outside world, as an interface rather than a direct

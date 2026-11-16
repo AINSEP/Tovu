@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeAgentPluginsPort } from "../hooks/agent-plugins-dependencies.hooks";
 import { useAgentPlugins } from "../hooks/use-agent-plugins.hooks";
@@ -40,7 +41,7 @@ const OTHER_PLUGIN: AdminAgentPlugin = {
 
 describe("useAgentPlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listAgentPlugins");
+    const listSpy = vi.spyOn(integrationsApi, "listAgentPlugins");
     const port = createFakeAgentPluginsPort({ agentPlugins: [SITE_COMPLIANCE] });
     const { result } = renderHook(() => useAgentPlugins({ port, locale: "en", t: (key: string) => key }));
 

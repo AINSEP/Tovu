@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api as pluginsApi, type AdminAgentPlugin } from "../../../lib/api";
+import type { AdminAgentPlugin } from "../../integrations/api/integrations-api.types";
+import { integrationsApi } from "../../integrations/api/integrations-api";
 
 import { emailApi, type EmailApi, type MailProviderConfiguration, type MailProviderConfigurationReport, type MailProviderCredentialInput } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
@@ -35,7 +36,7 @@ export interface EmailProviderController {
 }
 
 /** Email orchestration only; the Plugins API owns activation and trust checks. */
-type PluginApi = Pick<typeof pluginsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
+type PluginApi = Pick<typeof integrationsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
 function useProviderChoices(required: { pluginApi: PluginApi; refresh: () => Promise<MailProviderConfigurationReport> }, _optional = {}) {
   const { pluginApi, refresh } = required;
   const [choices, setChoices] = useState<AdminAgentPlugin[] | null>(null);
@@ -166,5 +167,5 @@ export function useEmailProvider(required: { api: Pick<EmailApi, "listProviders"
 
 /** The real API port. */
 export function useWiredEmailProvider(optional: { onChanged?: () => void } = {}): EmailProviderController {
-  return useEmailProvider({ api: emailApi, pluginApi: pluginsApi }, optional);
+  return useEmailProvider({ api: emailApi, pluginApi: integrationsApi }, optional);
 }

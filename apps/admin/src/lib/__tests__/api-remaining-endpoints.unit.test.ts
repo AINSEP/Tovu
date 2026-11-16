@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { postsApi } from "../../features/posts/api/posts-api";
@@ -148,9 +149,9 @@ describe("endpoints", () => {
     const calls = stubFetch();
     await pluginsApi.uninstallPlugin({ pluginId: "seo/x" });
     await pluginsApi.getPluginFiles({ pluginId: "seo/x" });
-    await api.listAgentPlugins();
-    await api.getAgentPluginFiles({ pluginId: "agent/y" });
-    await api.setAgentPluginEnabled({ pluginId: "agent/y", enabled: false });
+    await integrationsApi.listAgentPlugins();
+    await integrationsApi.getAgentPluginFiles({ pluginId: "agent/y" });
+    await integrationsApi.setAgentPluginEnabled({ pluginId: "agent/y", enabled: false });
     expect(calls).toEqual([
       { url: `${W}/plugins/seo%2Fx`, method: "DELETE" },
       { url: `${W}/plugins/seo%2Fx/files`, method: "GET" },

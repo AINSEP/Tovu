@@ -1,4 +1,5 @@
-import { api, type AdminExternalMcpServer, type AdminExternalMcpToolApproval } from "@/lib/api";
+import type { AdminExternalMcpServer, AdminExternalMcpToolApproval } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { AlwaysAllowPort } from "./always-allow-port.hooks";
 
 /**
@@ -7,9 +8,9 @@ import type { AlwaysAllowPort } from "./always-allow-port.hooks";
  */
 
 export const defaultAlwaysAllowPort: AlwaysAllowPort = {
-  listExternalMcpToolApprovals: () => api.listExternalMcpToolApprovals(),
-  listExternalMcpServers: () => api.listExternalMcpServers(),
-  revokeExternalMcpToolApproval: ({ serverId, toolName }, _options = {}) => api.revokeExternalMcpToolApproval({ serverId, toolName }),
+  listExternalMcpToolApprovals: () => integrationsApi.listExternalMcpToolApprovals(),
+  listExternalMcpServers: () => integrationsApi.listExternalMcpServers(),
+  revokeExternalMcpToolApproval: ({ serverId, toolName }, _options = {}) => integrationsApi.revokeExternalMcpToolApproval({ serverId, toolName }),
 };
 
 /** Seed state for {@link createFakeAlwaysAllowPort}. */

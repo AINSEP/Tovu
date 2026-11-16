@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
@@ -116,11 +117,11 @@ test("updateMenuTree includes title/slug when the caller passes them", async () 
 
 test("pauseIntegrationSubscription sends the same request whether or not the unused options arg is passed", async () => {
   const { calls: withoutArg } = stubFetchCapturing();
-  await api.pauseIntegrationSubscription({ id: "s1", paused: true });
+  await integrationsApi.pauseIntegrationSubscription({ id: "s1", paused: true });
   vi.unstubAllGlobals();
 
   const { calls: withArg } = stubFetchCapturing();
-  await api.pauseIntegrationSubscription({ id: "s1", paused: true }, {});
+  await integrationsApi.pauseIntegrationSubscription({ id: "s1", paused: true }, {});
 
   expect(withArg[0].url).toBe(withoutArg[0].url);
   expect(withArg[0].init?.body).toBe(withoutArg[0].init?.body);

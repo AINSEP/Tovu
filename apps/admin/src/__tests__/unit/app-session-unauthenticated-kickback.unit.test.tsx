@@ -3,7 +3,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
-import { api } from "../../lib/api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import * as apiModule from "../../lib/admin-http/request";
@@ -170,7 +170,7 @@ it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed third-party 401) does NOT
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await act(async () => { await expect(api.listExternalMcpServers()).rejects.toMatchObject({ status: 401 }); });
+  await act(async () => { await expect(integrationsApi.listExternalMcpServers()).rejects.toMatchObject({ status: 401 }); });
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
 

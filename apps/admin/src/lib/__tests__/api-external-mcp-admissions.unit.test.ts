@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 
 /**
  * @file Regression coverage for `api.getExternalMcpAdmissions()` (ADM-003) — the crash reported live
@@ -44,12 +44,12 @@ function okJson(body: unknown): Response {
 test("admissions preserve reported configuration failures instead of dropping them", async () => {
   const configFailures = [{ connectionId: "server-one", reason: "decrypt-failed" }];
   vi.stubGlobal("fetch", async () => okJson({ connections: [], configFailures }));
-  await expect(api.getExternalMcpAdmissions()).resolves.toEqual({ connections: [], configFailures });
+  await expect(integrationsApi.getExternalMcpAdmissions()).resolves.toEqual({ connections: [], configFailures });
 });
 
 test("an explicitly empty configuration failure report remains distinguishable from an absent report", async () => {
   vi.stubGlobal("fetch", async () => okJson({ connections: [], configFailures: [] }));
-  await expect(api.getExternalMcpAdmissions()).resolves.toEqual({ connections: [], configFailures: [] });
+  await expect(integrationsApi.getExternalMcpAdmissions()).resolves.toEqual({ connections: [], configFailures: [] });
 });
 
 /** The real wire body `admin-external-mcp-admissions-routes.test.ts` pins as "relayed verbatim" —
@@ -79,7 +79,7 @@ const WIRE_BODY = {
 test("getExternalMcpAdmissions flattens the daemon's report-nested wire shape into AdminFederatedAdmissionEntry", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => okJson(WIRE_BODY)));
 
-  const result = await api.getExternalMcpAdmissions();
+  const result = await integrationsApi.getExternalMcpAdmissions();
 
   expect(result.connections).toEqual([
     {
@@ -116,7 +116,7 @@ test("getExternalMcpAdmissions omits isPreset rather than inventing it, for an o
     ),
   );
 
-  const result = await api.getExternalMcpAdmissions();
+  const result = await integrationsApi.getExternalMcpAdmissions();
 
   expect(Object.prototype.hasOwnProperty.call(result.connections[0], "isPreset")).toBe(false);
 });

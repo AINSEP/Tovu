@@ -7,7 +7,7 @@ import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
-import type { AdminExternalMcpServer } from "@/lib/api";
+import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
 
 /** Minimal, fully-shaped `AdminExternalMcpServer` fixture — the OAuth-related fields this suite
  *  never exercises stay at their "nothing configured" defaults so each call site only spells out
@@ -61,12 +61,9 @@ const {
   listExternalMcpServers: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listExternalMcpServers },
-  };
+vi.mock("../../../integrations/api/integrations-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../integrations/api/integrations-api")>();
+  return { ...actual, integrationsApi: { ...actual.integrationsApi, listExternalMcpServers } };
 });
 vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../ai-assistant/api/ai-assistant-api")>();

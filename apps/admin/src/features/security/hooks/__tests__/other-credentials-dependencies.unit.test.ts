@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExternalMcpServer } from "@/lib/api";
+import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
 import type { AdminExecutionCredential, SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
@@ -39,12 +39,9 @@ const {
   deleteExternalMcpServer: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listExternalMcpServers, deleteExternalMcpServer },
-  };
+vi.mock("../../../integrations/api/integrations-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../integrations/api/integrations-api")>();
+  return { ...actual, integrationsApi: { ...actual.integrationsApi, listExternalMcpServers, deleteExternalMcpServer } };
 });
 vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../ai-assistant/api/ai-assistant-api")>();

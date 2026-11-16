@@ -5,7 +5,7 @@ import { credentialDraftError, credentialText, formatCredentialHint, storedCrede
 import { buildSourceControlConnectionInput } from '../../features/source-control/rules';
 import { buildCredentialConnectionInput } from '../../features/deployment/rules';
 import { describeStoredCredentials, toAccessTokenWriteBody } from '../../features/settings/hooks/use-external-mcp.hooks';
-import type { AdminExternalMcpServer } from '../api';
+import type { AdminExternalMcpServer } from '../../features/integrations/api/integrations-api.types';
 
 describe('credential byte preservation and safe admin hints', () => {
   it('uses server hints for both BYOK placeholders and separates a literal dot from the ellipsis', () => {

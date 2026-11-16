@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 
 import { t as tExternalMcp } from "../external-mcp-i18n";

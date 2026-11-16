@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
@@ -89,17 +90,17 @@ const singleIdCases: Case[] = [
   ],
   [
     "pauseIntegrationSubscription",
-    () => api.pauseIntegrationSubscription({ id: SLASH_ID, paused: true }),
+    () => integrationsApi.pauseIntegrationSubscription({ id: SLASH_ID, paused: true }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}/pause`,
   ],
   [
     "deleteIntegrationSubscription",
-    () => api.deleteIntegrationSubscription({ id: SLASH_ID }),
+    () => integrationsApi.deleteIntegrationSubscription({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}`,
   ],
   [
     "listIntegrationDeliveries",
-    () => api.listIntegrationDeliveries({ subscriptionId: SLASH_ID }),
+    () => integrationsApi.listIntegrationDeliveries({ subscriptionId: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}/deliveries`,
   ],
   ["updateMedia", () => mediaApi.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],

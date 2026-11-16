@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 
 import {
   EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE,
@@ -33,8 +33,8 @@ describe("api sign-in routes", () => {
   it("POSTs connect and device poll to the server's oauth routes", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ auth: { kind: "redirect_required", authorizationUrl: "x", expiresAt: "y" } }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
-    await api.connectExternalMcpOAuth({ serverId: "higgs field" });
-    await api.pollExternalMcpOAuthDevice({ serverId: "higgs field" });
+    await integrationsApi.connectExternalMcpOAuth({ serverId: "higgs field" });
+    await integrationsApi.pollExternalMcpOAuthDevice({ serverId: "higgs field" });
     const calls = fetchMock.mock.calls as unknown as [string, RequestInit][];
     expect(calls[0]![0]).toBe("/api/admin/v1/workspaces/workspace-local/mcp-servers/higgs%20field/oauth/connect");
     expect(calls[0]![1].method).toBe("POST");

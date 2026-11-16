@@ -1,4 +1,4 @@
-import { type AdminWebhookDelivery } from "@/lib/api";
+import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";

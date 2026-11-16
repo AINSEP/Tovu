@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { themesApi } from "../../features/themes/api/themes-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
@@ -16,8 +16,8 @@ import { ApiError } from "../admin-http/request";
 
 test("external MCP approvals list and revoke use separately encoded server and tool names", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listExternalMcpToolApprovals();
-  await api.revokeExternalMcpToolApproval({ serverId: "server/one", toolName: "tool/name" });
+  await integrationsApi.listExternalMcpToolApprovals();
+  await integrationsApi.revokeExternalMcpToolApproval({ serverId: "server/one", toolName: "tool/name" });
   expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/mcp-servers/tool-approvals", "GET"],
     ["/api/admin/v1/workspaces/workspace-local/mcp-servers/server%2Fone/tool-approvals/tool%2Fname", "DELETE"],
@@ -191,7 +191,7 @@ test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
 
 test("getExternalMcpAdmissions hits GET /mcp-servers/admissions", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getExternalMcpAdmissions();
+  await integrationsApi.getExternalMcpAdmissions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/admissions`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -207,7 +207,7 @@ test("getExternalMcpAdmissions surfaces a 503 (daemon unreachable) as an ApiErro
         })
     )
   );
-  const error = await api.getExternalMcpAdmissions().catch((e: unknown) => e);
+  const error = await integrationsApi.getExternalMcpAdmissions().catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).status).toBe(503);
 });
@@ -216,14 +216,14 @@ test("getExternalMcpAdmissions surfaces a 503 (daemon unreachable) as an ApiErro
 
 test("listIntegrationSubscriptions hits GET /integrations/subscriptions", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listIntegrationSubscriptions();
+  await integrationsApi.listIntegrationSubscriptions();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("createIntegrationSubscription POSTs the input verbatim to /integrations/subscriptions", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createIntegrationSubscription({ label: "Slack", targetUrl: "https://x.example/hook", topics: ["post.published"] });
+  await integrationsApi.createIntegrationSubscription({ label: "Slack", targetUrl: "https://x.example/hook", topics: ["post.published"] });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ label: "Slack", targetUrl: "https://x.example/hook", topics: ["post.published"] });
@@ -231,14 +231,14 @@ test("createIntegrationSubscription POSTs the input verbatim to /integrations/su
 
 test("deleteIntegrationSubscription DELETEs /integrations/subscriptions/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteIntegrationSubscription({ id: "s1" });
+  await integrationsApi.deleteIntegrationSubscription({ id: "s1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/s1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
 
 test("listIntegrationDeliveries hits GET /integrations/subscriptions/:id/deliveries", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listIntegrationDeliveries({ subscriptionId: "s1" });
+  await integrationsApi.listIntegrationDeliveries({ subscriptionId: "s1" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/s1/deliveries`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -525,14 +525,14 @@ test("getMember hits GET /members/:id", async () => {
 
 test("listExternalMcpServers hits GET /mcp-servers", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listExternalMcpServers();
+  await integrationsApi.listExternalMcpServers();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.saveExternalMcpServer({ serverId: "local-fs", body: {
+  await integrationsApi.saveExternalMcpServer({ serverId: "local-fs", body: {
     label: "Local filesystem",
     transport: "stdio",
     enabled: true,
@@ -556,7 +556,7 @@ test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async (
 
 test("saveExternalMcpServer encodes the serverId into the URL", async () => {
   const { calls } = stubFetchCapturing();
-  await api.saveExternalMcpServer({ serverId: "weird id/slash", body: {
+  await integrationsApi.saveExternalMcpServer({ serverId: "weird id/slash", body: {
     transport: "stdio",
     enabled: true,
     command: "npx",
@@ -571,14 +571,14 @@ test("saveExternalMcpServer encodes the serverId into the URL", async () => {
 
 test("deleteExternalMcpServer DELETEs /mcp-servers/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteExternalMcpServer({ serverId: "local-fs" });
+  await integrationsApi.deleteExternalMcpServer({ serverId: "local-fs" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
 
 test("probeExternalMcpServer POSTs (no body) to /mcp-servers/:id/probe", async () => {
   const { calls } = stubFetchCapturing();
-  await api.probeExternalMcpServer({ serverId: "local-fs" });
+  await integrationsApi.probeExternalMcpServer({ serverId: "local-fs" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs/probe`);
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBeUndefined();

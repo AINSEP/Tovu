@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { api, type AdminAgentPlugin } from "../api";
+import type { AdminAgentPlugin } from "../../features/integrations/api/integrations-api.types";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import type { AdminPost } from "../../features/posts/api/posts-api.types";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { buildAdminAgentPages } from "../agent-pages";
@@ -8,7 +9,7 @@ import * as router from "../router";
 afterEach(() => { vi.restoreAllMocks(); window.history.replaceState({}, "", "/admin"); });
 
 it("resolves the real plugin id, correct tab and a discovery query without clicking a made-up details handle", async () => {
-  vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: false } as AdminAgentPlugin] });
+  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: false } as AdminAgentPlugin] });
   const navigate = vi.spyOn(router, "navigate");
   const result = await buildAdminAgentPages()["agent-plugins"]!.navigate({ entity: { type: "agent-plugin", id: "ui-ux-design" } });
   expect(navigate).toHaveBeenCalledExactlyOnceWith({ routePath: "/addons/agent-plugins?tab=downloaded" });
@@ -16,7 +17,7 @@ it("resolves the real plugin id, correct tab and a discovery query without click
 });
 
 it("a missing plugin cannot navigate to a guessed destination", async () => {
-  vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [] });
+  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [] });
   const navigate = vi.spyOn(router, "navigate");
   await expect(buildAdminAgentPages()["agent-plugins"]!.navigate({ entity: { type: "agent-plugin", id: "absent" } })).rejects.toThrow("not found");
   expect(navigate).not.toHaveBeenCalled();
@@ -32,7 +33,7 @@ it("uses the kind-guarded page read and the actual encoded slug", async () => {
 
 
 it("opens an enabled package on Installed using the current server state", async () => {
-  vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: true } as AdminAgentPlugin] });
+  vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [{ pluginId: "ui-ux-design", enabled: true } as AdminAgentPlugin] });
   const navigate = vi.spyOn(router, "navigate");
   await buildAdminAgentPages()["agent-plugins"]!.navigate({ entity: { type: "agent-plugin", id: "ui-ux-design" } });
   expect(navigate).toHaveBeenCalledExactlyOnceWith({ routePath: "/addons/agent-plugins?tab=installed" });

@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 import { mediaApi } from "@/features/media/api/media-api";
@@ -21,8 +21,8 @@ export const defaultOtherCredentialsPort: OtherCredentialsPort = {
   getMediaProviders: () => mediaApi.getMediaProviders(),
   saveMediaProviders: (providers, _optional = {}) => mediaApi.saveMediaProviders(providers),
 
-  listExternalMcpServers: () => api.listExternalMcpServers(),
-  deleteExternalMcpServer: ({ serverId }, _optional = {}) => api.deleteExternalMcpServer({ serverId }),
+  listExternalMcpServers: () => integrationsApi.listExternalMcpServers(),
+  deleteExternalMcpServer: ({ serverId }, _optional = {}) => integrationsApi.deleteExternalMcpServer({ serverId }),
 };
 
 /** {@link createFakeOtherCredentialsPort}'s site-assistant slice — one small named helper per

@@ -1,4 +1,5 @@
-import { api, type AdminWebhookDelivery } from "@/lib/api";
+import type { AdminWebhookDelivery } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
 
 /**
@@ -9,7 +10,7 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultIntegrationDeliveriesPort: IntegrationDeliveriesPort = {
-  listIntegrationDeliveries: ({ subscriptionId }, _optional = {}) => api.listIntegrationDeliveries({ subscriptionId }),
+  listIntegrationDeliveries: ({ subscriptionId }, _optional = {}) => integrationsApi.listIntegrationDeliveries({ subscriptionId }),
 };
 
 /** Seed state for {@link createFakeIntegrationDeliveriesPort}. */

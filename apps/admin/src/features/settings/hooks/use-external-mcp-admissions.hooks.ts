@@ -1,7 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
+import type { AdminExternalMcpAdmissionsSnapshot } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { ApiError, API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
@@ -72,7 +73,7 @@ const ADMISSIONS_KEY = ["external-mcp", "admissions"] as const;
 const PERMISSIONS_KEY = ["auth", "me"] as const;
 
 export const defaultExternalMcpAdmissionsPort: ExternalMcpAdmissionsPort = {
-  getAdmissions: () => api.getExternalMcpAdmissions(),
+  getAdmissions: () => integrationsApi.getExternalMcpAdmissions(),
   me: () => authApi.me(),
   restartAssistantDaemon: () => aiAssistantApi.restartAssistantDaemon(),
 };

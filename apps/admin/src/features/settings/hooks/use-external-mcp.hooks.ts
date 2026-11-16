@@ -21,7 +21,8 @@ type SourceUpdateInput = Parameters<
   NonNullable<SourceConfigDependencies<SourceConfigItem>["port"]["updateSource"]>
 >[1];
 
-import { api, type AdminExternalMcpOAuthInput, type AdminExternalMcpServer, type AdminExternalMcpServerInput } from "@/lib/api";
+import type { AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as tExternalMcp } from "../external-mcp-i18n";
@@ -255,10 +256,10 @@ async function checkSavedServer({ item, server, locale, port }: { item: SourceCo
 }
 
 /** Existing API contracts remain the owner; injection lets tests use fakes without module mocks. */
-export type ExternalMcpPort = Pick<typeof api, "listExternalMcpServers" | "saveExternalMcpServer" | "deleteExternalMcpServer" | "probeExternalMcpServer">;
+export type ExternalMcpPort = Pick<typeof integrationsApi, "listExternalMcpServers" | "saveExternalMcpServer" | "deleteExternalMcpServer" | "probeExternalMcpServer">;
 
 export function useExternalMcp(
-  { port = api, useAdminLocaleHook = useAdminLocale }: { port?: ExternalMcpPort; useAdminLocaleHook?: () => string } = {},
+  { port = integrationsApi, useAdminLocaleHook = useAdminLocale }: { port?: ExternalMcpPort; useAdminLocaleHook?: () => string } = {},
   _optional: Record<string, never> = {},
 ): ExternalMcpController {
   const [restartRequired, setRestartRequired] = useState(false);

@@ -6,7 +6,7 @@ import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-ref
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { WEBHOOKS_RESOURCE } from "../rules";
-import type { AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file `useIntegrations` — the Integrations LIST screen's load/create/pause/delete state.

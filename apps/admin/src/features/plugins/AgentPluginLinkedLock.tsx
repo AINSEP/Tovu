@@ -1,6 +1,6 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import { navigate } from "@/lib/router";
 import { LockIcon } from "./agent-plugins-visuals";
 import { linkedLockTip } from "./hooks/use-linked-lock-tip.hooks";
