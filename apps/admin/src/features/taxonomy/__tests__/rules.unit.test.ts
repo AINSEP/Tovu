@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { termDepth, otherMergeTargets, findSelectedTerm, describeDeleteBlocked, describeTrashError, splitTermNames, findTermByName, visibleTaxonomyError, termListView, TERM_PICKER_COLLAPSED_COUNT, TERM_PICKER_MAX_SHOWN } from "../rules";
 
 /**

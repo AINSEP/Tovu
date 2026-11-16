@@ -3,7 +3,7 @@ import { createHttpFormsApi, createHttpFormsTrash, type FormsTransportPort } fro
 import { FORMS_LIST_RESOURCE, type AdminFormsPort, type FormsTrashPort, type FormsEventsPort, type FormsNavigationPort, type FormsTranslator } from '@jini-ai/admin/forms';
 import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { t as translateForms } from '../../features/forms/forms-i18n';
-import { WORKSPACE_ID } from '../../lib/api';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { navigate } from '../../lib/router';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { mediaTransport } from './media-ports';

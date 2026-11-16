@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../api";
+import { ApiError } from "../admin-http/request";
 import { COMMON_I18N } from "../i18n-common";
 import { isVersionConflict, readVersionConflict, VERSION_CONFLICT_CODE, VERSION_CONFLICT_MESSAGE } from "../version-conflict";
 

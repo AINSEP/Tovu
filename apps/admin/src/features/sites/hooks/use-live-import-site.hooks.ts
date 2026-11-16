@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { describeApiError, type AdminLocalSiteState } from "@/lib/api";
+import { type AdminLocalSiteState } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 
 import { siteWriteErrorKey } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";

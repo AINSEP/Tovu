@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminMember } from "@/lib/api";
+import { type AdminMember } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { describeMembersError as describeApiError, emptyRowState, memberRowMenuItems } from "@jini-ai/user-management/react";
 import { t } from "../members-i18n";
 

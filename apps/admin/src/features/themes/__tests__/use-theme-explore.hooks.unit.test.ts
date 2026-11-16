@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 
 import { t as translateThemes } from "../themes-i18n";

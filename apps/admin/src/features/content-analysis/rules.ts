@@ -1,4 +1,4 @@
-import { ApiError, describeApiError } from "@/lib/api";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 
 import { type Translate, interpolate } from '@jini-ai/core/text';
 /**

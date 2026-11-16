@@ -1,4 +1,5 @@
-import { describeApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
+import { type AdminContentType, type AdminEntry } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

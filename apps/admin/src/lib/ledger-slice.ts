@@ -4,7 +4,9 @@ import {
   readString as stringValue, readBoolean as booleanValue, readNumber as numberValue,
   type AdminSettingsPort, type LedgerCandidate,
 } from "@jini-ai/admin/core";
-import { api, ApiError, type SettingScope } from "./api";
+import { api } from "./api";
+import { ApiError } from "./admin-http/request";
+import type { SettingScope } from "@jini-ai/core/settings";
 export type { LedgerEntry, LedgerCandidate } from "@jini-ai/admin/core";
 const ledgerPort: Pick<AdminSettingsPort, "getSettingsEffective" | "setSetting"> = {
   getSettingsEffective: async (input) => (await api.getSettingsEffective(input)).data,

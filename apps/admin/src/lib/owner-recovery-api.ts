@@ -1,8 +1,8 @@
 import { formatUserFacingError, type UserFacingError } from '@jini-ai/core';
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 
-import { describeApiError } from './api';
-import { requestOnce } from './api';
+import { describeApiError } from './admin-http/request';
+import { requestOnce } from './admin-http/request';
 
 import { type Translate } from '@jini-ai/core/text';
 export interface OwnerRecoveryStatus { isOwner: boolean; available: boolean; desktopOwnerReset: boolean }

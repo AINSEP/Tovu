@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminApiError, describeApiError } from '@jini-ai/admin/core';
 import type { RedirectsTransportPort } from '@jini-ai/admin/redirects/adapters/http';
-import { ApiError } from '../../../lib/api';
+import { ApiError } from '../../../lib/admin-http/request';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 import { createRedirectsHostPorts, createRedirectsTranslator, redirectsEvents, redirectsSessionGrants } from '../redirects-ports';
 

@@ -1,6 +1,6 @@
 // Retry/abort rationale: Jini/packages/ui/src/features/panel-kit/helpers/retry-unreachable.ts.
 import { retryWhileUnreachable as retryPackageRequest } from "@jini-ai/ui/panel-kit";
-import { API_UNREACHABLE_CODE, ApiError } from "./api";
+import { API_UNREACHABLE_CODE, ApiError } from "./admin-http/request";
 
 import { isAbortError as isPackageAbortError } from '@jini-ai/core/text';
 export { UNREACHABLE_RETRY_DELAYS_MS } from "@jini-ai/ui/panel-kit";

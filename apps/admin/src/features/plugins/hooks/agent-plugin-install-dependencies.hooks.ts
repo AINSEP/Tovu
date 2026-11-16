@@ -1,4 +1,6 @@
-import { ApiError, authenticatedAdminRequest, WORKSPACE_ID, type AdminAgentPlugin } from "@/lib/api";
+import { type AdminAgentPlugin } from "@/lib/api";
+import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import type { AgentPluginInstallPort, AgentPluginInstallResult } from "./agent-plugin-install-port.hooks";
 
 /** The live upload, through the shared authenticated request seam (session expiry, API prefix). */

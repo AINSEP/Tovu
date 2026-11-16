@@ -3,12 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { createFakeExecutionPort, type ExecutionPort, type ByokConfig } from "@jini-ai/ui";
 
-import {
-  api,
-  ApiError,
-  type SiteAssistantCredential,
-  type SiteAssistantCredentialPatch,
-} from "@/lib/api";
+import { api, type SiteAssistantCredential, type SiteAssistantCredentialPatch } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { storedKeyIsForOtherEndpoint } from "@/lib/stored-credential-endpoint";
 import {
   saveVisitorKey,

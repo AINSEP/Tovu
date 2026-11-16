@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeObservabilityStatusPort } from "../hooks/observability-status-dependencies.hooks";
 import { useObservabilityStatus, useWiredObservabilityStatus } from "../hooks/use-observability-status.hooks";
 import { t as translateObservability } from "../observability-i18n";

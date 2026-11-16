@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminContentType } from "@/lib/api";
+import { type AdminContentType } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeCollectionsPort } from "../hooks/collections-dependencies.hooks";
 import { useCollections, useWiredCollections } from "../hooks/use-collections.hooks";

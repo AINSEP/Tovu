@@ -71,9 +71,12 @@ vi.mock("../api", () => ({
     getAdminExecutionCredential,
     setAdminExecutionCredential,
   },
+}));
+// The next-send test loads the real dock hooks, whose skills source reads the workspace id: the
+// real `admin-http/config` supplies it, so only the error class is replaced here.
+vi.mock("../admin-http/request", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../admin-http/request")>()),
   ApiError: FakeApiError,
-  // The next-send test loads the real dock hooks, whose skills source reads the workspace id.
-  WORKSPACE_ID: "workspace-local",
 }));
 
 import {

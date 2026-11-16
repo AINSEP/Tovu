@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { api, describeApiError } from '@/lib/api';
+import { api } from '@/lib/api';
+import { describeApiError } from '@/lib/admin-http/request';
 
 export type SharedView = Awaited<ReturnType<typeof api.listSharedMcpConnections>>;
 

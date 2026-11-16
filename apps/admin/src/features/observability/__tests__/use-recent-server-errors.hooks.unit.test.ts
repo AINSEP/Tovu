@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminServerLogs } from "@/lib/api";
+import { type AdminServerLogs } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeRecentServerErrorsPort, defaultRecentServerErrorsPort } from "../hooks/recent-server-errors-dependencies.hooks";
 import { RECENT_ERRORS_LIMIT, useRecentServerErrors, useWiredRecentServerErrors } from "../hooks/use-recent-server-errors.hooks";
 

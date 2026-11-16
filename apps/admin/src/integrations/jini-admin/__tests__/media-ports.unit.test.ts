@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mediaApi, createMediaProvidersPort, mediaSessionGrants, mediaEvents } from '../media-ports';
 import { publishContentRefresh } from '../../../lib/content-refresh-bus';
 import { MEDIA_PROVIDER_CATALOG } from '../../../features/media/media-provider-catalog';
-import { ApiError } from '../../../lib/api';
+import { ApiError } from '../../../lib/admin-http/request';
 afterEach(() => vi.unstubAllGlobals());
 describe('host media ports', () => {
   it.each([null, {}, { results: null }, { results: {} }, { results: [

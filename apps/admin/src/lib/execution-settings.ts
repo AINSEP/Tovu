@@ -65,14 +65,10 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    `createExecutionPort` below.
  */
 
-import {
-  api,
-  ApiError,
-  type AdminExecutionCredential,
-  type AdminExecutionCredentialPatch,
-  type SettingResolvedValue,
-  type SettingScope,
-} from "./api";
+import { api, type AdminExecutionCredential, type AdminExecutionCredentialPatch } from "./api";
+import { ApiError } from "./admin-http/request";
+import type { SettingResolvedValue } from "./settings-effective-reads";
+import type { SettingScope } from "@jini-ai/core/settings";
 import { createExecutionHttpAdapter, requireExecutionResponseData, type CreateExecutionPortOptions, type ByokConfig, type ExecutionConfig, type ExecutionPort } from "@jini-ai/ui";
 
 /** SPEC-007 namespace holding every NON-SECRET execution-mode key. No

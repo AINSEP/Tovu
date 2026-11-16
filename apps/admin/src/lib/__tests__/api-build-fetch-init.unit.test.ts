@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { buildFetchInit } from "../api";
+import { buildFetchInit } from "../admin-http/request";
 
 /**
  * @file Direct unit test for `api.ts`'s `buildFetchInit` — the private `fetch`-`init` merge helper

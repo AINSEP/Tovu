@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import {
-  describeApiError,
-  type AdminContentType,
-  type AdminEntry,
-} from "@/lib/api";
+import { type AdminContentType, type AdminEntry } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, ApiError } from "../../../lib/api";
+import { api } from "../../../lib/api";
+import { ApiError } from "../../../lib/admin-http/request";
 
 /**
  * @file The admin chat composer's folder button. A browser can never read a folder's OS path, so the

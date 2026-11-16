@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, onUnauthenticated } from "../api";
+import { api } from "../api";
+import { onUnauthenticated } from "../admin-http/request";
 
 /**
  * @file Coverage-gap-fill pass (2026-09-05, `fix-apienc` dispatch TASK 2) closing the remaining gap

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api, type AdminIdentityUser } from "../api";
+import { api, type AdminIdentityUser } from "../api";
+import { ApiError } from "../admin-http/request";
 
 /**
  * @file First direct coverage pass for `api.ts`'s users/roles/policies-CRUD-completion endpoints

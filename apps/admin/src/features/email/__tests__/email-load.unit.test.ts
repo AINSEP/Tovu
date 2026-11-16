@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useLoad } from "../hooks/email-load.hooks";
 
 /** @file Tab reads distinguish permission, transport failure and empty data, and discard stale reads. */

@@ -2,15 +2,8 @@ import { classifyCredentialSubmitError } from "../../../lib/credential-submit-er
 import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  describeApiError,
-  type AdminPublishCredentialProviderId,
-  type AdminPublishCredentialSummary,
-  type AdminPublishCredentialVerification,
-  type AdminPublishExecutionMode,
-  type AdminPublishTargetCredentialSpec,
-  type AdminPublishTargetDescriptor,
-} from "@/lib/api";
+import { type AdminPublishCredentialProviderId, type AdminPublishCredentialSummary, type AdminPublishCredentialVerification, type AdminPublishExecutionMode, type AdminPublishTargetCredentialSpec, type AdminPublishTargetDescriptor } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {

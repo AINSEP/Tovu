@@ -2,14 +2,8 @@ import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 
-import {
-  describeApiError,
-  type AdminPublishRunSnapshot,
-  type AdminPublishTargetDescriptor,
-  type AdminStaticPublishConfig,
-  type AdminStaticPublishPreview,
-  type AdminStaticPublishTargetId,
-} from "@/lib/api";
+import { type AdminPublishRunSnapshot, type AdminPublishTargetDescriptor, type AdminStaticPublishConfig, type AdminStaticPublishPreview, type AdminStaticPublishTargetId } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

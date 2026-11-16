@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api } from "../api";
+import { api } from "../api";
+import { ApiError } from "../admin-http/request";
 
 test("external MCP approvals list and revoke use separately encoded server and tool names", async () => {
   const { calls } = stubFetchCapturing();

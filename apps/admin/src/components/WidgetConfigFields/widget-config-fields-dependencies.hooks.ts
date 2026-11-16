@@ -1,4 +1,6 @@
-import { api, authenticatedAdminRequest, WORKSPACE_ID, type AdminContentType, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
+import { api, type AdminContentType, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
+import { authenticatedAdminRequest } from "../../lib/admin-http/request";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 
 /**

@@ -11,7 +11,8 @@ import { useAgentPluginInstall } from "../hooks/use-agent-plugin-install.hooks";
 import type { AgentPluginsController } from "../hooks/use-agent-plugins.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
 import { agentPluginCompatibilityLines, agentPluginWarningText, buildAgentPluginDisableConfirmCopy, updatableAgentPluginDigest } from "../rules";
-import { ApiError, type AdminAgentPlugin } from "@/lib/api";
+import { type AdminAgentPlugin } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The Agent Plugins lifecycle fields on screen (2026-10-21): a row this Tovu cannot run or

@@ -1,6 +1,6 @@
 import { createConditionalHistoryRead } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./api";
+import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions } from "./admin-http/request";
 
 /**
  * @file The admin's client for `/api/assistant/chats` — the browser half of durable transcripts.

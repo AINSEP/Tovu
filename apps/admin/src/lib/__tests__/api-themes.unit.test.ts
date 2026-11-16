@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api } from "../api";
+import { api } from "../api";
+import { ApiError } from "../admin-http/request";
 
 /**
  * @file First direct coverage pass for `api.ts`'s theme endpoints (0% before this

@@ -1,5 +1,6 @@
 import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/consent/react';
-import { WORKSPACE_ID, authenticatedAdminRequest } from '@/lib/api';
+import { WORKSPACE_ID } from '@/lib/admin-http/config';
+import { authenticatedAdminRequest } from '@/lib/admin-http/request';
 
 /**
  * @file The Cookie Consent page's port onto the revisions API

@@ -1,7 +1,7 @@
 import { formatUserFacingError, type UserFacingError } from "@jini-ai/core";
 
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
-import { ApiError, describeApiError } from "../../lib/api";
+import { ApiError, describeApiError } from "../../lib/admin-http/request";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Format Skills failures at the admin disclosure boundary, preserving the server incident ID.

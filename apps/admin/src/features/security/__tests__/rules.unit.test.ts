@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { t as translateSecurity } from "../security-i18n";
 import {
   accessTokenProvidersWithSavedRows,

@@ -3,7 +3,8 @@ import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { folderPathsFromDataTransfer } from "@jini-ai/ui";
 
-import { api, ApiError } from "../../../lib/api";
+import { api } from "../../../lib/api";
+import { ApiError } from "../../../lib/admin-http/request";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 

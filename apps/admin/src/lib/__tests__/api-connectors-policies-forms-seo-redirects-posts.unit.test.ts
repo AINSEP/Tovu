@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isAdminDevServerOrigin } from "../admin-dev-origin";
-import { ApiError, api } from "../api";
+import { api } from "../api";
+import { ApiError } from "../admin-http/request";
 
 // `templatePreviewUrl` routes through `lib/site-url.ts`, which now asks whether the page is actually
 // on the admin dev server's own origin before absolutizing. Mocked rather than driven through

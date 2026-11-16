@@ -24,7 +24,9 @@ import {
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
-import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
+import { api, type AdminUser } from "./lib/api";
+import { WORKSPACE_ID } from "./lib/admin-http/config";
+import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";

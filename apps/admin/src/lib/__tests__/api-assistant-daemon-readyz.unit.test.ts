@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, REQUEST_TIMEOUT_CODE, api } from "../api";
+import { api } from "../api";
+import { ApiError, REQUEST_TIMEOUT_CODE } from "../admin-http/request";
 
 /**
  * @file `getAssistantDaemonReadyz()` — regression coverage for the 2026-08-17 source-control-ui

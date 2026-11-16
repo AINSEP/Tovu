@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { skillFailure } from "../skill-failure";
 import { t } from "../skills-i18n";
 

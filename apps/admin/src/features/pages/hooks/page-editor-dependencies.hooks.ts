@@ -1,5 +1,6 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { api, ApiError, type AdminPost, type ThemeTier } from "@/lib/api";
+import { api, type AdminPost, type ThemeTier } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";

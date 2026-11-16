@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
-import { api, ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../api";
+import { api } from "../api";
+import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
 import { setAdminDraftIdentity } from "../admin-draft-identity";
 import { serverReconnect } from "../server-reconnect";

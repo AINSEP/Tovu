@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, REQUEST_TIMEOUT_CODE, ApiError, api } from "../api";
+import { api } from "../api";
+import { API_UNREACHABLE_CODE, REQUEST_TIMEOUT_CODE, ApiError } from "../admin-http/request";
 
 /**
  * @file `request()`'s error translation, pinned at the two routes that produce "the operator cannot

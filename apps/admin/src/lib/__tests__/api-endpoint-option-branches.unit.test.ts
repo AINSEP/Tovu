@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api } from "../api";
+import { api } from "../api";
+import { ApiError } from "../admin-http/request";
 
 /**
  * @file Coverage-gap-fill pass (2026-09-04) for `api.ts`'s per-endpoint wrapper functions — the

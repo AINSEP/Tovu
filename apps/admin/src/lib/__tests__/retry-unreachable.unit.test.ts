@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, ApiError } from "../api";
+import { API_UNREACHABLE_CODE, ApiError } from "../admin-http/request";
 import { isAbortError, retryWhileUnreachable } from "../retry-unreachable";
 
 /**

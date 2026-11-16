@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, ApiError, api } from "../api";
+import { api } from "../api";
+import { API_UNREACHABLE_CODE, ApiError } from "../admin-http/request";
 
 /**
  * @file `request()`'s translation of a `fetch` rejection that happens BECAUSE the page is navigating

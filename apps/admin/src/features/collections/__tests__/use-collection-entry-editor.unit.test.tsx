@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
+import { type AdminContentType, type AdminEntry } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";

@@ -8,7 +8,8 @@
  * URL. The server decides when to capture — see `site-preview-service.ts` in the website app.
  */
 import { useCallback, useState } from "react";
-import { adminSitePreviewUrl, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
+import { type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
+import { adminSitePreviewUrl } from "@/lib/admin-http/urls";
 
 export interface SiteCardPreviewView {
   /** The image to show, or `null` for the placeholder (no capture yet, or an older server). */

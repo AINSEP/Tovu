@@ -1,5 +1,5 @@
 /** Tovu's local browser adapter; the server owns production/launcher/peer admission. */
-import { ApiError } from "./api";
+import { ApiError } from "./admin-http/request";
 export interface LocalOwnerSessionPort<T> {
   signInLocalOwner: (required: Record<string, never>, optional?: Record<string, never>) => Promise<unknown>;
   me: () => Promise<T>;

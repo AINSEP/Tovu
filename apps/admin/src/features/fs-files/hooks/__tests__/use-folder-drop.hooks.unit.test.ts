@@ -4,7 +4,7 @@ import { createElement, createRef, type DragEvent } from "react";
 import { ChatPane, type ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import type { ChatTransport } from "@jini-ai/chat/core";
 
-import { ApiError } from "../../../../lib/api";
+import { ApiError } from "../../../../lib/admin-http/request";
 import type { FolderDropPort } from "../../folder-drop-port";
 import { useFolderDrop } from "../use-folder-drop.hooks";
 

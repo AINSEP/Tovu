@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { readInitialAdminSession, tryLocalOwnerSession } from "../local-owner-signin";
-import { ApiError } from "../api";
+import { ApiError } from "../admin-http/request";
 
 /** devsignin: parameter-injected API fakes; no module replacements or secrets in JS. */
 it("signs in before reading the site's normal user and permission response", async () => {

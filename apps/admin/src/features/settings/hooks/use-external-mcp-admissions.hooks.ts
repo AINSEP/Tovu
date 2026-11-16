@@ -1,14 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  api,
-  ApiError,
-  API_UNREACHABLE_CODE,
-  describeApiError,
-  REQUEST_TIMEOUT_CODE,
-  type AdminExternalMcpAdmissionsSnapshot,
-} from "@/lib/api";
+import { api, type AdminExternalMcpAdmissionsSnapshot } from "@/lib/api";
+import { ApiError, API_UNREACHABLE_CODE, describeApiError, REQUEST_TIMEOUT_CODE } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { hasPermission } from "@jini-ai/ui/panel-kit";
 

@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, it } from "vitest";
 import { useAdminSession } from "../../App.hooks";
-import { ApiError } from "../../lib/api";
+import { ApiError } from "../../lib/admin-http/request";
 
 /** devsignin: exercise the real hook with DI fakes, including a same-tab site restart. */
 function fixture(hostname = "localhost") {

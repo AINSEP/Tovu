@@ -47,7 +47,8 @@ import {
  * non-Error.
  *
  */
-import { describeApiError, type AdminPublishDestinationView } from "@/lib/api";
+import { type AdminPublishDestinationView } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 

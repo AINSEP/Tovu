@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
+import { type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import {
   activationOutlook,
   createdTokensNoteKey,

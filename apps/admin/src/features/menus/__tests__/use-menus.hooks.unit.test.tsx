@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
-import { api, ApiError, type AdminMenu } from "@/lib/api";
+import { api, type AdminMenu } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";
 

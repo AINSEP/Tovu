@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, ApiError, requestOnce, requestRidingOutRestart } from "../api";
+import { API_UNREACHABLE_CODE, ApiError, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 import { browserServerReconnectDeps, createServerReconnect, probeReadyz, serverReconnect, serverReconnectForMode, shouldRetryAfterReconnect, type ServerReconnect } from "../server-reconnect";
 
 /**

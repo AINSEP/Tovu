@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import {
   addDraftField,

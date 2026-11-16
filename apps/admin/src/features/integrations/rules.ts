@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import { describeApiError, type AdminWebhookDelivery, type AdminWebhookSubscription } from "../../lib/api";
+import { type AdminWebhookDelivery, type AdminWebhookSubscription } from "../../lib/api";
+import { describeApiError } from "../../lib/admin-http/request";
 
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { t } from "./integrations-i18n";

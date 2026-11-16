@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, bodyFitsKeepalive, KEEPALIVE_MAX_BODY_BYTES } from "../api";
+import { api } from "../api";
+import { bodyFitsKeepalive, KEEPALIVE_MAX_BODY_BYTES } from "../admin-http/request";
 
 /**
  * @file REGRESSION (2026-09-07 audit claim #3) for the unload-safe transport on the standing-draft

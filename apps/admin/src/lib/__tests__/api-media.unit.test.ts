@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { ApiError, api, type AdminMedia, type AdminMediaProviderMap } from "../api";
+import { api, type AdminMedia, type AdminMediaProviderMap } from "../api";
+import { ApiError } from "../admin-http/request";
 
 /**
  * @file First direct coverage pass for `api.ts`'s media endpoints. `listMedia`, `getMediaProviders`,

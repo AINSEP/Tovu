@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { api, ApiError, type AdminMailStatus } from "@/lib/api";
+import { api, type AdminMailStatus } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 /**

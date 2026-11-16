@@ -2,7 +2,8 @@ import { SiteTrashTab } from "./SiteTrashTab";
 import { LocalSiteConfirmDialog } from "./LocalSiteConfirmDialog";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { describeApiError, type AdminSitesSnapshot } from "../../lib/api";
+import { type AdminSitesSnapshot } from "../../lib/api";
+import { describeApiError } from "../../lib/admin-http/request";
 
 import { navigate } from "../../lib/router";
 import { TabBar } from "@jini-ai/ui/tab-strip";

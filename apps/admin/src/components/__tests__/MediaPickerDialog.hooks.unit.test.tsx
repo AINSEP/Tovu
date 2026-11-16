@@ -2,7 +2,8 @@ import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMedia } from "../../lib/api";
+import { api, type AdminMedia } from "../../lib/api";
+import { ApiError } from "../../lib/admin-http/request";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminPlugin } from "@/lib/api";
+import { type AdminPlugin } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import {
   pluginRowFacts,
   buildPluginRemoveConfirmCopy,

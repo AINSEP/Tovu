@@ -2,7 +2,8 @@ import { t as translateForWidgetEmbed } from "../app-i18n";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
-import { api, describeApiError, type AdminWidget } from "./api";
+import { api, type AdminWidget } from "./api";
+import { describeApiError } from "./admin-http/request";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
 import { initialPlacementDraft, placementContentAttr, supportsPlacementContent, type PlacementContentDraft } from "./widget-embed-placement-content";

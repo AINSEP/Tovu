@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, describeApiError } from "@/lib/api";
+import { api } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The row-level "Connect" button behind Settings → External MCP (2026-10-23): starts the

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, adminSitePreviewUrl, api, authenticatedAdminRequest, authenticatedAdminUrl } from "../api";
+import { api } from "../api";
+import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
+import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
 
 /**
  * @file The `api.ts` endpoints and request options no other `api-*` suite pinned: each call's exact

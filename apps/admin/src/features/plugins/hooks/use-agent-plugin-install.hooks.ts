@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
-import { ApiError, type AdminAgentPlugin } from "@/lib/api";
+import { type AdminAgentPlugin } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";

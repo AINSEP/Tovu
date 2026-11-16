@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { SiteExportTab } from "../SiteExportTab";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { formatUserFacingError } from "@jini-ai/core";
 import { useSiteExport } from "../hooks/use-site-transfer.hooks";
 import { createFakeSiteTransferPort, type SiteShare, type SiteShareCreateResult } from "../hooks/site-transfer-dependencies.hooks";

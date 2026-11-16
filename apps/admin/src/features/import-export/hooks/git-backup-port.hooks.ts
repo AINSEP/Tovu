@@ -1,4 +1,6 @@
-import { WORKSPACE_ID, api, authenticatedAdminRequest, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import { api, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 
 /**
  * @file The Git backup card's port onto `admin-http/routes/system/site-backups.ts` (plan, push) and

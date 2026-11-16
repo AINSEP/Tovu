@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fet
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import {
   VISITOR_TOOLS_CONFLICT_CODE, VISITOR_TOOLS_NAMESPACE,

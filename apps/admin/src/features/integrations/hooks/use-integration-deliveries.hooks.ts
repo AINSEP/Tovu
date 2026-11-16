@@ -1,4 +1,5 @@
-import { describeApiError, type AdminWebhookDelivery } from "@/lib/api";
+import { type AdminWebhookDelivery } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, test, vi } from "vitest";
 
 import { persistableMessages, messageWriteKey, activeRunStub } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
-import { ApiError, onUnauthenticated } from "../api";
+import { ApiError, onUnauthenticated } from "../admin-http/request";
 
 import {
   createConversation,

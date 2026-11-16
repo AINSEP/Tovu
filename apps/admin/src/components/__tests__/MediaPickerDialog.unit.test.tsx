@@ -2,7 +2,8 @@ import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMedia } from "../../lib/api";
+import { api, type AdminMedia } from "../../lib/api";
+import { ApiError } from "../../lib/admin-http/request";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import type { MediaPickerDialogController, useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import type { CredentialWarning, ShareDownloadRefusal, SiteShare, SiteTransferPort } from "./site-transfer-dependencies.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

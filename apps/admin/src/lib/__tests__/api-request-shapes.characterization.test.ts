@@ -24,19 +24,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function isMarker({ value, key }: { value: unknown; key: string }): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && key in value;
+/** The value under a stand-in key such as `$blob`, or undefined when `value` is an ordinary object. */
+function marker({ value, key }: { value: object; key: string }): unknown {
+  return key in value ? (value as Record<string, unknown>)[key] : undefined;
 }
 
 /** Turns the JSON stand-ins for values JSON cannot hold back into real ones. */
 function revive({ value }: { value: unknown }): unknown {
   if (Array.isArray(value)) return value.map((item) => revive({ value: item }));
   if (value === null || typeof value !== "object") return value;
-  if (isMarker({ value, key: "$blob" })) return new Blob([String(value.$blob)], { type: "text/plain" });
-  if (isMarker({ value, key: "$file" })) return new File(["sample file body"], String(value.$file), { type: "text/plain" });
-  if (isMarker({ value, key: "$signal" })) return new AbortController().signal;
-  if (isMarker({ value, key: "$date" })) return new Date(String(value.$date));
-  if (isMarker({ value, key: "$fn" })) return () => undefined;
+  const blob = marker({ value, key: "$blob" });
+  if (blob !== undefined) return new Blob([String(blob)], { type: "text/plain" });
+  const file = marker({ value, key: "$file" });
+  if (file !== undefined) return new File(["sample file body"], String(file), { type: "text/plain" });
+  if (marker({ value, key: "$signal" }) !== undefined) return new AbortController().signal;
+  const date = marker({ value, key: "$date" });
+  if (date !== undefined) return new Date(String(date));
+  if (marker({ value, key: "$fn" }) !== undefined) return () => undefined;
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, revive({ value: item })]));
 }
 

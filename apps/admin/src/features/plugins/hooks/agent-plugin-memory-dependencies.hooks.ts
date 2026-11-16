@@ -1,4 +1,5 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "@/lib/api";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import type { AgentPluginMemoryPort, PluginMemoryListing } from "./agent-plugin-memory-port.hooks";
 const endpoint = ({ pluginId }: { pluginId: string }, _optional = {}) => `/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/memory`;
 export const defaultAgentPluginMemoryPort: AgentPluginMemoryPort = {

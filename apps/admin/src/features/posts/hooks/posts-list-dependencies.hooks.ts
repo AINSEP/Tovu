@@ -1,4 +1,5 @@
-import { ApiError, api, type AdminPost } from "@/lib/api";
+import { api, type AdminPost } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { PostsListPort } from "./posts-list-port.hooks";
 

@@ -8,7 +8,7 @@ const viewerZone = vi.hoisted(() => ({ value: "UTC" }));
 vi.mock("@/lib/viewer-time-zone", () => ({ get VIEWER_TIME_ZONE() { return viewerZone.value; } }));
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
 import { SiteExportTab } from "../SiteExportTab";
 import { SiteImportTab } from "../SiteImportTab";

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../api";
+import { api } from "../api";
+import { ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 
 /**
  * @file Characterization tests for `request()`'s two branches that no existing suite exercised
@@ -77,7 +78,7 @@ test("a literal JSON null error body is treated as a body with no code/error fie
   const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(Error);
-  const apiError = error as import("../api").ApiError;
+  const apiError = error as import("../admin-http/request").ApiError;
   // Parseable JSON (even `null`) proves an application answered, so name the failed request
   // rather than the "cannot reach the API" message an unparseable 5xx gets.
   expect(apiError.message).toBe("The API could not finish POST /auth/login (HTTP 500). Check whether your change was saved before trying again. Copy details and report this problem.");

@@ -23,7 +23,8 @@ import {
   visibleEntryEditorError,
   type DraftField,
 } from "../rules";
-import { ApiError, type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
+import { type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file Pure logic for the top-level `Collections` screen — validation, draft-field-list

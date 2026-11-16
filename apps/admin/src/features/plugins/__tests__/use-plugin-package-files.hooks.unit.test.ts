@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminPluginFiles } from "@/lib/api";
+import { type AdminPluginFiles } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePluginPackageFiles } from "../hooks/use-plugin-package-files.hooks";
 import { useAgentPluginDetailsModal } from "../hooks/use-agent-plugin-details-modal.hooks";

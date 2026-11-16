@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { useEmailProvider } from "../hooks/use-email-provider.hooks";
 import { createEmailFake, MAIL_PLUGIN, PROVIDER } from "./email.test-helpers";
 

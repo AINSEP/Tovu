@@ -1,4 +1,6 @@
-import { ApiError, api, authenticatedAdminRequest, WORKSPACE_ID, type AdminPlugin, type AdminPluginFiles, type AdminPluginProviderSettings } from "@/lib/api";
+import { api, type AdminPlugin, type AdminPluginFiles, type AdminPluginProviderSettings } from "@/lib/api";
+import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { providerSettingRequiredHere } from "../rules";
 import type { PluginsPort } from "./plugins-port.hooks";
 

@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminMailStatus } from "@/lib/api";
+import { type AdminMailStatus } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { emailSummary, useEmail, type EmailPort } from "../hooks/use-email.hooks";
 
 /**

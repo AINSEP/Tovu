@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { t } from "../comments-i18n";
 import { describeModerationError as describeJiniModerationError } from "@jini-ai/admin/comments";
 import { createCommentsTranslator } from "../../../integrations/jini-admin/comments-ports";

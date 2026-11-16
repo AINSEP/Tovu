@@ -1,7 +1,8 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
-import { api, onUnauthenticated, type AdminUser } from "./lib/api";
+import { api, type AdminUser } from "./lib/api";
+import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
 import {

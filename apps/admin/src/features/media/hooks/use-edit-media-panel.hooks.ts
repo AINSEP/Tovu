@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from "react";
 
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
-import { describeApiError, type AdminMedia } from "@/lib/api";
+import { type AdminMedia } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import {
   KEYS,

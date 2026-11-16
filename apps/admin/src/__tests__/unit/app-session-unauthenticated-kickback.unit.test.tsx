@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
 import { api } from "../../lib/api";
-import * as apiModule from "../../lib/api";
+import * as apiModule from "../../lib/admin-http/request";
 import { Login } from "../../features/auth";
 
 /**

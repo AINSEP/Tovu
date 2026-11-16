@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, describeApiError, type AdminDockerfileSource } from "@/lib/api";
+import { type AdminDockerfileSource } from "@/lib/api";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "@jini-ai/ui/panel-kit";

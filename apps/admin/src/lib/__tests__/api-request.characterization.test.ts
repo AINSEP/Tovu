@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { adminFailureChannel, publishAdminFailure } from "../admin-failure-channel";
-import {
-  API_UNREACHABLE_CODE, ApiError, KEEPALIVE_MAX_BODY_BYTES, REQUEST_TIMEOUT_CODE, api, authenticatedAdminRequest,
-  bodyFitsKeepalive, onUnauthenticated, requestOnce, requestRidingOutRestart,
-} from "../api";
+import { api } from "../api";
+import { API_UNREACHABLE_CODE, ApiError, KEEPALIVE_MAX_BODY_BYTES, REQUEST_TIMEOUT_CODE, authenticatedAdminRequest, bodyFitsKeepalive, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 import type { ServerReconnect } from "../server-reconnect";
 
 /**

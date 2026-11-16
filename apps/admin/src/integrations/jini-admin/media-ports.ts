@@ -1,7 +1,10 @@
 import { createHttpMediaApi } from '@jini-ai/admin/media/adapters/http';
 import type { MediaApiPort, MediaProvidersPort, MediaProvider, MediaEventsPort, MediaProviderConfiguration, MediaProviderConfigurationMap } from '@jini-ai/admin/media';
 import type { MediaProviderOption } from '@jini-ai/ui';
-import { authenticatedAdminRequest, authenticatedAdminUrl, WORKSPACE_ID, type AdminMediaProviderCredentials, type AdminMediaProviderMap } from '../../lib/api';
+import { type AdminMediaProviderCredentials, type AdminMediaProviderMap } from '../../lib/api';
+import { authenticatedAdminRequest } from '../../lib/admin-http/request';
+import { authenticatedAdminUrl } from '../../lib/admin-http/urls';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from '../../features/media/media-provider-catalog';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { hasPermission } from "@jini-ai/ui/panel-kit";

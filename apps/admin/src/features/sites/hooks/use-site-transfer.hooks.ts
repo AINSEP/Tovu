@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { copyToClipboard } from "@jini-ai/ui";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 
-import { API_UNREACHABLE_CODE, ApiError, describeApiError } from "@/lib/api";
+import { API_UNREACHABLE_CODE, ApiError, describeApiError } from "@/lib/admin-http/request";
 import { requestAssistantPrompt } from "@/lib/assistant-prompt-bus";
 import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
