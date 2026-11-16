@@ -1,55 +1,62 @@
 # Publish engine design: index
 
-Status: **COMPLETE** (design only; no source changed, no test run). 2026-11-16.
-Bases: Tovu `integ/wave-b-r2` @ `65302ee5`, Jini `integ/wave-b-r2` @ `02edbb68`.
-Branch: `plan/publish-engine-design-2026-11-16` (from `plan/terra-2026-11-15`).
+Status: **COMPLETE, revision 2** (design only; no source changed, no test run). 2026-11-16.
+Bases: Tovu `refactor/terra` @ `80b00f5b`, Jini `refactor/terra` @ `02edbb68` (both include wave B; in-scope source is identical to the first pass's `65302ee5`).
+Branch: `plan/publish-engine-design-2026-11-16`.
 
 | File | What it holds |
 |---|---|
-| `DESIGN.md` | the design: verified inventory, port checks, trust ownership table, target shape, migration graph, tests, risks, lane interaction, estimate, owner decisions, practices table |
+| `DESIGN.md` | the design, revised; section 13 is the judge response |
+| `CODEX-JUDGE.md` | the Codex gpt-6.1-sol HIGH judgment of the first pass: needs rework, 3 blockers, 9 majors |
+
+## Judge result
+
+12 findings, each verified in code before it was accepted. **Accepted 12, rebutted 0. Blockers left: 0** in the design. Three findings were larger than reported: 71 of 73 test files use `node:test` (cms runs vitest); 87 of 128 exported functions miss the args convention (the first pass said 23); the registry has four direct readers and two install callers.
 
 ## Read this first
 
-1. **Size.** The three sheets (B01, B02, B03) cover 26 files and 5,428 lines. They cannot land without two more groups that are still in Tovu: the publish framework (12 files, 3,224 lines) and publish trust (10 files, 2,662 lines). Total reach is 48 files and 11,314 production lines, with 73 test files.
-2. **Order.** Phase 0 (Tovu-only preparation) -> B01 transfer -> framework F1, F2 -> B02 (S1, S2, S4, S3, S5) -> B03 (P3, P1, P2, P4). Trust (T1, T2, T3) and B03-P3 run beside the engine lane and join at B03-P4. R-BARRELS runs before Phase 0.
-3. **Estimate.** About 2.6M Sonnet and 0.43M Opus tokens.
+1. **Size.** 48 files, 11,314 production lines, 73 test files. Two files now stay in Tovu (`media-references.ts`, `content-references.ts`): they import the cms `widgets` domain, which the publish domain may not do.
+2. **Order.** Phase 0 (ten Tovu-only steps) -> B01 -> F1 -> F2 -> B02 (S1, S2, S4, S3, S5) -> B03 (P0 `peer-url`, P3, P1, P2, P4); trust (T1-T3) beside the engine.
+3. **Delivery.** Tovu installs cms from the npm registry, so a Jini commit does not reach Tovu. The moves ship as four cms release trains (R1-R4): tarball check, publish, dependency commit, then the Tovu commits that delete code.
+4. **Estimate.** About 3.7M Sonnet and 0.49M Opus tokens (was 2.6M / 0.43M).
 
 ## Where to find things in DESIGN.md
 
 | Section | Content |
 |---|---|
-| 0 | summary and the four findings the sheets missed |
-| 1 | inventory per group, with lines, imports, importer counts, over-limit functions; 1.7 lists every stale sheet claim |
-| 2 | behavioural port checks: HTTP client, keyring, vault, positional signatures |
-| 3 | every trust decision, signature step and key path: owner, port, and the test that fails when the check is removed; 3.3 lists values that must not be renamed |
-| 4 | folder tree, file and function splits, dependency direction, contract signatures, what Tovu keeps |
-| 5 | migration graph: each step's prerequisites, callers and tests |
-| 6 | characterization tests and the mutation proof |
-| 7 | risks and guards |
-| 8 | untangle lanes, waves and the size designs |
+| 0 | summary |
+| 1 | inventory per group; 1.7 lists stale sheet claims |
+| 2 | port checks: HTTP client, keyring, vault; 2.4 signature census (87 functions, about 39 port methods) |
+| 3 | every trust decision, signature step and key path with owner and failing test; 3.3 frozen values; **3.4 host gates H1-H12; 3.5 compensation C1-C2 and blob key K10** |
+| 4 | target shape: **no entry files**, run-time label per leaf, isolation crossings, registry per composition root, `beforeSaveHook` contract, `PeerStorePort` (8 operations + errors), compensation reporter |
+| 5 | **5.0 release trains, 5.1 test runner conversion**, Phase 0 with four scripted exit gates, move graph rebuilt from real imports |
+| 6 | characterization tests and the mutation proof (37 rows) |
+| 7, 8 | risks; untangle lanes, waves, size designs |
 | 9 | estimate per step |
-| 10 | owner decisions OD-1 to OD-8 |
-| 11 | what was not verified (U1 to U9) |
-| 12 | owner practices table |
+| 10 | owner decisions OD-1 to OD-14 |
+| 11 | what was not verified (U1-U13) |
+| 12 | owner practices table; row 9 is the inventory of 41 catch sites |
+| 13 | judge response, lessons applied (26 rules), practice conflicts |
 
 ## Riskiest three calls
 
-1. **Making the engine generic over the host's port bag** (`PublishContentDeps<TPorts>`) and turning the module-level contributor registry into an instance. It touches 41 importing files and 229 test call sites. The engine and peer port shapes are drafts: `apply-loop.ts` and most of `peers.ts` were not read line by line.
-2. **`PeerCredentialStorePort`.** `peers.ts` builds platform's vault service inside the domain today. The port must keep "exactly one function decrypts" and "never write a credential unsealed" true across the Jini/Tovu boundary.
-3. **Frozen values.** `tovu-publish-challenge-v1`, the three key-derivation purposes and the vault scope `ownerKey: "tovu"` are signed, derived or stored. A neutrality rename would break every existing connection or sealed credential. They become host-supplied values with a pinning test.
+1. **Registry instance per composition root** plus the generic port bag: 41 importers, 229 test call sites, six readers, two boot paths. T-REG-ROOT is the proof.
+2. **`PeerStorePort`.** The sealed envelope no longer enters the Jini domain; the Tovu adapter must keep "rename does not reseal", revision checks and the context check. The draft was written from a full read of `peers.ts`, but not compiled.
+3. **Test conversion between runners.** About 60 files change runner in the same commits that move their subjects. Executed-count parity and a re-run of the mutation proof on converted trust and peer suites are the guards.
 
 ## Owner decisions needed
 
-- OD-1 registry instance instead of module state (recommended: yes)
-- OD-2 trust lives in `cms/publish/trust` (recommended: yes)
-- OD-3 entry points: one explicit-export entry per slice, or one exports-map key per leaf file. This conflicts with the "no barrels" practice either way and sets about 300 import specifiers
-- OD-4 the three platform-binding adapters stay in Tovu until the host-preset lane exists
-- OD-5 key-derivation purposes are host-supplied with no Jini default
-- OD-6 rename the failure code `"not-a-tovu-site"` (only after checking it is not stored)
-- OD-7 merge Jini's two `KeyringPort` declarations in a separate lane
-- OD-8 R-BARRELS runs first
+- OD-1 registry instance (yes); OD-2 trust in `cms/publish/trust` (yes); OD-4 platform-binding adapters stay in Tovu for now; OD-5 key purposes host-supplied; OD-6 failure-code rename only after a consumer census; OD-7 `KeyringPort` merge is a separate lane; OD-8 R-BARRELS first
+- **OD-3 (revised)** export keys point at implementation files; only the specifier naming needs a ruling
+- **OD-9** report compensation failures in connect/disconnect (adds a diagnostic)
+- **OD-10** six places read an error as "absent": keep and report, or narrow
+- **OD-11** four release trains or fewer
+- **OD-12** convert about 39 port-interface methods to the args convention
+- **OD-13** `registry.list()` returns a frozen copy
+- **OD-14** trust middleware's silent 401 and `console.error` stay as a recorded Tovu follow-up
 
 ## Not done here
 
-- No executor sheets. The Opus drafts named in section 9 (function splits, `PeerCredentialStorePort`, generic types) come before any Sonnet run.
-- No test or typecheck was run: neither checkout had dependencies installed.
+- No executor sheets. Opus drafts for the function splits come first.
+- No test, typecheck or isolation check was run: neither checkout has dependencies installed. Closure and signature numbers come from regex scripts and must be regenerated with the compiler.
+- Per-file classification of the 73 test files into "convert" or "stays in Tovu" was done for five files only.
