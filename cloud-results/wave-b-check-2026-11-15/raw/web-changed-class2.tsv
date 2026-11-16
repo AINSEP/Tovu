@@ -1,0 +1,71 @@
+ENV-native/browser	apps/website/src/platform/db/sqlite/__tests__/content-db-readonly.unit.test.ts	AssertionError [ERR_ASSERTION]: Got unwanted exception.
+ENV-postgres	apps/website/src/platform/db/migrations/__tests__/commerce-catalog-step.test.ts	Error: connect ENOENT /tmp/.s.PGSQL.5432
+IMPORT-ERROR	apps/website/src/features/site-export/__tests__/hosted-forms-static.unit.test.ts	Error: Cannot find module '/home/user/Tovu/node_modules/@jini-ai/provider-plugins/plugins/google-forms/0.7.1/jini.plugin.json'
+LOAD-ERROR(module/file never settled)	apps/website/src/server/__tests__/integration/slug-change-redirect-real-composition.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/__tests__/routes/change-sets-get-list.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/__tests__/routes/change-sets-revert.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/__tests__/routes/get-chat-attachment-route.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/__tests__/routes/publish-site-route.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/__tests__/routes/seo-og-image-crawlability.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/agent-plugins/__tests__/integration/agent-plugin-set-enabled-busy.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/get-entry-analyze.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/get-entry.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/post-sitemap-regenerate.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/put-entry.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/settings/__tests__/comments-provider-protection.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/system/__tests__/unit/h4-publish.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/trash/__tests__/page-display-kind.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/admin-http/routes/workspace/__tests__/create.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-confirmation.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts	✖ apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/public-http/middleware/__tests__/canonical-site-host.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/public-http/routes/__tests__/plugin-contributions.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/public-http/routes/site/__tests__/llms.route.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/inbound/public-http/routes/site/__tests__/robots.route.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/account-purge-protections.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/commerce-attention.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/form-delivery-subscribers.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/form-delivery.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/open-site-content-db.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/other-site-keys.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/project-store.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/provider-config-source.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/provider-plugins.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/provider-settings-chat-card.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/provider-settings-required.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/publish-content-manifest.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/site-key-recovery.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/site-search-tools.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/skill-supporting-files.chat.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/supporting-files-fixture-isolation.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/tool-catalog-manifest.observability.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/tool-supporting-files.unit.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/trash-user-tool-port.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/vault-boot.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/vault-l005-characterization.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/vault-plugin-state.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/vault-unified-credentials.integration.test.ts	
+LOAD-ERROR(module/file never settled)	apps/website/src/server/runtime/composition/__tests__/web-fetch-own-origin.integration.test.ts	
+LOAD-ERROR(module/file never settled)	packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts	
+OTHER	apps/website/src/features/post/__tests__/tool-registrations.model-facing-errors.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts	
+OTHER	apps/website/src/features/trash/__tests__/member-adapter.test.ts	TypeError [Error]: (intermediate value).map is not a function
+OTHER	apps/website/src/platform/db/migrations/__tests__/migrated-copy.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	apps/website/src/platform/db/sqlite/__tests__/share-database.integration.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	apps/website/src/server/__tests__/assistant-byok-routes.test.ts	
+OTHER	apps/website/src/server/__tests__/assistant-proxy-routes.test.ts	

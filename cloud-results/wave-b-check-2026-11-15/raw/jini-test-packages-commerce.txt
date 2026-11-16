@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/commerce
+
+ ✓ src/react/__tests__/Payments.unit.test.tsx (3 tests) 125ms
+ ✓ src/react/__tests__/Payments.boundaries.unit.test.tsx (5 tests) 211ms
+ ✓ src/react/__tests__/Payments.locale.unit.test.tsx (2 tests) 132ms
+
+ Test Files  3 passed (3)
+      Tests  10 passed (10)
+   Start at  05:33:41
+   Duration  1.91s (transform 248ms, setup 281ms, collect 524ms, tests 469ms, environment 954ms, prepare 242ms)
+

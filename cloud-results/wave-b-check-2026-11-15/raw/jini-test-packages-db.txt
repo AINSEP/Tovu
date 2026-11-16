@@ -1,0 +1,437 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ✓ src/__tests__/tools/transfer-tools-paths.test.ts (31 tests) 33ms
+ ✓ src/__tests__/secrets-vault.repo.contract.test.ts (36 tests) 3555ms
+   ✓ secrets vault contract [pglite] > explicit false stays non-default and omitted/undefined flags auto-default only the first row 2625ms
+ ✓ src/__tests__/tools/transfer-tools.test.ts (12 tests) 123ms
+ ✓ src/__tests__/pglite-owner.test.ts (19 tests) 12274ms
+   ✓ owner startup stays alive before the socket exists and releases its reference on failure 304ms
+   ✓ owner lock > starters racing for one data dir (over a dead pid's lock): exactly one becomes owner 5590ms
+   ✓ a running owner > a second owner for the same data dir is refused; another data dir runs side by side 517ms
+   ✓ kill -9 of the owner mid-write: reopen keeps every acked row, no uncommitted row, and takes over the stale lock and socket 2523ms
+ ✓ src/__tests__/sqlite/checked-client.test.ts (23 tests) 18ms
+ ❯ src/__tests__/loads-without-driver.test.ts (30 tests | 7 failed) 11003ms
+   ✓ @jini-ai/db in an install with no database driver present > built both fixtures without drivers or an ORM 344ms
+   × @jini-ai/db in an install with no database driver present > documents the vault's optional platform peer and refuses a vault import without it 10ms
+     → expected '^0.7.0' to be '^0.6.10' // Object.is equality
+   × @jini-ai/db in an install with no database driver present > ./pglite imports alone, works, and loads only pglite + core 97ms
+     → expected [ …(74) ] to deeply equal []
+   × @jini-ai/db in an install with no database driver present > ./kernel imports alone, works, and loads only kernel + core 149ms
+     → expected 'file:///tmp/jini-db-nodriver-xQCvFX/[…' to be '' // Object.is equality
+   × @jini-ai/db in an install with no database driver present > ./kernel/sqlite imports alone, works, and loads only kernel + kernel/sqlite + core + sqlite 184ms
+     → kernel/sqlite loaded a package other than kysely: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/kysely\//node_modules\
+   × @jini-ai/db in an install with no database driver present > ./kernel/pglite imports alone, works, and loads only kernel + kernel/pglite + core + pglite 237ms
+     → kernel/pglite loaded a package other than kysely: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/kysely\//node_modules\
+   × @jini-ai/db in an install with no database driver present > ./secrets-vault imports alone, works, and loads only secrets-vault + kernel 224ms
+     → secrets-vault loaded a package other than kysely/platform: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/(?:kysel…/node_modules\
+   × @jini-ai/db in an install with no database driver present > ./data-modules imports alone, works, and loads only data-modules + kernel 286ms
+     → data-modules loaded a package other than kysely: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/kysely\//node_modules\
+ ✓ src/__tests__/kernel.test.ts (27 tests) 4450ms
+   ✓ storage kernel [pglite] > a transaction commits on resolve and rolls back on throw 2359ms
+   ✓ failed PGlite readiness rejects every database operation without running its body 1927ms
+ ✓ src/__tests__/migrate/opt-in-runner.test.ts (14 tests) 78ms
+ ✓ src/pglite/__tests__/owner.ports.test.ts (17 tests) 2830ms
+   ✓ startPgliteOwner through its ports > serves under the default socket dir of the process port's home, and is findable in-process until closed 2557ms
+ ✓ src/pglite/__tests__/socket-server.edges.test.ts (10 tests) 2598ms
+ ✓ src/__tests__/transfer/snapshot-catalog.test.ts (8 tests) 24ms
+(node:28333) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ src/__tests__/pglite-socket-server.test.ts (9 tests) 5440ms
+   ✓ over the socket a failing extended query gets exactly one ReadyForQuery (1 E Z) 814ms
+   ✓ idle in a transaction past the timeout: that client is cut off with 25P03 and its writes roll back 317ms
+   ✓ runExclusive waits for an open client transaction, and clients wait while it runs 417ms
+   ✓ two clients: transactions do not interleave, a rollback leaks nothing, no lost updates 383ms
+   ✓ a connection past the cap is refused with FATAL 53300 1004ms
+ ✓ src/__tests__/sqlite/db-ops.test.ts (15 tests) 120ms
+ ✓ src/__tests__/migrate/runner-placement.test.ts (12 tests) 7236ms
+   ✓ the ledger's Postgres schema > holds the ledger in the named schema, created with it, and a rerun reads it from there 2065ms
+   ✓ the ledger's Postgres schema > keeps two histories with the same ledger name apart, one per schema 1684ms
+   ✓ two runs racing on pglite > apply a step another run recorded after this one read the ledger exactly once 1818ms
+   ✓ two runs racing on pglite > a run whose step was recorded concurrently with another checksum fails without applying it 1608ms
+ ✓ src/__tests__/tools/read-tools.test.ts (5 tests) 9ms
+ ✓ src/__tests__/transfer/internal-ddl.test.ts (17 tests) 15ms
+ ✓ src/__tests__/sqlite/inspect.test.ts (19 tests) 71ms
+ ✓ src/transfer/__tests__/copy-engine.characterization.test.ts (27 tests) 19ms
+ ✓ src/__tests__/runner.test.ts (16 tests) 12811ms
+   ✓ runMigrations on pglite > applies pending steps in order, records them, and a rerun applies nothing 2411ms
+   ✓ runMigrations on pglite > a failing step rolls back its own changes, is not recorded, and stops later steps 1742ms
+   ✓ runMigrations on pglite > prepare runs before up and ledger creation, passes context, and is skipped on rerun 1513ms
+   ✓ runMigrations on pglite > a rejecting prepare preserves existing data, creates no ledger, and stops up and later steps 1870ms
+   ✓ runMigrations on pglite > a recorded step whose checksum changed stops the run before anything is applied 1903ms
+   ✓ runMigrations on pglite > a recorded step this runtime does not know stops the run (database from a newer version) 1618ms
+   ✓ runMigrations on pglite > the ledger is the one the consumer names, and is required 1692ms
+ ✓ src/__tests__/ops.test.ts (9 tests) 9264ms
+   ✓ PGlite in process: copyTo restores the whole data dir into a new one; compactAndVerify reads the ledger back 3678ms
+   ✓ PGlite compactAndVerify refuses an empty migration ledger 1819ms
+   ✓ PGlite socket client: copyTo goes through the owner's exclusive window, and is refused without it 3655ms
+ ✓ src/__tests__/recovery/recovery-orchestrator.test.ts (8 tests) 7ms
+ ✓ src/secrets-vault/__tests__/repo.sql.characterization.test.ts (7 tests) 70ms
+ ✓ src/secrets-vault/__tests__/repo.sql.rows.test.ts (10 tests) 2508ms
+   ✓ meta a driver already parsed into an object is used as is, and round-trips through put 2481ms
+ ✓ src/__tests__/store-copy.test.ts (3 tests) 7771ms
+   ✓ injected schemas/ledgers select only their tables, preserve ledgers, validate links and reseed ids; borrowed kernels stay open 4117ms
+   ✓ a late fault rolls back copied rows and recreated tables, and a ledger mismatch refuses before copying 3651ms
+ ✓ src/__tests__/typegen-schema-shape.test.ts (5 tests) 5839ms
+   ✓ renderDatabaseTypes maps every supported column type, nullability and generation 2229ms
+   ✓ readSchemaShape on Postgres: columns, indexes, constraints and views of the current schema 2019ms
+   ✓ databaseFile names a SQLite file kernel's main file, and null for in-memory or Postgres 1573ms
+ ✓ src/__tests__/transfer/copy-engine-paths.test.ts (8 tests) 10ms
+ ✓ src/__tests__/postgres-driver.test.ts (9 tests) 5485ms
+   ✓ postgresOps on a node-postgres kernel > compactAndVerify vacuums and reads the ledger back; a missing or empty ledger is a StorageOpError 319ms
+   ✓ an idle pool connection the server drops is logged, not fatal, and the next query reconnects 2376ms
+ ✓ src/__tests__/import-isolation.test.ts (16 tests) 357ms
+   ✓ database import isolation > scans every production TypeScript file and confines optional dependencies 343ms
+ ✓ src/__tests__/transfer/psql-target.test.ts (11 tests) 12ms
+ ✓ src/__tests__/kernel-ddl-introspection.test.ts (10 tests) 4151ms
+   ✓ portable DDL and introspection [pglite] > a table declared with columnTypeSql/autoIdColumnSql generates ids and reads back its declared types 2199ms
+   ✓ checkpointWal on Postgres-family kernels is a no-op, even inside a transaction 1862ms
+ ✓ src/sqlite/__tests__/inspect.characterization.test.ts (17 tests) 39ms
+ ✓ src/__tests__/pglite-dialect.test.ts (5 tests) 5938ms
+   ✓ direct Kysely callers wait outside a rolled-back PGlite transaction 2423ms
+   ✓ connection returns exact rows and affected counts, propagates errors, and refuses streaming 1856ms
+   ✓ driver grants three connection holders in FIFO order and tolerates a second release 1656ms
+ ✓ src/__tests__/testing-helpers.test.ts (6 tests) 2228ms
+   ✓ the copied content schema is valid Postgres: two tables, entries referencing items 2224ms
+ ✓ src/__tests__/recovery/owner-contract.test.ts (4 tests) 4ms
+ ✓ src/__tests__/recovery/migrate-forward-execute.test.ts (5 tests) 4ms
+ ✓ src/__tests__/tools/restore-points.test.ts (9 tests) 15ms
+ ✓ src/__tests__/tools/timeline.test.ts (8 tests) 5ms
+ ✓ src/pglite/__tests__/socket-server.characterization.test.ts (7 tests) 2252ms
+ ✓ src/kernel/__tests__/store-copy.characterization.test.ts (5 tests) 17343ms
+   ✓ created tables retain non-FK constraints, indexes and generated columns; existing and created FKs are restored before the hook 4054ms
+   ✓ an empty source and target return an empty report without a hook 3246ms
+   ✓ an occupied target refuses under the transaction and rolls back the dropped FK 3464ms
+   ✓ a late hook failure rolls back created tables and existing rows 3338ms
+   ✓ a source with only generated columns cannot transfer its rows (reported, not fixed) 3239ms
+ ✓ src/__tests__/dialect-json.test.ts (16 tests) 2448ms
+   ✓ json dialect helpers [pglite] > jsonScalarEquals matches strings, numbers and booleans by value and type 2353ms
+ ✓ src/__tests__/tools/runtime-messages.test.ts (4 tests) 8ms
+ ✓ src/transfer/__tests__/copy-order.test.ts (6 tests) 4ms
+ ✓ src/transfer/__tests__/postgres-target.psql-fake.test.ts (10 tests) 12ms
+ ✓ src/__tests__/owner-lock.test.ts (5 tests) 54ms
+ ✓ src/__tests__/owner-store-history.unit.test.ts (5 tests) 33ms
+ ✓ src/transfer/__tests__/table-catalog.mapping.test.ts (36 tests) 10ms
+ ✓ src/pglite/__tests__/owner.characterization.test.ts (10 tests) 27ms
+ ✓ src/__tests__/kernel-session-lock.test.ts (5 tests) 13ms
+ ✓ src/__tests__/tools/database-catalog.contract.test.ts (12 tests) 8ms
+ ✓ src/__tests__/pg-fixture.test.ts (5 tests) 4ms
+ ✓ src/__tests__/transfer/script.test.ts (3 tests) 6ms
+ ✓ src/__tests__/store-copy.created-columns.test.ts (4 tests) 13554ms
+   ✓ recreates identity (ALWAYS and BY DEFAULT), NOT NULL and default columns on the target, and continues the counters 3987ms
+   ✓ refuses a created table whose default comes from a sequence, before writing anything 3114ms
+   ✓ refuses a table whose columns differ between source and target 3398ms
+   ✓ readCatalog lists the scope's tables with their columns and primary keys 3054ms
+ ✓ src/pglite/__tests__/socket-server.security.test.ts (12 tests) 10ms
+ ✓ src/__tests__/backup.test.ts (5 tests) 3163ms
+   ✓ PGlite backupTo writes a data-dir dump 3135ms
+ ✓ src/__tests__/schema-scope.test.ts (2 tests) 2636ms
+   ✓ scoped builders isolate schemas while raw SQL, transactions, locks and close use the underlying kernel 2622ms
+ ✓ src/__tests__/sqlite/backup-policy.test.ts (4 tests) 37ms
+ ✓ src/transfer/__tests__/postgres-target.characterization.test.ts (12 tests) 105ms
+ ✓ src/__tests__/recovery/degraded-banners.test.ts (5 tests) 3ms
+ ✓ src/__tests__/recovery/restore-hooks.test.ts (3 tests) 3ms
+ ✓ src/__tests__/sqlite/index.test.ts (6 tests) 19ms
+ ✓ src/__tests__/recovery/restore-point-create.test.ts (4 tests) 12ms
+ ✓ src/__tests__/transfer/transfer-pg-test-db.test.ts (5 tests) 73ms
+ ✓ src/__tests__/transfer/snapshot-source.test.ts (3 tests) 45ms
+ ✓ src/__tests__/tools/read-tools-input.test.ts (4 tests) 6ms
+ ✓ src/__tests__/transfer/postgres-ddl.test.ts (4 tests) 5ms
+ ✓ src/__tests__/tools/plan-store.test.ts (4 tests) 5ms
+ ✓ src/__tests__/ops.failures.test.ts (3 tests) 3018ms
+   ✓ PGlite copyTo removes a partly restored target and rethrows the restore failure 2990ms
+ ✓ src/__tests__/recovery/evaluate-boot-migration-policy.test.ts (4 tests) 3ms
+ ✓ src/__tests__/kernel-core.foreign-join.test.ts (5 tests) 5ms
+ ✓ src/__tests__/tools/transfer-catalog.test.ts (3 tests) 5ms
+ ✓ src/__tests__/recovery/barrels.test.ts (2 tests) 2ms
+ ✓ src/__tests__/sqlite/inspect-transfer.test.ts (3 tests) 24ms
+ ✓ src/__tests__/recovery/lookup-adapters.test.ts (3 tests) 3ms
+ ✓ src/__tests__/recovery/disclosure.test.ts (3 tests) 3ms
+ ✓ src/__tests__/tools/registration.test.ts (4 tests) 5ms
+ ✓ src/__tests__/recovery/deep-link.test.ts (3 tests) 9ms
+ ✓ src/transfer/__tests__/sqlite-source.header-virtual.test.ts (12 tests) 8ms
+ ✓ src/__tests__/sqlite-same-file.test.ts (2 tests) 25ms
+ ✓ src/__tests__/kernel-drivers.test.ts (3 tests) 2196ms
+   ✓ Kysely introspection works through the PGlite dialect 2182ms
+ ✓ src/transfer/__tests__/site-schema-name.test.ts (15 tests) 8ms
+ ✓ src/kernel/__tests__/schema-shape.characterization.test.ts (1 test) 15ms
+ ✓ src/__tests__/migrate/assert-valid-steps.test.ts (25 tests) 6ms
+ ✓ src/__tests__/unit/transaction-outcomes-m2.unit.test.ts (7 tests) 21ms
+ ✓ src/__tests__/core/pg-types.test.ts (6 tests) 5ms
+ ✓ src/__tests__/transfer/completeness.test.ts (5 tests) 4ms
+ ✓ src/__tests__/recovery/reconcile-interrupted-migration.test.ts (2 tests) 3ms
+ ✓ src/__tests__/postgres-lock.test.ts (1 test) 2189ms
+   ✓ lock keys are bound independently and advisory locks disappear on commit and rollback 2188ms
+ ✓ src/__tests__/core/artifact-naming.test.ts (8 tests) 4ms
+ ✓ src/__tests__/sqlite-copy-sync.test.ts (1 test) 16ms
+ ✓ src/__tests__/tools/restore-points-list.test.ts (3 tests) 3ms
+ ❯ src/__tests__/security-defaults.source.test.ts (1 test | 1 failed) 18ms
+   × production source has no consumer imports or runtime specification IDs 17ms
+     → expected [ …(8) ] to deeply equal []
+ ✓ src/__tests__/transfer/naming.test.ts (1 test) 2ms
+ ✓ src/__tests__/migrate/checksum.test.ts (4 tests) 3ms
+ ✓ src/__tests__/checked-state-w2g.unit.test.ts (2 tests) 5ms
+ ✓ src/__tests__/sqlite/sync-types.test.ts (1 test) 20ms
+ ✓ src/__tests__/core/messages.test.ts (3 tests) 2ms
+ ✓ src/kernel/__tests__/kysely-kernel.test.ts (2 tests) 19ms
+ ✓ src/__tests__/postgres-idle-error-redaction.test.ts (1 test) 6ms
+ ✓ src/__tests__/testing-helpers.lazy-user.test.ts (1 test) 20ms
+ ✓ src/__tests__/core/index.test.ts (2 tests) 3ms
+ ✓ src/__tests__/settings-revision.test.ts (14 tests) 11588ms
+   ✓ pglite: settings revision check > global: guarded set/clear and stale rollback preserve value and ledger 2357ms
+   ✓ pglite: settings revision check > workspace: guarded set/clear and stale rollback preserve value and ledger 1628ms
+   ✓ pglite: settings revision check > user: guarded set/clear and stale rollback preserve value and ledger 1486ms
+   ✓ pglite: settings revision check > concurrent set/set: exactly one snapshot writer commits 1536ms
+   ✓ pglite: settings revision check > concurrent set/clear: exactly one snapshot writer commits 1504ms
+   ✓ pglite: settings revision check > concurrent clear/set: exactly one snapshot writer commits 1462ms
+   ✓ pglite: settings revision check > concurrent clear/clear: exactly one snapshot writer commits 1462ms
+ ✓ src/data-modules/__tests__/public-entry.test.ts (2 tests) 2342ms
+   ✓ public data-modules entry preserves persisted names and provenance on PGlite 2304ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > documents the vault's optional platform peer and refuses a vault import without it
+AssertionError: expected '^0.7.0' to be '^0.6.10' // Object.is equality
+
+Expected: "^0.6.10"
+Received: "^0.7.0"
+
+ ❯ src/__tests__/loads-without-driver.test.ts:241:60
+    239|     expect(manifest.dependencies["@jini-ai/platform"]).toBeUndefined();
+    240|     // The vault SQL repo imports the credential-sets/contracts leaf f…
+    241|     expect(manifest.peerDependencies["@jini-ai/platform"]).toBe("^0.6.…
+       |                                                            ^
+    242|     expect(manifest.peerDependenciesMeta["@jini-ai/platform"]).toEqual…
+    243|     expect(manifest.devDependencies["@jini-ai/platform"]).toBe("worksp…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./pglite imports alone, works, and loads only pglite + core
+AssertionError: expected [ …(74) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/index.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/token.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-metadata.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/pack.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/bindings.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/daemon.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/pack-lifecycle.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/redact.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/user-facing-error.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/redact.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/teardown.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/api-token-auth.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/origin-validation.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/principal.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/surface-exchanges.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-normalization.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/records.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-envelope.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-tokens.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/token.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-exposure.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/gated-mutations.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/gated-mutations/gateway.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/index.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/time.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/ids.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/json.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/http.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/sse.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/logger.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/model-facing-tool-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/result.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/paths.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/trim-chars.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/tasks.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/trim-chars.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/primitives/node-shape.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/gated-mutations/token.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/gated-mutations/token.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/gated-mutations/ports.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/gated-mutations/actor-identity.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/model-facing-tool-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/contribution-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/provider-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/object-store.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/provider-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/naming.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/registration-kit.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/records.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-metadata.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/approval.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/registration-kit.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/records.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/target-scope.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/records.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/native-regexp.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-permissions.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/feature-flags.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-normalization.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-envelope.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/batch-tool-inputs.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-registry.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-errors.js",
++   "file:///tmp/jini-db-nopeers-GmvlBV/node_modules/@jini-ai/core/dist/tool-input-normalization.js",
++ ]
+
+ ❯ src/__tests__/loads-without-driver.test.ts:277:63
+    275|         expect(packages.length).toBeGreaterThan(0);
+    276|         for (const url of packages) expect(url, `tools loaded an optio…
+    277|       } else if (!SUBPATHS[subpath]!.kernel) expect(packages).toEqual(…
+       |                                                               ^
+    278|       // Migration checks and PostgreSQL error redaction use the requi…
+    279|       else if (subpath === "migrate" || subpath === "kernel/postgres")…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./kernel imports alone, works, and loads only kernel + core
+AssertionError: expected 'file:///tmp/jini-db-nodriver-xQCvFX/[…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ file:///tmp/jini-db-nodriver-xQCvFX/[eval1]:5
++ process.stdout.write(JSON.stringify({ resolved, probe: (m.toBool(1) === true && typeof m.buildKernel === "function") ? "ok" : "failed" }));
++                                                           ^
++
++ TypeError: m.toBool is not a function
++     at file:///tmp/jini-db-nodriver-xQCvFX/[eval1]:5:59
++
++ Node.js v24.22.3
++
+
+ ❯ src/__tests__/loads-without-driver.test.ts:263:29
+    261|     it(`./${subpath} imports alone, works, and loads only ${dirs.join(…
+    262|       const result = importAlone(`@jini-ai/db/${subpath}`, probe, SUBP…
+    263|       expect(result.stderr).toBe("");
+       |                             ^
+    264|       expect(result.status).toBe(0);
+    265|       expect(result.probe).toBe("ok");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./kernel/sqlite imports alone, works, and loads only kernel + kernel/sqlite + core + sqlite
+AssertionError: kernel/sqlite loaded a package other than kysely: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/kysely\//node_modules\
+
+- Expected: 
+/\/node_modules\/kysely\//
+
++ Received: 
+"file:///tmp/jini-db-nodriver-xQCvFX/node_modules/@jini-ai/core/dist/contracts/storage.js"
+
+ ❯ src/__tests__/loads-without-driver.test.ts:284:103
+    282|       else if (subpath === "secrets-vault") {
+    283|         for (const url of packages) expect(url, `${subpath} loaded a p…
+    284|       } else for (const url of packages) expect(url, `${subpath} loade…
+       |                                                                                                       ^
+    285|     });
+    286|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./kernel/pglite imports alone, works, and loads only kernel + kernel/pglite + core + pglite
+AssertionError: kernel/pglite loaded a package other than kysely: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/kysely\//node_modules\
+
+- Expected: 
+/\/node_modules\/kysely\//
+
++ Received: 
+"file:///tmp/jini-db-nodriver-xQCvFX/node_modules/@jini-ai/core/dist/contracts/storage.js"
+
+ ❯ src/__tests__/loads-without-driver.test.ts:284:103
+    282|       else if (subpath === "secrets-vault") {
+    283|         for (const url of packages) expect(url, `${subpath} loaded a p…
+    284|       } else for (const url of packages) expect(url, `${subpath} loade…
+       |                                                                                                       ^
+    285|     });
+    286|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./secrets-vault imports alone, works, and loads only secrets-vault + kernel
+AssertionError: secrets-vault loaded a package other than kysely/platform: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/(?:kysel…/node_modules\
+
+- Expected: 
+/\/node_modules\/(?:kysely|@jini-ai\/platform)\//
+
++ Received: 
+"file:///tmp/jini-db-nodriver-xQCvFX/node_modules/@jini-ai/core/dist/contracts/vault.js"
+
+ ❯ src/__tests__/loads-without-driver.test.ts:283:107
+    281|       }
+    282|       else if (subpath === "secrets-vault") {
+    283|         for (const url of packages) expect(url, `${subpath} loaded a p…
+       |                                                                                                           ^
+    284|       } else for (const url of packages) expect(url, `${subpath} loade…
+    285|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/__tests__/loads-without-driver.test.ts > @jini-ai/db in an install with no database driver present > ./data-modules imports alone, works, and loads only data-modules + kernel
+AssertionError: data-modules loaded a package other than kysely: expected 'file:///tmp/jini-db-nodriver-xQCvFX/n…' to match /\/node_modules\/kysely\//node_modules\
+
+- Expected: 
+/\/node_modules\/kysely\//
+
++ Received: 
+"file:///tmp/jini-db-nodriver-xQCvFX/node_modules/@jini-ai/core/dist/contracts/storage.js"
+
+ ❯ src/__tests__/loads-without-driver.test.ts:284:103
+    282|       else if (subpath === "secrets-vault") {
+    283|         for (const url of packages) expect(url, `${subpath} loaded a p…
+    284|       } else for (const url of packages) expect(url, `${subpath} loade…
+       |                                                                                                       ^
+    285|     });
+    286|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  src/__tests__/security-defaults.source.test.ts > production source has no consumer imports or runtime specification IDs
+AssertionError: expected [ …(8) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/db/src/data-modules/data-module.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/data-modules/snapshot.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/recovery/migrate-forward-hooks.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/recovery/operation-lock.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/recovery/restore-hooks.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/tools/database-catalog.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/tools/read-tools.ts: consumer reference apps/website",
++   "/home/user/Jini/packages/db/src/tools/restore-points.ts: consumer reference apps/website",
++ ]
+
+ ❯ src/__tests__/security-defaults.source.test.ts:28:22
+     26|     }
+     27|   }
+     28|   expect(violations).toEqual([]);
+       |                      ^
+     29| });
+     30| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+ Test Files  2 failed | 100 passed (102)
+      Tests  8 failed | 853 passed (861)
+   Start at  05:23:33
+   Duration  108.66s (transform 2.23s, setup 0ms, collect 13.09s, tests 169.93s, environment 19ms, prepare 6.51s)
+

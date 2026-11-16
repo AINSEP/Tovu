@@ -1,0 +1,315 @@
+Scope: 48 of 49 workspace projects
+examples/nlweb-demo typecheck$ tsc -p tsconfig.json --noEmit
+packages/memory typecheck$ tsc -p tsconfig.json --noEmit
+packages/core typecheck$ tsc -p tsconfig.json --noEmit
+packages/cookie-consent typecheck$ tsc -p tsconfig.json --noEmit
+examples/nlweb-demo typecheck: Done
+packages/protocol typecheck$ tsc -p tsconfig.json --noEmit
+packages/cookie-consent typecheck: Done
+packages/sandbox typecheck$ tsc -p tsconfig.json --noEmit
+packages/memory typecheck: Done
+packages/protocol typecheck: Done
+packages/sandbox typecheck: Done
+packages/core typecheck: Done
+packages/artifacts typecheck$ tsc -p tsconfig.json --noEmit
+packages/platform typecheck$ tsc -p tsconfig.json --noEmit
+packages/desktop-host typecheck$ tsc -p tsconfig.json --noEmit
+packages/agentic typecheck$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.dom.json --noEmit
+packages/artifacts typecheck: Done
+packages/ui-kit typecheck$ tsc --noEmit
+packages/desktop-host typecheck: src/logging.ts(76,32): error TS2379: Argument of type '{ meta: Record<string, unknown> | undefined; error: unknown; }' is not assignable to parameter of type '{ meta?: Record<string, unknown>; error?: unknown; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/desktop-host typecheck:   Types of property 'meta' are incompatible.
+packages/desktop-host typecheck:     Type 'Record<string, unknown> | undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host typecheck:       Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host typecheck: src/logging.ts(79,63): error TS2379: Argument of type '{ diagnostics: LogDiagnosticsSink; level: LogLevel; message: string; meta: Record<string, unknown> | undefined; error: unknown; }' is not assignable to parameter of type '{ diagnostics: LogDiagnosticsSink; level: LogLevel; message: string; meta?: Record<string, unknown>; error?: unknown; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/desktop-host typecheck:   Types of property 'meta' are incompatible.
+packages/desktop-host typecheck:     Type 'Record<string, unknown> | undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host typecheck:       Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host typecheck: Failed
+packages/ui-kit typecheck: Done
+packages/agentic typecheck: Done
+packages/platform typecheck: Done
+examples/reference-desktop typecheck$ tsc -p tsconfig.json --noEmit
+packages/capability-providers typecheck$ tsc -p tsconfig.json --noEmit
+packages/db typecheck$ tsc -p tsconfig.json --noEmit
+packages/http-kit typecheck$ tsc -p tsconfig.json --noEmit
+examples/reference-desktop typecheck: Done
+packages/oauth typecheck$ tsc -p tsconfig.json --noEmit
+packages/capability-providers typecheck: src/adapters/blob-storage/__tests__/index.test.ts(28,46): error TS2740: Type 'Uint8Array<ArrayBufferLike>' is missing the following properties from type 'Buffer<ArrayBufferLike>': write, toJSON, equals, compare, and 66 more.
+packages/capability-providers typecheck: Failed
+packages/sidecar typecheck$ tsc -p tsconfig.json --noEmit
+packages/http-kit typecheck: src/__tests__/origin.test.ts(2,10): error TS2459: Module '"../origin.js"' declares 'guardSameOrigin' locally, but it is not exported.
+packages/http-kit typecheck: src/__tests__/request.test.ts(2,20): error TS2305: Module '"../request.js"' has no exported member 'validationError'.
+packages/http-kit typecheck: src/__tests__/response.test.ts(2,34): error TS2305: Module '"../response.js"' has no exported member 'statusForError'.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(4,67): error TS2459: Module '"../sse.js"' declares 'DEFAULT_MAX_QUEUED_SSE_EVENTS' locally, but it is not exported.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(4,103): error TS2459: Module '"../sse.js"' declares 'SseEvent' locally, but it is not exported.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(39,29): error TS2353: Object literal may only specify known properties, and 'opaqueCursor' does not exist in type 'TestEvent'.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(39,54): error TS2353: Object literal may only specify known properties, and 'opaqueCursor' does not exist in type 'TestEvent'.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(44,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(63,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(71,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(80,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(80,120): error TS2339: Property 'opaqueCursor' does not exist on type 'TestEvent'.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(90,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(105,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(121,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(133,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(133,111): error TS2339: Property 'kind' does not exist on type 'TestEvent'.
+packages/http-kit typecheck: src/__tests__/sse.test.ts(144,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(159,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(172,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(181,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(189,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(199,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(211,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(221,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(233,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(253,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(262,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(274,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(287,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: src/__tests__/sse.test.ts(296,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit typecheck:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit typecheck: Failed
+packages/vibecoding typecheck$ tsc -p tsconfig.json --noEmit
+packages/oauth typecheck: Done
+packages/sidecar typecheck: Done
+packages/db typecheck: src/transfer/__tests__/copy-order.test.ts(65,88): error TS2322: Type '{ fromExportName: string | undefined; fromSqlTableName: string | undefined; toExportName: string | undefined; toSqlTableName: string | undefined; selfReferencing: boolean; }' is not assignable to type 'TableCopyDependency'.
+packages/db typecheck:   Types of property 'fromExportName' are incompatible.
+packages/db typecheck:     Type 'string | undefined' is not assignable to type 'string'.
+packages/db typecheck:       Type 'undefined' is not assignable to type 'string'.
+packages/db typecheck: Failed
+packages/vibecoding typecheck: Done
+packages/infra typecheck$ tsc -p tsconfig.json --noEmit
+packages/cli typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms typecheck$ tsc -p tsconfig.json --noEmit
+packages/integrations typecheck$ tsc -p tsconfig.json --noEmit
+packages/infra typecheck: Done
+packages/plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/cli typecheck: Done
+packages/registry typecheck$ tsc -p tsconfig.json --noEmit
+packages/registry typecheck: Done
+packages/integrations typecheck: Done
+packages/plugins typecheck: src/host/__tests__/unit/contribution-sdk.unit.test.ts(56,151): error TS7031: Binding element 'auth' implicitly has an 'any' type.
+packages/plugins typecheck: src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts(24,101): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/plugins typecheck: src/host/contributions.ts(20,29): error TS2304: Cannot find name 'PluginRouteContribution'.
+packages/plugins typecheck: src/host/contributions.ts(21,28): error TS2304: Cannot find name 'PluginToolContribution'.
+packages/plugins typecheck: src/host/contributions.ts(22,30): error TS2304: Cannot find name 'PluginWidgetContribution'.
+packages/plugins typecheck: src/host/contributions.ts(64,17): error TS2304: Cannot find name 'PluginRouteContribution'.
+packages/plugins typecheck: src/host/contributions.ts(64,56): error TS2304: Cannot find name 'PluginToolContribution'.
+packages/plugins typecheck: src/host/contributions.ts(64,96): error TS2304: Cannot find name 'PluginWidgetContribution'.
+packages/plugins typecheck: src/host/contributions.ts(86,26): error TS2304: Cannot find name 'PluginRouteContribution'.
+packages/plugins typecheck: src/host/contributions.ts(95,25): error TS2304: Cannot find name 'PluginToolContribution'.
+packages/plugins typecheck: src/host/contributions.ts(104,27): error TS2304: Cannot find name 'PluginWidgetContribution'.
+packages/plugins typecheck: src/host/ports.ts(9,45): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins typecheck: src/host/ports.ts(9,58): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins typecheck: src/host/ports.ts(14,105): error TS2304: Cannot find name 'DefinedPlugin'.
+packages/plugins typecheck: src/host/ports.ts(15,40): error TS2304: Cannot find name 'PluginSdk'.
+packages/plugins typecheck: src/host/ports.ts(15,93): error TS2304: Cannot find name 'PluginSdk'.
+packages/plugins typecheck: src/host/ports.ts(17,37): error TS2304: Cannot find name 'DefinedPlugin'.
+packages/plugins typecheck: src/host/ports.ts(17,106): error TS2304: Cannot find name 'DefinedPlugin'.
+packages/plugins typecheck: src/host/ports.ts(34,46): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins typecheck: src/host/ports.ts(34,59): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins typecheck: src/host/provider-contributions.ts(171,62): error TS2304: Cannot find name 'PLUGIN_PROVIDER_CAPABILITY'.
+packages/plugins typecheck: src/host/worker/import-seam.ts(79,15): error TS7006: Parameter 'sdk' implicitly has an 'any' type.
+packages/plugins typecheck: src/host/worker/import-seam.ts(81,64): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+packages/plugins typecheck: src/host/worker/import-seam.ts(81,71): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/plugins typecheck: Failed
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(67,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(69,18): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(72,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(73,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(79,18): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(82,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(83,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(84,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/submission-ip-retention.dialects.test.ts(85,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms typecheck: src/forms/__tests__/support/forms-tables.fixture.ts(15,29): error TS2741: Property 'execute' is missing in type 'StorageKernel<Kysely<DB>, DB>' but required in type 'FormsTablesKernel'.
+packages/cms typecheck: src/forms/__tests__/support/repo-ports.fixture.ts(39,29): error TS2739: Type 'StorageKernel<Kysely<DB>, DB>' is missing the following properties from type 'KyselyKernel<DB>': query, execute
+packages/cms typecheck: Failed
+packages/agent-runtime typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck$ tsc -p tsconfig.json --noEmit
+examples/notes-app typecheck$ tsc -p tsconfig.json --noEmit
+examples/notes-app typecheck: Done
+packages/cms/forms typecheck: Done
+packages/agent-runtime typecheck: Done
+packages/ui typecheck$ tsc -p tsconfig.json --noEmit
+packages/analytics typecheck$ tsc -p tsconfig.json --noEmit
+packages/analytics typecheck: Done
+packages/ui typecheck: src/features/charts/__tests__/provider-edges.test.tsx(18,20): error TS2345: Argument of type '{ element: HTMLDivElement; spec: ChartSpec; theme: { mode: "light"; tokens: {}; }; }' is not assignable to parameter of type 'ChartRenderInput & { readonly element: HTMLElement; readonly applyTheme: ChartThemeApplier<HTMLElement>; }'.
+packages/ui typecheck:   Property 'applyTheme' is missing in type '{ element: HTMLDivElement; spec: ChartSpec; theme: { mode: "light"; tokens: {}; }; }' but required in type '{ readonly element: HTMLElement; readonly applyTheme: ChartThemeApplier<HTMLElement>; }'.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-bounded-status-poll.hooks.test.tsx(10,38): error TS2307: Cannot find module '../use-bounded-status-poll.hooks.js' or its corresponding type declarations.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-bounded-status-poll.hooks.test.tsx(37,26): error TS7031: Binding element 'status' implicitly has an 'any' type.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx(11,64): error TS2307: Cannot find module '../use-optimistic-stored-value.hooks.js' or its corresponding type declarations.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx(71,30): error TS7006: Parameter 'previous' implicitly has an 'any' type.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx(72,30): error TS7006: Parameter 'previous' implicitly has an 'any' type.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-standing-draft-autosave.hooks.test.tsx(215,17): error TS2322: Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+packages/ui typecheck:   Type '{ discarded: boolean; }' is not assignable to type 'void'.
+packages/ui typecheck: src/features/panel-kit/hooks/__tests__/use-standing-draft-autosave.hooks.test.tsx(231,17): error TS2322: Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+packages/ui typecheck:   Type '{ discarded: boolean; }' is not assignable to type 'void'.
+packages/ui typecheck: Failed
+packages/commerce typecheck$ tsc -p tsconfig.json --noEmit
+packages/diagnostics typecheck$ tsc -p tsconfig.json --noEmit
+packages/commerce typecheck: Done
+packages/diagnostics typecheck: Done
+packages/agent-plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/chat typecheck$ tsc -p tsconfig.json --noEmit
+packages/provider-plugins typecheck$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit
+packages/provider-plugins typecheck: src/observability-opentelemetry/opentelemetry.ts(39,44): error TS2459: Module '"./otel-port.js"' declares 'ExporterFactory' locally, but it is not exported.
+packages/provider-plugins typecheck: src/observability-opentelemetry/opentelemetry.ts(39,103): error TS2459: Module '"./otel-port.js"' declares 'TracerProviderFactory' locally, but it is not exported.
+packages/provider-plugins typecheck: src/observability-opentelemetry/opentelemetry.ts(186,18): error TS7031: Binding element 'endpoint' implicitly has an 'any' type.
+packages/provider-plugins typecheck: src/observability-opentelemetry/opentelemetry.ts(195,18): error TS7031: Binding element 'serviceName' implicitly has an 'any' type.
+packages/provider-plugins typecheck: src/observability-opentelemetry/opentelemetry.ts(195,31): error TS7031: Binding element 'exporter' implicitly has an 'any' type.
+packages/provider-plugins typecheck: src/observability-opentelemetry/opentelemetry.ts(209,32): error TS7031: Binding element 'name' implicitly has an 'any' type.
+packages/provider-plugins typecheck: Failed
+packages/agent-plugins typecheck: Done
+packages/chat typecheck: src/store/__tests__/types.fixture.ts(22,69): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat typecheck: src/store/__tests__/types.fixture.ts(23,50): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat typecheck: src/store/runtime/__tests__/chat-expiry-sweep.cov-j2.test.ts(21,40): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat typecheck: src/store/runtime/chat-history-store.ts(57,29): error TS2345: Argument of type '{ kernel: StorageKernel<Kysely<ChatDatabase>, ChatDatabase>; scope: ChatOwnerScope; clock: { nowMs: () => number; }; }' is not assignable to parameter of type '{ kernel: KyselyKernel<ChatDatabase>; scope: ChatOwnerScope; clock: Clock; }'.
+packages/chat typecheck:   Types of property 'kernel' are incompatible.
+packages/chat typecheck:     Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat typecheck: src/store/runtime/run-ledger.ts(193,23): error TS2339: Property 'query' does not exist on type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>'.
+packages/chat typecheck: Failed
+packages/daemon typecheck$ tsc -p tsconfig.json --noEmit
+packages/admin typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck: Done
+packages/daemon typecheck: src/http/__tests__/routines.test.ts(787,56): error TS2741: Property 'cursor' is missing in type '{ id: string; limit: number; }' but required in type 'RoutineRunsQuery'.
+packages/daemon typecheck: src/http/__tests__/routines.test.ts(809,56): error TS2741: Property 'cursor' is missing in type '{ id: string; limit: number; }' but required in type 'RoutineRunsQuery'.
+packages/daemon typecheck: src/http/tool-execution-routes.ts(235,87): error TS2379: Argument of type '{ onInternalError: RouteInternalErrorSink | undefined; }' is not assignable to parameter of type 'Pick<ToolExecutionRoutesOptional, "onInternalError">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type 'RouteInternalErrorSink | undefined' is not assignable to type 'RouteInternalErrorSink'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type 'RouteInternalErrorSink'.
+packages/daemon typecheck: src/http/xai.ts(796,51): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck: src/http/xai.ts(797,54): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck: src/http/xai.ts(798,52): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck: src/http/xai.ts(799,51): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck: src/http/xai.ts(800,56): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck: src/http/xai.ts(801,47): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon typecheck:   Types of property 'onInternalError' are incompatible.
+packages/daemon typecheck:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon typecheck: Failed
+packages/admin typecheck: src/seo/react/hooks/MediaRefField.hooks.ts(30,107): error TS2322: Type '({ mimeType }: { mimeType: string; }, _optional?: Record<string, never> | undefined) => string' is not assignable to type '(contentType: string) => string'.
+packages/admin typecheck:   Types of parameters '__0' and 'contentType' are incompatible.
+packages/admin typecheck:     Type 'string' is not assignable to type '{ mimeType: string; }'.
+packages/admin typecheck: src/seo/react/hooks/SeoPage.hooks.ts(12,88): error TS2353: Object literal may only specify known properties, and 'handle' does not exist in type 'TabBarTab'.
+packages/admin typecheck: src/seo/react/hooks/SeoPage.hooks.ts(13,80): error TS2353: Object literal may only specify known properties, and 'handle' does not exist in type 'TabBarTab'.
+packages/admin typecheck: src/seo/react/hooks/SeoPage.hooks.ts(14,86): error TS2353: Object literal may only specify known properties, and 'handle' does not exist in type 'TabBarTab'.
+packages/admin typecheck: Failed
+packages/devops typecheck$ tsc -p tsconfig.json --noEmit
+packages/server typecheck$ tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck$ tsc -p tsconfig.json --noEmit
+packages/mcp typecheck$ tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck: Done
+packages/user-management typecheck$ tsc -p tsconfig.json --noEmit
+packages/server typecheck: Done
+packages/devops typecheck: Done
+packages/mcp typecheck: Done
+packages/user-management typecheck: src/admin/__tests__/members.list-cursor.test.ts(28,12): error TS2532: Object is possibly 'undefined'.
+packages/user-management typecheck: Failed
+examples/neutral-host typecheck$ tsc -p tsconfig.json
+examples/reference-web typecheck$ tsc -p tsconfig.json --noEmit
+examples/neutral-host typecheck: src/credential-tools.test.ts(87,5): error TS2739: Type '{ ownerOnly: string; instanceRefused: string; unexpectedField: string; notOffered: string; inputNotEmpty: string; keysUnavailable: string; needsInteractive: string; cardTitle: string; siteLabel: string; ... 6 more ...; cancelLabel: string; }' is missing the following properties from type 'CredentialCopyMessages': emptyCardDescription, lockedLabel, outcomes
+examples/neutral-host typecheck: src/credential-tools.test.ts(91,173): error TS2322: Type '({ keyId }: { keyId: string; use: boolean; }) => Promise<void>' is not assignable to type '(required: { keyId: string; use: boolean; }, optional?: Record<string, never> | undefined) => Promise<{ readonly keyId: string; }>'.
+examples/neutral-host typecheck:   Type 'Promise<void>' is not assignable to type 'Promise<{ readonly keyId: string; }>'.
+examples/neutral-host typecheck:     Type 'void' is not assignable to type '{ readonly keyId: string; }'.
+examples/neutral-host typecheck: Failed
+examples/reference-web typecheck: Done
+ ERR_PNPM_RECURSIVE_FAIL  
+
+
+Summary: 13 fails, 31 passes
+
+/home/user/Jini/packages/desktop-host:
+ ERROR  @jini-ai/desktop-host@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/capability-providers:
+ ERROR  @jini-ai/capability-providers@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/db:
+ ERROR  @jini-ai/db@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/http-kit:
+ ERROR  @jini-ai/http-kit@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/cms:
+ ERROR  @jini-ai/cms@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/plugins:
+ ERROR  @jini-ai/plugins@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/ui:
+ ERROR  @jini-ai/ui@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/chat:
+ ERROR  @jini-ai/chat@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/provider-plugins:
+ ERROR  @jini-ai/provider-plugins@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/admin:
+ ERROR  @jini-ai/admin@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/daemon:
+ ERROR  @jini-ai/daemon@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/packages/user-management:
+ ERROR  @jini-ai/user-management@0.7.1 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+
+/home/user/Jini/examples/neutral-host:
+ ERROR  @jini-example/neutral-host@0.0.0 typecheck: `tsc -p tsconfig.json`
+Exit status 2
+
+real	2m5.521s
+user	5m34.851s
+sys	0m22.409s

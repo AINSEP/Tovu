@@ -1,0 +1,1083 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ✓ src/react/components/__tests__/ToolCard.test.tsx (142 tests) 1136ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.test.tsx (54 tests) 548ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx (70 tests | 66 failed) 843ms
+   × ChatPane > enables Send with an off-list Claude default and sends the concrete picker model 57ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > keeps the blocker in the Send title, not the footer, when the agent becomes unavailable 15ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > shows an uploading notice and spinning chip, not footer text, until the upload finishes 16ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > owns composer/conversation/send orchestration and forwards selection plus run context 16ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > resolves placeholders to a single composer placeholder, taking over from placeholder 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > supports controlled selection, static context, cancellation, reset, and host slots 10ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > fails closed with no available agent and surfaces transport errors 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > supports package defaults and host styling/composer extension props 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > opens every in-pane link in a new tab, including host-rendered card links 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > owns file picking/upload staging and forwards uploaded attachments on send 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > accepts file drops across the composer area and ignores non-file drags 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > stages attach-button, dropped and pasted files while a run streams and sends them with the next message 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > owns the package working-directory picker and delegates only native I/O plus changes 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > renders package-owned attachment and working-directory capability errors 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > renders pending, invalid, and runtime inventory failure states 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > recovers from a failed CLI inventory without a reload once the daemon comes back 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > shows a loading status while CLI detection is in flight, not the red unavailable banner 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > shows neither the loading status nor the unavailable alert once a usable agent resolves 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > subscribes the daemon-relayed bridge when agentControl is supplied enabled 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > registers this pane's own tools with document.modelContext when agentControl.webmcp is true 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > shows a rescan failure as an alert while keeping the last good inventory on screen 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > delegates an explicit rescan to runtimeAccess and reflects the refreshed inventory 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > reports a read error banner when a dropped item cannot be read from disk 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > lets a host that owns execution-mode switching drive it from the runtime picker 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > lets a configured BYOK turn use the composer with zero agent CLIs available 22ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > still fails closed in local-CLI mode with zero agents on PATH — no regression 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > turns the unavailable banner into a working BYOK switch when the host wired onExecutionModeChange 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > falls back to copy-only BYOK pointer when apiModeAvailable but no onExecutionModeChange is wired 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > does not offer to switch to BYOK when it is not actually available — the honest case 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > composerHandle > publishes insertText once mounted, appends onto an existing draft, and clears on unmount 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > composerHandle > does nothing when composerHandle is omitted — no crash, no phantom ref writes 13ms
+     → expected [Function] to not throw an error but 'Error: @jini-ai/ui selects and secret…' was thrown
+   × ChatPane > default header and chrome > renders the eyebrow and puts the supplied title in the heading 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > falls back to "Chat" as the heading when no title is supplied 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > replaces the whole default header when a custom one is supplied 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > labels the suggestions row and renders one button per suggestion 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > omits the suggestions row entirely when there are none 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > labels the working-directory trigger, and swaps to the basename once one is chosen 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > shows the composer's folder-icon working-directory trigger, not the native picker, when no access is supplied 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > changes the working directory through the composer's lightweight popover when no native access is supplied 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > places the trigger in the composer, not below it, when access is supplied with placement="composer" 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > clicking the composer trigger in placement="composer" calls the native picker directly, with no popover 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > renders no composer folder-icon trigger when placement="none", even without native access 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > default header and chrome > renders neither the composer trigger nor the below-composer picker when placement="none" with native access supplied 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > explains a failed typed-answer delivery without offering to send it as a new message 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane > automatically sends a stale question answer as a normal message once, without an error notice 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × hides prior automatic plugin usage immediately when the host chooses Off 14ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > shows and recalls an accepted normal once, including storage remount 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > shows and recalls an accepted answer once, including storage remount 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > shows and recalls an accepted steer once, including storage remount 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > shows and recalls an accepted queue once, including storage remount 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > shows and recalls an accepted interrupt once, including storage remount 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > reconstructs typed answer bubbles and recall from saved tool results alone 15ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > keeps a rejected normal draft out of recall and preserves it for retry 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > says a send the server never accepted was not sent, and Retry sends the kept draft 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > empties the composer on send and says "Sending…" until the run is accepted, then "Thinking…" 39ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > puts a refused send back into the empty composer 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > puts back a send refused before the composer even re-rendered 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > hands the text back when a host run-context hook throws during the send 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > never writes a refused send over new typing, and Retry still resends the refused text 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > takes staged files out of the composer on send, hands them back on refusal, and Retry sends them 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane accepted input recording > keeps an accepted run that later fails on its own message, not as "Not sent" 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane per-message queue > shows two queued bubbles with the screenshot only on message 2 and an empty composer 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane per-message queue > flushes one combined turn with the screenshot and displays separate history bubbles, including reload 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane per-message queue > cancels only queued message 0 and delivers only the surviving message and its files 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane per-message queue > cancels only queued message 1 and delivers only the surviving message and its files 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane per-message queue > canceling the last bubble empties the queue and never sends either message 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/MessageRow.test.tsx (69 tests) 779ms
+ ❯ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx (33 tests | 29 failed) 191ms
+   × AgentRuntimePicker > shows the discovered Claude default and emits concrete IDs from the dynamic model list 62ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > uses the host translator for the trigger prompt and cached/offline catalog notes 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > summarizes the selection, and says so plainly when nothing is selected 15ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > marks the API mode as unconfigured and disables it until it is available 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > renders the reference runtime menu structure with agents, model, and reasoning 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > emits agent, model, and reasoning selections without closing the agent menu 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > shows the short model name in the bar and the full name in a tooltip on hover and focus 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > picks model and reasoning effort from composer-bar drop-ups that open above the trigger 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > supports upward/downward portal placement, Escape dismissal, and rescanning 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > renders a safe empty state when no usable agent exists 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > shows the BYOK model and none of the local-CLI controls 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > shows the provider brand mark on the trigger when byokRuntime supplies an iconId 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > falls back to a generic link glyph when byokRuntime has no iconId 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > names the provider and model on the collapsed trigger, not the selected CLI 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > falls back to a generic mode name rather than to a CLI label when nothing is configured 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > serves the provider mark from a host-vendored icon directory when agentIconBasePath is set 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > offers the model picker with nothing chosen and no "set a model" warning when no model is configured yet 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > renders a real model picker when the host supplies a list and a writer 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > keeps the model control inside the themed subtree rather than portaling out of it 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > does not close the popover when the portaled model menu is opened 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > in API · BYOK mode > still restores the whole local-CLI surface on a switch back 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > switches configured execution modes and describes an offline local runtime 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > covers optional runtime metadata and selection fields 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > wraps Tab focus inside the dialog and roves between its buttons 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > serves the CLI marks on the trigger and in the agent list from a host-vendored icon directory 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > badges a runtime that cannot receive tools, and leaves tool-capable ones unbadged 2ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker > safely no-ops Tab navigation when the popover has no focusable control at all 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker model names before the live list > lists raw catalog ids by friendly name, and the bar names the chosen one the same way 3ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × offers the selected model effort levels with the advertised Default and normalizes model changes 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/Composer.test.tsx (54 tests) 2228ms
+ ✓ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (55 tests) 128ms
+ ❯ src/react/components/__tests__/QuestionForm.test.tsx (60 tests | 1 failed) 1302ms
+   × QuestionForm > credential guard > shows the credential-card guidance only under a secret-named text question 12ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.mid-run.test.tsx (35 tests) 599ms
+ ✓ src/react/components/__tests__/A2uiSurfaceCard.test.tsx (34 tests) 485ms
+ ✓ src/react/features/chat-pane/__tests__/rules.test.ts (59 tests) 28ms
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx (32 tests | 1 failed) 204ms
+   × useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass 27ms
+     → expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+ ✓ src/react/hooks/__tests__/useComposer.test.ts (36 tests) 277ms
+ ✓ src/embed-widget/vanilla/__tests__/widget.test.ts (20 tests) 209ms
+ ✓ src/react/features/chat-pane/__tests__/createDaemonAttachmentUploader.test.ts (28 tests) 167ms
+ ✓ src/react/components/__tests__/Markdown.test.tsx (51 tests) 341ms
+ ✓ src/react/hooks/__tests__/useConversation.test.ts (26 tests) 99ms
+ ✓ src/react/components/__tests__/McpUiSurfaceCard.test.tsx (32 tests) 470ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneRuntimeInventory.test.tsx (25 tests) 492ms
+ ✓ src/react/hooks/__tests__/useRunStream.test.ts (21 tests) 59ms
+ ✓ src/react/components/__tests__/MessageList.test.tsx (25 tests) 403ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneWorkingDirectory.test.tsx (18 tests) 126ms
+ ✓ src/react/hooks/__tests__/assistant-chats.writes.cov-j2.test.ts (28 tests) 120ms
+ ✓ src/react/components/__tests__/MessageRow.display.test.tsx (31 tests) 631ms
+ ✓ src/react/hooks/__tests__/composer-draft-cache.storage-edges.test.ts (38 tests) 27ms
+ ✓ src/react/components/__tests__/ConversationList.test.tsx (37 tests) 5066ms
+   ✓ the four actions > selects a conversation and closes 528ms
+   ✓ the four actions > does not select when a double-click opens the rename editor 390ms
+   ✓ host-supported conversation actions > offers only the provided callbacks: {"rename":false,"remove":false} 580ms
+   ✓ host-supported conversation actions > offers only the provided callbacks: {"rename":true,"remove":false} 638ms
+   ✓ host-supported conversation actions > offers only the provided callbacks: {"rename":false,"remove":true} 583ms
+   ✓ host-supported conversation actions > offers only the provided callbacks: {"rename":true,"remove":true} 621ms
+ ✓ src/react/hooks/__tests__/assistant-chats.navigation.cov-j2.test.ts (22 tests) 100ms
+ ✓ src/react/__tests__/message-blocks.test.ts (24 tests) 11ms
+ ❯ src/react/hooks/__tests__/secret-redaction.test.tsx (16 tests | 9 failed) 242ms
+   × sensitive question text is masked and no raw answer escapes submit or draft callbacks 20ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × a secret text or textarea question gets the shared eye toggle, named from chat's own translator 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × pane notice uses the host translator and exposes only safe metadata to open a card 23ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × sends a picked folder intact without showing a key warning: /Users/la/Documents/Tovu/Some-Folder2026 10ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × sends a picked folder intact without showing a key warning: ~/Documents/Customer-Portal2026/SourceFiles 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × sends a picked folder intact without showing a key warning: C:\Projects\CustomerPortal2026ProductionSourceFilesAndDocuments 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × sends a picked folder intact without showing a key warning: \\FileServer\Projects\CustomerPortal2026ProductionSourceFilesAndDocuments 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × sends a picked folder intact without showing a key warning: /Users/alex/Client Work/CustomerPortal2026ProductionSourceFilesAndDocuments 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × question panel forwards the card-opening callback with only a safe count 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/hooks/__tests__/fab-position.cov-j2.test.ts (24 tests) 64ms
+ ✓ src/react/components/__tests__/surface-question-replay.test.tsx (16 tests) 472ms
+ ✓ src/react/components/__tests__/composer-discovery.test.ts (28 tests) 12ms
+ ✓ src/react/features/chat-pane/__tests__/model-options.test.ts (24 tests) 11ms
+ ✓ src/react/hooks/__tests__/composer-draft-cache.test.ts (25 tests) 23ms
+ ✓ src/react/hooks/__tests__/useChatFabDrag.test.tsx (13 tests) 65ms
+ ✓ src/react/features/chat-pane/__tests__/createMcpUiToolCaller.test.ts (18 tests) 24ms
+ ✓ src/embed-widget/react/__tests__/header.test.ts (11 tests) 201ms
+ ✓ src/react/hooks/__tests__/useComposerHistoryKeys.hooks.test.tsx (23 tests) 149ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.cov-j2.test.tsx (7 tests) 106ms
+ ✓ src/react/components/__tests__/answered-question.test.tsx (14 tests) 411ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.refresh.test.tsx (8 tests) 81ms
+ ❯ src/react/__tests__/folder-chips.test.tsx (7 tests | 6 failed) 118ms
+   × keeps folders separate from text through draft reload, acceptance, storage and replay 63ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × expands all folder names, copies exact paths, collapses and removes only the selected folder 11ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × keeps folder chips visible while queued and sends their references on the next ordinary turn 10ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × restores refused folders without overwriting folders picked while sending 10ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × does not consume a folder picked again while the prior send is awaiting acceptance 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × shows a single folder as its chip directly — no toggle — with copy and remove tooltips 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/__tests__/ChatSettingsDialog.lifecycle.test.tsx (11 tests) 284ms
+ ✓ src/react/__tests__/tool-call-display.test.ts (20 tests) 9ms
+ ✓ src/react/components/__tests__/MidRunUserMessage.test.tsx (9 tests) 364ms
+ ✓ src/react/hooks/__tests__/useComposerHistory.test.ts (8 tests) 377ms
+ ✓ src/react/components/__tests__/owned-renderer-registries.test.tsx (5 tests) 129ms
+ ✓ src/react/hooks/__tests__/useQuestionForms.test.ts (17 tests) 45ms
+ ✓ src/react/hooks/__tests__/useToolTimeline.test.ts (10 tests) 38ms
+ ✓ src/react/__tests__/ChatSettingsDialog.test.tsx (7 tests) 397ms
+ ✓ src/react/hooks/__tests__/assistant-chats.pure.cov-j2.test.ts (19 tests) 19ms
+ ✓ src/react/components/__tests__/AttachmentPreviewModal.test.tsx (11 tests) 168ms
+ ✓ src/embed-widget/vanilla/__tests__/lazy-loader.test.ts (15 tests) 46ms
+ ✓ src/react/components/__tests__/AttachmentPreviewModal.hooks.test.tsx (11 tests) 73ms
+ ✓ src/react/components/__tests__/AttachmentGallery.test.tsx (12 tests) 304ms
+ ✓ src/react/components/__tests__/Composer.history.test.tsx (15 tests) 492ms
+ ✓ src/react/components/__tests__/SentAttachment.test.tsx (10 tests) 131ms
+ ✓ src/react/components/__tests__/Composer.guards.test.tsx (13 tests) 393ms
+ ✓ src/react/components/__tests__/ToolCard.long-chat-memory.test.tsx (4 tests) 2328ms
+   ✓ tool-card memory in a restored chat > bounds a 713-card transcript and unmounts expanded detail again on close 2230ms
+ ✓ src/react/features/chat-pane/__tests__/styles-attachment-tray-rows.test.tsx (8 tests) 233ms
+ ❯ src/react/components/__tests__/mid-run-transcript.test.tsx (8 tests | 2 failed) 164ms
+   × one button send is one bubble during a capable run and after reload, without a stop or fallback run 37ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × one shortcut send is one bubble during a capable run and after reload, without a stop or fallback run 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/hooks/__tests__/useComposer.lifecycle.cov-j2.test.tsx (7 tests) 63ms
+ ✓ src/react/components/__tests__/MessageRow.usage.test.ts (19 tests) 44ms
+ ✓ src/react/components/__tests__/conversation-cost.test.tsx (5 tests) 154ms
+ ✓ src/react/hooks/__tests__/useComposer.release-check.test.tsx (8 tests) 163ms
+ ✓ src/react/hooks/__tests__/useArtifactStream.test.ts (11 tests) 54ms
+ ❯ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.agent-handles.test.tsx (5 tests | 5 failed) 82ms
+   × AgentRuntimePicker agent handles > keeps portalled runtime rows in the provider overlay and preserves origin page identity for scoped driving 50ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker agent handles > retains native-dialog portal ownership ahead of a provider overlay outside that dialog 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker agent handles > defaults separate picker instances to distinct handles 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker agent handles > preserves explicit base and runtime identity across labels and inventory reorder 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × AgentRuntimePicker agent handles > tags model and reasoning triggers and item IDs without opt-out leaks 7ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneNewTabLinks.test.tsx (10 tests) 74ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx (7 tests) 34ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneComposerPlaceholder.test.tsx (7 tests) 37ms
+ ✓ src/react/components/__tests__/AttachmentTray.test.tsx (8 tests) 178ms
+ ✓ src/embed-widget/react/__tests__/embed.test.tsx (4 tests) 166ms
+ ✓ src/react/hooks/__tests__/useExtEventGroups.test.ts (9 tests) 30ms
+ ✓ src/react/components/__tests__/ChatFab.test.tsx (6 tests) 123ms
+ ✓ src/embed-widget/vanilla/__tests__/state.test.ts (5 tests) 8ms
+ ✓ src/react/__tests__/index.test.ts (9 tests) 5ms
+ ✓ src/react/features/chat-pane/__tests__/createMidRunMessagePoster.test.ts (8 tests) 26ms
+ ✓ src/react/features/chat-pane/__tests__/styles-user-bubbles.test.tsx (5 tests) 187ms
+ ✓ src/react/hooks/__tests__/useComposer.draft-debounce.test.tsx (8 tests) 92ms
+ ✓ src/react/components/__tests__/standalone-approval.test.tsx (4 tests) 278ms
+ ❯ src/react/components/__tests__/sending-label.unit.test.tsx (8 tests | 1 failed) 155ms
+   × threads a changing host sendingLabel from the public ChatPane to its pending activity line 36ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/list-gallery.hooks.test.tsx (7 tests) 32ms
+ ✓ src/react/hooks/__tests__/useCopyToClipboard.cov-j2.test.ts (6 tests) 39ms
+ ❯ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx (7 tests | 7 failed) 113ms
+   × shows the plain note through ChatPane without owner eligibility before any send 77ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × lets a non-owner pick Antigravity with current policy { nativeToolAccess: false, cliParity: false, permissionMode: 'restricted', nativeCapabilities: { shell: false, userMcp: false } } and shows the note 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × lets a non-owner pick Antigravity with current policy undefined and shows the note 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × uses t() for the note without an owner warning, and clears the note in API mode 11ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × keeps claude selectable under the existing tool limits 5ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × keeps codex selectable under the existing tool limits 4ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × discloses unsupported adapter limits through an accessible tip without a toolbar paragraph 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/ExtEventErrorBoundary.test.tsx (6 tests) 111ms
+ ✓ src/react/components/__tests__/Composer.agent-handles.test.tsx (4 tests) 252ms
+ ✓ src/react/components/__tests__/ConversationList.gaps.test.tsx (6 tests) 267ms
+ ✓ src/react/hooks/__tests__/last-conversation-store.test.ts (9 tests) 6ms
+ ✓ src/react/components/__tests__/Icon.test.tsx (21 tests) 59ms
+ ✓ src/react/components/__tests__/FolderChips.agent-handles.test.tsx (4 tests) 187ms
+ ✓ src/react/hooks/__tests__/useRunStream.checkpoint.cov-j2.test.ts (8 tests) 33ms
+ ✓ src/react/features/chat-pane/__tests__/createTypedAnswerPoster.test.ts (6 tests) 22ms
+ ✓ src/react/components/__tests__/TodoCard.test.tsx (7 tests) 175ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx (2 tests | 2 failed) 648ms
+   × ChatPane typing > does not re-render message rows on each keystroke 70ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane typing > re-renders zero rows of a few-hundred-tool-row transcript while typing or on a host re-render 577ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/features/chat-pane/__tests__/styles-composer-footer-wrap.test.tsx (5 tests) 262ms
+ ✓ src/react/components/__tests__/McpUiSurfaceCard.j5-03.characterization.test.tsx (9 tests) 93ms
+ ✓ src/react/features/chat-pane/__tests__/frontend-request-caller.test.ts (6 tests) 70ms
+ ✓ src/react/components/__tests__/ToolCard.batch-target.test.tsx (19 tests) 251ms
+ ✓ src/react/components/__tests__/TodoCard.l199.characterization.test.tsx (8 tests) 149ms
+ ✓ src/react/__tests__/message-blocks.thinking.test.ts (6 tests) 5ms
+ ✓ src/react/hooks/__tests__/usePinnedTodos.test.ts (5 tests) 25ms
+ ❯ src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx (4 tests | 4 failed) 68ms
+   × shows a warning icon, not the note paragraph, in the composer row 47ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × opens the tip on tap and keyboard focus 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × marks the agent in the picker list with the same icon, outside its radio 6ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × translates the note and the icon name through t() 8ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/ComposerDiscovery.test.tsx (6 tests) 124ms
+ ✓ src/react/__tests__/artifact-types.test.ts (7 tests) 5ms
+ ✓ src/react/features/chat-pane/__tests__/styles-lone-send-button.test.tsx (3 tests) 207ms
+ ↓ src/react/features/chat-pane/__tests__/components/ChatPane.long-transcript.bench.test.tsx (1 test | 1 skipped)
+ ✓ src/react/components/__tests__/ConversationTitleEditor.test.tsx (4 tests) 280ms
+ ✓ src/react/components/__tests__/A2uiSurfaceCard.delivery.test.tsx (3 tests) 168ms
+ ✓ src/embed-widget/react/__tests__/dialog.test.tsx (2 tests) 175ms
+ ✓ src/react/components/__tests__/NextStepActions.test.tsx (5 tests) 106ms
+ ✓ src/embed-widget/vanilla/__tests__/state.edges.test.ts (5 tests) 6ms
+ ✓ src/react/components/__tests__/JiniChatProvider.test.tsx (3 tests) 44ms
+ ✓ src/react/components/__tests__/ToolCard.cli-events.test.tsx (11 tests) 177ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.release-check.test.tsx (3 tests) 57ms
+ ✓ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.test.tsx (4 tests) 166ms
+ ✓ src/embed-widget/vanilla/__tests__/lazy-loader.retry.test.ts (4 tests) 121ms
+ ✓ src/react/hooks/__tests__/composer-history-storage.test.ts (4 tests) 5ms
+ ✓ src/react/components/__tests__/MessageList.jump-to-latest.test.tsx (4 tests) 209ms
+ ✓ src/react/hooks/__tests__/useSurfaceExpiry.test.ts (6 tests) 31ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.redaction-notice.test.tsx (4 tests | 4 failed) 90ms
+   × styles the notice like the pane's other status notices 56ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × clears the notice when the next message has no key in it 13ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × keeps the notice when the next message also had a key removed 11ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × can be dismissed 9ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/MessageList.l199.characterization.test.tsx (5 tests) 126ms
+ ✓ src/react/components/__tests__/McpUiSurfaceCard.l199.characterization.test.tsx (3 tests) 122ms
+ ✓ src/react/components/__tests__/QuestionsPanel.j5-03.characterization.test.tsx (6 tests) 191ms
+ ✓ src/react/components/__tests__/QuestionsPanel.test.tsx (5 tests) 191ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneControlsHeight.test.tsx (2 tests) 36ms
+ ❯ src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx (2 tests | 2 failed) 63ms
+   × Send retains footer sizing and its click handler beside the effort selector 50ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × Stop run retains footer sizing and its click handler beside the effort selector 12ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/components/__tests__/QuestionsPanel.l199.characterization.test.tsx (5 tests) 203ms
+ ✓ src/react/components/__tests__/A2uiSurfaceCard.registry.test.tsx (1 test) 76ms
+ ✓ src/react/hooks/__tests__/durable-run-hooks.test.ts (3 tests) 36ms
+ ✓ src/react/__tests__/ext-event-renderer-registry.test.ts (6 tests) 4ms
+ ✓ src/react/components/__tests__/mcp-ui-surface-state.test.ts (4 tests) 5ms
+ ✓ src/react/hooks/__tests__/context.test.ts (7 tests) 27ms
+ ✓ src/react/components/__tests__/MidRunUserMessage.cov-j2.test.tsx (4 tests) 165ms
+ ✓ src/react/__tests__/tool-renderer-registry.test.ts (6 tests) 3ms
+ ✓ src/react/components/__tests__/ConversationList.trigger.test.tsx (5 tests) 65ms
+ ✓ src/react/features/chat-pane/__tests__/surface-recovery.test.ts (2 tests) 65ms
+ ✓ src/react/hooks/__tests__/useSurfaceRecovery.test.ts (2 tests) 20ms
+ ✓ src/react/__tests__/package-content.test.ts (6 tests) 5ms
+ ✓ src/react/features/chat-pane/__tests__/components/AgentPluginUsage.test.tsx (3 tests) 89ms
+ ✓ src/react/hooks/__tests__/attachment-preview-cache.test.ts (4 tests) 5ms
+ ✓ src/react/components/__tests__/MessageRow.terminal-extension.test.tsx (3 tests) 101ms
+ ✓ src/react/hooks/__tests__/last-conversation-store.cov-j2.test.ts (3 tests) 4ms
+ ✓ src/react/features/chat-pane/__tests__/styles-tool-row-chevron.test.ts (3 tests) 5ms
+ ✓ src/react/components/__tests__/MessageRow.usage.l199.characterization.test.ts (10 tests) 40ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.cov-j2.test.tsx (1 test | 1 failed) 62ms
+   × ChatPane secret redaction notice > sends only the redacted text and tells the person a key was removed 61ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/features/chat-pane/__tests__/components/RuntimeDropUp.cov-j2.test.tsx (2 tests) 114ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx (1 test) 19ms
+ ✓ src/react/components/__tests__/MessageList.streaming-renders.test.tsx (1 test) 54ms
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.agent-handles.test.tsx (2 tests | 2 failed) 114ms
+   × ChatPane handle forwarding > names the composer and runtime picker from one host base 93ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+   × ChatPane handle forwarding > keeps false through composer and opened runtime menus 19ms
+     → @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneSurface.cov-j2.test.tsx (3 tests) 18ms
+ ✓ src/react/components/__tests__/Composer.mid-run.test.tsx (2 tests) 143ms
+ ✓ src/react/__tests__/ext-event-renderer-registry.cov-j2.test.ts (3 tests) 3ms
+ ✓ src/react/features/chat-pane/__tests__/styles-row-containment.test.ts (1 test) 2ms
+ ✓ src/react/hooks/__tests__/useConversation.retry-race.cov-j2.test.ts (1 test) 26ms
+ ✓ src/react/hooks/testing/__tests__/fake-transport.test.ts (3 tests) 3ms
+ ✓ src/react/components/__tests__/composer-discovery.cov-j2.test.ts (9 tests) 4ms
+ ✓ src/react/components/__tests__/MessageList.queued-attachments.cov-j2.test.tsx (2 tests) 156ms
+ ✓ src/react/features/chat-pane/__tests__/model-options.cov-j2.test.ts (2 tests) 4ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useAgentRuntimePicker.cov-j2.test.ts (3 tests) 2ms
+ ✓ src/react/components/__tests__/Composer.slash-guard.test.tsx (1 test) 99ms
+ ✓ src/embed-widget/react/__tests__/dialog.focus-edges.test.tsx (2 tests) 26ms
+ ✓ src/react/features/chat-pane/__tests__/index.test.ts (1 test) 3ms
+ ✓ src/react/features/chat-pane/__tests__/styles-spinner.test.ts (2 tests) 21ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.surfaces.test.tsx (1 test) 25ms
+ ✓ src/react/components/__tests__/MessageList.rules.test.ts (4 tests) 3ms
+ ✓ src/react/hooks/__tests__/surface-recovery-decision.test.ts (1 test) 3ms
+ ✓ src/react/components/__tests__/durable-run-notice.test.tsx (1 test) 41ms
+ ✓ src/react/components/__tests__/ToolCard.rules.test.ts (1 test) 2ms
+ ✓ src/embed-widget/transports/__tests__/fetch-sse.test.ts (50 tests) 42ms
+ ✓ src/core/assistant-client/__tests__/transport.test.ts (88 tests) 75ms
+ ✓ src/store/runtime/__tests__/durable-run-store.test.ts (67 tests) 318ms
+ ✓ src/core/question-form/__tests__/question-form.test.ts (63 tests) 33ms
+ ✓ src/server/durable-runs/__tests__/recover-boundaries.test.ts (76 tests) 86ms
+ ✓ src/server/durable-runs/__tests__/recover.test.ts (40 tests) 32ms
+ ✓ src/store/runtime/__tests__/history-tools.test.ts (31 tests) 75ms
+ ✓ src/core/util/__tests__/strip.test.ts (44 tests) 31ms
+ ✓ src/store/runtime/__tests__/run-ledger.test.ts (35 tests) 2768ms
+   ✓ checkpoint deltas on PostgreSQL (PGlite) > uses SQL character lengths for text replacement, appends, and concurrent-barrier fallback 2493ms
+ ✓ src/store/legacy/sqlite/__tests__/messages.test.ts (29 tests) 86ms
+ ✓ src/core/__tests__/tool-events.fold-delegated.test.ts (36 tests) 13ms
+ ✓ src/core/__tests__/run-activity.test.ts (37 tests) 12ms
+ ✓ src/core/run-events/__tests__/frames.test.ts (57 tests) 32ms
+ ✓ src/store/runtime/__tests__/run-ledger.cov-j2.test.ts (25 tests) 124ms
+ ✓ src/core/__tests__/composer-history.test.ts (29 tests) 13ms
+ ✓ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts (15 tests) 290ms
+ ✓ src/core/__tests__/durable-projection.test.ts (37 tests) 10ms
+ ✓ src/embed-widget/browser/__tests__/session-store.test.ts (25 tests) 22ms
+ ✓ src/core/ag-ui/__tests__/translation.test.ts (19 tests) 9ms
+ ✓ src/store/__tests__/original-isolation.test.ts (19 tests) 96ms
+ ✓ src/server/run-finalizer/__tests__/finalizer.test.ts (14 tests) 32ms
+ ✓ src/store/runtime/__tests__/durable-run-store.reads.test.ts (13 tests) 2800ms
+   ✓ guard reads are bounded by the run, not the conversation > parses the same number of JSON values per call for 10 and 200 prior turns 320ms
+   ✓ the SQL event append on PostgreSQL (PGlite) > appends byte-for-byte and starts a new array over an empty one 2371ms
+ ✓ src/core/util/__tests__/manifest.test.ts (30 tests) 12ms
+ ✓ src/store/runtime/__tests__/chat-history-store.test.ts (23 tests) 122ms
+ ✓ src/core/__tests__/todos.test.ts (28 tests) 10ms
+ ✓ src/core/__tests__/transcript.test.ts (25 tests) 32ms
+ ✓ src/core/util/__tests__/parser.test.ts (27 tests) 12ms
+ ✓ src/core/util/__tests__/pointer.test.ts (45 tests) 10ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+ ✓ src/core/durable-runs/__tests__/continuation.test.ts (29 tests) 15ms
+ ✓ src/core/util/__tests__/validate.test.ts (45 tests) 18ms
+ ✓ src/core/run-events/__tests__/payload.test.ts (25 tests) 11ms
+ ✓ src/core/__tests__/turn-usage.test.ts (24 tests) 9ms
+ ✓ src/core/__tests__/user-text-redaction.test.ts (104 tests) 48ms
+ ✓ src/core/__tests__/util/recover.test.ts (26 tests) 15ms
+ ✓ src/core/__tests__/persistence/title.test.ts (40 tests) 16ms
+ ✓ src/store/legacy/sqlite/__tests__/conversations.test.ts (23 tests) 64ms
+ ✓ src/core/assistant-client/__tests__/ag-ui-transport.test.ts (12 tests) 13ms
+ ✓ src/core/assistant-client/__tests__/delivery-and-liveness.test.ts (18 tests) 41ms
+ ✓ src/core/__tests__/tool-events.antigravity.test.ts (20 tests) 11ms
+ ✓ src/server/run-finalizer/__tests__/finalizer-boundaries.test.ts (12 tests) 23ms
+ ✓ src/core/__tests__/agent-plugin-chat-state.test.ts (23 tests) 11ms
+ ✓ src/core/__tests__/durable-run-subscription.paths.unit.test.ts (8 tests) 25ms
+ ✓ src/core/run-events/__tests__/activity.test.ts (10 tests) 6ms
+ ✓ src/store/__tests__/sql-cursor.test.ts (15 tests) 19ms
+stdout | src/core/__tests__/durable-run-subscription.unit.test.ts > running polls recover once, then read checkpoints; pending faults latch one recovery
+[durable-subscription] {"runId":"run","reason":"stream-error","cursor":"","retryDelayMs":1000}
+
+ ✓ src/core/__tests__/durable-run-subscription.unit.test.ts (4 tests) 12ms
+ ✓ src/core/question-form/__tests__/scan.test.ts (34 tests) 14ms
+ ✓ src/server/durable-runs/__tests__/accept.cov-j2.test.ts (10 tests) 129ms
+ ✓ src/core/__tests__/question-answer.test.ts (23 tests) 461ms
+   ✓ questionAnswerText — very large multi-select answers (FU-B) > a million string selections still produce text instead of throwing 307ms
+ ✓ src/core/question-form/__tests__/normalize.test.ts (33 tests) 18ms
+ ✓ src/store/runtime/__tests__/chat-expiry-sweep.cov-j2.test.ts (10 tests) 172ms
+ ✓ src/core/run-events/__tests__/boundary.test.ts (16 tests) 99ms
+ ✓ src/core/__tests__/accepted-input.projection.test.ts (16 tests) 8ms
+ ✓ src/core/__tests__/partial-json.test.ts (25 tests) 40ms
+ ❯ src/store/__tests__/loads-without-driver.test.ts (12 tests | 1 failed) 15421ms
+   ✓ neutral store loads without any optional peer installed 622ms
+   ✓ neutral store and core work with no database, SQL or React packages installed 335ms
+   × neutral declarations typecheck without installing any optional peer 1101ms
+     → expected 'node_modules/@jini-ai/chat/dist/store…' to be '' // Object.is equality
+   ✓ sqlite entry loads with core, diagnostics, db and Kysely, validates invocation, and leaves neutral store usable 407ms
+   ✓ pglite entry loads with core, diagnostics, db and Kysely, validates invocation, and leaves neutral store usable 390ms
+   ✓ postgres entry loads with core, diagnostics, db and Kysely, validates invocation, and leaves neutral store usable 401ms
+   ✓ PGlite packed consumer runs without SQLite, pg or React 2798ms
+   ✓ Postgres packed consumer constructs with injected pg, without SQLite, PGlite or React 366ms
+ ✓ src/core/__tests__/react-free.test.ts (2 tests) 18ms
+ ✓ src/core/__tests__/tool-call-detail.test.ts (18 tests) 15ms
+ ✓ src/core/__tests__/conversation-cost.test.ts (15 tests) 7ms
+ ✓ src/core/__tests__/assistant-content.test.ts (16 tests) 8ms
+ ✓ src/core/__tests__/agentic/chat-capabilities.test.ts (5 tests) 7ms
+ ✓ src/core/ag-ui/__tests__/reverse-translation.test.ts (6 tests) 6ms
+ ✓ src/core/assistant-client/__tests__/agent-switch-continuity.test.ts (4 tests) 18ms
+ ✓ src/store/runtime/__tests__/run-guarded-chat-store.cov-j2.test.ts (5 tests) 45ms
+ ✓ src/core/__tests__/tools.test.ts (12 tests) 8ms
+ ✓ src/core/__tests__/user-text-redaction.gaps.test.ts (20 tests) 12ms
+ ✓ src/store/__tests__/sql-store.test.ts (4 tests) 39ms
+ ✓ src/core/util/__tests__/markdown-context.test.ts (14 tests) 7ms
+ ✓ src/core/__tests__/user-text-redaction.path-boundaries.test.ts (83 tests) 37ms
+ ✓ src/core/__tests__/index.test.ts (10 tests) 12ms
+ ✓ src/core/assistant-client/__tests__/credential-notice-current-turn.unit.test.ts (13 tests) 20ms
+ ✓ src/store/__tests__/history-reader.test.ts (6 tests) 6055ms
+   ✓ PGlite bounded history reader > searches owned titles and content literally, newest first, without other owners/sites/guests 2417ms
+   ✓ PGlite bounded history reader > reads a tail or forward positions in order, bounded, and never projects attachments 1741ms
+   ✓ PGlite bounded history reader > rejects invalid resource bounds rather than reading an unbounded transcript 1849ms
+ ✓ src/core/assistant-client/__tests__/messages.test.ts (6 tests) 5ms
+stdout | src/core/__tests__/unit/partial-json.property.unit.test.ts
+[fast-check chat/partial-json] seed=20261020, numRuns=150
+
+ ✓ src/core/__tests__/unit/partial-json.property.unit.test.ts (4 tests) 165ms
+ ✓ src/core/__tests__/persistence/title.edges.test.ts (32 tests) 8ms
+ ✓ src/store/__tests__/construction.test.ts (4 tests) 31ms
+ ✓ src/store/__tests__/history-list-cursor.test.ts (4 tests) 4433ms
+   ✓ PGlite chat history cursor > returns the remaining chats once and binds cursors to the owner 2372ms
+   ✓ PGlite chat history cursor > continues after the last returned chat when escaped text fills the output cap 1976ms
+ ✓ src/core/__tests__/compact-events.test.ts (4 tests) 4ms
+ ✓ src/core/assistant-client/__tests__/transport-redaction-signal.test.ts (1 test) 18ms
+ ✓ src/store/__tests__/cost-reopen.test.ts (1 test) 70ms
+stdout | src/server/durable-runs/__tests__/missing-resume.test.ts > reconstructs a missing Codex rollout once with prior turns and no visible failure/recovery note
+[durable-recovery] {"runId":"old","trigger":"attempt-failed","probe":"dead","decision":"continued","failureClass":"retryable"}
+
+ ✓ src/server/durable-runs/__tests__/missing-resume.test.ts (1 test) 9ms
+ ✓ src/embed-widget/browser/__tests__/frontend-navigation-guard.test.ts (13 tests) 8ms
+ ✓ src/__tests__/dbpkg-chat-core-contracts.test.ts (4 tests) 17ms
+ ❯ src/store/__tests__/manifest.test.ts (2 tests | 1 failed) 15ms
+   × makes every SQL, React and surface-card UI peer optional, with one pinned dev Kysely and PGlite 11ms
+     → expected { react: '^18.3.0 || ^19.0.0', …(14) } to deeply equal { 'better-sqlite3': '^13.0.0', …(14) }
+ ✓ src/embed-widget/__tests__/boundaries.test.ts (9 tests) 6ms
+ ✓ src/core/__tests__/durable-run-w2g.unit.test.ts (1 test) 6ms
+ ✓ src/store/__tests__/reopen.test.ts (1 test) 71ms
+ ✓ src/core/__tests__/tool-events.cli-receipts.test.ts (3 tests) 4ms
+ ✓ src/store/__tests__/import-isolation.test.ts (7 tests) 35ms
+ ❯ src/__tests__/dbpkg-chat-manifest.test.ts (1 test | 1 failed) 12ms
+   × publishes every isolated extraction entry with its browser or universal classification 11ms
+     → expected { react: '^18.3.0 || ^19.0.0', …(14) } to deeply equal { react: '^18.3.0 || ^19.0.0', …(14) }
+ ✓ src/store/legacy/sqlite/__tests__/sqlite.test.ts (2 tests) 18ms
+ ✓ src/store/runtime/__tests__/entry.cov-j2.test.ts (2 tests) 38ms
+ ✓ src/core/question-form/__tests__/format.test.ts (6 tests) 8ms
+ ✓ src/__tests__/dbpkg-chat-request-ports.test.ts (2 tests) 11ms
+ ✓ src/__tests__/dbpkg-chat-store-run-events.test.ts (1 test) 24ms
+ ✓ src/core/__tests__/tool-presentation.test.ts (17 tests) 6ms
+ ✓ src/core/__tests__/turn-usage-w2g.unit.test.ts (2 tests) 3ms
+ ✓ src/store/runtime/__tests__/durable-run-store.race.test.ts (1 test) 24ms
+ ✓ src/core/ag-ui/__tests__/ports.test.ts (2 tests) 3ms
+ ✓ src/core/question-form/__tests__/question-form.color-guard.test.ts (4 tests) 11ms
+ ✓ src/core/__tests__/accepted-input.jw6.characterization.test.ts (2 tests) 4ms
+ ✓ src/core/__tests__/surface-expiry.test.ts (16 tests) 5ms
+ ✓ src/core/__tests__/guard-user-text.test.ts (3 tests) 5ms
+ ✓ src/__tests__/dbpkg-chat-contradictions.test.ts (2 tests) 3ms
+ ✓ src/store/__tests__/secret-redaction.test.ts (1 test) 27ms
+ ✓ src/core/__tests__/surface-recovery.test.ts (2 tests) 3ms
+ ✓ src/core/__tests__/secret-question-answers.test.ts (2 tests) 8ms
+ ✓ src/store/__tests__/folders.test.ts (1 test) 25ms
+ ✓ src/store/__tests__/entries.cov-j2.test.ts (4 tests) 4ms
+ ✓ src/__tests__/dbpkg-chat-errors.test.ts (5 tests) 3ms
+ ✓ src/testing/__tests__/long-transcript.test.ts (1 test) 9ms
+ ❯ src/store/__tests__/types.test.ts (1 test | 1 failed) 1842ms
+   × old eight-method fakes compile and every factory accepts host extra tables but refuses missing tables 1841ms
+     → expected 'src/store/__tests__/types.fixture.ts(…' to be '' // Object.is equality
+ ✓ src/store/legacy/sqlite/__tests__/secret-redaction.test.ts (1 test) 14ms
+ ❯ src/__tests__/dbpkg-chat-neutrality.test.ts (1 test | 1 failed) 32ms
+   × rejects consumer identity, paths and import aliases, including rationale comments 31ms
+     → expected [ { …(2) }, { …(2) }, { …(2) } ] to deeply equal []
+ ✓ src/contracts/__tests__/chat-bubble-style.test.ts (1 test) 70ms
+ ✓ src/core/__tests__/accepted-replay-m1.unit.test.ts (2 tests) 3ms
+ ✓ src/core/__tests__/checkpoint-interval.test.ts (9 tests) 4ms
+ ✓ tests/folder-drop-redaction.integration.test.ts (4 tests) 9ms
+ ✓ src/core/__tests__/persistence/title-boundaries.unit.test.ts (2 tests) 4ms
+ ✓ src/core/__tests__/tool-output.test.ts (2 tests) 3ms
+ ✓ src/core/__tests__/fresh-run-continuation.test.ts (2 tests) 2ms
+ ✓ src/core/__tests__/transcript.unterminated.test.ts (2 tests) 3ms
+ ✓ src/core/durable-runs/__tests__/policies.test.ts (1 test) 2ms
+ ✓ src/store/__tests__/transactions.test.ts (4 tests) 121ms
+ ✓ src/store/__tests__/clock-methods.test.ts (3 tests) 41ms
+ ✓ src/store/__tests__/additional.test.ts (5 tests) 47ms
+ ✓ src/store/__tests__/sqlite.test.ts (19 tests) 124ms
+ ✓ src/store/__tests__/paging.test.ts (8 tests) 139ms
+ ✓ src/store/__tests__/parity.test.ts (14 tests) 110ms
+ ✓ src/store/__tests__/pglite.socket.test.ts (51 tests) 108765ms
+   ✓ PGlite socket clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 2980ms
+   ✓ PGlite socket clock and object methods > applies the second paging bag and binds continuation to the owner 2044ms
+   ✓ PGlite socket clock and object methods > uses system wall time when no clock is supplied 2004ms
+   ✓ PGlite socket > cross-owner reads > returns null when another user fetches a chat by id 2351ms
+   ✓ PGlite socket > cross-owner reads > returns null across workspaces even for the same owner id 2120ms
+   ✓ PGlite socket > cross-owner reads > returns null across owner kinds even for the same owner id 2092ms
+   ✓ PGlite socket > cross-owner reads > omits other owners chats from list 2121ms
+   ✓ PGlite socket > cross-owner reads > returns no messages when another user asks for them 2181ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not delete another owners chat 2300ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not rename another owners chat 2201ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 2140ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 2242ms
+   ✓ PGlite socket > cross-owner writes are no-ops, not errors > does not touch another owners chat 2196ms
+   ✓ PGlite socket > append semantics > updates a message in place when the same id is appended again to the same chat 2102ms
+   ✓ PGlite socket > append semantics > keeps position stable across an in-place update 2100ms
+   ✓ PGlite socket > deletion > cascades to the conversation messages 2028ms
+   ✓ PGlite socket > title source > lets a generated title replace a fallback one 2140ms
+   ✓ PGlite socket > title source > never lets a generated title clobber a manual rename 1971ms
+   ✓ PGlite socket > retention sweep > deletes only expired rows and never touches never-expiring history 2080ms
+   ✓ PGlite socket > retention sweep > honours its chunk limit so one call cannot hold a long write lock 2053ms
+   ✓ PGlite socket > message ordering > assigns sequential positions and returns messages in that order 2239ms
+   ✓ PGlite socket > message ordering > updates a message in place without allocating a new position 2055ms
+   ✓ PGlite socket parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 2133ms
+   ✓ PGlite socket parity > create then get and list round-trip every conversation field 2054ms
+   ✓ PGlite socket parity > list is most-recently-updated first and counts messages 2040ms
+   ✓ PGlite socket parity > messages round-trip every stored field, in position order 1915ms
+   ✓ PGlite socket parity > a malformed events column reads as no events, not an error 2156ms
+   ✓ PGlite socket parity > appending an existing id updates it in place at the same position 2224ms
+   ✓ PGlite socket parity > appending bumps the conversation's updatedAt 1986ms
+   ✓ PGlite socket parity > rename: a generated title replaces a fallback one but never a manual one 2015ms
+   ✓ PGlite socket parity > touch bumps updatedAt and, when asked, the expiry 2259ms
+   ✓ PGlite socket parity > delete cascades to messages, agent sessions and tool approvals 1691ms
+   ✓ PGlite socket parity > another owner, workspace or owner kind sees nothing and changes nothing 2297ms
+   ✓ PGlite socket parity > appending an id that lives in another owner's chat never overwrites that row 2114ms
+   ✓ PGlite socket parity > an append inside a rolled-back transaction leaves nothing 2165ms
+   ✓ PGlite socket parity > concurrent appends to one chat get distinct, gap-free positions 2280ms
+   ✓ PGlite socket paging > provides bounded conversation and message reads on the owner-scoped store 2181ms
+   ✓ PGlite socket paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 2232ms
+   ✓ PGlite socket paging > orders different recencies descending and retains deleted anchor continuations 2076ms
+   ✓ PGlite socket paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 2398ms
+   ✓ PGlite socket paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 2240ms
+   ✓ PGlite socket paging > keeps message positions on updates and discovers append after a deleted anchor 2176ms
+   ✓ PGlite socket paging > unknown and other-owned message pages have exactly the same empty output 2062ms
+   ✓ PGlite socket paging > a page selects only limit plus one rows instead of loading the compatibility transcript 2002ms
+   ✓ PGlite socket additional invariants > copies the owner tuple so mutation cannot rebind a store 1737ms
+   ✓ PGlite socket additional invariants > duplicate creates hide the existing owner and preserve their causes 2165ms
+   ✓ PGlite socket additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 2117ms
+   ✓ PGlite socket additional invariants > malformed optional JSON leaves readable text and no damaged optional values 2047ms
+   ✓ PGlite socket additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 2115ms
+   ✓ PGlite socket transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 2072ms
+   ✓ PGlite socket transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 2062ms
+ ✓ src/store/__tests__/pglite.test.ts (51 tests) 82383ms
+   ✓ PGlite clock and object methods > persists a shared core clock and preserves its receiver across create, append, rename and touch 2136ms
+   ✓ PGlite clock and object methods > applies the second paging bag and binds continuation to the owner 1631ms
+   ✓ PGlite clock and object methods > uses system wall time when no clock is supplied 1702ms
+   ✓ PGlite > cross-owner reads > returns null when another user fetches a chat by id 1538ms
+   ✓ PGlite > cross-owner reads > returns null across workspaces even for the same owner id 1616ms
+   ✓ PGlite > cross-owner reads > returns null across owner kinds even for the same owner id 1530ms
+   ✓ PGlite > cross-owner reads > omits other owners chats from list 1566ms
+   ✓ PGlite > cross-owner reads > returns no messages when another user asks for them 1607ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not delete another owners chat 1601ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not rename another owners chat 1599ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > refuses to append a message into another owners chat 1651ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not overwrite another owners message when appending a colliding id to its OWN chat 1745ms
+   ✓ PGlite > cross-owner writes are no-ops, not errors > does not touch another owners chat 1667ms
+   ✓ PGlite > append semantics > updates a message in place when the same id is appended again to the same chat 1749ms
+   ✓ PGlite > append semantics > keeps position stable across an in-place update 1535ms
+   ✓ PGlite > deletion > cascades to the conversation messages 1562ms
+   ✓ PGlite > title source > lets a generated title replace a fallback one 1598ms
+   ✓ PGlite > title source > never lets a generated title clobber a manual rename 1673ms
+   ✓ PGlite > retention sweep > deletes only expired rows and never touches never-expiring history 1605ms
+   ✓ PGlite > retention sweep > honours its chunk limit so one call cannot hold a long write lock 1598ms
+   ✓ PGlite > message ordering > assigns sequential positions and returns messages in that order 1583ms
+   ✓ PGlite > message ordering > updates a message in place without allocating a new position 1654ms
+   ✓ PGlite parity > conversation summaries include mid-run user messages and tolerate damaged event JSON 1708ms
+   ✓ PGlite parity > create then get and list round-trip every conversation field 1532ms
+   ✓ PGlite parity > list is most-recently-updated first and counts messages 1627ms
+   ✓ PGlite parity > messages round-trip every stored field, in position order 1545ms
+   ✓ PGlite parity > a malformed events column reads as no events, not an error 1574ms
+   ✓ PGlite parity > appending an existing id updates it in place at the same position 1571ms
+   ✓ PGlite parity > appending bumps the conversation's updatedAt 1465ms
+   ✓ PGlite parity > rename: a generated title replaces a fallback one but never a manual one 1546ms
+   ✓ PGlite parity > touch bumps updatedAt and, when asked, the expiry 1603ms
+   ✓ PGlite parity > delete cascades to messages, agent sessions and tool approvals 1572ms
+   ✓ PGlite parity > another owner, workspace or owner kind sees nothing and changes nothing 1666ms
+   ✓ PGlite parity > appending an id that lives in another owner's chat never overwrites that row 1610ms
+   ✓ PGlite parity > an append inside a rolled-back transaction leaves nothing 1718ms
+   ✓ PGlite parity > concurrent appends to one chat get distinct, gap-free positions 1690ms
+   ✓ PGlite paging > provides bounded conversation and message reads on the owner-scoped store 1513ms
+   ✓ PGlite paging > pages tied timestamps with UTF-8 ordinal opaque ids, without skips or duplicates 1557ms
+   ✓ PGlite paging > orders different recencies descending and retains deleted anchor continuations 1559ms
+   ✓ PGlite paging > accepts limits 1 and 200, defaults to 50, and refuses invalid bounds 1921ms
+   ✓ PGlite paging > rejects owner, workspace, kind, read-kind and conversation cursor reuse before a data read 1715ms
+   ✓ PGlite paging > keeps message positions on updates and discovers append after a deleted anchor 1744ms
+   ✓ PGlite paging > unknown and other-owned message pages have exactly the same empty output 1481ms
+   ✓ PGlite paging > a page selects only limit plus one rows instead of loading the compatibility transcript 1541ms
+   ✓ PGlite additional invariants > copies the owner tuple so mutation cannot rebind a store 1500ms
+   ✓ PGlite additional invariants > duplicate creates hide the existing owner and preserve their causes 1488ms
+   ✓ PGlite additional invariants > upserts change only the ai_* mutable fields and re-read exactly one projected row 1542ms
+   ✓ PGlite additional invariants > malformed optional JSON leaves readable text and no damaged optional values 1619ms
+   ✓ PGlite additional invariants > retention includes equality, cascades, bounds 1..500 and preserves missing expiry 1574ms
+   ✓ PGlite transactions > joins the exact kernel transaction so a throwing write rolls back ledger and transcript 1491ms
+   ✓ PGlite transactions > controlled terminal settlement prevents a queued late browser save from replacing final text 1550ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 147 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/dbpkg-chat-manifest.test.ts > publishes every isolated extraction entry with its browser or universal classification
+AssertionError: expected { react: '^18.3.0 || ^19.0.0', …(14) } to deeply equal { react: '^18.3.0 || ^19.0.0', …(14) }
+
+- Expected
++ Received
+
+  Object {
+    "@ag-ui/core": "0.0.58",
+    "@electric-sql/pglite": "0.5.8",
+-   "@jini-ai/agent-runtime": "^0.6.10",
+-   "@jini-ai/protocol": "^0.6.10",
+-   "@jini-ai/ui": "^0.6.10",
++   "@jini-ai/agent-runtime": "^0.7.0",
++   "@jini-ai/protocol": "^0.7.0",
++   "@jini-ai/ui": "^0.7.0",
+    "@mcp-ui/client": "7.1.1",
+    "@radix-ui/react-checkbox": "^1.3.11",
+    "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-radio-group": "^1.4.7",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-slot": "^1.3.3",
+    "better-sqlite3": "^13.0.0",
+    "pg": "^8.23.0",
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+  }
+
+ ❯ src/__tests__/dbpkg-chat-manifest.test.ts:32:37
+     30|     '@jini-ai/ui': '^0.6.10',
+     31|   };
+     32|   expect(manifest.peerDependencies).toEqual(expectedPeers);
+       |                                     ^
+     33|   expect(manifest.peerDependenciesMeta).toEqual(
+     34|     Object.fromEntries(Object.keys(expectedPeers).map(name => [name, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/147]⎯
+
+ FAIL  src/__tests__/dbpkg-chat-neutrality.test.ts > rejects consumer identity, paths and import aliases, including rationale comments
+AssertionError: expected [ { …(2) }, { …(2) }, { …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "path": "/home/user/Jini/packages/chat/src/core/assistant-client/transport.ts",
++     "token": "tovu",
++   },
++   Object {
++     "path": "/home/user/Jini/packages/chat/src/core/assistant-client/transport.ts",
++     "token": "apps/website",
++   },
++   Object {
++     "path": "/home/user/Jini/packages/chat/src/react/hooks/assistant-chats-contracts.ts",
++     "token": "tovu",
++   },
++ ]
+
+ ❯ src/__tests__/dbpkg-chat-neutrality.test.ts:22:117
+     20|   expect(violations("import type { ChatMessage } from '../core/message…
+     21|   const root = fileURLToPath(new URL('../', import.meta.url));
+     22|   expect(sourceFiles(root).flatMap(path => violations(readFileSync(pat…
+       |                                                                                                                     ^
+     23| });
+     24| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/147]⎯
+
+ FAIL  src/react/__tests__/folder-chips.test.tsx > keeps folders separate from text through draft reload, acceptance, storage and replay
+ FAIL  src/react/__tests__/folder-chips.test.tsx > expands all folder names, copies exact paths, collapses and removes only the selected folder
+ FAIL  src/react/__tests__/folder-chips.test.tsx > keeps folder chips visible while queued and sends their references on the next ordinary turn
+ FAIL  src/react/__tests__/folder-chips.test.tsx > restores refused folders without overwriting folders picked while sending
+ FAIL  src/react/__tests__/folder-chips.test.tsx > does not consume a folder picked again while the prior send is awaiting acceptance
+ FAIL  src/react/__tests__/folder-chips.test.tsx > shows a single folder as its chip directly — no toggle — with copy and remove tooltips
+ FAIL  src/react/components/__tests__/mid-run-transcript.test.tsx > one button send is one bubble during a capable run and after reload, without a stop or fallback run
+ FAIL  src/react/components/__tests__/mid-run-transcript.test.tsx > one shortcut send is one bubble during a capable run and after reload, without a stop or fallback run
+ FAIL  src/react/components/__tests__/sending-label.unit.test.tsx > threads a changing host sendingLabel from the public ChatPane to its pending activity line
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > pane notice uses the host translator and exposes only safe metadata to open a card
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > sends a picked folder intact without showing a key warning: /Users/la/Documents/Tovu/Some-Folder2026
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > sends a picked folder intact without showing a key warning: ~/Documents/Customer-Portal2026/SourceFiles
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > sends a picked folder intact without showing a key warning: C:\Projects\CustomerPortal2026ProductionSourceFilesAndDocuments
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > sends a picked folder intact without showing a key warning: \\FileServer\Projects\CustomerPortal2026ProductionSourceFilesAndDocuments
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > sends a picked folder intact without showing a key warning: /Users/alex/Client Work/CustomerPortal2026ProductionSourceFilesAndDocuments
+ FAIL  src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx > Send retains footer sizing and its click handler beside the effort selector
+ FAIL  src/react/features/chat-pane/__tests__/composer-action-hit-targets.test.tsx > Stop run retains footer sizing and its click handler beside the effort selector
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx > shows a warning icon, not the note paragraph, in the composer row
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx > opens the tip on tap and keyboard focus
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx > marks the agent in the picker list with the same icon, outside its radio
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.access-note-icon.unit.test.tsx > translates the note and the icon name through t()
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.agent-handles.test.tsx > AgentRuntimePicker agent handles > keeps portalled runtime rows in the provider overlay and preserves origin page identity for scoped driving
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.agent-handles.test.tsx > AgentRuntimePicker agent handles > retains native-dialog portal ownership ahead of a provider overlay outside that dialog
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.agent-handles.test.tsx > AgentRuntimePicker agent handles > defaults separate picker instances to distinct handles
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.agent-handles.test.tsx > AgentRuntimePicker agent handles > preserves explicit base and runtime identity across labels and inventory reorder
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.agent-handles.test.tsx > AgentRuntimePicker agent handles > tags model and reasoning triggers and item IDs without opt-out leaks
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > shows the plain note through ChatPane without owner eligibility before any send
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > lets a non-owner pick Antigravity with current policy { nativeToolAccess: false, cliParity: false, permissionMode: 'restricted', nativeCapabilities: { shell: false, userMcp: false } } and shows the note
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > lets a non-owner pick Antigravity with current policy undefined and shows the note
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > uses t() for the note without an owner warning, and clears the note in API mode
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > keeps claude selectable under the existing tool limits
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > keeps codex selectable under the existing tool limits
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx > discloses unsupported adapter limits through an accessible tip without a toolbar paragraph
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > shows the discovered Claude default and emits concrete IDs from the dynamic model list
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > uses the host translator for the trigger prompt and cached/offline catalog notes
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > summarizes the selection, and says so plainly when nothing is selected
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > marks the API mode as unconfigured and disables it until it is available
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > renders the reference runtime menu structure with agents, model, and reasoning
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > emits agent, model, and reasoning selections without closing the agent menu
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > shows the short model name in the bar and the full name in a tooltip on hover and focus
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > picks model and reasoning effort from composer-bar drop-ups that open above the trigger
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > supports upward/downward portal placement, Escape dismissal, and rescanning
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > renders a safe empty state when no usable agent exists
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > shows the BYOK model and none of the local-CLI controls
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > shows the provider brand mark on the trigger when byokRuntime supplies an iconId
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > falls back to a generic link glyph when byokRuntime has no iconId
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > names the provider and model on the collapsed trigger, not the selected CLI
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > falls back to a generic mode name rather than to a CLI label when nothing is configured
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > serves the provider mark from a host-vendored icon directory when agentIconBasePath is set
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > offers the model picker with nothing chosen and no "set a model" warning when no model is configured yet
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > renders a real model picker when the host supplies a list and a writer
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > keeps the model control inside the themed subtree rather than portaling out of it
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > does not close the popover when the portaled model menu is opened
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > in API · BYOK mode > still restores the whole local-CLI surface on a switch back
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > switches configured execution modes and describes an offline local runtime
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > covers optional runtime metadata and selection fields
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > wraps Tab focus inside the dialog and roves between its buttons
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > serves the CLI marks on the trigger and in the agent list from a host-vendored icon directory
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > badges a runtime that cannot receive tools, and leaves tool-capable ones unbadged
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker > safely no-ops Tab navigation when the popover has no focusable control at all
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > AgentRuntimePicker model names before the live list > lists raw catalog ids by friendly name, and the bar names the chosen one the same way
+ FAIL  src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.test.tsx > offers the selected model effort levels with the advertised Default and normalizes model changes
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.agent-handles.test.tsx > ChatPane handle forwarding > names the composer and runtime picker from one host base
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.agent-handles.test.tsx > ChatPane handle forwarding > keeps false through composer and opened runtime menus
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.cov-j2.test.tsx > ChatPane secret redaction notice > sends only the redacted text and tells the person a key was removed
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.redaction-notice.test.tsx > styles the notice like the pane's other status notices
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.redaction-notice.test.tsx > clears the notice when the next message has no key in it
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.redaction-notice.test.tsx > keeps the notice when the next message also had a key removed
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.redaction-notice.test.tsx > can be dismissed
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > enables Send with an off-list Claude default and sends the concrete picker model
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > keeps the blocker in the Send title, not the footer, when the agent becomes unavailable
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > shows an uploading notice and spinning chip, not footer text, until the upload finishes
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > owns composer/conversation/send orchestration and forwards selection plus run context
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > resolves placeholders to a single composer placeholder, taking over from placeholder
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > supports controlled selection, static context, cancellation, reset, and host slots
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > fails closed with no available agent and surfaces transport errors
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > supports package defaults and host styling/composer extension props
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > opens every in-pane link in a new tab, including host-rendered card links
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > owns file picking/upload staging and forwards uploaded attachments on send
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > accepts file drops across the composer area and ignores non-file drags
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > stages attach-button, dropped and pasted files while a run streams and sends them with the next message
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > owns the package working-directory picker and delegates only native I/O plus changes
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > renders package-owned attachment and working-directory capability errors
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > renders pending, invalid, and runtime inventory failure states
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > recovers from a failed CLI inventory without a reload once the daemon comes back
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > shows a loading status while CLI detection is in flight, not the red unavailable banner
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > shows neither the loading status nor the unavailable alert once a usable agent resolves
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > subscribes the daemon-relayed bridge when agentControl is supplied enabled
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > registers this pane's own tools with document.modelContext when agentControl.webmcp is true
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > shows a rescan failure as an alert while keeping the last good inventory on screen
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > delegates an explicit rescan to runtimeAccess and reflects the refreshed inventory
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > reports a read error banner when a dropped item cannot be read from disk
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > lets a host that owns execution-mode switching drive it from the runtime picker
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > lets a configured BYOK turn use the composer with zero agent CLIs available
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > still fails closed in local-CLI mode with zero agents on PATH — no regression
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > turns the unavailable banner into a working BYOK switch when the host wired onExecutionModeChange
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > falls back to copy-only BYOK pointer when apiModeAvailable but no onExecutionModeChange is wired
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > does not offer to switch to BYOK when it is not actually available — the honest case
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > composerHandle > publishes insertText once mounted, appends onto an existing draft, and clears on unmount
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > renders the eyebrow and puts the supplied title in the heading
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > falls back to "Chat" as the heading when no title is supplied
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > replaces the whole default header when a custom one is supplied
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > labels the suggestions row and renders one button per suggestion
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > omits the suggestions row entirely when there are none
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > labels the working-directory trigger, and swaps to the basename once one is chosen
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > shows the composer's folder-icon working-directory trigger, not the native picker, when no access is supplied
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > changes the working directory through the composer's lightweight popover when no native access is supplied
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > places the trigger in the composer, not below it, when access is supplied with placement="composer"
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > clicking the composer trigger in placement="composer" calls the native picker directly, with no popover
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > renders no composer folder-icon trigger when placement="none", even without native access
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > default header and chrome > renders neither the composer trigger nor the below-composer picker when placement="none" with native access supplied
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > explains a failed typed-answer delivery without offering to send it as a new message
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > automatically sends a stale question answer as a normal message once, without an error notice
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > hides prior automatic plugin usage immediately when the host chooses Off
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > shows and recalls an accepted normal once, including storage remount
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > shows and recalls an accepted answer once, including storage remount
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > shows and recalls an accepted steer once, including storage remount
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > shows and recalls an accepted queue once, including storage remount
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > shows and recalls an accepted interrupt once, including storage remount
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > reconstructs typed answer bubbles and recall from saved tool results alone
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > keeps a rejected normal draft out of recall and preserves it for retry
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > says a send the server never accepted was not sent, and Retry sends the kept draft
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > empties the composer on send and says "Sending…" until the run is accepted, then "Thinking…"
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > puts a refused send back into the empty composer
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > puts back a send refused before the composer even re-rendered
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > hands the text back when a host run-context hook throws during the send
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > never writes a refused send over new typing, and Retry still resends the refused text
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > takes staged files out of the composer on send, hands them back on refusal, and Retry sends them
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane accepted input recording > keeps an accepted run that later fails on its own message, not as "Not sent"
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane per-message queue > shows two queued bubbles with the screenshot only on message 2 and an empty composer
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane per-message queue > flushes one combined turn with the screenshot and displays separate history bubbles, including reload
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane per-message queue > cancels only queued message 0 and delivers only the surviving message and its files
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane per-message queue > cancels only queued message 1 and delivers only the surviving message and its files
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane per-message queue > canceling the last bubble empties the queue and never sends either message
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx > ChatPane typing > does not re-render message rows on each keystroke
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.typing-render.test.tsx > ChatPane typing > re-renders zero rows of a few-hundred-tool-row transcript while typing or on a host re-render
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../ui/src/react/kit.tsx:60:11
+ ❯ Module.useOverlayContainer ../ui/src/react/kit.tsx:72:99
+ ❯ RuntimePopover src/react/features/chat-pane/components/AgentRuntimePicker.tsx:491:19
+    489|   t,
+    490| }: RuntimePopoverProps): ReactNode {
+    491|   const overlay = useOverlayContainer({});
+       |                   ^
+    492|   const portal = runtimePortalBinding({ trigger: picker.triggerRef.cur…
+    493|   if (!picker.open || !picker.position || !portal.container) return nu…
+ ❯ Object.react_stack_bottom_frame ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/147]⎯
+
+ FAIL  src/store/__tests__/loads-without-driver.test.ts > neutral declarations typecheck without installing any optional peer
+AssertionError: expected 'node_modules/@jini-ai/chat/dist/store…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ node_modules/@jini-ai/chat/dist/store/ports.d.ts(3,31): error TS2307: Cannot find module '@jini-ai/core/list-page' or its corresponding type declarations.
++
+
+ ❯ src/store/__tests__/loads-without-driver.test.ts:74:38
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/147]⎯
+
+ FAIL  src/store/__tests__/manifest.test.ts > makes every SQL, React and surface-card UI peer optional, with one pinned dev Kysely and PGlite
+AssertionError: expected { react: '^18.3.0 || ^19.0.0', …(14) } to deeply equal { 'better-sqlite3': '^13.0.0', …(14) }
+
+- Expected
++ Received
+
+  Object {
+    "@ag-ui/core": "0.0.58",
+    "@electric-sql/pglite": "0.5.8",
+-   "@jini-ai/agent-runtime": "^0.6.10",
+-   "@jini-ai/protocol": "^0.6.10",
+-   "@jini-ai/ui": "^0.6.10",
++   "@jini-ai/agent-runtime": "^0.7.0",
++   "@jini-ai/protocol": "^0.7.0",
++   "@jini-ai/ui": "^0.7.0",
+    "@mcp-ui/client": "7.1.1",
+    "@radix-ui/react-checkbox": "^1.3.11",
+    "@radix-ui/react-label": "^2.1.15",
+    "@radix-ui/react-radio-group": "^1.4.7",
+    "@radix-ui/react-select": "^2.3.7",
+    "@radix-ui/react-slot": "^1.3.3",
+    "better-sqlite3": "^13.0.0",
+    "pg": "^8.23.0",
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0",
+  }
+
+ ❯ src/store/__tests__/manifest.test.ts:21:36
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/147]⎯
+
+ FAIL  src/store/__tests__/types.test.ts > old eight-method fakes compile and every factory accepts host extra tables but refuses missing tables
+AssertionError: expected 'src/store/__tests__/types.fixture.ts(…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ src/store/__tests__/types.fixture.ts(22,69): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
++ src/store/__tests__/types.fixture.ts(23,50): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
++
+
+ ❯ src/store/__tests__/types.test.ts:20:39
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/147]⎯
+
+ FAIL  src/react/components/__tests__/QuestionForm.test.tsx > QuestionForm > credential guard > shows the credential-card guidance only under a secret-named text question
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > sensitive question text is masked and no raw answer escapes submit or draft callbacks
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > a secret text or textarea question gets the shared eye toggle, named from chat's own translator
+ FAIL  src/react/hooks/__tests__/secret-redaction.test.tsx > question panel forwards the card-opening callback with only a safe count
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateForwardRef ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:9724:19
+ ❯ beginWork ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:12117:18
+ ❯ runWithFiberInDEV ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+ ❯ renderRootSync ../../node_modules/.pnpm/react-dom@19.2.7_react@19.2.7/node_modules/react-dom/cjs/react-dom-client.development.js:17450:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/147]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx > ChatPane > composerHandle > does nothing when composerHandle is omitted — no crash, no phantom ref writes
+AssertionError: expected [Function] to not throw an error but 'Error: @jini-ai/ui selects and secret…' was thrown
+
+- Expected: 
+undefined
+
++ Received: 
+"Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root."
+
+ ❯ src/react/features/chat-pane/__tests__/components/ChatPane.test.tsx:844:100
+    842|       // The prop is optional; every other test in this file renders C…
+    843|       // exists only to make that omission an asserted case rather tha…
+    844|       expect(() => render(<ChatPane transport={createFakeChatTransport…
+       |                                                                                                    ^
+    845|     });
+    846|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/147]⎯
+
+ FAIL  src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx > useChatPaneAgentControl — chat.send_message goes through the pane guard > refuses to send while a run is streaming, with a reason instead of a silent bypass
+AssertionError: expected [Function] to throw error matching /streaming/ but got 'cannot send: A reply is still running…'
+
+- Expected: 
+/streaming/
+
++ Received: 
+"cannot send: A reply is still running. Stop it first."
+
+ ❯ src/react/features/chat-pane/__tests__/hooks/useChatPaneAgentControl.test.tsx:200:5
+    198|     await waitFor(() => expect(pane().conversation.isStreaming).toBe(t…
+    199| 
+    200|     await expect(
+       |     ^
+    201|       context.tools.get('chat.send_message')?.execute({ prompt: 'secon…
+    202|     ).rejects.toThrow(/streaming/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/147]⎯
+
+ Test Files  21 failed | 275 passed | 1 skipped (297)
+      Tests  147 failed | 4231 passed | 1 skipped (4379)
+   Start at  05:26:08
+   Duration  342.29s (transform 10.07s, setup 29.58s, collect 87.43s, tests 263.54s, environment 53.15s, prepare 17.88s)
+

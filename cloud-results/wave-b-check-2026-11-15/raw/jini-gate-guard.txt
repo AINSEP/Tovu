@@ -1,0 +1,172 @@
+injection advisory: 391 test-only cross-package imports in 272 files (not failing)
+[hardwiring] HW1-env-default: 17 total; 1 new
+[hardwiring] HW2-vendor-adapter: 16 total; 0 new
+[hardwiring] HW3-module-state: 145 total; 14 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 4 stale debt occurrences; remove them from scripts/hardwiring-debt.json.
+[guard] R13-model-fallback-freshness claude: MF3 compared 17 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness codex: MF3 SKIPPED — `codex debug models` unavailable (spawn codex ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] N1-consumer-identity packages/admin/src/comments/rules.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/admin/src/comments/rules.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/admin/src/react/components/InteractiveHtmlEditor/InteractiveHtmlEditor.tsx: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/admin/src/react/components/InteractiveHtmlEditor/InteractiveHtmlEditor.tsx: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/chat/src/core/assistant-client/transport.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/chat/src/core/assistant-client/transport.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/chat/src/react/hooks/assistant-chats-contracts.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/chat/src/react/hooks/assistant-chats-contracts.ts: forbidden source reference "apps/admin" (comments included)
+[guard] N1-consumer-identity packages/cms/src/comments/module.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/comments/module.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/content-types/agent-tools.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/content-types/agent-tools.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/content-types/lifecycle-dispatch.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/content-types/lifecycle-dispatch.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/content-types/list.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/content-types/list.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/content-types/repo.memory.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/content-types/repo.memory.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/content-types/tool-registrations.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/content-types/tool-registrations.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/entries/agent-tools.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/entries/agent-tools.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/forms/destination-contracts.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/forms/destination-contracts.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/forms/express/handler.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/forms/express/handler.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/forms/notify-subscriber.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/forms/notify-subscriber.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/forms/repo.memory.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/forms/repo.memory.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/seo/sitemap.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/seo/sitemap.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/seo/types.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/seo/types.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/widgets/html/html-embeds.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/widgets/html/html-embeds.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/widgets/registry.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/widgets/registry.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/widgets/resolver-service.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/widgets/resolver-service.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/widgets/resolvers/contact-form.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/widgets/resolvers/contact-form.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/widgets/where-used.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/widgets/where-used.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/cms/src/widgets/write-service.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/cms/src/widgets/write-service.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/commerce/src/catalog/ports.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/commerce/src/catalog/ports.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/commerce/src/catalog/storefront.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/commerce/src/catalog/storefront.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/commerce/src/catalog/types.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/commerce/src/catalog/types.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/core/src/optimistic-concurrency.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/core/src/surface-exchanges.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/core/src/surface-exchanges.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/data-modules/data-module.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/data-modules/data-module.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/data-modules/snapshot.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/data-modules/snapshot.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/recovery/migrate-forward-hooks.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/recovery/migrate-forward-hooks.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/recovery/operation-lock.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/recovery/operation-lock.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/recovery/restore-hooks.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/recovery/restore-hooks.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/tools/database-catalog.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/tools/database-catalog.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/tools/read-tools.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/tools/read-tools.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/db/src/tools/restore-points.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/db/src/tools/restore-points.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/mcp/src/federation/adapter.http.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/mcp/src/federation/adapter.http.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/mcp/src/federation/bootstrap.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/mcp/src/federation/bootstrap.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/mcp/src/federation/mcp-protocol.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/mcp/src/federation/mcp-protocol.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/mcp/src/federation/ports.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/mcp/src/federation/ports.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/mcp/src/federation/registrations.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/mcp/src/federation/registrations.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/plugins/src/host/activation.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/plugins/src/host/activation.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/plugins/src/host/discovery-types.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/plugins/src/host/discovery-types.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/ui/src/features/execution/http-adapter.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/ui/src/features/execution/http-adapter.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts: forbidden source reference "apps/admin" (comments included)
+[guard] N1-consumer-identity packages/ui/src/features/tabbed-dialog/react/components/TabbedDialogSidebar.tsx: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/user-management/src/react/members/hooks/use-members.hooks.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/user-management/src/react/members/hooks/use-members.hooks.ts: forbidden source reference "apps/admin" (comments included)
+[guard] N1-consumer-identity packages/user-management/src/react/users/hooks/use-users.hooks.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/user-management/src/react/users/hooks/use-users.hooks.ts: forbidden source reference "apps/admin" (comments included)
+[guard] N1-consumer-identity packages/user-management/src/server/agent-tool-registrations.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/user-management/src/server/agent-tool-registrations.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/user-management/src/server/auth-service.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/user-management/src/server/auth-service.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/user-management/src/server/repo.memory.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/user-management/src/server/repo.memory.ts: forbidden source reference "apps/website" (comments included)
+[guard] N1-consumer-identity packages/user-management/src/server/seed.ts: forbidden source reference "Tovu" (comments included)
+[guard] N2-consumer-path packages/user-management/src/server/seed.ts: forbidden source reference "apps/website" (comments included)
+[guard] L3-undeclared-edge packages/provider-plugins/src/ai-trace-langfuse/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/analytics-posthog/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/charts-echarts/descriptor.ts: provider-plugins → @jini-ai/core/contracts/charts: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/charts-echarts/mount.ts: provider-plugins → @jini-ai/core/contracts/charts: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/charts-echarts/option.ts: provider-plugins → @jini-ai/core/contracts/charts: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/charts-recharts/descriptor.ts: provider-plugins → @jini-ai/core/contracts/charts: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/charts-recharts/mount.tsx: provider-plugins → @jini-ai/core/contracts/charts: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/fixture-provider/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/formspree/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/formspree/provider.ts: provider-plugins → @jini-ai/core/contracts/forms: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/google-forms/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/google-forms/provider.ts: provider-plugins → @jini-ai/core/contracts/forms: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/observability-opentelemetry/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/observability-sentry/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/provider-plugins/src/payments-stripe/index.ts: provider-plugins → @jini-ai/core/contracts/plugin-sdk: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/sqlite/src/index.ts: sqlite → @jini-ai/core/contracts/storage: production import must be a dependency or peerDependency
+[guard] L3-undeclared-edge packages/sqlite/src/index.ts: sqlite → @jini-ai/core/contracts/storage: production import must be a dependency or peerDependency
+[guard] injection-debt-stale scripts/injection-debt.json: lower or remove 222 allowances above what is found: packages/admin/src/agent-plugins/react/components/AgentPluginFileContent.tsx @jini-ai/ui-kit/react (import); packages/admin/src/agent-plugins/react/components/AgentPluginInspector.tsx @jini-ai/ui-kit/react (import); packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx @jini-ai/ui-kit/react (import); packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx @jini-ai/ui-kit/react (import); packages/admin/src/agent-plugins/react/pages/AgentPluginsPage.tsx @jini-ai/ui-kit/react (import); …
+[guard] SI-domain packages/core/src/primitives/logger.ts: ./gated-mutations (gated-mutations) reaches src/model-facing-tool-errors.ts (model-facing-tool-errors) via ../model-facing-tool-errors.js
+[guard] SI-domain packages/core/src/optimistic-concurrency.ts: ./optimistic-concurrency (optimistic-concurrency) reaches src/settings/errors.ts (settings) via ./settings/errors.js
+[guard] SI-domain packages/core/src/primitives/logger.ts: ./primitives (core) reaches src/model-facing-tool-errors.ts (model-facing-tool-errors) via ../model-facing-tool-errors.js
+[guard] SI-domain packages/core/src/primitives/logger.ts: ./settings (settings) reaches src/model-facing-tool-errors.ts (model-facing-tool-errors) via ../model-facing-tool-errors.js
+[guard] SI-domain packages/core/src/settings/express/stream.ts: ./settings/express (settings) reaches src/model-facing-tool-errors.ts (model-facing-tool-errors) via ../../model-facing-tool-errors.js
+[guard] SI-domain packages/core/src/primitives/logger.ts: ./settings/express (settings) reaches src/model-facing-tool-errors.ts (model-facing-tool-errors) via ../model-facing-tool-errors.js
+[guard] SI-domain packages/core/src/primitives/logger.ts: ./contracts/runtime (contracts) reaches src/model-facing-tool-errors.ts (model-facing-tool-errors) via ../model-facing-tool-errors.js
+[guard] SI-domain packages/core/src/contracts/plugin-sdk.ts: ./contracts/plugin-sdk (contracts) reaches src/text/index.ts (text) via ../text/index.js
+[guard] SI-domain packages/platform/src/mail/email-template.ts: ./mail/email-template (mail) reaches src/web/html-document.ts (web) via ../web/html-document.js
+[guard] SI-domain packages/platform/src/fs/file-lock.ts: ./fs/durable-json (fs) reaches src/system.ts (system) via ../system.js
+[guard] SI-domain packages/platform/src/fs/file-lock.ts: ./fs (fs) reaches src/system.ts (system) via ../system.js
+[guard] SI-domain packages/platform/src/fs/file-lock.ts: ./fs/file-lock (fs) reaches src/system.ts (system) via ../system.js
+[guard] SI-domain packages/plugins/src/host/manifest.ts: ./host (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js
+[guard] SI-domain packages/plugins/src/host/manifest.ts: ./host/node (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js
+[guard] SI-domain packages/ui/src/features/interactive-ui/providers/shadcn/select.tsx: ./interactive-ui (interactive-ui) reaches src/react/kit.tsx (react-kit) via ../../../../react/kit.js
+[guard] SI-domain packages/ui/src/features/admin-widgets/components/Select/Select.tsx: ./admin-widgets (admin-widgets) reaches src/react/kit.tsx (react-kit) via ../../../../react/kit.js
+[guard] R10-chatpane-public-surface packages/chat/src/react/features/chat-pane/components/ChatPane.tsx: imports "Icon" from "../../../components/Icon.js" (resolves outside features/chat-pane/**), but "Icon" is not in the public barrel's export list (packages/chat/src/react/index.ts) — a consumer of the published API could not reach this the same way ChatPane does
+[guard] HW3-module-state packages/agent-runtime/src/defs/amp/index.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/executables.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/executables.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/launch.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/agent-runtime/src/model-discovery-config.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/daemon/src/agent-executor/launch.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/daemon/src/agent-executor/launch.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/daemon/src/agent-executor/launch.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/daemon/src/agent-executor/mcp-bridge.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/daemon/src/agent-executor/mcp-bridge.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW1-env-default packages/platform/src/command.ts: process.env is allowed only as an injected environment default (?? process.env or env = process.env).
+[guard] HW3-module-state packages/platform/src/mail/email-template.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/ui/src/features/sketch-editor/react/dependencies-fake.hooks.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/user-management/src/server/agent-tool-input.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] R13-model-fallback-freshness packages/agent-runtime/src/defs/claude.ts: fallbackModels is missing 1 model(s) the live claude-code-picker-cache reports: claude-fable-5-2. Add them (keeping the existing entries) and bump `fallbackModelsAssertedAt`.
+
+153 guard violation(s).

@@ -1,0 +1,19 @@
+ENV-native/browser	src/e2e-harness-import.test.ts	AssertionError [ERR_ASSERTION]: Downloading Electron binary...
+IMPORT-ERROR	src/speech/mac-on-device-transcriber.test.ts	Error: Cannot find module '/home/user/Tovu/apps/desktop/node_modules/@jini-ai/desktop-host/dist/speech/macos/speech-helper.swift'
+IMPORT-ERROR	src/speech/native-speech-adapter.test.ts	Error: Cannot find module '/home/user/Tovu/apps/desktop/node_modules/@jini-ai/desktop-host/dist/speech/macos/speech-helper.swift'
+OTHER	src/auto-update-controller.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	src/find-menu.test.ts	AssertionError [ERR_ASSERTION]: The input did not match the regular expression /onFindToggle:[^\n]*\n?\s*subscribe[^\n]*FIND_TOGGLE_CHANNEL, listener\)/. Input:
+OTHER	src/jini-mcp-peers.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	src/main-agent-runtime-wiring.test.ts	.catch((error: unknown) => console.error(`[tovu-desktop] agent service shutdown failed: ${error instanceof Error ? error.message : String(error)}`))
+OTHER	src/main-shutdown-wiring.test.ts	.catch((error: unknown) => console.error(`[tovu-desktop] agent service shutdown failed: ${error instanceof Error ? error.message : String(error)}`))
+OTHER	src/main-theme-preview-wiring.test.ts	AssertionError [ERR_ASSERTION]: the theme-preview IPC must have a sender guard
+OTHER	src/main-updater-wiring.test.ts	AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /^import .*electron-updater/m. Input:
+OTHER	src/project-ipc-dispatch.test.ts	TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received an instance of Object
+OTHER	src/project-ipc.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	src/site-dir-store.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	src/site-history-menu.test.ts	AssertionError [ERR_ASSERTION]: The input did not match the regular expression /onSiteHistory:[^\n]*\n?\s*subscribe\(SITE_HISTORY_CHANNEL, listener\)/. Input:
+OTHER	src/site-process-registry.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	src/tracked-sites.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	src/workspace-chat-ipc.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	src/workspace-conversation-gaps.test.ts	✖ desktop gap revisions persist with conversations and survive later message saves (1.498111ms)
+OTHER	src/zoom-menu.test.ts	AssertionError [ERR_ASSERTION]: The input did not match the regular expression /onZoomCommand:[^\n]*\n?\s*subscribe[^\n]*ZOOM_COMMAND_CHANNEL, listener\)/. Input:

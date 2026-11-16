@@ -1,0 +1,328 @@
+Scope: 48 of 49 workspace projects
+packages/cookie-consent build$ tsc -p tsconfig.json && node scripts/build-client.mjs
+packages/core build$ tsc -p tsconfig.json
+packages/protocol build$ tsc -p tsconfig.json
+packages/memory build$ tsc -p tsconfig.json
+packages/cookie-consent build: client.min.js: 10473 bytes, 4585 bytes gzipped (budget 4608)
+packages/cookie-consent build: extensions.min.js: 4461 bytes, 2050 bytes gzipped (budget 4608)
+packages/cookie-consent build: Done
+packages/sandbox build$ tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node -e "require('fs').writeFileSync('dist/cjs/package.json','{\"type\":\"commonjs\"}')"
+packages/protocol build: Done
+packages/memory build: Done
+packages/sandbox build: Done
+packages/core build: Done
+packages/agentic build$ tsc -p tsconfig.json && tsc -p tsconfig.dom.json
+packages/desktop-host build$ tsc -p tsconfig.json && cp src/speech/macos/speech-helper.swift dist/speech/macos/speech-helper.swift
+packages/platform build$ tsc -p tsconfig.json
+packages/artifacts build$ tsc -p tsconfig.json
+packages/artifacts build: Done
+packages/ui-kit build$ tsc -p tsconfig.build.json
+packages/desktop-host build: src/logging.ts(76,32): error TS2379: Argument of type '{ meta: Record<string, unknown> | undefined; error: unknown; }' is not assignable to parameter of type '{ meta?: Record<string, unknown>; error?: unknown; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/desktop-host build:   Types of property 'meta' are incompatible.
+packages/desktop-host build:     Type 'Record<string, unknown> | undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host build:       Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host build: src/logging.ts(79,63): error TS2379: Argument of type '{ diagnostics: LogDiagnosticsSink; level: LogLevel; message: string; meta: Record<string, unknown> | undefined; error: unknown; }' is not assignable to parameter of type '{ diagnostics: LogDiagnosticsSink; level: LogLevel; message: string; meta?: Record<string, unknown>; error?: unknown; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/desktop-host build:   Types of property 'meta' are incompatible.
+packages/desktop-host build:     Type 'Record<string, unknown> | undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host build:       Type 'undefined' is not assignable to type 'Record<string, unknown>'.
+packages/desktop-host build: Failed
+packages/ui-kit build: Done
+packages/agentic build: Done
+packages/platform build: Done
+packages/db build$ tsc -p tsconfig.build.json
+packages/http-kit build$ tsc -p tsconfig.json
+examples/reference-desktop build$ tsc -p tsconfig.json
+packages/capability-providers build$ tsc -p tsconfig.json
+examples/reference-desktop build: Done
+packages/oauth build$ tsc -p tsconfig.json
+packages/capability-providers build: src/adapters/blob-storage/__tests__/index.test.ts(28,46): error TS2740: Type 'Uint8Array<ArrayBufferLike>' is missing the following properties from type 'Buffer<ArrayBufferLike>': write, toJSON, equals, compare, and 66 more.
+packages/capability-providers build: Failed
+packages/sidecar build$ tsc -p tsconfig.json
+packages/http-kit build: src/__tests__/origin.test.ts(2,10): error TS2459: Module '"../origin.js"' declares 'guardSameOrigin' locally, but it is not exported.
+packages/http-kit build: src/__tests__/request.test.ts(2,20): error TS2305: Module '"../request.js"' has no exported member 'validationError'.
+packages/http-kit build: src/__tests__/response.test.ts(2,34): error TS2305: Module '"../response.js"' has no exported member 'statusForError'.
+packages/http-kit build: src/__tests__/sse.test.ts(4,67): error TS2459: Module '"../sse.js"' declares 'DEFAULT_MAX_QUEUED_SSE_EVENTS' locally, but it is not exported.
+packages/http-kit build: src/__tests__/sse.test.ts(4,103): error TS2459: Module '"../sse.js"' declares 'SseEvent' locally, but it is not exported.
+packages/http-kit build: src/__tests__/sse.test.ts(39,29): error TS2353: Object literal may only specify known properties, and 'opaqueCursor' does not exist in type 'TestEvent'.
+packages/http-kit build: src/__tests__/sse.test.ts(39,54): error TS2353: Object literal may only specify known properties, and 'opaqueCursor' does not exist in type 'TestEvent'.
+packages/http-kit build: src/__tests__/sse.test.ts(44,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(63,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(71,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(80,38): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(80,120): error TS2339: Property 'opaqueCursor' does not exist on type 'TestEvent'.
+packages/http-kit build: src/__tests__/sse.test.ts(90,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(105,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(121,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(133,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(133,111): error TS2339: Property 'kind' does not exist on type 'TestEvent'.
+packages/http-kit build: src/__tests__/sse.test.ts(144,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(159,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(172,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(181,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(189,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(199,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(211,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(221,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(233,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(253,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(262,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(274,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(287,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: src/__tests__/sse.test.ts(296,40): error TS2344: Type 'TestEvent' does not satisfy the constraint 'SseEvent'.
+packages/http-kit build:   Type 'TestEvent' is missing the following properties from type 'SseEvent': opaqueCursor, kind
+packages/http-kit build: Failed
+packages/vibecoding build$ tsc -p tsconfig.json
+packages/oauth build: Done
+packages/db build: Done
+packages/sidecar build: Done
+packages/vibecoding build: Done
+packages/cli build$ tsc -p tsconfig.json && chmod +x dist/main.js
+packages/integrations build$ tsc -p tsconfig.json
+packages/cms build$ tsc -p tsconfig.json
+packages/infra build$ tsc -p tsconfig.json
+packages/infra build: Done
+packages/plugins build$ tsc -p tsconfig.json
+packages/cli build: Done
+packages/registry build$ tsc -p tsconfig.json
+packages/registry build: Done
+packages/integrations build: Done
+packages/plugins build: src/host/__tests__/unit/contribution-sdk.unit.test.ts(56,151): error TS7031: Binding element 'auth' implicitly has an 'any' type.
+packages/plugins build: src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts(24,101): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/plugins build: src/host/contributions.ts(20,29): error TS2304: Cannot find name 'PluginRouteContribution'.
+packages/plugins build: src/host/contributions.ts(21,28): error TS2304: Cannot find name 'PluginToolContribution'.
+packages/plugins build: src/host/contributions.ts(22,30): error TS2304: Cannot find name 'PluginWidgetContribution'.
+packages/plugins build: src/host/contributions.ts(64,17): error TS2304: Cannot find name 'PluginRouteContribution'.
+packages/plugins build: src/host/contributions.ts(64,56): error TS2304: Cannot find name 'PluginToolContribution'.
+packages/plugins build: src/host/contributions.ts(64,96): error TS2304: Cannot find name 'PluginWidgetContribution'.
+packages/plugins build: src/host/contributions.ts(86,26): error TS2304: Cannot find name 'PluginRouteContribution'.
+packages/plugins build: src/host/contributions.ts(95,25): error TS2304: Cannot find name 'PluginToolContribution'.
+packages/plugins build: src/host/contributions.ts(104,27): error TS2304: Cannot find name 'PluginWidgetContribution'.
+packages/plugins build: src/host/ports.ts(9,45): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins build: src/host/ports.ts(9,58): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins build: src/host/ports.ts(14,105): error TS2304: Cannot find name 'DefinedPlugin'.
+packages/plugins build: src/host/ports.ts(15,40): error TS2304: Cannot find name 'PluginSdk'.
+packages/plugins build: src/host/ports.ts(15,93): error TS2304: Cannot find name 'PluginSdk'.
+packages/plugins build: src/host/ports.ts(17,37): error TS2304: Cannot find name 'DefinedPlugin'.
+packages/plugins build: src/host/ports.ts(17,106): error TS2304: Cannot find name 'DefinedPlugin'.
+packages/plugins build: src/host/ports.ts(34,46): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins build: src/host/ports.ts(34,59): error TS2304: Cannot find name 'HookPoints'.
+packages/plugins build: src/host/provider-contributions.ts(171,62): error TS2304: Cannot find name 'PLUGIN_PROVIDER_CAPABILITY'.
+packages/plugins build: src/host/worker/import-seam.ts(79,15): error TS7006: Parameter 'sdk' implicitly has an 'any' type.
+packages/plugins build: src/host/worker/import-seam.ts(81,64): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+packages/plugins build: src/host/worker/import-seam.ts(81,71): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/plugins build: Failed
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(67,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(69,18): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(72,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(73,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(79,18): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(82,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(83,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(84,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/submission-ip-retention.dialects.test.ts(85,16): error TS2339: Property 'execute' does not exist on type 'ContentKernel'.
+packages/cms build: src/forms/__tests__/support/forms-tables.fixture.ts(15,29): error TS2741: Property 'execute' is missing in type 'StorageKernel<Kysely<DB>, DB>' but required in type 'FormsTablesKernel'.
+packages/cms build: src/forms/__tests__/support/repo-ports.fixture.ts(39,29): error TS2739: Type 'StorageKernel<Kysely<DB>, DB>' is missing the following properties from type 'KyselyKernel<DB>': query, execute
+packages/cms build: Failed
+packages/agent-runtime build$ tsc -p tsconfig.json
+packages/cms/forms build$ tsc -p tsconfig.json
+packages/plugin-fixture-provider build$ node --import tsx ../provider-plugins/scripts/build.ts fixture-provider .
+packages/plugin-fixture-provider build: Done
+packages/cms/forms build: Done
+packages/agent-runtime build: Done
+packages/analytics build$ tsc -p tsconfig.json
+packages/ui build$ node scripts/generate-agent-icon-data-uris.mjs && tsc -p tsconfig.json && mkdir -p dist/react/components/remixicon-font dist/features/settings/dialog/styles dist/features/tabbed-dialog/styles && cp src/react/components/remixicon-font/remixicon.css src/react/components/remixicon-font/remixicon.woff2 dist/react/components/remixicon-font/ && cp src/features/settings/dialog/styles/settings-dialog.css dist/features/settings/dialog/styles/ && cp src/features/tabbed-dialog/styles/tabbed-dialog.css dist/features/tabbed-dialog/styles/ && npx @tailwindcss/cli -i src/features/interactive-ui/styles.css -o dist/features/interactive-ui/interactive-ui.css --minify && mkdir -p dist/features/admin-widgets/styles && cp src/features/admin-widgets/styles/admin-widgets.css dist/features/admin-widgets/styles/ && mkdir -p dist/styles && cp src/styles/*.css dist/styles/ && mkdir -p dist/features/site-card && cp src/features/site-card/site-card.css dist/features/site-card/
+packages/ui build: Generated 19 agent icon data URIs -> /home/user/Jini/packages/ui/src/react/components/agent-icon-data-uris.generated.ts
+packages/analytics build: Done
+packages/ui build: src/features/charts/__tests__/provider-edges.test.tsx(18,20): error TS2345: Argument of type '{ element: HTMLDivElement; spec: ChartSpec; theme: { mode: "light"; tokens: {}; }; }' is not assignable to parameter of type 'ChartRenderInput & { readonly element: HTMLElement; readonly applyTheme: ChartThemeApplier<HTMLElement>; }'.
+packages/ui build:   Property 'applyTheme' is missing in type '{ element: HTMLDivElement; spec: ChartSpec; theme: { mode: "light"; tokens: {}; }; }' but required in type '{ readonly element: HTMLElement; readonly applyTheme: ChartThemeApplier<HTMLElement>; }'.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-bounded-status-poll.hooks.test.tsx(10,38): error TS2307: Cannot find module '../use-bounded-status-poll.hooks.js' or its corresponding type declarations.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-bounded-status-poll.hooks.test.tsx(37,26): error TS7031: Binding element 'status' implicitly has an 'any' type.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx(11,64): error TS2307: Cannot find module '../use-optimistic-stored-value.hooks.js' or its corresponding type declarations.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx(71,30): error TS7006: Parameter 'previous' implicitly has an 'any' type.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-optimistic-stored-value.hooks.test.tsx(72,30): error TS7006: Parameter 'previous' implicitly has an 'any' type.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-standing-draft-autosave.hooks.test.tsx(215,17): error TS2322: Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+packages/ui build:   Type '{ discarded: boolean; }' is not assignable to type 'void'.
+packages/ui build: src/features/panel-kit/hooks/__tests__/use-standing-draft-autosave.hooks.test.tsx(231,17): error TS2322: Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+packages/ui build:   Type '{ discarded: boolean; }' is not assignable to type 'void'.
+packages/ui build: src/react/__tests__/fake-ui-kit.tsx(23,17): error TS2742: The inferred type of 'renderWithUiKit' cannot be named without a reference to '.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/types/queries.js'. This is likely not portable. A type annotation is necessary.
+packages/ui build: Failed
+packages/commerce build$ tsc -p tsconfig.json
+packages/diagnostics build$ tsc -p tsconfig.json
+packages/commerce build: Done
+packages/diagnostics build: Done
+packages/agent-plugins build$ tsc -p tsconfig.json && node scripts/build-cloudflare.mjs
+packages/provider-plugins build$ pnpm run typecheck && tsc -p tsconfig.lib.json && node --import tsx scripts/build.ts charts-recharts . && node --import tsx scripts/build.ts charts-echarts . && node --import tsx scripts/build.ts ai-trace-langfuse . && node --import tsx scripts/build.ts analytics-posthog . && node --import tsx scripts/build.ts observability-opentelemetry . && node --import tsx scripts/build.ts observability-sentry . && node --import tsx scripts/build.ts payments-stripe . && node --import tsx scripts/build.ts fixture-provider . && node --import tsx scripts/build.ts formspree . && node --import tsx scripts/build.ts google-forms .
+packages/chat build$ tsc -p tsconfig.json && mkdir -p dist/react/styles && cp src/react/styles/*.css dist/react/styles/ && mkdir -p dist/embed-widget/vanilla && node --input-type=module -e "import {writeFileSync,readFileSync} from 'node:fs'; import {CHAT_BUBBLE_STYLE} from './dist/embed-widget/browser/lazy-loader.js'; writeFileSync('dist/embed-widget/vanilla/style.css',CHAT_BUBBLE_STYLE+'\n'+readFileSync('src/embed-widget/vanilla/style.css','utf8'));"
+packages/provider-plugins build: > @jini-ai/provider-plugins@0.7.1 typecheck /home/user/Jini/packages/provider-plugins
+packages/provider-plugins build: > tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit
+packages/provider-plugins build: src/observability-opentelemetry/opentelemetry.ts(39,44): error TS2459: Module '"./otel-port.js"' declares 'ExporterFactory' locally, but it is not exported.
+packages/provider-plugins build: src/observability-opentelemetry/opentelemetry.ts(39,103): error TS2459: Module '"./otel-port.js"' declares 'TracerProviderFactory' locally, but it is not exported.
+packages/provider-plugins build: src/observability-opentelemetry/opentelemetry.ts(186,18): error TS7031: Binding element 'endpoint' implicitly has an 'any' type.
+packages/provider-plugins build: src/observability-opentelemetry/opentelemetry.ts(195,18): error TS7031: Binding element 'serviceName' implicitly has an 'any' type.
+packages/provider-plugins build: src/observability-opentelemetry/opentelemetry.ts(195,31): error TS7031: Binding element 'exporter' implicitly has an 'any' type.
+packages/provider-plugins build: src/observability-opentelemetry/opentelemetry.ts(209,32): error TS7031: Binding element 'name' implicitly has an 'any' type.
+packages/provider-plugins build:  ELIFECYCLE  Command failed with exit code 2.
+packages/provider-plugins build: Failed
+packages/agent-plugins build: Done
+packages/chat build: src/store/__tests__/types.fixture.ts(22,69): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat build: src/store/__tests__/types.fixture.ts(23,50): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat build: src/store/runtime/__tests__/chat-expiry-sweep.cov-j2.test.ts(21,40): error TS2739: Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat build: src/store/runtime/chat-history-store.ts(57,29): error TS2345: Argument of type '{ kernel: StorageKernel<Kysely<ChatDatabase>, ChatDatabase>; scope: ChatOwnerScope; clock: { nowMs: () => number; }; }' is not assignable to parameter of type '{ kernel: KyselyKernel<ChatDatabase>; scope: ChatOwnerScope; clock: Clock; }'.
+packages/chat build:   Types of property 'kernel' are incompatible.
+packages/chat build:     Type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>' is missing the following properties from type 'KyselyKernel<ChatDatabase>': query, execute
+packages/chat build: src/store/runtime/run-ledger.ts(193,23): error TS2339: Property 'query' does not exist on type 'StorageKernel<Kysely<ChatDatabase>, ChatDatabase>'.
+packages/chat build: Failed
+packages/admin build$ tsc -p tsconfig.json
+packages/daemon build$ tsc -p tsconfig.json
+packages/search build$ tsc -p tsconfig.json
+packages/search build: Done
+packages/daemon build: src/http/__tests__/routines.test.ts(787,56): error TS2741: Property 'cursor' is missing in type '{ id: string; limit: number; }' but required in type 'RoutineRunsQuery'.
+packages/daemon build: src/http/__tests__/routines.test.ts(809,56): error TS2741: Property 'cursor' is missing in type '{ id: string; limit: number; }' but required in type 'RoutineRunsQuery'.
+packages/daemon build: src/http/tool-execution-routes.ts(235,87): error TS2379: Argument of type '{ onInternalError: RouteInternalErrorSink | undefined; }' is not assignable to parameter of type 'Pick<ToolExecutionRoutesOptional, "onInternalError">' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type 'RouteInternalErrorSink | undefined' is not assignable to type 'RouteInternalErrorSink'.
+packages/daemon build:       Type 'undefined' is not assignable to type 'RouteInternalErrorSink'.
+packages/daemon build: src/http/xai.ts(796,51): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build: src/http/xai.ts(797,54): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build: src/http/xai.ts(798,52): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build: src/http/xai.ts(799,51): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build: src/http/xai.ts(800,56): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build: src/http/xai.ts(801,47): error TS2375: Type 'ResolvedXaiHttpDeps' is not assignable to type 'XaiHttpDeps' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+packages/daemon build:   Types of property 'onInternalError' are incompatible.
+packages/daemon build:     Type '((context: XaiInternalErrorContext) => void) | undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build:       Type 'undefined' is not assignable to type '(context: XaiInternalErrorContext) => void'.
+packages/daemon build: Failed
+packages/admin build: src/seo/react/hooks/MediaRefField.hooks.ts(30,107): error TS2322: Type '({ mimeType }: { mimeType: string; }, _optional?: Record<string, never> | undefined) => string' is not assignable to type '(contentType: string) => string'.
+packages/admin build:   Types of parameters '__0' and 'contentType' are incompatible.
+packages/admin build:     Type 'string' is not assignable to type '{ mimeType: string; }'.
+packages/admin build: src/seo/react/hooks/SeoPage.hooks.ts(12,88): error TS2353: Object literal may only specify known properties, and 'handle' does not exist in type 'TabBarTab'.
+packages/admin build: src/seo/react/hooks/SeoPage.hooks.ts(13,80): error TS2353: Object literal may only specify known properties, and 'handle' does not exist in type 'TabBarTab'.
+packages/admin build: src/seo/react/hooks/SeoPage.hooks.ts(14,86): error TS2353: Object literal may only specify known properties, and 'handle' does not exist in type 'TabBarTab'.
+packages/admin build: Failed
+packages/devops build$ tsc -p tsconfig.json
+packages/server build$ tsc -p tsconfig.tests.json && tsc -p tsconfig.json
+packages/mcp build$ tsc -p tsconfig.json && chmod +x dist/bin/serve.js
+packages/sqlite build$ tsc -p tsconfig.json
+packages/sqlite build: Done
+packages/user-management build$ tsc -p tsconfig.json
+packages/server build: Done
+packages/devops build: Done
+packages/mcp build: Done
+packages/user-management build: src/admin/__tests__/members.list-cursor.test.ts(28,12): error TS2532: Object is possibly 'undefined'.
+packages/user-management build: Failed
+examples/reference-web build$ vite build && vite build --config vite.mcpui-view.config.ts
+examples/reference-web build: vite v8.1.5 building client environment for production...
+examples/reference-web build: [2K
+examples/reference-web build: new URL('./remixicon-font/remixicon.css', import.meta.url) doesn't exist at build time, it will remain unchanged to be resolved at runtime. If this is intended, you can use the /* @vite-ignore */ comment to suppress this warning.
+examples/reference-web build: transforming...✓ 1227 modules transformed.
+examples/reference-web build: rendering chunks...
+examples/reference-web build: computing gzip size...
+examples/reference-web build: dist/index.html                                  1.06 kB │ gzip:   0.60 kB
+examples/reference-web build: dist/sample-preview/starter-site/notes.html      8.03 kB │ gzip:   3.18 kB
+examples/reference-web build: dist/sample-preview/starter-site/index.html      8.67 kB │ gzip:   3.36 kB
+examples/reference-web build: dist/assets/index-tiIM3XZq.css                 149.81 kB │ gzip:  25.11 kB
+examples/reference-web build: dist/assets/index-0_mcL3pp.js                1,460.80 kB │ gzip: 428.57 kB
+examples/reference-web build: [plugin builtin:vite-reporter] 
+examples/reference-web build: (!) Some chunks are larger than 500 kB after minification. Consider:
+examples/reference-web build: - Using dynamic import() to code-split the application
+examples/reference-web build: - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+examples/reference-web build: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+examples/reference-web build: ✓ built in 718ms
+examples/reference-web build: vite v8.1.5 building client environment for production...
+examples/reference-web build: [2K
+examples/reference-web build: transforming...✓ 149 modules transformed.
+examples/reference-web build: rendering chunks...
+examples/reference-web build: [plugin vite:singlefile] 
+examples/reference-web build: [plugin vite:singlefile] Inlining: mcp-app-DV6GfoWh.js
+examples/reference-web build: computing gzip size...
+examples/reference-web build: dist-mcpui-view/mcpui-view-src/mcp-app.html  346.36 kB │ gzip: 82.80 kB
+examples/reference-web build: ✓ built in 172ms
+examples/reference-web build: Done
+ ERR_PNPM_RECURSIVE_FAIL  
+
+
+Summary: 11 fails, 31 passes
+
+/home/user/Jini/packages/desktop-host:
+ ERROR  @jini-ai/desktop-host@0.7.1 build: `tsc -p tsconfig.json && cp src/speech/macos/speech-helper.swift dist/speech/macos/speech-helper.swift`
+Exit status 2
+
+/home/user/Jini/packages/capability-providers:
+ ERROR  @jini-ai/capability-providers@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/http-kit:
+ ERROR  @jini-ai/http-kit@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/cms:
+ ERROR  @jini-ai/cms@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/plugins:
+ ERROR  @jini-ai/plugins@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/ui:
+ ERROR  @jini-ai/ui@0.7.1 build: `node scripts/generate-agent-icon-data-uris.mjs && tsc -p tsconfig.json && mkdir -p dist/react/components/remixicon-font dist/features/settings/dialog/styles dist/features/tabbed-dialog/styles && cp src/react/components/remixicon-font/remixicon.css src/react/components/remixicon-font/remixicon.woff2 dist/react/components/remixicon-font/ && cp src/features/settings/dialog/styles/settings-dialog.css dist/features/settings/dialog/styles/ && cp src/features/tabbed-dialog/styles/tabbed-dialog.css dist/features/tabbed-dialog/styles/ && npx @tailwindcss/cli -i src/features/interactive-ui/styles.css -o dist/features/interactive-ui/interactive-ui.css --minify && mkdir -p dist/features/admin-widgets/styles && cp src/features/admin-widgets/styles/admin-widgets.css dist/features/admin-widgets/styles/ && mkdir -p dist/styles && cp src/styles/*.css dist/styles/ && mkdir -p dist/features/site-card && cp src/features/site-card/site-card.css dist/features/site-card/`
+Exit status 1
+
+/home/user/Jini/packages/chat:
+ ERROR  @jini-ai/chat@0.7.1 build: `tsc -p tsconfig.json && mkdir -p dist/react/styles && cp src/react/styles/*.css dist/react/styles/ && mkdir -p dist/embed-widget/vanilla && node --input-type=module -e "import {writeFileSync,readFileSync} from 'node:fs'; import {CHAT_BUBBLE_STYLE} from './dist/embed-widget/browser/lazy-loader.js'; writeFileSync('dist/embed-widget/vanilla/style.css',CHAT_BUBBLE_STYLE+'\n'+readFileSync('src/embed-widget/vanilla/style.css','utf8'));"`
+Exit status 2
+
+/home/user/Jini/packages/provider-plugins:
+ ERROR  @jini-ai/provider-plugins@0.7.1 build: `pnpm run typecheck && tsc -p tsconfig.lib.json && node --import tsx scripts/build.ts charts-recharts . && node --import tsx scripts/build.ts charts-echarts . && node --import tsx scripts/build.ts ai-trace-langfuse . && node --import tsx scripts/build.ts analytics-posthog . && node --import tsx scripts/build.ts observability-opentelemetry . && node --import tsx scripts/build.ts observability-sentry . && node --import tsx scripts/build.ts payments-stripe . && node --import tsx scripts/build.ts fixture-provider . && node --import tsx scripts/build.ts formspree . && node --import tsx scripts/build.ts google-forms .`
+Exit status 2
+
+/home/user/Jini/packages/admin:
+ ERROR  @jini-ai/admin@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/daemon:
+ ERROR  @jini-ai/daemon@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+/home/user/Jini/packages/user-management:
+ ERROR  @jini-ai/user-management@0.7.1 build: `tsc -p tsconfig.json`
+Exit status 2
+
+real	2m12.555s
+user	5m35.985s
+sys	0m24.821s

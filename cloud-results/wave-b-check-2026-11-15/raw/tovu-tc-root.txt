@@ -1,0 +1,129 @@
+apps/website/src/assistant/external-mcp-connection-source.ts(157,108): error TS2345: Argument of type '{ readonly agentPluginLayout: AgentPluginLayout; readonly workspaceId: string; readonly pluginId: string; readonly serverId: string; readonly url: string; }' is not assignable to parameter of type 'Omit<{ readonly agentPluginLayout: AgentPluginLayout; readonly lifecycle: AgentPluginInstalledMcpReads; readonly workspaceId: string; readonly pluginId: string; readonly serverId: string; readonly url: string; }, "lifecycle">'.
+  The types of 'agentPluginLayout.forWorkspace' are incompatible between these types.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/features/agent-plugins/apply-connect-defaults.ts(68,140): error TS2322: Type 'import("/home/user/Tovu/apps/website/src/contracts/headless/plugin-host", { with: { "resolution-mode": "import" } }).AgentPluginLayout' is not assignable to type 'import("/home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp", { with: { "resolution-mode": "import" } }).AgentPluginLayout'.
+  Types of property 'forWorkspace' are incompatible.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/features/agent-plugins/grant-signed-in-defaults.ts(36,116): error TS2322: Type 'import("/home/user/Tovu/apps/website/src/contracts/headless/plugin-host", { with: { "resolution-mode": "import" } }).AgentPluginLayout' is not assignable to type 'import("/home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp", { with: { "resolution-mode": "import" } }).AgentPluginLayout'.
+  Types of property 'forWorkspace' are incompatible.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/features/agent-plugins/update-effects.ts(32,46): error TS2322: Type 'import("/home/user/Tovu/apps/website/src/contracts/headless/plugin-host", { with: { "resolution-mode": "import" } }).AgentPluginLayout' is not assignable to type 'import("/home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp", { with: { "resolution-mode": "import" } }).AgentPluginLayout'.
+  Types of property 'forWorkspace' are incompatible.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/features/media-generation/media-provider-registry.ts(148,3): error TS2322: Type '{ label?: {} | null | undefined; id: string; module: string; }' is not assignable to type 'string | ProviderContributionDescriptor'.
+  Type '{ label?: {} | null | undefined; id: string; module: string; }' is not assignable to type 'ProviderContributionDescriptor'.
+    Types of property 'label' are incompatible.
+      Type '{} | null | undefined' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'.
+apps/website/src/features/media-import/fetch-image.ts(177,72): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ value: string; }'.
+apps/website/src/features/members/repo.memory.ts(194,26): error TS2345: Argument of type '{ rows: MemberRecord[]; limit: number; cursor: string | null; positionOf: (member: MemberRecord) => string[]; }' is not assignable to parameter of type '{ rows: readonly MemberRecord[]; limit: number; cursor: string | null; positionOf: (row: MemberRecord) => ListPosition; shape: ListPositionShape; }'.
+  Property 'shape' is missing in type '{ rows: MemberRecord[]; limit: number; cursor: string | null; positionOf: (member: MemberRecord) => string[]; }' but required in type '{ rows: readonly MemberRecord[]; limit: number; cursor: string | null; positionOf: (row: MemberRecord) => ListPosition; shape: ListPositionShape; }'.
+apps/website/src/features/members/repo.ts(189,81): error TS2353: Object literal may only specify known properties, and 'size' does not exist in type '{ cursor: string; shape: ListPositionShape; }'.
+apps/website/src/features/newsletter/repo.memory.ts(59,78): error TS2353: Object literal may only specify known properties, and 'size' does not exist in type '{ cursor: string; shape: ListPositionShape; }'.
+apps/website/src/features/newsletter/repo.memory.ts(60,26): error TS2345: Argument of type '{ rows: CampaignRecord[]; limit: number; cursor: string | null; positionOf: (campaign: CampaignRecord) => string[]; }' is not assignable to parameter of type '{ rows: readonly CampaignRecord[]; limit: number; cursor: string | null; positionOf: (row: CampaignRecord) => ListPosition; shape: ListPositionShape; }'.
+  Property 'shape' is missing in type '{ rows: CampaignRecord[]; limit: number; cursor: string | null; positionOf: (campaign: CampaignRecord) => string[]; }' but required in type '{ rows: readonly CampaignRecord[]; limit: number; cursor: string | null; positionOf: (row: CampaignRecord) => ListPosition; shape: ListPositionShape; }'.
+apps/website/src/features/newsletter/repo.memory.ts(163,78): error TS2353: Object literal may only specify known properties, and 'size' does not exist in type '{ cursor: string; shape: ListPositionShape; }'.
+apps/website/src/features/newsletter/repo.memory.ts(164,26): error TS2345: Argument of type '{ rows: SubscriptionRow[]; limit: number; cursor: string | null; positionOf: (row: SubscriptionRow) => string[]; }' is not assignable to parameter of type '{ rows: readonly SubscriptionRow[]; limit: number; cursor: string | null; positionOf: (row: SubscriptionRow) => ListPosition; shape: ListPositionShape; }'.
+  Property 'shape' is missing in type '{ rows: SubscriptionRow[]; limit: number; cursor: string | null; positionOf: (row: SubscriptionRow) => string[]; }' but required in type '{ rows: readonly SubscriptionRow[]; limit: number; cursor: string | null; positionOf: (row: SubscriptionRow) => ListPosition; shape: ListPositionShape; }'.
+apps/website/src/features/newsletter/repo.ts(105,89): error TS2353: Object literal may only specify known properties, and 'size' does not exist in type '{ cursor: string; shape: ListPositionShape; }'.
+apps/website/src/features/newsletter/repo.ts(311,89): error TS2353: Object literal may only specify known properties, and 'size' does not exist in type '{ cursor: string; shape: ListPositionShape; }'.
+apps/website/src/features/publish-content/peer-transport.ts(529,30): error TS2345: Argument of type '{ value: { value: unknown; what: string; baseUrl: string; }; }' is not assignable to parameter of type '{ value: unknown; what: string; baseUrl: string; }'.
+  Type '{ value: { value: unknown; what: string; baseUrl: string; }; }' is missing the following properties from type '{ value: unknown; what: string; baseUrl: string; }': what, baseUrl
+apps/website/src/platform/site-dir/local-site-child.ts(128,28): error TS2345: Argument of type 'WatchdogHandle' is not assignable to parameter of type '{ handle: WatchdogHandle; }'.
+  Property 'handle' is missing in type 'WatchdogHandle' but required in type '{ handle: WatchdogHandle; }'.
+apps/website/src/server/inbound/admin-http/routes/agent-plugins/set-enabled.ts(148,58): error TS2322: Type 'import("/home/user/Tovu/apps/website/src/contracts/headless/plugin-host", { with: { "resolution-mode": "import" } }).AgentPluginLayout' is not assignable to type 'import("/home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp", { with: { "resolution-mode": "import" } }).AgentPluginLayout'.
+  Types of property 'forWorkspace' are incompatible.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/server/inbound/admin-http/routes/email-templates/routes.ts(80,18): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+apps/website/src/server/inbound/admin-http/routes/media/delete.ts(35,9): error TS2322: Type '{ mediaRepo: VersionedMediaRepoPort; entryRefsRepo: EntryRefsRepoPort; postRepo: PostRepoPort; blobRepo: AssetBlobRepoPort; renditionRepo: AssetRenditionRepoPort; blobStore: BlobStorePort; }' is not assignable to type 'Omit<PurgeMediaDeps, "referenceCheck"> & { entryRefsRepo: Pick<EntryRefsRepoPort, "findByTarget">; postRepo: Pick<PostRepoPort, "list">; mediaRepo: Pick<...>; }'.
+  Property 'clock' is missing in type '{ mediaRepo: VersionedMediaRepoPort; entryRefsRepo: EntryRefsRepoPort; postRepo: PostRepoPort; blobRepo: AssetBlobRepoPort; renditionRepo: AssetRenditionRepoPort; blobStore: BlobStorePort; }' but required in type 'Omit<PurgeMediaDeps, "referenceCheck">'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(75,11): error TS18048: 'deps' is possibly 'undefined'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(76,13): error TS18048: 'deps' is possibly 'undefined'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(77,14): error TS18048: 'deps' is possibly 'undefined'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(78,12): error TS18048: 'deps' is possibly 'undefined'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(79,12): error TS18048: 'deps' is possibly 'undefined'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(112,63): error TS2345: Argument of type 'PublishContentRouteDeps' is not assignable to parameter of type 'Record<string, never>'.
+  Property 'themes' is incompatible with index signature.
+    Type 'DiscoveredTheme[]' is not assignable to type 'never'.
+apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts(129,63): error TS2345: Argument of type 'PublishContentRouteDeps' is not assignable to parameter of type 'Record<string, never>'.
+  Property 'themes' is incompatible with index signature.
+    Type 'DiscoveredTheme[]' is not assignable to type 'never'.
+apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts(25,7): error TS2339: Property 'post' does not exist on type '{ app: Express; deps: RouteDeps; }'.
+apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts(25,76): error TS7006: Parameter 'req' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts(25,81): error TS7006: Parameter 'res' implicitly has an 'any' type.
+apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts(1,10): error TS2300: Duplicate identifier 'rejectForeignWorkspace'.
+apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts(12,10): error TS2300: Duplicate identifier 'rejectForeignWorkspace'.
+apps/website/src/server/inbound/public-http/routes/plugin-contributions.ts(126,65): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'PluginRouteAuthPorts'.
+apps/website/src/server/runtime/boot/mail-provider-catalog.ts(81,155): error TS2345: Argument of type '{ createSmtpTransport: (config: CreateNodemailerSmtpTransportConfig) => SmtpTransport; workspaceId: UUID; customCredentialRepo: CustomCredentialSetRepoPort; sealer: SecretSealerPort; httpClient: HttpClientPort; loadMailAdapters: () => Promise<MailAdapterRegistry>; resolvePluginAccountToken?: (required: { pluginId: s...' is not assignable to parameter of type 'MailCatalogDeps'.
+  The types of 'createSmtpTransport(...).sendMail' are incompatible between these types.
+    Type '({ mail }: { mail: SmtpMailPayload; }, optional?: Record<string, never> | undefined) => Promise<{ messageId: string; }>' is not assignable to type '(mail: SmtpMailPayload) => Promise<{ messageId: string; }>'.
+      Types of parameters '__0' and 'mail' are incompatible.
+        Property 'mail' is missing in type 'SmtpMailPayload' but required in type '{ mail: SmtpMailPayload; }'.
+apps/website/src/server/runtime/boot/mail-provider-catalog.ts(83,212): error TS2322: Type '{ createSmtpTransport: (config: CreateNodemailerSmtpTransportConfig) => SmtpTransport; workspaceId: UUID; customCredentialRepo: CustomCredentialSetRepoPort; sealer: SecretSealerPort; httpClient: HttpClientPort; loadMailAdapters: () => Promise<MailAdapterRegistry>; resolvePluginAccountToken?: (required: { pluginId: s...' is not assignable to type 'MailCatalogDeps'.
+  The types of 'createSmtpTransport(...).sendMail' are incompatible between these types.
+    Type '({ mail }: { mail: SmtpMailPayload; }, optional?: Record<string, never> | undefined) => Promise<{ messageId: string; }>' is not assignable to type '(mail: SmtpMailPayload) => Promise<{ messageId: string; }>'.
+      Types of parameters '__0' and 'mail' are incompatible.
+        Property 'mail' is missing in type 'SmtpMailPayload' but required in type '{ mail: SmtpMailPayload; }'.
+apps/website/src/server/runtime/composition/app.ts(979,21): error TS2345: Argument of type '{ siteTimeZone: SiteTimeZonePort; galleryMedia: ({ refs, context }: { refs: readonly PageHtmlEmbedRef[]; } & { context: WidgetResolveContext; }) => Promise<...>; ... 6 more ...; contentTypes: InMemoryContentTypeRepo; }' is not assignable to parameter of type 'CoreResolverDeps'.
+  Property 'crypto' is missing in type '{ siteTimeZone: SiteTimeZonePort; galleryMedia: ({ refs, context }: { refs: readonly PageHtmlEmbedRef[]; } & { context: WidgetResolveContext; }) => Promise<...>; ... 6 more ...; contentTypes: InMemoryContentTypeRepo; }' but required in type 'CoreResolverDeps'.
+apps/website/src/server/runtime/composition/app.ts(1289,5): error TS2322: Type '(scope: { workspaceId: string; postId: string; } | PagesHtmlDocumentStoreScope, options?: { allowedKinds?: ReadonlySet<PostKind> | undefined; }) => InMemoryPagesHtmlDocumentStore' is not assignable to type 'PagesHtmlDocumentStoreFactory & DuplicatePagesHtmlStoreFactory'.
+  Type '(scope: { workspaceId: string; postId: string; } | PagesHtmlDocumentStoreScope, options?: { allowedKinds?: ReadonlySet<PostKind> | undefined; }) => InMemoryPagesHtmlDocumentStore' is not assignable to type 'DuplicatePagesHtmlStoreFactory'.
+    Call signature return types 'InMemoryPagesHtmlDocumentStore' and 'DuplicatePagesHtmlStore' are incompatible.
+      The types of 'write' are incompatible between these types.
+        Type '({ html: authoredHtml }: { html: string; }, _optional?: Record<string, never> | undefined) => Promise<void>' is not assignable to type '(html: string) => Promise<void>'.
+          Types of parameters '__0' and 'html' are incompatible.
+            Type 'string' is not assignable to type '{ html: string; }'.
+apps/website/src/server/runtime/composition/app.ts(1727,49): error TS2322: Type 'NewsletterRouteDeps & Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools"> & { readonly federatedMcpPresetRegistry?: FederatedMcpPresetRegistry | undefined; }' is not assignable to type 'TovuPluginHostDeps'.
+  Types of property 'listInstalledAgentPlugins' are incompatible.
+    Type '((workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>) | undefined' is not assignable to type '(({ workspaceRoot }: { workspaceRoot: string; }, _optional?: Record<string, never>) => Promise<readonly InstalledAgentPlugin[]>) | undefined'.
+      Type '(workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>' is not assignable to type '({ workspaceRoot }: { workspaceRoot: string; }, _optional?: Record<string, never>) => Promise<readonly JiniInstalledAgentPlugin[]>'.
+        Types of parameters 'workspaceRoot' and '__0' are incompatible.
+          Type '{ workspaceRoot: string; }' is not assignable to type 'string'.
+apps/website/src/server/runtime/composition/app.ts(2573,5): error TS2741: Property 'crypto' is missing in type '{ definitionRepo: FormDefinitionRepoPort; submissionRepo: FormSubmissionRepoPort; outbox: OutboxPort; bus: EventBusPort; ... 5 more ...; files: FormFileStorage; }' but required in type 'SubmitFormDeps'.
+apps/website/src/server/runtime/composition/commerce.ts(214,107): error TS2322: Type '(message: string) => void' is not assignable to type '(required: { readonly message: string; }, optional?: { readonly error?: unknown; } | undefined) => void'.
+  Types of parameters 'message' and 'required' are incompatible.
+    Type '{ readonly message: string; }' is not assignable to type 'string'.
+apps/website/src/server/runtime/composition/deps.ts(1783,21): error TS2345: Argument of type '{ siteTimeZone: SiteTimeZonePort; galleryMedia: ({ refs, context }: { refs: readonly PageHtmlEmbedRef[]; } & { context: WidgetResolveContext; }) => Promise<...>; ... 8 more ...; contentTypes: SqliteContentTypeRepo; }' is not assignable to parameter of type 'CoreResolverDeps'.
+  Property 'crypto' is missing in type '{ siteTimeZone: SiteTimeZonePort; galleryMedia: ({ refs, context }: { refs: readonly PageHtmlEmbedRef[]; } & { context: WidgetResolveContext; }) => Promise<...>; ... 8 more ...; contentTypes: SqliteContentTypeRepo; }' but required in type 'CoreResolverDeps'.
+apps/website/src/server/runtime/composition/deps.ts(2327,5): error TS2322: Type '(scope: { workspaceId: string; postId: string; } | PagesHtmlDocumentStoreScope, options?: { allowedKinds?: ReadonlySet<PostKind> | undefined; }) => PagesHtmlDocumentStore' is not assignable to type 'PagesHtmlDocumentStoreFactory & DuplicatePagesHtmlStoreFactory'.
+  Type '(scope: { workspaceId: string; postId: string; } | PagesHtmlDocumentStoreScope, options?: { allowedKinds?: ReadonlySet<PostKind> | undefined; }) => PagesHtmlDocumentStore' is not assignable to type 'DuplicatePagesHtmlStoreFactory'.
+    Call signature return types 'PagesHtmlDocumentStore' and 'DuplicatePagesHtmlStore' are incompatible.
+      The types of 'write' are incompatible between these types.
+        Type '({ html: authoredHtml }: { html: string; }, _optional?: {}) => Promise<void>' is not assignable to type '(html: string) => Promise<void>'.
+          Types of parameters '__0' and 'html' are incompatible.
+            Type 'string' is not assignable to type '{ html: string; }'.
+apps/website/src/server/runtime/composition/deps.ts(2949,49): error TS2322: Type 'NewsletterRouteDeps & Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter" | "listCatalogTools"> & { readonly federatedMcpPresetRegistry?: FederatedMcpPresetRegistry | undefined; }' is not assignable to type 'TovuPluginHostDeps'.
+  Types of property 'listInstalledAgentPlugins' are incompatible.
+    Type '((workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>) | undefined' is not assignable to type '(({ workspaceRoot }: { workspaceRoot: string; }, _optional?: Record<string, never>) => Promise<readonly InstalledAgentPlugin[]>) | undefined'.
+      Type '(workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>' is not assignable to type '({ workspaceRoot }: { workspaceRoot: string; }, _optional?: Record<string, never>) => Promise<readonly JiniInstalledAgentPlugin[]>'.
+        Types of parameters 'workspaceRoot' and '__0' are incompatible.
+          Type '{ workspaceRoot: string; }' is not assignable to type 'string'.
+apps/website/src/server/runtime/composition/form-submissions.ts(53,5): error TS2322: Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => Promise<FormDestinationRegistry>' is not assignable to type '(workspaceId: string) => Promise<FormDestinationRegistry>'.
+  Types of parameters 'required' and 'workspaceId' are incompatible.
+    Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/server/runtime/composition/modules/widgets.ts(39,41): error TS2739: Type 'Express' is missing the following properties from type '{ app: Express; deps: RouteDeps; }': app, deps
+apps/website/src/server/runtime/composition/plugin-host.ts(70,82): error TS2344: Type 'import("/home/user/Tovu/apps/website/src/contracts/headless/plugin-host", { with: { "resolution-mode": "import" } }).AgentPluginLayout' does not satisfy the constraint 'import("/home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp", { with: { "resolution-mode": "import" } }).AgentPluginLayout'.
+  Types of property 'forWorkspace' are incompatible.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(475,59): error TS2322: Type '{ mcp: { notifyRosterChanged: () => Promise<void>; repo: AgentPluginMcpRepo; classifyError: (input: { error: unknown; }, options?: Record<string, never>) => "validation" | "unconfigured" | "other"; saveServer: (input: AgentPluginMcpSave, options?: Record<string, never>) => Promise<AgentPluginMcpView>; applyAccess: (...' is not assignable to type 'TovuPluginHostDeps'.
+  Types of property 'listInstalledAgentPlugins' are incompatible.
+    Type '((workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>) | undefined' is not assignable to type '(({ workspaceRoot }: { workspaceRoot: string; }, _optional?: Record<string, never>) => Promise<readonly InstalledAgentPlugin[]>) | undefined'.
+      Type '(workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>' is not assignable to type '({ workspaceRoot }: { workspaceRoot: string; }, _optional?: Record<string, never>) => Promise<readonly JiniInstalledAgentPlugin[]>'.
+        Types of parameters 'workspaceRoot' and '__0' are incompatible.
+          Type '{ workspaceRoot: string; }' is not assignable to type 'string'.
+
+real	0m28.347s
+user	0m35.654s
+sys	0m1.699s

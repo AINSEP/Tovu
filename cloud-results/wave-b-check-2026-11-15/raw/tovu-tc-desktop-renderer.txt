@@ -1,0 +1,435 @@
+apps/desktop/src/renderer/App.hooks.render.test.ts(11,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/App.tsx(151,68): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.tsx(176,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/CreateWebsiteOnboarding.database-options.render.test.ts(13,19): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/CreateWebsiteOnboarding.database-options.render.test.ts(14,38): error TS7016: Could not find a declaration file for module 'react-dom/server'. '/home/user/Tovu/node_modules/react-dom/server.node.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/server';`
+apps/desktop/src/renderer/CreateWebsiteOnboarding.render.test.ts(13,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/CreateWebsiteOnboarding.render.test.ts(75,24): error TS7031: Binding element 'name' implicitly has an 'any' type.
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx(13,32): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx(21,10): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ImportWebsite.render.test.ts(8,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ImportWebsite.render.test.ts(23,29): error TS7006: Parameter 'source' implicitly has an 'any' type.
+apps/desktop/src/renderer/ImportWebsite.tsx(9,27): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ImportWebsite.tsx(48,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(3,24): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(4,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(5,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(100,21): error TS7031: Binding element 'panelOpen' implicitly has an 'any' type.
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(173,59): error TS7006: Parameter 'record' implicitly has an 'any' type.
+apps/desktop/src/renderer/ResourcesPanel.tsx(3,97): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ResourcesPanel.tsx(75,10): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/ResourcesPanel.tsx(134,94): error TS7006: Parameter 'group' implicitly has an 'any' type.
+apps/desktop/src/renderer/SharedKeys.hooks.test.ts(3,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SharedKeys.hooks.ts(2,74): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SharedKeys.render.test.ts(3,43): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SharedKeys.render.test.ts(4,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/SharedKeys.tsx(2,45): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SharedKeys.tsx(15,10): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SharedKeys.tsx(56,28): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts(17,24): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts(18,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts(42,37): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/SiteGrid.no-add-tile.render.test.ts(7,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SiteGrid.status-title.render.test.ts(8,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SiteGrid.status-title.render.test.ts(53,80): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/SiteGrid.status-title.render.test.ts(54,20): error TS7006: Parameter 'record' implicitly has an 'any' type.
+apps/desktop/src/renderer/SiteGrid.tsx(137,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SiteGrid.tsx(636,33): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/SiteToast.tsx(7,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SitesFolders.dialog.render.test.ts(9,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SitesFolders.jsdom.test.ts(14,24): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SitesFolders.jsdom.test.ts(15,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/SitesFolders.jsdom.test.ts(30,37): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/SitesFolders.tsx(19,10): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts(17,88): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts(18,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/WorkspaceChatPane.tsx(54,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app-hooks.test-support.ts(7,52): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app-hooks.test-support.ts(8,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/app-render-harness.ts(10,43): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app-render-harness.ts(45,44): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/app/CreateWebsiteHost.render.test.ts(8,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/CreateWebsiteHost.render.test.ts(21,70): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/CreateWebsiteHost.tsx(37,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/FindBar.render.test.ts(7,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/FindBar.tsx(17,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts(1,46): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts(9,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/LoadedSitesStepper.tsx(21,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/MainArea.render.test.ts(8,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/MainArea.tsx(61,12): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/MainContent.render.test.ts(9,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/MainContent.render.test.ts(37,48): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/MainContent.tsx(38,12): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/MainHeader.render.test.ts(7,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/MainHeader.tsx(38,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SettingsControl.render.test.ts(8,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SettingsControl.render.test.ts(44,28): error TS7006: Parameter 'next' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SettingsControl.tsx(11,45): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SettingsControl.tsx(52,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteStartPanel.render.test.ts(9,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteStartPanel.render.test.ts(32,21): error TS7006: Parameter 'record' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SiteStartPanel.tsx(5,35): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteStartPanel.tsx(46,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts(12,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts(8,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts(9,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts(71,21): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts(71,25): error TS7006: Parameter 'node' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts(72,25): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts(72,29): error TS7006: Parameter 'node' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts(73,21): error TS7006: Parameter 'record' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/SiteWorkspace.tsx(55,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/Spinner.tsx(9,10): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/TabCloseAsk.render.test.ts(7,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/TabCloseAsk.tsx(22,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/TabStrip.render.test.ts(7,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/TabStrip.render.test.ts(22,19): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/TabStrip.render.test.ts(23,18): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/TabStrip.tsx(13,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/TopNav.render.test.ts(7,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/TopNav.render.test.ts(21,76): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/app/TopNav.tsx(42,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/app/component-harness.ts(10,40): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/dom-hook-harness.ts(11,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/dom-hook-harness.ts(12,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/icon-frame.tsx(1,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/icon-frame.tsx(8,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/icons.section-icon.render.test.ts(7,38): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/icons.section-icon.render.test.ts(8,38): error TS7016: Could not find a declaration file for module 'react-dom/server'. '/home/user/Tovu/node_modules/react-dom/server.node.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/server';`
+apps/desktop/src/renderer/icons.test.ts(12,19): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/icons.test.ts(13,38): error TS7016: Could not find a declaration file for module 'react-dom/server'. '/home/user/Tovu/node_modules/react-dom/server.node.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/server';`
+apps/desktop/src/renderer/icons.tsx(7,26): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/icons.tsx(15,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/imported-hooks.hooks.test.ts(10,46): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/imported-hooks.hooks.test.ts(11,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/main.tsx(5,28): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/main.tsx(6,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/main.tsx(23,5): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/mount-renderer.ts(7,32): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts(14,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts(27,37): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/sitesnest-card.test.ts(5,24): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/sitesnest-card.test.ts(6,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/sitesnest-card.test.ts(7,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/source-test-harness.ts(4,19): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/stalecard-paths.test.ts(5,24): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/stalecard-paths.test.ts(6,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/stalecard-paths.test.ts(7,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/theme.test.ts(4,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/theme.test.ts(5,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/theme.ts(1,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/tool-icons.tsx(7,26): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/tool-icons.tsx(17,7): error TS7016: Could not find a declaration file for module 'react/jsx-runtime'. '/home/user/Tovu/node_modules/react/jsx-runtime.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-add-site.hooks.picker-outcome.render.test.ts(9,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-add-site.hooks.picker-outcome.render.test.ts(33,72): error TS7031: Binding element 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-add-site.hooks.picker-outcome.render.test.ts(43,51): error TS7031: Binding element 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-add-site.hooks.ts(13,39): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-add-site.hooks.ts(14,47): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-add-site.hooks.ts(112,16): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-app-version.hooks.ts(2,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts(2,58): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-create-website-form.hooks.render.test.ts(9,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-create-website-form.hooks.ts(6,102): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-delete-confirmation.hooks.render.test.ts(8,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-delete-confirmation.hooks.ts(6,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts(9,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-dropdown-menu.hooks.test.ts(8,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-dropdown-menu.hooks.ts(15,8): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-dropdown-menu.hooks.ts(144,22): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-expanded-mode.hooks.render.test.ts(8,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-expanded-mode.hooks.ts(5,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-expanded-mode.hooks.ts(31,18): error TS7006: Parameter 'on' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-expanded-mode.hooks.ts(42,20): error TS7006: Parameter 'on' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-expanded-mode.hooks.ts(48,45): error TS7006: Parameter 'expanded' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-find-in-page.hooks.ts(64,60): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts(14,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts(44,37): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/use-import-drop.hooks.render.test.ts(4,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-import-drop.hooks.ts(2,42): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-import-handoff.hooks.render.test.ts(8,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-import-handoff.hooks.ts(7,35): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-import-website.hooks.render.test.ts(9,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-import-website.hooks.ts(12,47): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-live-views.hooks.ts(22,58): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-live-views.hooks.ts(267,15): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-live-views.hooks.ts(276,29): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-loaded-sites.hooks.ts(6,26): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts(4,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts(5,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/use-new-site-dir.hooks.ts(2,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-product-screen.hooks.ts(2,35): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts(8,67): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts(107,98): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts(116,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(5,73): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(83,23): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(96,23): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(102,23): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(112,23): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(124,23): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-mutations.hooks.ts(124,51): error TS7006: Parameter 'project' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-tabs.hooks.render.test.ts(7,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(5,73): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(52,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(55,35): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(60,19): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(61,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(61,46): error TS7006: Parameter 'tabId' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-project-tabs.hooks.ts(62,20): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-resources.hooks.render.test.ts(3,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-resources.hooks.ts(3,45): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts(9,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-runner-conversations.hooks.ts(7,89): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-section-nav.hooks.render.test.ts(8,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-section-nav.hooks.ts(6,73): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-folders.hooks.test.ts(16,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-folders.hooks.ts(2,50): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts(7,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-list-prefs.hooks.ts(12,39): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-locate.hooks.test.ts(6,36): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-locate.hooks.test.ts(7,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/use-site-locate.hooks.ts(10,39): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-locate.hooks.ts(63,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(22,39): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-power.hooks.ts(277,50): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<SitePowerAction, SiteLifecycleStatus>'.
+apps/desktop/src/renderer/use-site-power.hooks.ts(296,19): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(297,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(301,40): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(307,21): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(321,16): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(322,15): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(326,22): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(329,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-preview.hooks.ts(22,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-rename.hooks.render.test.ts(10,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-rename.hooks.ts(26,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-start.hooks.render.test.ts(8,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-start.hooks.ts(6,26): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-storage-settings.hooks.ts(1,50): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-toast.hooks.render.test.ts(4,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-toast.hooks.ts(5,50): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-view-preference.hooks.ts(2,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-workspace.hooks.render.test.ts(11,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-workspace.hooks.render.test.ts(110,16): error TS7006: Parameter 'action' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-workspace.hooks.stopped-url.render.test.ts(8,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-site-workspace.hooks.ts(25,64): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-sites-folders-dialog.hooks.test.ts(80,20): error TS7006: Parameter 'value' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(8,67): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(90,41): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(117,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(136,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(149,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(165,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(170,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts(172,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.ts(6,94): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-sites-inventory.hooks.ts(38,85): error TS7006: Parameter 'next' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.ts(144,20): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.ts(145,28): error TS7006: Parameter 'project' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-sites-inventory.hooks.ts(146,33): error TS7006: Parameter 'project' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-start-imported.hooks.ts(7,29): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-start-imported.hooks.ts(48,29): error TS7006: Parameter 'site' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-tab-close-ask.hooks.render.test.ts(7,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-tab-close-ask.hooks.ts(7,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-tab-close-ask.hooks.ts(89,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-tab-close-ask.hooks.ts(92,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-tab-close-ask.hooks.ts(102,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-tab-close-ask.hooks.ts(108,16): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(10,52): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(11,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(99,25): error TS18046: 'tab' is of type 'unknown'.
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(99,74): error TS18046: 'tab' is of type 'unknown'.
+apps/desktop/src/renderer/use-tab-strip.hooks.ts(1,87): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-update-check.hooks.ts(2,26): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-webview-load-failure.hooks.render.test.ts(7,21): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-webview-load-failure.hooks.ts(5,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-workspace-chat-pane.hooks.render.test.ts(10,37): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-workspace-chat-pane.hooks.ts(23,8): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-workspace-chat-transport.hooks.render.test.ts(7,48): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-workspace-chat-transport.hooks.render.test.ts(8,28): error TS7016: Could not find a declaration file for module 'react-dom/client'. '/home/user/Tovu/node_modules/react-dom/client.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-dom` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-dom/client';`
+apps/desktop/src/renderer/use-workspace-chat-transport.hooks.ts(5,46): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/use-workspace-chat-transport.hooks.ts(48,35): error TS7006: Parameter 'directory' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-workspace-chat-transport.hooks.ts(49,30): error TS7006: Parameter 'currentDirectory' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-workspace-chat-transport.hooks.ts(51,25): error TS7006: Parameter 'directory' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-zoom.hooks.ts(29,48): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/renderer/websites-width.test.ts(13,31): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/vite.config.mts(3,19): error TS2307: Cannot find module '@vitejs/plugin-react' or its corresponding type declarations.

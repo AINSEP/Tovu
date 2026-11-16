@@ -1,0 +1,88 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/examples/minimal-host
+
+ ✓ src/acp-fixture.test.ts (1 test) 72ms
+Error: Command failed: pnpm --filter @jini-ai/http-kit run build
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:943:11)
+    at execFileSync (node:child_process:979:15)
+    at buildAndPackClosure (/home/user/Jini/scripts/lib/pack-jini-packages.ts:222:5)
+    at main (/home/user/Jini/scripts/health-boot.ts:60:44)
+    at <anonymous> (/home/user/Jini/scripts/health-boot.ts:106:1)
+    at Object.<anonymous> (/home/user/Jini/scripts/health-boot.ts:109:2)
+    at Module._compile (node:internal/modules/cjs/loader:1929:14)
+    at Object.transformer (/home/user/Jini/node_modules/.pnpm/tsx@4.23.1/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3252) {
+  status: 2,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 29245,
+  stdout: null,
+  stderr: null
+}
+ ❯ src/health-boot.test.ts (2 tests | 1 failed) 47903ms
+   × milestone 1 gate N — health-boot from packed @jini-ai/* tarballs > boots examples/minimal-host from packed tarballs, not workspace links 47899ms
+     → Command failed: tsx /home/user/Jini/scripts/health-boot.ts
+Error: Command failed: pnpm --filter @jini-ai/http-kit run build
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:943:11)
+    at execFileSync (node:child_process:979:15)
+    at buildAndPackClosure (/home/user/Jini/scripts/lib/pack-jini-packages.ts:222:5)
+    at main (/home/user/Jini/scripts/health-boot.ts:60:44)
+    at <anonymous> (/home/user/Jini/scripts/health-boot.ts:106:1)
+    at Object.<anonymous> (/home/user/Jini/scripts/health-boot.ts:109:2)
+    at Module._compile (node:internal/modules/cjs/loader:1929:14)
+    at Object.transformer (/home/user/Jini/node_modules/.pnpm/tsx@4.23.1/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3252) {
+  status: 2,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 29245,
+  stdout: null,
+  stderr: null
+}
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/health-boot.test.ts > milestone 1 gate N — health-boot from packed @jini-ai/* tarballs > boots examples/minimal-host from packed tarballs, not workspace links
+Error: Command failed: tsx /home/user/Jini/scripts/health-boot.ts
+Error: Command failed: pnpm --filter @jini-ai/http-kit run build
+    at genericNodeError (node:internal/errors:986:15)
+    at wrappedFn (node:internal/errors:540:14)
+    at checkExecSyncError (node:child_process:943:11)
+    at execFileSync (node:child_process:979:15)
+    at buildAndPackClosure (/home/user/Jini/scripts/lib/pack-jini-packages.ts:222:5)
+    at main (/home/user/Jini/scripts/health-boot.ts:60:44)
+    at <anonymous> (/home/user/Jini/scripts/health-boot.ts:106:1)
+    at Object.<anonymous> (/home/user/Jini/scripts/health-boot.ts:109:2)
+    at Module._compile (node:internal/modules/cjs/loader:1929:14)
+    at Object.transformer (/home/user/Jini/node_modules/.pnpm/tsx@4.23.1/node_modules/tsx/dist/register-BoI6-WNn.cjs:9:3252) {
+  status: 2,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 29245,
+  stdout: null,
+  stderr: null
+}
+
+ ❯ buildAndPackClosure ../../scripts/lib/pack-jini-packages.ts:222:5
+ ❯ main ../../scripts/health-boot.ts:60:44
+ ❯ <anonymous> ../../scripts/health-boot.ts:106:1
+ ❯ Object.<anonymous> ../../scripts/health-boot.ts:109:2
+ ❯ src/health-boot.test.ts:37:17
+     35|     }
+     36| 
+     37|     const raw = execFileSync('tsx', [harnessScript], { cwd: repoRoot, …
+       |                 ^
+     38|     const lastLine = raw.split('\n').filter(Boolean).pop();
+     39|     if (!lastLine) throw new Error('health-boot harness produced no st…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 2 passed (3)
+   Start at  05:38:38
+   Duration  48.30s (transform 2.58s, setup 0ms, collect 4.28s, tests 47.97s, environment 0ms, prepare 172ms)
+

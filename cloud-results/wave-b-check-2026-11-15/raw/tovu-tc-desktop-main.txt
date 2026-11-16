@@ -1,0 +1,204 @@
+apps/desktop/scripts/verify-staged-closure.ts(6,28): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/desktop/src/asar-verify.test.ts(14,56): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/desktop/src/asar-verify.ts(47,23): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/desktop/src/desktop-agent.ts(482,73): error TS2740: Type 'Pick<ConversationStore, "appendToolGap" | "listToolGaps">' is missing the following properties from type 'ConversationStore': list, create, rename, remove, and 2 more.
+apps/desktop/src/desktop-agent.ts(487,89): error TS2740: Type 'Pick<ConversationStore, "appendToolGap" | "listToolGaps">' is missing the following properties from type 'ConversationStore': list, create, rename, remove, and 2 more.
+apps/desktop/src/desktop-agent.ts(487,125): error TS2739: Type 'Pick<AgentExecutor, "run">' is missing the following properties from type 'AgentExecutor': sendUserMessage, claimUserMessages
+apps/desktop/src/desktop-capture.test.ts(5,36): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/desktop-capture.ts(4,69): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/desktop-capture.ts(15,34): error TS2503: Cannot find namespace 'Electron'.
+apps/desktop/src/desktop-capture.ts(23,49): error TS7006: Parameter '_contents' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(23,60): error TS7006: Parameter '_permission' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(23,73): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(26,48): error TS7006: Parameter 'request' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(26,57): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(32,38): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(41,43): error TS7006: Parameter 'details' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(41,52): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(46,62): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(46,69): error TS7006: Parameter 'errorCode' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(46,80): error TS7006: Parameter 'errorDescription' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(49,61): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/desktop-capture.ts(49,68): error TS7006: Parameter 'url' implicitly has an 'any' type.
+apps/desktop/src/desktop-host-signals.ts(17,29): error TS2339: Property 'resourcesPath' does not exist on type 'Process'.
+apps/desktop/src/electron-builder-files.test.ts(44,109): error TS2307: Cannot find module 'app-builder-lib/out/fileMatcher.js' or its corresponding type declarations.
+apps/desktop/src/electron-builder-files.test.ts(58,16): error TS2664: Invalid module name in augmentation, module 'app-builder-lib/out/fileMatcher.js' cannot be found.
+apps/desktop/src/find-in-page-ipc.ts(14,43): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/find-in-page-ipc.ts(33,67): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/find-in-page-ipc.ts(33,74): error TS7006: Parameter 'query' implicitly has an 'any' type.
+apps/desktop/src/import-handoff-ipc.test.ts(36,16): error TS2322: Type '(channel: string, handler: Handler) => void' is not assignable to type '(channel: string, handler: (event: Pick<IpcMainInvokeEvent, "senderFrame">, raw: unknown) => ImportHandoffResult) => void'.
+  Types of parameters 'handler' and 'handler' are incompatible.
+    Types of parameters 'event' and 'event' are incompatible.
+      Type 'unknown' is not assignable to type 'Pick<IpcMainInvokeEvent, "senderFrame">'.
+apps/desktop/src/import-handoff-ipc.test.ts(77,16): error TS2322: Type '(channel: string, handler: Handler) => void' is not assignable to type '(channel: string, handler: (event: Pick<IpcMainInvokeEvent, "senderFrame">, raw: unknown) => ImportHandoffResult) => void'.
+  Types of parameters 'handler' and 'handler' are incompatible.
+    Types of parameters 'event' and 'event' are incompatible.
+      Type 'unknown' is not assignable to type 'Pick<IpcMainInvokeEvent, "senderFrame">'.
+apps/desktop/src/import-handoff-ipc.ts(7,41): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main-shutdown-wiring.test.ts(273,16): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/desktop/src/main-shutdown-wiring.test.ts(274,16): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/desktop/src/main/index.ts(108,116): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/index.ts(110,29): error TS2307: Cannot find module 'electron-updater' or its corresponding type declarations.
+apps/desktop/src/main/index.ts(173,62): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/index.ts(278,26): error TS2339: Property 'resourcesPath' does not exist on type 'Process'.
+apps/desktop/src/main/index.ts(417,45): error TS2741: Property 'resourcesPath' is missing in type 'Process' but required in type 'ProductProcessPort'.
+apps/desktop/src/main/index.ts(670,35): error TS7006: Parameter '_event' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(670,43): error TS7006: Parameter 'contents' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(677,53): error TS7006: Parameter 'wc' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(677,57): error TS7006: Parameter '_permission' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(677,70): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(678,51): error TS7006: Parameter 'wc' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(680,46): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(680,53): error TS7006: Parameter 'next' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(681,46): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(770,87): error TS2339: Property 'windowsStore' does not exist on type 'Process'.
+apps/desktop/src/main/index.ts(861,48): error TS7006: Parameter 'window' implicitly has an 'any' type.
+apps/desktop/src/main/index.ts(1098,24): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/main/updates/native-notices.test.ts(7,40): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/updates/native-notices.ts(6,40): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/updates/product-telemetry-boot.test.ts(11,40): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/updates/product-telemetry-boot.ts(7,40): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/updates/settings-menu.test.ts(10,49): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/updates/settings-menu.test.ts(59,39): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/desktop/src/main/updates/settings-menu.test.ts(91,46): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/desktop/src/main/updates/settings-menu.test.ts(196,39): error TS7006: Parameter 'item' implicitly has an 'any' type.
+apps/desktop/src/main/updates/settings-menu.ts(7,49): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/windows/last-window-quit.test.ts(8,40): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/main/windows/last-window-quit.ts(23,40): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/native-listener-disposal.test.ts(18,16): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(18,25): error TS7006: Parameter 'listener' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(19,23): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(22,20): error TS7006: Parameter 'text' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(22,26): error TS7006: Parameter 'options' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(23,24): error TS7006: Parameter 'action' implicitly has an 'any' type.
+apps/desktop/src/native-listener-disposal.test.ts(30,3): error TS2349: This expression is not callable.
+  Type '{}' has no call signatures.
+apps/desktop/src/native-listener-disposal.test.ts(30,25): error TS2344: Type 'unknown' does not satisfy the constraint '(...args: any) => any'.
+apps/desktop/src/native-listener-disposal.test.ts(31,3): error TS2349: This expression is not callable.
+  Type '{}' has no call signatures.
+apps/desktop/src/native-listener-disposal.test.ts(31,25): error TS2344: Type 'unknown' does not satisfy the constraint '(...args: any) => any'.
+apps/desktop/src/packaging-selection.test.ts(9,24): error TS2307: Cannot find module 'temp-file' or its corresponding type declarations.
+apps/desktop/src/packaging-selection.test.ts(10,41): error TS2307: Cannot find module 'app-builder-lib/out/node-module-collector/npmNodeModulesCollector.js' or its corresponding type declarations.
+apps/desktop/src/packaging-selection.test.ts(78,39): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+apps/desktop/src/preload/preload.mts(27,64): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/project-ipc-dispatch.test.ts(360,48): error TS2345: Argument of type '{ siteDir: string; }' is not assignable to parameter of type 'string'.
+apps/desktop/src/project-ipc.test.ts(1030,3): error TS2322: Type '(siteDir: string) => Promise<void>' is not assignable to type '(required: { siteDir: string; ctx: unknown; }) => Promise<unknown>'.
+  Types of parameters 'siteDir' and 'required' are incompatible.
+    Type '{ siteDir: string; ctx: unknown; }' is not assignable to type 'string'.
+apps/desktop/src/project-ipc.test.ts(1143,30): error TS2345: Argument of type '{ siteDir: string; ctx: unknown; }' is not assignable to parameter of type 'PathLike'.
+apps/desktop/src/project-ipc.test.ts(1144,24): error TS2345: Argument of type '{ siteDir: string; ctx: unknown; }' is not assignable to parameter of type 'string'.
+apps/desktop/src/renderer/source-test-harness.ts(4,19): error TS7016: Could not find a declaration file for module 'react'. '/home/user/Tovu/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+apps/desktop/src/speech/native-speech-adapter.test.ts(73,25): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/speech/native-speech-adapter.test.ts(73,84): error TS7006: Parameter 'channel' implicitly has an 'any' type.
+apps/desktop/src/speech/speech-ipc.ts(20,30): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/speech/speech-ipc.ts(60,66): error TS7006: Parameter 'event' implicitly has an 'any' type.
+apps/desktop/src/speech/speech-ipc.ts(60,73): error TS7006: Parameter 'samples' implicitly has an 'any' type.
+apps/desktop/src/speech/speech-ipc.ts(60,82): error TS7006: Parameter 'sampleRate' implicitly has an 'any' type.
+apps/desktop/src/stage-payload-run.test.ts(18,44): error TS2307: Cannot find module 'app-builder-lib/out/fileMatcher.js' or its corresponding type declarations.
+apps/desktop/src/update-manifest-merge.test.ts(13,33): error TS2307: Cannot find module 'electron-updater/out/providers/Provider.js' or its corresponding type declarations.
+apps/desktop/src/verify-package-cli.test.ts(14,56): error TS2307: Cannot find module '@electron/asar' or its corresponding type declarations.
+apps/desktop/src/workspace-chat-ipc.test.ts(88,26): error TS7031: Binding element 'siteDir' implicitly has an 'any' type.
+apps/desktop/src/workspace-chat-ipc.test.ts(115,117): error TS2345: Argument of type '(siteDir: string) => null' is not assignable to parameter of type '(input: { siteDir: string; }, options?: Record<string, never> | undefined) => TurnAddressee | null'.
+  Types of parameters 'siteDir' and 'input' are incompatible.
+    Type '{ siteDir: string; }' is not assignable to type 'string'.
+apps/desktop/src/workspace-chat-ipc.test.ts(116,109): error TS2345: Argument of type '(siteDir: string) => null' is not assignable to parameter of type '(input: { siteDir: string; }, options?: Record<string, never> | undefined) => TurnAddressee | null'.
+  Types of parameters 'siteDir' and 'input' are incompatible.
+    Type '{ siteDir: string; }' is not assignable to type 'string'.
+apps/desktop/src/workspace-conversation-gaps.test.ts(10,132): error TS2349: This expression is not callable.
+  Type 'FileLockOptions' has no call signatures.
+apps/desktop/src/workspace-conversation-gaps.test.ts(10,132): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+apps/website/src/features/agent-plugins/apply-connect-defaults.ts(68,140): error TS2322: Type 'import("/home/user/Tovu/apps/website/src/contracts/headless/plugin-host", { with: { "resolution-mode": "import" } }).AgentPluginLayout' is not assignable to type 'import("/home/user/Jini/packages/agent-plugins/dist/connect/federate-mcp", { with: { "resolution-mode": "import" } }).AgentPluginLayout'.
+  Types of property 'forWorkspace' are incompatible.
+    Type '(required: { workspaceId: string; }, optional?: Record<string, never> | undefined) => AgentPluginWorkspaceLayout' is not assignable to type '(workspaceId: string) => { readonly root: string; }'.
+      Types of parameters 'required' and 'workspaceId' are incompatible.
+        Type 'string' is not assignable to type '{ workspaceId: string; }'.
+apps/website/src/features/agent-plugins/host-plugin-guidance.ts(137,32): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/agent-plugins/host-plugin-guidance.ts(165,16): error TS18048: 'markerFence' is possibly 'undefined'.
+apps/website/src/features/agent-plugins/host-plugin-guidance.ts(165,47): error TS18048: 'markerFence' is possibly 'undefined'.
+apps/website/src/features/agent-plugins/host-plugin-guidance.ts(165,85): error TS18048: 'markerSuffix' is possibly 'undefined'.
+apps/website/src/features/custom-credentials/card-token.ts(30,40): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/custom-credentials/card-token.ts(31,40): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/deployments/publish-credentials/store.ts(676,3): error TS2322: Type '{ [x: string]: string | undefined; providerId: string; }' is not assignable to type 'PublishConnectionInput'.
+  Type '{ [x: string]: string | undefined; providerId: string; }' is not assignable to type 'Readonly<Record<string, string>>'.
+    'string' index signatures are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/media-import/fetch-image.ts(177,72): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ value: string; }'.
+apps/website/src/features/members/repo.memory.ts(194,26): error TS2345: Argument of type '{ rows: MemberRecord[]; limit: number; cursor: string | null; positionOf: (member: MemberRecord) => string[]; }' is not assignable to parameter of type '{ rows: readonly MemberRecord[]; limit: number; cursor: string | null; positionOf: (row: MemberRecord) => ListPosition; shape: ListPositionShape; }'.
+  Property 'shape' is missing in type '{ rows: MemberRecord[]; limit: number; cursor: string | null; positionOf: (member: MemberRecord) => string[]; }' but required in type '{ rows: readonly MemberRecord[]; limit: number; cursor: string | null; positionOf: (row: MemberRecord) => ListPosition; shape: ListPositionShape; }'.
+apps/website/src/features/members/repo.ts(189,81): error TS2353: Object literal may only specify known properties, and 'size' does not exist in type '{ cursor: string; shape: ListPositionShape; }'.
+apps/website/src/features/pages/hidden-until-script.ts(45,20): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/pages/hidden-until-script.ts(72,41): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/pages/hidden-until-script.ts(77,23): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/pages/hidden-until-script.ts(87,22): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/pages/hidden-until-script.ts(88,40): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/pages/hidden-until-script.ts(97,17): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/post/cover-image.ts(56,21): error TS2345: Argument of type 'T | undefined' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'T | undefined'.
+apps/website/src/features/publish-content/media-references.ts(46,34): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/publish-content/media-references.ts(48,15): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/publish-content/peer-transport.ts(529,30): error TS2345: Argument of type '{ value: { value: unknown; what: string; baseUrl: string; }; }' is not assignable to parameter of type '{ value: unknown; what: string; baseUrl: string; }'.
+  Type '{ value: { value: unknown; what: string; baseUrl: string; }; }' is missing the following properties from type '{ value: unknown; what: string; baseUrl: string; }': what, baseUrl
+apps/website/src/features/site-backup/archive-extensions.ts(46,42): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/archive-extensions.ts(56,87): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/archive-extensions.ts(105,32): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/archive-extensions.ts(108,17): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/archive-extensions.ts(109,36): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/archive-extensions.ts(109,60): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/archive-paths.ts(77,25): error TS2538: Type 'undefined' cannot be used as an index type.
+apps/website/src/features/site-backup/bundled-export-file-policy.ts(40,40): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/bundled-export-file-policy.ts(40,60): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/credential-warnings.ts(24,27): error TS2538: Type 'undefined' cannot be used as an index type.
+apps/website/src/features/site-backup/import-keep-off.ts(35,44): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-keep-off.ts(35,74): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-keep-off.ts(36,118): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-plugin-state.ts(76,43): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-plugin-state.ts(77,60): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-plugin-state.ts(79,101): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-restore-placement.ts(44,71): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-restore-placement.ts(44,87): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-backup/import-restore-placement.ts(88,147): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-export/export-html-policy.ts(135,79): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-export/export-html-policy.ts(246,29): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-export/export-html-policy.ts(247,15): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/site-export/media-original-urls.ts(35,36): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-inspection/live-url.ts(102,21): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/site-inspection/live-url.ts(102,27): error TS18048: 'rawPath' is possibly 'undefined'.
+apps/website/src/features/site-inspection/page-body.ts(75,22): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/theme/file-identity-lock.ts(207,80): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+apps/website/src/features/theme/tool-registrations.ts(562,32): error TS2532: Object is possibly 'undefined'.
+apps/website/src/features/theme/tool-registrations.ts(567,33): error TS2532: Object is possibly 'undefined'.
+apps/website/src/server/runtime/composition/commerce.ts(214,107): error TS2322: Type '(message: string) => void' is not assignable to type '(required: { readonly message: string; }, optional?: { readonly error?: unknown; } | undefined) => void'.
+  Types of parameters 'message' and 'required' are incompatible.
+    Type '{ readonly message: string; }' is not assignable to type 'string'.

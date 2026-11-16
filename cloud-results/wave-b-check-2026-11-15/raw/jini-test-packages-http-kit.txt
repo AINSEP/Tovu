@@ -1,0 +1,299 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+
+ ✓ src/__tests__/rate-limit.test.ts (31 tests) 16ms
+ ✓ src/__tests__/api-security-middleware.test.ts (57 tests) 42ms
+stderr | src/__tests__/adapter.test.ts > http adapter > leaves no dangling close listener after a route that throws
+[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=151ba23d-fffb-4cdf-896d-b7eb3d344771) Error
+
+ ❯ src/__tests__/adapter.test.ts (17 tests | 1 failed) 35ms
+   × http adapter > allows a same-origin request through when requireSameOrigin is set 10ms
+     → expected "spy" to be called with arguments: [ 200 ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   200,
++   403,
+  ]
+
+
+Number of calls: 1
+
+ ✓ src/__tests__/origin-validation.test.ts (69 tests) 27ms
+ ❯ src/__tests__/sse.test.ts (29 tests | 1 failed) 51ms
+   × @jini-ai/http-kit — sse — createSseChannel > overflow (SEC-006) > defaults maxQueuedEvents to 1000 6ms
+     → expected undefined to be 1000 // Object.is equality
+ ✓ src/__tests__/adapter-pins.test.ts (21 tests) 23ms
+ ✓ src/__tests__/local-daemon-request.test.ts (61 tests) 32ms
+ ✓ src/__tests__/raw-sse.test.ts (19 tests) 630ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > keeps the stream open while a bodyless GET client stays connected 309ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > closes the stream when the client actually disconnects 305ms
+ ✓ src/__tests__/loopback-guards.negative.test.ts (73 tests) 28ms
+ ✓ src/__tests__/route-registration-guard.test.ts (15 tests) 8ms
+ ✓ src/__tests__/adapter-ports.test.ts (8 tests) 10ms
+ ✓ src/__tests__/observability.test.ts (19 tests) 39ms
+ ❯ src/__tests__/http-error-log-redaction.test.ts (24 tests | 2 failed) 704ms
+   × HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 479ms
+     → expected [ …(7) ] to deeply equal []
+   × HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages 203ms
+     → expected [ …(30) ] to deeply equal []
+ ✓ src/__tests__/body-size-limit.test.ts (7 tests) 6ms
+ ✓ src/__tests__/internal-error.test.ts (6 tests) 20ms
+ ✓ src/__tests__/html-response.test.ts (4 tests) 104ms
+ ✓ src/__tests__/pack-http.test.ts (4 tests) 39ms
+ ❯ src/__tests__/origin.test.ts (5 tests | 4 failed) 13ms
+   × guardSameOrigin > allows the request when isLocalSameOrigin says the origin matches 6ms
+     → guardSameOrigin is not a function
+   × guardSameOrigin > rejects the request when isLocalSameOrigin says the origin does not match 1ms
+     → guardSameOrigin is not a function
+   × guardSameOrigin > reads the context's own env when the host injected one, instead of the real process env 1ms
+     → guardSameOrigin is not a function
+   × guardSameOrigin > keeps the exact live environment reference when the host explicitly injects it 1ms
+     → guardSameOrigin is not a function
+ ✓ src/__tests__/local-daemon-request-pins.test.ts (37 tests) 12ms
+ ✓ src/__tests__/index.test.ts (17 tests) 7ms
+ ✓ src/__tests__/compat.test.ts (5 tests) 5ms
+ ❯ src/__tests__/response.test.ts (4 tests | 2 failed) 11ms
+   × statusForError > resolves the mapped status for a known generic error code 5ms
+     → statusForError is not a function
+   × statusForError > falls back to 500 for a code with no explicit mapping (e.g. a pack-defined code) 1ms
+     → statusForError is not a function
+ ✓ src/__tests__/trust-proxy.test.ts (4 tests) 6ms
+ ❯ src/__tests__/request.test.ts (4 tests | 2 failed) 8ms
+   × validationError > builds a plain BAD_REQUEST error when no issues are given 4ms
+     → validationError is not a function
+   × validationError > attaches structured validation issues when given 1ms
+     → validationError is not a function
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/adapter.test.ts > http adapter > allows a same-origin request through when requireSameOrigin is set
+AssertionError: expected "spy" to be called with arguments: [ 200 ]
+
+Received: 
+
+  1st spy call:
+
+  Array [
+-   200,
++   403,
+  ]
+
+
+Number of calls: 1
+
+ ❯ src/__tests__/adapter.test.ts:187:24
+    185|     const res = makeRes();
+    186|     await app.handlers['GET /secret']!({ body: {}, query: {}, params: …
+    187|     expect(res.status).toHaveBeenCalledWith(200);
+       |                        ^
+    188|     expect(res.json).toHaveBeenCalledWith({ secret: 42 });
+    189|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  src/__tests__/http-error-log-redaction.test.ts > HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages
+AssertionError: expected [ …(7) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/daemon/src/routines/scheduler.ts: console.error(
++             `[@jini-ai/daemon] routine ${routine.id} scheduled run failed:`,
++             describeErrorForLog({ err: scheduledRunFailureDetail(error) }),
++           )",
++   "/home/user/Jini/packages/daemon/src/routines/scheduler.ts: console.error(
++         `[@jini-ai/daemon] routine ${attempt.routine.id} prepare cleanup failed:`,
++         describeErrorForLog({ err: discardError }),
++       )",
++   "/home/user/Jini/packages/http-kit/src/internal-error.ts: console.error(`[@jini-ai/http-kit] internal error sink failed (${logSource}, correlationId=${context.correlationId})`, describeErrorForLog({ err: sinkError }))",
++   "/home/user/Jini/packages/http-kit/src/internal-error.ts: console.error(`[@jini-ai/http-kit] internal error sink failed (${logSource}, correlationId=${context.correlationId})`, describeErrorForLog({ err: sinkError }))",
++   "/home/user/Jini/packages/http-kit/src/internal-error.ts: console.error(`[@jini-ai/http-kit] internal error (${logSource}, correlationId=${context.correlationId})`, describeErrorForLog({ err: context.error }))",
++   "/home/user/Jini/packages/http-kit/src/internal-error.ts: console.error(`[@jini-ai/http-kit] internal error (${logSource}, correlationId=${context.correlationId})`, describeErrorForLog({ err: context.error }))",
++   "/home/user/Jini/packages/server/src/host-bootstrap.ts: logger.error(`[@jini-ai/server] graceful shutdown failed after ${signal}`, describeErrorForLog({ err: error }))",
++ ]
+
+ ❯ src/__tests__/http-error-log-redaction.test.ts:105:24
+    103|       sources(join(packages, name, 'src')).flatMap(path => rawErrorLog…
+    104|     );
+    105|     expect(violations).toEqual([]);
+       |                        ^
+    106|   });
+    107| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  src/__tests__/http-error-log-redaction.test.ts > HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages
+AssertionError: expected [ …(30) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "/home/user/Jini/packages/core/src/primitives/logger.ts: console.error(`${record.message} (diagnostics sink failed)`, describeErrorForLog({ err: sinkError }))",
++   "/home/user/Jini/packages/core/src/settings/express/stream.ts: console.error(`[settings] change feed ${operation} failed`, describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/cms/src/comments/express/submit-handler.ts: console.error(\"[site/comments-submit] unexpected error\", describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/cms/src/forms/express/handler.ts: console.error(`[site/forms-submit] failed to set validation flash cookie (slug=${slug})`, describeErrorForLog({ err: flashErr }))",
++   "/home/user/Jini/packages/cms/src/forms/notify-subscriber.ts: logger.warn({ message }, error === undefined ? {} : { error })",
++   "/home/user/Jini/packages/cms/src/forms/submit-service.ts: deps.logger.warn({ message: \"form upload cleanup failed\" }, { error: cleanupError })",
++   "/home/user/Jini/packages/cms/src/forms/submit-service.ts: deps.logger.warn({ message: \"form outbox dispatch failed\" }, { error })",
++   "/home/user/Jini/packages/agent-runtime/src/providers/oauth-callback-server.ts: console.error('[oauth-callback-server] onCallback failed:', describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/agent-runtime/src/providers/oauth-tokens.ts: console.error('[oauth-tokens] Corrupted JSON, returning empty:', describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/agent-runtime/src/providers/oauth-tokens.ts: console.warn(
++         '[oauth-tokens] could not chmod 0600',
++         file,
++         describeErrorForLog({ err }),
++       )",
++   "/home/user/Jini/packages/mcp/src/core/config.ts: console.error('[mcp-config] Corrupted JSON, returning empty:', describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/mcp/src/core/tokens.ts: console.error('[mcp-tokens] Corrupted JSON, returning empty:', describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/mcp/src/federation/bootstrap.ts: logger.warn({ message: `mcp-federation: '${connectionId}' failed, continuing without its tools` }, { error })",
++   "/home/user/Jini/packages/mcp/src/federation/bootstrap.ts: logger.warn(
++         { message: `mcp-federation: preset '${preset.presetId}' configuration is invalid, continuing without federated tools` },
++         { error },
++       )",
++   "/home/user/Jini/packages/db/src/kernel/postgres/driver.ts: console.warn('[postgres] idle pool connection dropped:', describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/chat/src/react/components/Composer.hooks.ts: console.error(`[@jini-ai/chat] Composer ${effectName} host effect failed:`, describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/components/ConversationList.hooks.ts: console.error(`[@jini-ai/chat] ConversationList ${effectName} host effect failed:`, describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/components/ConversationTitleEditor.hooks.ts: console.error('[@jini-ai/chat] ConversationTitleEditor onCommit host effect failed:', describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/components/ExtEventErrorBoundary.tsx: console.error(`[ExtEventErrorBoundary] ext event \"${this.props.name}\" failed to render:`, describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/components/ToolCard.tsx: console.error(`[ToolCard] custom renderer for \"${use.name}\" threw; falling back`, describeErrorForLog({ err }))",
++   "/home/user/Jini/packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts: console.error('[@jini-ai/chat] useChatPaneFileDrop onFiles host effect failed:', describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts: console.error('[@jini-ai/chat] useChatPaneFileDrop onFiles host effect failed:', describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/hooks/useConversation.ts: console.error('[chat] conversation refresh failed', describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/chat/src/react/hooks/useRunStream.ts: console.error(`[@jini-ai/chat] useRunStream ${effectName} host effect failed:`, describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/plugins/src/host/capability-tools.ts: console.warn(
++         text.activationReadDenied({ pluginId, detail: describeErrorForLog({ err: error }) }),
++       )",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(\"[plugin-runtime] bundled discovery failed; chart providers remain unavailable\", describeErrorForLog({ err: error }))",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(redactSecrets({ input: `[plugin-runtime] bundled initialization failed for '${failure.pluginId}'` }, { redactPii: false }), describeErrorForLog({ err: failure.error }))",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(`[plugin-runtime] provider plugin '${record.id}' failed to load; its contract stays on the noop: ${describeErrorForLog({ err: error })}`)",
++   "/home/user/Jini/packages/plugins/src/host/node/runtime-core.ts: console.warn(`[plugin-runtime] Plugin '${id}' restored-version reload failed`, describeErrorForLog({ err: rollbackError }))",
++   "/home/user/Jini/packages/ui/src/features/sketch-editor/react/hooks/useSketchSaveWorkflow.ts: console.warn('[SketchEditor] export image failed', describeErrorForLog({ err }))",
++ ]
+
+ ❯ src/__tests__/http-error-log-redaction.test.ts:141:24
+    139|       sources(join(packages, name, 'src')).flatMap(path => rawCaughtEr…
+    140|     );
+    141|     expect(violations).toEqual([]);
+       |                        ^
+    142|   });
+    143| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  src/__tests__/origin.test.ts > guardSameOrigin > allows the request when isLocalSameOrigin says the origin matches
+TypeError: guardSameOrigin is not a function
+ ❯ src/__tests__/origin.test.ts:29:20
+     27|   it('allows the request when isLocalSameOrigin says the origin matche…
+     28|     vi.mocked(isLocalSameOrigin).mockReturnValue(true);
+     29|     const result = guardSameOrigin({ req: {} as any, origin });
+       |                    ^
+     30|     expect(result).toEqual({ ok: true, value: undefined });
+     31|     expect(isLocalSameOrigin).toHaveBeenCalledWith({ req: {}, port: 74…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  src/__tests__/origin.test.ts > guardSameOrigin > rejects the request when isLocalSameOrigin says the origin does not match
+TypeError: guardSameOrigin is not a function
+ ❯ src/__tests__/origin.test.ts:38:20
+     36|   it('rejects the request when isLocalSameOrigin says the origin does …
+     37|     vi.mocked(isLocalSameOrigin).mockReturnValue(false);
+     38|     const result = guardSameOrigin({ req: {} as any, origin });
+       |                    ^
+     39|     expect(result).toEqual({
+     40|       ok: false,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  src/__tests__/origin.test.ts > guardSameOrigin > reads the context's own env when the host injected one, instead of the real process env
+TypeError: guardSameOrigin is not a function
+ ❯ src/__tests__/origin.test.ts:53:5
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+ FAIL  src/__tests__/origin.test.ts > guardSameOrigin > keeps the exact live environment reference when the host explicitly injects it
+TypeError: guardSameOrigin is not a function
+ ❯ src/__tests__/origin.test.ts:61:5
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/12]⎯
+
+ FAIL  src/__tests__/request.test.ts > validationError > builds a plain BAD_REQUEST error when no issues are given
+TypeError: validationError is not a function
+ ❯ src/__tests__/request.test.ts:18:12
+     16| describe('validationError', () => {
+     17|   it('builds a plain BAD_REQUEST error when no issues are given', () =…
+     18|     expect(validationError({ message: 'name is required' })).toEqual({
+       |            ^
+     19|       code: 'BAD_REQUEST',
+     20|       message: 'name is required',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/12]⎯
+
+ FAIL  src/__tests__/request.test.ts > validationError > attaches structured validation issues when given
+TypeError: validationError is not a function
+ ❯ src/__tests__/request.test.ts:26:19
+     24|   it('attaches structured validation issues when given', () => {
+     25|     const issues = [{ path: 'name', message: 'required' }];
+     26|     const error = validationError({ message: 'validation failed' }, { …
+       |                   ^
+     27|     expect(error).toEqual({
+     28|       code: 'BAD_REQUEST',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/12]⎯
+
+ FAIL  src/__tests__/response.test.ts > statusForError > resolves the mapped status for a known generic error code
+TypeError: statusForError is not a function
+ ❯ src/__tests__/response.test.ts:31:12
+     29| describe('statusForError', () => {
+     30|   it('resolves the mapped status for a known generic error code', () =…
+     31|     expect(statusForError({ error: { code: 'NOT_FOUND', message: 'x' }…
+       |            ^
+     32|     expect(statusForError({ error: { code: 'FORBIDDEN', message: 'x' }…
+     33|     expect(statusForError({ error: { code: 'TOOL_TOKEN_MISSING', messa…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/12]⎯
+
+ FAIL  src/__tests__/response.test.ts > statusForError > falls back to 500 for a code with no explicit mapping (e.g. a pack-defined code)
+TypeError: statusForError is not a function
+ ❯ src/__tests__/response.test.ts:39:12
+     37| 
+     38|   it('falls back to 500 for a code with no explicit mapping (e.g. a pa…
+     39|     expect(statusForError({ error: { code: 'SOME_PACK_SPECIFIC_ERROR',…
+       |            ^
+     40|   });
+     41| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/12]⎯
+
+ FAIL  src/__tests__/sse.test.ts > @jini-ai/http-kit — sse — createSseChannel > overflow (SEC-006) > defaults maxQueuedEvents to 1000
+AssertionError: expected undefined to be 1000 // Object.is equality
+
+- Expected: 
+1000
+
++ Received: 
+undefined
+
+ ❯ src/__tests__/sse.test.ts:116:45
+    114| 
+    115|     it('defaults maxQueuedEvents to 1000', () => {
+    116|       expect(DEFAULT_MAX_QUEUED_SSE_EVENTS).toBe(1000);
+       |                                             ^
+    117|     });
+    118| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/12]⎯
+
+ Test Files  6 failed | 18 passed (24)
+      Tests  12 failed | 528 passed (540)
+   Start at  05:19:28
+   Duration  5.36s (transform 1.05s, setup 0ms, collect 3.51s, tests 1.88s, environment 5ms, prepare 1.61s)
+

@@ -1,0 +1,13 @@
+scripts/gen-host-ports.ts(40,82): error TS2352: Conversion of type 'Statement' to type 'Declaration' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property '_declarationBrand' is missing in type 'Statement' but required in type 'Declaration'.
+scripts/gen-host-ports.ts(67,25): error TS2550: Property 'groupBy' does not exist on type 'MapConstructor'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2024' or later.
+scripts/gen-host-ports.ts(67,51): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+npm notice To update run: npm install -g npm@12.2.2
+npm notice
+
+real	0m2.600s
+user	0m4.276s
+sys	0m0.403s

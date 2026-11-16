@@ -1,0 +1,1 @@
+Log-safety ratchet passed: 214 raw log paths in 132 file/rule entries.

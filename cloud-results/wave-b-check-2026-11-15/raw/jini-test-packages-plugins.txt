@@ -1,0 +1,257 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugins
+
+ ✓ src/host/__tests__/unit/install.unit.test.ts (43 tests) 454ms
+ ✓ src/host/__tests__/integration/hook-registry.integration.test.ts (31 tests) 26ms
+ ✓ src/host/__tests__/unit/manifest.unit.test.ts (38 tests) 14ms
+ ❯ src/host/__tests__/unit/provider-contributions.unit.test.ts (20 tests | 2 failed) 266ms
+   × provider contributions on the existing plugin pipeline > validates declarations, contract version, duplicate identity, capability and tier 15ms
+     → PLUGIN_PROVIDER_CAPABILITY is not defined
+   × provider contributions on the existing plugin pipeline > accepts declared provider settings (public + secret fields) and refuses malformed ones 2ms
+     → PLUGIN_PROVIDER_CAPABILITY is not defined
+ ✓ src/host/__tests__/unit/package-files.unit.test.ts (20 tests) 102ms
+ ✓ src/host/__tests__/integration/loader.integration.test.ts (14 tests) 55ms
+ ✓ src/host/__tests__/unit/capability-tools.extract-s6.unit.test.ts (8 tests) 13ms
+ ✓ src/host/__tests__/unit/plugin-claims.unit.test.ts (16 tests) 26ms
+ ✓ src/host/__tests__/unit/plugin-identity.unit.test.ts (15 tests) 173ms
+ ✓ src/host/__tests__/integration/discovery.integration.test.ts (7 tests) 101ms
+ ✓ src/host/__tests__/unit/source-drafts.unit.test.ts (40 tests) 3636ms
+ ✓ src/host/__tests__/unit/module-snapshot-lifecycle.unit.test.ts (12 tests) 8ms
+ ✓ src/host/tools/__tests__/public-entry.test.ts (4 tests) 27ms
+ ✓ src/host/__tests__/unit/declarative-content-types.extract-s6.unit.test.ts (8 tests) 12ms
+ ✓ src/host/worker/__tests__/run-call.l237.characterization.test.ts (19 tests) 7ms
+ ✓ src/host/__tests__/unit/runtime-core.extract-s6.unit.test.ts (3 tests) 62ms
+ ✓ src/host/__tests__/unit/contributions.l121.characterization.unit.test.ts (36 tests) 17ms
+ ✓ src/host/__tests__/unit/discovery.unit.test.ts (9 tests) 93ms
+ ✓ src/host/__tests__/unit/uninstall.unit.test.ts (13 tests) 6ms
+ ✓ src/host/__tests__/unit/capability-sdk.unit.test.ts (36 tests) 7ms
+ ✓ src/glue/__tests__/manifest.test.ts (25 tests) 6ms
+ ✓ src/host/__tests__/integration/browser-provider-assets.integration.test.ts (8 tests) 91ms
+ ✓ src/host/__tests__/unit/contribution-sdk.unit.test.ts (5 tests) 14ms
+ ✓ src/host/__tests__/unit/loader.unit.test.ts (22 tests) 20ms
+ ✓ src/host/__tests__/unit/contributions.edges.unit.test.ts (20 tests) 15ms
+ ✓ src/host/__tests__/unit/tier2-import-seam.unit.test.ts (13 tests) 9ms
+ ✓ src/glue/__tests__/capability-gate.test.ts (25 tests) 5ms
+ ✓ src/glue/__tests__/tool-registration.test.ts (8 tests) 6ms
+ ✓ src/host/__tests__/unit/manifest.l121.characterization.unit.test.ts (43 tests) 12ms
+ ✓ src/host/__tests__/unit/tier2-run-call.unit.test.ts (13 tests) 9ms
+ ✓ src/host/__tests__/unit/plugin-format.unit.test.ts (8 tests) 85ms
+ ✓ src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts (8 tests) 9ms
+ ✓ src/host/__tests__/unit/activation.unit.test.ts (11 tests) 8ms
+ ✓ src/host/__tests__/unit/l1c1.extract-s6.unit.test.ts (7 tests) 6ms
+ ✓ src/host/__tests__/unit/claim-conflicts.unit.test.ts (16 tests) 7ms
+ ✓ src/host/__tests__/unit/browser-providers.l121.characterization.unit.test.ts (42 tests) 12ms
+ ✓ src/host/__tests__/unit/hook-registry-field-types.unit.test.ts (39 tests) 24ms
+ ✓ src/host/__tests__/integration/browser-provider-approval-matrix.integration.test.ts (20 tests) 32ms
+ ✓ src/host/__tests__/unit/declarative-enable.unit.test.ts (8 tests) 10ms
+ ✓ src/host/__tests__/integration/repo.contract.integration.test.ts (10 tests) 24ms
+ ✓ src/host/__tests__/integration/package-files-limits.integration.test.ts (10 tests) 47ms
+ ✓ src/host/__tests__/integration/provider-artifact.integration.test.ts (5 tests) 45ms
+ ✓ src/host/__tests__/unit/module-snapshot.unit.test.ts (6 tests) 42ms
+ ✓ src/host/__tests__/unit/capability-tools.before-save-hook.extract-s6-fix.unit.test.ts (2 tests) 7ms
+ ✓ src/host/__tests__/integration/package-snapshot-safety.integration.test.ts (13 tests) 59ms
+ ✓ src/host/__tests__/unit/provider-setting-required.unit.test.ts (6 tests) 9ms
+ ✓ src/host/__tests__/unit/invocation-binding.extract-s6.unit.test.ts (4 tests) 11ms
+ ✓ src/__tests__/package-surface.integration.test.ts (3 tests) 198ms
+ ✓ src/host/worker/__tests__/protocol.l237.characterization.test.ts (35 tests) 6ms
+ ✓ src/host/__tests__/unit/contributions.unit.test.ts (3 tests) 7ms
+ ✓ src/host/__tests__/unit/hook-registry-preview.unit.test.ts (5 tests) 6ms
+ ✓ src/host/__tests__/unit/quarantine-observer.unit.test.ts (3 tests) 7ms
+ ✓ src/host/__tests__/unit/manifest.grammar.unit.test.ts (43 tests) 13ms
+ ✓ src/host/__tests__/unit/attach-loaded-plugin.unit.test.ts (5 tests) 5ms
+ ✓ src/host/__tests__/unit/bundled-initialization.test.ts (3 tests) 4ms
+ ✓ src/host/__tests__/unit/provider-revision-watch.unit.test.ts (2 tests) 6ms
+ ✓ src/glue/__tests__/injected-host.test.ts (4 tests) 4ms
+ ❯ src/host/__tests__/unit/provider-settings-migrations.unit.test.ts (2 tests | 2 failed) 11ms
+   × migrates only matching retired choices, including absent values, without mutating inputs 8ms
+     → PLUGIN_PROVIDER_CAPABILITY is not defined
+   × refuses malformed hooks, undeclared references and all secret reads or assignments 1ms
+     → PLUGIN_PROVIDER_CAPABILITY is not defined
+ ✓ src/host/__tests__/unit/tier2-protocol.unit.test.ts (13 tests) 6ms
+ ✓ src/host/__tests__/unit/quarantine.unit.test.ts (2 tests) 3ms
+ ✓ src/host/__tests__/unit/provider-guidance.unit.test.ts (13 tests) 11ms
+ ✓ src/host/tools/__tests__/vocabulary.test.ts (1 test) 101ms
+ ✓ src/host/__tests__/unit/plugin-format.pins.unit.test.ts (3 tests) 5ms
+ ✓ src/glue/__tests__/delegate-ownership.w8.test.ts (2 tests) 3ms
+ ✓ src/glue/__tests__/delegate-forwarding.test.ts (2 tests) 3ms
+ ✓ src/host/__tests__/unit/claim-normalization.unit.test.ts (19 tests) 5ms
+ ✓ src/__tests__/args-convention.contract.test.ts (2 tests) 4ms
+ ❯ src/host/__tests__/unit/provider-schema-w2g.unit.test.ts (5 tests | 1 failed) 10ms
+   × migration predicates cannot read secrets or use a secret field as their presence gate 6ms
+     → PLUGIN_PROVIDER_CAPABILITY is not defined
+ ✓ src/host/__tests__/unit/hook-quarantine-w2g.unit.test.ts (1 test) 7ms
+ ✓ src/host/__tests__/unit/plugin-route-grammar.unit.test.ts (42 tests) 14ms
+ ✓ src/host/tools/__tests__/optional-peers.test.ts (2 tests) 98ms
+ ✓ src/glue/__tests__/content-lifecycle.test.ts (2 tests) 4ms
+ ✓ src/glue/__tests__/events.test.ts (2 tests) 3ms
+ ❯ src/host/__tests__/host-entry-purity.test.ts (1 test | 1 failed) 7159ms
+   × ./host is universal and never evaluates executable source 7158ms
+     → Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   {
++     file: 'packages/plugins/src/host/manifest.ts',
++     kind: 'a',
++     package: '@jini-ai/plugins',
++     reason: './host (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js',
++     rule: 'SI-domain',
++     subpath: './host'
++   },
++   {
++     file: 'packages/plugins/src/host/manifest.ts',
++     kind: 'a',
++     package: '@jini-ai/plugins',
++     reason: './host/node (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js',
++     rule: 'SI-domain',
++     subpath: './host/node'
++   }
++ ]
+- []
+
+ ✓ src/host/__tests__/unit/open-flags.unit.test.ts (2 tests) 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/host/__tests__/host-entry-purity.test.ts > ./host is universal and never evaluates executable source
+AssertionError: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   {
++     file: 'packages/plugins/src/host/manifest.ts',
++     kind: 'a',
++     package: '@jini-ai/plugins',
++     reason: './host (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js',
++     rule: 'SI-domain',
++     subpath: './host'
++   },
++   {
++     file: 'packages/plugins/src/host/manifest.ts',
++     kind: 'a',
++     package: '@jini-ai/plugins',
++     reason: './host/node (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js',
++     rule: 'SI-domain',
++     subpath: './host/node'
++   }
++ ]
+- []
+
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "file": "packages/plugins/src/host/manifest.ts",
++     "kind": "a",
++     "package": "@jini-ai/plugins",
++     "reason": "./host (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js",
++     "rule": "SI-domain",
++     "subpath": "./host",
++   },
++   Object {
++     "file": "packages/plugins/src/host/manifest.ts",
++     "kind": "a",
++     "package": "@jini-ai/plugins",
++     "reason": "./host/node (host) reaches src/glue/manifest-keys.ts (glue) via ../glue/manifest-keys.js",
++     "rule": "SI-domain",
++     "subpath": "./host/node",
++   },
++ ]
+
+ ❯ src/host/__tests__/host-entry-purity.test.ts:22:10
+     20|   const closure = audit.closures.find((entry) => entry.package === '@j…
+     21|   assert.ok(closure, 'p1 must resolve the actual ./host export');
+     22|   assert.deepEqual(audit.findings.filter((finding) => finding.package …
+       |          ^
+     23|   for (const file of closure.files) {
+     24|     const source = ts.createSourceFile(file, readFileSync(join(repoRoo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/host/__tests__/unit/provider-contributions.unit.test.ts > provider contributions on the existing plugin pipeline > validates declarations, contract version, duplicate identity, capability and tier
+ReferenceError: PLUGIN_PROVIDER_CAPABILITY is not defined
+ ❯ providerAdmissionErrors src/host/provider-contributions.ts:171:62
+    169|   const error = (message: string): PluginValidationError => ({ code: '…
+    170|   if (tier !== 'tier-3') errors.push(error('provider declarations requ…
+    171|   if (!Array.isArray(capabilities) || !capabilities.includes(PLUGIN_PR…
+       |                                                              ^
+    172|   return errors;
+    173| }
+ ❯ Module.validatePluginProviderDeclarations src/host/provider-contributions.ts:163:18
+ ❯ validateContributes src/host/manifest.ts:427:22
+ ❯ Module.validateManifest src/host/manifest.ts:488:8
+ ❯ validate src/host/__tests__/unit/provider-contributions.unit.test.ts:44:49
+ ❯ src/host/__tests__/unit/provider-contributions.unit.test.ts:45:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/host/__tests__/unit/provider-contributions.unit.test.ts > provider contributions on the existing plugin pipeline > accepts declared provider settings (public + secret fields) and refuses malformed ones
+ReferenceError: PLUGIN_PROVIDER_CAPABILITY is not defined
+ ❯ providerAdmissionErrors src/host/provider-contributions.ts:171:62
+    169|   const error = (message: string): PluginValidationError => ({ code: '…
+    170|   if (tier !== 'tier-3') errors.push(error('provider declarations requ…
+    171|   if (!Array.isArray(capabilities) || !capabilities.includes(PLUGIN_PR…
+       |                                                              ^
+    172|   return errors;
+    173| }
+ ❯ Module.validatePluginProviderDeclarations src/host/provider-contributions.ts:163:18
+ ❯ validateContributes src/host/manifest.ts:427:22
+ ❯ Module.validateManifest src/host/manifest.ts:488:8
+ ❯ validate src/host/__tests__/unit/provider-contributions.unit.test.ts:54:42
+ ❯ src/host/__tests__/unit/provider-contributions.unit.test.ts:56:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  src/host/__tests__/unit/provider-schema-w2g.unit.test.ts > migration predicates cannot read secrets or use a secret field as their presence gate
+ReferenceError: PLUGIN_PROVIDER_CAPABILITY is not defined
+ ❯ providerAdmissionErrors src/host/provider-contributions.ts:171:62
+    169|   const error = (message: string): PluginValidationError => ({ code: '…
+    170|   if (tier !== 'tier-3') errors.push(error('provider declarations requ…
+    171|   if (!Array.isArray(capabilities) || !capabilities.includes(PLUGIN_PR…
+       |                                                              ^
+    172|   return errors;
+    173| }
+ ❯ Module.validatePluginProviderDeclarations src/host/provider-contributions.ts:163:18
+ ❯ src/host/__tests__/unit/provider-schema-w2g.unit.test.ts:23:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  src/host/__tests__/unit/provider-settings-migrations.unit.test.ts > migrates only matching retired choices, including absent values, without mutating inputs
+ReferenceError: PLUGIN_PROVIDER_CAPABILITY is not defined
+ ❯ providerAdmissionErrors src/host/provider-contributions.ts:171:62
+    169|   const error = (message: string): PluginValidationError => ({ code: '…
+    170|   if (tier !== 'tier-3') errors.push(error('provider declarations requ…
+    171|   if (!Array.isArray(capabilities) || !capabilities.includes(PLUGIN_PR…
+       |                                                              ^
+    172|   return errors;
+    173| }
+ ❯ Module.validatePluginProviderDeclarations src/host/provider-contributions.ts:163:18
+ ❯ validate src/host/__tests__/unit/provider-settings-migrations.unit.test.ts:11:38
+ ❯ src/host/__tests__/unit/provider-settings-migrations.unit.test.ts:14:10
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  src/host/__tests__/unit/provider-settings-migrations.unit.test.ts > refuses malformed hooks, undeclared references and all secret reads or assignments
+ReferenceError: PLUGIN_PROVIDER_CAPABILITY is not defined
+ ❯ providerAdmissionErrors src/host/provider-contributions.ts:171:62
+    169|   const error = (message: string): PluginValidationError => ({ code: '…
+    170|   if (tier !== 'tier-3') errors.push(error('provider declarations requ…
+    171|   if (!Array.isArray(capabilities) || !capabilities.includes(PLUGIN_PR…
+       |                                                              ^
+    172|   return errors;
+    173| }
+ ❯ Module.validatePluginProviderDeclarations src/host/provider-contributions.ts:163:18
+ ❯ validate src/host/__tests__/unit/provider-settings-migrations.unit.test.ts:11:38
+ ❯ src/host/__tests__/unit/provider-settings-migrations.unit.test.ts:30:12
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+ Test Files  4 failed | 71 passed (75)
+      Tests  6 failed | 1005 passed (1011)
+   Start at  05:21:31
+   Duration  20.80s (transform 2.15s, setup 0ms, collect 8.51s, tests 13.44s, environment 15ms, prepare 4.72s)
+

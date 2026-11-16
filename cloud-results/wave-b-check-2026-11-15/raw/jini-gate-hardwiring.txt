@@ -1,0 +1,25 @@
+[hardwiring] HW1-env-default: 17 total; 1 new
+[hardwiring] HW2-vendor-adapter: 16 total; 0 new
+[hardwiring] HW3-module-state: 145 total; 14 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 4 stale debt occurrences; remove them from /home/user/Jini/scripts/hardwiring-debt.json.
+[hardwiring] HW3-module-state packages/agent-runtime/src/defs/amp/index.ts:34: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/agent-runtime/src/executables.ts:274: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/agent-runtime/src/executables.ts:275: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/agent-runtime/src/launch.ts:21: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/agent-runtime/src/model-discovery-config.ts:57: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/chat/src/react/components/A2uiSurfaceCard.hooks.ts:23: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/daemon/src/agent-executor/launch.ts:117: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/daemon/src/agent-executor/launch.ts:118: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/daemon/src/agent-executor/launch.ts:119: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/daemon/src/agent-executor/mcp-bridge.ts:166: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/daemon/src/agent-executor/mcp-bridge.ts:229: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW1-env-default packages/platform/src/command.ts:56: process.env is allowed only as an injected environment default (?? process.env or env = process.env).
+[hardwiring] HW3-module-state packages/platform/src/mail/email-template.ts:35: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/ui/src/features/sketch-editor/react/dependencies-fake.hooks.ts:4: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[hardwiring] HW3-module-state packages/user-management/src/server/agent-tool-input.ts:30: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.

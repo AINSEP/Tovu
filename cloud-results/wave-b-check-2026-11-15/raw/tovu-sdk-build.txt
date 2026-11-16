@@ -1,0 +1,16 @@
+
+> @tovu/sdk@0.1.0 build
+> tsc -p tsconfig.json
+
+src/index.ts(138,8): error TS2307: Cannot find module '@jini-ai/core/contracts/plugin-sdk' or its corresponding type declarations.
+npm error Lifecycle script `build` failed with error:
+npm error code 2
+npm error path /home/user/Tovu/packages/sdk
+npm error workspace @tovu/sdk@0.1.0
+npm error location /home/user/Tovu/packages/sdk
+npm error command failed
+npm error command sh -c tsc -p tsconfig.json
+
+real	0m1.289s
+user	0m1.592s
+sys	0m0.210s

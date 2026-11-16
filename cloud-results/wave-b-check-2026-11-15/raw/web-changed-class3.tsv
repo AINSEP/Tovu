@@ -1,0 +1,15 @@
+IMPORT-ERROR	apps/website/src/server/runtime/composition/__tests__/commerce.integration.test.ts	Error: Cannot find module '/home/user/Tovu/node_modules/@jini-ai/provider-plugins/plugins/payments-stripe/0.7.1/jini.plugin.json'
+IMPORT-ERROR+ENV-postgres	apps/website/src/server/inbound/public-http/routes/commerce/__tests__/settlement.integration.test.ts	Error: Cannot find module '/home/user/Tovu/node_modules/@jini-ai/provider-plugins/plugins/payments-stripe/0.7.1/jini.plugin.json'
+OTHER	apps/website/src/server/inbound/admin-http/routes/seo/__tests__/put-entry.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	apps/website/src/server/inbound/admin-http/routes/workspace/__tests__/create.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts	AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const bound = lostFrontendBindings\.wrap\(registration\)/. Input:
+OTHER	apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts	TypeError [Error]: mintRunCredential is not a function
+OTHER	apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts	TypeError [Error]: Invalid URL
+OTHER	apps/website/src/server/runtime/composition/__tests__/browser-provider.integration.test.ts	AssertionError [ERR_ASSERTION]: the reviewed bundled provider initializes without integrity warnings
+OTHER	apps/website/src/server/runtime/composition/__tests__/cost-counters.baseline.test.ts	TypeError [Error]: Invalid URL
+OTHER	apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts	AssertionError [ERR_ASSERTION]: ../../../inbound/assistant/agent-daemon-server.ts must have one OAuth ports call
+OTHER	apps/website/src/server/runtime/composition/__tests__/form-delivery-vertical-slice.integration.test.ts	✖ drain 1: A completes, B is retrying with its next retry time and safe error code (50.5182ms)
+OTHER	apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+OTHER	apps/website/src/server/runtime/composition/__tests__/plugin-host.integration.test.ts	AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+OTHER	apps/website/src/server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts	AssertionError [ERR_ASSERTION]: sanity: forms analytics, forms notify and webhook fan-out each subscribe once
+OTHER	apps/website/src/server/runtime/composition/__tests__/vault-l005-characterization.test.ts	AssertionError [ERR_ASSERTION]: The input did not match the regular expression /VAULT_CATALOG_UNAVAILABLE/. Input:

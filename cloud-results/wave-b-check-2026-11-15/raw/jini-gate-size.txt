@@ -1,0 +1,7 @@
+New violation: [max-lines-per-function] packages/provider-plugins/src/observability-opentelemetry/otel-port.ts:73 createOtelObservabilityPort (97)
+Worsened from 560: [max-lines] packages/plugins/src/host/node/runtime-core.ts:801 <file> (561)
+Worsened from 566: [max-lines] packages/server/src/builtin-features.ts:644 <file> (567)
+Lower debt value from 588: [max-lines] packages/admin/src/seo/react/pages/SeoPage.tsx:725 <file> (587)
+Lower debt value from 712: [max-lines] packages/cms/src/taxonomy/write-service.ts:787 <file> (711)
+Remove stale debt entry: [max-lines-per-function] packages/diagnostics/src/observability/otel.ts:105 createOtelObservabilityPort (96)
+Size ratchet failed.

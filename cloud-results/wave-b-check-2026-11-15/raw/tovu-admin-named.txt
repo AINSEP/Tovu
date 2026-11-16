@@ -1,0 +1,271 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+stderr | src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > settings 401 after a site switch shows login without boot retries (password sign-in: true)
+An error occurred in the <ForwardRef(UiKitSecretInput)> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 401 shows username/password login and attempts boot exactly once, including Strict Mode replay
+An error occurred in the <ForwardRef(UiKitSecretInput)> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx (6 tests | 2 failed) 1369ms
+   × settings 401 after a site switch shows login without boot retries (password sign-in: false) 75ms
+   × settings 401 after a site switch shows login without boot retries (password sign-in: true) 1007ms
+stderr | src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 403 shows username/password login and attempts boot exactly once, including Strict Mode replay
+An error occurred in the <ForwardRef(UiKitSecretInput)> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+stderr | src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 404 shows username/password login and attempts boot exactly once, including Strict Mode replay
+An error occurred in the <ForwardRef(UiKitSecretInput)> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx (0 test)
+stderr | src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 500 shows username/password login and attempts boot exactly once, including Strict Mode replay
+An error occurred in the <ForwardRef(UiKitSecretInput)> component.
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries.
+
+
+ ❯ src/__tests__/unit/app-session-boot-token.unit.test.tsx (10 tests | 4 failed) 4371ms
+   × local bootstrap HTTP 401 shows username/password login and attempts boot exactly once, including Strict Mode replay 1010ms
+   × local bootstrap HTTP 403 shows username/password login and attempts boot exactly once, including Strict Mode replay 1008ms
+   × local bootstrap HTTP 404 shows username/password login and attempts boot exactly once, including Strict Mode replay 1011ms
+   × local bootstrap HTTP 500 shows username/password login and attempts boot exactly once, including Strict Mode replay 1004ms
+ ❯ src/__tests__/unit/app-logout-confirm.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-session-seam.unit.test.tsx (0 test)
+ ❯ src/__tests__/unit/app-shell-chrome.unit.test.tsx (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/app-chat-dock-seam.unit.test.tsx [ src/__tests__/unit/app-chat-dock-seam.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/chat/react/styles/chat-settings.css" from "src/components/AssistantDock/AssistantDock.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx:1:7
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import "@jini-ai/chat/react/styles/chat-settings.css";
+     |          ^
+  3  |  import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
+  4  |  import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  src/__tests__/unit/app-logout-confirm.unit.test.tsx [ src/__tests__/unit/app-logout-confirm.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-session-seam.unit.test.tsx [ src/__tests__/unit/app-session-seam.unit.test.tsx ]
+ FAIL  src/__tests__/unit/app-shell-chrome.unit.test.tsx [ src/__tests__/unit/app-shell-chrome.unit.test.tsx ]
+Error: Failed to resolve import "@jini-ai/chat/react/styles/chat-settings.css" from "src/components/AssistantDock/AssistantDock.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/user/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx:1:7
+  1  |  import { jsxDEV } from "react/jsx-dev-runtime";
+  2  |  import "@jini-ai/chat/react/styles/chat-settings.css";
+     |          ^
+  3  |  import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
+  4  |  import { subscribeToAdminPageSurfaces } from "@/lib/admin-frontend-session";
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29079:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29076:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27199:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27257:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27225:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28877:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22746:26
+ ❯ fetchModule node_modules/vite/dist/node/chunks/config.js:34073:15
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 401 shows username/password login and attempts boot exactly once, including Strict Mode replay
+ FAIL  src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 403 shows username/password login and attempts boot exactly once, including Strict Mode replay
+ FAIL  src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 404 shows username/password login and attempts boot exactly once, including Strict Mode replay
+ FAIL  src/__tests__/unit/app-session-boot-token.unit.test.tsx > local bootstrap HTTP 500 shows username/password login and attempts boot exactly once, including Strict Mode replay
+TestingLibraryElementError: Unable to find a label with the text of: Username
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/__tests__/unit/app-session-boot-token.unit.test.tsx:149:16
+    147|   }
+    148|   render(<StrictMode><SessionGate /></StrictMode>);
+    149|   await screen.findByLabelText("Username");
+       |                ^
+    150|   expect(screen.getByLabelText("Password")).toBeTruthy();
+    151|   // Repeated settings failures after fallback must not re-enter the l…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > settings 401 after a site switch shows login without boot retries (password sign-in: false)
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../../../Jini/packages/ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../../../Jini/packages/ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateForwardRef node_modules/react-dom/cjs/react-dom-client.development.js:10123:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12536:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx > settings 401 after a site switch shows login without boot retries (password sign-in: true)
+TestingLibraryElementError: Unable to find a label with the text of: Password
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+[36m</body>[39m
+ ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx:66:35
+     64|   render(<SessionGate />);
+     65|   if (passwordSignIn) {
+     66|     fireEvent.change(await screen.findByLabelText("Password"), { targe…
+       |                                   ^
+     67|     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+     68|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 5 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../../../Jini/packages/ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../../../Jini/packages/ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateForwardRef node_modules/react-dom/cjs/react-dom-client.development.js:10123:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12536:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "settings 401 after a site switch shows login without boot retries (password sign-in: true)". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../../../Jini/packages/ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../../../Jini/packages/ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateForwardRef node_modules/react-dom/cjs/react-dom-client.development.js:10123:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12536:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/__tests__/unit/app-session-boot-token.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "local bootstrap HTTP 401 shows username/password login and attempts boot exactly once, including Strict Mode replay". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../../../Jini/packages/ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../../../Jini/packages/ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateForwardRef node_modules/react-dom/cjs/react-dom-client.development.js:10123:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12536:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/__tests__/unit/app-session-boot-token.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "local bootstrap HTTP 403 shows username/password login and attempts boot exactly once, including Strict Mode replay". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../../../Jini/packages/ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../../../Jini/packages/ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateForwardRef node_modules/react-dom/cjs/react-dom-client.development.js:10123:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12536:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/__tests__/unit/app-session-boot-token.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "local bootstrap HTTP 404 shows username/password login and attempts boot exactly once, including Strict Mode replay". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: @jini-ai/ui selects and secret inputs need <UiKitProvider kit={...}> at the app root. Build the kit from your component library and mount the provider once per React root.
+ ❯ useUiKit ../../../Jini/packages/ui/src/react/kit.tsx:60:11
+ ❯ UiKitSecretInput ../../../Jini/packages/ui/src/react/kit.tsx:68:16
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateForwardRef node_modules/react-dom/cjs/react-dom-client.development.js:10123:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12536:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+ ❯ renderRootSync node_modules/react-dom/cjs/react-dom-client.development.js:18985:11
+
+This error originated in "src/__tests__/unit/app-session-boot-token.unit.test.tsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "local bootstrap HTTP 500 shows username/password login and attempts boot exactly once, including Strict Mode replay". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  6 failed | 8 passed (14)
+      Tests  6 failed | 77 passed (83)
+     Errors  5 errors
+   Start at  06:38:59
+   Duration  32.58s (transform 17.25s, setup 1.96s, import 37.22s, tests 6.86s, environment 8.64s)
+

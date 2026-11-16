@@ -1,0 +1,67 @@
+src/__tests__/fqfix-actions.unit.test.tsx(97,49): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ value: string; }'.
+src/__tests__/fqfix-actions.unit.test.tsx(208,49): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ value: string; }'.
+src/__tests__/fqfix-editor-reopen.unit.test.tsx(115,31): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ text: string; }'.
+src/components/AssistantDock/AssistantDock.tsx(382,22): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?
+src/components/AssistantDock/__tests__/resolve-composer-discovery-outcome.unit.test.ts(47,96): error TS2322: Type '(argument: string | null | undefined) => ComposerHostBinding' is not assignable to type '(required: { argument: string | null | undefined; }, optional?: Record<string, never> | undefined) => ComposerHostBinding'.
+  Types of parameters 'argument' and 'required' are incompatible.
+    Type '{ argument: string | null | undefined; }' is not assignable to type 'string'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(101,66): error TS2345: Argument of type '{ onAgentAction: Mock<Procedure>; name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ onAgentAction: Mock<Procedure>; name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(111,66): error TS2345: Argument of type '{ onAgentAction: Mock<Procedure>; name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ onAgentAction: Mock<Procedure>; name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(120,66): error TS2345: Argument of type '{ name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(127,66): error TS2345: Argument of type '{ onAgentAction: (_runId: string | undefined, action: unknown) => void; name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ onAgentAction: (_runId: string | undefined, action: unknown) => void; name: string; events: never[]; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(145,81): error TS2345: Argument of type '{ events: unknown[]; name: string; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ events: unknown[]; name: string; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(157,81): error TS2345: Argument of type '{ events: unknown[]; name: string; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ events: unknown[]; name: string; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx(168,66): error TS2345: Argument of type '{ events: { createSurface: { surfaceId: string; }; }[]; name: string; runStreaming: boolean; runSucceeded: boolean; runId: string; }' is not assignable to parameter of type 'A2uiSurfaceCardProps'.
+  Property 'clock' is missing in type '{ events: { createSurface: { surfaceId: string; }; }[]; name: string; runStreaming: boolean; runSucceeded: boolean; runId: string; }' but required in type 'A2uiSurfaceCardProps'.
+src/components/__tests__/AssistantDock.chat-settings.unit.test.tsx(140,64): error TS2345: Argument of type '{ load: () => Promise<{ toolCalls: ChatToolCallDisplay; showUsageLine: boolean; showThinking: boolean; }>; save: (next: ChatDisplayPreferences) => Promise<...>; subscribeToSettingsRefresh: () => () => void; }' is not assignable to parameter of type 'ChatDisplayPreferencesPort'.
+  Types of property 'save' are incompatible.
+    Type '(next: ChatDisplayPreferences) => Promise<void>' is not assignable to type '(input: { next: ChatDisplayPreferences; previous: ChatDisplayPreferences; }, options?: Record<string, never> | undefined) => Promise<...>'.
+      Types of parameters 'next' and 'input' are incompatible.
+        Type '{ next: ChatDisplayPreferences; previous: ChatDisplayPreferences; }' is missing the following properties from type 'ChatDisplayPreferences': toolCalls, showUsageLine, showThinking
+src/components/__tests__/AssistantDock.unit.test.tsx(893,19): error TS18046: 'element.props.clock' is of type 'unknown'.
+src/features/pages/__tests__/editor-html-jump.unit.test.ts(122,97): error TS2345: Argument of type '{} | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/features/pages/hooks/__tests__/theme-canvas-dependencies.unit.test.ts(37,58): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ url: string; }'.
+src/features/pages/hooks/__tests__/theme-canvas-dependencies.unit.test.ts(38,58): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ url: string; }'.
+src/features/pages/hooks/__tests__/theme-canvas-dependencies.unit.test.ts(62,61): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ url: string; }'.
+src/features/pages/hooks/__tests__/theme-canvas-dependencies.unit.test.ts(63,61): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ url: string; }'.
+src/features/pages/hooks/use-page-editor.hooks.ts(1136,5): error TS2322: Type '() => Promise<{ discarded: boolean; }>' is not assignable to type '() => Promise<void>'.
+  Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+    Type '{ discarded: boolean; }' is not assignable to type 'void'.
+src/features/plugins/AgentPluginDetailsModal.tsx(41,63): error TS2322: Type '({ pluginId }: { pluginId: string; }, _optional?: {}) => PluginPackageFilesController' is not assignable to type '(pluginId: string) => AgentPluginDetailsModalController'.
+  Types of parameters '__0' and 'pluginId' are incompatible.
+    Type 'string' is not assignable to type '{ pluginId: string; }'.
+src/features/plugins/AgentPluginDetailsModal.tsx(44,92): error TS2345: Argument of type '{ pluginId: string; }' is not assignable to parameter of type 'string'.
+src/features/posts/__tests__/posts-i18n.unit.test.ts(158,54): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '(id: string) => PostEditorController' is not assignable to type '({ postId }: { postId: string; }, _options?: Record<string, never>) => PostEditorController'.
+      Types of parameters 'id' and '__0' are incompatible.
+        Type '{ postId: string; }' is not assignable to type 'string'.
+src/features/posts/__tests__/posts-i18n.unit.test.ts(176,54): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '(id: string) => PostEditorController' is not assignable to type '({ postId }: { postId: string; }, _options?: Record<string, never>) => PostEditorController'.
+      Types of parameters 'id' and '__0' are incompatible.
+        Type '{ postId: string; }' is not assignable to type 'string'.
+src/features/posts/__tests__/posts-i18n.unit.test.ts(196,42): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '(id: string) => PostEditorController' is not assignable to type '({ postId }: { postId: string; }, _options?: Record<string, never>) => PostEditorController'.
+      Types of parameters 'id' and '__0' are incompatible.
+        Type '{ postId: string; }' is not assignable to type 'string'.
+src/features/posts/__tests__/posts-i18n.unit.test.ts(240,54): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '(id: string) => PostEditorController' is not assignable to type '({ postId }: { postId: string; }, _options?: Record<string, never>) => PostEditorController'.
+      Types of parameters 'id' and '__0' are incompatible.
+        Type '{ postId: string; }' is not assignable to type 'string'.
+src/features/posts/hooks/use-post-editor.hooks.ts(1006,5): error TS2322: Type '() => Promise<{ discarded: boolean; }>' is not assignable to type '() => Promise<void>'.
+  Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+    Type '{ discarded: boolean; }' is not assignable to type 'void'.
+src/hooks/__tests__/use-standing-draft-autosave.unit.test.ts(131,17): error TS2322: Type 'Promise<{ discarded: boolean; }>' is not assignable to type 'Promise<void>'.
+  Type '{ discarded: boolean; }' is not assignable to type 'void'.
+src/lib/__tests__/browser-stream.unit.test.ts(149,18): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ frame: string; }'.
+src/lib/__tests__/browser-stream.unit.test.ts(149,41): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ frame: string; }'.

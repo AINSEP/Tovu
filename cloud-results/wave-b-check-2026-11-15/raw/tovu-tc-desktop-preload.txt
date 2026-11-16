@@ -1,0 +1,2 @@
+apps/desktop/src/preload/preload.mts(27,64): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+apps/desktop/src/speech/preload-speech.cts(46,27): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
