@@ -10,7 +10,7 @@ import { buildDomainRegistrations, indexCatalogById, optionalString, requireInpu
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from '@jini-ai/core';
 import type { MediaModel, MediaProvider } from '@jini-ai/integrations/media-providers/catalog';
-import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
+import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
 import type { AuthorizeFn } from '@jini-ai/core/contracts/events';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from '@jini-ai/core';
@@ -99,25 +99,15 @@ function savedProviderMessage({ provider, tokenHint, locale }: {
  */
 export async function saveMediaCredential(required: { ctx: ToolExecutionContext; deps: MediaProviderToolDeps; surfaces: AssistantSurfaceDeps }, optional: ToolExecutionOptions = {}): Promise<ProposalResult> {
   const { ctx, deps, surfaces } = required;
-  const raw = requireInputRecord({ input: ctx.input });
-  if (Object.keys(raw).some(key => key !== 'provider' && key !== 'reason')) throw new ToolInputError({ message: 'media_propose_provider_credential accepts only provider and reason; enter the key in the human form.' });
-  const providerId = requireString({ input: raw, key: 'provider' });
-  const provider = catalogueProviders(deps.mediaProviderRegistry).find(candidate => candidate.id === providerId);
-  if (!provider) throw new ToolInputError({ message: 'Unknown media provider. Call media_list_providers for supported provider ids.' });
-  const reason = optionalString({ input: raw, key: 'reason' });
-  if (reason !== undefined) assertCredentialFreeField({ value: reason, field: "reason" });
-  if (reason !== undefined && reason.length > 1000) throw new ToolInputError({ message: 'Credential setup reason must be at most 1000 characters.' });
+  const { providerId, provider, reason } = parseCredentialRequest({ input: ctx.input, deps });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: 'admin.integrations.manage' }, { entityType: 'media' });
   const { providers } = await listProviders(deps);
   const listedProvider = providers.find(candidate => candidate.id === providerId);
   if (listedProvider === undefined) throw new Error('Media provider list has no selected provider');
   const configured = listedProvider.configured;
   const locale = await resolveOperatorLocale({ deps, workspaceId: deps.workspaceId, principalId: ctx.principal.id });
-  const saveFailure = 'Nothing was saved. Check the key and the server credential store, then try again.';
   // Strict non-secret validation and authorization retain their precedence over channel errors.
-  const card = defineSecretCardTool<{
-    provider: CatalogueProvider; configured: boolean; reason: string | undefined; locale: string;
-  }, Awaited<ReturnType<typeof saveMediaProviderKey>>, ProposalResult>({
+  const card = defineSecretCardTool<CredentialPrep, CredentialSaved, ProposalResult>({
     toolId: CREDENTIAL_SAVE_TOOL_ID,
     prepare: async () => ({ provider, configured, reason, locale }),
     form: ({ prep }) => ({
@@ -126,46 +116,15 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
       submitLabel: 'Save provider key',
       fields: [{ kind: 'string', name: 'apiKey', label: 'API key', secret: true, required: !prep.configured, allowBlank: prep.configured }],
     }),
-    save: ({ values, prep, signal }) => {
-      const store = deps.mediaProviderCredentialRepo;
-      const repo: MediaProviderCredentialRepoPort = {
-        vault: store.vault,
-        listByWorkspaceId: input => store.listByWorkspaceId(input),
-        upsert: record => store.upsert(record),
-        deleteByProviderIds: input => store.deleteByProviderIds(input),
-        // The planner runs inside the transaction, after sealing and any lock wait. Abort rolls it back.
-        replaceWorkspace: input => store.replaceWorkspace({ ...input, plan: ({ existing: current }) => {
-          signal.throwIfAborted();
-          return input.plan({ existing: current });
-        } }),
-      };
-      return saveMediaProviderKey({
-        deps: { repo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, providerCatalog: deps.mediaProviderRegistry },
-        workspaceId: deps.workspaceId, provider: prep.provider.id, apiKey: values.apiKey as string,
-      });
-    },
-    result: ({ prep, run }): ProposalResult => {
-      const declined: ProposalResult = { saved: false, provider: prep.provider.id, configured: prep.configured };
-      if (run.status === 'blank') return { ...declined, message: credentialText({ id: 'blank', locale: prep.locale }) };
-      if (run.status === 'failed') return { ...declined, ...(run.safeMessage !== saveFailure ? { message: run.safeMessage } : {}) };
-      if (run.status !== 'saved') return declined;
-      const message = savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale });
-      return { saved: true, provider: prep.provider.id, configured: run.saved.configured, tokenHint: run.saved.tokenHint, connection: 'not_tested', message };
-    },
-    // Fixed outcome text cannot echo a submitted key or a raw persistence error.
-    outcome: ({ prep, run }) => {
-      if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
-      const saved = run.status === 'saved';
-      let message: string;
-      if (run.status === 'saved') message = savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale });
-      else if (run.status === 'blank') message = credentialText({ id: 'blank', locale: prep.locale });
-      else if (run.status === 'failed') message = run.safeMessage;
-      else message = saveFailure;
-      return { title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' : 'failure', message };
-    },
+    save: ({ values, prep, signal }) => saveMediaProviderKey({
+      deps: { repo: abortableCredentialRepo({ store: deps.mediaProviderCredentialRepo, signal }), sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, providerCatalog: deps.mediaProviderRegistry },
+      workspaceId: deps.workspaceId, provider: prep.provider.id, apiKey: values.apiKey as string,
+    }),
+    result: ({ prep, run }) => credentialProposalResult({ prep, run }),
+    outcome: ({ prep, run }) => credentialOutcomeCard({ prep, run }),
   }, {
     uriHost: 'tovu',
-    text: { noEmitter: 'media_propose_provider_credential requires an interactive form channel. Nothing was saved.', saveFailure },
+    text: { noEmitter: 'media_propose_provider_credential requires an interactive form channel. Nothing was saved.', saveFailure: CREDENTIAL_SAVE_FAILURE },
     safeError: err => {
       const id = Object.entries(CREDENTIAL_MESSAGES).find(([, text]) => err instanceof Error && text === err.message)?.[0];
       return id ? credentialText({ id: id as keyof typeof CREDENTIAL_MESSAGES, locale }) : undefined;
@@ -173,6 +132,64 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
     logFailure: metadata => console.warn(JSON.stringify(metadata)),
   });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
+}
+
+const CREDENTIAL_SAVE_FAILURE = 'Nothing was saved. Check the key and the server credential store, then try again.';
+
+type CredentialPrep = { provider: CatalogueProvider; configured: boolean; reason: string | undefined; locale: string };
+type CredentialSaved = Awaited<ReturnType<typeof saveMediaProviderKey>>;
+type CredentialRun = SecretCardRun<CredentialSaved>;
+
+/** Strict, non-secret request parsing: only `provider` and `reason`, a known provider, a credential-free bounded reason. */
+function parseCredentialRequest(required: { input: unknown; deps: MediaProviderToolDeps }): { providerId: string; provider: CatalogueProvider; reason: string | undefined } {
+  const raw = requireInputRecord({ input: required.input });
+  if (Object.keys(raw).some(key => key !== 'provider' && key !== 'reason')) throw new ToolInputError({ message: 'media_propose_provider_credential accepts only provider and reason; enter the key in the human form.' });
+  const providerId = requireString({ input: raw, key: 'provider' });
+  const provider = catalogueProviders(required.deps.mediaProviderRegistry).find(candidate => candidate.id === providerId);
+  if (!provider) throw new ToolInputError({ message: 'Unknown media provider. Call media_list_providers for supported provider ids.' });
+  const reason = optionalString({ input: raw, key: 'reason' });
+  if (reason !== undefined) assertCredentialFreeField({ value: reason, field: "reason" });
+  if (reason !== undefined && reason.length > 1000) throw new ToolInputError({ message: 'Credential setup reason must be at most 1000 characters.' });
+  return { providerId, provider, reason };
+}
+
+/** The credential repo with its workspace planner guarded by the form's abort signal. */
+function abortableCredentialRepo(required: { store: MediaProviderToolDeps['mediaProviderCredentialRepo']; signal: AbortSignal }): MediaProviderCredentialRepoPort {
+  const { store, signal } = required;
+  return {
+    vault: store.vault,
+    listByWorkspaceId: input => store.listByWorkspaceId(input),
+    upsert: record => store.upsert(record),
+    deleteByProviderIds: input => store.deleteByProviderIds(input),
+    // The planner runs inside the transaction, after sealing and any lock wait. Abort rolls it back.
+    replaceWorkspace: input => store.replaceWorkspace({ ...input, plan: ({ existing: current }) => {
+      signal.throwIfAborted();
+      return input.plan({ existing: current });
+    } }),
+  };
+}
+
+function credentialProposalResult(required: { prep: CredentialPrep; run: CredentialRun }): ProposalResult {
+  const { prep, run } = required;
+  const declined: ProposalResult = { saved: false, provider: prep.provider.id, configured: prep.configured };
+  if (run.status === 'blank') return { ...declined, message: credentialText({ id: 'blank', locale: prep.locale }) };
+  if (run.status === 'failed') return { ...declined, ...(run.safeMessage !== CREDENTIAL_SAVE_FAILURE ? { message: run.safeMessage } : {}) };
+  if (run.status !== 'saved') return declined;
+  const message = savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale });
+  return { saved: true, provider: prep.provider.id, configured: run.saved.configured, tokenHint: run.saved.tokenHint, connection: 'not_tested', message };
+}
+
+// Fixed outcome text cannot echo a submitted key or a raw persistence error.
+function credentialOutcomeCard(required: { prep: CredentialPrep; run: CredentialRun }) {
+  const { prep, run } = required;
+  if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
+  const saved = run.status === 'saved';
+  let message: string;
+  if (run.status === 'saved') message = savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale });
+  else if (run.status === 'blank') message = credentialText({ id: 'blank', locale: prep.locale });
+  else if (run.status === 'failed') message = run.safeMessage;
+  else message = CREDENTIAL_SAVE_FAILURE;
+  return { title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' as const : 'failure' as const, message };
 }
 
 /** Wires read-only listing and human credential saves under a distinct contributor domain.
