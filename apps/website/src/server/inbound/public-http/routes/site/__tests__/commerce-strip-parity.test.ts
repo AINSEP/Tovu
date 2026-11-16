@@ -50,10 +50,15 @@ const MCP_POINTERS = ["env_secret_id", "oauth_secret_id"];
 
 // Preserve the historical golden: these later migrations add columns, never exemptions from parity.
 // f6de81431 (0014), 14f5085fd (0015), c29687fd7 (0016/0017).
-const LATER_COLUMNS: Record<string, { before: string; classes: Record<string, string> }> = {
+// 50253e2d (0042): the optimistic-concurrency `version` column on six editable tables (`before: null` appends).
+const LATER_COLUMNS: Record<string, { before: string | null; classes: Record<string, string> }> = {
   asset_blobs: { before: "content_type", classes: { document_owned: "boolean-flag" } },
   media: { before: "title", classes: { kind: "plain-text", original_filename: "plain-text" } },
   publish_history: { before: "published_at", classes: { credential_id: "plain-text", config_fields_json: "json-text", kind: "plain-text" } },
+  webhook_subscriptions: { before: "disabled_at", classes: { version: "plain-integer" } },
+  policies: { before: null, classes: { version: "plain-integer" } },
+  roles: { before: null, classes: { version: "plain-integer" } },
+  workspaces: { before: null, classes: { version: "plain-integer" } },
 };
 
 // Later migrations' whole tables, pinned column by column the same way: copied tables enter the
@@ -87,6 +92,9 @@ const LATER_TABLES: Record<string, { before: string | null; classes: Record<stri
 const LATER_UNCOPIED_COLUMNS: Record<string, Record<string, string>> = {
   members: { password_hash: "plain-text" },
   member_magic_tokens: { email: "plain-text", code_hash: "plain-text", failed_attempts: "plain-integer" },
+  // 0042 again, for the two tables a copy never carries.
+  identity_users: { version: "plain-integer" },
+  external_mcp_servers: { version: "plain-integer" },
 };
 
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "__fixtures__/commerce-strip-parity.golden.json"), "utf8")) as {
@@ -212,7 +220,7 @@ describe("catalogs against the pre-strip tree (4570fce9d)", () => {
     const expected = without(golden.transfer, [...COMMERCE, "members"]);
     for (const [table, addition] of Object.entries(LATER_COLUMNS)) {
       const columns = [...expected[table]];
-      const at = columns.indexOf(addition.before);
+      const at = addition.before === null ? columns.length : columns.indexOf(addition.before);
       assert.notEqual(at, -1, `${table}: the pre-strip insertion anchor must exist`);
       columns.splice(at, 0, ...Object.keys(addition.classes));
       expected[table] = columns;
