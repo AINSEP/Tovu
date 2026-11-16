@@ -2,7 +2,7 @@ import { CUSTOM, usePluginProviderChoice } from "./PluginProviderSettingField.ho
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { SecretInput } from "@/components/SecretInput/SecretInput";
-import type { AdminPluginProviderSettingField } from "@/lib/api";
+import type { AdminPluginProviderSettingField } from "@/features/plugins/api/plugins-api.types";
 
 import { interpolate } from '@jini-ai/core/text';
 /**

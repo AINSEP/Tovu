@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { ApiError } from "../admin-http/request";
@@ -172,7 +173,7 @@ test("deleteRole DELETEs /roles/:id", async () => {
 
 test("setPluginEnabled PATCHes { enabled } to /plugins/:id", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.setPluginEnabled({ pluginId: "p1", enabled: false });
+  await pluginsApi.setPluginEnabled({ pluginId: "p1", enabled: false });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/plugins/p1`);
   expect(calls[0].init?.method).toBe("PATCH");
   expect(body()).toEqual({ enabled: false });

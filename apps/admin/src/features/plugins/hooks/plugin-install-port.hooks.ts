@@ -1,4 +1,4 @@
-import type { AdminPluginConflict } from "@/lib/api";
+import type { AdminPluginConflict } from "@/features/plugins/api/plugins-api.types";
 
 /** Site-plugin install transport; agent plugins have a separate lifecycle and store. Mirrors
  *  `features/plugin-runtime/install.ts`'s `PluginInstallPreview`. */

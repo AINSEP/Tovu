@@ -1,5 +1,6 @@
 import type { MediaProviderCredentials } from "@jini-ai/ui/core";
 import type { PublishContentConfirmResult, PublishContentExecuteResult, PublishContentPeerSummary, PublishContentPlanResult, PublishScope } from "@tovu/publish-content-ui";
+import type { AdminPluginFiles } from "../features/plugins/api/plugins-api.types";
 import { adminFailureChannel } from "./admin-failure-channel";
 import { BASE, WORKSPACE_ID } from "./admin-http/config";
 import { ApiError, authenticatedAdminRequest, type AuthenticatedAdminRequestOptions, bodyFitsKeepalive, fetchOrThrowUnreachable, request, requestOnce } from "./admin-http/request";
@@ -1687,100 +1688,6 @@ export interface RestoreExecuteResult {
   restartRequired?: boolean;
 }
 
-/** Mirrors `apps/website/src/server/inbound/admin-http/http/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
- * §5) — the `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
-export interface AdminPlugin {
-  id: string;
-  name: string;
-  version: string;
-  source: "built-in" | "site";
-  /** (1.1.2, REQ-10/REQ-18) Additive — mirrors `AdminPluginEnvelope.tier`; consumed by `Plugins.tsx`'s
-   * per-row trust-tier badge (AC-26). */
-  tier: "tier-1" | "tier-2" | "tier-3";
-  status: "valid" | "invalid" | "incompatible";
-  enabled: boolean;
-  quarantine: null | {
-    at: string;
-    reason: string;
-    consecutiveFailures: number;
-  };
-  errors: Array<{ code: string; file: string | null; message: string }>;
-  /** (2026-10-04) Mirrors `AdminPluginEnvelope.conflicts`: names this plugin claims that core or an
-   * earlier-enabled plugin already holds. Optional so a row from a server predating the field still
-   * types; the current server always sends it (empty when clear). */
-  conflicts?: AdminPluginConflict[];
-  /** (2026-10-26) True when the plugin declares provider settings (its row offers a Settings card). */
-  providerSettings?: true;
-}
-
-/** One field of a provider plugin's settings card (`PLUGIN_PROVIDER_SETTINGS`). A secret field never
- *  carries its value back: `saved` says whether one is stored. */
-export interface AdminPluginProviderSettingField {
-  name: string;
-  label: string;
-  hint?: string;
-  /** Public fields: the plugin's declared value while none is saved (prefilled on the card). */
-  default?: string;
-  /** Public fields: the plugin's declared choices, shown as a select. */
-  options?: { value: string; label: string }[];
-  /** With `options`: a "Custom…" choice opens free text. */
-  allowCustom?: true;
-  secret: boolean;
-  required: boolean;
-  requiredUnless?: { readonly field: string; readonly equals: string; readonly orPresent?: string; readonly headerNames?: readonly string[] };
-  requiredWhen?: { readonly field: string; readonly in: readonly string[] };
-  saved: boolean;
-  value?: string;
-}
-
-/** `GET|PUT /workspaces/:id/plugins/:pluginId/provider-settings` (2026-10-26). */
-export interface AdminPluginProviderSettings {
-  pluginId: string;
-  /** Where this key lives; project keys are visible to attached sites only. */
-  store: "project" | "site";
-  appliesAt: "now" | "restart" | "failed"; message?: string;
-  keyId?: string;
-  usedByThisSite: boolean;
-  usedBy: string[];
-  projectAvailable?: boolean;
-  /** A key was saved the retired way (wave 2's `plugin:<id>` API credential) and nothing yet the new way. */
-  legacyCredential?: true;
-  /** Settings are saved but this machine can't open them (the store's key was lost or re-minted):
-   *  shown as not configured until they are entered again. */
-  unreadable?: true;
-  fields: AdminPluginProviderSettingField[];
-}
-
-/** One entry of {@link AdminPlugin.conflicts} — `Jini packages/plugins/src/host/plugin-claims.ts`'s
- *  `PluginConflict`. `heldBy` is `"core"` for a name Tovu itself reserves; `heldKey` is the holder's
- *  own spelling (a reserved prefix such as `/api/*` when that is what matched). */
-export interface AdminPluginConflict {
-  kind: string;
-  key: string;
-  heldBy: string;
-  heldByName: string;
-  heldKey: string;
-}
-
-/** Mirrors `server/inbound/admin-http/routes/plugins/files.ts`'s `PLUGIN_FILES` entry (2026-09-13) —
- *  one file in a plugin's own directory. `content` is `null` exactly when `omitted` is set. */
-export interface AdminPluginPackageFile {
-  relativePath: string;
-  sizeBytes: number;
-  content: string | null;
-  omitted: null | "binary" | "too-large" | "symlink" | "unreadable";
-}
-
-/** `PLUGIN_FILES`' whole response: the files, whether the server's caps cut the listing short,
- *  and those caps. */
-export interface AdminPluginFiles {
-  pluginId: string;
-  source: "built-in" | "site";
-  files: AdminPluginPackageFile[];
-  truncated: boolean;
-  limits: { maxFiles: number; maxEntries: number; maxFileBytes: number; maxTotalBytes: number };
-}
-
 /** Mirrors `server/inbound/admin-http/routes/agent-plugins/list.ts`'s response shape — the
  *  `AGENT_PLUGINS_LIST` per-plugin wire shape (2026-09-09). A DIFFERENT family from {@link
  *  AdminPlugin} above: Agent Plugins (agent-plugins.org packages) versus the `.tovu-plugin`
@@ -2812,34 +2719,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ confirmationToken, restorePointId }),
     } }),
-
-  // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
-  // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
-  listPlugins: () => request<{ plugins: AdminPlugin[] }>({ path: `/workspaces/${WORKSPACE_ID}/plugins` }),
-  /** PLUGIN_PROVIDER_SETTINGS (2026-10-26) — a provider plugin's declared settings card. */
-  getPluginProviderSettings: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
-    request<AdminPluginProviderSettings>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings` }),
-  /** Saves and reapplies card values; a blank secret keeps the saved one. */
-  savePluginProviderSettings: ({ pluginId, values }: { pluginId: string; values: Record<string, string> }, _optional: Record<string, never> = {}) =>
-    request<AdminPluginProviderSettings>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings` }, { init: {
-      method: "PUT", body: JSON.stringify({ values }),
-    } }),
-  setPluginEnabled: ({ pluginId, enabled }: { pluginId: string; enabled: boolean }, _optional: Record<string, never> = {}) =>
-    request<{ plugin: { id: string; version: string; enabled: boolean; updatedAt: string }; changeSetId: string }>(
-      { path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}` },
-      { init: { method: "PATCH", body: JSON.stringify({ enabled }) } }
-    ),
-  /** Moves a site plugin to the 60-day Trash. `PLUGIN_IN_TRASH` reports an existing parked copy. */
-  uninstallPlugin: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
-    request<{ pluginId: string; trashed: true }>(
-      { path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}` },
-      { init: { method: "DELETE" } }
-    ),
-  /** PLUGIN_FILES (2026-09-13) — `GET /workspaces/:id/plugins/:pluginId/files`: the read-only,
-   *  server-capped listing of one plugin's own files behind the Plugins screen's package-files
-   *  viewer. Refuses `PLUGIN_NOT_FOUND` (404) and `PLUGIN_ID_INVALID` (400). */
-  getPluginFiles: ({ pluginId }: { pluginId: string }, _optional: Record<string, never> = {}) =>
-    request<AdminPluginFiles>({ path: `/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/files` }),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).

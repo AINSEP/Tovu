@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
@@ -177,7 +178,7 @@ const singleIdCases: Case[] = [
 
   [
     "setPluginEnabled",
-    () => api.setPluginEnabled({ pluginId: SLASH_ID, enabled: true }),
+    () => pluginsApi.setPluginEnabled({ pluginId: SLASH_ID, enabled: true }),
     `${BASE_WORKSPACE}/plugins/${ENC}`,
   ],
   [

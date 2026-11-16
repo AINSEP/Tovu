@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
 import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
 
@@ -139,8 +140,8 @@ describe("endpoints", () => {
 
   it("site and agent plugins: uninstall, files, list, enable", async () => {
     const calls = stubFetch();
-    await api.uninstallPlugin({ pluginId: "seo/x" });
-    await api.getPluginFiles({ pluginId: "seo/x" });
+    await pluginsApi.uninstallPlugin({ pluginId: "seo/x" });
+    await pluginsApi.getPluginFiles({ pluginId: "seo/x" });
     await api.listAgentPlugins();
     await api.getAgentPluginFiles({ pluginId: "agent/y" });
     await api.setAgentPluginEnabled({ pluginId: "agent/y", enabled: false });

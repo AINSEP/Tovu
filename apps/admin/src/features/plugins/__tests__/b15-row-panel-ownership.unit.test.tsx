@@ -3,7 +3,8 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
 
-import type { AdminAgentPlugin, AdminPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { AgentPluginRow } from "../AgentPluginRow";
 import { PluginRow } from "../PluginRow";
 

@@ -1,4 +1,5 @@
-import { type AdminAgentPlugin, type AdminPlugin, type AdminPluginConflict, type AdminPluginFiles, type AdminPluginPackageFile, type AdminPluginProviderSettingField } from "../../lib/api";
+import { type AdminAgentPlugin } from "../../lib/api";
+import type { AdminPlugin, AdminPluginConflict, AdminPluginFiles, AdminPluginPackageFile, AdminPluginProviderSettingField } from "./api/plugins-api.types";
 import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { isProviderSettingRequired } from "@jini-ai/plugins/host";
 import { t } from "./plugins-i18n";

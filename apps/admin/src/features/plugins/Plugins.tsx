@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-import type { AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import { Toast } from "@jini-ai/ui";
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";

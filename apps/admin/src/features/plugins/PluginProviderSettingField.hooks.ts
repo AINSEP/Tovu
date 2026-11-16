@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AdminPluginProviderSettingField } from "@/lib/api";
+import type { AdminPluginProviderSettingField } from "@/features/plugins/api/plugins-api.types";
 
 /** The `Custom…` option's value; never a real setting value (those are URLs or plain text). */
 export const CUSTOM = "\u0000custom";

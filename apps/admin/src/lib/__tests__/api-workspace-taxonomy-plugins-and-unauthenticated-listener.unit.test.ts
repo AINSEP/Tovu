@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
@@ -139,7 +140,7 @@ test("listPlugins GETs the workspace plugins collection and resolves the parsed 
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true }] })
   );
-  await expect(api.listPlugins()).resolves.toEqual({
+  await expect(pluginsApi.listPlugins()).resolves.toEqual({
     plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true }],
   });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/plugins`);
