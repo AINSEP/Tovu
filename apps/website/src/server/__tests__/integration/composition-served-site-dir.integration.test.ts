@@ -188,7 +188,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
     try {
       await lifecycle.seedBundledAgentPlugins({ layout: deps!.agentPluginLayout, workspaceId, sourceRoot });
       for (const name of envNames) process.env[name] = path.join(sourceRoot, "other-site");
-      const providers = await deps!.loadSourceControlProviders(workspaceId);
+      const providers = await deps!.loadSourceControlProviders({ workspaceId });
       assert.deepEqual(providers.refusals, []);
       assert.equal(providers.get({ providerId: "bound-git" })?.pluginId, "github");
       assert.ok(providers.get({ providerId: "bound-git" })!.module);
@@ -199,7 +199,7 @@ describe("a site composed with an explicit binding, while env/cwd name another s
       assert.equal(fs.existsSync(path.join(sourceRoot, "other-site")), false);
 
       await lifecycle.setAgentPluginActivation({ workspaceRoot: path.join(siteA, "agent-plugins", "ws", workspaceId), pluginId: "github", enabled: false, actor: "test" });
-      const disabled = await deps!.loadSourceControlProviders(workspaceId);
+      const disabled = await deps!.loadSourceControlProviders({ workspaceId });
       assert.deepEqual(disabled.list(), []);
       assert.equal(disabled.switchedOff?.get("bound-git"), "github");
       assert.deepEqual((await deps!.loadDeployTargets({ workspaceId })).list(), []);

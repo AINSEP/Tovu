@@ -52,7 +52,7 @@ const WORKSPACE = "ws-1";
 const NOW = "2026-08-15T00:00:00.000Z";
 
 /** Empty provider registry, distinct from a loaded provider whose identity probe returns null. */
-const noProviders: LoadSourceControlProviders = async (_workspaceId) => ({ list: () => [], get: () => undefined, refusals: [] });
+const noProviders: LoadSourceControlProviders = async (_required) => ({ list: () => [], get: () => undefined, refusals: [] });
 
 /** Reject rather than allowing a fixture token onto the real network. */
 function neverCallRealNetwork(): typeof fetch {
@@ -884,7 +884,7 @@ test('non-auth HTTP failures report unreachable without removing the saved crede
 
 test('a provider disabled after admission cannot prevent durable storage or run its identity probe', async () => {
   let reads = 0;
-  const deps = makeDeps({ loadSourceControlProviders: async () => ++reads === 1 ? exampleRegistry() : noProviders('') });
+  const deps = makeDeps({ loadSourceControlProviders: async () => ++reads === 1 ? exampleRegistry() : noProviders({ workspaceId: '' }) });
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'racing-disable', connection: { providerId: 'example-git', token: 'stored-secret' } } });
   assert.equal(saved.connection, 'saved');
   assert.equal(saved.accountLabel, null);

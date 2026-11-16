@@ -115,7 +115,7 @@ async function resolveCommitAdapter({ deps, providerId }: { deps: SourceControlT
 async function requireKnownHost({ deps, providerId, authorizeSavedLookup }: {
   deps: SourceControlToolDeps; providerId: string; authorizeSavedLookup: () => Promise<void>;
 }, _options = {}): Promise<{ label: string; supportsFolder?: boolean; validateTarget?: RepositoryTargetValidator }> {
-  const registry = await providerLoader(deps)(deps.workspaceId);
+  const registry = await providerLoader(deps)({ workspaceId: deps.workspaceId });
   const loaded = registry.get({ providerId });
   if (loaded !== undefined) return { label: loaded.descriptor.label, supportsFolder: loaded.module.supportsFolder === true, ...(loaded.module.validateTarget ? { validateTarget: loaded.module.validateTarget } : {}) };
   if (registry.switchedOff?.has(providerId)) return { label: providerId };
@@ -386,7 +386,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "source-control.read" }, { entityType: "source-control" });
 
       const saved = await listSourceControlCredentials({ repo: deps.sourceControlCredentialSetRepo }, { workspaceId: deps.workspaceId });
-      const registry = await providerLoader(deps)(deps.workspaceId);
+      const registry = await providerLoader(deps)({ workspaceId: deps.workspaceId });
 
       const providers = await Promise.all(reportedProviderIds(registry, saved.map((credential) => credential.providerId)).map(async (providerId) => {
         const savedCredentials = saved

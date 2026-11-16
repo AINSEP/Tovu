@@ -209,7 +209,7 @@ export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProv
 }
 
 /** Loads a workspace's provider registry; injected so a test can read the plugin from source. */
-export type LoadSourceControlProviders = (workspaceId: string) => Promise<SourceControlProviderRegistry>;
+export type LoadSourceControlProviders = ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<SourceControlProviderRegistry>;
 
 export type BuildSourceControlProviderResult =
   | { readonly ok: true; readonly provider: SourceControlProvider }
@@ -233,7 +233,7 @@ export async function buildSourceControlProvider(
 ): Promise<BuildSourceControlProviderResult> {
   return sourceControl.buildSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
     ...input, kit: createSourceControlProviderKit(input),
-    load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
+    load: async ({ workspaceId }) => sharedRegistry(await input.load({ workspaceId })),
     noProviderMessage: ({ registry, providerId }) => noSourceControlProviderMessage({ registry }, { providerId }),
   });
 }
@@ -253,7 +253,7 @@ export async function buildSourceControlProviders(input: {
 }): Promise<{ readonly providers: readonly SourceControlProvider[]; readonly refusals: readonly string[]; readonly noProviderMessage: string }> {
   return sourceControl.buildSourceControlProviders<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
     ...input, kit: createSourceControlProviderKit(input),
-    load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
+    load: async ({ workspaceId }) => sharedRegistry(await input.load({ workspaceId })),
     noProviderMessage: ({ registry }) => noSourceControlProviderMessage({ registry }),
   });
 }
@@ -307,7 +307,7 @@ export async function buildSourceControlProviderForApi(input: {
 }): Promise<BuildSourceControlProviderResult> {
   return sourceControl.buildSourceControlProviderForApi<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations, ReturnType<typeof sharedRegistry>>({
     ...input, kit: createSourceControlProviderKit(input),
-    load: async ({ workspaceId }) => sharedRegistry(await input.load(workspaceId)),
+    load: async ({ workspaceId }) => sharedRegistry(await input.load({ workspaceId })),
     noProviderMessage: ({ registry }) => noSourceControlProviderMessage({ registry }),
   }, { missingProviderMessage: ({ origin, baseUrl }) => `No enabled Agent Plugin provides source control for ${origin ?? baseUrl}.` });
 }

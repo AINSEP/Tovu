@@ -46,7 +46,7 @@ test("an absent workspace param 404s before authorizing", async () => {
 test("providers list optional credential/i18n fields only when declared, names switched-off hosts, and logs refusals", async (t) => {
   const warned: unknown[] = [];
   t.mock.method(console, "warn", (message: unknown) => { warned.push(message); });
-  const invoke = harness({ loadSourceControlProviders: async (workspaceId: string) => {
+  const invoke = harness({ loadSourceControlProviders: async ({ workspaceId }: { workspaceId: string }) => {
     assert.equal(workspaceId, "ws-1");
     return portFake<ProviderRegistry>({
       refusals: ["plugin 'broken' refused: bad manifest"],

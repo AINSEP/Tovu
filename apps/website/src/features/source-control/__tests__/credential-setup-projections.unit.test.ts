@@ -41,7 +41,7 @@ async function capture({ input = { provider: 'github' }, onAuthorize = () => {} 
 
 test('L146 result and outcome preserve every unsuccessful run and descriptor-dependent abandonment', async () => {
   const spec = await capture({});
-  const descriptor = (await githubFromSource('ws')).get('github')!.descriptor;
+  const descriptor = (await githubFromSource({ workspaceId: 'ws' })).get({ providerId: 'github' })!.descriptor;
   for (const declared of [undefined, descriptor]) {
     const prep: Prep = { descriptor: declared, provider: 'github', label: 'Original', locale: 'en' };
     const cases = [

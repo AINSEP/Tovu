@@ -2782,7 +2782,7 @@ async function composeSiteRouteDeps(
     }),
     loadDeployWorkflowFiles: input => loadDeployWorkflowFiles({ ...input, loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadDeployOps: (ctx) => loadDeployOpsRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
-    loadSourceControlProviders: (workspaceId) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
+    loadSourceControlProviders: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }),
     loadPluginCredentialCards: (workspaceId) => loadMailCredentialCards({ loadMailAdapters: () => loadMailAdapterRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     loadAuthSchemes: async (ctx) => (await loadCredentialSchemeRegistry(ctx, { loadContributions: agentPluginLifecycle.loadPluginContributions })).rules,
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
@@ -2797,7 +2797,7 @@ async function composeSiteRouteDeps(
     sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(kernel, {
       ...credentialProject({ projectVault, repo: vault => new TovuCredentialSetVaultAdapter<SourceControlCredentialSetRecord>({ vault, kind: "source-control" }) }),
       canonical: sourceControlKeyBinding({ credentials: { repo: customCredentialSetRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, idGen },
-        loadProviders: workspaceId => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
+        loadProviders: ({ workspaceId }) => loadSourceControlProviderRegistry({ workspaceId }, { loadContributions: agentPluginLifecycle.loadPluginContributions }) }),
     }),
     // Read ONCE here rather than deep in `source-control/commit-site.ts` — see
     // `resolveSourceControlExportRootDir`'s own doc above and `routes/types.ts`'s

@@ -282,7 +282,7 @@ function requireProvider({ providerId, registry }: { providerId: unknown; regist
 /** Write-only callers without a provider port cannot introduce a new credential/provider. */
 async function credentialRegistry({ deps, workspaceId }: { deps: SourceControlCredentialWriteDeps; workspaceId: UUID }, _options = {}): Promise<SourceControlProviderRegistry> {
   if (!deps.loadSourceControlProviders) return { list: () => [], get: () => undefined, refusals: [] };
-  return deps.loadSourceControlProviders(workspaceId);
+  return deps.loadSourceControlProviders({ workspaceId });
 }
 
 function normalizeStoredToken({ value }: { value: unknown }): string {

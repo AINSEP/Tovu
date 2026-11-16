@@ -326,11 +326,11 @@ test("write_files refuses a credential deleted between the summary lookup and de
   await seedGithub(writeDeps);
   const load = deps.loadSourceControlProviders;
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = buildRegistrations({ ...deps, loadSourceControlProviders: async workspaceId => {
+  const registrations = buildRegistrations({ ...deps, loadSourceControlProviders: async ({ workspaceId }) => {
     const rows = await writeDeps.repo.listByWorkspace({ workspaceId });
     assert.equal(rows.length, 1);
     await writeDeps.repo.delete({ workspaceId, id: rows[0].id });
-    return load(workspaceId);
+    return load({ workspaceId });
   } }, exchanges);
   await assert.rejects(call(tool(registrations, TOOL_ID)), /no custom credential labeled 'github'/);
   assert.equal(sealer.openCalls, 0);

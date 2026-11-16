@@ -683,7 +683,7 @@ for (const mode of ["missing", "empty", "populated", "unavailable", "partial"] a
     const configured: CustomCredentialsToolDeps = {
       ...deps,
       ...(loadDeployTargets ? { loadDeployTargets } : {}),
-      loadSourceControlProviders: async workspaceId => {
+      loadSourceControlProviders: async ({ workspaceId }) => {
         assert.equal(workspaceId, WORKSPACE_ID);
         calls.push("source");
         if (mode === "unavailable" || mode === "partial") throw new Error("source catalog unavailable");

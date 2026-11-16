@@ -118,7 +118,7 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
   app.get(PROVIDERS_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
-      const registry = await deps.loadSourceControlProviders(deps.workspaceId);
+      const registry = await deps.loadSourceControlProviders({ workspaceId: deps.workspaceId });
       for (const refusal of registry.refusals) console.warn(`[source-control-providers] ${refusal}`);
       res.status(200).json({
         providers: registry.list().map(({ descriptor }) => ({

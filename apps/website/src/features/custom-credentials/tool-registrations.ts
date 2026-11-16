@@ -295,7 +295,7 @@ async function loadCreateCredentialProviders({ routeDeps }: { routeDeps: CustomC
   try { for (const { descriptor } of (await routeDeps.loadDeployTargets?.({ workspaceId: routeDeps.workspaceId }))?.list() ?? []) {
     if (descriptor.credential) providers.push({ id: descriptor.id, vendorId: descriptor.credential.vendorId });
   } } catch { /* The API key form still works without hosting plugins. */ }
-  try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders(routeDeps.workspaceId)).list()) {
+  try { for (const { descriptor } of (await routeDeps.loadSourceControlProviders({ workspaceId: routeDeps.workspaceId })).list()) {
     providers.push({ id: descriptor.id, vendorId: descriptor.id });
   } } catch { /* Source-control catalog enrichment is optional too. */ }
   return providers;

@@ -720,8 +720,8 @@ test("saved GitHub API key: explicit connection wins with both present, then del
 });
 
 test("saved GitHub API key: capabilities reports configured and its source without opening the secret", async () => {
-  const { deps } = fakeDeps({ loadSourceControlProviders: async workspaceId => {
-    const github = await githubFromSource(workspaceId);
+  const { deps } = fakeDeps({ loadSourceControlProviders: async ({ workspaceId }) => {
+    const github = await githubFromSource({ workspaceId });
     const other = exampleRegistry({ probe: false, ids: ["example-git"] });
     return { list: () => [...github.list(), ...other.list()], get: (required) => github.get(required) ?? other.get(required), refusals: [] };
   } });

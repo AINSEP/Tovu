@@ -1021,8 +1021,8 @@ test("stopping the run while the push waits abandons the upload: no further file
 });
 
 test("a media file over the host's per-file limit is left out of the plan and named in skipped; the rest is backed up", async (t) => {
-  const lowered: NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> = async (workspaceId) => {
-    const registry = await githubFromSource(workspaceId);
+  const lowered: NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> = async ({ workspaceId }) => {
+    const registry = await githubFromSource({ workspaceId });
     const lower = (loaded: ReturnType<typeof registry.list>[number]) => ({ ...loaded, descriptor: { ...loaded.descriptor, maxFileBytes: 1000 } });
     return { ...registry, list: () => registry.list().map(lower), get: (required: { providerId: string }) => { const found = registry.get(required); return found ? lower(found) : undefined; } };
   };
@@ -1048,7 +1048,7 @@ function providerWith(
   descriptor: Partial<SourceControlProviderDescriptor> = {},
 ): NonNullable<SiteBackupToolDeps["loadSourceControlProviders"]> {
   return async workspaceId => {
-    const registry = await githubFromSource(workspaceId);
+    const registry = await githubFromSource({ workspaceId });
     const entries = registry.list().map(entry => ({ ...entry, descriptor: { ...entry.descriptor, ...descriptor }, module: {
       ...entry.module, create: (kit: Parameters<typeof entry.module.create>[0]) => ({ ...entry.module.create(kit), ...operations }),
     } }));
@@ -1272,7 +1272,7 @@ test("a plugin host without a legacy connection kind cannot read another host's 
 
 test("a named credential for neither of two enabled hosts returns NO_PROVIDER", async t => {
   const h = harness(t, { providers: async workspaceId => {
-    const registry = await githubFromSource(workspaceId);
+    const registry = await githubFromSource({ workspaceId });
     const github = registry.list()[0]!;
     const entries = [github, { ...github, descriptor: { ...github.descriptor, id: "second-host", apiOrigin: "https://second.example", label: "Second host" } }];
     return { ...registry, list: () => entries, get: ({ providerId: id }) => entries.find(entry => entry.descriptor.id === id) };

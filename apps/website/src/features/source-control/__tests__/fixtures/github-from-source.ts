@@ -9,11 +9,11 @@ export const GITHUB_PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "github" });
 
 /** The bundled `github` plugin read from its source directory (no install or activation gate), so a
  *  suite never reads the developer's real workspace. */
-export const githubFromSource: LoadSourceControlProviders = (_workspaceId) => loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
+export const githubFromSource: LoadSourceControlProviders = (_required) => loadSourceControlProviderRegistryFromSource({ pluginId: "github", packageRoot: GITHUB_PACKAGE_ROOT });
 
 /** The bundled `github` plugin module's own owner/repo check, read from source. */
 export async function githubValidateTarget(): Promise<RepositoryTargetValidator> {
-  const validate = (await githubFromSource("")).get("github")?.module.validateTarget;
+  const validate = (await githubFromSource({ workspaceId: "" })).get({ providerId: "github" })?.module.validateTarget;
   if (!validate) throw new Error("the github plugin module ships no validateTarget");
   return validate;
 }
