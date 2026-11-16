@@ -210,7 +210,7 @@ test("a committed write whose response is dropped is OUTCOME UNKNOWN, ran once, 
   const { deps, baseUrl, owner } = await boot(t);
   const proxyUrl = await startResettingToolProxy(t, new URL(baseUrl));
   const events: Array<Record<string, unknown>> = [];
-  const lifecycle = { emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); }, onCancelRequested: () => () => {} } as unknown as RunLifecycle;
+  const lifecycle = { emit: async ({ input }: { input: { data: Record<string, unknown> } }) => { events.push(input.data); }, onCancelRequested: () => () => {}, waitForTerminal: () => new Promise<never>(() => {}) } as unknown as RunLifecycle;
   const bridge = createDelegatedToolBridge({ lifecycle, toolExecutor: remote(proxyUrl) });
   const input = { kind: "post", title: "RPC dropped response", slug: `rpc-dropped-${Date.now()}` };
   await assert.rejects(bridge.execute({ runId: "rpc-drop-run", toolUseId: "tu-1", toolId: "content_post_create", principal: owner, input }),

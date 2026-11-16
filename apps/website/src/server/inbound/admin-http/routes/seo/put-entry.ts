@@ -19,10 +19,11 @@ import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards"
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
 function seoPutEntryErrorResponse({ err }: { err: unknown }, options: AdminFailurePorts = {}): { status: number; body: { error: string; code: string } } {
-  if (err instanceof ToolInputError) return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
-  if (err instanceof RecordVersionConflictError) return { status: 409, body: versionConflictBody({ error: err }) };
+  // Why first: Jini's EntityNotLiveError extends ToolInputError, so the generic 400 below would swallow a trashed entry's 409.
   const live = entityNotLiveResponse({ err });
   if (live) return live;
+  if (err instanceof ToolInputError) return { status: 400, body: { error: err.message, code: "VALIDATION_ERROR" } };
+  if (err instanceof RecordVersionConflictError) return { status: 409, body: versionConflictBody({ error: err }) };
   if (err instanceof SeoFieldValidationError) {
     return { status: 400, body: { error: err.message, code: "SEO_FIELD_VALIDATION_ERROR" } };
   }

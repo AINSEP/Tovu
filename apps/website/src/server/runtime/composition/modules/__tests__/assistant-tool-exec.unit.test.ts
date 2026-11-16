@@ -55,7 +55,8 @@ test("approval memory reads and grants against the daemon's conversation, and is
   const calls: Array<{ op: string; conversationId?: string }> = [];
   const store = {
     hasIdentity: async () => { calls.push({ op: "has" }); return true; },
-    grant: async (coordinates: { conversationId: string }) => { calls.push({ op: "grant", conversationId: coordinates.conversationId }); },
+    // Why: the store port takes `{ key, grantedAt }` (Jini ConversationToolApprovalStore.grant), the conversation lives on `key`.
+    grant: async ({ key }: { key: { conversationId: string } }) => { calls.push({ op: "grant", conversationId: key.conversationId }); },
   };
   const memory = createDaemonApprovalMemory({ store: store as never, workspaceId: "ws", clock: { nowMs: () => 0 } as never });
   const principal = { id: "owner-1" };

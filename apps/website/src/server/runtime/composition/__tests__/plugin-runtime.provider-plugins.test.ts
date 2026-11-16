@@ -127,7 +127,8 @@ test("a provider plugin whose import/setup stalls is bounded: boot continues, an
   const { events, runtime, ready } = fixture({ setupGate: new Promise<void>((resolve) => { release = resolve; }) });
   await ready;
   assert.deepEqual(await runtime.loadProviderPlugins({ pluginIds: ["obs-fake"] }, { timeoutMs: 20 }), []);
-  assert.match(String(warn.mock.calls[0]?.arguments[0]), /^\[plugin-runtime\] provider plugin 'obs-fake' failed to load; its contract stays on the noop: .*timed out/);
+  assert.match(String(warn.mock.calls[0]?.arguments[0]), /^\[plugin-runtime\] provider plugin 'obs-fake' failed to load; its contract stays on the noop: Error$/);
+  // Why: the warning names only the error class now (log lines carry fixed words), so the timeout wording no longer reaches it.
   release();
   for (let i = 0; i < 20; i += 1) await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(events, ["setup"]);

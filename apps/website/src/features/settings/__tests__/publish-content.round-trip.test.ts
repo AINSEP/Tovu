@@ -338,8 +338,8 @@ test("active theme: only the 'site' row exists, and an unparsable updatedAt insp
   await source.presentation.save({ workspaceId: WORKSPACE_ID, activeThemeId: "paper", updatedAt: "not-a-timestamp" });
   const handler = buildPublishContentCatalog(sourceDeps).handlerByType.get("active-theme")!;
 
-  assert.equal(await handler.inspect({ id: "some-other-row" }), null);
-  const inspected = await handler.inspect({ id: "site" });
+  assert.equal(await handler.inspect!({ id: "some-other-row" }), null);
+  const inspected = await handler.inspect!({ id: "site" });
   assert.equal(inspected?.version, 0);
   assert.equal(typeof inspected?.hash, "string");
 });

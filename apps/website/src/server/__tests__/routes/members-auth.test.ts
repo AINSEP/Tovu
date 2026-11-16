@@ -135,13 +135,16 @@ test("T003: GET members list succeeds (200) for the seeded owner (wildcard grant
   const listUrl = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members`;
   const all = await fetch(listUrl, { headers: { cookie: ownerCookie } });
   assert.equal(all.status, 200);
-  assert.deepEqual(await all.json(), { members });
+  // Why: the list route is a list-cursor page now (`nextCursor`, null on the last page).
+  assert.deepEqual(await all.json(), { members, nextCursor: null });
   const first = await fetch(`${listUrl}?limit=2`, { headers: { cookie: ownerCookie } });
   assert.equal(first.status, 200);
-  assert.deepEqual(await first.json(), { members: members.slice(0, 2) });
+  const firstBody = (await first.json()) as { members: unknown[]; nextCursor: string | null };
+  assert.deepEqual(firstBody.members, members.slice(0, 2));
+  assert.equal(typeof firstBody.nextCursor, "string", "a truncated page hands back a cursor for the older rows");
   const next = await fetch(`${listUrl}?limit=2&afterId=${members[1].id}`, { headers: { cookie: ownerCookie } });
   assert.equal(next.status, 200);
-  assert.deepEqual(await next.json(), { members: members.slice(2) });
+  assert.deepEqual(await next.json(), { members: members.slice(2), nextCursor: null });
 });
 
 test("T004: GET member-by-id denied 403 FORBIDDEN without member.manage", async (t) => {

@@ -120,6 +120,7 @@ const CASES: readonly ModuleCase[] = [
     routes: [
       `GET ${W}/forms`,
       `POST ${W}/forms`,
+      `GET ${W}/forms/_providers`,
       `GET ${W}/forms/:formId`,
       `PUT ${W}/forms/:formId`,
       `PUT ${W}/forms/:formId/authoring`,
