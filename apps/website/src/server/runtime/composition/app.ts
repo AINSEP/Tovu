@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeMemorySeo } from "./memory-deps/slices/seo-sitemap.js";
 import { composeMemoryOutboundHttp } from "./memory-deps/slices/outbound-http.js";
 import { composeMemoryTrash } from "./memory-deps/slices/memory-trash.js";
 import { composePublishContentStores } from "./memory-deps/slices/publish-content-stores.js";
@@ -48,8 +49,6 @@ import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { COMMENT_ENTITY_TYPE, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
 import { bindRemoveEntity, bindForgetRemovedEntity, createTrashSweep } from "@jini-ai/cms/trash";
@@ -109,7 +108,7 @@ import { registerMenuReverters } from "#src/features/navigation/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
-import { InMemoryImageTransformer, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { InMemoryImageTransformer } from "#src/features/media/index";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "#src/features/newsletter/repo.memory";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
@@ -396,9 +395,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
   const inMemoryChatHistory = createInMemoryChatHistory();
   const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
-  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
-  const sitemapService = createSitemapService({ deps: seoDeps }, {});
+  const { seoDeps, sitemapService, transformDefinitionRepo } = composeMemorySeo({ postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, originRegistry, clock });
   const siteBinding = describeSiteBinding();
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
