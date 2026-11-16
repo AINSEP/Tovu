@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
 import { mediaApi } from "../../features/media/api/media-api";
@@ -518,13 +519,13 @@ test("setDockerfileSource preserves the 412 conflict snapshot in ApiError.body",
 
 test("triggerSiteExport sends an empty body when called with no options at all", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerSiteExport();
+  await importExportApi.triggerSiteExport();
   expect(body()).toEqual({});
 });
 
 test("triggerSiteExport sends the given options as the body", async () => {
   const { body } = stubFetchCapturing();
-  await api.triggerSiteExport({ clean: true, basePath: "/blog" });
+  await importExportApi.triggerSiteExport({ clean: true, basePath: "/blog" });
   expect(body()).toEqual({ clean: true, basePath: "/blog" });
 });
 

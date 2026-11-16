@@ -210,28 +210,6 @@ export interface AdminDockerfileSource {
   etag: string;
 }
 
-/** Mirrors `ExportRunStatus` in `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts`. */
-export type AdminExportRunStatus = "idle" | "running" | "completed" | "errored";
-
-/** Mirrors `ExportRunSnapshot` in `apps/website/src/server/inbound/admin-http/routes/system/export-site.ts` — see that
- *  type's own doc comments for why it is a slim, JSON-safe summary rather than the full
- *  `ExportReport` (no route/asset bytes ever cross this boundary). */
-export interface AdminExportRunSnapshot {
-  status: AdminExportRunStatus;
-  startedAtIso: string | null;
-  finishedAtIso: string | null;
-  outputDir: string | null;
-  basePath?: string;
-  ok?: boolean;
-  counts?: { routesSucceeded: number; routesFailed: number; assetsSucceeded: number; assetsFailed: number };
-  failedRoutes?: { path: string; kind: string; reason: string }[];
-  failedAssets?: { url: string; reason: string }[];
-  skippedManifestEntries?: { reason: string; detail: string }[];
-  unreferencedThemeFiles?: string[];
-  basePathRewriteWarning?: string;
-  error?: string;
-}
-
 /** A deploy target's id — whatever the server's deploy registry (the `deploy` agent plugin's
  *  descriptors) lists. Never a closed union: the admin learns the set from
  *  {@link AdminPublishTargetDescriptor}, so a host the plugin adds needs no admin change. Kept as an
@@ -784,21 +762,6 @@ export const api = {
       } }
     ).then((body) => ({ ...body, etag }));
   },
-
-  // Static Site tab (`apps/website/src/server/inbound/admin-http/routes/system/export-site.ts`) — trigger + poll, not a
-  // single synchronous call: a real export can take seconds to minutes, so `triggerSiteExport`
-  // returns the moment the run STARTS (202) and a caller polls `getSiteExportStatus` for the
-  // outcome. `system.export`-gated on trigger (writes to disk), `system.read` on the poll.
-  /** Starts a new static-site export. `409` (surfaced as a thrown error by `request`, same as any
-   *  non-2xx) if one is already running — this instance runs at most one export at a time. */
-  triggerSiteExport: (options?: { clean?: boolean; basePath?: string }) =>
-    request<AdminExportRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/export` }, { init: {
-      method: "POST",
-      body: JSON.stringify(options ?? {}),
-    } }),
-  /** The current/most recent export run's status — poll this after `triggerSiteExport` until
-   *  `status` is no longer `"running"`. */
-  getSiteExportStatus: () => request<AdminExportRunSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/export` }),
 
   // Static Site tab "Getting it online" card (`apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts`) —
   // publishing the current export straight to an installed static host plugin's target.

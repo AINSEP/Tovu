@@ -1,11 +1,12 @@
-import { api, type AdminExportRunSnapshot } from "@/lib/api";
+import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
+import { importExportApi } from "@/features/import-export/api/import-export-api";
 import type { StaticExportPort } from "./static-export-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultStaticExportPort: StaticExportPort = {
-  triggerSiteExport: (_required, { options } = {}) => api.triggerSiteExport(options),
-  getSiteExportStatus: () => api.getSiteExportStatus(),
+  triggerSiteExport: (_required, { options } = {}) => importExportApi.triggerSiteExport(options),
+  getSiteExportStatus: () => importExportApi.getSiteExportStatus(),
 };
 
 /** An in-memory {@link StaticExportPort} for tests. `status` seeds the poll's answer; both calls

@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { mailStatusApi } from "../../features/email/api/mail-status-api";
 
 test("getMailStatus reads whether delivery is available without sending a write", async () => {
@@ -165,7 +166,7 @@ test("activateSite leaves an already-URL-safe name untouched", async () => {
 
 test("getSiteExportStatus is a bare GET at /system/export, distinct from triggerSiteExport's POST to the same URL", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getSiteExportStatus();
+  await importExportApi.getSiteExportStatus();
   expect(calls[0].url).toBe(`${BASE}/system/export`);
   expect(calls[0].init?.method).toBeUndefined();
 });

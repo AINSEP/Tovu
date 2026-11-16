@@ -1,20 +1,6 @@
 import type { CredentialSubmitFailure } from "../../lib/credential-submit-error";
-import {
-  type AdminDeploymentEnvVarStatus,
-  type AdminDeploymentOverview,
-  type AdminExportRunSnapshot,
-  type AdminPublishConnectionInput,
-  type AdminPublishCredentialProviderId,
-  type AdminPublishCredentialSummary,
-  type AdminPublishCredentialVerification,
-  type AdminPublishExecutionMode,
-  type AdminPublishRunSnapshot,
-  type AdminPublishTargetCredentialSpec,
-  type AdminPublishTargetDescriptor,
-  type AdminPublishTargetField,
-  type AdminStaticPublishConfig,
-  type AdminStaticPublishTargetId,
-} from "../../lib/api";
+import { type AdminDeploymentEnvVarStatus, type AdminDeploymentOverview, type AdminPublishConnectionInput, type AdminPublishCredentialProviderId, type AdminPublishCredentialSummary, type AdminPublishCredentialVerification, type AdminPublishExecutionMode, type AdminPublishRunSnapshot, type AdminPublishTargetCredentialSpec, type AdminPublishTargetDescriptor, type AdminPublishTargetField, type AdminStaticPublishConfig, type AdminStaticPublishTargetId } from "../../lib/api";
+import type { AdminExportRunSnapshot } from "../import-export/api/import-export-api.types";
 import { asciiSlug } from "../../lib/ascii-slug";
 
 /**
