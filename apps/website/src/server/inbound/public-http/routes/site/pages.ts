@@ -1,7 +1,6 @@
 
-import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
-import type { NextFunction, Request, Response } from "express";
+import type { Request, Response } from "express";
 
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { getPublishedPostBySlug, listPublishedPosts, PostNotFoundError, ROOT_SLUG } from "#src/features/post/post";
@@ -28,11 +27,12 @@ import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRen
 import { tryRedirectPhase } from "./pages/redirect-phase.js";
 import { buildExtraHead } from "./pages/extra-head.js";
 import { resolvePerVisitorResponse, sendPublicPage } from "./pages/response.js";
-import { finishStaticTierDocument, isStaticThemeWithIndex, serveStaticThemeIndex } from "./pages/static-tier.js";
+import { isStaticThemeWithIndex, serveStaticThemeIndex } from "./pages/static-tier.js";
 import { listingBatchNotFound, registerListingRewrites } from "./pages/handlers/listing.js";
 import { resolveMarketingPageOrOverride, resolvePostAfterMarketingCheck } from "./pages/handlers/marketing.js";
 import { renderTemplateBranchIfEligible, renderGenericPostPage } from "./pages/handlers/post.js";
 import { sendNoThemesInstalled, reportSiteRenderFault } from "./pages/handlers/virtual-page.js";
+import { handlePostNotFoundOnSlugRoute, handleSlugRouteError } from "./pages/handlers/post-not-found.js";
 
 /**
  * `resolveActiveThemeId`/`resolveActiveTheme` moved out of this file 2026-08-16 — both were pure
@@ -51,76 +51,6 @@ import { sendNoThemesInstalled, reportSiteRenderFault } from "./pages/handlers/v
  * was updated to import both new homes directly.
  */
 export { resolveActiveThemeId, resolveActiveTheme };
-
-/**
- * `GET /:slug`'s `PostNotFoundError` handling — always fully handles the response (a redirect, a
- * themed 404, or the bare fallback 404), never falls through. Split out of the route's own catch
- * block so that block's `err instanceof PostNotFoundError` discriminant is the only branch left
- * inline at the call site.
- *
- * It can still reject (a default-policy `post_content` handler that throws, a themed-404 render
- * fault): call it inside a `try`, or through {@link handlePostNotFoundInSlugCatch} where there is
- * none.
- */
-export async function handlePostNotFoundOnSlugRoute(
-  req: Request,
-  res: Response,
-  deps: RouteDeps,
-  theme: DiscoveredTheme | null,
-  staticMenus: StaticMenuMap | undefined
-): Promise<void> {
-  if (await tryRedirectPhase({ phase: "post_content", path: redirectLookupPath({ req }), workspaceId: deps.workspaceId, res })) return;
-
-  // A static theme that ships its own pages/404.html gets a themed not-found page instead of
-  // the bare fallback below — E4 (D2, 2026-09-23) runs it through the SAME
-  // `finishStaticTierDocument` pipeline every other static-tier surface uses, so a widget or
-  // collection marker on the 404 page (or a partial it references) resolves too, not only its menu
-  // markers (the one thing the old direct `renderStaticPage` call already substituted).
-  if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
-    const staticHtml = await finishStaticTierDocument(deps, {
-      theme,
-      pageId: "404",
-      html: theme.pages["404"],
-      currentPath: req.path,
-      staticMenus,
-    });
-    if (staticHtml) {
-      void captureVisitorEvent({ deps, request: req, name: "site_not_found", properties: { routeTemplate: "/:slug" } });
-      res.status(404).type("html").send(staticHtml);
-      return;
-    }
-  }
-
-  void captureVisitorEvent({ deps, request: req, name: "site_not_found", properties: { routeTemplate: "/:slug" } });
-  res.status(404).type("html").send("<h1>404 — page not found</h1><p><a href='/'>Home</a></p>");
-}
-
-/**
- * {@link handlePostNotFoundOnSlugRoute} for `GET /:slug`'s own catch block — the one call site with
- * no enclosing `catch`. Express 4 ignores the promise an async handler returns, so a rejection there
- * (a default-policy `post_content` handler that throws, or a themed-404 render fault) used to leave
- * the request with no response at all and surface only as a process-wide unhandled rejection
- * (t91 F4.3-A). Answers it exactly as the route's catch answers every other fault.
- *
- * @param input.slug the slug `resolveRequestedSlug` already validated — used only in the fault line.
- * @complexity O(1) beyond {@link handlePostNotFoundOnSlugRoute}.
- */
-async function handlePostNotFoundInSlugCatch(input: {
-  req: Request;
-  res: Response;
-  deps: RouteDeps;
-  theme: DiscoveredTheme | null;
-  staticMenus: StaticMenuMap | undefined;
-  slug: string;
-}): Promise<void> {
-  const { req, res, deps, theme, staticMenus, slug } = input;
-  try {
-    await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
-  } catch (err) {
-    reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
-    res.status(500).type("html").send("<h1>Site error</h1>");
-  }
-}
 
 /**
  * Content-owned homepage (SPEC-0XX) — looks up the published row currently claiming the reserved
@@ -253,24 +183,6 @@ async function serveContentHomePage({ req, res, deps, theme, homePage, visiblePo
   const templateHtml = await renderTemplateBranchIfEligible({ deps, theme, post: homePage, staticMenus, siteAssistantEnabled }, { postPreviewsAccess: access });
   const html = templateHtml ?? (await renderGenericPostPage({ deps, theme, post: homePage, posts: visiblePosts, siteAssistantEnabled }));
   await sendPublicPage({ req, res, deps, html, perVisitor: resolvePerVisitorResponse(req, res) });
-}
-
-/** `GET /:slug`'s catch: a see-more miss falls through to the 404, a missing post renders the
- *  themed 404, and anything else is a reported 500. */
-async function handleSlugRouteError({ err, req, res, next, deps, theme, staticMenus, slug }: {
-  err: unknown; req: Request; res: Response; next: NextFunction; deps: SiteRequestDeps;
-  theme: DiscoveredTheme | null; staticMenus: StaticMenuMap | undefined; slug: string;
-}): Promise<void> {
-  if (err instanceof ListingBatchNotFoundError) return listingBatchNotFound({ req, res, next, workspaceId: deps.workspaceId });
-  // A `PostNotFoundError` is ordinary control flow on this route (no post at this slug), not a
-  // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
-  if (err instanceof PostNotFoundError) {
-    await handlePostNotFoundInSlugCatch({ req, res, deps, theme, staticMenus, slug });
-    return undefined;
-  }
-  reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
-  res.status(500).type("html").send("<h1>Site error</h1>");
-  return undefined;
 }
 
 /** `GET /`. */
