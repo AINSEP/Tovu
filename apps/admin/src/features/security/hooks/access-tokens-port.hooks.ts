@@ -1,17 +1,5 @@
-import type {
-  AdminCustomConnectionInput,
-  AdminCustomCredentialCategoryId,
-  AdminCustomCredentialSummary,
-  AdminCustomCredentialsSnapshot,
-  AdminPublishConnectionInput,
-  AdminPublishCredentialSummary,
-  AdminPublishCredentialsSnapshot,
-  AdminPublishTargetDescriptor,
-  AdminSourceControlConnectionInput,
-  AdminSourceControlProviderDescriptor,
-  AdminSourceControlCredentialSummary,
-  AdminSourceControlCredentialsSnapshot,
-} from "@/lib/api";
+import type { AdminCustomConnectionInput, AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminCustomCredentialsSnapshot, AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot, AdminPublishTargetDescriptor } from "@/lib/api";
+import type { AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor, AdminSourceControlCredentialSummary, AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
 
 /**
  * @file What `useAccessTokens` needs from the outside world, as an interface rather than a direct

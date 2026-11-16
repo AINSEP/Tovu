@@ -476,68 +476,6 @@ export interface AdminRevealedSiteKey extends AdminSiteKeyStatus {
 }
 
 /**
- * A source-control host's id. The hosts come from plugins (`GET .../system/source-control/providers`),
- * so this is any string; a saved connection may name a host whose plugin is now off. Deliberately its
- * own type, NOT {@link AdminPublishCredentialProviderId}: a source host is not a publish target.
- */
-export type AdminSourceControlProviderId = string;
-
-/** A source-control host's credential form as a plugin declares it: field specs and help only.
- *  `tokenField` names the secret field that is the token. */
-export interface AdminSourceControlCredentialForm {
-  help?: string;
-  tokenPageUrl?: string;
-  tokenField: string;
-  fields: AdminPublishTargetField[];
-}
-
-/** One listed source-control host. No `credential` means a single "Access token" field. */
-export interface AdminSourceControlProviderDescriptor {
-  id: AdminSourceControlProviderId;
-  label: string;
-  credential?: AdminSourceControlCredentialForm;
-  i18n?: AdminDescriptorI18n;
-}
-
-/** Mirrors `GET .../system/source-control/providers`: the hosts switched-on plugins declare, and
- *  each host an installed but switched-off plugin declares. */
-export interface AdminSourceControlProvidersSnapshot {
-  providers: AdminSourceControlProviderDescriptor[];
-  switchedOff: { id: AdminSourceControlProviderId; pluginId: string }[];
-}
-
-/**
- * One saved connection's non-secret summary — never carries the token itself, and (like
- * {@link AdminPublishCredentialSummary}) deliberately carries no masked/last-4 hint either. A
- * stored token is never read back once saved; this is the fact a row's UI has to render its
- * connected/not-connected state from.
- */
-export interface AdminSourceControlCredentialSummary {
-  readonly tokenHint?: CredentialTokenHint | null;
-  readonly id: string;
-  readonly providerId: AdminSourceControlProviderId;
-  readonly label: string;
-  readonly configured: true;
-  readonly isDefault: boolean;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-}
-
-/** What a create/update call sends: the host id, the token, and the host's other declared
- *  credential fields by name. */
-export type AdminSourceControlConnectionInput = { providerId: AdminSourceControlProviderId; token: string } & Record<string, string>;
-
-/** Mirrors `GET .../system/source-control/credentials`'s response shape. No `executionMode` field
- *  here — unlike static publish, this page has no CLI-vs-hosted distinction to disclose. */
-export interface AdminSourceControlCredentialsSnapshot {
-  // Mutable array, not `readonly` — `useSourceControlCredentials` seeds local `useState` from this
-  // field directly, and a `readonly` array there is not assignable to that mutable state without a
-  // cast (same reasoning `AdminPublishCredentialsSnapshot.credentials` follows implicitly by also
-  // being mutable).
-  credentials: AdminSourceControlCredentialSummary[];
-}
-
-/**
  * The Access Tokens page's own category-filter ids, minus `"all"` — mirrors
  * `apps/admin/src/features/security/rules.ts`'s `AccessTokenRowCategoryId` exactly, and
  * `src/features/custom-credentials/types.ts`'s server-side `CustomCredentialCategoryId` (server
@@ -824,45 +762,6 @@ export const api = {
    *  plus `STORAGE_SECRET_LOCKED`. */
   startFreshSiteKey: ({ confirm }: { confirm: string }, _optional: Record<string, never> = {}) =>
     request<AdminStartedFreshSiteKey>({ path: `/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh` }, { init: { method: "POST", body: JSON.stringify({ confirm }) } }),
-
-  // Source Control page → credential management (`apps/website/src/server/inbound/admin-http/routes/system/
-  // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per
-  // provider, stored encrypted server-side and never read back. Structurally mirrors the
-  // publish-credentials block above; see `AdminSourceControlCredentialSummary`'s own doc for
-  // exactly what a saved row can and cannot reveal. `source-control.credentials.write`-gated on
-  // every verb server-side — NOT the same permission as the publish-credentials calls above (see
-  // that route's own header for why connecting a source-control identity is not a publish
-  // trigger).
-  /** The source-control hosts switched-on plugins declare, with their credential forms. */
-  listSourceControlProviders: () => request<AdminSourceControlProvidersSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/providers` }),
-  /** Every configured source-control credential for this workspace. */
-  listSourceControlCredentials: () =>
-    request<AdminSourceControlCredentialsSnapshot>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials` }),
-  /** Creates one named connection. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError` with that
-   *  `code`) if this workspace already has a credential with the same `(providerId, label)`.
-   *  `isDefault` is optional — omitted entirely (not `false`) lets the server apply its own
-   *  default-assignment rule (a provider's first-ever saved connection), rather than this admin
-   *  guessing at it. */
-  createSourceControlCredential: (input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
-    request<{ credential: AdminSourceControlCredentialSummary }>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials` }, { init: {
-      method: "POST",
-      body: JSON.stringify(input),
-    } }),
-  /** Updates a credential's label, connection, and/or default status. Omitting `connection`
-   *  entirely — never sending it as an empty object or blank fields — is what keeps the stored
-   *  secret untouched; see `use-source-control-credentials.hooks.ts`'s header for why the form can
-   *  never send a half-blank one. */
-  updateSourceControlCredential: ({ id, input }: { id: string; input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean } }, _optional: Record<string, never> = {}) =>
-    request<{ credential: AdminSourceControlCredentialSummary }>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}` }, { init: {
-      method: "PUT",
-      body: JSON.stringify(input),
-    } }),
-  /** `204`, idempotent — deleting an id that is already gone (a stale list, a double click) still
-   *  resolves rather than throwing. Not called anywhere on this page today (there is no delete
-   *  affordance in the UI — replacing a token PUTs over the existing row), kept for parity with
-   *  the publish-credentials block above. */
-  deleteSourceControlCredential: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
-    request<void>({ path: `/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}` }, { init: { method: "DELETE" } }),
 
   /** Owner-only Shared Keys metadata; no other site inventories or credential values. */
   listCredentialCopySources: (_required: Record<string, never>, options: AuthenticatedAdminRequestOptions = {}) =>

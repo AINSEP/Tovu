@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { sourceControlApi } from "../../features/source-control/api/source-control-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
@@ -205,12 +206,12 @@ const singleIdCases: Case[] = [
   ],
   [
     "updateSourceControlCredential",
-    () => api.updateSourceControlCredential({ id: SLASH_ID, input: {} }),
+    () => sourceControlApi.updateSourceControlCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/source-control/credentials/${ENC}`,
   ],
   [
     "deleteSourceControlCredential",
-    () => api.deleteSourceControlCredential({ id: SLASH_ID }),
+    () => sourceControlApi.deleteSourceControlCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/source-control/credentials/${ENC}`,
   ],
   [

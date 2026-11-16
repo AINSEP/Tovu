@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPublishTargetDescriptor, AdminSourceControlProviderDescriptor } from "../api";
+import type { AdminPublishTargetDescriptor } from "../api";
+import type { AdminSourceControlProviderDescriptor } from "../../features/source-control/api/source-control-api.types";
 import { descriptorText, localizePublishTargets, localizeSourceControlProviders } from "../descriptor-i18n";
 
 /**

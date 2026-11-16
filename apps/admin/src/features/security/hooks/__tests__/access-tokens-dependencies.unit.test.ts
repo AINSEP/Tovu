@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  AdminCustomCredentialSummary,
-  AdminPublishCredentialSummary,
-  AdminSourceControlCredentialSummary,
-} from "@/lib/api";
+import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { PLAIN_TARGET } from "../../../deployment/__tests__/publish-targets.fixture";
 
 /**
@@ -54,24 +51,12 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: {
-      ...actual.api,
-      getPublishTargets,
-      listPublishCredentials,
-      createPublishCredential,
-      updatePublishCredential,
-      deletePublishCredential,
-      listSourceControlCredentials,
-      listSourceControlProviders,
-      createSourceControlCredential,
-      updateSourceControlCredential,
-      deleteSourceControlCredential,
-      listCustomCredentials,
-      createCustomCredential,
-      updateCustomCredential,
-      deleteCustomCredential,
-    },
+    api: { ...actual.api, getPublishTargets, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, listCustomCredentials, createCustomCredential, updateCustomCredential, deleteCustomCredential },
   };
+});
+vi.mock("../../../source-control/api/source-control-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../source-control/api/source-control-api")>();
+  return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlCredentials, listSourceControlProviders, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } };
 });
 
 const { createFakeAccessTokensPort, defaultAccessTokensPort } = await import("../access-tokens-dependencies.hooks");

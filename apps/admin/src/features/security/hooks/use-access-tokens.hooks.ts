@@ -2,7 +2,8 @@ import { credentialDraftError, translateCredentialMessage } from "@/lib/credenti
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
 
-import { type AdminCustomCredentialCategoryId, type AdminCustomCredentialSummary, type AdminPublishConnectionInput, type AdminPublishCredentialSummary, type AdminSourceControlConnectionInput, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import { type AdminCustomCredentialCategoryId, type AdminCustomCredentialSummary, type AdminPublishConnectionInput, type AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";

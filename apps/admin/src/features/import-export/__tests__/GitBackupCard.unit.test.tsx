@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { GitBackupCard, SOURCE_CONTROL_HREF } from "../GitBackupCard";
 import { backupConnectionLabels, gitBackupPlanInput, gitBackupRefusalMessage } from "../git-backup-rules";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,

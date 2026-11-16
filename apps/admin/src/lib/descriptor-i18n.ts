@@ -1,10 +1,5 @@
-import type {
-  AdminDescriptorI18n,
-  AdminPublishTargetCredentialSpec,
-  AdminPublishTargetDescriptor,
-  AdminPublishTargetField,
-  AdminSourceControlProviderDescriptor,
-} from "./api";
+import type { AdminDescriptorI18n, AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor, AdminPublishTargetField } from "./api";
+import type { AdminSourceControlProviderDescriptor } from "../features/source-control/api/source-control-api.types";
 
 /**
  * @file Renders a plugin descriptor's own text (host labels, help, credential guidance) in the

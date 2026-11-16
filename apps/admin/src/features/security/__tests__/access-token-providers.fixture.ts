@@ -1,4 +1,4 @@
-import type { AdminSourceControlProviderDescriptor } from "@/lib/api";
+import type { AdminSourceControlProviderDescriptor } from "@/features/source-control/api/source-control-api.types";
 import { accessTokenProviders } from "../rules";
 import { PUBLISH_TARGETS } from "../../deployment/__tests__/publish-targets.fixture";
 

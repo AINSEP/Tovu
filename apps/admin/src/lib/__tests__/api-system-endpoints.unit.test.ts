@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { sourceControlApi } from "../../features/source-control/api/source-control-api";
 import { observabilityApi } from "../../features/observability/api/observability-api";
 import { importExportApi } from "../../features/import-export/api/import-export-api";
 import { mailStatusApi } from "../../features/email/api/mail-status-api";
@@ -272,14 +273,14 @@ test("verifyPublishCredential POSTs to /system/publish/credentials/:id/verify wi
 
 test("listSourceControlCredentials is a bare GET at /system/source-control/credentials", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listSourceControlCredentials();
+  await sourceControlApi.listSourceControlCredentials();
   expect(calls[0].url).toBe(`${BASE}/system/source-control/credentials`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("listSourceControlProviders is a bare GET at /system/source-control/providers", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listSourceControlProviders();
+  await sourceControlApi.listSourceControlProviders();
   expect(calls[0].url).toBe(`${BASE}/system/source-control/providers`);
   expect(calls[0].init?.method).toBeUndefined();
 });
@@ -287,7 +288,7 @@ test("listSourceControlProviders is a bare GET at /system/source-control/provide
 test("createSourceControlCredential POSTs the input verbatim, including bitbucket's required username", async () => {
   const { calls, body } = stubFetchCapturing();
   const input = { label: "Origin", connection: { providerId: "bitbucket" as const, token: "tok", username: "leona" } };
-  await api.createSourceControlCredential(input);
+  await sourceControlApi.createSourceControlCredential(input);
   expect(calls[0].url).toBe(`${BASE}/system/source-control/credentials`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual(input);
@@ -295,7 +296,7 @@ test("createSourceControlCredential POSTs the input verbatim, including bitbucke
 
 test("updateSourceControlCredential PUTs to /system/source-control/credentials/:id, omitting connection when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.updateSourceControlCredential({ id: "scc-1", input: { label: "Renamed" } });
+  await sourceControlApi.updateSourceControlCredential({ id: "scc-1", input: { label: "Renamed" } });
   expect(calls[0].url).toBe(`${BASE}/system/source-control/credentials/scc-1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ label: "Renamed" });
@@ -303,7 +304,7 @@ test("updateSourceControlCredential PUTs to /system/source-control/credentials/:
 
 test("deleteSourceControlCredential DELETEs /system/source-control/credentials/:id", async () => {
   const { calls } = stubFetchCapturing();
-  await api.deleteSourceControlCredential({ id: "scc-1" });
+  await sourceControlApi.deleteSourceControlCredential({ id: "scc-1" });
   expect(calls[0].url).toBe(`${BASE}/system/source-control/credentials/scc-1`);
   expect(calls[0].init?.method).toBe("DELETE");
 });
