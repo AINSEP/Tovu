@@ -13,7 +13,7 @@ import { readVisitorToolPolicy } from "#src/assistant/site/visitor-tool-settings
 import { createVisitorConfirmations, VISITOR_CONFIRMATION_WAIT_MS, type ToolConfirmationDirective } from "#src/assistant/site/visitor-confirmations";
 import { readVisitorToolsSnapshot } from "#src/features/settings/visitor-tools-write";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
-import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createTimeoutScheduler, type SchedulerPort } from "@jini-ai/daemon/scheduler";
 import { randomBytes } from "node:crypto";
 import {
   isSameOrigin,
@@ -577,9 +577,12 @@ async function runSiteAssistantPreflight(
   return { ok: true, message: guard.message, priorTurns: guard.priorTurns, provider };
 }
 
-export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
+/** `siteAssistantConfirmationScheduler` owns the one timer a held visitor confirmation has: its
+ *  expiry. The host passes none and gets real timeouts; a test passes its own to reach the expiry
+ *  ending without waiting out the 60 s the visitor is given. */
+export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
   const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
-    exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: createTimeoutScheduler({}),
+    exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}),
       // This generator is cryptographic; the site's ordinary IDs can be time ordered.
       idGenerator: { newId: () => randomBytes(16).toString("base64url") }, defaultChannel: "visitor-tool-confirmation" },
     { idleTtlMs: VISITOR_CONFIRMATION_WAIT_MS, maxLifetimeMs: VISITOR_CONFIRMATION_WAIT_MS }) });

@@ -49,6 +49,25 @@
       }
     ]
   },
+  "ask tool, expired": {
+    "status": 200,
+    "body": "event: client_directive\ndata: {\"kind\":\"tool_confirmation\",\"challengeId\":\"<challenge>\",\"title\":\"Allow listing categories?\",\"summary\":\"List published categories.\"}\n\nevent: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "I can't help with that request here.",
+        "isError": true
+      }
+    ],
+    "confirmationTimersMs": [
+      60000,
+      60000,
+      60000
+    ],
+    "lateAnswer": {
+      "status": 400,
+      "body": "{\"error\":\"I can't help with that request here.\"}"
+    }
+  },
   "ask tool, no capacity": {
     "status": 200,
     "body": "event: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",

@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import express from "express";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
+import type { SchedulerPort } from "@jini-ai/daemon/scheduler";
 
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "../../assistant/index.js";
 import { writeVisitorTools } from "#src/features/settings/visitor-tools-write";
@@ -22,13 +23,13 @@ import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-
  * (`event: text|error|end|client_directive`), pinned before the site moves to AG-UI in S5.
  *
  * Scenarios: a plain reply; an Ask-mode content tool whose directive the visitor allows; the same
- * denied; the same refused for capacity (two prompts already held from this address, so the third
- * tool is denied with no directive and the turn continues); a provider error; a visitor who leaves.
+ * denied; the same left unanswered until its deadline (the tool is denied and the turn continues);
+ * the same refused for capacity (two prompts already held from this address, so the third tool is
+ * denied with no directive and the turn continues); a provider error; a visitor who leaves.
  * Lifecycle order, what is disclosed to the visitor, and each ending are the pinned properties.
  *
- * NOT pinned here (recorded in the run report): confirmation expiry, which needs the exchange
- * store's timer injected through the module, and a successful `page.navigate`, which needs an
- * attached page session. Both must be added before S5 replaces this wire.
+ * The expiry scenario passes the module its confirmation scheduler, so the deadline is fired by the
+ * test and no real 60 s wait or wall clock is involved.
  *
  * Regenerate with `UPDATE_GOLDEN=1` only in a commit that names the wire change it makes.
  */
@@ -46,7 +47,25 @@ function text(reply: string): StubProviderReply {
   return { status: 200, body: chunk({ candidates: [{ content: { role: "model", parts: [{ text: reply }] }, finishReason: "STOP", index: 0 }] }) };
 }
 
-async function boot({ t, respond, ask = false }: { t: TestContext; respond: (count: number, body: Record<string, unknown>) => StubProviderReply; ask?: boolean }) {
+/** A scheduler the test fires by hand: the confirmation deadline arrives when `expire()` says so. */
+function manualScheduler() {
+  const timers: { delayMs: number; callback: () => void; cancelled: boolean }[] = [];
+  const port: SchedulerPort = {
+    schedule({ delayMs, callback }) {
+      const timer = { delayMs, callback, cancelled: false };
+      timers.push(timer);
+      return () => { timer.cancelled = true; };
+    },
+  };
+  return {
+    port,
+    delaysMs: () => timers.map((timer) => timer.delayMs),
+    /** Runs every live timer on a later tick: a host timer never calls back synchronously. */
+    expire: () => { for (const timer of timers) if (!timer.cancelled) setImmediate(timer.callback); },
+  };
+}
+
+async function boot({ t, respond, ask = false, confirmationScheduler }: { t: TestContext; respond: (count: number, body: Record<string, unknown>) => StubProviderReply; ask?: boolean; confirmationScheduler?: SchedulerPort }) {
   const deps = createRouteDeps();
   await deps.siteTitleReady;
   await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
@@ -64,7 +83,7 @@ async function boot({ t, respond, ask = false }: { t: TestContext; respond: (cou
   const app = express();
   app.use(express.json());
   const logs: unknown[] = [];
-  createSiteAssistantModule({ ...deps, siteAssistantErrorLog: (entry: unknown) => logs.push(entry) } as typeof deps,
+  createSiteAssistantModule({ ...deps, siteAssistantErrorLog: (entry: unknown) => logs.push(entry), ...(confirmationScheduler ? { siteAssistantConfirmationScheduler: confirmationScheduler } : {}) } as typeof deps,
     { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   siteOrigin = new URL(baseUrl);
@@ -144,6 +163,26 @@ for (const allow of [true, false]) {
     check(`ask tool, allow=${allow}`, { status: response.status, body: pin(sink.raw), toolResultSeenByModel: toolResults(requests[1]!) });
   });
 }
+
+test("site chat golden: an Ask-mode content tool left unanswered until its deadline is denied and the turn continues", { timeout: 8_000 }, async (t) => {
+  const requests: Record<string, unknown>[] = [];
+  const scheduler = manualScheduler();
+  const { baseUrl } = await boot({ t, ask: true, confirmationScheduler: scheduler.port, respond: (count, body) => {
+    requests.push(body);
+    return count === 1 ? functionCall("list_categories", {}, "ask-call") : text("Finished.");
+  } });
+  const response = await chat(baseUrl);
+  const reader = response.body!.getReader();
+  const sink = { raw: "" };
+  const challengeId = await readDirective(reader, sink);
+  assert.equal(requests.length, 1, "the model gets no continuation while its tool is held");
+  scheduler.expire();
+  await drain(reader, sink);
+  assert.equal(requests.length, 2, "the turn continues after the deadline");
+  const lateAnswer = await confirm(baseUrl, challengeId, true);
+  check("ask tool, expired", { status: response.status, body: pin(sink.raw), toolResultSeenByModel: toolResults(requests[1]!),
+    confirmationTimersMs: scheduler.delaysMs(), lateAnswer: { status: lateAnswer.status, body: pin(await lateAnswer.text()) } });
+});
 
 /** The function responses the provider received on the continuation: what the model learns of the outcome. */
 function toolResults(request: Record<string, unknown>): unknown[] {
@@ -227,5 +266,5 @@ test("site chat golden: a visitor who leaves cancels the provider call and gets 
 test("the site chat golden file holds exactly these scenarios", () => {
   if (process.env.UPDATE_GOLDEN === "1") writeFileSync(GOLDEN, `${JSON.stringify(actual, null, 2)}\n`);
   const golden = JSON.parse(readFileSync(GOLDEN, "utf8")) as Record<string, unknown>;
-  assert.deepEqual(Object.keys(golden), ["plain reply", "ask tool, allow=true", "ask tool, allow=false", "ask tool, no capacity", "provider error", "visitor abort"]);
+  assert.deepEqual(Object.keys(golden), ["plain reply", "ask tool, allow=true", "ask tool, allow=false", "ask tool, expired", "ask tool, no capacity", "provider error", "visitor abort"]);
 });
