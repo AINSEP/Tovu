@@ -23,7 +23,7 @@ export interface CheckpointerPorts {
   /** The trailing and retry timer. It is separate from the deadline timers because the host does
    * not let it keep the process alive: a quiet run must not hold an idle site open. */
   readonly checkpointTimers: RunTimerPort;
-  readonly log: RunLogPort;
+  readonly log: Pick<RunLogPort, "error">;
   /** Override the size-based interval between in-flight checkpoints; tests pass 0. */
   readonly checkpointIntervalMs: number | undefined;
 }

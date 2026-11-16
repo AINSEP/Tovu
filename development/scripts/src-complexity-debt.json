@@ -366,13 +366,6 @@
       "value": 14
     },
     {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-      "function": "createAssistantRunFinalizer#1.startWatch#1.<anonymous>#1",
-      "line": 768,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
       "function": "ownedDurableRun#1",
       "line": 222,

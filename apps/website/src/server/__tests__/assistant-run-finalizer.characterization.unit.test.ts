@@ -3,7 +3,8 @@ import test, { type TestContext } from "node:test";
 
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { ChatRunLedger } from "#src/assistant/index";
-import { assistantRunFinalizerFor, createAssistantRunFinalizer, type AssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { assistantRunFinalizerFor } from "../runtime/composition/modules/run-finalizer/shared.js";
 import { createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import {
@@ -368,9 +369,13 @@ for (const [style, reject] of [
 
 // ---- Public surface (C15): edited only in the commits the design lists -----------------------
 
-test("C15a the run-time exports of the finalizer module and of the daemon HTTP client module", async () => {
-  const finalizerModule = await import("../runtime/composition/modules/assistant-run-finalizer.js");
-  assert.deepEqual(Object.keys(finalizerModule).sort(), ["assistantRunFinalizerFor", "createAssistantRunFinalizer"]);
+test("C15a the run-time exports of the finalizer modules and of the daemon HTTP client module", async () => {
+  const entryModule = await import("../runtime/composition/modules/run-finalizer/entry.js");
+  assert.deepEqual(Object.keys(entryModule).sort(), ["createAssistantRunFinalizer"]);
+  const sharedModule = await import("../runtime/composition/modules/run-finalizer/shared.js");
+  assert.deepEqual(Object.keys(sharedModule).sort(), ["assistantRunFinalizerFor"]);
+  const oldPath = "../runtime/composition/modules/assistant-run-finalizer.js";
+  await assert.rejects(import(oldPath), { code: "ERR_MODULE_NOT_FOUND" });
   const clientModule = await import("../runtime/composition/modules/run-daemon-http-client.js");
   assert.deepEqual(Object.keys(clientModule).sort(), ["createHttpRunDaemonClient"]);
 });

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { createChatStoreFactory } from "#src/assistant/persistence/store-factory";
-import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { INCIDENT_PARTIAL } from "#src/assistant/durable-runs/__tests__/incident.fixture";
 import { EXHAUSTED_NOTICE } from "@jini-ai/chat/server/durable-runs";

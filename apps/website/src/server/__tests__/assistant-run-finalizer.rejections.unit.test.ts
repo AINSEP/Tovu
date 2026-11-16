@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
 import type { ChatRunLedger } from "#src/assistant/index";
-import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import {

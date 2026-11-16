@@ -7,7 +7,7 @@ import { getExportRunSnapshot } from '../../../features/deployments/export-run.j
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
 import { registerSiteIdleStopHook } from "../lifecycle/daemon-supervisor.js";
-import { assistantRunFinalizerFor } from "./modules/assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "./modules/run-finalizer/shared.js";
 import { createVisitorPageTargets } from './visitor-page-targets.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";

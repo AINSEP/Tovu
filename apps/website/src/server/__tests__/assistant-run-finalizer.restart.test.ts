@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { createChatRunLedger, createChatStoreFactory } from "#src/assistant/index";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
-import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 
 /** Real chat storage and finalizer, without HTTP listeners. Only the daemon stream is substituted. */
 const principal = { kind: "user" as const, workspaceId: "ws", userId: "owner" };

@@ -35,6 +35,15 @@ export async function flush(turns = 8): Promise<void> {
   for (let turn = 0; turn < turns; turn++) await new Promise<void>((done) => { setImmediate(done); });
 }
 
+/** Collects unhandled rejections for one test; the listener is removed when the test ends. */
+export function unhandledRejections(t: TestContext): unknown[] {
+  const seen: unknown[] = [];
+  const listener = (reason: unknown) => { seen.push(reason); };
+  process.on("unhandledRejection", listener);
+  t.after(() => { process.off("unhandledRejection", listener); });
+  return seen;
+}
+
 /** Waits for a condition without sleeping; a condition never reached fails the test by name. */
 export async function until(check: () => boolean, label: string): Promise<void> {
   for (let turn = 0; turn < 400; turn++) {

@@ -94,7 +94,7 @@ import { registerInstalledExtensionTools } from "../installed-extension-tools.js
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
 import { buildDaemonAttachmentTools, createDaemonApprovalMemory, createDaemonAwareInstallAttachmentReader, registerAssistantToolExecRoutes, publishDaemonPluginEvent, findLiveSiteToolRun } from "./assistant-tool-exec.js";
-import { assistantRunFinalizerFor } from "./assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createAssistantServerFederation } from "./assistant-server-federation.js";
 import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";

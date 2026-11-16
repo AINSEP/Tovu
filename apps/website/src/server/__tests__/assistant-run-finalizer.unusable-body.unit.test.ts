@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { end, ended, manualScheduler, recordingLedger, runningMessage, until } from "./run-finalizer-characterization.fixture.js";
 
 /**

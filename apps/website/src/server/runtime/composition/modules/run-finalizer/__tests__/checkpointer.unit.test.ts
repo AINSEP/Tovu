@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import test, { type TestContext } from "node:test";
+import test from "node:test";
 
+import { flush, unhandledRejections } from "../../../../../__tests__/run-finalizer-characterization.fixture.js";
 import type { RunDaemonClient } from "../../run-daemon-http-client.js";
 import { createCheckpointer, type CheckpointerPorts } from "../checkpointer.js";
 import type { RunLogPort, RunTimerPort } from "../ports.js";
@@ -47,19 +48,6 @@ function failingOnceLedger(storageError: Error) {
   return { ledger, contents };
 }
 
-async function turns(count = 8): Promise<void> {
-  for (let turn = 0; turn < count; turn++) await new Promise<void>((done) => { setImmediate(done); });
-}
-
-/** Collects unhandled rejections for one test; the listener is removed when the test ends. */
-function unhandledRejections(t: TestContext): unknown[] {
-  const seen: unknown[] = [];
-  const listener = (reason: unknown) => { seen.push(reason); };
-  process.on("unhandledRejection", listener);
-  t.after(() => { process.off("unhandledRejection", listener); });
-  return seen;
-}
-
 function quietWatch() {
   return makeWatch({
     principalId: "owner", conversationId: "chat", runId: RUN, daemon: unusedDaemon, attemptBase: [], now: NOW, resolutionTimeoutMs: 60_000,
@@ -80,14 +68,14 @@ for (const failingLog of failingLogs) {
     const { ledger, contents } = failingOnceLedger(storageError);
     const { timers, armed, fire } = manualTimers();
     const reported: Parameters<RunLogPort["error"]>[0][] = [];
-    const log: RunLogPort = { error: (required) => { reported.push(required); return failingLog.error(required); } };
+    const log: CheckpointerPorts["log"] = { error: (required) => { reported.push(required); return failingLog.error(required); } };
     const clock = { now: NOW };
     const checkpointer = createCheckpointer({ ledger, now: () => clock.now, checkpointTimers: timers, log, checkpointIntervalMs: 0 });
     const watch = quietWatch();
 
     watch.events.push({ kind: "text", text: "partial" });
     checkpointer.onFrame({ watch });
-    await turns();
+    await flush();
 
     assert.deepEqual(reported, [{ operation: "checkpoint", runId: RUN, error: storageError }]);
     assert.equal(reported[0]!.error, storageError);
@@ -99,7 +87,7 @@ for (const failingLog of failingLogs) {
 
     clock.now = NOW + 1_000;
     fire();
-    await turns();
+    await flush();
 
     assert.deepEqual(contents, ["partial", "partial"]);
     assert.equal(watch.checkpointedTextCharacters, "partial".length);

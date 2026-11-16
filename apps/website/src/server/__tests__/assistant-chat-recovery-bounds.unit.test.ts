@@ -7,7 +7,7 @@ import { AWAITING_ANSWER_NOTICE } from "@jini-ai/chat/server/durable-runs";
 import { createSurfaceExchangeStore, DEFAULT_SURFACE_IDLE_TTL_MS } from "@jini-ai/daemon/surface-exchanges";
 import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
-import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 
 /** Only verified death spends the recovery budget; uncertainty keeps watching. The previous

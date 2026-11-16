@@ -111,7 +111,7 @@ async function readWithinBound({ ports, watch }: { ports: FollowerPorts; watch: 
  * @complexity O(1) bookkeeping plus one existing durable-recovery call for a live run. */
 async function prepareReconnect(
   { ports, watch, status, attempt }: { ports: FollowerPorts; watch: Watch; status: number | null; attempt: number },
-  _options: Record<string, never> = {},
+  _options = {},
 ): Promise<number | undefined> {
   if (status !== 200) return attempt;
   if (!await ports.retainLive({ watch })) {

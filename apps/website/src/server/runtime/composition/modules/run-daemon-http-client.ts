@@ -29,7 +29,7 @@ export interface RunDaemonClient {
   launch?(required: { run: DurableRun; request: { contextRef: string; agentId?: string } }, optional: {}): Promise<void>;
   cancel?(required: RunDaemonRequest, optional: {}): Promise<void>;
   /** Release this principal/run's retained endpoint and capability after its watch ends. Idempotent. */
-  release?(required: RunDaemonRequest, optional?: Record<string, never>): void;
+  release?(required: RunDaemonRequest, optional?: {}): void;
 }
 
 function daemonHeaders({ principalId, token }: { principalId: string; token: string | undefined }, _optional = {}): Record<string, string> {

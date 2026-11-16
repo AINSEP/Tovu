@@ -11,7 +11,7 @@ import { ensureAgentDaemonToken, ensureToolExecToken, requireAgentDaemonToken } 
 import { createRunActiveContextStore, registerRunActiveContextRoute } from '../../../apps/website/src/assistant/run-active-context.js';
 import { registerDurableRunStartRoute } from '../../../apps/website/src/server/inbound/assistant/durable-run-routes.js';
 import { createDaemonSiteTools } from '../../../apps/website/src/server/inbound/assistant/agent-daemon-site-tools.js';
-import { assistantRunFinalizerFor } from "../../../apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "../../../apps/website/src/server/runtime/composition/modules/run-finalizer/shared.js";
 import { onTeardown } from '../../../apps/website/src/__tests__/fixtures/teardown.js';
 import { acceptRuns } from '../../e2e/desktop/_assistant-release-gate.js';
 

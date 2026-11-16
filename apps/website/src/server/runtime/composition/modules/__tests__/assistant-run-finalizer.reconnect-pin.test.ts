@@ -4,7 +4,7 @@ import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { DurableRunStore } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger, RunSettlement } from "#src/assistant/index";
-import { createAssistantRunFinalizer } from "../assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
 import { type RunDaemonClient } from "../run-daemon-http-client.js";
 
 /** TW2 L136: characterize reconnect decisions before simplifying the follow loop. */

@@ -646,7 +646,7 @@ async function measureChatTurn({ started, temp }) {
   const extension = path.extname(started.entry);
   const moduleUrl = (relative) => new URL(`../${relative}${extension}`, pathToFileURL(started.entry)).href;
   const input = { dbFile: path.join(temp, "chat-workload.db"), urls: {
-    finalizer: moduleUrl("server/runtime/composition/modules/assistant-run-finalizer"),
+    finalizer: moduleUrl("server/runtime/composition/modules/run-finalizer/entry"),
     ledger: moduleUrl("assistant/persistence/run-ledger"), database: moduleUrl("platform/db/sqlite/chat-db"),
   } };
   log("running ~20 minute deterministic chat turn in the server (8 MiB, 64 tools, one reconnect)");

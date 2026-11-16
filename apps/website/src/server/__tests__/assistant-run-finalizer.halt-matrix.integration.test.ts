@@ -3,7 +3,7 @@ import test, { type TestContext } from "node:test";
 
 import { createChatRunLedger, createChatStoreFactory, type ChatRunLedger } from "#src/assistant/index";
 import { openChatDb } from "#src/platform/db/sqlite/chat-db";
-import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { deferred, end, ended, flush, liveStream, manualScheduler, missing, text, until, type Deferred } from "./run-finalizer-characterization.fixture.js";
 

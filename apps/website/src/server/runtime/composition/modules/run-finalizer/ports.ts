@@ -10,7 +10,10 @@ export interface RunTimerPort { schedule(required: { delayMs: number; run: () =>
 /** Where the finalizer reports a failure it has already handled. Call it through `reportSafely`:
  * a host log may throw, and that must not change what happens to the run. */
 export interface RunLogPort {
-  error(required: { operation: "checkpoint"; runId: string; error: unknown }, optional?: {}): void;
+  /** A rejected checkpoint write (it is retried) or a watch that threw (it is abandoned). */
+  error(required: { operation: "checkpoint" | "watch"; runId: string; error: unknown }, optional?: {}): void;
+  /** The release of a daemon pin or the host's attempt-ended handler failed at a watch's end. */
+  warn(required: { operation: "attempt-cleanup"; runId: string; error: unknown }, optional?: {}): void;
 }
 
 /** How a watch ended: the run's terminal status, `interrupted` when the watch handed the run to
