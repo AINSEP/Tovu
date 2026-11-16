@@ -23,9 +23,8 @@ import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/
  *
  * Translation is two composed pure steps, matching ADR-059 Decision 2's "translate `AgentEvent`,
  * not either backend's raw wire format" — one shared pivot, not two adapters that could drift:
- * {@link reduceAgentWirePayload} ports `apps/admin/src/lib/assistant-transport.ts`'s
- * `translateRunAgentPayload` reduction server-side (same vocabulary, same output — a PORT, not an
- * import, because `src/server/` cannot depend on `apps/admin/`, a separate deployable app), and
+ * Jini's `translateRunAgentPayload` (`@jini-ai/chat/core/run-events`) is the ONE reduction from a
+ * daemon wire payload to an `AgentEvent`, shared with the browser and the run finalizer, and
  * {@link translateAgentEventToAgUi} maps that shared `AgentEvent` shape onward into AG-UI events.
  *
  * Client-supplied run/thread ids (`ADR-059` Consequences): unlike the daemon-backed Local CLI path
@@ -50,7 +49,7 @@ import { EventType } from "@ag-ui/core";
 import { EventEncoder } from "@ag-ui/encoder";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
-import { parseUsageEvent } from "@jini-ai/chat/core/run-events";
+import { translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 import {
   createAgUiTranslationState as createJiniAgUiTranslationState,
   translateAgentEventToAgUi as translateJiniAgentEventToAgUi,
@@ -121,70 +120,10 @@ function flattenMessagesToPrompt({ messages }: { messages: AgUiChatMessage[] }, 
   return messages.map((m) => `## ${m.role}\n${m.content}`).join("\n\n");
 }
 
-// ---------------------------------------------------------------------------------------------
-// Wire -> AgentEvent reduction (server-side port of `translateRunAgentPayload`)
-// ---------------------------------------------------------------------------------------------
-
-interface RunAgentWirePayload {
-  readonly type: string;
-  readonly [key: string]: unknown;
-}
-
+/** Renders one daemon wire scalar for display: a string as is, an absent value as "", anything else as JSON. */
 function asString({ v }: { v: unknown }, _optional = {}): string {
   if (typeof v === "string") return v;
   return v == null ? "" : JSON.stringify(v);
-}
-
-// Jini owns usage validation and session cost metadata for every transport.
-function reduceUsagePayload(payload: RunAgentWirePayload): AgentEvent {
-  return parseUsageEvent({ payload });
-}
-
-/**
- * One entry per recognized wire `payload.type`. A dispatch table rather than the flat `switch`
- * `translateRunAgentPayload` uses client-side (see this file's own header for why this is a port,
- * not an import — keep the two in sync): `payload.type` is an untyped wire string, not a checked TS
- * union, so — unlike Jini's exhaustive switch over `AgentEvent.kind` — a table costs no
- * exhaustiveness guarantee a `switch`+`default` wasn't already forgoing. Chosen
- * because a flat switch's cyclomatic cost is one per `case` regardless of body size: 10 wire types
- * puts the floor at 11 before any real branching, over this repo's ≤9 gate by construction.
- */
-const WIRE_PAYLOAD_REDUCERS: Record<string, (payload: RunAgentWirePayload) => AgentEvent | null> = {
-  status: (payload) => ({ kind: "status", label: asString({ v: payload.label }), detail: payload.detail ? asString({ v: payload.detail }) : undefined }),
-  text_delta: (payload) => ({ kind: "text", text: asString({ v: payload.delta }) }),
-  thinking_delta: (payload) => ({ kind: "thinking", text: asString({ v: payload.delta }) }),
-  tool_use: (payload) => ({ kind: "tool_use", id: asString({ v: payload.id }), name: asString({ v: payload.name }), input: payload.input }),
-  tool_result: (payload) => ({
-    kind: "tool_result",
-    toolUseId: asString({ v: payload.toolUseId }),
-    content: asString({ v: payload.content }),
-    isError: Boolean(payload.isError),
-  }),
-  usage: reduceUsagePayload,
-  raw: (payload) => ({ kind: "raw", line: asString({ v: payload.line }) }),
-  // Inert on the AG-UI path for this slice — no renderer exists for it here (ADR-059 Decision 5).
-  // Routed through `ext` -> `CUSTOM` below so the stream doesn't silently drop the event.
-  "mcp-ui": (payload) => ({ kind: "ext", name: "mcp-ui", data: payload.resource }),
-  // Jini's own unrelated generative-UI channel, despite the similar name to AG-UI. Same
-  // inert-passthrough treatment as `mcp-ui` above, for the same reason.
-  a2ui: (payload) => ({ kind: "ext", name: "a2ui", data: payload.message }),
-  // No wire-side `thinking_end` counterpart exists (verified against `@jini-ai/protocol`'s source),
-  // so `translateRunAgentPayload` drops this event today — mirrored here rather than "fixed", since
-  // changing that reduction is out of this slice's scope.
-  thinking_start: () => null,
-};
-
-/**
- * Reduces one daemon wire payload (a `RunProtocolEventWire.payload`, kind `"agent"`) into zero or
- * one `AgentEvent`s. Field-for-field parity with `translateRunAgentPayload` is load-bearing — see
- * {@link WIRE_PAYLOAD_REDUCERS}'s own doc for why this is a table, not a switch.
- */
-export function reduceAgentWirePayload(payload: RunAgentWirePayload): AgentEvent | null {
-  const reducer = WIRE_PAYLOAD_REDUCERS[payload.type];
-  // `tool_input_delta`/`stage_start`/`stage_end`/`surface_request`/`surface_response`: no dedicated
-  // `AgentEvent` variant, same as the client-side switch's `default` — routed through `ext` so a
-  // future renderer can opt in without a translator change.
-  return reducer ? reducer(payload) : { kind: "ext", name: payload.type, data: payload };
 }
 
 /**
@@ -283,8 +222,8 @@ interface DaemonFrame {
 
 /** Per-frame `event:`/`data:` parsing for the daemon's own SSE format (`id: <cursor>\nevent:
  *  <kind>\ndata: <json>\n\n`, `@jini-ai/http-kit`'s `defaultFormatEvent`) — a local port of
- *  `assistant-transport.ts`'s `parseFrame`, not an import, for the same cross-app-boundary reason
- *  {@link reduceAgentWirePayload} is a port. `id:` is intentionally ignored: this path has no
+ *  `assistant-transport.ts`'s `parseFrame`, not an import (`src/server/` cannot depend on
+ *  `apps/admin/`, a separate deployable app). `id:` is intentionally ignored: this path has no
  *  reattach story to resume a cursor for. */
 function parseDaemonFrame({ rawFrame }: { rawFrame: string }, _optional = {}): DaemonFrame | null {
   let event = "message";
@@ -360,8 +299,8 @@ function writeAllAgUiEvents({ res, events }: { res: Response; events: AgUiEvent[
 
 /** The `"agent"` case of {@link handleDaemonFrame}. */
 function handleAgentDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
-  const payload = unwrapDaemonEnvelope({ raw: data }) as RunAgentWirePayload;
-  const reduced = reduceAgentWirePayload(payload);
+  const payload = unwrapDaemonEnvelope({ raw: data }) as RunAgentPayload;
+  const reduced = translateRunAgentPayload({ payload });
   if (reduced) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi(reduced, ctx.state) });
 }
 
