@@ -12,6 +12,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 import { createApp } from "#src/server/runtime/composition/app";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
+import { processOutbox } from "#src/contracts/core/events/index";
 import type { DomainEvent, EventBusPort } from "@jini-ai/core/contracts/events";
 import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
 import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
@@ -165,6 +166,8 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   (deps as { bus: EventBusPort }).bus = bus;
 
   createApp(deps);
+  // Why: the notify subscriber awaits its delivery-event subscription before subscribing the source event, so let that registration settle before counting.
+  await new Promise<void>((resolve) => setImmediate(resolve));
   const servedOnce = Object.fromEntries(bus.subscriptions);
   // Three distinct subscribers, each once: forms' consent-gated form_submitted analytics (cbf441365),
   // forms' notify mail, and integrations' webhook fan-out.
@@ -172,6 +175,7 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
 
   deps.createSiteApp();
   deps.createSiteApp();
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.deepEqual(
     Object.fromEntries(bus.subscriptions),
@@ -199,6 +203,8 @@ test("createSiteApp() on a SQLite composition adds no second copy of the serving
   });
   await bus.publish({ id: "module-identity-event", name: "form.submission.received", workspaceId: deps.workspaceId,
     occurredAt: now, payload: { workspaceId: deps.workspaceId, formDefinitionId: "module-identity-form", submissionId: "module-identity-submission" } });
+  // Why: the notify subscriber plans one durable recipient job per submission on the shared outbox, so the mail leaves on the drain (still exactly once).
+  await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
   assert.deepEqual(sentTo, ["module-owner@example.test"]);
   const deliveries = await deps.webhookDeliveryRepo.listBySubscription({ workspaceId: deps.workspaceId, subscriptionId: subscription.id, limit: 10 });
   assert.equal(deliveries.length, 1);
