@@ -46,7 +46,7 @@ O-1 extend the existing client CLI by CLI · O-2 allow the Claude and Codex adap
 
 ```sh
 cd Jini   # integ/wave-b-r2
-grep -rho "streamFormat: *'[a-z-]*'" packages/agent-runtime/src/defs --include=*.ts --exclude-dir=__tests__ | sort | uniq -c
+grep -rhE "^\s*streamFormat: *'[a-z-]*'" packages/agent-runtime/src/defs --include=*.ts --exclude-dir=__tests__ | sed 's/^ *//; s/,$//' | sort | uniq -c   # 28 defs: 12 acp, 3 claude, 5 json-event, 1 pi-rpc, 6 plain, 1 qoder
 find packages/agent-runtime/src/agent-protocol/acp -name '*.ts' -not -path '*__tests__*' | xargs wc -l | tail -1
 for d in claude codex opencode antigravity pi gemini; do find packages/daemon/src/agent-executor/$d -name '*.ts' -not -path '*__tests__*' | xargs wc -l | tail -1; done
 grep -c "loadSession\|usage_update\|32601" packages/agent-runtime/src/agent-protocol/acp/session.ts   # expect 0
