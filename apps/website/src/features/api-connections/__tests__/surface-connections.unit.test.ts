@@ -64,11 +64,12 @@ class FaultyWritesVaultRepo extends InMemoryVaultRepo {
   }
 }
 
-for (const [label, fault, shown] of [
-  ["an upstream (non-lowercase) code", Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" }), "sign-in-failed"],
-  ["no code at all", new Error("storage went away"), "unknown"],
+// `logged` is describeErrorForLog's fixed words: the class label, plus the code only when it is an approved one (Jini core).
+for (const [label, fault, shown, logged] of [
+  ["an upstream (non-lowercase) code", Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" }), "sign-in-failed", "Error(SQLITE_BUSY)"],
+  ["no code at all", new Error("storage went away"), "unknown", "Error"],
 ] as const) {
-  test(`desktop: a failure with ${label} is kept as the safe '${shown}' code and logged by code only`, async (t) => {
+  test(`desktop: a failure with ${label} is kept as the safe '${shown}' code and logged by class label and approved code only`, async (t) => {
     const warnings = captureWarnings(t);
     const vaultRepo = new FaultyWritesVaultRepo({});
     const host = harness.makeHost({ runtime: "desktop", vaultRepo });
@@ -78,7 +79,7 @@ for (const [label, fault, shown] of [
     vaultRepo.writeFault = fault;
     void harness.consent(start.authorizationUrl);
     assert.deepEqual(await failedAttempt(port), { code: shown, nextAction: "reconnect" });
-    assert.deepEqual(warnings, [`[admin-surfaces] desktop sign-in for 'acme-office' did not complete: ${"code" in fault ? fault.code : "unknown"}`]);
+    assert.deepEqual(warnings, [`[admin-surfaces] desktop sign-in for 'acme-office' did not complete: ${logged}`]);
   });
 }
 

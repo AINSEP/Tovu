@@ -498,7 +498,7 @@ test("a row an operator already set up and switched on still gets its plugin swi
 test("env import warns on listing failure and logs plural retirement notices even without an import declaration", async () => {
   const { deps, log, logs, readRow } = await setup();
   await importAgentPluginAccessTokensFromEnv({ deps: { ...deps, listPlugins: async () => { throw "listing unavailable"; } }, env: {}, log });
-  assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: listing unavailable"]);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: string"]); // a non-Error is described by its typeof, never its text
   const config: McpServerConfig = { type: "streamable-http", url: "https://mcp.example.com/mcp", tokenAuth: {
     helpUrl: "https://example.com/help", probeUrl: "https://example.com/probe", retiredEnv: ["OLD_A", "OLD_B"],
   } };
@@ -531,8 +531,8 @@ test("without an injected listing, env import reads the workspace's installed pl
   assert.deepEqual(await readRow(), before);
 });
 
-test("an Error thrown while listing plugins is reported by its message", async () => {
+test("an Error thrown while listing plugins is reported by its class label, not its message", async () => {
   const { deps, log, logs } = await setup();
   await importAgentPluginAccessTokensFromEnv({ deps: { ...deps, listPlugins: async () => { throw new Error("disk unavailable"); } }, env: {}, log });
-  assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: disk unavailable"]);
+  assert.deepEqual(logs.warn, ["[agent-plugins] could not list plugins to import env tokens: Error"]); // class label only (describeErrorForLog)
 });

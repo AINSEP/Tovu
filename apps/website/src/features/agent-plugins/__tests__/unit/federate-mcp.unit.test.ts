@@ -566,7 +566,8 @@ for (const failure of [new Error("adoption unavailable"), "adoption unavailable"
       return write(record);
     });
     const result = await provisionAgentPluginMcpServers(deps, { ...input, pluginId: "new-owner", servers: { existing: REMOTE_SERVER, later: REMOTE_SERVER } });
-    assert.deepEqual(result.failed, [{ serverKey: "existing", reason: "adoption unavailable" }]);
+    // Jini's failed entries carry the original thrown value as `error` for the host sink (federate-mcp.ts), beside the safe reason.
+    assert.deepEqual(result.failed, [{ serverKey: "existing", reason: "adoption unavailable", error: failure }]);
     assert.deepEqual(result.provisioned, ["later"]);
     assert.deepEqual(result.adopted, []);
     assert.deepEqual(await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "existing" }), before);
