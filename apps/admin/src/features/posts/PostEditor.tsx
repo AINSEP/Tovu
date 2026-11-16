@@ -34,6 +34,7 @@ import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
 import { PostUrlDialog } from "./PostUrlDialog";
 import { probeBubbleMenu } from "./editor/bubble-menu/bubble-menu-state";
+import { ToolbarCharacterCount } from "./editor/toolbar/ToolbarCharacterCount";
 import { probeToolbar } from "./editor/toolbar/toolbar-state";
 import { usePostUrlDialog, type PostUrlDialogController } from "./hooks/use-post-url-dialog.hooks";
 import {
@@ -433,13 +434,7 @@ function Toolbar({
           <circle cx="4" cy="9" r="1.4" /><circle cx="9" cy="9" r="1.4" /><circle cx="14" cy="9" r="1.4" />
         </svg>
       </button>
-      {/* CharacterCount (owner, 2026-08-11: "anything and everything") — a plain readout, not a
-          button: nothing to click, just the live count `editor.storage.characterCount` already
-          tracks. Right-aligned via `margin-left: auto` (styles.css) so it reads as status text
-          trailing the row rather than one more control competing with the buttons before it. */}
-      <span className="editor-toolbar-count" aria-live="polite">
-        {s.characterCount} {s.characterCount === 1 ? t("character") : t("characters")}
-      </span>
+      <ToolbarCharacterCount state={s} t={t} />
     </div>
   );
 }
