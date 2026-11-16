@@ -24,4 +24,3 @@ export {
   type EmailTemplatePreview,
   type EmailTemplateSummary,
 } from "./operations.js";
-export { renderEmailForSend, renderEmailPreview, fillPlaceholders, type SendableEmail, type EmailFieldValues } from "@jini-ai/platform/mail/email-template";

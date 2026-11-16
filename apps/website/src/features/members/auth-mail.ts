@@ -1,5 +1,5 @@
 /** Built-in member auth templates. Secrets are filled only for the interactive send payload. */
-import { renderEmailForSend } from "../email-templates/index.js";
+import { renderEmailForSend } from "@jini-ai/platform/mail/email-template";
 
 const TEMPLATES = {
   "members.sign_in": `<!doctype html><html><head><title>Your sign-in link and code</title></head><body>
