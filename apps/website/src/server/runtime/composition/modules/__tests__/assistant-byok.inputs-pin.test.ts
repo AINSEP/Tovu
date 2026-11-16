@@ -135,7 +135,9 @@ test("BYOK repeats pinned guidance while retaining good picks around failures (r
   const automatic = await send({ conversationId: "automatic-pin", userPrompt: "Design holography" });
   assert.equal(automatic.status, 200);
   assert.doesNotMatch(await automatic.text(), /event: error/);
-  assert.match(prompts[1]!, /Relevant agent plugins for this request:/);
+  // Why: Jini delivers a fresh query's single top match in full (3665df68, owner decision 2026-10-18), so the automatic turn carries the guidance itself, not a metadata note.
+  assert.match(prompts[1]!, /<<AGENT_PLUGIN pluginId="pin-guidance">>/);
+  assert.match(prompts[1]!, /Preserve the unique pin guidance\./);
 
   // Both explicit resolver throws and automatic preflight throws remain fail-soft.
   deps.agentPluginLayout = { ...layout, forWorkspace: () => { throw new Error("fixture plugin storage unavailable"); } };

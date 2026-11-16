@@ -1387,7 +1387,7 @@ test("BYOK a saved-setting revoke while the human reads the card prevents perman
   assert.equal(await trashRowFor(deps, postId), trashItemId);
 });
 
-test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the real delegated tool surface`, async t => {
+test(`${BYOK_TURN_PATH} delivers the top plugin's guidance, then an explicit read loads it again through the real delegated tool surface`, async t => {
   const cwd = await mkdtemp(path.join(tmpdir(), 'byok-hint-plugins-'));
   t.after(() => forceRemove(cwd));
   const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
@@ -1411,9 +1411,9 @@ test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the re
   const providerUrl = await stubProvider(t, (count, body) => {
     calls++;
     if (count === 1) {
-      assert.match(JSON.stringify(body.system), /Relevant agent plugins for this request:/);
-      assert.match(JSON.stringify(body.system), /Holography Author/);
-      assert.doesNotMatch(JSON.stringify(body), /Follow the unique BYOK holography discipline/);
+      // Why: Jini delivers a fresh query's single top match in full (3665df68, owner decision 2026-10-18), so the first prompt already carries the guidance; the explicit read below still returns it in full (7f730e4b).
+      assert.match(JSON.stringify(body.system), /<<AGENT_PLUGIN pluginId=/);
+      assert.match(JSON.stringify(body.system), /Follow the unique BYOK holography discipline/);
       return sseBody(messageStart(), toolUseBlock(0, 'hint_load', 'execute_delegated_tool', { toolId: 'load_agent_plugin', input: { pluginId: 'synthetic-hint' } }), messageDelta('tool_use'), messageStop());
     }
     assert.equal(count, 2);
@@ -1428,6 +1428,6 @@ test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the re
   assert.equal(calls, 2);
   assert.equal(frames.some(frame => frame.event === 'error'), false);
   const usage = frames.filter(frame => frame.event === 'agent' && frame.payload.type === 'agent_plugins');
-  assert.equal(usage.length, 1, 'a suggestion alone must not publish loaded usage');
+  assert.equal(usage.length, 1, 'one delivered primary publishes exactly one usage event');
   assert.deepEqual(usage[0]!.payload.plugins, [{ id: 'synthetic-hint', name: 'Holography Author' }]);
 });
