@@ -5,9 +5,15 @@ afterEach(() => { vi.restoreAllMocks(); vi.resetModules(); vi.unstubAllEnvs(); }
 it("under test mode the shared telemetry send resolves with nothing and touches no network", async () => {
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
-  const { adminTelemetry } = await import("../browser-telemetry");
-  expect(adminTelemetry).toBeDefined();
+  const captured: { deps?: Record<string, (...args: never[]) => unknown> } = {};
+  vi.doMock("@jini-ai/admin/browser", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@jini-ai/admin/browser")>();
+    return { ...actual, createBrowserTelemetry: (deps: never) => { captured.deps = deps; return { reportError: vi.fn(), reportPageview: vi.fn() }; } };
+  });
+  await import("../browser-telemetry");
+  await expect(captured.deps!.send!({ kind: "error" } as never)).resolves.toBeUndefined();
   expect(fetchMock).not.toHaveBeenCalled();
+  vi.doUnmock("@jini-ai/admin/browser");
   vi.unstubAllGlobals();
 });
 

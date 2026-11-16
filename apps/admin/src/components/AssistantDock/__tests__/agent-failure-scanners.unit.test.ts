@@ -33,7 +33,8 @@ it("strips CSI colour and cursor sequences, including 8-bit CSI, prefix chars an
     ["\u001b[?25hshown", "shown"],
     ["\u001bMgone", "gone"],
     ["\u001bXstay", "\u001bXstay"],
-    ["\u001b[12345", "5"],
+    ["\u001b[12345", ""],
+    ["\u001b[1;;;", "\u001b[1;;;".replace(CSI_RE, "")],
     ["\u001b[1;2;", "\u001b[1;2;".replace(CSI_RE, "")],
     ["\u001b[;;;", "\u001b[;;;".replace(CSI_RE, "")],
     ["\u001b[1;23;45;;", "\u001b[1;23;45;;".replace(CSI_RE, "")],
@@ -41,7 +42,7 @@ it("strips CSI colour and cursor sequences, including 8-bit CSI, prefix chars an
     ["\u001b", "\u001b"],
     ["\u001b[", "\u001b["],
     ["\u001b[X", "\u001b[X"],
-    ["\u001b[Rq", ""],
+    ["\u001b[Rq", "q"],
   ];
   for (const [input, expected] of cases) {
     expect(stripCsiSequences({ text: input })).toBe(expected);

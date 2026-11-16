@@ -12,8 +12,9 @@ it("treats a colon followed only by spaces as the single trailing space the lazy
 });
 
 it("ignores a thrown-error line whose message would span a line terminator", () => {
-  expect(summarizeErrorMessage({ message: "head\nError: " }).summary).toBe("head");
-  expect(summarizeErrorMessage({ message: "head\nError:  " }).summary).toBe("head");
+  expect(summarizeErrorMessage({ message: "head\nError:\u2028" }).summary).toBe("head");
+  expect(summarizeErrorMessage({ message: "head\nError:\u2028\u2029" }).summary).toBe("head");
+  expect(summarizeErrorMessage({ message: "head\nError: first\u2028second" }).summary).toBe("head");
 });
 
 it("ignores an error name without a colon, a lowercase name, and a name that is not an Error or Exception", () => {
