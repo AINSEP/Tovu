@@ -34,7 +34,7 @@ import {
 
 test("a Google AIza key of the real 39-char length is flagged", () => {
   const fakeKey = `AIza${"x".repeat(35)}`; // 39 chars total — the real fixed length
-  const hits = scanTextForSecrets(`const key = "${fakeKey}";`);
+  const hits = scanTextForSecrets({ text: `const key = "${fakeKey}";` });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "Google API key (AIza)");
 });
@@ -43,33 +43,33 @@ test("EXACT-LENGTH TRAP: a longer valid-charset run than 39 chars is NOT flagged
   // This is the shape that would trip an unanchored `{35}` pattern — see the file header's
   // exact-length-trap note. All 44 characters are within AIza's valid charset.
   const longerRun = `AIza${"x".repeat(40)}`;
-  assert.deepEqual(scanTextForSecrets(`const key = "${longerRun}";`), []);
+  assert.deepEqual(scanTextForSecrets({ text: `const key = "${longerRun}";` }), []);
 });
 
 test("an Anthropic-shaped fixture shorter than the real ~90+ char minimum is not flagged", () => {
   const shortFixture = `sk-ant-${"x".repeat(21)}`; // 28 chars total — this repo's real fixture length
-  assert.deepEqual(scanTextForSecrets(shortFixture), []);
+  assert.deepEqual(scanTextForSecrets({ text: shortFixture }), []);
 });
 
 test("a real-length Anthropic key (90+ chars after sk-ant-) is flagged", () => {
   const realLength = `sk-ant-${"x".repeat(95)}`;
-  const hits = scanTextForSecrets(realLength);
+  const hits = scanTextForSecrets({ text: realLength });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "Anthropic API key (sk-ant-)");
 });
 
 test("a GitHub classic PAT-shaped fixture shorter than 36 chars after ghp_ is not flagged", () => {
-  assert.deepEqual(scanTextForSecrets(`ghp_${"x".repeat(29)}`), []); // this repo's real fixture length
+  assert.deepEqual(scanTextForSecrets({ text: `ghp_${"x".repeat(29)}` }), []); // this repo's real fixture length
 });
 
 test("a real-length GitHub classic PAT (exactly 36 chars after ghp_) is flagged", () => {
-  const hits = scanTextForSecrets(`ghp_${"x".repeat(36)}`);
+  const hits = scanTextForSecrets({ text: `ghp_${"x".repeat(36)}` });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "GitHub personal access token (classic, ghp_)");
 });
 
 test("a GitHub fine-grained PAT-shaped fixture shorter than 80 chars is not flagged", () => {
-  assert.deepEqual(scanTextForSecrets(`github_pat_${"x".repeat(32)}`), []); // this repo's real fixture length
+  assert.deepEqual(scanTextForSecrets({ text: `github_pat_${"x".repeat(32)}` }), []); // this repo's real fixture length
 });
 
 test("remaining vendor formats are detected at their minimum length and reject one character less", () => {
@@ -80,25 +80,25 @@ test("remaining vendor formats are detected at their minimum length and reject o
     ["fm2_", 20, "Fastmail app password (fm2_)"],
   ] as const) {
     const value = prefix + "x".repeat(length);
-    assert.deepEqual(scanTextForSecrets(`token="${value}"`), [{ patternName, index: 7, value }]);
-    assert.deepEqual(scanTextForSecrets(prefix + "x".repeat(length - 1)), [], patternName);
+    assert.deepEqual(scanTextForSecrets({ text: `token="${value}"` }), [{ patternName, index: 7, value }]);
+    assert.deepEqual(scanTextForSecrets({ text: prefix + "x".repeat(length - 1) }), [], patternName);
   }
 });
 
 test("an npm access token of the real length is flagged", () => {
-  const hits = scanTextForSecrets(`npm_${"x".repeat(36)}`);
+  const hits = scanTextForSecrets({ text: `npm_${"x".repeat(36)}` });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "npm access token");
 });
 
 test("an AWS access key ID is flagged", () => {
-  const hits = scanTextForSecrets(`AKIA${"Q".repeat(16)}`);
+  const hits = scanTextForSecrets({ text: `AKIA${"Q".repeat(16)}` });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "AWS access key ID");
 });
 
 test("a Slack token is flagged", () => {
-  const hits = scanTextForSecrets(`xoxb-${"1".repeat(20)}`);
+  const hits = scanTextForSecrets({ text: `xoxb-${"1".repeat(20)}` });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "Slack token");
 });
@@ -111,14 +111,14 @@ test("a PEM private key block is flagged regardless of surrounding content", () 
   const pemHeader = ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ");
   const pemFooter = ["-----END", "PRIVATE", "KEY-----"].join(" ");
   const src = `${pemHeader}\nMIIEv...\n${pemFooter}`;
-  const hits = scanTextForSecrets(src);
+  const hits = scanTextForSecrets({ text: src });
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "PEM private key block");
 });
 
 test("ordinary opaque ids (uuids, long hex hashes) are never flagged", () => {
   const src = `id: "550e8400-e29b-41d4-a716-446655440000", sha: "${"a".repeat(64)}"`;
-  assert.deepEqual(scanTextForSecrets(src), []);
+  assert.deepEqual(scanTextForSecrets({ text: src }), []);
 });
 
 test("REGRESSION: the real tracked repo has zero un-allowlisted credential-shaped strings today", () => {
@@ -140,11 +140,7 @@ test("REGRESSION: the real tracked repo has zero un-allowlisted credential-shape
 
 test("ALLOWLIST SCOPING: the exact reviewed fixture value in its allowlisted (file, pattern) pair IS allowlisted", () => {
   assert.equal(
-    isAllowlisted(
-      "development/e2e/byok-google-tool-schema.spec.ts",
-      "Google API key (AIza)",
-      "AIzaTest-FAKE-GEMINI-KEY-NOT-REAL-0000000000",
-    ),
+    isAllowlisted({ file: "development/e2e/byok-google-tool-schema.spec.ts", patternName: "Google API key (AIza)", value: "AIzaTest-FAKE-GEMINI-KEY-NOT-REAL-0000000000" }),
     true,
   );
 });
@@ -153,11 +149,7 @@ test("ALLOWLIST SCOPING: a DIFFERENT value matching the same allowlisted (file, 
   // This is the exact gap the old (file, patternName)-only scoping had: a real credential added
   // later to an already-allowlisted file, matching the same pattern, used to pass silently.
   assert.equal(
-    isAllowlisted(
-      "development/e2e/byok-google-tool-schema.spec.ts",
-      "Google API key (AIza)",
-      "TOTALLY-DIFFERENT-VALUE-THAT-IS-NOT-THE-REVIEWED-FIXTURE",
-    ),
+    isAllowlisted({ file: "development/e2e/byok-google-tool-schema.spec.ts", patternName: "Google API key (AIza)", value: "TOTALLY-DIFFERENT-VALUE-THAT-IS-NOT-THE-REVIEWED-FIXTURE" }),
     false,
   );
 });

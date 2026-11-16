@@ -33,7 +33,7 @@ import type {
  */
 
 /** Composite `(workspaceId, id)` key, mirroring the tables' composite FK isolation (ADR-007). */
-function rowKey(workspaceId: string, id: string): string {
+function rowKey({ workspaceId, id }: { workspaceId: string; id: string }, _optional = {}): string {
   return `${workspaceId}:${id}`;
 }
 
@@ -65,12 +65,12 @@ function topicMatches(subscribedTopics: readonly WebhookTopic[], topic: WebhookT
 export class InMemoryWebhookSubscriptionRepo implements WebhookSubscriptionRepoPort {
   private rows = new Map<string, WebhookSubscriptionRecord>();
 
-  constructor(initialRows: WebhookSubscriptionRecord[] = []) {
-    this.rows = new Map(initialRows.map(row => [rowKey(row.workspaceId, row.id), row]));
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: WebhookSubscriptionRecord[] } = {}) {
+    this.rows = new Map(initialRows.map(row => [rowKey({ workspaceId: row.workspaceId, id: row.id }), row]));
   }
 
   async insert(record: WebhookSubscriptionRecord): Promise<void> {
-    const key = rowKey(record.workspaceId, record.id);
+    const key = rowKey({ workspaceId: record.workspaceId, id: record.id });
     if (this.rows.has(key)) {
       throw new Error(`webhook subscription '${record.id}' already exists`);
     }
@@ -78,20 +78,20 @@ export class InMemoryWebhookSubscriptionRepo implements WebhookSubscriptionRepoP
   }
 
   async save(record: WebhookSubscriptionRecord, optional: { expectedVersion?: number } = {}): Promise<void> {
-    const current = this.rows.get(rowKey(record.workspaceId, record.id));
+    const current = this.rows.get(rowKey({ workspaceId: record.workspaceId, id: record.id }));
     if (optional.expectedVersion !== undefined && current?.version !== optional.expectedVersion) {
       await assertVersionedWrite({ changedRows: 0, recordKind: "webhook subscription", recordId: record.id,
         expectedVersion: optional.expectedVersion, readCurrentVersion: async () => current?.version ?? null });
     }
     // The successful compare and write are synchronous for concurrent memory callers.
-    this.rows.set(rowKey(record.workspaceId, record.id), record);
+    this.rows.set(rowKey({ workspaceId: record.workspaceId, id: record.id }), record);
   }
 
   async findById(required: {
     workspaceId: string;
     id: IntegrationId;
   }): Promise<WebhookSubscriptionRecord | null> {
-    return this.rows.get(rowKey(required.workspaceId, required.id)) ?? null;
+    return this.rows.get(rowKey({ workspaceId: required.workspaceId, id: required.id })) ?? null;
   }
 
   async listByWorkspace(required: { workspaceId: string }): Promise<WebhookSubscriptionRecord[]> {
@@ -126,15 +126,15 @@ export class InMemoryWebhookSubscriptionRepo implements WebhookSubscriptionRepoP
 export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
   private rows = new Map<string, WebhookDeliveryRecord>();
 
-  constructor(initialRows: WebhookDeliveryRecord[] = []) {
-    this.rows = new Map(initialRows.map(row => [rowKey(row.workspaceId, row.id), row]));
+  constructor(_required: Record<string, never> = {}, { initialRows = [] }: { initialRows?: WebhookDeliveryRecord[] } = {}) {
+    this.rows = new Map(initialRows.map(row => [rowKey({ workspaceId: row.workspaceId, id: row.id }), row]));
   }
 
   async enqueue({ record }: { record: WebhookDeliveryRecord }, _optional: { envelope?: WebhookEventEnvelope } = {}): Promise<void> {
     if ([...this.rows.values()].some((row) =>
       row.workspaceId === record.workspaceId && row.subscriptionId === record.subscriptionId && row.eventId === record.eventId
     )) return;
-    this.rows.set(rowKey(record.workspaceId, record.id), record);
+    this.rows.set(rowKey({ workspaceId: record.workspaceId, id: record.id }), record);
   }
 
   /** With `claimLeaseMs`, an expired `delivering` lease (its `nextAttemptAt`) is claimable again
@@ -163,8 +163,8 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
   }
 
   /** The row, unless a `claimedAttempts` fence names an older claim than the row's current one. */
-  private fenced(required: { workspaceId: string; id: IntegrationId }, claimedAttempts: number | undefined): WebhookDeliveryRecord | undefined {
-    const row = this.rows.get(rowKey(required.workspaceId, required.id));
+  private fenced({ required, claimedAttempts }: { required: { workspaceId: string; id: IntegrationId }; claimedAttempts: number | undefined }, _optional = {}): WebhookDeliveryRecord | undefined {
+    const row = this.rows.get(rowKey({ workspaceId: required.workspaceId, id: required.id }));
     if (!row || (claimedAttempts !== undefined && row.attempts !== claimedAttempts)) return undefined;
     return row;
   }
@@ -176,7 +176,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     claimedAttempts: number;
     nextAttemptAt: string;
   }, _optional: Record<string, never> = {}): Promise<void> {
-    const row = this.fenced(required, required.claimedAttempts);
+    const row = this.fenced({ required, claimedAttempts: required.claimedAttempts });
     if (!row || row.status !== "delivering") return;
     row.status = "pending";
     row.attempts -= 1;
@@ -189,7 +189,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     responseStatus: number;
     deliveredAtIso: string;
   }, optional: { claimedAttempts?: number } = {}): Promise<void> {
-    const row = this.fenced(required, optional.claimedAttempts);
+    const row = this.fenced({ required, claimedAttempts: optional.claimedAttempts });
     if (!row) return;
     row.status = "delivered";
     row.lastResponseStatus = required.responseStatus;
@@ -205,7 +205,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     nextStatus: "failed" | "dead";
     nextAttemptAt: string;
   }, optional: { deadAtIso?: string; claimedAttempts?: number } = {}): Promise<void> {
-    const row = this.fenced(required, optional.claimedAttempts);
+    const row = this.fenced({ required, claimedAttempts: optional.claimedAttempts });
     if (!row) return;
 
     row.lastError = required.error;
@@ -226,7 +226,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
     workspaceId: string;
     id: IntegrationId;
   }): Promise<WebhookDeliveryRecord | null> {
-    return this.rows.get(rowKey(required.workspaceId, required.id)) ?? null;
+    return this.rows.get(rowKey({ workspaceId: required.workspaceId, id: required.id })) ?? null;
   }
 
   async listBySubscription(required: {

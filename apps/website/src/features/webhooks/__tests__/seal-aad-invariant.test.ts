@@ -26,17 +26,17 @@ import { findSealCallsInSource, findSealCallsWithoutAad } from "../seal-aad-inva
 
 test("a call with aad as a plain property is compliant", () => {
   const src = `deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad });`;
-  assert.deepEqual(findSealCallsInSource(src, "fixture.ts"), []);
+  assert.deepEqual(findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" }), []);
 });
 
 test("a call with aad built from a helper call is compliant", () => {
   const src = `deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad: buildConnectorCredentialAad(x) });`;
-  assert.deepEqual(findSealCallsInSource(src, "fixture.ts"), []);
+  assert.deepEqual(findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" }), []);
 });
 
 test("a call with no aad property at all is a missing-aad violation", () => {
   const src = `deps.sealer.seal({ plaintext: apiKey, key: activeKey });`;
-  const violations = findSealCallsInSource(src, "fixture.ts");
+  const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "missing-aad");
   assert.equal(violations[0].line, 1);
@@ -51,7 +51,7 @@ test("MULTILINE call with no aad is still caught — the exact shape a single-li
         key: await deps.keyring.activeKey(),
       });
   `;
-  const violations = findSealCallsInSource(src, "fixture.ts");
+  const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "missing-aad");
 });
@@ -65,26 +65,26 @@ test("MULTILINE call WITH aad (the real shape after the fix) is compliant", () =
         aad: buildConnectorCredentialAad({ workspaceId: deps.workspaceId, connectorId }),
       });
   `;
-  assert.deepEqual(findSealCallsInSource(src, "fixture.ts"), []);
+  assert.deepEqual(findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" }), []);
 });
 
 test("aad explicitly set to the literal `undefined` is a violation, not a pass", () => {
   const src = `deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad: undefined });`;
-  const violations = findSealCallsInSource(src, "fixture.ts");
+  const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "aad-literally-undefined");
 });
 
 test("a spread argument is fail-closed as unresolved, not silently passed", () => {
   const src = `deps.sealer.seal({ ...buildSealInput(x), key: activeKey });`;
-  const violations = findSealCallsInSource(src, "fixture.ts");
+  const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "unresolved-argument-shape");
 });
 
 test("a pre-built variable argument is fail-closed as unresolved, not silently passed", () => {
   const src = `deps.sealer.seal(sealInput);`;
-  const violations = findSealCallsInSource(src, "fixture.ts");
+  const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "unresolved-argument-shape");
 });
@@ -94,7 +94,7 @@ test("an unrelated .seal( on some other object is still scanned (name-based, not
   // needing a full type-checked ts.Program — see this file's own header for why that's the safe
   // direction to fail in. Only the two exact, documented non-secret calls are exempted.
   const src = `envelope.seal({ contents: x });`;
-  const violations = findSealCallsInSource(src, "fixture.ts");
+  const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
   assert.equal(violations.length, 1);
   assert.equal(violations[0].reason, "missing-aad");
 });
@@ -104,12 +104,12 @@ for (const { file, receiver, call } of [
   { file: "apps/website/src/server/runtime/composition/plugin-runtime.ts", receiver: "capture", call: "capture.seal({ sdk: scopedSdk })" },
 ]) {
   test(`the documented non-secret ${receiver}.seal call is exempt only in ${file}`, () => {
-    assert.deepEqual(findSealCallsInSource(`${call};`, file), []);
-    assert.deepEqual(findSealCallsInSource(`${call};`, "fixture.ts").map(({ text, reason }) => ({ text, reason })), [
+    assert.deepEqual(findSealCallsInSource({ sourceText: `${call};`, displayPath: file }), []);
+    assert.deepEqual(findSealCallsInSource({ sourceText: `${call};`, displayPath: "fixture.ts" }).map(({ text, reason }) => ({ text, reason })), [
       { text: call, reason: receiver === "port" ? "unresolved-argument-shape" : "missing-aad" },
     ]);
     const otherReceiver = call.replace(receiver, "other");
-    assert.deepEqual(findSealCallsInSource(`${otherReceiver};`, file).map(({ text, reason }) => ({ text, reason })), [
+    assert.deepEqual(findSealCallsInSource({ sourceText: `${otherReceiver};`, displayPath: file }).map(({ text, reason }) => ({ text, reason })), [
       { text: otherReceiver, reason: receiver === "port" ? "unresolved-argument-shape" : "missing-aad" },
     ]);
   });
@@ -122,7 +122,7 @@ for (const { file, receiver, call } of [
       ${receiver}.seal(secretInput);
       deps.sealer.seal({ plaintext: token, key });
     `;
-    assert.deepEqual(findSealCallsInSource(src, file).map(({ text, reason }) => ({ text, reason })), [
+    assert.deepEqual(findSealCallsInSource({ sourceText: src, displayPath: file }).map(({ text, reason }) => ({ text, reason })), [
       { text: `${receiver}.seal({ plaintext: token, key })`, reason: "missing-aad" },
       { text: `${receiver}.seal(secretInput)`, reason: "unresolved-argument-shape" },
       { text: "deps.sealer.seal({ plaintext: token, key })", reason: "missing-aad" },
@@ -132,7 +132,7 @@ for (const { file, receiver, call } of [
 
 test("a .open( call is never flagged — this invariant only covers seal()", () => {
   const src = `deps.sealer.open({ sealed: record.sealed });`;
-  assert.deepEqual(findSealCallsInSource(src, "fixture.ts"), []);
+  assert.deepEqual(findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" }), []);
 });
 
 test("REGRESSION: every real SecretSealerPort.seal() call site under apps/website/src supplies aad today", () => {
@@ -151,12 +151,12 @@ test("filesystem scan ignores node_modules and dist but reports a violation outs
       fs.mkdirSync(path.join(root, directory));
       fs.writeFileSync(path.join(root, directory, "credential.ts"), "deps.sealer.seal({ plaintext });\n");
     }
-    assert.deepEqual(findSealCallsWithoutAad(root), []);
+    assert.deepEqual(findSealCallsWithoutAad({}, { scanRoot: root }), []);
 
     const fixture = path.join(root, "credential.ts");
     fs.writeFileSync(fixture, "deps.sealer.seal({ plaintext });\n");
     const repoRoot = path.resolve(import.meta.dirname, "../../../../../..");
-    assert.deepEqual(findSealCallsWithoutAad(root), [{
+    assert.deepEqual(findSealCallsWithoutAad({}, { scanRoot: root }), [{
       file: path.relative(repoRoot, fixture),
       line: 1,
       reason: "missing-aad",
@@ -185,7 +185,7 @@ test("filesystem scan and CLI report a known violating file with a nonzero exit"
   const fixture = "credential-violation.ts";
   try {
     fs.writeFileSync(path.join(root, fixture), "// fixture\ndeps.sealer.seal({ plaintext: token, key });\n");
-    const violations = findSealCallsWithoutAad(root);
+    const violations = findSealCallsWithoutAad({}, { scanRoot: root });
     assert.deepEqual(violations, [{ file: path.relative(process.cwd(), path.join(root, fixture)), line: 2, reason: "missing-aad", text: "deps.sealer.seal({ plaintext: token, key })" }]);
     const cli = fileURLToPath(new URL("../seal-aad-invariant.ts", import.meta.url));
     const scanRoot = path.resolve(import.meta.dirname, "../../..");
@@ -213,12 +213,12 @@ test("filesystem scan and CLI report a known violating file with a nonzero exit"
 
 test("a quoted or computed 'aad' key is not recognised as aad, so the call fails closed as missing-aad", () => {
   for (const src of [`sealer.seal({ "aad": rowAad, plaintext });`, `sealer.seal({ ["aad"]: rowAad, plaintext });`]) {
-    const violations = findSealCallsInSource(src, "fixture.ts");
+    const violations = findSealCallsInSource({ sourceText: src, displayPath: "fixture.ts" });
     assert.deepEqual(violations.map(v => v.reason), ["missing-aad"], src);
   }
 });
 
 test("a .tsx display path is parsed as TSX, so JSX around a seal() call does not hide it", () => {
   const src = `export const View = () => <div onClick={() => sealer.seal({ plaintext })}>x</div>;`;
-  assert.deepEqual(findSealCallsInSource(src, "fixture.tsx").map(v => v.reason), ["missing-aad"]);
+  assert.deepEqual(findSealCallsInSource({ sourceText: src, displayPath: "fixture.tsx" }).map(v => v.reason), ["missing-aad"]);
 });

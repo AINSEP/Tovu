@@ -50,14 +50,14 @@ function makeDelivery(overrides: Partial<WebhookDeliveryRecord> = {}): WebhookDe
 }
 
 test("findMatching matches exact topic, entity wildcard, and owner wildcard, but not other workspaces or inactive rows", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo([
+  const repo = new InMemoryWebhookSubscriptionRepo({}, { initialRows: [
     makeSubscription({ id: "exact", topics: ["post.published"] }),
     makeSubscription({ id: "entity-wildcard", topics: ["post.*"] }),
     makeSubscription({ id: "owner-wildcard", topics: ["*"] }),
     makeSubscription({ id: "no-match", topics: ["comment.created"] }),
     makeSubscription({ id: "paused", topics: ["post.published"], status: "paused" }),
     makeSubscription({ id: "other-workspace", topics: ["post.published"], workspaceId: "workspace-2" }),
-  ]);
+  ] });
 
   const matches = await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" });
   const ids = matches.map((m) => m.id).sort();
@@ -67,18 +67,18 @@ test("findMatching matches exact topic, entity wildcard, and owner wildcard, but
 });
 
 test("findMatching treats an empty topic list as fail-closed (never matches)", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo([makeSubscription({ id: "empty-topics", topics: [] })]);
+  const repo = new InMemoryWebhookSubscriptionRepo({}, { initialRows: [makeSubscription({ id: "empty-topics", topics: [] })] });
 
   const matches = await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" });
   assert.deepEqual(matches, []);
 });
 
 test("claimPending only returns pending rows due at or before nowIso, and increments attempts", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [
     makeDelivery({ id: "due", nextAttemptAt: "2026-07-10T00:00:00.000Z" }),
     makeDelivery({ id: "future", nextAttemptAt: "2026-07-11T00:00:00.000Z" }),
     makeDelivery({ id: "already-delivering", status: "delivering" }),
-  ]);
+  ] });
 
   const claimed = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T12:00:00.000Z" });
 
@@ -92,7 +92,7 @@ test("claimPending only returns pending rows due at or before nowIso, and increm
 });
 
 test("markFailed with nextStatus 'failed' re-enters pending; 'dead' stays terminal with deadAt set", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery({ id: "d1" })]);
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [makeDelivery({ id: "d1" })] });
   await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:00.000Z" });
 
   await repo.markFailed({
@@ -118,7 +118,7 @@ test("markFailed with nextStatus 'failed' re-enters pending; 'dead' stays termin
 });
 
 test("markDelivered clears lastError and stamps deliveredAt", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery({ id: "d1", lastError: "previous failure" })]);
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [makeDelivery({ id: "d1", lastError: "previous failure" })] });
 
   await repo.markDelivered({
     workspaceId: "workspace-1",
@@ -154,18 +154,18 @@ test("InMemoryDeliveryEnvelopeStore round-trips save/find and returns null for u
 });
 
 test("InMemoryWebhookSubscriptionRepo seeds initial rows and findMatching filters them by workspace and status", async () => {
-  const repo = new InMemoryWebhookSubscriptionRepo([
+  const repo = new InMemoryWebhookSubscriptionRepo({}, { initialRows: [
     makeSubscription(),
     makeSubscription({ id: "sub-other", workspaceId: "workspace-2" }),
     makeSubscription({ id: "sub-paused", status: "paused" }),
-  ]);
+  ] });
   assert.deepEqual((await repo.findMatching({ workspaceId: "workspace-1", topic: "post.published" })).map((row) => row.id), ["sub-1"]);
   assert.equal((await repo.findById({ workspaceId: "workspace-2", id: "sub-other" }))?.id, "sub-other");
 });
 
 test("InMemoryWebhookSubscriptionRepo seeds initial rows, rejects a duplicate insert, and save overwrites in place", async () => {
   const seeded = makeSubscription();
-  const repo = new InMemoryWebhookSubscriptionRepo([seeded]);
+  const repo = new InMemoryWebhookSubscriptionRepo({}, { initialRows: [seeded] });
 
   assert.deepEqual(await repo.findById({ workspaceId: "workspace-1", id: "sub-1" }), seeded);
   assert.equal(await repo.findById({ workspaceId: "workspace-2", id: "sub-1" }), null);
@@ -178,7 +178,7 @@ test("InMemoryWebhookSubscriptionRepo seeds initial rows, rejects a duplicate in
 });
 
 test("enqueue is idempotent per (workspace, subscription, event) and markDelivered/markFailed ignore unknown ids", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery()]);
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [makeDelivery()] });
 
   await repo.enqueue({ record: makeDelivery({ id: "delivery-dup" }) });
   await repo.enqueue({ record: makeDelivery({ id: "delivery-2", eventId: "event-2" }) });
@@ -192,7 +192,7 @@ test("enqueue is idempotent per (workspace, subscription, event) and markDeliver
 });
 
 test("markFailed 'dead' without deadAtIso keeps the row's existing deadAt", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery({ deadAt: "2026-07-09T00:00:00.000Z" })]);
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [makeDelivery({ deadAt: "2026-07-09T00:00:00.000Z" })] });
 
   await repo.markFailed({ workspaceId: "workspace-1", id: "delivery-1", error: "gone", responseStatus: 410, nextStatus: "dead", nextAttemptAt: "2026-07-11T00:00:00.000Z" });
 
@@ -203,7 +203,7 @@ test("markFailed 'dead' without deadAtIso keeps the row's existing deadAt", asyn
 });
 
 test("listBySubscription orders newest createdAt first, breaks ties by id descending, and honours limit", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [
     makeDelivery({ id: "b", eventId: "e-b", createdAt: "2026-07-10T00:00:00.000Z" }),
     makeDelivery({ id: "a", eventId: "e-a", createdAt: "2026-07-10T00:00:00.000Z" }),
     makeDelivery({ id: "c", eventId: "e-c", createdAt: "2026-07-10T00:00:00.000Z" }),
@@ -211,7 +211,7 @@ test("listBySubscription orders newest createdAt first, breaks ties by id descen
     makeDelivery({ id: "old", eventId: "e-old", createdAt: "2026-07-09T00:00:00.000Z" }),
     makeDelivery({ id: "other-sub", subscriptionId: "sub-2", eventId: "e-o" }),
     makeDelivery({ id: "other-ws", workspaceId: "workspace-2", eventId: "e-w" }),
-  ]);
+  ] });
 
   const all = await repo.listBySubscription({ workspaceId: "workspace-1", subscriptionId: "sub-1", limit: 10 });
   assert.deepEqual(all.map((row) => row.id), ["new", "c", "b", "a", "old"]);
@@ -220,11 +220,11 @@ test("listBySubscription orders newest createdAt first, breaks ties by id descen
 });
 
 test("claimPending returns due rows oldest nextAttemptAt first and caps them at batchSize", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [
     makeDelivery({ id: "late", eventId: "e-late", nextAttemptAt: "2026-07-10T00:00:03.000Z" }),
     makeDelivery({ id: "early", eventId: "e-early", nextAttemptAt: "2026-07-10T00:00:01.000Z" }),
     makeDelivery({ id: "mid", eventId: "e-mid", nextAttemptAt: "2026-07-10T00:00:02.000Z" }),
-  ]);
+  ] });
 
   const claimed = await repo.claimPending({ batchSize: 2, nowIso: "2026-07-10T00:00:05.000Z" });
 
@@ -233,7 +233,7 @@ test("claimPending returns due rows oldest nextAttemptAt first and caps them at 
 });
 
 test("releaseClaim returns its own delivering claim to pending and undoes the attempt; stale fences, other states and unknown ids are no-ops", async () => {
-  const repo = new InMemoryWebhookDeliveryRepo([makeDelivery({ id: "d1", nextAttemptAt: "2026-07-10T00:00:00.000Z" }), makeDelivery({ id: "pending-row" })]);
+  const repo = new InMemoryWebhookDeliveryRepo({}, { initialRows: [makeDelivery({ id: "d1", nextAttemptAt: "2026-07-10T00:00:00.000Z" }), makeDelivery({ id: "pending-row" })] });
   await repo.claimPending({ batchSize: 1, nowIso: "2026-07-10T00:00:00.000Z" });
 
   await repo.releaseClaim({ workspaceId: "workspace-1", id: "d1", claimedAttempts: 0, nextAttemptAt: "2026-07-10T01:00:00.000Z" });

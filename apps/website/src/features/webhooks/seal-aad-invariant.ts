@@ -89,18 +89,18 @@ const NON_SECRET_SEAL_CALLS: Readonly<Record<string, string>> = {
   "apps/website/src/server/runtime/composition/plugin-runtime.ts": "capture.seal({ sdk: scopedSdk })",
 };
 
-function isTestFile(file: string): boolean {
+function isTestFile({ file }: { file: string }, _optional = {}): boolean {
   return /__tests__|\.test\.|\.spec\./.test(file);
 }
 
-function collectTsFiles(dir: string): string[] {
+function collectTsFiles({ dir }: { dir: string }, _optional = {}): string[] {
   const out: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === "node_modules" || entry.name === "dist") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      out.push(...collectTsFiles(full));
-    } else if (/\.tsx?$/.test(entry.name) && !isTestFile(full)) {
+      out.push(...collectTsFiles({ dir: full }));
+    } else if (/\.tsx?$/.test(entry.name) && !isTestFile({ file: full })) {
       out.push(full);
     } else {
       // Non-source entries are outside the seal invariant.
@@ -125,18 +125,21 @@ export interface SealViolation {
  *
  * @complexity O(n) single AST walk, n = node count in the parsed file.
  */
-export function findSealCallsInSource(sourceText: string, displayPath: string): SealViolation[] {
+export function findSealCallsInSource(
+  { sourceText, displayPath }: { sourceText: string; displayPath: string },
+  _optional = {}
+): SealViolation[] {
   const scriptKind = displayPath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const source = ts.createSourceFile(displayPath, sourceText, ts.ScriptTarget.Latest, true, scriptKind);
   const violations: SealViolation[] = [];
 
-  function lineOf(pos: number): number {
+  function lineOf({ pos }: { pos: number }, _optional = {}): number {
     return source.getLineAndCharacterOfPosition(pos).line + 1;
   }
 
   function visit(node: ts.Node): void {
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "seal") {
-      const violation = checkSealCallArguments(node, source, displayPath, lineOf);
+      const violation = checkSealCallArguments({ call: node, source, displayPath, lineOf });
       if (violation) violations.push(violation);
     }
     ts.forEachChild(node, visit);
@@ -147,10 +150,8 @@ export function findSealCallsInSource(sourceText: string, displayPath: string): 
 }
 
 function buildSealViolation(
-  reason: SealViolation["reason"],
-  displayPath: string,
-  line: number,
-  text: string,
+  { reason, displayPath, line, text }: { reason: SealViolation["reason"]; displayPath: string; line: number; text: string },
+  _optional = {}
 ): SealViolation {
   return { file: displayPath, line, text, reason };
 }
@@ -175,24 +176,32 @@ function isLiterallyUndefined(prop: ts.ObjectLiteralElementLike): boolean {
 }
 
 function checkSealCallArguments(
-  call: ts.CallExpression,
-  source: ts.SourceFile,
-  displayPath: string,
-  lineOf: (pos: number) => number,
+  {
+    call,
+    source,
+    displayPath,
+    lineOf,
+  }: {
+    call: ts.CallExpression;
+    source: ts.SourceFile;
+    displayPath: string;
+    lineOf: ({ pos }: { pos: number }) => number;
+  },
+  _optional = {}
 ): SealViolation | null {
-  const line = lineOf(call.getStart(source));
+  const line = lineOf({ pos: call.getStart(source) });
   const text = call.getText(source).replace(/\s+/g, " ").trim();
 
   if (NON_SECRET_SEAL_CALLS[displayPath] === text) return null;
 
   if (call.arguments.length !== 1 || !ts.isObjectLiteralExpression(call.arguments[0])) {
-    return buildSealViolation("unresolved-argument-shape", displayPath, line, text);
+    return buildSealViolation({ reason: "unresolved-argument-shape", displayPath, line, text });
   }
 
   const aadProp = findAadProperty(call.arguments[0].properties);
-  if (aadProp === "unresolved") return buildSealViolation("unresolved-argument-shape", displayPath, line, text);
-  if (aadProp === null) return buildSealViolation("missing-aad", displayPath, line, text);
-  if (isLiterallyUndefined(aadProp)) return buildSealViolation("aad-literally-undefined", displayPath, line, text);
+  if (aadProp === "unresolved") return buildSealViolation({ reason: "unresolved-argument-shape", displayPath, line, text });
+  if (aadProp === null) return buildSealViolation({ reason: "missing-aad", displayPath, line, text });
+  if (isLiterallyUndefined(aadProp)) return buildSealViolation({ reason: "aad-literally-undefined", displayPath, line, text });
 
   return null; // `aad` present with a real value, or shorthand `{ aad }` — compliant.
 }
@@ -200,11 +209,14 @@ function checkSealCallArguments(
 /** Real-repo scan: every non-test `.ts`/`.tsx` file under `scanRoot`, reported paths relative to
  * the repo root. Defaults to `apps/website/src` — the only surface `SecretSealerPort.seal()` is
  * called from today. */
-export function findSealCallsWithoutAad(scanRoot: string = DEFAULT_SCAN_ROOT): SealViolation[] {
+export function findSealCallsWithoutAad(
+  _required: Record<string, never> = {},
+  { scanRoot = DEFAULT_SCAN_ROOT }: { scanRoot?: string } = {}
+): SealViolation[] {
   const violations: SealViolation[] = [];
-  for (const file of collectTsFiles(scanRoot)) {
+  for (const file of collectTsFiles({ dir: scanRoot })) {
     const sourceText = fs.readFileSync(file, "utf8");
-    violations.push(...findSealCallsInSource(sourceText, path.relative(REPO_ROOT, file)));
+    violations.push(...findSealCallsInSource({ sourceText, displayPath: path.relative(REPO_ROOT, file) }));
   }
   return violations;
 }
