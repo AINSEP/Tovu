@@ -4,12 +4,14 @@ import test from "node:test";
 import type { AgentEvent } from "@jini-ai/chat/core";
 import { translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 
-import {
-  closeAgUiRun,
-  createAgUiTranslationState,
-  terminalReasonNotice,
-  translateAgentEventToAgUi,
-} from "../runtime/composition/modules/assistant-ag-ui.js";
+import { closeAgUiRun as close, createAgUiTranslationState as create, translateAgentEventToAgUi as translate, type AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
+
+import { AG_UI_TRANSLATION, terminalReasonNotice } from "../runtime/composition/modules/assistant-ag-ui.js";
+
+/** The route's projection calls, with its own ids and wire names. */
+const createAgUiTranslationState = () => create(AG_UI_TRANSLATION);
+const translateAgentEventToAgUi = (event: AgentEvent, state: AgUiTranslationState) => translate({ event, state });
+const closeAgUiRun = (state: AgUiTranslationState) => close({ state });
 
 /**
  * @file Pure-function coverage for `assistant-ag-ui.ts`'s two translation steps — no daemon, no

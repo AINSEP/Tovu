@@ -52,14 +52,14 @@ import type { AgentEvent } from "@jini-ai/chat/core";
 import { translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 import { resolveAgUiRunInput, type AgUiChatMessage, type AgUiRunBody, type AgUiRunInput } from "@jini-ai/chat/server/ag-ui/run-input";
 import {
-  createAgUiTranslationState as createJiniAgUiTranslationState,
-  translateAgentEventToAgUi as translateJiniAgentEventToAgUi,
-  closeAgUiRun as closeJiniAgUiRun,
+  createAgUiTranslationState,
+  translateAgentEventToAgUi,
+  closeAgUiRun,
   type AgUiEvent,
   type AgUiTranslationState,
+  type CustomEventNames,
+  type EventIdGenerator,
 } from "@jini-ai/chat/core/ag-ui";
-
-export type { AgUiEvent, AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -127,25 +127,14 @@ export function terminalReasonNotice({ reason }: { reason: string }, _optional =
  * have no matched end, so CUSTOM is used instead of STEP_STARTED/STEP_FINISHED. Extension events
  * (`mcp-ui`/`a2ui`/unmodeled types) remain inert side-channels (ADR-059 Decision 5).
  *
- * Retain this host API for existing callers; Jini owns the exhaustive AgentEvent projection.
+ * Jini owns the exhaustive AgentEvent projection; this host supplies only the two values below,
+ * its id format and its custom wire names, as one config for every run's translation state.
  * @complexity O(1) per state creation or translated event.
  */
-export function createAgUiTranslationState(): AgUiTranslationState {
-  return createJiniAgUiTranslationState({
-    ids: { next: ({ prefix, ordinal }) => `${prefix}_${ordinal}` },
-    customEventNames: { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." },
-  });
-}
-
-/** Project one reduced event using the per-run state and Tovu wire names above. */
-export function translateAgentEventToAgUi(event: AgentEvent, state: AgUiTranslationState): AgUiEvent[] {
-  return translateJiniAgentEventToAgUi({ event, state });
-}
-
-/** Close pending messages before RUN_FINISHED/RUN_ERROR so a client never retains an open lifecycle. */
-export function closeAgUiRun(state: AgUiTranslationState): AgUiEvent[] {
-  return closeJiniAgUiRun({ state });
-}
+export const AG_UI_TRANSLATION: { readonly ids: EventIdGenerator; readonly customEventNames: CustomEventNames } = {
+  ids: { next: ({ prefix, ordinal }) => `${prefix}_${ordinal}` },
+  customEventNames: { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." },
+};
 
 // ---------------------------------------------------------------------------------------------
 // Route
@@ -268,13 +257,13 @@ function writeAllAgUiEvents({ res, events }: { res: Response; events: AgUiEvent[
 function handleAgentDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
   const payload = unwrapDaemonEnvelope({ raw: data }) as RunAgentPayload;
   const reduced = translateRunAgentPayload({ payload });
-  if (reduced) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi(reduced, ctx.state) });
+  if (reduced) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi({ event: reduced, state: ctx.state }) });
 }
 
 /** The `"stdout"` case of {@link handleDaemonFrame}. */
 function handleStdoutDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
   const chunk = asString({ v: (unwrapDaemonEnvelope({ raw: data }) as { chunk?: unknown }).chunk });
-  writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi({ kind: "raw", line: chunk }, ctx.state) });
+  writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi({ event: { kind: "raw", line: chunk }, state: ctx.state }) });
 }
 
 /** The `"error"` case of {@link handleDaemonFrame} — a terminal frame, so it also closes any open
@@ -282,7 +271,7 @@ function handleStdoutDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameCo
  *  {@link handleEndDaemonFrame}). */
 function handleErrorDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
   const message = asString({ v: (unwrapDaemonEnvelope({ raw: data }) as { message?: unknown }).message });
-  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
+  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
   writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: message || "agent run failed" });
 }
 
@@ -291,8 +280,8 @@ function handleErrorDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameCon
 function handleEndDaemonFrame({ data, ctx }: { data: string; ctx: AgUiFrameContext }, _optional = {}): void {
   const reason = asString({ v: (unwrapDaemonEnvelope({ raw: data || "{}" }) as { reason?: unknown }).reason });
   const notice = terminalReasonNotice({ reason });
-  if (notice) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi(notice, ctx.state) });
-  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
+  if (notice) writeAllAgUiEvents({ res: ctx.res, events: translateAgentEventToAgUi({ event: notice, state: ctx.state }) });
+  writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
   writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: reason || "stop" } });
 }
 
@@ -395,12 +384,12 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
         return { status };
       }
     }
-    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
+    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
     writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
     ctx.res.end();
     return { status: "succeeded" };
   } catch (error) {
-    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun(ctx.state) });
+    writeAllAgUiEvents({ res: ctx.res, events: closeAgUiRun({ state: ctx.state }) });
     writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
     ctx.res.end();
     return { status: "failed", error };
@@ -485,7 +474,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
     beginAgUiStream(req, res, run.requestId);
     writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
-    const state = createAgUiTranslationState();
+    const state = createAgUiTranslationState(AG_UI_TRANSLATION);
     const outcome = await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
     runFinished = true;
     runTracker.setOutcome(outcome);
