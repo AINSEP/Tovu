@@ -105,7 +105,8 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
       await handler({ params: { workspaceId: "ws", formId: form.id }, body, get: () => undefined }, res);
       assert.equal(capture.statusCode, 200);
       assert.deepEqual((capture.jsonBody as { data: { id: string } }).data.id, form.id);
-      assert.deepEqual(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }), before);
+      // Why: every editable save bumps `version` (lost-update pattern, migration 0042) even when it changes no content.
+      assert.deepEqual(await formDefinitionRepo.findById({ workspaceId: "ws", id: form.id }), { ...before!, version: before!.version + 1 });
     });
   }
 
