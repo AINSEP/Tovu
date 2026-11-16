@@ -61,6 +61,33 @@ import type { MenuRepoPort, MenuStatus, NavMenuDoc, NavMenuEntry } from "./index
  * post). `publish-content-manifest.test.ts` builds the real catalog to catch that.
  */
 
+/** A menu's validation message, or null when its item tree is acceptable. */
+function menuDocProblem(required: { doc: NavMenuDoc }, _optional = {}): string | null {
+  try {
+    validateAndCloneTree({ items: required.doc.items });
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
+/** The menu record an apply writes from a transferred state; bookkeeping fields are recomputed on import. */
+function menuRecordFromState(required: { id: string; workspaceId: string; state: Readonly<Record<string, unknown>>; now: string }, _optional = {}): NavMenuEntry {
+  const { id, workspaceId, state, now } = required;
+  return {
+      id,
+      workspaceId,
+      slug: state.slug as string,
+      title: state.title as string,
+      status: state.status as MenuStatus,
+      doc: state.doc as NavMenuDoc,
+      locations: (state.locations as readonly string[] | undefined) ?? [],
+      // Local bookkeeping, recomputed inside `importMenuEntity`; never read back.
+      updatedAt: now,
+      version: 0,
+  };
+}
+
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMenusPublish = (): PublishContentContributor =>
   createRepoPublishHandler<NavMenuEntry, PublishContentPorts["menu"]>({
@@ -86,30 +113,12 @@ export const contributeMenusPublish = (): PublishContentContributor =>
       version: "local",
     },
     address: { field: "slug", holder: ({ ports: p, workspaceId, value: slug }) => p.repo.findBySlug({ workspaceId, slug }) },
-    validate: async ({ entity }) => {
-      try {
-        validateAndCloneTree({ items: (entity.state.doc as NavMenuDoc).items });
-        return null;
-      } catch (err) {
-        return err instanceof Error ? err.message : String(err);
-      }
-    },
+    validate: async ({ entity }) => menuDocProblem({ doc: entity.state.doc as NavMenuDoc }),
     write: async ({ ports, deps, workspaceId, id, state, expectedVersion }) => {
       if (!deps.outbox) {
         throw new Error("publish-content: menu.apply() requires PublishContentDeps.outbox — wire it from the real apply-loop composition root (features/publish-content/apply-loop.ts).");
       }
-      const record: NavMenuEntry = {
-        id,
-        workspaceId,
-        slug: state.slug as string,
-        title: state.title as string,
-        status: state.status as MenuStatus,
-        doc: state.doc as NavMenuDoc,
-        locations: (state.locations as readonly string[] | undefined) ?? [],
-        // Local bookkeeping, recomputed inside `importMenuEntity`; never read back.
-        updatedAt: clockNowIso({ clock: deps.clock }),
-        version: 0,
-      };
+      const record = menuRecordFromState({ id, workspaceId, state, now: clockNowIso({ clock: deps.clock }) });
       const importDeps = { clock: deps.clock, idGen: deps.idGen, repo: ports.repo, bindingRepo: ports.bindingRepo, outbox: deps.outbox };
       await importMenuEntity({ deps: importDeps, input: { workspaceId, record, expectedVersion } });
     },
