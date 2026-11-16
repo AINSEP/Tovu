@@ -291,7 +291,7 @@ for (const probe of [
     workspaceId: f.deps.workspaceId, principalId: "owner", serverId: "public", transport: "streamable_http", authMode: "none", enabled: true,
     url: "https://hosted.example/mcp", command: "", args: "", allowedToolNames: "", writeAllowedToolNames: "",
   });
-  const contributor = contributeExternalMcpTools({ probe: async (deps, serverId) => {
+  const contributor = contributeExternalMcpTools({ probe: async ({ deps, serverId }) => {
     assert.equal(deps, f.deps);
     assert.equal(serverId, "public");
     return probe;

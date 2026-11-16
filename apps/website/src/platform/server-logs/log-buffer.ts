@@ -85,7 +85,7 @@ function capMessage({ message, maxLength }: { message: string; maxLength: number
  * @param optional Entry, byte and per-message caps plus a clock seam.
  * @returns The buffer; dropping is oldest-first when either cap is exceeded.
  * @complexity append is amortized O(1) plus the redactor's cost; entries() is O(n).
- * @example createLogBuffer({ redact: text => text }).append({ level: "error", source: "server", message: "boom" });
+ * @example createLogBuffer({ redact: ({ text }) => text }).append({ level: "error", source: "server", message: "boom" });
  */
 export function createLogBuffer(required: CreateLogBufferRequired, optional: CreateLogBufferOptional = {}): ServerLogBuffer {
   const maxEntries = Math.max(1, optional.maxEntries ?? DEFAULT_MAX_ENTRIES);

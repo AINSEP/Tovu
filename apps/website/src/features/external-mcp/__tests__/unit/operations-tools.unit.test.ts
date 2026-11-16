@@ -16,7 +16,7 @@ function fixture(allow = true) {
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   } };
   const operations = {
-    probe: async (receivedDeps: unknown, id: string) => {
+    probe: async ({ deps: receivedDeps, serverId: id }: { deps: unknown; serverId: string }) => {
       assert.equal(receivedDeps, deps);
       calls.push(id);
       return { ok: true as const, body: { tools: [], probedAt: NOW } };

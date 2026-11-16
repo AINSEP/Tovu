@@ -10,7 +10,7 @@ import type { ExternalMcpToolDeps } from "./deps.js";
 
 /** Composition injects the same services the External MCP admin routes call. Secrets stay in those services. */
 export interface ExternalMcpOperations {
-  probe(deps: ExternalMcpToolDeps, serverId: string): Promise<
+  probe({ deps, serverId }: { deps: ExternalMcpToolDeps; serverId: string }, optional?: Record<string, never>): Promise<
     { readonly ok: true; readonly body: { readonly tools: readonly unknown[]; readonly probedAt: string } }
     | { readonly ok: false; readonly status: number; readonly body: Readonly<Record<string, unknown>> }
   >;
@@ -81,7 +81,7 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
         workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: "integration", entityId: id });
         const budget = await limiter.check({ key: deps.workspaceId });
         if (!budget.allowed) throw new ToolInputError({ message: `external_mcp_probe_connection: too many probe attempts. Try again in ${budget.retryAfterSeconds} seconds.` });
-        const result = await operations.probe(deps, id);
+        const result = await operations.probe({ deps, serverId: id });
         if (!result.ok) throw new ToolInputError({ message: `external_mcp_probe_connection: ${result.body.error}. Review the server in Settings → External MCP; use external_mcp_test_connection for a configuration-only check.` });
         return result.body;
       },
