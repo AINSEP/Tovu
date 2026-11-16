@@ -25,11 +25,8 @@ import {
 // Page readiness reads must not load the assistant tool/runtime barrel.
 import { getPublicAssistantSettings } from "#src/assistant/public-assistant-settings";
 import { resolvePublicAssistantAvailability } from "#src/assistant/public-assistant-availability";
-import {
-  createMemberAccessResolver,
-  resolvePostMemberAccess,
-} from "#src/features/members/access-resolver";
-import type { MemberAccessDecision, MemberContext, MemberAccessResolver } from "#src/features/members/index";
+import { createMemberAccessResolver } from "#src/features/members/access-resolver";
+import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 // Keep request rendering separate from theme installation, imports, and agent tools.
@@ -81,6 +78,7 @@ import { resolveSiteTitleForRender, siteTimeZoneDep, htmlEmbedHostDeps, resolveS
 import { type KeyedPostPreviewBatch, storeListingJsonPage, listingBatchBody, recordListingBatchRequest, recordListingPageRequest, listingPageRequestOf, ListingBatchNotFoundError, assertListingPageServed } from "./pages/listing/listing-state.js";
 import { isStaticExportRequest, CACHE_CONTROL_PRIVATE_STATIC_EXPORT, CACHE_CONTROL_PUBLIC_PAGE, CACHE_CONTROL_PRIVATE_FORM_RESULT, CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE, resolveRequestedSlug, redirectLookupPath } from "./pages/request-policy.js";
 import { withListingBatch } from "./pages/listing/listing-batch.js";
+import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePosts } from "./pages/render-context/member-access.js";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
@@ -1868,64 +1866,6 @@ async function handlePostNotFoundInSlugCatch(input: {
     reportSiteRenderFault({ detail: `GET /:slug failed (slug=${slug})`, err });
     res.status(500).type("html").send("<h1>Site error</h1>");
   }
-}
-
-
-/** No cookie-parser middleware is mounted. All request cookies use the shared reader,
- * matching dev-auth without an unguarded decodeURIComponent copy. */
-
-/**
- * Turns this request's member-session cookie into a validated {@link MemberContext}. Reads the
- * cookie through `readRawCookie` above (no `cookie-parser` is mounted anywhere in this app) using
- * `complete-sign-in.ts`'s exported {@link MEMBER_SESSION_COOKIE} rather than a second copy of the
- * literal — the sign-in route that SETS the cookie and this route that READS it must never be able
- * to disagree about its name.
- *
- * No cookie, an unknown/revoked/expired token, or a forged one all resolve to the same anonymous
- * context: `resolveContext` validates the token hash against the session repo and never trusts a
- * client-supplied claim, so none of those cases is distinguishable from "not signed in" here.
- */
-async function resolveMemberContextForRequest({ req, deps, resolver }: { req: Request; deps: RouteDeps; resolver: MemberAccessResolver }, _optional = {}): Promise<MemberContext> {
-  return resolver.resolveContext({
-    workspaceId: deps.workspaceId,
-    sessionToken: readRequestCookie({ request: req, name: MEMBER_SESSION_COOKIE }),
-    nowIso: new Date().toISOString(),
-  });
-}
-
-/**
- * The gate decision for ONE post — the whole {@link MemberAccessDecision}, deliberately not a
- * boolean. `decision.teaser` and `decision.reason` are the named seam a future teaser /
- * sign-in-prompt render reads (`sign_in_required` and `upgrade_required` are different pages for a
- * visitor); collapsing this to `boolean` at the call site would discard exactly the information
- * that follow-up needs and force it to re-derive the decision a second time. Today every
- * `!allowed` decision renders the same plain 404 — see the `/:slug` handler's own comment.
- *
- * `resolvePostMemberAccess` owns the `JSON.parse` boundary for the column, and fails CLOSED:
- * malformed JSON decodes to a visibility outside the known union, which `decide`'s default branch
- * denies as `unknown_visibility`. A `NULL` column (every pre-existing row) decodes as
- * `{visibility: "public"}`, so an ungated post behaves exactly as it does today.
- */
-function decidePostMemberAccess({ resolver, post, context }: { resolver: MemberAccessResolver; post: PostRecord; context: MemberContext }, _optional = {}): MemberAccessDecision {
-  return resolver.decide({ access: resolvePostMemberAccess({ raw: post.memberAccessJson }), context });
-}
-
-/**
- * Drops every post this visitor may not read from a LIST bound for a theme render.
- *
- * Gating only the direct `/:slug` fetch would be protection that looks real and isn't: `renderSite`
- * hands `posts` to the theme's home/entry-grid and "more dispatches" regions, which print each
- * post's title and link. A gated post whose own page 404s would still advertise its existence,
- * title, and URL on the ungated home page — which is why the regression suite asserts the listing
- * separately from the single-post 404, with a public positive-control post proving the list renders
- * at all.
- *
- * @complexity O(n) over the already-bounded published-post list; `decide` is pure and does no I/O
- * (the one I/O step, session/entitlement resolution, happened once in
- * {@link resolveMemberContextForRequest} before this is called).
- */
-function filterVisiblePosts({ resolver, posts, context }: { resolver: MemberAccessResolver; posts: readonly PostRecord[]; context: MemberContext }, _optional = {}): PostRecord[] {
-  return posts.filter((post) => decidePostMemberAccess({ resolver, post, context }).allowed);
 }
 
 /** Pure display formatting for a post-previews card's date — the one place this file turns
