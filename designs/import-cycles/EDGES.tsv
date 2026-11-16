@@ -1,0 +1,264 @@
+scope	from	to	kind	in_scc24	imports	importing_files	imported_names	sites	fix_kind	step
+tovu-feature	agent-plugins	api-connections	type	no	3	2	DeclaredApiConnection,ApiConnectionConnectStatus	features/agent-plugins/connect-tool.ts:23 features/agent-plugins/service-ports.ts:12 features/agent-plugins/service-ports.ts:13	contracts: upward type-only edge (rank 0 -> 4); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	agent-plugins	external-mcp	type	no	1	1	ExternalMcpConnectStart	features/agent-plugins/service-ports.ts:4	contracts: upward type-only edge (rank 0 -> 5); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	agent-plugins	member-login	type	no	1	1	LoginProvider	features/agent-plugins/exports/runtime.ts:7	contracts: upward type-only edge (rank 0 -> 4); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	analytics	settings	runtime	no	1	1	ensureSettingDefinitions,getEffective | types: EnsureSettingDefinitionsDeps,SettingDefinitionSpec,SettingsRepoPort		keep (downward, rank 3 -> 2)	-
+tovu-feature	api-connections	agent-plugins	runtime	no	1	1	defineExecutablePluginContribution | types: LoadPluginContributions		keep (downward, rank 4 -> 0)	-
+tovu-feature	api-connections	agent-plugins	type	no	1	1	LoadPluginContributions		keep (downward, rank 4 -> 0)	-
+tovu-feature	api-connections	custom-credentials	runtime	yes	1	1	allowedOriginsFor,resolveCustomCredentialByLabel | types: CustomCredentialSetRepoPort		keep (downward, rank 4 -> 3)	-
+tovu-feature	api-connections	custom-credentials	type	yes	1	1	CustomCredentialSetRepoPort		keep (downward, rank 4 -> 3)	-
+tovu-feature	api-connections	form-destinations	type	yes	1	1	FormDeliveryConnectionPort,FormDestinationCredential	features/api-connections/form-delivery-connection.ts:4	contracts: upward type-only edge (rank 4 -> 4); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	api-connections	project-keys	type	yes	2	1	KeyAttachments,ProjectKeyTransaction,SiteOAuthBindings		keep (downward, rank 4 -> 0)	-
+tovu-feature	asset-transfer	fs-files	runtime	no	11	3	FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION,inspectWriteTarget,prepareFileWrites,writePreparedFiles,preparePickedFolderBatch,FS_FILES_READ_PERMISSION,openFsFileForRead,resolveFsFilePath,resolvePickedFolder,FsFilePathError,listFsFiles,FsWriteInputError,describeWriteBatch | types: FsFilesToolDeps,PreparedWriteBatch		keep (downward, rank 5 -> 0)	-
+tovu-feature	asset-transfer	media	runtime	no	4	3	saveLibraryDocument,findMediaByIdOrSlug,readStoredBytes,createDocumentArchiveReader		keep (downward, rank 5 -> 2)	-
+tovu-feature	asset-transfer	media-import	runtime	no	4	2	persistImportedMedia,validateImageBytes,fetchImage,MEDIA_IMPORT_POLICY,isImportShapeRejection,withCallerSafeEgressRefusal | types: MediaImportToolDeps		keep (downward, rank 5 -> 3)	-
+tovu-feature	asset-transfer	theme	runtime	no	7	3	THEME_WRITE_PERMISSION,resolveThemeFilePath,writeThemeBinaryFile,nextAvailableFileName,assertThemeFileWritable,findThemeOrThrow,reloadThemeInPlace,sniffThemeImportType,isShapeRejection,THEME_IMPORT_MAX_BYTES,THEME_IMPORT_POLICY,THEME_IMPORT_ACCEPT | types: ThemeToolDeps		keep (downward, rank 5 -> 4)	-
+tovu-feature	comments	settings	runtime	no	3	3	createSettingsPrincipalLookup,ensureSettingDefinitions,set,getEffective,ForbiddenError | types: SettingsRepoPort,SettingDefinitionSpec,AuthorizeFn		keep (downward, rank 3 -> 2)	-
+tovu-feature	comments	settings	type	no	1	1	SettingsRepoPort,SettingDefinitionSpec,AuthorizeFn		keep (downward, rank 3 -> 2)	-
+tovu-feature	consent	agent-plugins	type	no	1	1	LoadPluginContributions,PluginContributionDefinition		keep (downward, rank 7 -> 0)	-
+tovu-feature	consent	post	runtime	yes	1	1	createPost | types: PostRecord		keep (downward, rank 7 -> 6)	-
+tovu-feature	consent	site-inspection	runtime	yes	1	1	resolveSameOriginPath		keep (downward, rank 7 -> 5)	-
+tovu-feature	content-types	publish-content	runtime	yes	3	1	PublishContentApplyRowError,tombstonedAtDestination,createRepoPublishHandler,gatewayDeps,okOrThrow		keep (downward, rank 2 -> 1)	-
+tovu-feature	content-types	publish-content	type	yes	1	1	PublishContentContributor,PublishContentPorts		keep (downward, rank 2 -> 1)	-
+tovu-feature	custom-credentials	deployments	runtime	yes	1	1	invalidatePublishCredentialCompatibility	features/custom-credentials/tool-registrations.ts:7	port-inversion: PublishCompatibilityPort declared by custom-credentials, bound by the host to deployments	S4
+tovu-feature	custom-credentials	deployments	type	yes	1	1	DeployTargetRegistry	features/custom-credentials/tool-registrations.ts:9	upward type-only import on a cut pair: remove it in this step where the new port/Jini type replaces it; any that remains is a T row	S4
+tovu-feature	custom-credentials	project-keys	runtime	yes	1	1	ProjectKeyCreateConflictError		keep (downward, rank 3 -> 0)	-
+tovu-feature	custom-credentials	project-keys	type	yes	3	3	ProjectKeysPort,ProviderKeyUsage,SiteGrantedVault		keep (downward, rank 3 -> 0)	-
+tovu-feature	custom-credentials	settings	runtime	yes	1	1	resolveOperatorLocale		keep (downward, rank 3 -> 2)	-
+tovu-feature	custom-credentials	source-control	runtime	yes	2	2	buildSourceControlProviderForApi,repositoryTargetError | types: LoadSourceControlProviders	features/custom-credentials/credential-ports.ts:15 features/custom-credentials/write-files-validation.ts:3	repoint-to-jini (repositoryTargetError; delete forwarder repository-target.ts) + move-to-owner (bindSourceControlWritePort -> source-control); host injects SourceControlWritePort	S3
+tovu-feature	custom-credentials	source-control	type	yes	2	2	LoadSourceControlProviders,RepositoryTargetValidator	features/custom-credentials/tool-registrations.ts:49 features/custom-credentials/write-files-validation.ts:2	upward type-only import on a cut pair: remove it in this step where the new port/Jini type replaces it; any that remains is a T row	S3
+tovu-feature	custom-credentials	vendor-credentials	runtime	no	2	2	abortGuardedCredentialRepo,credentialCreateTarget,credentialScopes		keep (downward, rank 3 -> 0)	-
+tovu-feature	custom-credentials	webhooks	type	no	3	3	SecretSealerPort,KeyringPort		keep (downward, rank 3 -> 0)	-
+tovu-feature	database-transfer	settings	runtime	no	1	1	resolveOperatorLocale		keep (downward, rank 3 -> 2)	-
+tovu-feature	database-transfer	webhooks	runtime	no	2	1	InMemoryKeyring,AesGcmSecretSealer		keep (downward, rank 3 -> 0)	-
+tovu-feature	database-transfer	webhooks	type	no	1	1	KeyringPort,SecretSealerPort		keep (downward, rank 3 -> 0)	-
+tovu-feature	deployments	agent-plugins	runtime	no	6	3	bundledContributionSources,defineExecutablePluginContribution,loadPluginContributionsFromSource,readTrustedPluginFile | types: LoadPluginContributions,PluginContributionDefinition,TrustedPluginPackage		keep (downward, rank 8 -> 0)	-
+tovu-feature	deployments	consent	runtime	yes	1	1	deploymentRefusal		keep (downward, rank 8 -> 7)	-
+tovu-feature	deployments	consent	type	yes	1	1	SiteConsentService		keep (downward, rank 8 -> 7)	-
+tovu-feature	deployments	custom-credentials	runtime	yes	2	2	makeCredentialedRequest,resolveRequestTarget,listCustomCredentials,allowedOriginsFor,classifyCredentialedRequestError,findPluginCredentialCard | types: CredentialedRequestDeps,LoadPluginCredentialCards		keep (downward, rank 8 -> 3)	-
+tovu-feature	deployments	custom-credentials	type	yes	1	1	CredentialedRequestDeps,LoadPluginCredentialCards		keep (downward, rank 8 -> 3)	-
+tovu-feature	deployments	form-destinations	runtime	yes	1	1	rewriteFormActions		keep (downward, rank 8 -> 4)	-
+tovu-feature	deployments	form-destinations	type	yes	3	3	FormDestinationForm,FormSubmissionsInspection,FormDestinationPublishInput,FormReceiverPlan,FormReceiverPort		keep (downward, rank 8 -> 4)	-
+tovu-feature	deployments	identity	runtime	no	1	1	SITE_KEY_MANAGE_PERMISSION		keep (downward, rank 8 -> 0)	-
+tovu-feature	deployments	project-keys	runtime	yes	1	1	ProjectKeyCreateConflictError		keep (downward, rank 8 -> 0)	-
+tovu-feature	deployments	publish-content	type	yes	1	1	PublishContentPeerSummary		keep (downward, rank 8 -> 1)	-
+tovu-feature	deployments	settings	runtime	yes	2	2	resolveOperatorLocale		keep (downward, rank 8 -> 2)	-
+tovu-feature	deployments	site-export	runtime	yes	1	1	firstExportFailure		keep (downward, rank 8 -> 5)	-
+tovu-feature	deployments	site-export	type	yes	3	3	ExportReport		keep (downward, rank 8 -> 5)	-
+tovu-feature	deployments	site-guide	type	no	1	1	CapabilityCard		keep (downward, rank 8 -> 6)	-
+tovu-feature	deployments	theme	runtime	yes	1	1	publicPageSecurityHeaders		keep (downward, rank 8 -> 4)	-
+tovu-feature	deployments	vendor-credentials	runtime	no	5	3	abortGuardedCredentialRepo,*,credentialVault,credentialScope,credentialHint,credentialCreateTarget,credentialScopes | types: ScopedCredentialDeps		keep (downward, rank 8 -> 0)	-
+tovu-feature	deployments	vendor-credentials	type	no	5	5	VendorCredentialSetRepoPort,VendorCredentialSetRecord,ScopedCredentialDeps		keep (downward, rank 8 -> 0)	-
+tovu-feature	deployments	webhooks	runtime	no	1	1	fingerprintSiteKeyHex,parseSiteKeyHex,revealSiteKeyMaterial,siteKeySourcesForSiteDir		keep (downward, rank 8 -> 0)	-
+tovu-feature	deployments	webhooks	type	no	5	5	KeyringPort,SecretSealerPort		keep (downward, rank 8 -> 0)	-
+tovu-feature	email-templates	pages	runtime	no	3	3	PAGES_EDIT_HTML_PERMISSION,PageConcurrentEditError | types: PagesHtmlDocumentStoreFactory		keep (downward, rank 8 -> 7)	-
+tovu-feature	email-templates	post	runtime	no	2	1	isTrashed,EMAIL_TEMPLATE_KIND | types: PostKind,PostRecord,PostRepoPort		keep (downward, rank 8 -> 6)	-
+tovu-feature	entries	content-types	runtime	yes	1	1	DECLARED_CONTENT_TYPE_OWNERS		keep (downward, rank 4 -> 2)	-
+tovu-feature	entries	content-types	type	yes	1	1	ContentTypeFieldDef,ContentTypeFieldKind,ContentTypeRecord		keep (downward, rank 4 -> 2)	-
+tovu-feature	entries	media	runtime	yes	2	2	invalidateMediaAccessEvidence		keep (downward, rank 4 -> 2)	-
+tovu-feature	entries	publish-content	runtime	yes	4	1	PublishContentApplyRowError,collectBodyReferences,tombstonedAtDestination,createRepoPublishHandler,gatewayDeps,okOrThrow		keep (downward, rank 4 -> 1)	-
+tovu-feature	entries	publish-content	type	yes	1	1	EntryPublishPorts,PublishContentContributor		keep (downward, rank 4 -> 1)	-
+tovu-feature	entries	taxonomy	runtime	yes	2	1	prepareTermSync,readTermIds,TERM_SYNC_PERMISSION,ContentRecordNotFoundError,TaxonomyNotApplicableError,TermRecordNotFoundError		keep (downward, rank 4 -> 2)	-
+tovu-feature	entries	trash	runtime	yes	1	1	buildTrashRegistry,createTableTrashAdapter | types: TrashAdapter,TrashEntry		keep (downward, rank 4 -> 3)	-
+tovu-feature	external-mcp	api-connections	runtime	no	1	1	hostedMcpSignInLink		keep (downward, rank 5 -> 4)	-
+tovu-feature	external-mcp	settings	runtime	no	1	1	resolveOperatorLocale		keep (downward, rank 5 -> 2)	-
+tovu-feature	external-mcp	webhooks	type	no	2	2	KeyringPort,SecretSealerPort		keep (downward, rank 5 -> 0)	-
+tovu-feature	form-destinations	agent-plugins	runtime	no	1	1	defineExecutablePluginContribution,loadPluginContributionsFromSource | types: LoadPluginContributions,TrustedPluginPackage		keep (downward, rank 4 -> 0)	-
+tovu-feature	form-destinations	custom-credentials	runtime	yes	3	3	resolveCustomCredentialByLabel,createCustomCredential,CustomCredentialDuplicateLabelError,listCustomCredentials,updateCustomCredential | types: CustomCredentialResolveDeps,CustomCredentialWriteDeps		keep (downward, rank 4 -> 3)	-
+tovu-feature	forms	content-duplication	runtime	no	2	2	MAX_SUFFIX_ATTEMPTS,deriveDuplicateName		keep (downward, rank 3 -> 0)	-
+tovu-feature	forms	media	runtime	no	2	2	purgeMedia,sniffContentType,uploadMedia,trashMedia | types: UploadMediaDeps,MediaContentTypeStorePort		keep (downward, rank 3 -> 2)	-
+tovu-feature	forms	publish-content	runtime	no	2	1	trashedAtDestination,createRepoPublishHandler,gatewayDeps		keep (downward, rank 3 -> 1)	-
+tovu-feature	forms	publish-content	type	no	1	1	PublishContentContributor,PublishContentPorts		keep (downward, rank 3 -> 1)	-
+tovu-feature	forms	site-guide	type	no	1	1	CapabilityCard	features/forms/capability-card.ts:2	contracts: upward type-only edge (rank 3 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	fs-files	identity	type	no	1	1	PermissionGrantRegistry	features/fs-files/custom-root-permission.ts:1	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	image-transform	asset-transfer	runtime	no	2	1	ASSET_SOURCE_SCHEMA,readAssetSource,requireAssetDestination,prepareAssetWrites,writeAssetFiles | types: AssetToolDeps,PreparedAssets		keep (downward, rank 6 -> 5)	-
+tovu-feature	image-transform	fs-files	runtime	no	4	1	FS_FILES_READ_PERMISSION,FsFilePathError,FsWriteInputError,describeWriteBatch		keep (downward, rank 6 -> 0)	-
+tovu-feature	image-transform	media-import	runtime	no	1	1	isImportShapeRejection		keep (downward, rank 6 -> 3)	-
+tovu-feature	image-transform	theme	runtime	no	1	1	isShapeRejection		keep (downward, rank 6 -> 4)	-
+tovu-feature	mail	custom-credentials	runtime	no	1	1	resolveCustomCredentialByLabel | types: CustomCredentialResolveDeps		keep (downward, rank 4 -> 3)	-
+tovu-feature	mail	custom-credentials	type	no	1	1	CustomCredentialResolveDeps		keep (downward, rank 4 -> 3)	-
+tovu-feature	mail	settings	type	no	1	1	MailTestModeSetting		keep (downward, rank 4 -> 2)	-
+tovu-feature	mail-status	agent-plugins	runtime	no	1	1	loadAgentPluginSearchCandidates | types: AgentPluginSearchToolDeps		keep (downward, rank 5 -> 0)	-
+tovu-feature	mail-status	custom-credentials	runtime	no	3	3	listCustomCredentials,createCustomCredential,describeCredential,updateCustomCredential,loadPluginCredentialCardsSafely | types: CustomCredentialSummary,CustomCredentialWriteDeps,LoadPluginCredentialCards		keep (downward, rank 5 -> 3)	-
+tovu-feature	mail-status	custom-credentials	type	no	1	1	CustomCredentialSetRepoPort,CustomCredentialSummary,CustomCredentialWriteDeps,LoadPluginCredentialCards		keep (downward, rank 5 -> 3)	-
+tovu-feature	mail-status	identity	type	no	1	1	PermissionGrantRegistry		keep (downward, rank 5 -> 0)	-
+tovu-feature	mail-status	mail	runtime	no	2	2	MAIL_ACTIVITY_OUTCOMES,MAIL_ACTIVITY_USES,mailWebhookSecretLabels | types: MailActivityFilter,MailActivityPosition,MailActivityRecord,MailActivityRepo,MailFeedbackRecord		keep (downward, rank 5 -> 4)	-
+tovu-feature	mail-status	mail	type	no	4	3	MailActivityFilter,MailActivityPosition,MailActivityRecord,MailActivityRepo,MailFeedbackRecord,MailSuppressionAdminRepo,MailSuppressionEntry,MailSuppressionReason,MailSuppressionRemoval,MailActivityOutcome,MailActivityUse		keep (downward, rank 5 -> 4)	-
+tovu-feature	mail-status	newsletter	runtime	no	1	1	evaluateLaunchGate | types: LaunchGateDeps,LaunchGatePrecondition		keep (downward, rank 5 -> 0)	-
+tovu-feature	mail-status	project-keys	type	no	1	1	ProjectKeysPort		keep (downward, rank 5 -> 0)	-
+tovu-feature	mail-status	settings	type	no	1	1	MailTestModeSetting		keep (downward, rank 5 -> 2)	-
+tovu-feature	media	content-duplication	runtime	no	1	1	deriveDuplicateName		keep (downward, rank 2 -> 0)	-
+tovu-feature	media	post	type	yes	2	2	PostRecord,PostRepoPort	features/media/access-evidence.ts:1 features/media/where-used.ts:7	contracts: upward type-only edge (rank 2 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	media	publish-content	runtime	yes	7	4	bytesMatchSha256,isValidSha256Hex,createRepoPublishHandler,PublishContentApplyRowError,collectMediaUrlKeys,collectReferencedMediaKeys | types: FieldDisposition		keep (downward, rank 2 -> 1)	-
+tovu-feature	media	publish-content	type	yes	3	3	MediaSourceReplacement,FieldDisposition,PublishContentContributor,PublishContentPorts,OverwritablePrecheckRefusal,PackedEntity		keep (downward, rank 2 -> 1)	-
+tovu-feature	media	webhooks	type	no	2	2	SealedSecret,KeyringPort,SecretSealerPort		keep (downward, rank 2 -> 0)	-
+tovu-feature	media-generation	agent-plugins	type	no	1	1	LoadPluginContributions		keep (downward, rank 3 -> 0)	-
+tovu-feature	media-generation	media	runtime	no	6	3	saveMediaProviderCredentials,getMediaProviderCredentials,captureMediaUploaded,withChatPreview,resolveMediaProviderCredential,sniffContentType,TOVU_MAX_UPLOAD_BYTES,uploadMedia,resolveMediaPublicUrls | types: MediaProviderCredentialRepoPort,MediaProviderCredentialWriteDeps,AssetBlobRepoPort,AssetRenditionRepoPort,BlobStorePort,MediaRecord,MediaRepoPort,TransformDefinitionRepoPort		keep (downward, rank 3 -> 2)	-
+tovu-feature	media-generation	media	type	no	1	1	MediaProviderCredentialRepoPort,MediaProviderCredentialWriteDeps,AssetBlobRepoPort,AssetRenditionRepoPort,BlobStorePort,MediaRecord,MediaRepoPort,TransformDefinitionRepoPort,MediaContentTypeStorePort		keep (downward, rank 3 -> 2)	-
+tovu-feature	media-generation	settings	runtime	no	1	1	resolveOperatorLocale		keep (downward, rank 3 -> 2)	-
+tovu-feature	media-generation	webhooks	type	no	2	2	KeyringPort,SecretSealerPort		keep (downward, rank 3 -> 0)	-
+tovu-feature	media-import	fs-files	runtime	no	4	2	FS_ROOT_IDS,FS_FOLDER_READ_RECOVERY,resolveSiteFileRequest,FsFilePathError,openFsFileForRead		keep (downward, rank 3 -> 0)	-
+tovu-feature	media-import	fs-files	type	no	1	1	FsRootId		keep (downward, rank 3 -> 0)	-
+tovu-feature	media-import	media	runtime	yes	5	2	sniffContentType,TOVU_MAX_UPLOAD_BYTES,captureMediaUploaded,withChatPreview,uploadMedia,resolveMediaPublicUrls | types: SniffedContentType,AssetBlobRepoPort,AssetRenditionRepoPort,BlobStorePort,TransformDefinitionRepoPort,UploadMediaInput		keep (downward, rank 3 -> 2)	-
+tovu-feature	media-import	media	type	yes	1	1	SniffedContentType,AssetBlobRepoPort,AssetRenditionRepoPort,BlobStorePort,TransformDefinitionRepoPort,UploadMediaInput,MediaContentTypeStorePort		keep (downward, rank 3 -> 2)	-
+tovu-feature	member-login	agent-plugins	runtime	no	2	1	bundledContributionSources,loadPluginContributionsFromSource | types: LoadPluginContributions,PluginContributionDefinition		keep (downward, rank 4 -> 0)	-
+tovu-feature	member-login	agent-plugins	type	no	1	1	LoadPluginContributions,PluginContributionDefinition		keep (downward, rank 4 -> 0)	-
+tovu-feature	member-login	custom-credentials	runtime	no	1	1	describeCredentialByLabel,resolveCustomCredentialByLabel | types: CustomCredentialResolveDeps		keep (downward, rank 4 -> 3)	-
+tovu-feature	member-login	custom-credentials	type	no	1	1	CustomCredentialResolveDeps		keep (downward, rank 4 -> 3)	-
+tovu-feature	member-login	members	runtime	no	1	1	completeSignIn,createMember,issueMemberSession,requestSignInLink,notifyMemberCreated		keep (downward, rank 4 -> 0)	-
+tovu-feature	member-login	members	type	no	3	2	MemberRecord,MemberExternalIdentityRepoPort,MemberSignInResult,MembersWriteServiceDeps,MemberExternalIdentityRecord		keep (downward, rank 4 -> 0)	-
+tovu-feature	member-login	webhooks	type	no	1	1	KeyringPort,SecretSealerPort		keep (downward, rank 4 -> 0)	-
+tovu-feature	members	newsletter	type	no	1	1	SubscriberContact,SubscriberDirectoryPort	features/members/subscriber-directory.ts:43	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	members	site-guide	type	no	1	1	CapabilityCard	features/members/capability-card.ts:2	contracts: upward type-only edge (rank 0 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	navigation	post	type	yes	1	1	PostRepoPort	features/navigation/page-target-resolver.ts:1	contracts: upward type-only edge (rank 2 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	navigation	publish-content	runtime	yes	1	1	createRepoPublishHandler		keep (downward, rank 2 -> 1)	-
+tovu-feature	navigation	publish-content	type	yes	1	1	EntityReplacement,PublishContentContributor,PublishContentDeps,PublishContentPorts,ReferenceHolder,RepointResult		keep (downward, rank 2 -> 1)	-
+tovu-feature	newsletter	webhooks	type	no	1	1	KeyringPort	features/newsletter/unsubscribe.ts:17	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	object-storage	agent-plugins	runtime	no	2	1	bundledContributionSources,loadPluginContributionsFromSource | types: LoadPluginContributions		keep (downward, rank 1 -> 0)	-
+tovu-feature	object-storage	deployments	type	no	2	2	DeployTargetCredential,DeployHostKit	features/object-storage/artifact-provider.ts:3 features/object-storage/registry.ts:11	contracts: upward type-only edge (rank 1 -> 8); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	pages	agent-plugins	type	no	2	2	PluginEmbedDiagnostic		keep (downward, rank 7 -> 0)	-
+tovu-feature	pages	identity	type	no	1	1	PermissionGrantRegistry		keep (downward, rank 7 -> 0)	-
+tovu-feature	pages	post	runtime	no	4	3	isTrashed,SYSTEM_ACTOR_ID,announcePendingGoLive,EXPECTED_VERSION_REJECTION,PostNotFoundError,VERSION_CONFLICT_CODE | types: PostRecord,PostRepoPort		keep (downward, rank 7 -> 6)	-
+tovu-feature	pages	post	type	no	2	2	PostRecord,PostRepoPort,PostKind,PostStatus		keep (downward, rank 7 -> 6)	-
+tovu-feature	pages	theme	runtime	no	1	1	NO_THEME_ID,resolveActiveTheme,syncThemeRoster | types: DiscoveredTheme		keep (downward, rank 7 -> 4)	-
+tovu-feature	permanent-delete	deployments	type	no	1	1	StaticPublishToolDeps	features/permanent-delete/tool-registrations.ts:21	contracts: upward type-only edge (rank 0 -> 8); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	plugin-runtime	post	type	no	2	2	PostRecord	features/plugin-runtime/capability-tool-registrations.ts:17 features/plugin-runtime/service-ports.ts:3	contracts: upward type-only edge (rank 0 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	plugin-runtime	site-guide	type	no	1	1	CapabilityCard	features/plugin-runtime/capability-card.ts:2	contracts: upward type-only edge (rank 0 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	post	content-duplication	runtime	no	1	1	deriveDuplicateName		keep (downward, rank 6 -> 0)	-
+tovu-feature	post	media	runtime	yes	2	2	invalidateMediaAccessEvidence		keep (downward, rank 6 -> 2)	-
+tovu-feature	post	media	type	yes	2	2	MediaContentTypeStorePort		keep (downward, rank 6 -> 2)	-
+tovu-feature	post	presentation	runtime	no	1	1	resolveActiveThemeId		keep (downward, rank 6 -> 0)	-
+tovu-feature	post	presentation	type	no	1	1	PresentationSettingsRepoPort		keep (downward, rank 6 -> 0)	-
+tovu-feature	post	publish-content	runtime	yes	5	1	contentHash,collectBodyReferences,PublishContentApplyRowError,addressHeldByOther,trashedAtDestination,createRepoPublishHandler,gatewayDeps		keep (downward, rank 6 -> 1)	-
+tovu-feature	post	publish-content	type	yes	1	1	PublishContentContributor,PublishContentDeps,PublishContentPorts,PackedEntity,PublishContentReference,RetireTarget,TaxonomyPublishPorts		keep (downward, rank 6 -> 1)	-
+tovu-feature	post	site-guide	type	no	1	1	CapabilityCard	features/post/capability-card.ts:2	contracts: upward type-only edge (rank 6 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	post	site-inspection	runtime	yes	1	1	readPageBodyOptions,shapePageBody | types: ShapedPageBody		keep (downward, rank 6 -> 5)	-
+tovu-feature	post	taxonomy	runtime	yes	1	1	prepareTermSync,readTermIds,TERM_SYNC_PERMISSION,withTermIds		keep (downward, rank 6 -> 2)	-
+tovu-feature	post	theme	runtime	yes	1	1	applicableThemeTemplates,NO_THEME_ID,resolveActiveTheme | types: DiscoveredTheme		keep (downward, rank 6 -> 4)	-
+tovu-feature	project-keys	api-connections	runtime	yes	1	1	apiConnectionVaultScope,PLUGIN_STATE_FORMAT	features/project-keys/site-references.ts:5	move-down: apiConnectionVaultScope + API_CONNECTION_VAULT_KIND -> platform/secrets/vault-api-connection-meta.ts; repoint 4 importers; delete the PLUGIN_STATE_FORMAT re-export	S2
+tovu-feature	project-keys	api-connections	type	yes	1	1	SharedOAuthOwnerStorage	features/project-keys/shared-oauth-disconnect.ts:4	upward type-only import on a cut pair: remove it in this step where the new port/Jini type replaces it; any that remains is a T row	S2
+tovu-feature	project-keys	webhooks	type	no	1	1	KeyringPort,SecretSealerPort	features/project-keys/site-sealer.ts:2	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	content-types	type	yes	1	1	ContentTypeListPort,ContentTypeRepoPort,IndexProvisionerPort	features/publish-content/type-registry.ts:8	contracts: upward type-only edge (rank 1 -> 2); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	deployments	type	yes	3	3	PublishHistoryStore,PublishTrigger	features/publish-content/peer-transport.ts:11 features/publish-content/tool-deps.ts:1 features/publish-content/tool-registrations.ts:3	contracts: upward type-only edge (rank 1 -> 8); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	entries	type	yes	2	1	EntryListPort,EntryRepoPort,EntryListExcludingTypesPort,EntryPublishReadPort	features/publish-content/type-registry.ts:23 features/publish-content/type-registry.ts:26	contracts: upward type-only edge (rank 1 -> 4); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	identity	type	no	1	1	PermissionGrantRegistry		keep (downward, rank 1 -> 0)	-
+tovu-feature	publish-content	media	type	yes	2	2	BlobStorePort,AssetBlobRepoPort,MediaContentTypeStorePort,VersionedMediaRepoPort	features/publish-content/backstop-ports.ts:22 features/publish-content/type-registry.ts:4	contracts: upward type-only edge (rank 1 -> 2); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	navigation	type	yes	1	1	MenuRepoPort,NavLocationBindingRepoPort	features/publish-content/type-registry.ts:5	contracts: upward type-only edge (rank 1 -> 2); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	post	type	yes	4	4	PostRecord,BeforeSaveHookPort,ForgetRemovedPostFn,PostRepoPort,RemovePostFn	features/publish-content/push-plan.ts:8 features/publish-content/tool-deps.ts:11 features/publish-content/tool-registrations.ts:53 features/publish-content/type-registry.ts:3	contracts: upward type-only edge (rank 1 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	publish-trust	runtime	yes	6	3	openPublishSession,PublishTrustHandshakeError,disconnectDestination,PublishTrustConnectError,connectDestination,COMMITTED_JSON_CODEC,createFileProvisioning,PUBLISH_TRUST_CONFIG_PATH,nodeProvisioningFileIo,resolveCommittedConfigRoot | types: PublishTrustProvisioningPort		keep (downward, rank 1 -> 0)	-
+tovu-feature	publish-content	publish-trust	type	yes	1	1	PublishTrustProvisioningPort		keep (downward, rank 1 -> 0)	-
+tovu-feature	publish-content	taxonomy	type	yes	2	1	ContentLookupPort,ContentTypeTaxonomyPolicyPort,EntryTermRepoPort,ImportableTaxonomyRepoPort,ImportableTermRepoPort,TaxonomyListPort,TaxonomyRepoPort,TaxonomyRevisionRepoPort,TermListPort,TermRepoPort,UnassignableEntryTermRepoPort,EntryTermReadPort,TaxonomyPublishReadPort,TermPublishReadPort	features/publish-content/type-registry.ts:9 features/publish-content/type-registry.ts:22	contracts: upward type-only edge (rank 1 -> 2); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	theme	type	yes	1	1	DiscoveredTheme	features/publish-content/type-registry.ts:33	contracts: upward type-only edge (rank 1 -> 4); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	publish-content	webhooks	runtime	no	2	2	scanTextForSecrets		keep (downward, rank 1 -> 0)	-
+tovu-feature	publish-content	webhooks	type	no	2	2	KeyringPort,SecretSealerPort,SealedSecret		keep (downward, rank 1 -> 0)	-
+tovu-feature	publish-trust	deployments	runtime	yes	1	1	isContainedDeployConfigPath	features/publish-trust/connect.ts:1	repoint-to-jini: import isContainedDeployConfigPath from @jini-ai/devops/deploy; delete the two re-export shells	S1
+tovu-feature	publish-trust	webhooks	type	no	4	4	KeyringPort	features/publish-trust/connect.ts:3 features/publish-trust/handshake-client.ts:2 features/publish-trust/keys.ts:3 features/publish-trust/session.ts:4	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	recovery	database	type	no	1	1	LedgerAppendPort	features/recovery/tool-registrations.ts:44	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	recovery	site-guide	type	no	1	1	CapabilityCard	features/recovery/capability-card.ts:2	contracts: upward type-only edge (rank 0 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	redirects	publish-content	runtime	yes	2	1	malformedKey,createRepoPublishHandler		keep (downward, rank 2 -> 1)	-
+tovu-feature	redirects	publish-content	type	yes	1	1	PublishContentContributor		keep (downward, rank 2 -> 1)	-
+tovu-feature	seo	media	runtime	no	1	1	findMediaByIdOrSlug,mediaPublicPath,mediaUrlKey | types: TransformDefinitionRepoPort		keep (downward, rank 7 -> 2)	-
+tovu-feature	seo	media	type	no	1	1	TransformDefinitionRepoPort,AssetRenditionRepoPort,MediaContentTypeStorePort,MediaRepoPort		keep (downward, rank 7 -> 2)	-
+tovu-feature	seo	members	runtime	no	1	1	resolvePostMemberAccess		keep (downward, rank 7 -> 0)	-
+tovu-feature	seo	post	runtime	no	2	2	collectCoverMediaRefs,resolveCoverImage,createPublicPostReader,extractPlainTextFromHtml,isTrashed,resolveFeaturedImageRef,ROOT_SLUG | types: CoverImage,CoverMedia,FeaturedImageDeps,PostRecord,PostRepoPort		keep (downward, rank 7 -> 6)	-
+tovu-feature	seo	post	type	no	1	1	CoverImage,CoverMedia,FeaturedImageDeps,PostRecord,PostRepoPort		keep (downward, rank 7 -> 6)	-
+tovu-feature	seo	settings	runtime	no	3	2	getEffective,normalizeSiteTitle,SITE_TITLE_KEY,SITE_TITLE_NAMESPACE,createSettingsPrincipalLookup,ensureSettingDefinitions,set | types: SettingsRepoPort,SettingDefinitionSpec,AuthorizeFn		keep (downward, rank 7 -> 2)	-
+tovu-feature	seo	settings	type	no	1	1	SettingsRepoPort,SettingDefinitionSpec,AuthorizeFn		keep (downward, rank 7 -> 2)	-
+tovu-feature	seo	site-guide	type	no	1	1	CapabilityCard		keep (downward, rank 7 -> 6)	-
+tovu-feature	settings	identity	type	no	1	1	PermissionGrantRegistry		keep (downward, rank 2 -> 0)	-
+tovu-feature	settings	publish-content	runtime	yes	2	1	PublishContentApplyRowError,createRepoPublishHandler,gatewayDeps		keep (downward, rank 2 -> 1)	-
+tovu-feature	settings	publish-content	type	yes	1	1	PublishContentContributor,PublishContentPorts		keep (downward, rank 2 -> 1)	-
+tovu-feature	settings	webmcp	runtime	no	1	1	ensureSettingsUiTabDefinitions		keep (downward, rank 2 -> 0)	-
+tovu-feature	site-backup	agent-plugins	runtime	no	6	4	createTovuAgentPluginLifecycle,SELECTED_AGENT_PLUGIN_PACKAGES,findSoonAgentPlugin,createBundledSourceArchiveReader,packAgentPluginDirectory,listBundledAgentPluginServers		keep (downward, rank 8 -> 0)	-
+tovu-feature	site-backup	agent-plugins	type	no	2	2	AgentPluginLayout		keep (downward, rank 8 -> 0)	-
+tovu-feature	site-backup	custom-credentials	runtime	yes	3	2	CustomCredentialSecretStoreUnconfiguredError,CustomCredentialValidationError,listCustomCredentials,resolveCustomCredentialByLabel,normalizeWriteFilePath,validateBranch,validateCommitMessage,validateRepositoryTarget | types: CustomCredentialSetRepoPort,CustomProviderConnectionInput		keep (downward, rank 8 -> 3)	-
+tovu-feature	site-backup	media	runtime	yes	5	4	sniffContentType,sanitizeSvg,computeBlobStorageKey,mimeForTransformFormat,validateDocumentIngress,createDocumentArchiveReader,documentContentType,MAX_DOCUMENT_BYTES | types: BlobStorePort,ImageTransformerPort		keep (downward, rank 8 -> 2)	-
+tovu-feature	site-backup	media	type	yes	1	1	BlobStorePort,ImageTransformerPort		keep (downward, rank 8 -> 2)	-
+tovu-feature	site-backup	post	runtime	yes	2	2	backfillPostSearchIndex,extractPlainTextFromHtml		keep (downward, rank 8 -> 6)	-
+tovu-feature	site-backup	publish-content	runtime	yes	3	2	checkTreePath,callPeer,peerUrl | types: PeerCallDeps		keep (downward, rank 8 -> 1)	-
+tovu-feature	site-backup	settings	runtime	yes	1	1	PUBLISHABLE_SETTINGS		keep (downward, rank 8 -> 2)	-
+tovu-feature	site-backup	site-export	runtime	yes	2	2	downloadForms,downloadDocumentBase		keep (downward, rank 8 -> 5)	-
+tovu-feature	site-backup	site-export	type	yes	1	1	ExportReport		keep (downward, rank 8 -> 5)	-
+tovu-feature	site-backup	source-control	runtime	yes	2	1	buildSourceControlProviders,findReservedPath,pickSourceControlProviderForApi,resolveDefaultForSourceControl,SourceControlCredentialSecretStoreUnconfiguredError | types: LoadSourceControlProviders		keep (downward, rank 8 -> 6)	-
+tovu-feature	site-backup	source-control	type	yes	4	3	CredentialedRepositoryTarget,InspectBackupRepositoryResult,SourceControlProvider,LoadSourceControlProviders,SourceControlCredentialSetRepoPort,SourceControlProviderId,BackupRepositoryState,BackupTreeEntry,ProviderCallFailure		keep (downward, rank 8 -> 6)	-
+tovu-feature	site-backup	theme	runtime	yes	5	4	resolveThemeOriginalSource,NO_THEME_ID,checkSourceDirContainment,loadTheme		keep (downward, rank 8 -> 4)	-
+tovu-feature	site-backup	webhooks	runtime	no	2	1	inspectSiteKeyMaterial,siteKeySources,siteKeySourcesForSiteDir		keep (downward, rank 8 -> 0)	-
+tovu-feature	site-backup	webhooks	type	no	1	1	SecretSealerPort		keep (downward, rank 8 -> 0)	-
+tovu-feature	site-backup	widgets	runtime	yes	1	1	sanitizePageHtml		keep (downward, rank 8 -> 7)	-
+tovu-feature	site-export	media	runtime	yes	2	1	mediaPublicPath,resolveContentTypes | types: ContentTypeDeps		keep (downward, rank 5 -> 2)	-
+tovu-feature	site-export	post	type	yes	1	1	PostRecord,PostRepoPort	features/site-export/route-manifest.ts:5	contracts: upward type-only edge (rank 5 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	site-export	presentation	type	no	1	1	PresentationSettingsRepoPort		keep (downward, rank 5 -> 0)	-
+tovu-feature	site-export	theme	runtime	yes	5	4	NO_THEME_ID,resolveActiveTheme,isStandaloneThemePage,resolveThemeLayout,publicPageSecurityHeaders,readPreviewSwitcher,previewThemePath		keep (downward, rank 5 -> 4)	-
+tovu-feature	site-export	theme	type	yes	1	1	DiscoveredTheme		keep (downward, rank 5 -> 4)	-
+tovu-feature	site-export	webmcp	runtime	no	1	1	injectPublishedWebMcp		keep (downward, rank 5 -> 0)	-
+tovu-feature	site-guide	agent-plugins	type	no	1	1	LoadPluginContributions,PluginContributionDefinition		keep (downward, rank 6 -> 0)	-
+tovu-feature	site-guide	site-inspection	runtime	no	1	1	buildSiteProfile,toSiteProfileDeps | types: SiteProfileSourceDeps		keep (downward, rank 6 -> 5)	-
+tovu-feature	site-inspection	deployments	type	yes	1	1	PublishHistoryStore	features/site-inspection/live-url.ts:8	contracts: upward type-only edge (rank 5 -> 8); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	site-inspection	presentation	runtime	no	1	1	resolveActiveThemeId		keep (downward, rank 5 -> 0)	-
+tovu-feature	site-inspection	publish-content	runtime	yes	1	1	selectConnectedDestination | types: PublishContentPeerRepoPort		keep (downward, rank 5 -> 1)	-
+tovu-feature	site-inspection	theme	runtime	yes	2	1	NO_THEME_ID,themeIdCandidates		keep (downward, rank 5 -> 4)	-
+tovu-feature	site-search	members	runtime	no	1	1	resolvePostMemberAccess		keep (downward, rank 7 -> 0)	-
+tovu-feature	site-search	members	type	no	1	1	MemberContext		keep (downward, rank 7 -> 0)	-
+tovu-feature	site-search	post	runtime	no	1	1	toRecord,toPostSearchDocument		keep (downward, rank 7 -> 6)	-
+tovu-feature	site-search	post	type	no	2	2	PostKind		keep (downward, rank 7 -> 6)	-
+tovu-feature	site-search	settings	runtime	no	1	1	set		keep (downward, rank 7 -> 2)	-
+tovu-feature	sites	agent-plugins	runtime	no	2	1	firstNewSiteAgentPluginTokenRefusal,parseNewSiteAgentPluginTokens,resolveBundledAgentPlugin,checkAgentPluginAccessToken		keep (downward, rank 1 -> 0)	-
+tovu-feature	sites	agent-plugins	type	no	1	1	PluginCredentialsPort		keep (downward, rank 1 -> 0)	-
+tovu-feature	source-control	agent-plugins	runtime	no	3	1	bundledContributionSources,parseDescriptorI18n,defineExecutablePluginContribution,loadPluginContributionsFromSource,readTrustedPluginFile | types: DescriptorI18n,LoadPluginContributions,TrustedPluginPackage		keep (downward, rank 6 -> 0)	-
+tovu-feature	source-control	custom-credentials	runtime	yes	2	2	findPluginCredentialCard,describeCredentialByLabel,resolveCustomCredentialByLabel | types: LoadPluginCredentialCards,CustomCredentialSetRepoPort		keep (downward, rank 6 -> 3)	-
+tovu-feature	source-control	custom-credentials	type	yes	1	1	LoadPluginCredentialCards,CustomCredentialSetRepoPort		keep (downward, rank 6 -> 3)	-
+tovu-feature	source-control	project-keys	runtime	yes	1	1	ProjectKeyCreateConflictError		keep (downward, rank 6 -> 0)	-
+tovu-feature	source-control	settings	runtime	yes	1	1	resolveOperatorLocale		keep (downward, rank 6 -> 2)	-
+tovu-feature	source-control	site-backup	runtime	yes	6	2	prepareStaticReport,staticDownloadLayout,LANDING_FILE,claimArchivePaths,SiteShareRefusal	features/source-control/commit-site.ts:8 features/source-control/commit-site.ts:9 features/source-control/commit-site.ts:10 features/source-control/commit-site.ts:11 features/source-control/commit-site.ts:12 features/source-control/tool-registrations.ts:4	port-inversion: StaticSitePackagerPort declared by source-control, bound by the host to site-backup static packaging (= CLASSIFY host contract files.export)	S5
+tovu-feature	source-control	site-export	runtime	yes	1	1	firstExportFailure | types: ExportReport		keep (downward, rank 6 -> 5)	-
+tovu-feature	source-control	vendor-credentials	runtime	no	5	4	abortGuardedCredentialRepo,TovuCredentialSetVaultAdapter,credentialVault,credentialScope,credentialHint,credentialCreateTarget,credentialScopes | types: CredentialScope,ScopedCredentialDeps		keep (downward, rank 6 -> 0)	-
+tovu-feature	source-control	vendor-credentials	type	no	3	3	CredentialProjectHalf,CredentialScope,ScopedCredentialDeps		keep (downward, rank 6 -> 0)	-
+tovu-feature	source-control	webhooks	type	no	4	4	KeyringPort,SecretSealerPort,SealedSecret		keep (downward, rank 6 -> 0)	-
+tovu-feature	taxonomy	post	type	yes	1	1	PostRepoPort	features/taxonomy/tool-registrations.ts:48	contracts: upward type-only edge (rank 2 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	taxonomy	publish-content	runtime	yes	2	2	createRepoPublishHandler,gatewayDeps,PublishContentApplyRowError | types: RepoWriteContext		keep (downward, rank 2 -> 1)	-
+tovu-feature	taxonomy	publish-content	type	yes	2	2	RepoWriteContext,PublishContentContributor,TaxonomyPublishPorts,PublishContentDeps		keep (downward, rank 2 -> 1)	-
+tovu-feature	theme	fs-files	runtime	no	3	2	FsFilePathError,FS_ROOT_IDS,openFsFileForRead		keep (downward, rank 4 -> 0)	-
+tovu-feature	theme	media	runtime	yes	2	2	computeBlobStorageKey,isDocumentOnlyBlob,sniffContentType		keep (downward, rank 4 -> 2)	-
+tovu-feature	theme	media-import	runtime	yes	2	2	isImportShapeRejection,resolveLocalImportRequest,withCallerSafeEgressRefusal,fetchImage | types: MediaImportToolDeps		keep (downward, rank 4 -> 3)	-
+tovu-feature	theme	navigation	runtime	yes	1	1	menuLinkRelAttr,renderHtmlMenu		keep (downward, rank 4 -> 2)	-
+tovu-feature	theme	presentation	runtime	no	4	4	resolveActiveThemeId,setActiveTheme,PresentationSettingsValidationError | types: PresentationSettingsRepoPort		keep (downward, rank 4 -> 0)	-
+tovu-feature	theme	publish-content	runtime	yes	5	2	PublishContentApplyRowError,createRepoPublishHandler,gatewayDeps,contentHash,CONTENT_HASH_VERSION,checkTreeFiles,checkTreePath,isIgnoredTreeFileName,MAX_SECRET_SCAN_BYTES,normalizeMode,resolveTreeRelativePath,wrapTreePolicyReason | types: FileTreeFileInput		keep (downward, rank 4 -> 1)	-
+tovu-feature	theme	publish-content	type	yes	3	2	PublishContentContributor,PublishContentPorts,FileTreeFileInput,FileBlobIndexPort,PackedEntity,PublishContentDeps,PublishContentHandler,SkippedPackEntity		keep (downward, rank 4 -> 1)	-
+tovu-feature	theme	settings	type	yes	1	1	set		keep (downward, rank 4 -> 2)	-
+tovu-feature	theme	site-guide	type	no	1	1	CapabilityCard	features/theme/capability-card.ts:2	contracts: upward type-only edge (rank 4 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	theme	trash	runtime	yes	1	1	createDirectoryTrashAdapter,THEME_ENTITY_TYPE | types: DirectoryTrashLocation		keep (downward, rank 4 -> 3)	-
+tovu-feature	theme	trash	type	yes	1	1	DirectoryTrashLocation,TrashKindMover		keep (downward, rank 4 -> 3)	-
+tovu-feature	trash	identity	type	no	1	1	PurgeCounts,UserPurgePort,UserPurgeReason		keep (downward, rank 3 -> 0)	-
+tovu-feature	trash	redirects	runtime	yes	1	1	REDIRECT_TABLES		keep (downward, rank 3 -> 2)	-
+tovu-feature	vendor-credentials	source-control	type	no	1	1	SourceControlCredentialSetRecord	features/vendor-credentials/vault-adapter.ts:11	contracts: upward type-only edge (rank 0 -> 6); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	vendor-credentials	webhooks	type	no	3	3	KeyringPort,SecretSealerPort,SealedSecret	features/vendor-credentials/project-scope.ts:1 features/vendor-credentials/types.ts:25 features/vendor-credentials/vault-adapter.ts:10	contracts: upward type-only edge (rank 0 -> 0); consumer declares the port or the type moves to #src/contracts	T
+tovu-feature	web	site-inspection	runtime	no	1	1	readPageBodyOptions,shapePageBody		keep (downward, rank 6 -> 5)	-
+tovu-feature	widgets	content-types	runtime	yes	1	1	registerContentType		keep (downward, rank 7 -> 2)	-
+tovu-feature	widgets	entries	runtime	yes	1	1	ContentTypeNotActiveError,EntryFieldValidationError,EntrySlugConflictError,VersionConflictError | types: EntryRecord		keep (downward, rank 7 -> 4)	-
+tovu-feature	widgets	media	runtime	yes	1	1	CORE_PUBLIC_TRANSFORM_NAME		keep (downward, rank 7 -> 2)	-
+tovu-feature	widgets	post	runtime	yes	1	1	createPublicPostReader,isTrashed,updatePost,restorePostForward,findPublishedPostById,findPublishedPostBySlug,PostVersionConflictError,PostNotFoundError | types: PostRecord,BeforeSaveHookPort,ForgetRemovedPostFn,PostRepoPort		keep (downward, rank 7 -> 6)	-
+tovu-feature	widgets	publish-content	runtime	yes	3	1	collectPlacementReferences,collectMediaConfigKeys,collectMediaUrlKeys,createRepoPublishHandler,gatewayDeps | types: RepoWriteContext		keep (downward, rank 7 -> 1)	-
+tovu-feature	widgets	publish-content	type	yes	1	1	RepoWriteContext,PublishContentContributor,PublishContentReference,WidgetPublishPorts		keep (downward, rank 7 -> 1)	-
+tovu-feature	widgets	site-guide	type	no	1	1	CapabilityCard		keep (downward, rank 7 -> 6)	-
+tovu-shell	assistant	server/inbound	runtime	no	2	2	asyncRoute,resolveProtocol	assistant/mcp-ui-tool-calls-route.ts:16 assistant/site/visitor-request-origin.ts:3	move-down: async-route.ts and public-origin.ts are leaves -> platform/http	B3
+tovu-shell	assistant	server/runtime	runtime	no	3	3	startupSecretEnvironment,warmSiteServerForAgent	assistant/daemon-access.ts:3 assistant/desktop-mcp-runtime.ts:3 assistant/tool-registrations.ts:73	move-down startupSecretEnvironment (B2) + port-inversion warmSiteServerForAgent (host binds)	B2/B3
+tovu-shell	external-mcp	assistant	runtime	no	1	1	notifyExternalMcpRosterChanged	features/external-mcp/tool-registrations.ts:31	port-inversion: rosterChanged callback in external-mcp tool deps, bound by the host to assistant/mcp-services	B1
+tovu-shell	platform/headless-browser	server/runtime	runtime	no	1	1	startupSecretEnvironment	platform/headless-browser/desktop-render.ts:6	move-down: startup-secrets.ts (leaf, 0 internal imports) -> platform/secrets; repoint 9 prod files	B2
+jini-module	admin/src/comments/react/components/QueueSection.tsx	admin/src/comments/react/hooks/QueueSection.hooks.ts	runtime	n/a	1	1	useQueueSection,useQueueActionsCell,useQueueTable,useQueueToolbar	admin/src/comments/react/components/QueueSection.tsx:10	split: QueueActionsCell -> components/QueueActionsCell.tsx; hooks file imports that leaf	J3
+jini-module	admin/src/comments/react/hooks/QueueSection.hooks.ts	admin/src/comments/react/components/QueueSection.tsx	runtime	n/a	1	1	QueueActionsCell	admin/src/comments/react/hooks/QueueSection.hooks.ts:8	split: QueueActionsCell -> components/QueueActionsCell.tsx; hooks file imports that leaf	J3
+jini-module	agent-runtime/src/defs/codex/event-stream.ts	agent-runtime/src/json-event-stream.ts	runtime	n/a	1	1	dispatchFrame,extractErrorMessage,isRecord,nonEmptyString,pickUsage,safeParseJson,stringifyContent,todoWriteInputFromItems,trimmedNonBlank	agent-runtime/src/defs/codex/event-stream.ts:2	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/defs/cursor-agent/event-stream.ts	agent-runtime/src/json-event-stream.ts	runtime	n/a	1	1	initializingStatus,isRecord,optionalNumber,pickUsage	agent-runtime/src/defs/cursor-agent/event-stream.ts:1	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/defs/gemini/event-stream.ts	agent-runtime/src/json-event-stream.ts	runtime	n/a	1	1	dispatchFrame,extractErrorMessage,initializingStatus,isRecord,optionalNumber,pickUsage,safeParseJson,stringifyContent,todoWriteInputFromParsedValue	agent-runtime/src/defs/gemini/event-stream.ts:1	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/defs/kimi/event-stream.ts	agent-runtime/src/json-event-stream.ts	runtime	n/a	1	1	isRecord,nonEmptyString,safeParseJson,stringifyContent,trimmedNonBlank	agent-runtime/src/defs/kimi/event-stream.ts:1	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/defs/opencode/event-stream.ts	agent-runtime/src/json-event-stream.ts	runtime	n/a	1	1	dispatchFrame,extractErrorMessage,isRecord,nonEmptyString,optionalNumber,pickUsage,safeParseJson,stringifyContent	agent-runtime/src/defs/opencode/event-stream.ts:1	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/json-event-stream.ts	agent-runtime/src/defs/codex/event-stream.ts	runtime	n/a	1	1	createCodexStreamState,handleCodexEvent	agent-runtime/src/json-event-stream.ts:5	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/json-event-stream.ts	agent-runtime/src/defs/opencode/event-stream.ts	runtime	n/a	1	1	createOpenCodeStreamState,emitOpenCodeModelReceipt,handleOpenCodeEvent	agent-runtime/src/json-event-stream.ts:6	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/json-event-stream.ts	agent-runtime/src/defs/gemini/event-stream.ts	runtime	n/a	1	1	createLegacyGoogleStreamState,flushPendingArtifactText,handleLegacyGoogleStreamEvent	agent-runtime/src/json-event-stream.ts:7	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/json-event-stream.ts	agent-runtime/src/defs/kimi/event-stream.ts	runtime	n/a	1	1	handleKimiEvent	agent-runtime/src/json-event-stream.ts:8	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	agent-runtime/src/json-event-stream.ts	agent-runtime/src/defs/cursor-agent/event-stream.ts	runtime	n/a	1	1	createCursorStreamState,handleCursorEvent	agent-runtime/src/json-event-stream.ts:9	split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map	J1
+jini-module	daemon/src/agent-executor/claude/config-dir.ts	daemon/src/agent-executor/mcp-bridge.ts	runtime	n/a	1	1	defaultReadMcpJsonFile,defaultWriteMcpJsonFile	daemon/src/agent-executor/claude/config-dir.ts:6	split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint	J2
+jini-module	daemon/src/agent-executor/claude/mcp-delivery.ts	daemon/src/agent-executor/mcp-bridge.ts	runtime	n/a	1	1	defaultReadMcpJsonFile,defaultWriteMcpJsonFile,mergeMcpJsonContent	daemon/src/agent-executor/claude/mcp-delivery.ts:4	split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint	J2
+jini-module	daemon/src/agent-executor/mcp-bridge.ts	daemon/src/agent-executor/claude/mcp-delivery.ts	runtime	n/a	1	1	buildClaudeMcpDelivery,writeMcpJsonForRun	daemon/src/agent-executor/mcp-bridge.ts:10	split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint	J2
+jini-module	daemon/src/agent-executor/mcp-bridge.ts	daemon/src/agent-executor/claude/config-dir.ts	runtime	n/a	1	1	prepareClaudeConfigDirIfNeeded,resolveSourceClaudeConfigDir	daemon/src/agent-executor/mcp-bridge.ts:13	split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint	J2
+jini-module	daemon/src/agent-executor/mcp-bridge.ts	daemon/src/agent-executor/opencode/mcp-config.ts	runtime	n/a	1	1	mergeEnvContentMcpConfig,mergeEnvContentInstructions	daemon/src/agent-executor/mcp-bridge.ts:14	split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint	J2
+jini-module	daemon/src/agent-executor/opencode/mcp-config.ts	daemon/src/agent-executor/mcp-bridge.ts	runtime	n/a	1	1	JINI_MCP_SERVER_KEY	daemon/src/agent-executor/opencode/mcp-config.ts:3	split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint	J2
