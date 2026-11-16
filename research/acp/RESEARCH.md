@@ -1,4 +1,6 @@
-# ACP for Jini's agent adapters: research (2026-11-16)
+# ACP for Jini's agent adapters: research (2026-11-16, revision 2)
+
+**Revision 2** corrects this file after the Codex judge (`CODEX-JUDGE.md`): G2's impact, G3's reach, G7's inventory, three new gaps (G10–G12), the Gemini parser, and what the per-CLI line table means. Each change was re-checked in code. The answer to each finding is in `DESIGN.md`, last section.
 
 Docs only. Bases: Jini `integ/wave-b-r2` @ `02edbb68`, Tovu `plan/terra-2026-11-15`.
 All external sources were checked on **2026-11-16**. Most were read from a git clone of the
@@ -168,17 +170,21 @@ occur in `acp/session.ts`, `updates.ts` or `rpc.ts`.
 
 | # | Gap | Evidence | Why it matters |
 |---|---|---|---|
-| G1 | `usage_update` is not handled | absent | cost and context size reported during a session are dropped; only the end-of-prompt `usage` is read |
-| G2 | `session/set_model` is still the fallback | `session.ts:803` | removed from the spec 2026-06-01; an agent that follows the spec and offers no model config option gets a method it may not know. The code does recover from the error (`recoverFromModelSelectionError`), so today this is a wasted round trip, not a failure |
-| G3 | Resume always uses `session/load`, with no capability check. **Confirmed:** the strings `loadSession` and `sessionCapabilities` occur nowhere in `acp/*.ts`, and `handleInitializeAck({ state, effects })` is not given the `initialize` result at all (`session.ts:942-944`), so the client reads none of the agent's capabilities | `session.ts:760-785`, `:942-944` | the spec says the client MUST check the capability; `session/resume` (stable, no replay) is never used; v2 removes `session/load` |
+| G1 | `usage_update` is not handled | absent | cost and context size reported during a session are dropped; only the end-of-prompt `usage` is read. Three separate things are in that update: context tokens in use, window size, and an optional cumulative cost whose `currency` may be `"USD"` or a unit such as `"credits"` (spec `docs/protocol/v1/prompt-turn.mdx:448`). None is billable token usage. The daemon ignores event types it does not know (`daemon/src/agent-executor/event-translation.ts:175-186,211-216`); its usage payload has `cumulativeCostUsd` and `costSessionId` but no field for context size or a non-USD unit (`:50-65`) |
+| G2 | `session/set_model` is still the fallback | `session.ts:803` | removed from the spec 2026-06-01; an agent that follows the spec and offers no model config option gets a method it may not know. **Corrected in revision 2: this fails the run.** Recovery applies only when the run asked for no model or `default` (`session.ts:357-358`), but the request is sent only for a concrete, non-default model (`:796`), and the launcher resolves a concrete model before dispatch (`daemon/src/agent-executor/launch.ts:1240-1250`). The only escape is the agent already reporting that model on `session/new` (`:797-800`) |
+| G3 | Resume always uses `session/load`, with no capability check. **Confirmed:** the strings `loadSession` and `sessionCapabilities` occur nowhere in `acp/*.ts`, and `handleInitializeAck({ state, effects })` is not given the `initialize` result at all (`session.ts:942-944`), so the client reads none of the agent's capabilities | `session.ts:760-785`, `:942-944` | the spec says the client MUST check the capability; `session/resume` (stable, no replay) is never used; v2 removes `session/load`. **Added in revision 2: resume over ACP does not work end to end today.** The daemon never passes `resumeSessionId` to the client (`launch.ts:1319-1338`, `events.ts:993-1005`); the client keeps a handle only from a vendor field, `openCodeSessionId` (`session.ts:823`); the daemon never calls `getDurableSessionId()`, and the client sends no event with a session id, so `sessionRef` is never set on this path (`events.ts:1079`). `amr` declares `resumesSessionViaAcpLoad` (`defs/amr/index.ts:290-291`) and still starts a fresh session every run |
 | G4 | `authenticate` is never sent | absent | an agent that answers `auth_required` fails the run with a generic error instead of a typed "log in first" |
 | G5 | `systemPrompt` and `additionalDirectories` are not sent | absent | Jini still needs per-CLI overlay tricks (`append-flag`, `env-var`, `config-instructions-file`) and `--add-dir` argv for things ACP now carries |
 | G6 | Images always go as `resource_link` | `session-params.ts:105-113` | fine for agents that read the path; agents that advertise `promptCapabilities.image` could take the bytes |
-| G7 | Vendor code inside the shared client | `AMR_STDERR_RETRY_TAIL_LIMIT`, `promotedAmrStderrPayload`, `modelUnavailableErrorCode: 'AMR_MODEL_UNAVAILABLE'`, DSML artifact suppression in `session.ts`/`updates.ts`/`constants.ts` | owner practice 7 (vendor code in its own folder). Every new ACP CLI pays for one vendor's quirks |
-| G8 | Size | `session.ts` 1,608 lines; `attachAcpSession` runs from `:1007` to the end | owner practice 3. Size-design 10 mentions an `AcpRun` context refactor on another branch; I did not verify that branch |
+| G7 | Vendor code inside the shared client | `AMR_STDERR_RETRY_TAIL_LIMIT`, `promotedAmrStderrPayload`, `modelUnavailableErrorCode: 'AMR_MODEL_UNAVAILABLE'`, DSML artifact suppression in `session.ts`/`updates.ts`/`constants.ts` | owner practice 7 (vendor code in its own folder). **Inventory corrected in revision 2**, three different things: (a) text suppression (`text-suppression.ts`, used at `session.ts:1052`, `:419-426`, `:547`) is a generic tagged-block filter that runs for **all 12** ACP defs; moving it to one vendor would change the others' output. (b) `promotedOpenCodeSessionErrorPayload` (`rpc.ts:98-122`, called at `session.ts:372-375`) matches on the error payload's content and is also live for all 12. (c) The AMR-named options (`modelUnavailableErrorCode`, `accountFailureClassifier`, the stderr-tail promoter) and `executionProfile` have **no caller** in Jini or Tovu: the daemon's `acpSessionOptions` (`events.ts:993-1005`) passes none of them, so with the default no-op classifier that code never fires |
+| G8 | Size | `session.ts` 1,608 lines; `attachAcpSession` runs from `:1007` to the end | owner practice 3. Verified in revision 2: Jini `refactor/size-jini-chat-runtime` has the split (`3bcc2a2a`, `52aee119`): `session.ts` 1,017, `session-run.ts` 603, `session-permission.ts` 136. It is not in `integ/wave-b-r2`, and two files are still over 500 |
 | G9 | An agent request the client does not know (for example `elicitation/create`, or `fs/read_text_file` from an agent that ignores capabilities) gets **no reply** | falls to `routeResultById` (`:1504`), which returns at once when the frame has no `result` (`:941`); no `-32601` reply exists in `session.ts` or `rpc.ts`. Read, not run | the agent waits for an answer that never comes, until the 10-minute silence watchdog ends the run |
 
-None of these stops the 12 CLIs that work today. All of them get more expensive as more CLIs are added.
+| G10 | The run's reasoning effort is not sent over ACP | `AttachAcpSessionOptions` has `model` and no effort field (`session.ts:120-168`); ACP dispatch forwards none (`launch.ts:1319-1338`) | native Claude sends `--effort` (`defs/claude.ts:84-87,257`) and Codex builds effort arguments (`defs/codex.ts:299-312`); over ACP the choice would vanish. The spec carries it as a `thought_level` config option, separate from the model option |
+| G11 | A def that is HTTP-capable for MCP gets **no Jini tools** if it runs over ACP | when an HTTP endpoint is prepared the bridge is set to `null` (`launch.ts:1567-1568`); ACP dispatch takes servers only from an `acp-merge` bridge (`events.ts:1305-1307`); `AcpMcpServerInput` has no `url` or `headers` (`session-params.ts:14-20`) | none of the 12 current ACP defs declares `mcpHttp`, so nothing is broken today. `claude`, `codex` and `opencode` do (`defs/claude.ts:295`, `codex.ts:438`, `opencode.ts:96`), and Tovu binds `prepareHttp` (`apps/website/src/assistant/mcp-injection.ts:71`) |
+| G12 | A clean finish or a protocol failure signals only the immediate child | `session.ts:1149`, `:1184`, `:1370-1373`; only cancel stops the process tree (`events.ts:1054-1057`); staged files are removed when the immediate child closes (`:1060-1067`); the launcher starts no process group | harmless while the child is the agent. With an adapter program the engine is a grandchild and can outlive it |
+
+G2 and G3 already cost the 12 CLIs that use ACP today (a concrete model can fail the run; no run resumes). The rest get more expensive as more CLIs are added.
 
 ### 3.3 The CLIs that do not use ACP
 
@@ -196,9 +202,9 @@ None of these stops the 12 CLIs that work today. All of them get more expensive 
 There is **no `gemini` def**. `defs/gemini/event-stream.ts` (205 lines) is a parser, and
 `daemon/src/agent-executor/gemini/tool-calls.ts` (7 lines) adapts tool receipts for a stream kind
 named `legacy-google-stream-json`. Google's CLI in Jini is `antigravity` (binary `agy`). The parser is
-registered in `json-event-stream.ts:206` under that kind; I did not find which def selects it (**unverified**).
+registered in `json-event-stream.ts:206` under that kind; **Resolved in revision 2: no def selects it.** The only `eventParser` values in `defs/` are `opencode` (opencode, mimo), `codex` and `antigravity` (`defs/antigravity/index.ts:279`). The Gemini parser and its receipt adapter are unused code (212 lines), unrelated to ACP.
 
-Per-CLI code, counted with `wc -l`, tests excluded:
+Per-CLI code, counted with `wc -l`, tests excluded. **These are sizes, not savings.** Most of each folder is binary lookup, login and model listing, which ACP does not replace. What can actually be deleted is in `DELETION-LEDGER.tsv`, symbol by symbol:
 
 | CLI | `agent-runtime/src/defs/<cli>*` | `daemon/src/agent-executor/<cli>/` | Per-vendor files outside those folders |
 |---|---:|---:|---|
@@ -253,6 +259,9 @@ Launch commands and versions are from each agent's `agent.json` in the registry 
   client's options are spread after the default, so they can override it. So Jini's staged
   `CLAUDE_CONFIG_DIR` (the fix for SEC-assistant-env-isolation-2026-09-07 finding 1,
   `daemon/src/agent-executor/claude/contracts.ts:1-10`) **is still needed** with the adapter.
+- **What a client can and cannot set** (re-read in revision 2). The client's options are spread into the SDK options (`src/v1/acp-agent.ts:10060`), so `allowedTools`, `settingSources`, `strictMcpConfig`, `sandbox` and `additionalDirectories` pass through (names checked in the SDK's published types, `@anthropic-ai/claude-agent-sdk@0.3.325` `sdk.d.ts:1714,2351,2422,2471`). `settings` is taken as an object, or as a **file path** if a string (`src/session-env.ts:71-81`), unlike the CLI's `--settings <json>`. `permissionMode` and `canUseTool` are **ignored**: the adapter owns them and turns every tool decision into `session/request_permission` (`:10076-10077`). The engine binary is the adapter's choice (`:10097`), steered by `CLAUDE_CODE_EXECUTABLE`. All of this is what the source says; none of it was run.
+- It advertises `mcpCapabilities: { http: true, sse: true }` (`:1845-1848`).
+- On SIGTERM or when the connection closes it disposes and exits (`src/index.ts:91-104`). Whether the engine is gone by then was not checked.
 - Mid-turn input ("steering") exists as an extension, v1 only.
 - Not verified: that the adapter reproduces Jini's background-task hold, delegated-result
   correlation, segment usage basis, or the subagent-start hook. These live in Jini's Claude stream
@@ -272,6 +281,9 @@ Launch commands and versions are from each agent's `agent.json` in the registry 
 - **Isolation fact.** It reads and watches `CODEX_HOME` (`src/CodexHomeWatcher.ts`). Jini's staged
   `CODEX_HOME` (`codex/home-staging.ts`, 264 lines) and its "personal MCP off" refusal
   (`codex/isolation.ts`, 67 lines) **are still needed**.
+- It advertises `mcpCapabilities: { http: true, sse: false }` (`src/CodexAcpServer.ts:855-858`) and lists `model` and `thought_level` config options (`src/ModelConfigOption.ts:69,89`).
+- **Two programs.** When the adapter's stdin closes it ends the engine's stdin and sends SIGTERM only if the engine is still running two seconds later (`src/index.ts:80-83`). So the engine can outlive the adapter.
+- Jini's staging function gets its MCP entry only from an HTTP endpoint or a `codex-toml` bridge (`daemon/src/agent-executor/codex/home-staging.ts:234`). With an `acp-merge` bridge it stages nothing, or refuses (`:235-241`). So Codex's delivery kind must not change when its transport does.
 
 ### 4.3 Gemini CLI and Antigravity
 
@@ -362,10 +374,15 @@ Comparing Jini's launch arguments with the registry:
 4. G3 and G9 were confirmed by reading the code, not by running an agent against it.
 5. Whether a replayed history after `session/load` reaches the run's event stream as new output (it would look like duplicated text). Not traced.
 6. Status of the `end-turn-token-usage` RFD.
-7. Which def feeds `defs/gemini/event-stream.ts`.
+7. ~~Which def feeds `defs/gemini/event-stream.ts`.~~ Resolved: none (§3.3).
 8. aider, crush and native pi ACP status.
-9. The `AcpRun` refactor branch named in size-design 10.
-10. The brief says `LESSONS-FOR-DESIGN-BRIEFS.md` has 22 rules; the file at `origin/plan/size-designs-2026-11-16` has **11**. I applied those 11.
+9. ~~The `AcpRun` refactor branch named in size-design 10.~~ Verified (G8).
+10. ~~Lesson count.~~ The file now has 23 rules; all 23 are applied in `DESIGN.md` §10.
+11. Every adapter option in §4.1 and §4.2 is read from source. None was exercised: not folder confinement through `settings`, not `settingSources: []`, not `strictMcpConfig`, not the Codex engine loading MCP servers from a staged home when started by the adapter.
+12. Who consumes `cumulativeCostUsd` and `costSessionId` after `event-translation.ts`.
+13. Whether a secret-masking seam exists for the raw stdout and stderr the daemon emits and journals on the ACP path (`events.ts:1040-1048`).
+14. Whether a run's effort can reach an ACP def today past `resolveModelForLaunch`, or is refused earlier.
+15. Whether `opencode acp` needs the log-file staging in `opencode-log.ts`.
 
 ## 7. Sources
 
@@ -384,4 +401,6 @@ Comparing Jini's launch arguments with the registry:
 | crush `acp` branch (mirror) | https://git.secluded.site/crush/commits/acp | — | 2026-11-16 (search result only) |
 | pi native discussion | https://github.com/earendil-works/pi/discussions/4444 | — | not read |
 | Jini code | `leonaburime-ucla` Jini `integ/wave-b-r2` | `02edbb68` | 2026-11-16 |
-| R8 runtime design, C6 port sheet | Tovu `origin/plan/daemon-untangle-design-2026-11-16` (`untangle/daemon/R8-RUNTIME.md`), Tovu `plan/terra-2026-11-15` (`untangle/sheets/C6.md`) | — | 2026-11-16 |
+| R8 runtime design, C6 port sheet | Tovu `origin/plan/daemon-untangle-design-2026-11-16`, `ADS-memory/.local-artifacts/terra-refactor-2026-11-13/untangle/daemon/R8-RUNTIME.md` and `…/untangle/sheets/C6.md` | branch tip `32cd78ed`; R8 file last changed in `23b2132b` (499 lines; §12.14 at line 475). The older `5bf9c7fb` version ends at §10 | 2026-11-16 |
+| Claude Agent SDK option names | npm `@anthropic-ai/claude-agent-sdk`, `sdk.d.ts` | 0.3.325 (the version the adapter pins) | 2026-11-16 |
+| ACP size refactor | Jini `refactor/size-jini-chat-runtime` | `3bcc2a2a`, `52aee119`; tip `9ba15a5c` | 2026-11-16 |
