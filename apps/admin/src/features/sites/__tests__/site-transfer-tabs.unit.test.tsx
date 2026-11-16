@@ -3,6 +3,10 @@ import type { SiteExportController, SiteImportController } from "../hooks/use-si
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// The tabs take the viewer's zone from the admin boundary; a getter lets one test pick a zone.
+const viewerZone = vi.hoisted(() => ({ value: "UTC" }));
+vi.mock("@/lib/viewer-time-zone", () => ({ get VIEWER_TIME_ZONE() { return viewerZone.value; } }));
+
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { ApiError } from "@/lib/api";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
@@ -587,18 +591,13 @@ describe("transfer tab presentation contracts", () => {
 
 describe("transfer tab browser contracts", () => {
   it("formats both history dates in the viewer's local time", () => {
-    const getters = [
-      vi.spyOn(Date.prototype, "getFullYear").mockReturnValue(2042),
-      vi.spyOn(Date.prototype, "getMonth").mockReturnValue(3),
-      vi.spyOn(Date.prototype, "getDate").mockReturnValue(5),
-      vi.spyOn(Date.prototype, "getHours").mockReturnValue(6),
-      vi.spyOn(Date.prototype, "getMinutes").mockReturnValue(7),
-    ];
+    // Kolkata (+05:30) differs from the stored UTC prefix, so this proves the viewer zone is applied.
+    viewerZone.value = "Asia/Kolkata";
     try {
       render(<><SiteExportTab t={t} useExport={() => exportController({ shares: [share()] })} /><SiteImportTab t={t} useImport={() => importController({ imports: [siteImport()] })} /></>);
-      expect(screen.getAllByText("2042-04-05 06:07")).toHaveLength(2);
-      for (const date of screen.getAllByText("2042-04-05 06:07")) expect(date.className).toBe("site-transfer-num");
-    } finally { for (const getter of getters) getter.mockRestore(); }
+      const dates = [screen.getByText("2026-10-18 15:30"), screen.getByText("2026-10-18 16:30")];
+      for (const date of dates) expect(date.className).toBe("site-transfer-num");
+    } finally { viewerZone.value = "UTC"; }
   });
 
   it("uploads and removes a zip through the real dropzone and sends the uploaded ID as the source", async () => {
