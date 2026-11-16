@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { commentsApi } from "../../features/comments/api/comments-api";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
 import { ApiError } from "../admin-http/request";
 
@@ -382,25 +383,25 @@ test("confirmMigrateForward sends the same request whether or not the unused opt
 
 test("listCommentsQueue has no query string when no options are given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue();
+  await commentsApi.listCommentsQueue();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/comments/queue`);
 });
 
 test("listCommentsQueue sets status in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue({ status: "pending" });
+  await commentsApi.listCommentsQueue({ status: "pending" });
   expect(calls[0].url).toContain("status=pending");
 });
 
 test("listCommentsQueue sets cursor in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue({ cursor: "c1" });
+  await commentsApi.listCommentsQueue({ cursor: "c1" });
   expect(calls[0].url).toContain("cursor=c1");
 });
 
 test("listCommentsQueue sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listCommentsQueue({ limit: 20 });
+  await commentsApi.listCommentsQueue({ limit: 20 });
   expect(new URL(calls[0].url, "http://localhost").searchParams.get("limit")).toBe("20");
 });
 

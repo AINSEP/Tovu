@@ -2010,39 +2010,6 @@ export interface RestoreExecuteResult {
   restartRequired?: boolean;
 }
 
-/** Mirrors `src/comments/types.ts`'s `CommentStatus` (ADR-031, SPEC-033/035/036). */
-export type CommentStatus = "pending" | "approved" | "spam" | "trash";
-
-/** Mirrors `src/comments/types.ts`'s `CommentRecord` — the moderation-queue row shape as
- * serialized over the wire (the queue route returns `CommentRecord[]` verbatim, no DTO layer). */
-export interface AdminComment {
-  id: string;
-  workspaceId: string;
-  entryId: string;
-  parentId: string | null;
-  threadRootId: string;
-  depth: number;
-  status: CommentStatus;
-  authorPrincipalId: string | null;
-  authorName: string;
-  authorEmail: string | null;
-  authorUrl: string | null;
-  authorIpHash: string | null;
-  bodyText: string;
-  spamScore: number | null;
-  spamProvider: string | null;
-  createdAt: string;
-  updatedAt: string;
-  /** Optimistic-concurrency version — required as `expectedVersion` on every moderation action. */
-  version: number;
-}
-
-/** A keyset-paginated moderation-queue page — mirrors `ModerationQueuePage`. */
-export interface AdminCommentsQueuePage {
-  items: AdminComment[];
-  nextCursor: string | null;
-}
-
 /**
  * One row of the Trash. Mirrors `routes/trash/list.ts`'s `toAdminTrashResponse`.
  *
@@ -2109,21 +2076,6 @@ export interface AdminTrashPurgeReport {
   purged: number;
   results: { id: string; outcome: AdminTrashPurgeOutcome }[];
 }
-
-/** Mirrors `src/comments/types.ts`'s `CommentsSettings`. */
-export interface CommentsSettings {
-  enabled: boolean;
-  requireModeration: boolean;
-  maxDepth: number;
-  /** `null` = never closes (the UI never sends the backend's own sentinel value directly). */
-  closeAfterDays: number | null;
-  spamAutoRejectScore: number;
-  maxPerIpPerHour: number;
-}
-
-/** The 4 real per-comment moderation actions the backend exposes (`moderate.ts`'s `ACTIONS`);
- * `purge` is intentionally separate (no `expectedVersion` guard, its own route/permission). */
-export type CommentModerationAction = "approve" | "spam" | "trash" | "restore";
 
 /** Mirrors `apps/website/src/server/inbound/admin-http/http/plugins.ts`'s `AdminPluginEnvelope` (SPEC-005 REQ-10, api.spec.md
  * §5) — the `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
@@ -3362,17 +3314,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ confirmationToken, restorePointId }),
     } }),
-
-  // Comments — the dashboard reads the queue here; moderation and settings use Jini.
-  // Mirrors `getDatabaseTimeline`'s query-param-building shape for the paginated queue read.
-  listCommentsQueue: (options: { status?: CommentStatus; cursor?: string; limit?: number } = {}) => {
-    const params = new URLSearchParams();
-    if (options.status) params.set("status", options.status);
-    if (options.cursor) params.set("cursor", options.cursor);
-    if (options.limit) params.set("limit", String(options.limit));
-    const qs = params.toString();
-    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${querySuffix({ query: qs })}` });
-  },
 
   // -------------------------------------------------------------------------
   // Trash — the cross-domain recycle bin (design:

@@ -1,4 +1,5 @@
 import { api, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
+import { commentsApi } from "@/features/comments/api/comments-api";
 import type { DashboardPort } from "./dashboard-port.hooks";
 
 /**
@@ -14,7 +15,7 @@ export const defaultDashboardPort: DashboardPort = {
   listPosts: () => api.listPosts(),
   listPages: () => api.listPages(),
   listMedia: () => api.listMedia(),
-  listCommentsQueue: (options, _optional = {}) => api.listCommentsQueue(options),
+  listCommentsQueue: (options, _optional = {}) => commentsApi.listCommentsQueue(options),
   getPresentation: () => api.getPresentation(),
   getPasswordStatus: async ({ principalId } = {}) => {
     // App already authenticated this principal. Standalone dashboard consumers still resolve it.
