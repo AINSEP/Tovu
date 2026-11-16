@@ -18,6 +18,7 @@ function submitter() {
   const definition = { id: "def-1", workspaceId: "ws", name: "Contact", slug: "contact", fields: FIELDS, status: "active", version: 1 } as unknown as FormDefinitionRecord;
   let id = 0;
   const deps = {
+    crypto: globalThis.crypto, // the Jini submit-form deps take the crypto port explicitly
     definitionRepo: { findBySlug: async () => definition }, submissionRepo: new InMemoryFormSubmissionRepo(),
     clock: { nowMs: () => 1000 }, idGen: { newId: () => `id-${++id}` }, bus: new InMemoryEventBus(),
     outbox: { enqueue: async () => {}, claimPending: async () => [], markDelivered: async () => {}, markFailed: async () => {} },

@@ -14,11 +14,12 @@ function fixture() {
   const repo = new InMemoryPostRepo({});
   let counter = 0, url = '', writes = 0, seeds = 0, inTransaction = false;
   const transact = repo.transaction.bind(repo);
-  repo.transaction = async fn => transact(async () => {
+  // The repo port takes object args ({ fn }) since the Jini args sweep; the wrapper must follow it.
+  repo.transaction = async ({ fn }) => transact({ fn: async () => {
     const previous = inTransaction;
     inTransaction = true;
     try { return await fn(); } finally { inTransaction = previous; }
-  });
+  } });
   const deps: PrivacyDefaultsDeps = {
     workspaceId: 'site-a', post: { repo, clock }, ids: { newId: () => `id-${++counter}` },
     readUrl: async () => url,
