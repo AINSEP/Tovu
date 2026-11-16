@@ -1,13 +1,12 @@
 import { useSkillsTranslator } from "./Skills.hooks";
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
+import { Icon, SettingsDialogShell, type SettingsDialogTab } from "@jini-ai/ui";
 import { ErrorNotice } from "@jini-ai/ui/panel-kit";
 import "@jini-ai/ui/settings-dialog.css";
 import { SkillInstallConfirmation } from "./SkillInstallConfirmation";
 import { SkillRemoveConfirmDialog } from "./SkillRemoveConfirmDialog";
 import { SkillRow } from "./SkillRow";
-import { SkillDocumentIcon } from "./skills-visuals";
 import { SKILL_FILE_ACCEPT, useSkills, type SkillsController } from "./use-skills.hooks";
 import { PackageFilesModal } from "../plugins/PackageFilesModal";
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
@@ -76,7 +75,7 @@ export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLoca
   const controller = useSkillsHook({ t });
   const filesModal = useSkillFilesModal({ skill: controller.inspecting, onClose: controller.onCloseFiles }, { t });
   const tabs: SettingsDialogTab[] = [
-    { id: "skills", label: t("Skills"), icon: <SkillDocumentIcon />, title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <InstalledSkillsPanel controller={controller} t={t} /> },
+    { id: "skills", label: t("Skills"), icon: <Icon name="document-marked" size={18} strokeWidth={1.5} />, title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <InstalledSkillsPanel controller={controller} t={t} /> },
     { id: "add", label: t("Add a skill"), title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <AddSkillPanel controller={controller} t={t} /> },
   ];
   return (

@@ -1,7 +1,7 @@
 import { LINE_ICON } from "../../components/line-icon";
 /**
  * @file The Observability screen's own icon set — inline SVGs, no icon dependency. Same rationale
- * `features/plugins/agent-plugins-visuals.tsx`, `database/database-visuals.tsx`, and
+ * `features/plugins/agent-plugins-visuals.tsx` and
  * `source-control/source-control-visuals.tsx` give for theirs: this app ships no icon component
  * library to `features/`, and importing a glyph across a feature boundary would tie this screen's
  * rendering to a sibling feature another agent owns.
