@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages";
+import { renderTemplateBranchIfEligible } from "#src/server/inbound/public-http/routes/site/pages/handlers/post";
 import type { PublicPostRecord } from "#src/features/post/index";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
