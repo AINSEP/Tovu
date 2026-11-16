@@ -40,3 +40,6 @@ Paste these into every future split/move DESIGN brief (and executor brief):
 
 ## Added after the ACP judgment (2026-11-16)
 23. Protocol/adapter work: track an adapter executable and its backing engine as separate identities (version, probe, config, teardown); configured support != advertised capability != demonstrated interoperability; preserve telemetry dimensions (context vs billable usage, cumulative vs delta, units); a savings claim needs a deletion ledger (file, lines, why deletable).
+
+## Added after the error-system judgment (2026-11-16)
+24. Redaction is not disclosure authorization (a scrubbed diagnostic can still leak private payloads/business facts); registrations are relations, not 1:1 tables (model cardinalities before lookup precedence); test compatibility in BOTH directions (old readers vs new responses too); lint exemptions need executable examples run against the combined rules; correlation metadata must survive consumers that rebuild a fresh Error.
