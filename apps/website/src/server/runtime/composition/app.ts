@@ -1330,7 +1330,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  */
 const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => exportSite(options);
 
-export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
+export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, options: CreateAppOptions = {}) {
   const app = express();
   // Read the lifecycle owners now: a completed job must not pin a warm child forever.
   const hasBackgroundWork = async (): Promise<boolean> => {
