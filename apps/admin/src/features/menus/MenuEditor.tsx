@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
-import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "../../lib/api";
+import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuMode } from "./api/menus-api.types";
 
 import { useWiredMenuEditor, type MenuEditorController } from "./hooks/use-menu-editor.hooks";
 import { useMenuItemRemove } from "./MenuEditor.hooks";

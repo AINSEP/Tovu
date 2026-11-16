@@ -1,4 +1,5 @@
-import type { AdminContentType, AdminMenu } from "../../lib/api";
+import type { AdminContentType } from "../../lib/api";
+import type { AdminMenu } from "../../features/menus/api/menus-api.types";
 import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
 
 /**

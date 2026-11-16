@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 import { onUnauthenticated } from "../admin-http/request";
@@ -90,7 +91,7 @@ test("listMembers GETs the workspace members collection and resolves the parsed 
 
 test("listMenus GETs the workspace menus collection and resolves the parsed envelope", async () => {
   const { calls, method } = stubFetchCapturing(() => jsonResponse({ menus: [{ id: "mn1", slug: "main" }] }));
-  await expect(api.listMenus()).resolves.toEqual({ menus: [{ id: "mn1", slug: "main" }] });
+  await expect(menusApi.listMenus()).resolves.toEqual({ menus: [{ id: "mn1", slug: "main" }] });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/menus`);
   expect(method()).toBe("GET");
 });

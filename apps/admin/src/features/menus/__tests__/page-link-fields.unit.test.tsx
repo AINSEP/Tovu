@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { AdminMenuItem } from "@/lib/api";
+import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import { MenuPageLinkFields } from "../MenuPageLinkFields";
 import { MENUS_DICT } from "../menus-i18n";
 

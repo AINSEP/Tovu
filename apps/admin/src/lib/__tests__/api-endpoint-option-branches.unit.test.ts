@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { menusApi } from "../../features/menus/api/menus-api";
 import { membersApi } from "../../features/members/api/members-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
@@ -82,26 +83,26 @@ test("listRecentAnalyticsHits appends ?limit= when a limit is given", async () =
 
 test("createMenu omits items from the body when the caller doesn't pass any", async () => {
   const { body } = stubFetchCapturing();
-  await api.createMenu({ title: "Main", slug: "main" });
+  await menusApi.createMenu({ title: "Main", slug: "main" });
   expect(body()).toEqual({ title: "Main", slug: "main" });
 });
 
 test("createMenu includes items when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
   const items = [{ id: "i1", target: { kind: "url" as const, href: "/x" } }];
-  await api.createMenu({ title: "Main", slug: "main" }, { items });
+  await menusApi.createMenu({ title: "Main", slug: "main" }, { items });
   expect(body()).toEqual({ title: "Main", slug: "main", items });
 });
 
 test("updateMenuTree omits title/slug from the body when the caller doesn't pass them", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] });
+  await menusApi.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] });
   expect(body()).toEqual({ expectedVersion: 1, items: [] });
 });
 
 test("updateMenuTree includes title/slug when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] }, { title: "New", slug: "new" });
+  await menusApi.updateMenuTree({ id: "m1", expectedVersion: 1, items: [] }, { title: "New", slug: "new" });
   expect(body()).toEqual({ expectedVersion: 1, items: [], title: "New", slug: "new" });
 });
 

@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMenu } from "@/lib/api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import { menusApi } from "@/features/menus/api/menus-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
@@ -32,7 +33,7 @@ afterEach(() => {
 
 describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("loads an existing menu from the injected port and never touches the real api client", async () => {
-    const getSpy = vi.spyOn(api, "getMenu");
+    const getSpy = vi.spyOn(menusApi, "getMenu");
     const port = createFakeMenusPort({ menus: [MENU] });
     const { result } = renderHook(() => useMenuEditor({ menuId: "m1", dependencies: { port, navigate: vi.fn(), t: (k) => k } }));
 
@@ -152,7 +153,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("routes create through the injected port and calls the injected navigate, never the real router", async () => {
-    const createSpy = vi.spyOn(api, "createMenu");
+    const createSpy = vi.spyOn(menusApi, "createMenu");
     const port = createFakeMenusPort();
     const fakeNavigate = vi.fn();
     const { result } = renderHook(() => useMenuEditor({ menuId: null, dependencies: { port, navigate: fakeNavigate, t: (k) => k } }));

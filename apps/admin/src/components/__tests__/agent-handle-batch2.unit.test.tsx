@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../lib/api";
+import { menusApi } from "../../features/menus/api/menus-api";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { WidgetConfigFields } from "../WidgetConfigFields/WidgetConfigFields";
 
@@ -80,7 +80,7 @@ describe("recent-entries", () => {
 
 describe("menu", () => {
   it("publishes the real <select> under <base>-menu-ref once loaded", async () => {
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: [] });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: [] });
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} agentHandle="footer-menu" />);
     await waitFor(() => expect(screen.getByLabelText("Menu")).toBeInTheDocument());
     const select = screen.getByLabelText("Menu");
@@ -90,7 +90,7 @@ describe("menu", () => {
   });
 
   it("omits data-agent-* when agentHandle is not passed", async () => {
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: [] });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: [] });
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} />);
     await waitFor(() => expect(screen.getByLabelText("Menu")).toBeInTheDocument());
     expect(screen.getByLabelText("Menu")).not.toHaveAttribute(AGENT_ELEMENT);

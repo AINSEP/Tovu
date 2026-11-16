@@ -4,6 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../lib/api";
+import { menusApi } from "../../features/menus/api/menus-api";
 import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
@@ -51,7 +52,7 @@ describe("WidgetConfigFields — dispatch", () => {
   });
 
   it("menu renders MenuConfigFields (starts in its loading state)", () => {
-    vi.spyOn(api, "listMenus").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading render
+    vi.spyOn(menusApi, "listMenus").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading render
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} />);
     expect(screen.getByText("Loading menus…")).toBeInTheDocument();
   });
@@ -465,14 +466,14 @@ const MENUS = [
 
 describe("MenuConfigFields", () => {
   it("shows an error notice when api.listMenus rejects with an Error", async () => {
-    vi.spyOn(api, "listMenus").mockRejectedValue(new Error("network down"));
+    vi.spyOn(menusApi, "listMenus").mockRejectedValue(new Error("network down"));
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} />);
 
     expect(await screen.findByText("network down")).toBeInTheDocument();
   });
 
   it("shows the generic fallback message when the rejection is not an Error instance", async () => {
-    vi.spyOn(api, "listMenus").mockRejectedValue("string rejection");
+    vi.spyOn(menusApi, "listMenus").mockRejectedValue("string rejection");
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} />);
 
     expect(await screen.findByText("failed to load menus")).toBeInTheDocument();
@@ -481,7 +482,7 @@ describe("MenuConfigFields", () => {
   it("lists loaded menus and selecting one calls onChange with menuRef", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: MENUS });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: MENUS });
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={onChange} />);
 
     const select = await screen.findByLabelText("Menu");
@@ -493,7 +494,7 @@ describe("MenuConfigFields", () => {
   });
 
   it("preselects an existing menuRef from config", async () => {
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: MENUS });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: MENUS });
     render(<WidgetConfigFields widgetType="menu" config={{ menuRef: "m1" }} onChange={vi.fn()} />);
 
     expect(await screen.findByLabelText("Menu")).toHaveValue("m1");
@@ -718,7 +719,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
   });
 
   it("MenuConfigFields: translates the loading state, the label, and the empty option", async () => {
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: MENUS });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: MENUS });
     const DICT: Record<string, string> = {
       "Loading menus…": "Cargando-FAKE…",
       Menu: "Menú-FAKE",
@@ -734,7 +735,7 @@ describe("WidgetConfigFields — translated copy (t injection)", () => {
   });
 
   it("MenuConfigFields: translates the generic error fallback (rejection is not an Error instance)", async () => {
-    vi.spyOn(api, "listMenus").mockRejectedValue("string rejection");
+    vi.spyOn(menusApi, "listMenus").mockRejectedValue("string rejection");
     const t = (key: string) => (key === "failed to load menus" ? "fallo-FAKE" : key);
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} t={t} />);
 

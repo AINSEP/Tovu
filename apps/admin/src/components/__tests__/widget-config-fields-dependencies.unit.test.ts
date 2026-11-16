@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../lib/api";
+import { menusApi } from "../../features/menus/api/menus-api";
 import { formsApi } from "../../features/forms/api/forms-api";
 import {
   createFakeWidgetConfigFieldsPort,
@@ -24,7 +25,7 @@ describe("defaultWidgetConfigFieldsPort", () => {
 
   it("listMenus delegates to api.listMenus", async () => {
     const result = { menus: [{ id: "m1", workspaceId: "ws1", slug: "main", title: "Main", status: "published" as const, items: [], locations: [], updatedAt: "2026-01-01", version: 1 }] };
-    const spy = vi.spyOn(api, "listMenus").mockResolvedValue(result);
+    const spy = vi.spyOn(menusApi, "listMenus").mockResolvedValue(result);
     await expect(defaultWidgetConfigFieldsPort.listMenus()).resolves.toEqual(result);
     expect(spy).toHaveBeenCalledTimes(1);
   });

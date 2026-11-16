@@ -1,4 +1,6 @@
-import { api, type AdminContentType, type AdminMenu } from "../../lib/api";
+import { api, type AdminContentType } from "../../lib/api";
+import type { AdminMenu } from "../../features/menus/api/menus-api.types";
+import { menusApi } from "../../features/menus/api/menus-api";
 import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { authenticatedAdminRequest } from "../../lib/admin-http/request";
@@ -13,7 +15,7 @@ import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 /** The live implementation, as a module-level singleton — matches `theme-pages-
  *  dependencies.hooks.ts`'s `defaultThemePagesPort`. */
 export const defaultWidgetConfigFieldsPort: WidgetConfigFieldsPort = {
-  listMenus: () => api.listMenus(),
+  listMenus: () => menusApi.listMenus(),
   listForms: () => formsApi.listForms(),
   listContentTypes: () => api.listContentTypes(),
 };

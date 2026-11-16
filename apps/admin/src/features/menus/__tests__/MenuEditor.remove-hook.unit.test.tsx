@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import type { AdminMenuItem } from "@/lib/api";
+import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import { useMenuItemRemove } from "../MenuEditor.hooks";
 
 afterEach(() => vi.restoreAllMocks());

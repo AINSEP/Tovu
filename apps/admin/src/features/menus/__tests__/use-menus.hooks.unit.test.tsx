@@ -2,7 +2,9 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCachedLoader } from "@jini-ai/ui/fetch-query";
 
-import { api, type AdminMenu } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { AdminMenu } from "@/features/menus/api/menus-api.types";
+import { menusApi } from "@/features/menus/api/menus-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakeMenusPort, defaultMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";
@@ -38,7 +40,7 @@ afterEach(() => {
 
 describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listMenus");
+    const listSpy = vi.spyOn(menusApi, "listMenus");
     const port = createFakeMenusPort({ menus: [MENU] });
     const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
 

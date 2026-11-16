@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import type { AdminMenuItem } from "@/lib/api";
+import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import { pageLinkState, pageTargetForChoice, menuTargetEditorKind, targetForKind, type MenuPageChoice, type MenuTargetEditorKind } from "./page-link-rules";
 
 export function useMenuTargetEditor(

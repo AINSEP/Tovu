@@ -1,7 +1,7 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
+import type { AdminMenu, AdminMenuItem, AdminMenuMode } from "@/features/menus/api/menus-api.types";
 import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
 import { navigate as realNavigate } from "@/lib/router";
 import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";

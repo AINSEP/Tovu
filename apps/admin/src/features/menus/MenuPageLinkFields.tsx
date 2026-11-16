@@ -1,4 +1,4 @@
-import type { AdminMenuItem } from "@/lib/api";
+import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import type { MenuPageChoice } from "./page-link-rules";
 import { useMenuPageLinkFields } from "./MenuPageLinkFields.hooks";
 

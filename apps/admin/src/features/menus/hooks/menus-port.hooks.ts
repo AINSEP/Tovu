@@ -1,4 +1,4 @@
-import type { AdminMenu, AdminMenuAuthoring, AdminMenuItem } from "@/lib/api";
+import type { AdminMenu, AdminMenuAuthoring, AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import type { MenuPageChoice } from "../page-link-rules";
 
 /**

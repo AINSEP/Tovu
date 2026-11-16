@@ -1,4 +1,4 @@
-import type { AdminMenuItem } from "../../lib/api";
+import type { AdminMenuItem } from "./api/menus-api.types";
 
 /**
  * @file `ItemRow`'s Remove-button confirmation logic (audit Major finding: Remove previously
